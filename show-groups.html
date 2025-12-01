@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WhatsApp Groups</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #25D366;
+        }
+        .group {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .group-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .group-id {
+            font-family: 'Courier New', monospace;
+            background: #fffbcc;
+            padding: 8px;
+            margin: 8px 0;
+            border-left: 4px solid #25D366;
+            word-break: break-all;
+        }
+        .participants {
+            color: #666;
+        }
+        .copy-btn {
+            background: #25D366;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+        .copy-btn:hover {
+            background: #128C7E;
+        }
+        .instructions {
+            background: #e7f3ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 20px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏍 Your WhatsApp Groups</h1>
+    
+    <div class="instructions">
+        <strong>Instructions:</strong><br>
+        1. Find your target group below<br>
+        2. Click "Copy ID" button<br>
+        3. Open <code>whatsapp-service\.env</code> file<br>
+        4. Set <code>WHATSAPP_GROUP_ID=&lt;paste-id-here&gt;</code><br>
+        5. Restart the Node service
+    </div>
+    
+    <div id="content">Loading groups...</div>
+    
+    <script>
+        fetch('http://localhost:3001/api/groups')
+            .then(response => response.json())
+            .then(data => {
+                const content = document.getElementById('content');
+                
+                if (data.success && data.groups && data.groups.length > 0) {
+                    content.innerHTML = data.groups.map(group => `
+                        <div class="group">
+                            <div class="group-name">📱 ${group.name}</div>
+                            <div class="group-id">ID: ${group.id}</div>
+                            <div class="participants">👥 ${group.participants} participants</div>
+                            <button class="copy-btn" onclick="copyToClipboard('${group.id}')">Copy ID</button>
+                        </div>
+                    `).join('');
+                } else {
+                    content.innerHTML = '<div class="error">No groups found or WhatsApp not connected.</div>';
+                }
+            })
+            .catch(error => {
+                document.getElementById('content').innerHTML = 
+                    '<div class="error">Error: Could not connect to WhatsApp service. Make sure it is running.</div>';
+            });
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Group ID copied to clipboard!\\n\\nNow paste it in whatsapp-service\\.env as:\\nWHATSAPP_GROUP_ID=' + text);
+            });
+        }
+    </script>
+</body>
+</html>
+

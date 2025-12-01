@@ -1,0 +1,48 @@
+/* Activity Log Styles */
+.bg-light-warning {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.table-responsive pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.highlight-change {
+    background-color: #fff3cd;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.field-changed {
+    font-weight: bold;
+}
+
+/* Badge styles for changed fields */
+.badge-changed {
+    background-color: #ffc107;
+    color: #212529;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    margin-left: 0.5rem;
+}
+
+/* Table styles */
+.table-changes thead th {
+    background-color: #f8f9fa;
+    border-bottom-width: 2px;
+}
+
+.table-changes tbody tr.bg-light-warning:hover {
+    background-color: rgba(255, 193, 7, 0.2) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .table-responsive {
+        overflow-x: auto;
+    }
+}

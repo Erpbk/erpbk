@@ -1,0 +1,68 @@
+.action-btn {
+  float: right;
+  margin-top: 10px;
+
+}
+label {
+  padding: 8px 0px 5px 0px;
+  font-weight: 500;
+}
+/* .select2-container--open {
+  z-index: 9999999 !important;
+} */
+/* input {
+  padding: 5px !important;
+}
+select {
+  padding: 5px !important;
+}
+ */
+
+ .required:after {
+  content:" *";
+  color: red;
+}
+.separator {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin-top:20px;
+  font-weight: 600;
+  color: black;
+  padding: 15px;
+}
+
+.separator::before,
+.separator::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #dfdfdf;
+}
+
+.separator:not(:empty)::before {
+  margin-right: .25em;
+}
+
+.separator:not(:empty)::after {
+  margin-left: .25em;
+}
+
+.plus-box{
+  cursor: pointer;border:1px solid #efefef;background:#c9d1ff;padding:2px 5px;
+}
+.scrollbar{
+  max-height: calc(70vh - 100px) !important; overflow-y: auto !important;margin-bottom:20px;border-top:1px solid #efefef;border-bottom:1px solid #efefef;
+}
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.8); /* Optional: Add a semi-transparent background */
+  z-index: 9999; /* Make sure it's above other content */
+
+}

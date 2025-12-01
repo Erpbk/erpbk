@@ -1,0 +1,147 @@
+.fixed-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    padding: 1rem;
+    z-index: 1020;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Prevent horizontal scrolling */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Default state - when sidebar is open */
+html:not(.layout-menu-collapsed):not(.layout-menu-fixed) .fixed-footer {
+    left: 16.25rem; /* 260px */
+    width: calc(100% - 16.25rem);
+}
+
+/* When sidebar is collapsed */
+html.layout-menu-collapsed:not(.layout-without-menu) .fixed-footer {
+    left: 5rem; /* 80px */
+    width: calc(100% - 5rem);
+}
+
+/* When no sidebar */
+html.layout-without-menu .fixed-footer {
+    left: 0;
+    width: 100%;
+}
+
+/* Mobile view - full width footer */
+@media (max-width: 1199.98px) {
+    .fixed-footer {
+        left: 0 !important;
+        width: 100% !important;
+    }
+}
+
+/* Fix for small screens */
+@media (max-width: 767.98px) {
+    .fixed-footer {
+        padding: 0.75rem;
+    }
+    
+    .fixed-footer .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 575.98px) {
+    .fixed-footer {
+        padding: 0.5rem;
+    }
+    
+    .fixed-footer .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+
+.card-body-with-footer {
+    padding-bottom: 70px; /* Add padding to prevent content from being hidden behind fixed footer */
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* For forms that need to fill available space */
+form.form-with-fixed-footer {
+    position: relative;
+    padding-bottom: 70px; /* Space for the footer */
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* For cards that need to fill available space */
+.card-with-fixed-footer {
+    position: relative;
+    margin-bottom: 70px; /* Space for the footer */
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* Ensure content area grows to push footer down */
+.content-area {
+    min-height: calc(100vh - 200px); /* Adjust based on your header/nav height */
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* Fix for RTL layouts */
+html[dir="rtl"] .fixed-footer {
+    left: auto;
+    right: 0;
+}
+
+html[dir="rtl"]:not(.layout-menu-collapsed):not(.layout-menu-fixed) .fixed-footer {
+    right: 16.25rem;
+    left: 0;
+    width: calc(100% - 16.25rem);
+}
+
+html[dir="rtl"].layout-menu-collapsed:not(.layout-without-menu) .fixed-footer {
+    right: 5rem;
+    left: 0;
+    width: calc(100% - 5rem);
+}
+
+/* Fix for layout-navbar-fixed */
+html.layout-navbar-fixed .fixed-footer {
+    z-index: 1030;
+}
+
+/* Fix for dark theme */
+html[data-theme="dark"] .fixed-footer {
+    background-color: #2b2c40;
+    border-top: 1px solid #444564;
+}
+
+/* Fix for horizontal scrolling */
+.layout-wrapper,
+.layout-container,
+.layout-page,
+.content-wrapper,
+.container-xxl,
+.container-fluid,
+.card {
+    /* overflow-x: hidden; */
+    max-width: 100%;
+}
+
+/* Fix for card footer buttons */
+.fixed-footer .d-flex {
+    flex-wrap: wrap;
+}
+
+/* Ensure buttons don't cause overflow */
+.fixed-footer .btn {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

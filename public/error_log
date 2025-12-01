@@ -1,0 +1,467 @@
+[16-Jul-2025 02:34:31 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 02:34:31 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 02:35:12 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 02:35:12 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 02:35:13 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 02:35:13 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 02:35:14 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 02:35:14 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 02:35:15 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 02:35:15 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 03:18:01 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 03:18:01 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 03:18:03 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 03:18:03 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 03:18:07 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 03:18:07 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 06:55:57 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 06:55:57 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 06:56:03 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 06:56:03 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 06:58:03 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 06:58:03 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 06:58:03 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 06:58:03 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 06:58:03 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 06:58:03 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 09:57:16 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 09:57:16 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 09:57:22 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 09:57:22 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 10:46:23 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 10:46:23 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 10:46:37 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[16-Jul-2025 10:46:37 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 00:53:53 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 00:53:53 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 01:06:00 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 01:06:00 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 01:11:38 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 01:11:38 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 01:11:39 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 01:11:39 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 01:11:42 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 01:11:42 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 02:42:49 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 02:42:49 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 02:57:47 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 02:57:47 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 03:17:49 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 03:17:49 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 03:17:50 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 03:17:50 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 03:17:54 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 03:17:54 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 03:17:55 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 03:17:55 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/string/Resources/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('b6b991a57620e2f...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 04:53:12 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 04:53:12 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('667aeda72477189...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 05:25:52 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 05:25:52 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('667aeda72477189...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 05:50:57 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 05:50:57 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('667aeda72477189...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 06:35:06 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 06:35:06 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('667aeda72477189...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 06:44:18 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 06:44:18 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('667aeda72477189...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 11:17:44 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 11:17:44 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('667aeda72477189...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 11:34:03 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 11:34:03 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('667aeda72477189...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 12:27:36 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 12:27:36 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../symfony/var-dumper/Resources/functions/dump.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('667aeda72477189...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 16:29:32 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 16:29:32 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 17:05:53 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 17:05:53 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 17:10:14 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 17:10:14 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 17:53:31 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 17:53:31 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 18:07:00 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 18:07:00 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 18:16:06 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 18:16:06 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 18:25:54 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 18:25:54 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 19:09:07 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 19:09:07 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 19:37:22 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 19:37:22 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 19:37:25 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 19:37:25 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 21:28:22 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 21:28:22 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 23:07:52 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 23:07:52 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 23:16:41 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 23:16:41 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[18-Jul-2025 00:00:36 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[18-Jul-2025 00:00:36 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[18-Jul-2025 00:21:58 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[18-Jul-2025 00:21:58 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[18-Jul-2025 01:21:23 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[18-Jul-2025 01:21:23 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[18-Jul-2025 01:31:12 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[18-Jul-2025 01:31:12 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laracasts/flash/src/Laracasts/Flash/functions.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('e23faeee409e941...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[18-Jul-2025 02:07:39 America/Chicago] PHP Warning:  require(/home2/sxjnqpte/public_html/vendor/composer/../laravel/framework/src/Illuminate/Support/helpers.php): Failed to open stream: No such file or directory in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[18-Jul-2025 02:07:39 America/Chicago] PHP Fatal error:  Uncaught Error: Failed opening required '/home2/sxjnqpte/public_html/vendor/composer/../laravel/framework/src/Illuminate/Support/helpers.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php(45): {closure}('58571171fd5812e...', '/home2/sxjnqpte...')
+#1 /home2/sxjnqpte/public_html/vendor/autoload.php(22): ComposerAutoloaderInita80b844b8e47a16101ab1cfc5f35faec::getLoader()
+#2 /home2/sxjnqpte/public_html/public/index.php(34): require('/home2/sxjnqpte...')
+#3 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/composer/autoload_real.php on line 41
+[01-Aug-2025 11:08:42 UTC] PHP Fatal error:  Uncaught ReflectionException: Class "App\Exceptions\Handler" does not exist in /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php:912
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(912): ReflectionClass->__construct('App\\Exceptions\\...')
+#1 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(795): Illuminate\Container\Container->build('App\\Exceptions\\...')
+#2 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(986): Illuminate\Container\Container->resolve('App\\Exceptions\\...', Array, false)
+#3 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(296): Illuminate\Foundation\Application->resolve('App\\Exceptions\\...', Array, false)
+#4 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(908): Illuminate\Container\Container->Illuminate\Container\{closure}(Object(Illuminate\Foundation\Application), Array)
+#5 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(795): Illuminate\Container\Container->build(Object(Closure))
+#6 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(986): Illuminate\Container\Container->resolve('Illuminate\\Cont...', Array, true)
+#7 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(731): Illuminate\Foundation\Application->resolve('Illuminate\\Cont...', Array)
+#8 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(971): Illuminate\Container\Container->make('Illuminate\\Cont...', Array)
+#9 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(288): Illuminate\Foundation\Application->make('Illuminate\\Cont...')
+#10 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(218): Illuminate\Foundation\Bootstrap\HandleExceptions->getExceptionHandler()
+#11 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(195): Illuminate\Foundation\Bootstrap\HandleExceptions->renderHttpResponse(Object(Illuminate\Contracts\Container\BindingResolutionException))
+#12 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(255): Illuminate\Foundation\Bootstrap\HandleExceptions->handleException(Object(Illuminate\Contracts\Container\BindingResolutionException))
+#13 [internal function]: Illuminate\Foundation\Bootstrap\HandleExceptions->Illuminate\Foundation\Bootstrap\{closure}(Object(Illuminate\Contracts\Container\BindingResolutionException))
+#14 {main}
+
+Next Illuminate\Contracts\Container\BindingResolutionException: Target class [App\Exceptions\Handler] does not exist. in /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php:914
+Stack trace:
+#0 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(795): Illuminate\Container\Container->build('App\\Exceptions\\...')
+#1 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(986): Illuminate\Container\Container->resolve('App\\Exceptions\\...', Array, false)
+#2 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(296): Illuminate\Foundation\Application->resolve('App\\Exceptions\\...', Array, false)
+#3 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(908): Illuminate\Container\Container->Illuminate\Container\{closure}(Object(Illuminate\Foundation\Application), Array)
+#4 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(795): Illuminate\Container\Container->build(Object(Closure))
+#5 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(986): Illuminate\Container\Container->resolve('Illuminate\\Cont...', Array, true)
+#6 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(731): Illuminate\Foundation\Application->resolve('Illuminate\\Cont...', Array)
+#7 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(971): Illuminate\Container\Container->make('Illuminate\\Cont...', Array)
+#8 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(288): Illuminate\Foundation\Application->make('Illuminate\\Cont...')
+#9 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(218): Illuminate\Foundation\Bootstrap\HandleExceptions->getExceptionHandler()
+#10 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(195): Illuminate\Foundation\Bootstrap\HandleExceptions->renderHttpResponse(Object(Illuminate\Contracts\Container\BindingResolutionException))
+#11 /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(255): Illuminate\Foundation\Bootstrap\HandleExceptions->handleException(Object(Illuminate\Contracts\Container\BindingResolutionException))
+#12 [internal function]: Illuminate\Foundation\Bootstrap\HandleExceptions->Illuminate\Foundation\Bootstrap\{closure}(Object(Illuminate\Contracts\Container\BindingResolutionException))
+#13 {main}
+  thrown in /home2/sxjnqpte/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php on line 914

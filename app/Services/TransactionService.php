@@ -23,7 +23,8 @@ class TransactionService
         'account_id' => $data['account_id'],
         'reference_id' => $data['reference_id'] ?? null,
         'reference_type' => $data['reference_type'] ?? null,
-        'trans_code' => (int) $data['trans_code'], // Cast to integer
+        // Store trans_code as-is to support both numeric and alphanumeric codes
+        'trans_code' => $data['trans_code'],
         'trans_date' => $data['trans_date'],
         'narration' => $data['narration'] ?? '',
         'debit' => $data['debit'] ?? 0,

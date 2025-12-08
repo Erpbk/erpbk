@@ -2,6 +2,8 @@
 $successMessage = session('success');
 $importSummary = session('activities_import_summary');
 $validationErrors = $errors ? $errors->all() : [];
+$formAction = $formAction ?? route('rider.activities_import');
+$errorsRoute = $errorsRoute ?? route('rider.activities_import_errors', ['type' => 'noon']);
 @endphp
 
 <form

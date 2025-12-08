@@ -352,6 +352,15 @@ $(document).ready(function () {
     // Clear input, textarea, and select values in the cloned row
     newRow.find('input, textarea').val(''); // Clear inputs and textareas
     newRow.find('select').val(null).trigger('change'); // Reset the select value and trigger change
+    
+    // Reset amount field to default value and remove data attribute
+    newRow.find('.amount').val('AED 0.00').removeAttr('data-numeric-value');
+    
+    // Set default values for qty, rate, discount, tax
+    newRow.find('.qty').val('1');
+    newRow.find('.rate').val('0');
+    newRow.find('.discount').val('0');
+    newRow.find('.tax').val('0');
 
     // Append the new row to the container
     $('#rows-container').append(newRow);
@@ -360,12 +369,21 @@ $(document).ready(function () {
     $('.select2').select2({
       allowClear: true
     });
+    
+    // Recalculate total after adding new row
+    if (typeof getTotal === 'function') {
+      getTotal();
+    }
   });
 
   // Remove a row
   $(document).on('click', '.btn-remove-row', function () {
     if ($('#rows-container .row').length > 1) {
       $(this).closest('.row').remove();
+      // Recalculate total after removing row
+      if (typeof getTotal === 'function') {
+        getTotal();
+      }
     } else {
       alert('At least one row is required.');
     }

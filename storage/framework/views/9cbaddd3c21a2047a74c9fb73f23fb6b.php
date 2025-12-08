@@ -101,13 +101,13 @@
                                         <div class="action-dropdown-item-desc">Import Noon rider activity data</div>
                                     </div>
                                 </a>
-                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Keeta Rider Activities" data-action="<?php echo e(route('rider.keeta_activities_import')); ?>">
+                                <!-- <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Keeta Rider Activities" data-action="<?php echo e(route('rider.keeta_activities_import')); ?>">
                                     <i class="ti ti-activity"></i>
                                     <div>
                                         <div class="action-dropdown-item-text">Import Keeta Activities</div>
                                         <div class="action-dropdown-item-desc">Import Keeta rider activity data</div>
                                     </div>
-                                </a>
+                                </a> -->
                                 <a class="action-dropdown-item" href="<?php echo e(route('rider.exportRiders')); ?>">
                                     <i class="ti ti-file-export"></i>
                                     <div>

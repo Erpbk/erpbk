@@ -117,7 +117,7 @@
             <!--col-->
             <div class="col-md-2 form-group">
                 <label>Amount</label>
-                <input type="text" class="form-control form-control amount" readonly name="amount[]" value="AED {{ number_format($item->amount, 2) }}" placeholder="AED 0.00" onkeyup="getTotal();">
+                <input type="text" class="form-control form-control amount" readonly name="amount[]" value="AED {{ number_format($item->amount, 2) }}" placeholder="AED 0.00" data-numeric-value="{{ $item->amount }}" onkeyup="getTotal();">
             </div>
             <!--col-->
             <div class="form-group col-md-1 d-flex align-items-end">
@@ -182,3 +182,12 @@
             <input type="text" name="total_amount" class="form-control form-control" id="sub_total" placeholder="0.00" value="@isset($invoice->total_amount) {{$invoice->total_amount-$invoice->vat}} @else 0.00 @endisset" readonly>
         </div>
     </div>
+
+    <script>
+        $(document).ready(function() {
+            // Initialize subtotal calculation on page load
+            if (typeof getTotal === 'function') {
+                getTotal();
+            }
+        });
+    </script>

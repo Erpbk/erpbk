@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\CreateRiderActivitiesRequest;
 use App\Http\Requests\UpdateRiderActivitiesRequest;
-use App\Imports\ImportKeetaRiderActivities;
 use App\Imports\ImportRiderActivities;
 use App\Models\RiderActivities;
 use App\Models\Riders;
@@ -234,56 +233,6 @@ class RiderActivitiesController extends AppBaseController
      */
     public function import(Request $request)
     {
-        return $this->handleImport($request, new ImportRiderActivities(), [
-            'formAction' => route('rider.activities_import'),
-            'importTypeLabel' => 'Noon Rider Activities',
-            'sampleDownloadUrl' => url('sample/noon_activity_sample.csv'),
-            'sampleDownloadLabel' => 'Download Noon Sample File',
-            'errorsRoute' => route('rider.activities_import_errors', ['type' => 'noon']),
-            'successMessage' => 'Noon rider activities imported successfully.',
-            'redirectRoute' => 'rider.activities_import',
-        ]);
-    }
-
-    /**
-     * Handle Keeta rider activities import.
-     */
-    public function importKeeta(Request $request)
-    {
-        return $this->handleImport($request, new ImportKeetaRiderActivities(), [
-            'formAction' => route('rider.keeta_activities_import'),
-            'importTypeLabel' => 'Keeta Rider Activities',
-            'sampleDownloadUrl' => url('sample/noon_activity_sample.csv'),
-            'sampleDownloadLabel' => 'Download Keeta Sample File',
-            'errorsRoute' => route('rider.activities_import_errors', ['type' => 'keeta']),
-            'successMessage' => 'Keeta rider activities imported successfully.',
-            'redirectRoute' => 'rider.keeta_activities_import',
-        ]);
-    }
-
-    /**
-     * Display last import errors.
-     */
-    public function importErrors(Request $request)
-    {
-        $summary = session('activities_import_summary', []);
-        $errors = $summary['errors'] ?? [];
-        $type = strtolower($request->get('type', 'noon'));
-        $isKeeta = $type === 'keeta';
-
-        return view('rider_activities.import_errors', [
-            'summary' => $summary,
-            'errors' => $errors,
-            'importRoute' => $isKeeta ? route('rider.keeta_activities_import') : route('rider.activities_import'),
-            'importType' => $isKeeta ? 'Keeta Rider Activities' : 'Noon Rider Activities',
-        ]);
-    }
-
-    /**
-     * Shared handler for rider activity imports.
-     */
-    private function handleImport(Request $request, ImportRiderActivities $importer, array $config)
-    {
         if ($request->isMethod('post')) {
             $request->validate([
                 'file' => 'required|file|mimes:csv,xlsx,xls|max:51200',
@@ -292,39 +241,41 @@ class RiderActivitiesController extends AppBaseController
                 'file.mimes' => 'The file must be a CSV or Excel document.',
             ]);
 
+            // Clear previous import summary
             session()->forget('activities_import_summary');
 
-            try {
-                Excel::import($importer, $request->file('file'));
-                $successMessage = $config['successMessage'] ?? 'Rider activities imported successfully.';
-                flash($successMessage)->success();
-                session()->flash('success', $successMessage);
-            } catch (ValidationException $validationException) {
-                $failures = collect($validationException->failures())->map(function ($failure) {
-                    return $failure->getMessage();
-                })->unique()->implode(', ');
+            $import = new ImportRiderActivities();
 
-                $message = 'Import failed due to validation errors: ' . $failures;
-                flash($message)->error();
-                session()->flash('error', $message);
+            try {
+                Excel::import($import, $request->file('file'));
+
+                // Success popup
+                session()->flash('success', 'Rider activities imported successfully.');
             } catch (\Throwable $th) {
-                $warning = $th->getMessage();
-                flash($warning)->warning();
-                session()->flash('warning', $warning);
+                // Error popup (includes Rider ID not found, date, numeric errors)
+                session()->flash('error', 'Import failed: ' . $th->getMessage());
             }
 
-            return redirect()->route($config['redirectRoute'], $config['redirectRouteParams'] ?? []);
+            return redirect()->route('rider.activities_import');
         }
 
         $summary = session('activities_import_summary');
 
-        return view('rider_activities.import', [
+        return view('rider_activities.import', compact('summary'));
+    }
+
+
+    /**
+     * Display last Noon import errors.
+     */
+    public function importErrors()
+    {
+        $summary = session('activities_import_summary', []);
+        $errors = $summary['errors'] ?? [];
+
+        return view('rider_activities.import_errors', [
             'summary' => $summary,
-            'formAction' => $config['formAction'],
-            'importTypeLabel' => $config['importTypeLabel'],
-            'sampleDownloadUrl' => $config['sampleDownloadUrl'] ?? null,
-            'sampleDownloadLabel' => $config['sampleDownloadLabel'] ?? null,
-            'errorsRoute' => $config['errorsRoute'],
+            'errors' => $errors,
         ]);
     }
 }

@@ -111,12 +111,24 @@ class RiderInvoicesRepository extends BaseRepository
       $vat = $total * (Common::getSetting('vat_percentage') / 100);
       $total = $total + $vat;
     }
-    $trans_code = Account::trans_code();
     $transactionService = new TransactionService();
 
     if ($id) {
-      $trans_code = Transactions::where('reference_type', 'Invoice')->where('reference_id', $id)->value('trans_code');
-      $transactionService->deleteTransaction($trans_code);
+      // Delete all existing transactions for this invoice to prevent duplicates
+      // Get the trans_code before deletion so we can reuse it
+      $oldTransCode = Transactions::where('reference_type', 'Invoice')
+        ->where('reference_id', $id)
+        ->value('trans_code');
+
+      // Delete all transactions for this specific invoice
+      Transactions::where('reference_type', 'Invoice')
+        ->where('reference_id', $id)
+        ->delete();
+
+      // Reuse the old trans_code if it exists, otherwise generate a new one
+      $trans_code = $oldTransCode ? $oldTransCode : Account::trans_code();
+    } else {
+      $trans_code = Account::trans_code();
     }
 
 

@@ -30,27 +30,30 @@ class ImportRiderInvoice implements ToCollection
    */
   public function collection(Collection $rows)
   {
-    //dd($rows);
-    $items = [
-      $rows[0][3],
-      $rows[0][4],
-      $rows[0][5],
-      $rows[0][6],
-      $rows[0][7],
-      $rows[0][8],
-      $rows[0][9],
-      $rows[0][10],
-      $rows[0][11],
-      $rows[0][12],
-      $rows[0][13],
-      $rows[0][14],
-      $rows[0][15],
-      $rows[0][16],
-      $rows[0][17],
-      $rows[0][18],
-      $rows[0][19],
-      $rows[0][20]
-    ];
+    // Ensure the sheet never exceeds 30 columns so item indexes stay stable
+    $maxColumns = 30;
+    $rows = $rows->map(function ($row) use ($maxColumns) {
+      $rowArray = is_array($row) ? $row : $row->toArray();
+      $trimmed = array_slice($rowArray, 0, $maxColumns);
+      return array_pad($trimmed, $maxColumns, null);
+    });
+
+    $itemStartIndex = 14;
+    $itemColumns = [];
+    for ($col = $itemStartIndex; $col < $maxColumns; $col++) {
+      $itemName = $rows[0][$col] ?? null;
+      if (!$itemName) {
+        continue;
+      }
+      $itemColumns[] = [
+        'name' => $itemName,
+        'index' => $col,
+      ];
+    }
+    $itemNames = array_column($itemColumns, 'name');
+    $itemIdMap = empty($itemNames)
+      ? []
+      : Items::whereIn('name', $itemNames)->pluck('id', 'name')->toArray();
     $i = 1;
     $importedInvoiceIds = [];
     foreach ($rows as $row) {
@@ -64,11 +67,11 @@ class ImportRiderInvoice implements ToCollection
             /*  if (!$invoice_date) {
                  $invoice_date = date('Y-m-01', strtotime($row[0]));
              } */
-            /* $Billingdate = Date::excelToDateTimeObject($row[28]);
+            /* $Billingdate = Date::excelToDateTimeObject($row[10]);
             $billing_month = Carbon::instance($Billingdate)->format('Y-m-01'); */
-            $billing_month = date('Y-m-01', strtotime($row[28]));
+            $billing_month = date('Y-m-01', strtotime($row[10]));
             if ($billing_month == '1970-01-01') {
-              $Billingdate = Date::excelToDateTimeObject($row[28]);
+              $Billingdate = Date::excelToDateTimeObject($row[10]);
               $billing_month = Carbon::instance($Billingdate)->format('Y-m-01');
             }
             $rider = Riders::where('rider_id', $row[1])->first();
@@ -77,8 +80,9 @@ class ImportRiderInvoice implements ToCollection
             }
             $RID = $rider->id;
             $VID = $rider->VID;
+            $zone = $rider->emirate_hub;
             //$VID = AssignVendorRider::where('RID', $RID)->value('VID');
-            if (isset($row[21])) {
+            if (isset($row[3])) {
               // Check for duplicate invoice for same rider and billing month
               $existingInvoice = RiderInvoices::where('rider_id', $RID)
                 ->where('billing_month', $billing_month)
@@ -89,7 +93,7 @@ class ImportRiderInvoice implements ToCollection
               }
 
               // Map status from Excel: allow 'unpaid'/'paid' or 0/1
-              $excelStatus = strtolower(trim($row[30] ?? ''));
+              $excelStatus = strtolower(trim($row[12] ?? ''));
               if ($excelStatus === 'paid' || $excelStatus === '1') {
                 $status = 1; // Paid
               } else {
@@ -99,26 +103,33 @@ class ImportRiderInvoice implements ToCollection
                 'inv_date' => $invoice_date,
                 'rider_id' => $RID,
                 'vendor_id' => $VID,
-                'zone' => $row[23],
-                'login_hours' => $row[22],
-                'working_days' => $row[24],
-                'perfect_attendance' => $row[25],
-                'rejection' => $row[21],
-                'performance' => $row[27],
+                'zone' => $zone,
+                'login_hours' => $row[4],
+                'working_days' => $row[6],
+                'perfect_attendance' => $row[7],
+                'rejection' => $row[3],
+                'performance' => $row[9],
                 'billing_month' => $billing_month,
-                'off' => $row[26],
-                'descriptions' => $row[29],
+                'off' => $row[8],
+                'descriptions' => $row[11],
                 /*  'gaurantee' => $row[30], */
-                'notes' => $row[31],
+                'notes' => $row[13],
                 'status' => $status,
               ]);
-              $j = 3;
-              foreach ($items as $item) {
-                $itemId = Items::where('name', $item)->value('id');
+              foreach ($itemColumns as $itemData) {
+                $itemName = $itemData['name'];
+                $columnIndex = $itemData['index'];
+                $itemId = $itemIdMap[$itemName] ?? null;
                 if ($itemId) {
                   $riderPrice = General::riderItemPrice($RID, $itemId);
-                  $qtyRaw = $row[$j] ?? 0;
-                  $qty = is_numeric($qtyRaw) ? (float)$qtyRaw : 0.0;
+                  $qtyRaw = $row[$columnIndex] ?? 0;
+                  // Normalize quantity so values with decimals or thousand separators are handled
+                  if (is_string($qtyRaw)) {
+                    $normalizedQty = str_replace(',', '', trim($qtyRaw));
+                  } else {
+                    $normalizedQty = $qtyRaw;
+                  }
+                  $qty = (float) $normalizedQty;
                   $rate = is_numeric($riderPrice) ? (float)$riderPrice : 0.0;
                   $dta['item_id'] = $itemId;
                   $dta['qty'] = $qty;
@@ -127,7 +138,6 @@ class ImportRiderInvoice implements ToCollection
                   $dta['inv_id'] = $ret->id;
                   RiderInvoiceItem::create($dta);
                 }
-                $j++;
               }
               /* $k = 2;
               foreach ($items as $itemm) {
@@ -152,7 +162,7 @@ class ImportRiderInvoice implements ToCollection
                 $total = $total + $vat;
               }
               RiderInvoices::where('id', $ret->id)->update(['total_amount' => $total, 'vat' => $vat]);
-              if ($status === 0) {
+              if ($status == 0) {
                 $rider_amount = RiderInvoiceItem::where('inv_id', $ret->id)->sum('amount');
                 $trans_code = Account::trans_code();
                 $transactionService = new TransactionService();
@@ -163,9 +173,9 @@ class ImportRiderInvoice implements ToCollection
                     'reference_type' => 'Invoice',
                     'trans_code' => $trans_code,
                     'trans_date' => $invoice_date,
-                    'narration' => "Rider Invoice #" . $ret->id . ' - ' . $row[29],
+                    'narration' => "Rider Invoice #" . $ret->id . ' - ' . $row[11],
                     'debit' => $vat ?? 0,
-                    'billing_month' => date("Y-m-01", strtotime($row[28])),
+                    'billing_month' => date("Y-m-01", strtotime($row[10])),
                   ];
                   $transactionService->recordTransaction($transactionData);
                 }
@@ -175,10 +185,10 @@ class ImportRiderInvoice implements ToCollection
                   'reference_type' => 'Invoice',
                   'trans_code' => $trans_code,
                   'trans_date' => $invoice_date,
-                  'narration' => "Rider Invoice #" . $ret->id . ' - ' . $row[29],
+                  'narration' => "Rider Invoice #" . $ret->id . ' - ' . $row[11],
                   'debit' => 0,
                   'credit' => $total ?? 0,
-                  'billing_month' => date("Y-m-01", strtotime($row[28])),
+                  'billing_month' => date("Y-m-01", strtotime($row[10])),
                 ];
                 $transactionService->recordTransaction($transactionData);
                 $ret->total_amount = $total;

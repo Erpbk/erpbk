@@ -12,6 +12,7 @@ use App\Models\FailedSalikImport;
 use App\Services\TransactionService;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use DB;
 use Auth;
 use Carbon\Carbon;
@@ -52,15 +53,19 @@ class SalikImport implements ToCollection
 
                     // --- Safe mapping (index based) ---
                     $transactionId       = $row[0] ?? null;
-                    $tripDate            = $row[1] ?? null;
-                    $tripTime            = $row[2] ?? null;
+                    $tripDateRaw         = $row[1] ?? null;
+                    $tripDate            = $this->parseTripDate($tripDateRaw);
+                    $tripDateForStorage  = $tripDate ? $tripDate->format('d M Y') : null;
+                    $tripDateForQueries  = $tripDate ? $tripDate->toDateString() : null;
+                    $tripTimeRaw         = $row[2] ?? null;
+                    $tripTime            = $this->parseTripTime($tripTimeRaw);
                     $transactionPostDate = $row[3] ?? null;
                     $tollGate            = $row[4] ?? null;
                     $direction           = $row[5] ?? null;
                     $tagNumber           = $row[6] ?? null;
                     $plateNumber         = $row[7] ?? null;
                     $amount              = $row[8] ?? null;
-                    $billingMonth        = $row[9] ?? null;
+                    $billingMonthRaw     = $row[9] ?? null;
                     $salik_account_id   = $row[10] ?? null;
                     $adminCharge         = $row[11] ?? null;
                     $details             = $row[12] ?? null;
@@ -69,7 +74,7 @@ class SalikImport implements ToCollection
                     $transactionAmount = $amount ?: $debit;
 
 
-                    if (empty($transactionId) || empty($tripDate) || empty($plateNumber) || empty($transactionAmount)) {
+                    if (empty($transactionId) || empty($tripDateForStorage) || empty($plateNumber) || empty($transactionAmount)) {
                         \Log::warning("Missing required fields in row {$rowCount} - Skipping this record. Transaction ID: {$transactionId}, Trip Date: {$tripDate}, Plate: {$plateNumber}, Amount: {$transactionAmount}");
                         $this->storeFailedImport($row, $rowCount, 'Missing required fields', "Transaction ID: {$transactionId}, Trip Date: {$tripDate}, Plate: {$plateNumber}, Amount: {$transactionAmount}");
                         $missingDataCount++;
@@ -101,7 +106,7 @@ class SalikImport implements ToCollection
                         continue; // Skip this record and continue with next
                     }
 
-                    $rider = $this->findRiderForTripDate($bike->id, $tripDate, $plateNumber);
+                    $rider = $this->findRiderForTripDate($bike->id, $tripDateForQueries, $plateNumber);
                     if (!$rider) {
                         \Log::warning("No rider found for bike {$plateNumber} on date {$tripDate} in row {$rowCount} - No current rider and no history found - Skipping this record");
                         $this->storeFailedImport($row, $rowCount, 'No rider assigned for this trip date and no history found', "Bike {$plateNumber} has no rider assigned on {$tripDate} and no previous rider found in history");
@@ -120,9 +125,13 @@ class SalikImport implements ToCollection
                     // Get payer account from the bike or rider
                     $payerAccount = $bike->rider_id ? $this->getRiderAccountId($bike->rider_id) : null;
 
+                    $billingMonthCarbon    = $this->parseBillingMonth($billingMonthRaw ?: $tripDate);
+                    $billingMonthForStore  = $billingMonthCarbon ? $billingMonthCarbon->toDateString() : null; // store as Y-m-d
+                    $billingMonthForLog    = $billingMonthCarbon ? $billingMonthCarbon->format('d M Y') : null; // human readable
+
                     $salikData = [
                         'transaction_id'   => $transactionId,
-                        'trip_date'        => $tripDate,
+                        'trip_date'        => $tripDateForStorage,
                         'trip_time'        => $tripTime,
                         'transaction_post_date' => $transactionPostDate,
                         'toll_gate'        => $tollGate,
@@ -137,7 +146,7 @@ class SalikImport implements ToCollection
                         'admin_charges'    => $this->adminChargePerSalik,
                         'total_amount'     => $transactionAmount + $this->adminChargePerSalik,
                         'status'           => 'paid',
-                        'billing_month'    =>  $billingMonth,
+                        'billing_month'    =>  $billingMonthForStore,
                         'trans_date'       => Carbon::today(),
                         'trans_code'       => Account::trans_code(),
                         'created_by'       => Auth::user()->id,
@@ -163,7 +172,7 @@ class SalikImport implements ToCollection
                     $importedSalikIds[] = $salik->id;
 
                     // Create individual transactions for each Salik record
-                    $this->createIndividualTransactions($salik, $rider, $riderAccountId, $payerAccount, $transactionAmount, $tripDate);
+                    $this->createIndividualTransactions($salik, $rider, $riderAccountId, $payerAccount, $transactionAmount, $tripDateForStorage);
 
                     // Still group for summary tracking
                     $groupKey = $bike->id . '-' . $rider->id;
@@ -177,7 +186,8 @@ class SalikImport implements ToCollection
                             'total_amount'      => 0,
                             'total_admin_charges' => 0,
                             'count'             => 0,
-                            'billing_month'     => date('Y-m-01', strtotime($tripDate))
+                            'billing_month'     => $billingMonthForStore,
+                            'billing_month_display' => $billingMonthForLog
                         ];
                     }
 
@@ -212,6 +222,82 @@ class SalikImport implements ToCollection
             \Log::error("Salik import failed with error: " . $e->getMessage());
             \Log::error("Stack trace: " . $e->getTraceAsString());
             throw $e;
+        }
+    }
+
+    /**
+     * Normalize trip date from various Excel formats to Carbon (start of day)
+     */
+    private function parseTripDate($tripDate)
+    {
+        if (empty($tripDate)) {
+            return null;
+        }
+
+        try {
+            if (is_numeric($tripDate)) {
+                return Carbon::instance(ExcelDate::excelToDateTimeObject($tripDate))->startOfDay();
+            }
+
+            return Carbon::parse($tripDate)->startOfDay();
+        } catch (\Exception $e) {
+            \Log::warning("Unable to parse trip date value: {$tripDate}. Error: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Normalize billing month from Excel to start-of-month Carbon
+     */
+    private function parseBillingMonth($billingMonth)
+    {
+        if (empty($billingMonth)) {
+            return null;
+        }
+
+        try {
+            if ($billingMonth instanceof Carbon) {
+                return $billingMonth->copy()->startOfMonth();
+            }
+
+            if (is_numeric($billingMonth)) {
+                return Carbon::instance(ExcelDate::excelToDateTimeObject($billingMonth))->startOfMonth();
+            }
+
+            return Carbon::parse($billingMonth)->startOfMonth();
+        } catch (\Exception $e) {
+            \Log::warning("Unable to parse billing month value: {$billingMonth}. Error: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Normalize trip time from various Excel formats to "h:i:s A" format (e.g., "11:38:28 PM")
+     */
+    private function parseTripTime($tripTime)
+    {
+        if (empty($tripTime)) {
+            return null;
+        }
+
+        try {
+            // If it's a numeric value (Excel time format as decimal)
+            if (is_numeric($tripTime)) {
+                $dateTime = ExcelDate::excelToDateTimeObject($tripTime);
+                return Carbon::instance($dateTime)->format('h:i:s A');
+            }
+
+            // If it's already a Carbon instance
+            if ($tripTime instanceof Carbon) {
+                return $tripTime->format('h:i:s A');
+            }
+
+            // Try to parse as time string
+            $parsed = Carbon::parse($tripTime);
+            return $parsed->format('h:i:s A');
+        } catch (\Exception $e) {
+            \Log::warning("Unable to parse trip time value: {$tripTime}. Error: " . $e->getMessage());
+            return null;
         }
     }
 
@@ -293,6 +379,7 @@ class SalikImport implements ToCollection
             $count          = $group['count'];
             $firstSalik     = $group['saliks'][0];
             $billingMonth   = $group['billing_month'];
+            $billingMonthDisplay = $group['billing_month_display'] ?? $billingMonth;
 
             $transCode = Account::trans_code();
             $transDate = now();
@@ -304,7 +391,7 @@ class SalikImport implements ToCollection
                 'reference_type' => 'Salik Voucher',
                 'trans_code'     => $transCode,
                 'trans_date'     => $transDate,
-                'narration'      => "salik charges month of $billingMonth ($count transactions)",
+                'narration'      => "salik charges month of $billingMonthDisplay ($count transactions)",
                 'debit'          => $totalAmount + $totalAdmin,
                 'billing_month'  => $billingMonth,
             ]);
@@ -317,7 +404,7 @@ class SalikImport implements ToCollection
                     'reference_type' => 'Salik Voucher',
                     'trans_code'     => $transCode,
                     'trans_date'     => $transDate,
-                    'narration'      => "salik charges month of $billingMonth ($count transactions)",
+                    'narration'      => "salik charges month of $billingMonthDisplay ($count transactions)",
                     'credit'         => $salik->amount,
                     'billing_month'  => $billingMonth,
                 ]);
@@ -331,7 +418,7 @@ class SalikImport implements ToCollection
                     'reference_type' => 'Salik Voucher',
                     'trans_code'     => $transCode,
                     'trans_date'     => $transDate,
-                    'narration'      => "salik charges month of $billingMonth ($count × {$this->adminChargePerSalik})",
+                    'narration'      => "salik charges month of $billingMonthDisplay ($count × {$this->adminChargePerSalik})",
                     'credit'         => $totalAdmin,
                     'billing_month'  => $billingMonth,
                 ]);
@@ -345,7 +432,7 @@ class SalikImport implements ToCollection
                 'billing_month' => $billingMonth,
                 'amount'        => $totalAmount + $totalAdmin,
                 'voucher_type'  => 'SV',
-                'remarks'       => "salik charges month of $billingMonth",
+                'remarks'       => "salik charges month of $billingMonthDisplay",
                 'ref_id'        => $firstSalik->id,
                 'rider_id'      => $rider->id,
                 'payment_to'    => $this->salikAccountId,

@@ -37,7 +37,10 @@ class FortifyServiceProvider extends ServiceProvider
     Fortify::authenticateUsing(function (Request $request) {
       $user = User::where('email', $request->email)->orWhere('username', $request->email)->first();
 
-      if ($user && $user?->status && Hash::check($request->password, $user->password)) {
+      $statusValue = strtolower((string) ($user->status ?? ''));
+      $isActive = in_array($statusValue, ['1', 'true', 'active'], true);
+
+      if ($user && $isActive && Hash::check($request->password, $user->password)) {
 
         if (filter_var($request->email, FILTER_VALIDATE_EMAIL)) {
           if (Auth::attempt($request->only('email', 'password'), $request->filled('remember'))) {
@@ -48,11 +51,9 @@ class FortifyServiceProvider extends ServiceProvider
             return $user;
           }
         }
-      } else {
-        if ($user && !$user?->status) {
-          $error['email'] = 'Your account bas been deactivated. Please contact the administrator. Thank you';
-          throw ValidationException::withMessages($error);
-        }
+      } elseif ($user && !$isActive) {
+        $error['email'] = 'Your account has been deactivated. Please contact the administrator.';
+        throw ValidationException::withMessages($error);
       }
     });
 

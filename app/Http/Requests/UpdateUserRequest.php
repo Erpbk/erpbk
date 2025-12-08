@@ -26,8 +26,14 @@ class UpdateUserRequest extends FormRequest
   public function rules()
   {
     $rules = User::$rules;
-    //$rules['email']=['required', Rule::unique('users')->ignore($this->user)];
-    $rules['password'] = 'min:6|nullable|confirmed';
+    $userId = $this->route('user') ?? $this->route('id');
+
+    // Allow keeping the current email/username when updating
+    $rules['email'] = ['nullable', 'string', 'max:255', 'email', Rule::unique('users')->ignore($userId)];
+    $rules['username'] = ['nullable', 'string', 'max:255', Rule::unique('users')->ignore($userId)];
+
+    // Password is optional on update
+    $rules['password'] = 'nullable|string|min:6|confirmed';
     return $rules;
   }
 }

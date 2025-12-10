@@ -31,14 +31,8 @@
          <td><?php echo e($r->rejected_orders); ?></td>
          <td><?php echo e($r->login_hr); ?></td>
          <td>
-            <?php if($r->delivery_rating == 'Yes'): ?>
-            Valid
-            <?php elseif($r->delivery_rating == 'No'): ?>
-            Invalid
-            <?php else: ?>
             <?php echo e($r->delivery_rating); ?>
 
-            <?php endif; ?>
          </td>
       </tr>
       <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>

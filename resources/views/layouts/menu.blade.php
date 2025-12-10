@@ -99,12 +99,6 @@
         <div>Activities</div>
       </a>
     </li>
-    <li class="menu-item {{ Request::is('riderActivities*') ? 'active' : '' }}">
-      <a href="{{ route('rider.liveactivities') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-bike"></i>
-        <div>Live Activities</div>
-      </a>
-    </li>
     <li class="menu-item {{ Request::is('reports*') ? 'active' : '' }}">
       <a href="{{ route('reports.rider_report') }}" class="menu-link ">
         <i class="menu-icon tf-icons ti ti-users-group"></i>

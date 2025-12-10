@@ -1,8 +1,6 @@
-@extends('layouts.app')
+<?php $__env->startSection('title','Bikes'); ?>
 
-@section('title','Bikes')
-
-@push('third_party_stylesheets')
+<?php $__env->startPush('third_party_stylesheets'); ?>
 <link href="https://fonts.googleapis.com/css2?family=Rockwell:wght@400;700&display=swap" rel="stylesheet">
 <style>
     .bike-info-sidebar {
@@ -443,9 +441,9 @@
         }
     }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="row">
   <div class="col-xl-3 col-md-3 col-lg-4 order-1 order-md-0">
     <!-- Single container - no nested card -->
@@ -453,10 +451,11 @@
         <!-- Header with Model Type and Emirates -->
         <div class="bike-header-compact">
             <div class="vehicle-type">
-                {{ $bikes->model_type ?? 'Vehicle' }}
+                <?php echo e($bikes->model_type ?? 'Vehicle'); ?>
+
             </div>
             <!-- Number Plate Display -->
-            @php
+            <?php
                 $emirateCode = strtolower(trim($bikes->emirates ?? ''));
                 $plateNumber = $bikes->plate ?? 'N/A';
                 $bikeCode = $bikes->bike_code ?? 'N/A';
@@ -470,32 +469,33 @@
                 ];
                 
                 $currentEmirate = $emiratesData[$emirateCode] ?? null;
-            @endphp
+            ?>
             
             <div class="plate-container">
-                @if($currentEmirate)
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($currentEmirate): ?>
                     <!-- Unified RAK-style plate for all emirates -->
                     <div class="number-plate ">
                         <!-- Arabic emirate name - top left corner -->
-                        <div class="plate-arabic-corner">{{ $currentEmirate['arabic'] }}</div>
+                        <div class="plate-arabic-corner"><?php echo e($currentEmirate['arabic']); ?></div>
                         
                         <!-- Bike code - top right corner -->
-                        @if($bikeCode != 'N/A')
-                            <div class="plate-bike-code-corner">{{ $bikeCode }}</div>
-                        @endif
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($bikeCode != 'N/A'): ?>
+                            <div class="plate-bike-code-corner"><?php echo e($bikeCode); ?></div>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         
                         <!-- Plate number - center -->
-                        <div class="plate-number">{{ $plateNumber }}</div>
+                        <div class="plate-number"><?php echo e($plateNumber); ?></div>
                         
                         <!-- English emirate name - bottom center -->
-                        <div class="plate-emirate-english">{{ $currentEmirate['english'] }}</div>
+                        <div class="plate-emirate-english"><?php echo e($currentEmirate['english']); ?></div>
                     </div>
-                @else
+                <?php else: ?>
                     <!-- Default Badge for other emirates -->
                     <div class="plate-default">
-                        {{ $bikes->emirates ?? 'N/A' }}
+                        <?php echo e($bikes->emirates ?? 'N/A'); ?>
+
                     </div>
-                @endif
+                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </div>
         </div>
         
@@ -505,60 +505,60 @@
             <div class="detail-row">
                 <span class="detail-label">Leasing Company</span>
                 <span class="detail-value">
-                    @php
+                    <?php
                         $company = DB::table('leasing_companies')->where('id', $bikes->company)->first();
                         echo $company->name ?? 'N/A';
-                    @endphp
+                    ?>
                 </span>
             </div>
             
             <div class="detail-row">
                 <span class="detail-label">Status</span>
-                <span class="detail-value @if($bikes->status == 1) status-Active @else status-Inactive @endif">
-                    @if($bikes->status == 1)
+                <span class="detail-value <?php if($bikes->status == 1): ?> status-Active <?php else: ?> status-Inactive <?php endif; ?>">
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($bikes->status == 1): ?>
                         Active
-                    @else
+                    <?php else: ?>
                         Inactive
-                    @endif
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </span>
             </div>
 
             <div class="detail-row">
                 <span class="detail-label">WareHouse</span>
-                <span class="detail-value status-{{$bikes->warehouse}}">{{ $bikes->warehouse ?? 'N/A' }}</span>
+                <span class="detail-value status-<?php echo e($bikes->warehouse); ?>"><?php echo e($bikes->warehouse ?? 'N/A'); ?></span>
             </div>
         </div>
         
         <!-- Action Buttons -->
         <div class="bike-actions-compact">
-            @can('item_edit')
-            <a href="{{ route('bikes.edit', $bikes->id) }}" 
+            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('item_edit')): ?>
+            <a href="<?php echo e(route('bikes.edit', $bikes->id)); ?>" 
                class="btn-compact btn-edit-compact show-modal"
-               data-title="Edit Vehicle #{{ $bikes->plate }}">
+               data-title="Edit Vehicle #<?php echo e($bikes->plate); ?>">
                 <i class="fas fa-edit"></i>
                 <span>Edit Details</span>
             </a>
-            @endcan
+            <?php endif; ?>
 
-            @if($bikes->rider_id)
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($bikes->rider_id): ?>
             <a href="javascript:void(0);" 
                class="btn-compact btn-view-assignment show-modal"
                data-size="xl"
                data-title="Assigned Rider Details"
-               data-action="{{ route('bikes.assignrider', $bikes->id) }}">
+               data-action="<?php echo e(route('bikes.assignrider', $bikes->id)); ?>">
                 <i class="fas fa-user-check"></i>
                 <span>View Assignment</span>
             </a>
-            @else
+            <?php else: ?>
             <a href="javascript:void(0);" 
                class="btn-compact btn-assign-compact show-modal"
                data-size="xl"
-               data-title="Assign Rider to Vehicle #{{ $bikes->plate }}"
-               data-action="{{ route('bikes.assign_rider', $bikes->id) }}">
+               data-title="Assign Rider to Vehicle #<?php echo e($bikes->plate); ?>"
+               data-action="<?php echo e(route('bikes.assign_rider', $bikes->id)); ?>">
                 <i class="fas fa-user-plus"></i>
                 <span>Assign Rider</span>
             </a>
-            @endif
+            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
         </div>
     </div>
   </div>
@@ -566,18 +566,19 @@
   <div class="col-xl-9 col-md-9 col-lg-8 order-0 order-md-1">
     <div class="nav-align-top">
       <ul class="nav nav-pills flex-column flex-md-row flex-wrap mb-3 row-gap-2">
-        <li class="nav-item"><a class="nav-link @if(request()->segment(1) =='bikes') active @endif " href="{{route('bikes.show',$bikes->id)}}"><i class="ti ti-motorbike ti-sm me-1_5 mx-2"></i> Bike</a></li>
+        <li class="nav-item"><a class="nav-link <?php if(request()->segment(1) =='bikes'): ?> active <?php endif; ?> " href="<?php echo e(route('bikes.show',$bikes->id)); ?>"><i class="ti ti-motorbike ti-sm me-1_5 mx-2"></i> Bike</a></li>
         <li class="nav-item">
-          <a href="{{route('bikeHistories.index', ['bike_id'=>$bikes->id])}}" class="nav-link @if(request()->segment(1) =='bikeHistories') active @endif"><i class="fa fa-list-check"></i>&nbsp;History</a>
+          <a href="<?php echo e(route('bikeHistories.index', ['bike_id'=>$bikes->id])); ?>" class="nav-link <?php if(request()->segment(1) =='bikeHistories'): ?> active <?php endif; ?>"><i class="fa fa-list-check"></i>&nbsp;History</a>
         </li>
         <li class="nav-item">
-          <a href="{{ route('files.index',['type_id'=>$bikes->id,'type'=>'bike']) }}" class="nav-link @if(request()->segment(1) =='files') active @endif"><i class="fa fa-file-lines"></i>&nbsp;Files</a>
+          <a href="<?php echo e(route('files.index',['type_id'=>$bikes->id,'type'=>'bike'])); ?>" class="nav-link <?php if(request()->segment(1) =='files'): ?> active <?php endif; ?>"><i class="fa fa-file-lines"></i>&nbsp;Files</a>
         </li>
       </ul>
     </div>
     <div class="card mb-5" id="cardBody" style="height:660px !important;overflow: auto;">
-      @yield('page_content')
+      <?php echo $__env->yieldContent('page_content'); ?>
     </div>
   </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH C:\xampp\htdocs\erpbk\resources\views/bikes/view.blade.php ENDPATH**/ ?>

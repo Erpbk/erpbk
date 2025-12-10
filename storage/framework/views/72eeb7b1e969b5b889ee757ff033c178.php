@@ -1,8 +1,8 @@
-﻿@extends('layouts.app')
+﻿
 
-@section('title','Vehicles')
+<?php $__env->startSection('title','Vehicles'); ?>
 
-@push('third_party_stylesheets')
+<?php $__env->startPush('third_party_stylesheets'); ?>
 
 <style>
     .filter-sidebar {
@@ -193,9 +193,9 @@
     }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
@@ -211,29 +211,29 @@
                             <i class="ti ti-chevron-down"></i>
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
-                            @can('bike_create')
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Vehicle" data-action="{{ route('bikes.create') }}">
+                            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('bike_create')): ?>
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Vehicle" data-action="<?php echo e(route('bikes.create')); ?>">
                                 <i class="ti ti-plus"></i>
                                 <div>
                                     <div class="action-dropdown-item-text">Create New Vehicle</div>
                                     <div class="action-dropdown-item-desc">Add a new vehicle to the system</div>
                                 </div>
                             </a>
-                            @endcan
-                            @can('bike_create')
-                            <a class="action-dropdown-item" href="{{ route('bikes.import') }}">
+                            <?php endif; ?>
+                            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('bike_create')): ?>
+                            <a class="action-dropdown-item" href="<?php echo e(route('bikes.import')); ?>">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Vehicles</span>
                             </a>
-                            @endcan
-                            @can('bike_view')
-                            <a class="action-dropdown-item" href="{{ route('bikes.export')}}" data-size="xl" data-title="Export Vehicles" data-action="{{ route('bikes.export') }}">
+                            <?php endif; ?>
+                            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('bike_view')): ?>
+                            <a class="action-dropdown-item" href="<?php echo e(route('bikes.export')); ?>" data-size="xl" data-title="Export Vehicles" data-action="<?php echo e(route('bikes.export')); ?>">
                                 <i class="ti ti-file-export"></i>
                                 <span>Export Vehicles</span>
                             </a>
-                            @endcan
+                            <?php endif; ?>
 
-                            @can('bike_create')
+                            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('bike_create')): ?>
                             <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
                                     <i class="ti ti-columns"></i>
                                     <div>
@@ -241,7 +241,7 @@
                                         <div class="action-dropdown-item-desc">Open column control modal</div>
                                     </div>
                                 </a>
-                            @endcan
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -257,36 +257,36 @@
         <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
     <div class="filter-body" id="searchTopbody">
-        <form id="filterForm" action="{{ route('bikes.index') }}" method="GET">
+        <form id="filterForm" action="<?php echo e(route('bikes.index')); ?>" method="GET">
             <div class="row">
                 <div class="form-group col-md-12">
                     <label for="bike_code">Filter by Code</label>
                     <select class="form-control " id="bike_code" name="bike_code">
-                        @php
+                        <?php
                         $bikecode = DB::table('bikes')
                         ->whereNotNull('bike_code')
                         ->where('bike_code', '!=', '')
                         ->pluck('bike_code')
                         ->unique();
-                        @endphp
+                        ?>
                         <option value="" selected>Select</option>
-                        @foreach($bikecode as $code)
-                        <option value="{{ $code }}" {{ request('bike_code') == $code ? 'selected' : '' }}>{{ $code }}</option>
-                        @endforeach
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $bikecode; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $code): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($code); ?>" <?php echo e(request('bike_code') == $code ? 'selected' : ''); ?>><?php echo e($code); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </select>
                 </div>
                 <div class="form-group col-md-12">
                     <label for="plate">Plate</label>
-                    <input type="text" name="plate" class="form-control" placeholder="Filter By Plate" value="{{ request('plate') }}">
+                    <input type="text" name="plate" class="form-control" placeholder="Filter By Plate" value="<?php echo e(request('plate')); ?>">
                 </div>
                 <div class="form-group col-md-12">
                     <label for="rider_id">Rider ID</label>
-                    <input type="text" name="rider_id" class="form-control" placeholder="Filter By Rider ID" value="{{ request('rider_id') }}">
+                    <input type="text" name="rider_id" class="form-control" placeholder="Filter By Rider ID" value="<?php echo e(request('rider_id')); ?>">
                 </div>
                 <div class="form-group col-md-12">
                     <label for="rider">Filter by Rider</label>
                     <select class="form-control " id="rider" name="rider">
-                        @php
+                        <?php
                         $riderid = DB::table('bikes')
                         ->whereNotNull('rider_id')
                         ->where('rider_id', '!=', '')
@@ -296,17 +296,17 @@
                         ->whereIn('id', $riderid)
                         ->select('rider_id','id', 'name')
                         ->get();
-                        @endphp
+                        ?>
                         <option value="" selected>Select</option>
-                        @foreach($riders as $rider)
-                        <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->rider_id ? 'selected' : '' }}>{{ $rider->name}}</option>
-                        @endforeach
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $riders; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $rider): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($rider->id); ?>" <?php echo e(request('rider_id') == $rider->rider_id ? 'selected' : ''); ?>><?php echo e($rider->name); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </select>
                 </div>
                 <div class="form-group col-md-12">
                     <label for="customer_id">Filter by Customer</label>
                     <select class="form-control " id="customer_id" name="customer_id">
-                        @php
+                        <?php
                         $customerids = DB::table('bikes')
                         ->whereNotNull('customer_id')
                         ->where('customer_id', '!=', '')
@@ -316,17 +316,17 @@
                         ->whereIn('id', $customerids)
                         ->select('id', 'name')
                         ->get();
-                        @endphp
+                        ?>
                         <option value="" selected>Select</option>
-                        @foreach($customers as $customer)
-                        <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
-                        @endforeach
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $customers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $customer): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($customer->id); ?>" <?php echo e(request('customer_id') == $customer->id ? 'selected' : ''); ?>><?php echo e($customer->name); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </select>
                 </div>
                 <div class="form-group col-md-12">
                     <label for="company">Filter by Company</label>
                     <select class="form-control " id="company" name="company">
-                        @php
+                        <?php
                         $companiesid = DB::table('bikes')
                         ->whereNotNull('company')
                         ->where('company', '!=', '')
@@ -336,59 +336,59 @@
                         ->whereIn('id', $companiesid)
                         ->select('id', 'name')
                         ->get();
-                        @endphp
+                        ?>
                         <option value="" selected>Select</option>
-                        @foreach($companies as $company)
-                        <option value="{{ $company->id }}" {{ request('company') == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
-                        @endforeach
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $companies; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $company): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($company->id); ?>" <?php echo e(request('company') == $company->id ? 'selected' : ''); ?>><?php echo e($company->name); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </select>
                 </div>
                 <div class="form-group col-md-12">
                     <label for="emirates">Filter by Emirates</label>
                     <select class="form-control " id="emirates" name="emirates">
-                        @php
+                        <?php
                         $emirates = DB::table('bikes')
                         ->whereNotNull('emirates')
                         ->where('emirates', '!=', '')
                         ->pluck('emirates')
                         ->unique();
-                        @endphp
+                        ?>
                         <option value="" selected>Select</option>
-                        @foreach($emirates as $emirate)
-                        <option value="{{ $emirate }}" {{ request('emirates') == $emirate ? 'selected' : '' }}>{{ $emirate }}</option>
-                        @endforeach
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $emirates; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $emirate): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($emirate); ?>" <?php echo e(request('emirates') == $emirate ? 'selected' : ''); ?>><?php echo e($emirate); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </select>
                 </div>
                 <div class="form-group col-md-12">
                     <label for="warehouse">Filter by Warehouse</label>
                     <select class="form-control " id="warehouse" name="warehouse">
-                        @php
+                        <?php
                         $warehouses = DB::table('bikes')
                         ->whereNotNull('warehouse')
                         ->where('warehouse', '!=', '')
                         ->pluck('warehouse')
                         ->unique();
-                        @endphp
+                        ?>
                         <option value="" selected>Select</option>
-                        @foreach($warehouses as $warehouse)
-                        <option value="{{ $warehouse }}" {{ request('warehouse') == $warehouse ? 'selected' : '' }}>{{ $warehouse }}</option>
-                        @endforeach
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $warehouses; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $warehouse): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($warehouse); ?>" <?php echo e(request('warehouse') == $warehouse ? 'selected' : ''); ?>><?php echo e($warehouse); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </select>
                 </div>
                 <div class="form-group col-md-12">
                     <label for="expiry_date_from">Expiry Date From</label>
-                    <input type="date" name="expiry_date_from" class="form-control" placeholder="Filter By Expiry Date From" value="{{ request('expiry_date_from') }}">
+                    <input type="date" name="expiry_date_from" class="form-control" placeholder="Filter By Expiry Date From" value="<?php echo e(request('expiry_date_from')); ?>">
                 </div>
                 <div class="form-group col-md-12">
                     <label for="expiry_date_to">Expiry Date To</label>
-                    <input type="date" name="expiry_date_to" class="form-control" placeholder="Filter By Expiry Date To" value="{{ request('expiry_date_to') }}">
+                    <input type="date" name="expiry_date_to" class="form-control" placeholder="Filter By Expiry Date To" value="<?php echo e(request('expiry_date_to')); ?>">
                 </div>
                 <div class="form-group col-md-12">
                     <label for="status">Filter by Status</label>
                     <select class="form-control " id="status" name="status">
                         <option value="" selected>Select</option>
-                        <option value="1" {{ request('status') == 1 ? 'selected' : '' }}>Active</option>
-                        <option value="3" {{ request('status') == 3 ? 'selected' : '' }}>Inactive</option>
+                        <option value="1" <?php echo e(request('status') == 1 ? 'selected' : ''); ?>>Active</option>
+                        <option value="3" <?php echo e(request('status') == 3 ? 'selected' : ''); ?>>Inactive</option>
                     </select>
                 </div>
                 <div class="col-md-12 form-group text-center">
@@ -401,27 +401,27 @@
 <!-- Filter Overlay -->
 <div id="filterOverlay" class="filter-overlay"></div>
 </section>
-{{-- Include Column Control Panel --}}
-@include('components.column-control-panel', [
+
+<?php echo $__env->make('components.column-control-panel', [
 'tableColumns' => $tableColumns,
 'exportRoute' => 'bikes.export',
 'tableIdentifier' => 'bikes_table'
-])
+], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 
 <div class="content container-fluid">
-    @include('flash::message')
+    <?php echo $__env->make('flash::message', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
     <div class="card">
         <div class="card-header d-flex justify-content-between">
             <div class="card-title">
                 <h3>Vehicles</h3>
             </div>
             <div class="card-search">
-                <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
+                <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="<?php echo e(request('quick_search')); ?>">
             </div>
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
             <div class="bikes-table-container">
-                @include('bikes.table', ['data' => $data, 'tableColumns' => $tableColumns])
+                <?php echo $__env->make('bikes.table', ['data' => $data, 'tableColumns' => $tableColumns], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
             </div>
             <div class="filter-loading-overlay" style="display: none;">
                 <div class="filter-loading-content">
@@ -435,8 +435,8 @@
     </div>
 </div>
 
-@endsection
-@section('page-script')
+<?php $__env->stopSection(); ?>
+<?php $__env->startSection('page-script'); ?>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script type="text/javascript">
     function confirmDelete(url) {
@@ -608,4 +608,5 @@
         });
     });
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH C:\xampp\htdocs\erpbk\resources\views/bikes/index.blade.php ENDPATH**/ ?>

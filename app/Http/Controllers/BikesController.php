@@ -753,7 +753,7 @@ class BikesController extends AppBaseController
     // Return appropriate format
     switch ($format) {
       case 'csv':
-        return Excel::download($export, "{$filename}.csv", \Maatwebsite\Excel\Excel::CSV);
+        return Excel::download($export, "{$filename}.csv", \Maatwebsite\Excel\Excel::CSV,);
       case 'pdf':
         return Excel::download($export, "{$filename}.pdf", \Maatwebsite\Excel\Excel::DOMPDF);
       case 'excel':
@@ -767,6 +767,10 @@ class BikesController extends AppBaseController
    */
   public function importbikes()
   {
+    if (!auth()->user()->hasPermissionTo('bike_view')) 
+      abort(403, 'Unauthorized action.');
+    
+    \Log::info('Stack trace: reached importbikes');
     return view('bikes.import');
   }
 

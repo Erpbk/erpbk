@@ -1,19 +1,17 @@
-@extends('layouts.app')
-
-@section('title','RTA Fines')
-@section('content')
+<?php $__env->startSection('title','RTA Fines'); ?>
+<?php $__env->startSection('content'); ?>
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
             <div class="col-sm-6">
-                <h3>{{ $account->name }} | Rta Fines</h3>
+                <h3><?php echo e($account->name); ?> | Rta Fines</h3>
             </div>
             <div class="col-sm-6">
                 <a class="btn btn-primary action-btn show-modal"
-                    href="javascript:void(0);" data-action="{{ route('rtaFines.create' , $account->id) }}" data-size="lg" data-title="New Fine">
+                    href="javascript:void(0);" data-action="<?php echo e(route('rtaFines.create' , $account->id)); ?>" data-size="lg" data-title="New Fine">
                     Add New
                 </a>
-                <a class="btn btn-success waves-effect waves-light action-btn me-2" href="{{ route('rtaFines.import.form', $account->id) }}">
+                <a class="btn btn-success waves-effect waves-light action-btn me-2" href="<?php echo e(route('rtaFines.import.form', $account->id)); ?>">
                     <i class="fas fa-upload"></i> Import Excel
                 </a>
                 <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
@@ -24,25 +22,25 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body" id="searchTopbody">
-                                <form id="filterForm" action="{{ route('rtaFines.tickets', $account->id) }}" method="GET">
+                                <form id="filterForm" action="<?php echo e(route('rtaFines.tickets', $account->id)); ?>" method="GET">
                                     <div class="row">
                                         <div class="form-group col-md-4">
                                             <label for="ticket_no">Ticket Number</label>
-                                            <input type="number" name="ticket_no" class="form-control" placeholder="Filter By Ticket Number" value="{{ request('ticket_no') }}">
+                                            <input type="number" name="ticket_no" class="form-control" placeholder="Filter By Ticket Number" value="<?php echo e(request('ticket_no')); ?>">
                                         </div>
                                         <div class="form-group col-md-4">
                                             <label for="trans_code">Transcation Code</label>
-                                            <input type="text" name="trans_code" class="form-control" placeholder="Filter By Transcation Code" value="{{ request('trans_code') }}">
+                                            <input type="text" name="trans_code" class="form-control" placeholder="Filter By Transcation Code" value="<?php echo e(request('trans_code')); ?>">
                                         </div>
                                         <div class="form-group col-md-4">
                                             <label for="billing_month">Billing Month</label>
-                                            <input type="month" name="billing_month" class="form-control" placeholder="Filter By Billing Month" value="{{ request('billing_month') }}">
+                                            <input type="month" name="billing_month" class="form-control" placeholder="Filter By Billing Month" value="<?php echo e(request('billing_month')); ?>">
                                         </div>
                                         <div class="form-group col-md-4">
                                             <label for="rider_id">Filter by Rider</label>
                                             <select class="form-control " id="rider_id" name="rider_id">
                                                 <option value="">Select</option>
-                                                @php
+                                                <?php
                                                 $riderid = DB::table('rta_fines')
                                                 ->whereNotNull('rider_id')
                                                 ->where('rider_id', '!=', '')
@@ -52,16 +50,16 @@
                                                 ->whereIn('id', $riderid)
                                                 ->select('id', 'rider_id', 'name')
                                                 ->get();
-                                                @endphp
-                                                @foreach($riders as $rider)
-                                                <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->id ? 'selected' : '' }}>{{ $rider->rider_id }} - {{ $rider->name}}</option>
-                                                @endforeach
+                                                ?>
+                                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $riders; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $rider): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                <option value="<?php echo e($rider->id); ?>" <?php echo e(request('rider_id') == $rider->id ? 'selected' : ''); ?>><?php echo e($rider->rider_id); ?> - <?php echo e($rider->name); ?></option>
+                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                             </select>
                                         </div>
                                         <div class="form-group col-md-4">
                                             <label for="bike_id">Filter by Bike</label>
                                             <select class="form-control " id="bike_id" name="bike_id">
-                                                @php
+                                                <?php
                                                 $bikeid = DB::table('rta_fines')
                                                 ->whereNotNull('bike_id')
                                                 ->where('bike_id', '!=', '')
@@ -71,11 +69,11 @@
                                                 ->whereIn('id', $bikeid)
                                                 ->select('id', 'plate')
                                                 ->get();
-                                                @endphp
+                                                ?>
                                                 <option value="" selected>Select</option>
-                                                @foreach($bikes as $bike)
-                                                <option value="{{ $bike->id }}" {{ request('bike_id') == $bike->id ? 'selected' : '' }}>{{ $bike->plate }}</option>
-                                                @endforeach
+                                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $bikes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $bike): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                <option value="<?php echo e($bike->id); ?>" <?php echo e(request('bike_id') == $bike->id ? 'selected' : ''); ?>><?php echo e($bike->plate); ?></option>
+                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                             </select>
                                         </div>
                                         <div class="col-md-12 form-group text-center">
@@ -100,8 +98,8 @@
                                             <i class="menu-icon tf-icons ti ti-ticket text-white"></i>
                                         </div>
                                         <div class="card-info">
-                                            <h4 class="mb-1 text-danger unpaid-amount fw-bold">AED {{ $totalAmount ?? 0 }}</h4>
-                                            <small class="fw-semibold">🎫 Total Tickets ({{ $totaltickets ?? 0 }})</small>
+                                            <h4 class="mb-1 text-danger unpaid-amount fw-bold">AED <?php echo e($totalAmount ?? 0); ?></h4>
+                                            <small class="fw-semibold">🎫 Total Tickets (<?php echo e($totaltickets ?? 0); ?>)</small>
                                         </div>
                                     </div>
                                 </div>
@@ -113,7 +111,7 @@
                                             <i class="menu-icon tf-icons ti ti-cash text-white"></i>
                                         </div>
                                         <div class="card-info">
-                                            <h4 class="mb-1 text-warning unpaid-amount fw-bold">AED {{ $serviceCharges ?? 0 }}</h4>
+                                            <h4 class="mb-1 text-warning unpaid-amount fw-bold">AED <?php echo e($serviceCharges ?? 0); ?></h4>
                                             <small class="fw-semibold">⚙️ Service Charges</small>
                                         </div>
                                     </div>
@@ -126,7 +124,7 @@
                                             <i class="menu-icon tf-icons ti ti-cash text-white"></i>
                                         </div>
                                         <div class="card-info">
-                                            <h4 class="mb-1 text-secondary unpaid-amount fw-bold">AED {{ $adminFee ?? 0 }}</h4>
+                                            <h4 class="mb-1 text-secondary unpaid-amount fw-bold">AED <?php echo e($adminFee ?? 0); ?></h4>
                                             <small class="fw-semibold">👨‍💼 Admin Fee</small>
                                         </div>
                                     </div>
@@ -139,7 +137,7 @@
                                             <i class="menu-icon tf-icons ti ti-cash text-white"></i>
                                         </div>
                                         <div class="card-info">
-                                            <h4 class="mb-1 text-primary unpaid-amount fw-bold">AED {{ $total_Amount ?? 0 }}</h4>
+                                            <h4 class="mb-1 text-primary unpaid-amount fw-bold">AED <?php echo e($total_Amount ?? 0); ?></h4>
                                             <small class="fw-semibold">💰 Total Amount</small>
                                         </div>
                                     </div>
@@ -152,8 +150,8 @@
                                             <i class="menu-icon tf-icons ti ti-check text-white"></i>
                                         </div>
                                         <div class="card-info">
-                                            <h4 class="mb-1 text-success paid-amount fw-bold">AED {{ $paidAmount ?? 0 }}</h4>
-                                            <small class="fw-semibold">✅ Paid Fines ({{ $paidCount ?? 0 }})</small>
+                                            <h4 class="mb-1 text-success paid-amount fw-bold">AED <?php echo e($paidAmount ?? 0); ?></h4>
+                                            <small class="fw-semibold">✅ Paid Fines (<?php echo e($paidCount ?? 0); ?>)</small>
                                         </div>
                                     </div>
                                 </div>
@@ -165,8 +163,8 @@
                                             <i class="menu-icon tf-icons ti ti-alert-circle text-white"></i>
                                         </div>
                                         <div class="card-info">
-                                            <h4 class="mb-1 text-danger unpaid-amount fw-bold">AED {{ $unpaidAmount ?? 0 }}</h4>
-                                            <small class="fw-semibold">❌ Unpaid Fines ({{ $unpaidCount ?? 0 }})</small>
+                                            <h4 class="mb-1 text-danger unpaid-amount fw-bold">AED <?php echo e($unpaidAmount ?? 0); ?></h4>
+                                            <small class="fw-semibold">❌ Unpaid Fines (<?php echo e($unpaidCount ?? 0); ?>)</small>
                                         </div>
                                     </div>
                                 </div>
@@ -180,17 +178,17 @@
     </div>
 </section>
 <div class="content px-3">
-    @include('flash::message')
+    <?php echo $__env->make('flash::message', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
     <div class="clearfix"></div>
 
     <div class="card">
         <div class="card-body table-responsive px-2 py-0" id="table-data">
-            @include('rta_fines.table', ['data' => $data])
+            <?php echo $__env->make('rta_fines.table', ['data' => $data], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
         </div>
     </div>
 </div>
-@endsection
-@section('page-script')
+<?php $__env->stopSection(); ?>
+<?php $__env->startSection('page-script'); ?>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script type="text/javascript">
@@ -237,7 +235,7 @@
             let formData = $.param(filteredFields);
 
             $.ajax({
-                url: "{{ route('rtaFines.tickets', $account->id) }}",
+                url: "<?php echo e(route('rtaFines.tickets', $account->id)); ?>",
                 type: "GET",
                 data: formData,
                 success: function(data) {
@@ -250,7 +248,7 @@
                     $('.unpaid-count').text(data.totals.unpaidCount);
 
                     // Update the URL
-                    let newUrl = "{{ route('rtaFines.tickets', $account->id) }}" + (formData ? '?' + formData : '');
+                    let newUrl = "<?php echo e(route('rtaFines.tickets', $account->id)); ?>" + (formData ? '?' + formData : '');
                     history.pushState(null, '', newUrl);
 
                     // Minimum 1s loader
@@ -305,4 +303,5 @@
         });
     });
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH C:\xampp\htdocs\erpbk\resources\views/rta_fines/index.blade.php ENDPATH**/ ?>

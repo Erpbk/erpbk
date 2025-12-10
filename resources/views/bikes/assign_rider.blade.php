@@ -46,7 +46,7 @@ $selectedDesignation = 'Cyclist';
         </div>
         <div class="form-group col-md-3">
             <label for="exampleInputEmail1">Date</label>
-            <input type="date" name="note_date" class="form-control" placeholder="Date" value="{{ date('Y-m-d') }}">
+            <input type="date" name="note_date" class="form-control">
         </div>
     </div>
     <!--col-->

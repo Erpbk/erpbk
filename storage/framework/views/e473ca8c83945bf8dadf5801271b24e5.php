@@ -1,4 +1,4 @@
-@php
+<?php
 $bike = DB::table('bikes')->where('id', $id)->first();
 $selectedRider = $bike && $bike->rider_id ? $bike->rider_id : null;
 $selectedWarehouse = $bike && $bike->warehouse ? $bike->warehouse : null;
@@ -21,41 +21,45 @@ $selectedDesignation = 'Cyclist';
 
 
 
-@endphp
-<script src="{{ asset('js/modal_custom.js') }}"></script>
-<form action="{{ route('bikes.assignrider', $id) }}" method="post" id="formajax">
-    <input type="hidden" name="bike_id" value="{{$id}}" />
-    <input type="hidden" name="emirate_hub" value="{{$emirateHub}}" />
+?>
+<script src="<?php echo e(asset('js/modal_custom.js')); ?>"></script>
+<form action="<?php echo e(route('bikes.assignrider', $id)); ?>" method="post" id="formajax">
+    <input type="hidden" name="bike_id" value="<?php echo e($id); ?>" />
+    <input type="hidden" name="emirate_hub" value="<?php echo e($emirateHub); ?>" />
     <div class="row">
 
         <div class="col-md-3 form-group">
             <label>Change Status</label>
             <select class="form-control warehouse form-select" name="warehouse" id="warehouse" onchange="bike_status()">
-                {!! App\Helpers\General::get_warehouse($selectedWarehouse) !!}
+                <?php echo App\Helpers\General::get_warehouse($selectedWarehouse); ?>
+
             </select>
         </div>
         <div class="col-md-3 form-group" id="rider_select">
             <label>Change Rider</label>
-            {!! Form::select(
+            <?php echo Form::select(
             'rider_id',
             \App\Models\Riders::dropdown(),
             $selectedRider, // preselected value
             ['class' => 'form-select select2', 'id' => 'rider_id']
-            ) !!}
+            ); ?>
+
         </div>
         <div class="col-md-3 form-group">
             <label>Designation</label>
-            <input type="text" name="designation" class="form-control" readonly value="{{ $selectedDesignation }}">
+            <input type="text" name="designation" class="form-control" readonly value="<?php echo e($selectedDesignation); ?>">
         </div>
         <div class="col-md-3 form-group">
             <label>Project</label>
-            {!! Form::select(
+            <?php echo Form::select(
             'customer_id_display',
             App\Models\Customers::dropdown(),
             $selectedCustomer,
             ['class' => 'form-select select2', 'id' => 'customer_id_display', 'disabled' => true]
-            ) !!}
-            {!! Form::hidden('customer_id', $selectedCustomer) !!}
+            ); ?>
+
+            <?php echo Form::hidden('customer_id', $selectedCustomer); ?>
+
         </div>
 
         <div class="form-group col-md-3" id="active_date">
@@ -86,7 +90,7 @@ $selectedDesignation = 'Cyclist';
 
 <script>
     // Pass vehicle type name to JavaScript
-    var vehicleTypeName = '{{ $vehicleTypeName }}';
+    var vehicleTypeName = '<?php echo e($vehicleTypeName); ?>';
 
     function bike_status() {
         var status = $('.warehouse').find(":selected").val();
@@ -120,4 +124,4 @@ $selectedDesignation = 'Cyclist';
     $(document).ready(function() {
         updateDesignationBasedOnVehicleType();
     });
-</script>
+</script><?php /**PATH C:\xampp\htdocs\erpbk\resources\views/bikes/assignriders.blade.php ENDPATH**/ ?>

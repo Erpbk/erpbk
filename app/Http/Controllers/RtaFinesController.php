@@ -22,6 +22,8 @@ use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use Flash;
 use DB;
+use App\Imports\RTAFineImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class RtaFinesController extends AppBaseController
 {
@@ -878,6 +880,49 @@ class RtaFinesController extends AppBaseController
                     . $r->rider_id . ' - ' . $r->name
                     . '</option>';
             }
+        }
+    }
+
+    public function importForm($salikAccountId)
+    {
+        $account = Accounts::findOrFail($salikAccountId);
+        return view('rta_fines.import', compact('account'));
+    }
+
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,csv,xls',
+            'account_id' => 'required|numeric',
+            'admin_charge_per_rtafine' => 'nullable|numeric'
+        ]);
+        try {
+            $AccountId = $request->account_id;
+            $import = new RTAFineImport($AccountId);
+            Excel::import($import, $request->file('file'));
+            $importResult = $import->getResults();
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Rta Fines imported successfully with vouchers created.",
+                    'results' => $importResult
+                ]);
+            }
+            Flash::success("Rta Fines imported successfully with vouchers created. Records imported: {$importedCount}");
+            return redirect()->back();
+        } catch (\Exception $e) {
+            \Log::error('Rta Fines import failed: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Import failed: ' . $e->getMessage()
+                ], 422);
+            }
+            Flash::error('Import failed: ' . $e->getMessage());
+            return redirect()->back();
         }
     }
 }

@@ -57,7 +57,6 @@ class RtaFinesController extends AppBaseController
         $newdata->admin_charges = $request->admin_charges;
         $newdata->parent_id = $parent->id;
         $newdata->account_type = 'Liability';
-
         $newdata->status = 1;
         $newdata->save();
         $newdata->account_code = 'ACCT-' . str_pad($newdata->id, 5, '0', STR_PAD_LEFT);

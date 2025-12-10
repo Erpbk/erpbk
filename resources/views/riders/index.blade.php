@@ -98,8 +98,8 @@
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="{{ route('rider.activities_import') }}">
                                     <i class="ti ti-activity"></i>
                                     <div>
-                                        <div class="action-dropdown-item-text">Import Noon Activities</div>
-                                        <div class="action-dropdown-item-desc">Import Noon rider activity data</div>
+                                        <div class="action-dropdown-item-text">Import Activities</div>
+                                        <div class="action-dropdown-item-desc">Import rider activity data</div>
                                     </div>
                                 </a>
                                 <!-- <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Keeta Rider Activities" data-action="{{ route('rider.keeta_activities_import') }}">

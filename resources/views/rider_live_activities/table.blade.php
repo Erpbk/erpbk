@@ -31,13 +31,7 @@
          <td>{{ $r->rejected_orders }}</td>
          <td>{{ $r->login_hr }}</td>
          <td>
-            @if ($r->delivery_rating == 'Yes')
-            Valid
-            @elseif($r->delivery_rating == 'No')
-            Invalid
-            @else
             {{ $r->delivery_rating }}
-            @endif
          </td>
       </tr>
       @endforeach

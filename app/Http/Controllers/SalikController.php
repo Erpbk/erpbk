@@ -307,7 +307,7 @@ class SalikController extends AppBaseController
             $transactionService->recordTransaction([
                 'account_id'     => $riderAccountId,
                 'reference_id'   => $salik->id,
-                'reference_type' => 'Salik',
+                'reference_type' => 'Salik Voucher',
                 'trans_code'     => $transCode,
                 'trans_date'     => $transDate,
                 'narration'      => 'Salik Trip Debit (including admin fee)',
@@ -318,7 +318,7 @@ class SalikController extends AppBaseController
             $transactionService->recordTransaction([
                 'account_id'     => $salikAccountId,
                 'reference_id'   => $salik->id,
-                'reference_type' => 'Salik',
+                'reference_type' => 'Salik Voucher',
                 'trans_code'     => $transCode,
                 'trans_date'     => $transDate,
                 'narration'      => 'Salik Trip Credit',
@@ -330,7 +330,7 @@ class SalikController extends AppBaseController
                 $transactionService->recordTransaction([
                     'account_id'     => $adminAccountId,
                     'reference_id'   => $salik->id,
-                    'reference_type' => 'Voucher',
+                    'reference_type' => 'Salik Voucher',
                     'trans_code'     => $transCode,
                     'trans_date'     => $transDate,
                     'narration'      => 'Salik Admin Charges Credit',

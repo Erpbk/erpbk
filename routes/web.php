@@ -247,6 +247,12 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::any('rider/keeta-activities-import', [\App\Http\Controllers\RiderActivitiesController::class, 'importKeeta'])->name('rider.keeta_activities_import');
     Route::get('rider/activities-import/errors', [\App\Http\Controllers\RiderActivitiesController::class, 'importErrors'])->name('rider.activities_import_errors');
 
+
+
+
+    Route::get('rider/riderliveActivities', [\App\Http\Controllers\RiderActivitiesController::class, 'liveactivities'])->name('rider.liveactivities');
+    Route::any('rider/live-activities-import', [\App\Http\Controllers\RiderActivitiesController::class, 'liveimportactivities'])->name('rider.live_activities_import');
+    Route::get('rider/live-activities-import/errors', [\App\Http\Controllers\RiderActivitiesController::class, 'liveimportErrors'])->name('rider.live_activities_import_errors');
     /* Rider section end here */
 
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CreateRiderActivitiesRequest;
 use App\Http\Requests\UpdateRiderActivitiesRequest;
 use App\Imports\ImportRiderActivities;
+use App\Imports\ImportLiveActivities;
 use App\Models\RiderActivities;
 use App\Models\liveactivities;
 use App\Models\Riders;
@@ -267,16 +268,18 @@ class RiderActivitiesController extends AppBaseController
 
 
     /**
-     * Display last Noon import errors.
+     * Display last Live Activities import errors.
      */
     public function liveimportErrors()
     {
         $summary = session('activities_import_summary', []);
         $errors = $summary['errors'] ?? [];
 
-        return view('rider_activities.import_errors', [
+        return view('rider_live_activities.import_errors', [
             'summary' => $summary,
             'errors' => $errors,
+            'importType' => 'Live Activities',
+            'importRoute' => route('rider.live_activities_import'),
         ]);
     }
     public function liveactivities(Request $request)
@@ -393,13 +396,20 @@ class RiderActivitiesController extends AppBaseController
             // Clear previous import summary
             session()->forget('activities_import_summary');
 
-            $import = new ImportRiderActivities();
+            $import = new ImportLiveActivities();
 
             try {
                 Excel::import($import, $request->file('file'));
 
-                // Success popup
-                session()->flash('success', 'Rider activities imported successfully.');
+                $summary = session('activities_import_summary', []);
+                $currentDate = $summary['current_date'] ?? date('Y-m-d');
+
+                // Success popup with date information
+                $message = "Live activities imported successfully for {$currentDate}. ";
+                if (isset($summary['success_count'])) {
+                    $message .= "Imported: {$summary['success_count']} records.";
+                }
+                session()->flash('success', $message);
             } catch (\Throwable $th) {
                 // Error popup (includes Rider ID not found, date, numeric errors)
                 session()->flash('error', 'Import failed: ' . $th->getMessage());
@@ -409,7 +419,8 @@ class RiderActivitiesController extends AppBaseController
         }
 
         $summary = session('activities_import_summary');
+        $currentDate = $summary['current_date'] ?? date('Y-m-d');
 
-        return view('rider_live_activities.import', compact('summary'));
+        return view('rider_live_activities.import', compact('summary', 'currentDate'));
     }
 }

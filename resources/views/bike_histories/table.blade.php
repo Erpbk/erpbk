@@ -1,4 +1,16 @@
-@extends('bikes.edit')
+@push('third_party_stylesheets')
+   
+   <style>
+      /*#dataTableBuilder {
+          border: 2px solid #333;
+          border-collapse: collapse;
+      }
+
+      #dataTableBuilder thead th {
+          font-size: 1.1rem;
+      }*/
+   </style>
+   @endpush
 @section('page_content')
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">

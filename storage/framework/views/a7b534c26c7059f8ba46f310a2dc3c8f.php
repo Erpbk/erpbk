@@ -16,15 +16,13 @@
     
     .bike-header-compact {
         text-align: center;
-        margin-bottom: 28px;
-        padding-bottom: 20px;
-        border-bottom: 2px solid #f1f5f9;
+        margin-bottom: 20px; 
         width: 100%;
         overflow: hidden;
     }
     
     .vehicle-type {
-        font-size: 1.5rem;
+        font-size: 0.8rem; 
         font-weight: 700;
         color: #1e293b;
         margin-bottom: 12px;
@@ -42,7 +40,7 @@
         overflow: hidden;
     }
     
-    /* Number Plate Styles - RAK style for all emirates */
+    /* Number Plate Styles -style for all emirates */
     .number-plate {
         display: inline-block;
         padding: 8px 12px;
@@ -53,9 +51,9 @@
         min-width: 160px;
         max-width: 90%;
         box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
-        border: 2px solid #000000;
+        border: 1px solid #000000;
         background: linear-gradient(to bottom, #ffffff, #f0f0f0);
-        color: #000000; /* Changed to black for all text */
+        color: #000000; 
         box-sizing: border-box;
         margin: 0 auto;
         position: relative;
@@ -97,7 +95,7 @@
         letter-spacing: 1px;
         margin-top: 12px; /* Added margin for corner elements */
         margin-bottom: 4px;
-        color: #000000; /* Changed to black */
+        color: #000000; 
         font-weight: 800;
         line-height: 1.2;
         word-break: break-word;
@@ -107,7 +105,7 @@
     .number-plate .plate-emirate-english {
         font-size: 0.8rem;
         text-transform: uppercase;
-        color: #000000; /* Changed to black */
+        color: #000000; 
         font-weight: 600;
         line-height: 1;
         word-break: break-word;
@@ -130,135 +128,141 @@
         word-break: break-word;
     }
     
-    .bike-details-list {
-        margin-bottom: 28px;
+    /* Basic Information Section - Matching rider profile style */
+    .basic-information {
+        margin-top: 20px;
         width: 100%;
         overflow: hidden;
     }
     
-    .detail-row {
-        display: flex;
-        flex-direction: column;
+    .basic-information h3 {
         margin-bottom: 20px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #dce1e6;
+    }
+    
+    .info-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+    }
+    
+    .info-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 6px;
+        padding-bottom: 10px;
         width: 100%;
         box-sizing: border-box;
     }
     
-    .detail-row:last-child {
-        margin-bottom: 0;
-        border-bottom: none;
+    
+    .info-icon {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+        color: #6c757d;
+        font-size: 0.9rem;
+        flex-shrink: 0;
     }
     
-    .detail-label {
-        font-size: 0.9rem;
-        color: #64748b;
-        font-weight: 500;
-        margin-bottom: 6px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+    .info-content {
+        flex: 1;
+        min-width: 0; /* Prevents content overflow */
+    }
+    
+    .info-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        display: block;
+        margin-bottom: 2px;
         word-break: break-word;
     }
     
-    .detail-value {
-        font-size: 1.2rem;
+    .info-value {
+        font-size: 0.8rem;
         font-weight: 600;
-        color: #1e293b;
-        text-align: right;
+        color: #495057;
+        display: block;
         word-break: break-word;
         overflow-wrap: break-word;
         line-height: 1.3;
-        padding-left: 20px;
-        box-sizing: border-box;
     }
     
-    .detail-value.status-Active {
+    .info-value.status-badge {
+        display: inline-block;
+        padding: 8px 14px; 
+        border-radius: 8px; 
+        font-size: 0.7rem; 
+        font-weight: 600;
+        text-align: center;
+        margin-top: 4px;
+        min-width: 100px; 
+        max-width: 100%;
+    }
+    
+    .status-badge.Active {
         color: #059669;
         background: #f0fdf4;
-        padding: 8px 14px;
-        border-radius: 8px;
-        display: inline-block;
-        text-align: center;
-        margin-left: auto;
-        min-width: 100px;
-        max-width: 100%;
+        border: 1px solid #44bd97;
     }
     
-    .detail-value.status-Inactive {
-        color: #dc2626;
-        background: #fef2f2;
-        padding: 8px 14px;
-        border-radius: 8px;
-        display: inline-block;
-        text-align: center;
-        margin-left: auto;
-        min-width: 100px;
-        max-width: 100%;
-    }
-    
-    .detail-value.status-Return {
+    .status-badge.Return {
         color: #ffc107;
         background: #faf4de;
-        padding: 8px 14px;
-        border-radius: 8px;
-        display: inline-block;
-        text-align: center;
-        margin-left: auto;
-        min-width: 100px;
-        max-width: 100%;
+        border: 1px solid #dbba56;
     }
-
-    .detail-value.status-Absconded {
+    
+    .status-badge.Absconded {
         color: #dc2626;
         background: #fef2f2;
-        padding: 8px 14px;
-        border-radius: 8px;
-        display: inline-block;
-        text-align: center;
-        margin-left: auto;
-        min-width: 100px;
-        max-width: 100%;
+        border: 1px solid #d67676;
     }
-
-    .detail-value.status-Vacation {
+    
+    .status-badge.Vacation {
         color: #0dcaf0;
         background: #defafa;
-        padding: 8px 14px;
-        border-radius: 8px;
-        display: inline-block;
-        text-align: center;
-        margin-left: auto;
-        min-width: 100px;
-        max-width: 100%;
+        border: 1px solid #84cbd9;
     }
-
+    
+    /* Default to gray if warehouse doesn't match specific names */
+    .status-badge.warehouse-default {
+        color: #41464b;
+        background: #e2e3e5;
+        border: 1px solid #c4c8cb;
+    }
+    
+    /* Action Buttons */
     .bike-actions-compact {
         display: flex;
         flex-wrap: wrap;
-        gap: 12px;
+        gap: 8px; 
         justify-content: center;
         margin-top: 24px;
         padding-top: 24px;
-        border-top: 2px solid #f1f5f9;
+        border-top: 2px solid #dce1e6;
         width: 100%;
         box-sizing: border-box;
     }
     
     .btn-compact {
         flex: 1;
-        min-width: 160px;
-        padding: 14px 20px;
-        border-radius: 10px;
+        min-width: 120px; 
+        padding: 8px 12px; 
+        border-radius: 6px; 
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 0.6rem; 
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
+        gap: 6px; 
         transition: all 0.2s ease;
         text-decoration: none;
-        border: 2px solid transparent;
+        border: 1px solid transparent; 
         cursor: pointer;
         box-sizing: border-box;
         max-width: 100%;
@@ -266,7 +270,7 @@
     }
     
     .btn-compact i {
-        font-size: 1.1rem;
+        font-size: 0.9rem; 
     }
     
     .btn-edit-compact {
@@ -307,6 +311,36 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
     }
+
+    .road-status-container {
+    text-align: center;
+    margin: 15px 0 20px 0;
+    width: 100%;
+    }
+
+    .road-status-badge {
+        display: inline-block;
+        padding: 4px 16px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-align: center;
+        min-width: 120px;
+        color: white;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .road-onroad {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: 1px solid #218838;
+    }
+
+    .road-offroad {
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+        border: 1px solid #c82333;
+    }
     
     /* Responsive adjustments */
     @media (max-width: 768px) {
@@ -323,25 +357,17 @@
         
         .bike-actions-compact {
             flex-direction: column;
+            gap: 6px; /* Smaller gap on mobile */
         }
         
         .btn-compact {
             min-width: 100%;
-            padding: 12px 16px;
-            font-size: 0.9rem;
+            padding: 7px 10px; /* Further reduced for mobile */
+            font-size: 0.8rem;
         }
         
-        .detail-value {
-            text-align: right;
-            padding-left: 0;
-            font-size: 1.1rem;
-        }
-        
-        .detail-value.status-active,
-        .detail-value.status-inactive {
-            margin-left: 0;
-            text-align: center;
-            width: 100%;
+        .vehicle-type {
+            font-size: 1.1rem; /* Adjusted for mobile */
         }
         
         .number-plate {
@@ -377,6 +403,31 @@
             max-width: 85%;
             padding: 6px 12px;
         }
+        
+        /* Mobile responsive for info items */
+        .info-item {
+            flex-wrap: wrap;
+        }
+        
+        .info-icon {
+            width: 18px;
+            height: 18px;
+            font-size: 0.8rem;
+        }
+        
+        .info-label {
+            font-size: 0.8rem;
+        }
+        
+        .info-value {
+            font-size: 0.9rem;
+        }
+        
+        .info-value.status-badge {
+            font-size: 0.9rem;
+            padding: 6px 12px;
+            min-width: 90px;
+        }
     }
     
     @media (min-width: 769px) and (max-width: 992px) {
@@ -387,6 +438,10 @@
         .number-plate {
             min-width: 170px;
             max-width: 85%;
+        }
+        
+        .btn-compact {
+            min-width: 130px; /* Adjusted for medium screens */
         }
     }
     
@@ -399,6 +454,25 @@
             min-width: 180px;
             max-width: 85%;
         }
+        
+        .btn-compact {
+            min-width: 120px; /* Adjusted for large screens */
+        }
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+        }
+        70% {
+            transform: scale(1.02);
+            box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);
+        }
+        100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+        }
     }
     
     /* Extra small devices */
@@ -408,7 +482,7 @@
         }
         
         .vehicle-type {
-            font-size: 1.3rem;
+            font-size: 1.1rem; /* Adjusted for mobile */
         }
         
         .number-plate {
@@ -436,8 +510,19 @@
             margin-top: 8px;
         }
         
-        .detail-value {
-            font-size: 1rem;
+        .btn-compact {
+            padding: 6px 8px;
+            font-size: 0.75rem;
+        }
+        
+        .btn-compact i {
+            font-size: 0.8rem;
+        }
+        
+        .info-value.status-badge {
+            font-size: 0.85rem;
+            padding: 5px 10px;
+            min-width: 80px;
         }
     }
 </style>
@@ -469,6 +554,20 @@
                 ];
                 
                 $currentEmirate = $emiratesData[$emirateCode] ?? null;
+                
+                // Map warehouse names to status classes
+                $warehouse = $bikes->warehouse ?? '';
+                $warehouseClass = 'warehouse-default';
+                
+                if (strtolower($warehouse) == 'active') {
+                    $warehouseClass = 'Active';
+                } elseif (strtolower($warehouse) == 'return') {
+                    $warehouseClass = 'Return';
+                } elseif (strtolower($warehouse) == 'absconded') {
+                    $warehouseClass = 'Absconded';
+                } elseif (strtolower($warehouse) == 'vacation') {
+                    $warehouseClass = 'Vacation';
+                }
             ?>
             
             <div class="plate-container">
@@ -498,38 +597,116 @@
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </div>
         </div>
-        
-        <!-- Compact Details List -->
-        <div class="bike-details-list">
-            
-            <div class="detail-row">
-                <span class="detail-label">Leasing Company</span>
-                <span class="detail-value">
-                    <?php
-                        $company = DB::table('leasing_companies')->where('id', $bikes->company)->first();
-                        echo $company->name ?? 'N/A';
-                    ?>
-                </span>
-            </div>
-            
-            <div class="detail-row">
-                <span class="detail-label">Status</span>
-                <span class="detail-value <?php if($bikes->status == 1): ?> status-Active <?php else: ?> status-Inactive <?php endif; ?>">
-                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($bikes->status == 1): ?>
-                        Active
-                    <?php else: ?>
-                        Inactive
-                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                </span>
-            </div>
 
-            <div class="detail-row">
-                <span class="detail-label">WareHouse</span>
-                <span class="detail-value status-<?php echo e($bikes->warehouse); ?>"><?php echo e($bikes->warehouse ?? 'N/A'); ?></span>
+        <div class="road-status-container">
+            <?php
+                $warehouse = strtolower(trim($bikes->warehouse ?? ''));
+                $roadStatus = 'N/A';
+                $roadStatusClass = '';
+                
+                if ($warehouse === 'active' || $warehouse === 'absconded') {
+                    $roadStatus = 'On Road';
+                    $roadStatusClass = 'road-onroad';
+                } elseif ($warehouse === 'return' || $warehouse === 'vacation' || $warehouse === 'express garage') {
+                    $roadStatus = 'Off Road';
+                    $roadStatusClass = 'road-offroad';
+                }
+            ?>
+            
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($roadStatus !== 'N/A'): ?>
+            <div class="road-status-badge <?php echo e($roadStatusClass); ?>">
+                <?php echo e($roadStatus); ?>
+
             </div>
+            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
         </div>
         
-        <!-- Action Buttons -->
+        <!-- Basic Information Section - Matching rider profile style -->
+        <div class="basic-information">
+            <h3></h3>
+            <ul class="info-list">
+
+                <li class="info-item">
+                    <div class="info-icon">
+                        <i class="ti ti-user"></i>
+                    </div>
+                    <div class="info-content">
+                        <?php
+                            $rider = DB::table('riders')->where('id', $bikes->rider_id)->first();
+                            $riderName = $rider->name ?? 'Not Assigned';
+                        ?>
+                        <span class="info-label">Rider</span>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($rider): ?>
+                            <a href="<?php echo e(route('riders.show', $rider->id)); ?>"><?php echo e($riderName); ?></a>
+                        <?php else: ?>
+                            <span><?php echo e($riderName); ?></span>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                    </div>
+                </li>
+
+                <!-- Leasing Company -->
+                <li class="info-item">
+                    <div class="info-icon">
+                        <i class="ti ti-building"></i>
+                    </div>
+                    <div class="info-content">
+                        <span class="info-label">Leasing Company</span>
+                        <span class="info-value">
+                            <?php
+                                $company = DB::table('leasing_companies')->where('id', $bikes->company)->first();
+                                echo $company->name ?? 'N/A';
+                            ?>
+                        </span>
+                    </div>
+                </li>
+
+                <!-- Bike Expiry -->
+                <li class="info-item">
+                    <div class="info-icon">
+                        <i class="ti ti-calendar-stats"></i>
+                    </div>
+                    <div class="info-content">
+                        <span class="info-label">Bike Expiry</span>
+                        <?php
+                            $expiryDate = $bikes->expiry_date ?? null;
+                            $isExpiring = false;
+                            $isExpired = false;
+                            
+                            if ($expiryDate) {
+                                $expiry = \Carbon\Carbon::parse($expiryDate);
+                                $now = \Carbon\Carbon::now();
+                                
+                                if ($expiry->isPast()) {
+                                    $isExpired = true;
+                                } elseif ($expiry->diffInDays($now) <= 30) {
+                                    $isExpired = true;
+                                }
+                            }
+                        ?>
+                        
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($expiryDate): ?>
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isExpired): ?>
+                                <span class="info-value status-badge Expired" style="animation: pulse 1s infinite; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); color: white; border: 2px solid #b91c1c;">
+                                    <?php echo e($expiryDate); ?>
+
+                                </span>
+                            <?php elseif($isExpiring): ?>
+                                <span class="info-value status-badge Expiring" style="animation: pulse 1.5s infinite; background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); color: white; border: 2px solid #d97706;">
+                                    <?php echo e($expiryDate); ?> (SOON!)
+                                </span>
+                            <?php else: ?>
+                                <span class="info-value"><?php echo e($expiryDate); ?></span>
+                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                        <?php else: ?>
+                            <span class="info-value">N/A</span>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                    </div>
+                </li>
+
+            </ul>
+        </div>
+        
+        <!-- Action Buttons - Smaller size -->
         <div class="bike-actions-compact">
             <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('item_edit')): ?>
             <a href="<?php echo e(route('bikes.edit', $bikes->id)); ?>" 
@@ -547,7 +724,7 @@
                data-title="Assigned Rider Details"
                data-action="<?php echo e(route('bikes.assignrider', $bikes->id)); ?>">
                 <i class="fas fa-user-check"></i>
-                <span>View Assignment</span>
+                <span>Change Status</span>
             </a>
             <?php else: ?>
             <a href="javascript:void(0);" 

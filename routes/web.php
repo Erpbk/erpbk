@@ -268,7 +268,6 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('items/delete/{id}', [\App\Http\Controllers\ItemsController::class, 'destroy'])->name('items.delete');
 
     Route::resource('files', FilesController::class);
-    Route::resource('files', FilesController::class);
 
     Route::resource('vendors', App\Http\Controllers\VendorsController::class);
 

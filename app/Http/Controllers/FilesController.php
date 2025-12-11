@@ -55,6 +55,7 @@ class FilesController extends AppBaseController
    */
   public function store(CreateFilesRequest $request)
   {
+    
     $input = $request->all();
 
     if (isset($input['file_name'])) {
@@ -63,6 +64,7 @@ class FilesController extends AppBaseController
       $name = $input['type'] . '-' . $input['type_id'] . '-' . time() . '.' . $extension;
       $input['file_name']->storeAs($input['type'] . '/' . $input['type_id'] . '/', $name);
 
+      $input['name'] = $input['file_name']->getClientOriginalName();
       $input['file_name'] = $name;
       $input['file_type'] = $extension;
     }

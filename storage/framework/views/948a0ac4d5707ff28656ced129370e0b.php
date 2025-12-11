@@ -1,3 +1,16 @@
+<?php $__env->startPush('third_party_stylesheets'); ?>
+   
+   <style>
+      /*#dataTableBuilder {
+          border: 2px solid #333;
+          border-collapse: collapse;
+      }
+
+      #dataTableBuilder thead th {
+          font-size: 1.1rem;
+      }*/
+   </style>
+   <?php $__env->stopPush(); ?>
 <?php $__env->startSection('page_content'); ?>
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
@@ -97,5 +110,4 @@
       });
    });
 </script>
-<?php $__env->stopSection(); ?>
-<?php echo $__env->make('bikes.edit', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH C:\xampp\htdocs\erpbk\resources\views/bike_histories/table.blade.php ENDPATH**/ ?>
+<?php $__env->stopSection(); ?><?php /**PATH C:\xampp\htdocs\erpbk\resources\views/bike_histories/table.blade.php ENDPATH**/ ?>

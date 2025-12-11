@@ -120,7 +120,7 @@
             <!--col-->
             <div class="col-md-2 form-group">
                 <label>Amount</label>
-                <input type="text" class="form-control form-control amount" readonly name="amount[]" value="AED <?php echo e(number_format($item->amount, 2)); ?>" placeholder="AED 0.00" data-numeric-value="<?php echo e($item->amount); ?>" onkeyup="getTotal();">
+                <input type="text" class="form-control form-control amount" readonly name="amount[]" value="AED <?php echo e(number_format($item->amount, 2)); ?>" placeholder="AED 0.00" onkeyup="getTotal();">
             </div>
             <!--col-->
             <div class="form-group col-md-1 d-flex align-items-end">
@@ -182,15 +182,6 @@
             <label><strong>Sub Total</strong>:</label>
         </div>
         <div class="col-md-2 form-group text-left">
-            <input type="text" name="total_amount" class="form-control form-control" id="sub_total" placeholder="0.00" value="<?php if(isset($invoice->total_amount)): ?> <?php echo e($invoice->total_amount); ?> <?php endif; ?>" readonly>
+            <input type="text" name="total_amount" class="form-control form-control" id="sub_total" placeholder="0.00" value="<?php if(isset($invoice->total_amount)): ?> <?php echo e($invoice->total_amount-$invoice->vat); ?> <?php else: ?> 0.00 <?php endif; ?>" readonly>
         </div>
-    </div>
-
-    <script>
-        $(document).ready(function() {
-            // Initialize subtotal calculation on page load
-            if (typeof getTotal === 'function') {
-                getTotal();
-            }
-        });
-    </script><?php /**PATH D:\xammp1\htdocs\erpbk\resources\views/rider_invoices/fields.blade.php ENDPATH**/ ?>
+    </div><?php /**PATH D:\xammp1\htdocs\erpbk\resources\views/rider_invoices/fields.blade.php ENDPATH**/ ?>

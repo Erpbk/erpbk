@@ -32,11 +32,11 @@
          <td>{{ $r->login_hr }}</td>
          <td>
             @if ($r->delivery_rating == 'Yes')
-            <span class="badge bg-success">Valid</span>
+            Valid
             @elseif($r->delivery_rating == 'No')
-            <span class="badge bg-warning">Invalid</span>
+            Invalid
             @else
-            <span class="badge bg-danger">Off</span>
+            {{ $r->delivery_rating }}
             @endif
          </td>
       </tr>

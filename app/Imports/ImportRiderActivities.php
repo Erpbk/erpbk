@@ -135,7 +135,7 @@ class ImportRiderActivities implements ToCollection
       'ontime_orders_percentage'    => (float) str_replace('%', '', $row[22] ?? 0),
       'rejected_orders'             => (int) ($row[17] ?? 0),
       'login_hr'                    => (float) ($row[10] ?? 0),
-      'delivery_rating'             => $row[8] ?? '-',
+      'delivery_rating'             => (float) ($row[8] ?? 0),
     ];
 
     RiderActivities::updateOrCreate(

@@ -25513,7 +25513,7 @@ th.sorting.sorted-desc::after {
     opacity: 1;
 }
 #cardBody{
-  height: 1155px !important;
+  height: 660px !important;
   overflow: auto;
   background-color: #f8f6fa;
   scrollbar-width: none;

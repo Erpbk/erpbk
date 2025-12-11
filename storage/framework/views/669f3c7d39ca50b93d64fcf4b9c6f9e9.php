@@ -30,10 +30,6 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
       <p class="text-muted mt-2">
         <small>Note: The file should have headers with date, rider_id, payout_type, and other activity fields. See sample file for format.</small>
       </p>
-      <div class="alert alert-info mt-2">
-        <strong>⚠️ Important:</strong> Only records with today's date (<?php echo e($currentDate ?? date('Y-m-d')); ?>) will be imported or updated. 
-        Records with other dates will be skipped. For each day, you can import multiple times to update the same day's records.
-      </div>
     </div>
     <div class="col-12 mt-3 mb-3">
       <label class="mb-3 pl-2">Select file</label>
@@ -143,7 +139,7 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
       errorHtml += '<ol style="margin-bottom: 0; padding-left: 25px;">';
       errorHtml += '<li><strong>Open your Excel file</strong> and locate the row numbers shown above</li>';
       errorHtml += '<li><strong>Check Rider IDs:</strong> Make sure they exist in the Riders database</li>';
-      errorHtml += '<li><strong>Verify Dates:</strong> Use format YYYY-MM-DD. <strong>IMPORTANT:</strong> Only today\'s date will be processed. Other dates will be skipped.</li>';
+      errorHtml += '<li><strong>Verify Dates:</strong> Use format YYYY-MM-DD (e.g., 2024-01-15)</li>';
       errorHtml += '<li><strong>Fill Empty Fields:</strong> Ensure rider_id and date are not blank</li>';
       errorHtml += '<li><strong>Save and Re-import:</strong> After fixing, upload the file again</li>';
       errorHtml += '</ol>';

@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title','Rider Live Activities')
+@section('title','Rider Activities')
 @section('content')
 <section class="content-header">
   <div class="container-fluid">
     <div class="row mb-2">
       <div class="col-sm-6">
-        <h3>Rider Live Activities</h3>
+        <h3>Rider Activities</h3>
       </div>
       <div class="col-sm-6">
         {{-- <a class="btn btn-primary float-right"
@@ -22,7 +22,7 @@
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="searchTopbody">
-              <form id="filterForm" action="{{ route('rider.liveactivities') }}" method="GET">
+              <form id="filterForm" action="{{ route('riderActivities.index') }}" method="GET">
                 <div class="row">
                   <div class="form-group col-md-4">
                     <label for="id">ID</label>
@@ -171,7 +171,7 @@
 
   <div class="card">
     <div class="card-body table-responsive px-2 py-0" id="table-data">
-      @include('rider_live_activities.table', ['data' => $data])
+      @include('rider_activities.table', ['data' => $data])
     </div>
   </div>
 </div>
@@ -229,14 +229,14 @@
       let formData = $.param(filteredFields);
 
       $.ajax({
-        url: "{{ route('rider.liveactivities') }}",
+        url: "{{ route('riderActivities.index') }}",
         type: "GET",
         data: formData,
         success: function(data) {
           $('#table-data').html(data.tableData);
 
           // Update URL
-          let newUrl = "{{ route('rider.liveactivities') }}" + (formData ? '?' + formData : '');
+          let newUrl = "{{ route('riderActivities.index') }}" + (formData ? '?' + formData : '');
           history.pushState(null, '', newUrl);
 
 

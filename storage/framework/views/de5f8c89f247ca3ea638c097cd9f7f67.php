@@ -32,11 +32,12 @@
          <td><?php echo e($r->login_hr); ?></td>
          <td>
             <?php if($r->delivery_rating == 'Yes'): ?>
-            <span class="badge bg-success">Valid</span>
+            Valid
             <?php elseif($r->delivery_rating == 'No'): ?>
-            <span class="badge bg-warning">Invalid</span>
+            Invalid
             <?php else: ?>
-            <span class="badge bg-danger">Off</span>
+            <?php echo e($r->delivery_rating); ?>
+
             <?php endif; ?>
          </td>
       </tr>

@@ -1220,98 +1220,10 @@ class RidersController extends AppBaseController
   {
     return $riderAttendanceDataTable->with(['rider_id' => $rider_id])->render('riders.attendance');
   }
-  public function activities($rider_id)
+  public function activities($rider_id, RiderActivitiesDataTable $riderActivitiesDataTable)
   {
-    $month = request('month') ?? date('Y-m');
-    $filters = [
-      'rider_id' => $rider_id,
-      'month' => $month,
-    ];
-
-    // Parse month to get year and month
-    $year = date('Y', strtotime($month . '-01'));
-    $monthNum = date('m', strtotime($month . '-01'));
-
-    $query = RiderActivities::where('rider_id', $rider_id)
-      ->whereYear('date', $year)
-      ->whereMonth('date', $monthNum);
-
-    $data = $query->orderBy('date', 'desc')->get();
-
-    // Calculate totals from database
-    $totals = [
-      'working_days' => $data->count(),
-      'valid_days' => $data->where('delivery_rating', 'Yes')->count(),
-      'invalid_days' => $data->where('delivery_rating', 'No')->count(),
-      'off_days' => $data->filter(function ($item) {
-        return $item->delivery_rating != 'Yes' && $item->delivery_rating != 'No';
-      })->count(),
-      'total_orders' => $data->sum('delivered_orders'),
-      'total_rejected' => $data->sum('rejected_orders'),
-      'total_hours' => $data->sum('login_hr'),
-      'avg_ontime' => $data->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage') ?? 0,
-    ];
-
-    // Convert average ontime to percentage
-    $totals['avg_ontime'] = $totals['avg_ontime'] * 100;
-
-    return view('riders.activities', compact('data', 'filters', 'totals'));
+    return $riderActivitiesDataTable->with(['rider_id' => $rider_id])->render('riders.activities');
   }
-
-  public function activitiesPdf($rider_id)
-  {
-    $month = request('month') ?? date('Y-m');
-    $filters = [
-      'rider_id' => $rider_id,
-      'month' => $month,
-    ];
-
-    // Parse month to get year and month
-    $year = date('Y', strtotime($month . '-01'));
-    $monthNum = date('m', strtotime($month . '-01'));
-
-    $query = RiderActivities::where('rider_id', $rider_id)
-      ->whereYear('date', $year)
-      ->whereMonth('date', $monthNum);
-
-    $data = $query->orderBy('date', 'desc')->get();
-
-    // Calculate totals from database
-    $totals = [
-      'working_days' => $data->count(),
-      'valid_days' => $data->where('delivery_rating', 'Yes')->count(),
-      'invalid_days' => $data->where('delivery_rating', 'No')->count(),
-      'off_days' => $data->filter(function ($item) {
-        return $item->delivery_rating != 'Yes' && $item->delivery_rating != 'No';
-      })->count(),
-      'total_orders' => $data->sum('delivered_orders'),
-      'total_rejected' => $data->sum('rejected_orders'),
-      'total_hours' => $data->sum('login_hr'),
-      'avg_ontime' => $data->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage') ?? 0,
-    ];
-
-    // Convert average ontime to percentage
-    $totals['avg_ontime'] = $totals['avg_ontime'] * 100;
-
-    // Get rider info
-    $rider = Riders::find($rider_id);
-
-    // Use dompdf directly (dompdf/dompdf package is installed)
-    $dompdf = new \Dompdf\Dompdf();
-    $html = view('riders.activities_pdf', compact('data', 'filters', 'totals', 'rider', 'month'))->render();
-    $dompdf->loadHtml($html);
-    $dompdf->setPaper('A4', 'landscape');
-    $dompdf->render();
-
-    $filename = 'Rider_Activities_' . ($rider->name ?? $rider_id) . '_' . $month . '.pdf';
-
-    return response()->streamDownload(function () use ($dompdf) {
-      echo $dompdf->output();
-    }, $filename, [
-      'Content-Type' => 'application/pdf',
-    ]);
-  }
-
   public function invoices($rider_id, RiderInvoicesDataTable $riderInvoicesDataTable)
   {
     return $riderInvoicesDataTable->with(['rider_id' => $rider_id])->render('riders.invoices');

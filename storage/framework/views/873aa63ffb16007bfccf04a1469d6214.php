@@ -1,3 +1,5 @@
+
+
 <?php $__env->startSection('title','Bikes'); ?>
 <?php $__env->startSection('content'); ?>
 <div class="row" style="">

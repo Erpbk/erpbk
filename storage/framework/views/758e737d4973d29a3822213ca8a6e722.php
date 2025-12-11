@@ -27,7 +27,7 @@
          <th title="Billing Month" class="sorting" rowspan="1" colspan="1">Billing Month</th>
          <th title="Rider" class="sorting" rowspan="1" colspan="1">Rider</th>
          <th title="Descriptions" class="sorting" rowspan="1" colspan="1">Descriptions</th>
-         <th title="Zone" class="sorting" rowspan="1" colspan="1">Customer</th>
+         <th title="Zone" class="sorting" rowspan="1" colspan="1">Project</th>
          <th title="Subtotal" class="sorting" rowspan="1" colspan="1">Subtotal</th>
          <th title="Vat" class="sorting" rowspan="1" colspan="1">Vat</th>
          <th title="Total Amount" class="sorting" rowspan="1" colspan="1">Total Amount</th>
@@ -52,27 +52,8 @@
          ?>
          <td><?php echo e($rider->rider_id . '-' . $rider->name); ?></td>
          <td><?php echo e($r->descriptions); ?></td>
-         <?php
-         $riders = DB::table('riders')
-         ->leftJoin('bikes', 'riders.id', '=', 'bikes.rider_id')
-         ->leftJoin('customers', 'riders.customer_id', '=', 'customers.id')
-         ->select(
-         'riders.*',
-         DB::raw('COALESCE(bikes.status, 0) as bike_status'),
-         DB::raw('COALESCE(
-         customers.name,
-         (SELECT c2.name
-         FROM bike_histories bh
-         JOIN customers c2 ON c2.id = bh.customer_id
-         WHERE bh.rider_id = riders.id
-         ORDER BY bh.id DESC
-         LIMIT 1)
-         ) as customer_name')
-         )
-         ->first();
-         ?>
          <td>
-            <?php echo e($riders->customer_name ?? '-'); ?>
+            <?php echo e(DB::table('customers')->where('id' , $rider->customer_id)->first()->name ?? '-'); ?>
 
          </td>
          <td>AED <?php echo e(number_format($r->subtotal, 2)); ?></td>

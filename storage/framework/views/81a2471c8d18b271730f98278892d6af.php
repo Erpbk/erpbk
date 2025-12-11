@@ -1,5 +1,5 @@
-@push('third_party_stylesheets')
-@endpush
+<?php $__env->startPush('third_party_stylesheets'); ?>
+<?php $__env->stopPush(); ?>
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
@@ -16,36 +16,32 @@
       </tr>
    </thead>
    <tbody>
-      @foreach($data as $r)
+      <?php $__currentLoopData = $data; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $r): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
       <tr class="text-center">
-         <td>{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</td>
-         <td>{{ $r->d_rider_id }}</td>
-         @php
+         <td><?php echo e(\Carbon\Carbon::parse($r->date)->format('d M Y')); ?></td>
+         <td><?php echo e($r->d_rider_id); ?></td>
+         <?php
          $rider = DB::Table('riders')->where('id' , $r->rider_id)->first();
-         @endphp
-         <td> <a href="{{route('rider.activities',$r->rider_id)}}">{{ $rider->name }}</a> </td>
-         <td>{{ $rider->emirate_hub }}</td>
-         <td>{{ $rider->fleet_supervisor }}</td>
-         <td>{{ $r->delivered_orders }}</td>
-         <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage * 100 }}% @else - @endif</td>
-         <td>{{ $r->rejected_orders }}</td>
-         <td>{{ $r->login_hr }}</td>
+         ?>
+         <td> <a href="<?php echo e(route('rider.activities',$r->rider_id)); ?>"><?php echo e($rider->name); ?></a> </td>
+         <td><?php echo e($rider->emirate_hub); ?></td>
+         <td><?php echo e($rider->fleet_supervisor); ?></td>
+         <td><?php echo e($r->delivered_orders); ?></td>
+         <td><?php if($r->ontime_orders_percentage): ?><?php echo e($r->ontime_orders_percentage * 100); ?>% <?php else: ?> - <?php endif; ?></td>
+         <td><?php echo e($r->rejected_orders); ?></td>
+         <td><?php echo e($r->login_hr); ?></td>
          <td>
-            @if ($r->delivery_rating == 'Yes')
-            <span class="badge bg-success">Valid</span>
-            @elseif($r->delivery_rating == 'No')
-            <span class="badge bg-warning">Invalid</span>
-            @else
-            <span class="badge bg-danger">Off</span>
-            @endif
+            <?php echo e($r->delivery_rating); ?>
+
          </td>
       </tr>
-      @endforeach
+      <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
    </tbody>
 </table>
-@if(method_exists($data, 'links'))
-{!! $data->links('components.global-pagination') !!}
-@endif
+<?php if(method_exists($data, 'links')): ?>
+<?php echo $data->links('components.global-pagination'); ?>
+
+<?php endif; ?>
 <div class="modal modal-default filtetmodal fade" id="customoizecolmn" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
    <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
       <div class="modal-content">
@@ -57,7 +53,7 @@
             <div style="display: none;" class="loading-overlay" id="loading-overlay">
                <div class="spinner-border text-primary" role="status"></div>
             </div>
-            <form id="filterForm" action="{{ route('banks.index') }}" method="GET">
+            <form id="filterForm" action="<?php echo e(route('banks.index')); ?>" method="GET">
                <div class="row">
                   <div class="form-group col-md-12">
                      <input type="number" name="search" class="form-control" placeholder="Search">
@@ -70,4 +66,4 @@
          </div>
       </div>
    </div>
-</div>
+</div><?php /**PATH D:\xammp1\htdocs\erpbk\resources\views/rider_live_activities/table.blade.php ENDPATH**/ ?>

@@ -219,7 +219,7 @@
                             </a>
                             <?php endif; ?>
                             <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('bike_create')): ?>
-                            <a class="btn btn-primary" href="<?php echo e(route('bikes.importbikes')); ?>">
+                            <a class="action-dropdown-item" href="<?php echo e(route('bikes.importbikes')); ?>">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Vehicles</span>
                             </a>

@@ -1,5 +1,4 @@
-@extends('riders.view')
-@section('page_content')
+<?php $__env->startSection('page_content'); ?>
 <style>
   /* Totals cards */
   .totals-cards {
@@ -81,52 +80,52 @@
     <h5 class="card-action-title mb-0"><i class="ti ti-calendar-check ti-lg text-body me-2"></i>Activities</h5>
     <div class="d-flex align-items-center gap-2">
       <form action="" method="get" class="mb-0">
-        <input type="month" name="month" value="{{request('month')??date('Y-m')}}" class="form-control" onchange="form.submit();" />
+        <input type="month" name="month" value="<?php echo e(request('month')??date('Y-m')); ?>" class="form-control" onchange="form.submit();" />
       </form>
-      <a href="{{ route('riders.activities.pdf', ['id' => $filters['rider_id'], 'month' => request('month') ?? date('Y-m')]) }}"
+      <a href="<?php echo e(route('riders.activities.pdf', ['id' => $filters['rider_id'], 'month' => request('month') ?? date('Y-m')])); ?>"
         class="btn btn-sm btn-danger" target="_blank">
         <i class="fa fa-file-pdf"></i> Download PDF
       </a>
     </div>
   </div>
   <div class="card-body pt-0 px-2">
-    @push('third_party_stylesheets')
-    @include('layouts.datatables_css')
-    @endpush
+    <?php $__env->startPush('third_party_stylesheets'); ?>
+    <?php echo $__env->make('layouts.datatables_css', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+    <?php $__env->stopPush(); ?>
     <div class="card-body px-0 pt-0">
       <div id="totalsBar" class="mb-2">
         <div class="totals-cards">
           <div class="total-card total-delivered">
             <div class="label"><i class="fa fa-check-circle"></i> Working Days</div>
-            <div class="value" id="working_days">{{ $totals['working_days'] ?? 0 }}</div>
+            <div class="value" id="working_days"><?php echo e($totals['working_days'] ?? 0); ?></div>
           </div>
           <div class="total-card total-rejected">
             <div class="label"><i class="fa fa-times-circle"></i> Valid Days</div>
-            <div class="value" id="valid_days">{{ $totals['valid_days'] ?? 0 }}</div>
+            <div class="value" id="valid_days"><?php echo e($totals['valid_days'] ?? 0); ?></div>
           </div>
           <div class="total-card total-hours">
             <div class="label"><i class="fa fa-clock"></i> Invalid Days</div>
-            <div class="value" id="invalid_days">{{ $totals['invalid_days'] ?? 0 }}</div>
+            <div class="value" id="invalid_days"><?php echo e($totals['invalid_days'] ?? 0); ?></div>
           </div>
           <div class="total-card total-ontime">
             <div class="label"><i class="fa fa-percent"></i> Off Days</div>
-            <div class="value" id="off_days">{{ $totals['off_days'] ?? 0 }}</div>
+            <div class="value" id="off_days"><?php echo e($totals['off_days'] ?? 0); ?></div>
           </div>
           <div class="total-card total-valid-days">
             <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
-            <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
+            <div class="value" id="total_orders"><?php echo e(number_format($totals['total_orders'] ?? 0)); ?></div>
           </div>
           <div class="total-card total-ontime">
             <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
-            <div class="value" id="avg_ontime">{{ number_format($totals['avg_ontime'] ?? 0, 2) }}%</div>
+            <div class="value" id="avg_ontime"><?php echo e(number_format($totals['avg_ontime'] ?? 0, 2)); ?>%</div>
           </div>
           <div class="total-card total-rejected">
             <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
-            <div class="value" id="total_rejected">{{ number_format($totals['total_rejected'] ?? 0) }}</div>
+            <div class="value" id="total_rejected"><?php echo e(number_format($totals['total_rejected'] ?? 0)); ?></div>
           </div>
           <div class="total-card total-hours">
             <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
-            <div class="value" id="total_hours">{{ number_format($totals['total_hours'] ?? 0, 2) }}</div>
+            <div class="value" id="total_hours"><?php echo e(number_format($totals['total_hours'] ?? 0, 2)); ?></div>
           </div>
         </div>
       </div>
@@ -145,38 +144,38 @@
           </tr>
         </thead>
         <tbody>
-          @foreach($data as $r)
-          <tr data-delivered="{{ $r->delivered_orders ?? 0 }}"
-            data-rejected="{{ $r->rejected_orders ?? 0 }}"
-            data-hours="{{ $r->login_hr ?? 0 }}"
-            data-ontime="{{ $r->ontime_orders_percentage ?? 0 }}"
-            data-valid="{{ $r->delivery_rating == 'Yes' ? 1 : 0 }}"
-            data-invalid="{{ $r->delivery_rating == 'No' ? 1 : 0 }}"
-            data-off="{{ ($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0 }}">
-            <td>{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</td>
-            <td>{{ $r->d_rider_id }}</td>
-            @php
+          <?php $__currentLoopData = $data; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $r): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+          <tr data-delivered="<?php echo e($r->delivered_orders ?? 0); ?>"
+            data-rejected="<?php echo e($r->rejected_orders ?? 0); ?>"
+            data-hours="<?php echo e($r->login_hr ?? 0); ?>"
+            data-ontime="<?php echo e($r->ontime_orders_percentage ?? 0); ?>"
+            data-valid="<?php echo e($r->delivery_rating == 'Yes' ? 1 : 0); ?>"
+            data-invalid="<?php echo e($r->delivery_rating == 'No' ? 1 : 0); ?>"
+            data-off="<?php echo e(($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0); ?>">
+            <td><?php echo e(\Carbon\Carbon::parse($r->date)->format('d M Y')); ?></td>
+            <td><?php echo e($r->d_rider_id); ?></td>
+            <?php
             $rider = DB::Table('riders')->where('id' , $r->rider_id)->first();
-            @endphp
-            <td>{{ $rider->name }}</td>
-            <td>{{ $r->payout_type }}</td>
-            <td>{{ $r->delivered_orders }}</td>
+            ?>
+            <td><?php echo e($rider->name); ?></td>
+            <td><?php echo e($r->payout_type); ?></td>
+            <td><?php echo e($r->delivered_orders); ?></td>
             <td>
-              @if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage * 100 }}% @else - @endif
+              <?php if($r->ontime_orders_percentage): ?><?php echo e($r->ontime_orders_percentage * 100); ?>% <?php else: ?> - <?php endif; ?>
             </td>
-            <td>{{ $r->rejected_orders }}</td>
-            <td>{{ $r->login_hr }}</td>
+            <td><?php echo e($r->rejected_orders); ?></td>
+            <td><?php echo e($r->login_hr); ?></td>
             <td>
-              @if ($r->delivery_rating == 'Yes')
+              <?php if($r->delivery_rating == 'Yes'): ?>
               <span class="badge bg-success">Valid</span>
-              @elseif($r->delivery_rating == 'No')
+              <?php elseif($r->delivery_rating == 'No'): ?>
               <span class="badge bg-warning">Invalid</span>
-              @else
+              <?php else: ?>
               <span class="badge bg-danger">Off</span>
-              @endif
+              <?php endif; ?>
             </td>
           </tr>
-          @endforeach
+          <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
         </tbody>
         <tfoot>
           <tr>
@@ -198,7 +197,7 @@
   </div>
 </div>
 
-@push('scripts')
+<?php $__env->startPush('scripts'); ?>
 <script>
   $(document).ready(function() {
     // Only recalculate totals when DataTable is filtered/redrawn (if using DataTables)
@@ -270,6 +269,7 @@
     $('#total_hours').text(totalHours.toFixed(2));
   }
 </script>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('riders.view', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\xammp1\htdocs\erpbk\resources\views/riders/activities.blade.php ENDPATH**/ ?>

@@ -179,7 +179,7 @@
             <label><strong>Sub Total</strong>:</label>
         </div>
         <div class="col-md-2 form-group text-left">
-            <input type="text" name="total_amount" class="form-control form-control" id="sub_total" placeholder="0.00" value="@isset($invoice->total_amount) {{$invoice->total_amount-$invoice->vat}} @else 0.00 @endisset" readonly>
+            <input type="text" name="total_amount" class="form-control form-control" id="sub_total" placeholder="0.00" value="@isset($invoice->total_amount) {{$invoice->total_amount}} @endisset" readonly>
         </div>
     </div>
 

@@ -1,4 +1,4 @@
-{!! Form::model($rtaFines, ['route' => ['rtaFines.update'], 'method' => 'patch']) !!}
+{!! Form::model($rtaFines, ['route' => ['rtaFines.update'], 'method' => 'patch', 'files' => true]) !!}
 <input type="hidden" name="id" value="{{ $rtaFines->id }}">
 <input type="hidden" id="reload_page" value="1">
 

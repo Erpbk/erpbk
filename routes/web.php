@@ -59,24 +59,31 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::resource('permissions', App\Http\Controllers\PermissionsController::class);
     Route::resource('roles', App\Http\Controllers\RolesController::class);
 
+
+    Route::get('bikes/import', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.import');
+    Route::post('bikes/import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
+    Route::get('bikes/export', [\App\Http\Controllers\BikesController::class, 'exportCustomizableBikes'])->name('bikes.export');
+    Route::get('bikes/download-template', [\App\Http\Controllers\BikesController::class, 'downloadSampleTemplate'])->name('bikes.download-template');
+
     Route::resource('bikes', App\Http\Controllers\BikesController::class);
     Route::any('bikes/assign_rider/{id?}', [BikesController::class, 'assign_rider'])->name('bikes.assign_rider');
     Route::any('bikes/assignrider/{id?}', [BikesController::class, 'assignrider'])->name('bikes.assignrider');
     Route::get('bikes/contract/{id?}', [\App\Http\Controllers\BikesController::class, 'contract'])->name('bike.contract');
     Route::any('bikes/contract_upload/{id?}', [\App\Http\Controllers\BikesController::class, 'contract_upload'])->name('bike_contract_upload');
     Route::get('bikes/delete/{id}', [\App\Http\Controllers\BikesController::class, 'destroy'])->name('bikes.delete');
-    Route::get('bikes/export', [\App\Http\Controllers\BikesController::class, 'exportCustomizableBikes'])->name('bikes.export');
-    Route::get('bikes/import', [\App\Http\Controllers\BikesController::class, 'import'])->name('bikes.import');
-    Route::post('bikes/import', [\App\Http\Controllers\BikesController::class, 'import']);
-    Route::get('bikes/import-bikes', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.importbikes');
-    Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
-    Route::get('bikes/download-template', [\App\Http\Controllers\BikesController::class, 'downloadSampleTemplate'])->name('bikes.download-template');
+    
+   
+    //Route::get('bikes/import-bikes', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.importbikes');
+    //Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
+    
 
     Route::resource('customers', App\Http\Controllers\CustomersController::class);
     Route::get('customer/ledger/{id}', [\App\Http\Controllers\CustomersController::class, 'ledger'])->name('customer.ledger');
     Route::get('customer/files/{id}', [\App\Http\Controllers\CustomersController::class, 'files'])->name('customer.files');
     Route::get('customers/delete/{id}', [\App\Http\Controllers\CustomersController::class, 'destroy'])->name('customers.delete');
 
+    Route::get('rtaFines/import/{id}', [\App\Http\Controllers\RtaFinesController::class, 'importForm'])->name('rtaFines.import.form');
+    Route::post('rtaFines/import', [\App\Http\Controllers\RtaFinesController::class, 'import'])->name('rtaFines.import');
 
     Route::resource('rtaFines', App\Http\Controllers\RtaFinesController::class);
     Route::post('rtaFines/store', [\App\Http\Controllers\RtaFinesController::class, 'store'])->name('rtaFines.store');
@@ -268,7 +275,6 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('/get-item-price/{id}', [ItemsController::class, 'getItemPrice'])->name('item.getPrice');
     Route::get('items/delete/{id}', [\App\Http\Controllers\ItemsController::class, 'destroy'])->name('items.delete');
 
-    Route::resource('files', FilesController::class);
     Route::resource('files', FilesController::class);
 
     Route::resource('vendors', App\Http\Controllers\VendorsController::class);

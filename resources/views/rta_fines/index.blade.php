@@ -13,6 +13,9 @@
                     href="javascript:void(0);" data-action="{{ route('rtaFines.create' , $account->id) }}" data-size="lg" data-title="New Fine">
                     Add New
                 </a>
+                <a class="btn btn-success waves-effect waves-light action-btn me-2" href="{{ route('rtaFines.import.form', $account->id) }}">
+                    <i class="fas fa-upload"></i> Import Excel
+                </a>
                 <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
                         <div class="modal-content">

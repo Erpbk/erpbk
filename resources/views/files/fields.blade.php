@@ -10,8 +10,7 @@
 
 <!-- File Name Field -->
 <div class="col-12">
-  <label class=" pl-2">Name</label>
-  <input type="text" name="name" class="form-control mb-3" style="height: 40px;" />
+  <input type="hidden" name="name"  value="0"/>
 
 </div>
 

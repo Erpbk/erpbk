@@ -60,11 +60,11 @@ $selectedDesignation = 'Cyclist';
 
         <div class="form-group col-md-3" id="active_date">
             <label for="exampleInputEmail1">Date</label>
-            <input type="date" name="note_date" class="form-control" placeholder="Date" value="{{ date('Y-m-d') }}">
+            <input type="date" name="note_date" class="form-control" placeholder="Date">
         </div>
-        <div class="form-group col-md-3" id="return_date" style="display: none;">
+        <div class="form-group col-md-3" id="return_date">
             <label for="exampleInputEmail1">Return Date</label>
-            <input type="date" name="return_date" class="form-control" placeholder="Return Date" value="{{ date('Y-m-d') }}">
+            <input type="date" name="return_date" class="form-control" placeholder="Return Date">
         </div>
     </div>
     <!--col-->

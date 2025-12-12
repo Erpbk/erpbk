@@ -3,6 +3,7 @@
 @section('title','Vehicles')
 
 @push('third_party_stylesheets')
+
 <style>
     .filter-sidebar {
         position: fixed;
@@ -191,6 +192,7 @@
         }
     }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 @endpush
 
 @section('content')
@@ -219,16 +221,26 @@
                             </a>
                             @endcan
                             @can('bike_create')
-                            <a class="action-dropdown-item" href="{{ route('bikes.importbikes') }}">
+                            <a class="action-dropdown-item" href="{{ route('bikes.import') }}">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Vehicles</span>
                             </a>
                             @endcan
                             @can('bike_view')
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Export Vehicles" data-action="{{ route('bikes.export') }}">
+                            <a class="action-dropdown-item" href="{{ route('bikes.export')}}" data-size="xl" data-title="Export Vehicles" data-action="{{ route('bikes.export') }}">
                                 <i class="ti ti-file-export"></i>
                                 <span>Export Vehicles</span>
                             </a>
+                            @endcan
+
+                            @can('bike_create')
+                            <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
+                                    <i class="ti ti-columns"></i>
+                                    <div>
+                                        <div class="action-dropdown-item-text">Column Control</div>
+                                        <div class="action-dropdown-item-desc">Open column control modal</div>
+                                    </div>
+                                </a>
                             @endcan
                         </div>
                     </div>

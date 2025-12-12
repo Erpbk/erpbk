@@ -276,13 +276,7 @@ class RiderInvoicesController extends AppBaseController
             // Delete related rider invoice items
             \DB::table('rider_invoice_items')->where('inv_id', $invoiceId)->delete();
 
-            // Delete related vouchers that reference this invoice
-            \DB::table('vouchers')->where('ref_id', $invoiceId)->delete();
 
-            // Also delete vouchers by trans_code if they reference this invoice
-            if ($trans_code) {
-              \DB::table('vouchers')->where('trans_code', $trans_code)->delete();
-            }
 
             // Delete the invoice itself
             $this->riderInvoicesRepository->delete($invoiceId);

@@ -165,7 +165,7 @@
 
   <div class="card">
     <div class="card-body table-responsive px-2 py-0" id="table-data">
-      <?php echo $__env->make('rider_activities.table', ['data' => $data], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+      <?php echo $__env->make('rider_activities.table', ['data' => $data, 'totals' => $totals ?? []], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
     </div>
   </div>
 </div>

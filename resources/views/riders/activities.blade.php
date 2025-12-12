@@ -84,8 +84,12 @@
         <input type="month" name="month" value="{{request('month')??date('Y-m')}}" class="form-control" onchange="form.submit();" />
       </form>
       <a href="{{ route('riders.activities.pdf', ['id' => $filters['rider_id'], 'month' => request('month') ?? date('Y-m')]) }}"
-        class="btn btn-sm btn-danger" target="_blank">
+        class="btn btn-sm btn-primary" style="padding: 1px 12px 1px 0px;" target="_blank">
         <i class="fa fa-file-pdf"></i> Download PDF
+      </a>
+      <a href="{{ route('riders.activities.print', ['id' => $filters['rider_id'], 'month' => request('month') ?? date('Y-m')]) }}"
+        class="btn btn-sm btn-info" style="padding: 1px 12px 1px 0px;" target="_blank">
+        <i class="fa fa-print"></i> Print
       </a>
     </div>
   </div>
@@ -136,7 +140,7 @@
             <th>Date</th>
             <th>ID</th>
             <th>Name</th>
-            <th>Payout</th>
+            <th>Designation</th>
             <th>Delivered</th>
             <th>Ontime%</th>
             <th>Rejected</th>
@@ -159,7 +163,7 @@
             $rider = DB::Table('riders')->where('id' , $r->rider_id)->first();
             @endphp
             <td>{{ $rider->name }}</td>
-            <td>{{ $r->payout_type }}</td>
+            <td>{{ $rider->designation }}</td>
             <td>{{ $r->delivered_orders }}</td>
             <td>
               @if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage * 100 }}% @else - @endif
@@ -178,19 +182,6 @@
           </tr>
           @endforeach
         </tbody>
-        <tfoot>
-          <tr>
-            <th>Date</th>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Payout</th>
-            <th>Delivered</th>
-            <th>Ontime%</th>
-            <th>Rejected</th>
-            <th>HR</th>
-            <th>Valid Day</th>
-          </tr>
-        </tfoot>
       </table>
 
 

@@ -1274,20 +1274,24 @@ class RidersController extends AppBaseController
       ->whereYear('date', $year)
       ->whereMonth('date', $monthNum);
 
-    $data = $query->orderBy('date', 'desc')->get();
+    // Get all data for totals calculation
+    $allData = $query->orderBy('date', 'desc')->get();
 
-    // Calculate totals from database
+    // Limit to 30 rows for display
+    $data = $allData->take(30);
+
+    // Calculate totals from all data (not just displayed rows)
     $totals = [
-      'working_days' => $data->count(),
-      'valid_days' => $data->where('delivery_rating', 'Yes')->count(),
-      'invalid_days' => $data->where('delivery_rating', 'No')->count(),
-      'off_days' => $data->filter(function ($item) {
+      'working_days' => $allData->count(),
+      'valid_days' => $allData->where('delivery_rating', 'Yes')->count(),
+      'invalid_days' => $allData->where('delivery_rating', 'No')->count(),
+      'off_days' => $allData->filter(function ($item) {
         return $item->delivery_rating != 'Yes' && $item->delivery_rating != 'No';
       })->count(),
-      'total_orders' => $data->sum('delivered_orders'),
-      'total_rejected' => $data->sum('rejected_orders'),
-      'total_hours' => $data->sum('login_hr'),
-      'avg_ontime' => $data->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage') ?? 0,
+      'total_orders' => $allData->sum('delivered_orders'),
+      'total_rejected' => $allData->sum('rejected_orders'),
+      'total_hours' => $allData->sum('login_hr'),
+      'avg_ontime' => $allData->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage') ?? 0,
     ];
 
     // Convert average ontime to percentage
@@ -1301,6 +1305,21 @@ class RidersController extends AppBaseController
     $html = view('riders.activities_pdf', compact('data', 'filters', 'totals', 'rider', 'month'))->render();
     $dompdf->loadHtml($html);
     $dompdf->setPaper('A4', 'landscape');
+
+    // Set options to fit exactly 30 rows on one page with absolute minimal margins
+    $options = $dompdf->getOptions();
+    $options->set([
+      'defaultFont' => 'Arial',
+      'isHtml5ParserEnabled' => true,
+      'isRemoteEnabled' => false,
+      'marginTop' => 2,
+      'marginBottom' => 2,
+      'marginLeft' => 2,
+      'marginRight' => 2,
+      'enableCssFloat' => false,
+    ]);
+    $dompdf->setOptions($options);
+
     $dompdf->render();
 
     $filename = 'Rider_Activities_' . ($rider->name ?? $rider_id) . '_' . $month . '.pdf';
@@ -1310,6 +1329,51 @@ class RidersController extends AppBaseController
     }, $filename, [
       'Content-Type' => 'application/pdf',
     ]);
+  }
+
+  public function activitiesPrint($rider_id)
+  {
+    $month = request('month') ?? date('Y-m');
+    $filters = [
+      'rider_id' => $rider_id,
+      'month' => $month,
+    ];
+
+    // Parse month to get year and month
+    $year = date('Y', strtotime($month . '-01'));
+    $monthNum = date('m', strtotime($month . '-01'));
+
+    $query = RiderActivities::where('rider_id', $rider_id)
+      ->whereYear('date', $year)
+      ->whereMonth('date', $monthNum);
+
+    // Get all data for totals calculation
+    $allData = $query->orderBy('date', 'desc')->get();
+
+    // Limit to 30 rows for display
+    $data = $allData->take(30);
+
+    // Calculate totals from all data (not just displayed rows)
+    $totals = [
+      'working_days' => $allData->count(),
+      'valid_days' => $allData->where('delivery_rating', 'Yes')->count(),
+      'invalid_days' => $allData->where('delivery_rating', 'No')->count(),
+      'off_days' => $allData->filter(function ($item) {
+        return $item->delivery_rating != 'Yes' && $item->delivery_rating != 'No';
+      })->count(),
+      'total_orders' => $allData->sum('delivered_orders'),
+      'total_rejected' => $allData->sum('rejected_orders'),
+      'total_hours' => $allData->sum('login_hr'),
+      'avg_ontime' => $allData->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage') ?? 0,
+    ];
+
+    // Convert average ontime to percentage
+    $totals['avg_ontime'] = $totals['avg_ontime'] * 100;
+
+    // Get rider info
+    $rider = Riders::find($rider_id);
+
+    return view('riders.activities_print', compact('data', 'filters', 'totals', 'rider', 'month'));
   }
 
   public function invoices($rider_id, RiderInvoicesDataTable $riderInvoicesDataTable)

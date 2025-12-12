@@ -1,5 +1,113 @@
 <?php $__env->startPush('third_party_stylesheets'); ?>
+<style>
+   /* Totals cards */
+   .totals-cards {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      margin-bottom: 15px;
+   }
+
+   .total-card {
+      flex: 1 1 0;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-left-width: 4px;
+      border-radius: 8px;
+      padding: 8px 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+   }
+
+   .total-card .label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      color: #6b7280;
+      margin-bottom: 4px;
+   }
+
+   .total-card .label i {
+      font-size: 11px;
+   }
+
+   .total-card .value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111827;
+   }
+
+   .total-delivered {
+      border-left-color: #10b981;
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.06), rgba(16, 185, 129, 0.02));
+   }
+
+   .total-rejected {
+      border-left-color: #ef4444;
+      background: linear-gradient(180deg, rgba(239, 68, 68, 0.06), rgba(239, 68, 68, 0.02));
+   }
+
+   .total-hours {
+      border-left-color: #3b82f6;
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
+   }
+
+   .total-ontime {
+      border-left-color: #8b5cf6;
+      background: linear-gradient(180deg, rgba(139, 92, 246, 0.06), rgba(139, 92, 246, 0.02));
+   }
+
+   .total-valid-days {
+      border-left-color: #f59e0b;
+      background: linear-gradient(180deg, rgba(245, 158, 11, 0.06), rgba(245, 158, 11, 0.02));
+   }
+
+   /* Table header bold */
+   #dataTableBuilder thead th {
+      font-weight: bold;
+   }
+</style>
 <?php $__env->stopPush(); ?>
+
+<div id="totalsBar" class="mb-2">
+   <div class="totals-cards">
+      <div class="total-card total-delivered">
+         <div class="label"><i class="fa fa-check-circle"></i> Working Days</div>
+         <div class="value" id="working_days"><?php echo e($totals['working_days'] ?? 0); ?></div>
+      </div>
+      <div class="total-card total-rejected">
+         <div class="label"><i class="fa fa-times-circle"></i> Valid Days</div>
+         <div class="value" id="valid_days"><?php echo e($totals['valid_days'] ?? 0); ?></div>
+      </div>
+      <div class="total-card total-hours">
+         <div class="label"><i class="fa fa-clock"></i> Invalid Days</div>
+         <div class="value" id="invalid_days"><?php echo e($totals['invalid_days'] ?? 0); ?></div>
+      </div>
+      <div class="total-card total-ontime">
+         <div class="label"><i class="fa fa-percent"></i> Off Days</div>
+         <div class="value" id="off_days"><?php echo e($totals['off_days'] ?? 0); ?></div>
+      </div>
+      <div class="total-card total-valid-days">
+         <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
+         <div class="value" id="total_orders"><?php echo e(number_format($totals['total_orders'] ?? 0)); ?></div>
+      </div>
+      <div class="total-card total-ontime">
+         <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
+         <div class="value" id="avg_ontime"><?php echo e(number_format($totals['avg_ontime'] ?? 0, 2)); ?>%</div>
+      </div>
+      <div class="total-card total-rejected">
+         <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
+         <div class="value" id="total_rejected"><?php echo e(number_format($totals['total_rejected'] ?? 0)); ?></div>
+      </div>
+      <div class="total-card total-hours">
+         <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
+         <div class="value" id="total_hours"><?php echo e(number_format($totals['total_hours'] ?? 0, 2)); ?></div>
+      </div>
+   </div>
+</div>
+
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
@@ -17,7 +125,14 @@
    </thead>
    <tbody>
       <?php $__currentLoopData = $data; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $r): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-      <tr class="text-center">
+      <tr class="text-center"
+         data-delivered="<?php echo e($r->delivered_orders ?? 0); ?>"
+         data-rejected="<?php echo e($r->rejected_orders ?? 0); ?>"
+         data-hours="<?php echo e($r->login_hr ?? 0); ?>"
+         data-ontime="<?php echo e($r->ontime_orders_percentage ?? 0); ?>"
+         data-valid="<?php echo e($r->delivery_rating == 'Yes' ? 1 : 0); ?>"
+         data-invalid="<?php echo e($r->delivery_rating == 'No' ? 1 : 0); ?>"
+         data-off="<?php echo e(($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0); ?>">
          <td><?php echo e(\Carbon\Carbon::parse($r->date)->format('d M Y')); ?></td>
          <td><?php echo e($r->d_rider_id); ?></td>
          <?php
@@ -71,4 +186,80 @@
          </div>
       </div>
    </div>
-</div><?php /**PATH D:\xammp1\htdocs\erpbk\resources\views/rider_activities/table.blade.php ENDPATH**/ ?>
+</div>
+
+<?php $__env->startPush('scripts'); ?>
+<script>
+   $(document).ready(function() {
+      // Recalculate totals when table is updated (for AJAX filtering)
+      calculateTotals();
+
+      // Recalculate when DataTable is redrawn (if using DataTables)
+      if ($.fn.DataTable) {
+         $('#dataTableBuilder').on('draw.dt', function() {
+            calculateTotals();
+         });
+      }
+   });
+
+   function calculateTotals() {
+      let workingDays = 0;
+      let validDays = 0;
+      let invalidDays = 0;
+      let offDays = 0;
+      let totalOrders = 0;
+      let totalRejected = 0;
+      let totalHours = 0;
+      let totalOntime = 0;
+      let ontimeCount = 0;
+
+      $('#dataTableBuilder tbody tr').each(function() {
+         const delivered = parseFloat($(this).data('delivered')) || 0;
+         const rejected = parseFloat($(this).data('rejected')) || 0;
+         const hours = parseFloat($(this).data('hours')) || 0;
+         const ontime = parseFloat($(this).data('ontime')) || 0;
+         const valid = parseInt($(this).data('valid')) || 0;
+         const invalid = parseInt($(this).data('invalid')) || 0;
+         const off = parseInt($(this).data('off')) || 0;
+
+         // Count working days (all rows)
+         workingDays++;
+
+         // Count day types
+         if (valid === 1) {
+            validDays++;
+         }
+         if (invalid === 1) {
+            invalidDays++;
+         }
+         if (off === 1) {
+            offDays++;
+         }
+
+         // Sum orders and hours
+         totalOrders += delivered;
+         totalRejected += rejected;
+         totalHours += hours;
+
+         // Calculate ontime percentage
+         if (ontime > 0) {
+            totalOntime += ontime;
+            ontimeCount++;
+         }
+      });
+
+      // Calculate average ontime percentage
+      const avgOntime = ontimeCount > 0 ? (totalOntime / ontimeCount) * 100 : 0;
+
+      // Update the totals display
+      $('#working_days').text(workingDays);
+      $('#valid_days').text(validDays);
+      $('#invalid_days').text(invalidDays);
+      $('#off_days').text(offDays);
+      $('#total_orders').text(totalOrders.toLocaleString());
+      $('#avg_ontime').text(avgOntime.toFixed(2) + '%');
+      $('#total_rejected').text(totalRejected.toLocaleString());
+      $('#total_hours').text(totalHours.toFixed(2));
+   }
+</script>
+<?php $__env->stopPush(); ?><?php /**PATH D:\xammp1\htdocs\erpbk\resources\views/rider_activities/table.blade.php ENDPATH**/ ?>

@@ -61,27 +61,31 @@ class RiderActivitiesController extends AppBaseController
             $query->whereDate('date', '<=', $request->to_date);
         }
 
-        if ($request->filled('billing_month_from')) {
+        if ($request->filled('billing_month')) {
             try {
-                $from = Carbon::parse($request->billing_month_from)->startOfDay();
-                $query->whereDate('date', '>=', $from);
+                $month = $request->billing_month;
+                $year = date('Y', strtotime($month . '-01'));
+                $monthNum = date('m', strtotime($month . '-01'));
+                $query->whereYear('date', $year)->whereMonth('date', $monthNum);
             } catch (\Throwable $th) {
-                Log::warning('Invalid billing_month_from supplied for rider activities filter', [
-                    'value' => $request->billing_month_from,
+                Log::warning('Invalid billing_month supplied for rider activities filter', [
+                    'value' => $request->billing_month,
                     'error' => $th->getMessage(),
                 ]);
             }
         }
 
-        if ($request->filled('billing_month_to')) {
-            try {
-                $to = Carbon::parse($request->billing_month_to)->endOfDay();
-                $query->whereDate('date', '<=', $to);
-            } catch (\Throwable $th) {
-                Log::warning('Invalid billing_month_to supplied for rider activities filter', [
-                    'value' => $request->billing_month_to,
-                    'error' => $th->getMessage(),
-                ]);
+        if ($request->filled('valid_day')) {
+            $validDay = $request->valid_day;
+            if ($validDay == 'Off') {
+                // Filter for records that are neither 'Yes' nor 'No'
+                $query->where(function ($q) {
+                    $q->where('delivery_rating', '!=', 'Yes')
+                        ->where('delivery_rating', '!=', 'No')
+                        ->orWhereNull('delivery_rating');
+                });
+            } else {
+                $query->where('delivery_rating', $validDay);
             }
         }
 
@@ -94,6 +98,26 @@ class RiderActivitiesController extends AppBaseController
         if ($request->filled('payout_type')) {
             $query->where('payout_type', $request->payout_type);
         }
+
+        // Get all data for totals calculation (before pagination)
+        $allData = (clone $query)->get();
+
+        // Calculate totals from all filtered data
+        $totals = [
+            'working_days' => $allData->count(),
+            'valid_days' => $allData->where('delivery_rating', 'Yes')->count(),
+            'invalid_days' => $allData->where('delivery_rating', 'No')->count(),
+            'off_days' => $allData->filter(function ($item) {
+                return $item->delivery_rating != 'Yes' && $item->delivery_rating != 'No';
+            })->count(),
+            'total_orders' => $allData->sum('delivered_orders'),
+            'total_rejected' => $allData->sum('rejected_orders'),
+            'total_hours' => $allData->sum('login_hr'),
+            'avg_ontime' => $allData->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage') ?? 0,
+        ];
+
+        // Convert average ontime to percentage
+        $totals['avg_ontime'] = $totals['avg_ontime'] * 100;
 
         $data = $this->applyPagination($query, $paginationParams);
 
@@ -120,7 +144,7 @@ class RiderActivitiesController extends AppBaseController
             ->pluck('payout_type');
 
         if ($request->ajax()) {
-            $tableData = view('rider_activities.table', ['data' => $data])->render();
+            $tableData = view('rider_activities.table', ['data' => $data, 'totals' => $totals])->render();
             $paginationLinks = method_exists($data, 'links')
                 ? $data->links('components.global-pagination')->render()
                 : '';
@@ -128,10 +152,11 @@ class RiderActivitiesController extends AppBaseController
             return response()->json([
                 'tableData' => $tableData,
                 'paginationLinks' => $paginationLinks,
+                'totals' => $totals,
             ]);
         }
 
-        return view('rider_activities.index', compact('data', 'riders', 'fleetSupervisors', 'payoutTypes'));
+        return view('rider_activities.index', compact('data', 'riders', 'fleetSupervisors', 'payoutTypes', 'totals'));
     }
 
     /**

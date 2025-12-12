@@ -52,17 +52,20 @@
                     <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}">
                   </div>
 
-                  {{-- EXISTING BILLING MONTH FILTER --}}
+                  {{-- BILLING MONTH FILTER --}}
                   <div class="form-group col-md-4">
-                    <label for="billing_month_from">Billing Month From</label>
-                    <input type="date" name="billing_month_from" class="form-control" value="{{ request('billing_month_from') }}">
+                    <label for="billing_month">Billing Month</label>
+                    <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') ?? date('Y-m') }}">
                   </div>
-
                   <div class="form-group col-md-4">
-                    <label for="billing_month_to">Billing Month To</label>
-                    <input type="date" name="billing_month_to" class="form-control" value="{{ request('billing_month_to') }}">
+                    <label for="valid_day">Filter by Valid Day</label>
+                    <select class="form-control" id="valid_day" name="valid_day">
+                      <option value="" selected>All</option>
+                      <option value="Yes" {{ request('valid_day') == 'Yes' ? 'selected' : '' }}>Valid</option>
+                      <option value="No" {{ request('valid_day') == 'No' ? 'selected' : '' }}>Invalid</option>
+                      <option value="Off" {{ request('valid_day') == 'Off' ? 'selected' : '' }}>Off</option>
+                    </select>
                   </div>
-
                   <div class="form-group col-md-4">
                     <label for="fleet_supervisor">Filter by Fleet Supervisor</label>
                     <select class="form-control" id="fleet_supervisor" name="fleet_supervisor">
@@ -114,44 +117,25 @@
             <h5 class="card-title mb-0">Statistics</h5>
             <small class="text-body-secondary"><a class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a></small>
           </div>
-          <div class="card-body d-flex align-items-end">
-            <div class="w-100">
-              <div class="row gy-3">
-                <div class="col-md-3 col-6">
-                  <div class="d-flex align-items-center">
-                    <div class="badge rounded bg-label-primary me-4 p-2"><i class="menu-icon tf-icons ti ti-shopping-cart"></i></div>
-                    <div class="card-info">
-                      <h5 class="mb-0">{{$result->sum('delivered_orders')+$result->sum('rejected_orders')}}</h5>
-                      <small>Total Orders</small>
-                    </div>
-                  </div>
+          <div class="card-body">
+            <div id="totalsBar" class="mb-2">
+              <div class="totals-cards">
+
+                <div class="total-card total-valid-days">
+                  <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
+                  <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
                 </div>
-                <div class="col-md-3 col-6">
-                  <div class="d-flex align-items-center">
-                    <div class="badge rounded bg-label-info me-4 p-2"><i class="menu-icon tf-icons ti ti-motorbike"></i></div>
-                    <div class="card-info">
-                      <h5 class="mb-0">{{$result->sum('delivered_orders')}}</h5>
-                      <small>Delivered</small>
-                    </div>
-                  </div>
+                <div class="total-card total-ontime">
+                  <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
+                  <div class="value" id="avg_ontime">{{ number_format($totals['avg_ontime'] ?? 0, 2) }}%</div>
                 </div>
-                <div class="col-md-3 col-6">
-                  <div class="d-flex align-items-center">
-                    <div class="badge rounded bg-label-danger me-4 p-2"><i class="menu-icon tf-icons ti ti-bike-off"></i></div>
-                    <div class="card-info">
-                      <h5 class="mb-0">{{$result->sum('rejected_orders')}}</h5>
-                      <small>Rejected</small>
-                    </div>
-                  </div>
+                <div class="total-card total-rejected">
+                  <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
+                  <div class="value" id="total_rejected">{{ number_format($totals['total_rejected'] ?? 0) }}</div>
                 </div>
-                <div class="col-md-3 col-6">
-                  <div class="d-flex align-items-center">
-                    <div class="badge rounded bg-label-success me-4 p-2"><i class="menu-icon tf-icons ti ti-clock"></i></div>
-                    <div class="card-info">
-                      <h5 class="mb-0">{{$result->sum('login_hr')}}</h5>
-                      <small>Login Hours</small>
-                    </div>
-                  </div>
+                <div class="total-card total-hours">
+                  <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
+                  <div class="value" id="total_hours">{{ number_format($totals['total_hours'] ?? 0, 2) }}</div>
                 </div>
               </div>
             </div>
@@ -168,7 +152,7 @@
 
   <div class="card">
     <div class="card-body table-responsive px-2 py-0" id="table-data">
-      @include('rider_activities.table', ['data' => $data])
+      @include('rider_activities.table', ['data' => $data, 'totals' => $totals ?? []])
     </div>
   </div>
 </div>
@@ -231,6 +215,14 @@
         data: formData,
         success: function(data) {
           $('#table-data').html(data.tableData);
+
+          // Update totals cards if totals are provided
+          if (data.totals) {
+            $('#total_orders').text(parseInt(data.totals.total_orders || 0).toLocaleString());
+            $('#avg_ontime').text(parseFloat(data.totals.avg_ontime || 0).toFixed(2) + '%');
+            $('#total_rejected').text(parseInt(data.totals.total_rejected || 0).toLocaleString());
+            $('#total_hours').text(parseFloat(data.totals.total_hours || 0).toFixed(2));
+          }
 
           // Update URL
           let newUrl = "{{ route('riderActivities.index') }}" + (formData ? '?' + formData : '');

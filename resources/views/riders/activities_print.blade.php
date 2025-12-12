@@ -12,8 +12,100 @@
         }
 
         @page {
-            margin: 2mm;
-            size: A4 landscape;
+            margin-top: 50mm;
+            margin-bottom: 2mm;
+            margin-left: 2mm;
+            margin-right: 2mm;
+            size: A4 portrait;
+        }
+
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+
+            body {
+                margin: 0;
+                padding: 2mm;
+                padding-top: 0;
+            }
+
+            .letterhead-space {
+                display: block !important;
+                height: 50mm;
+                width: 100%;
+                margin-bottom: 5mm;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .print-button {
+                display: none !important;
+            }
+
+            /* Ensure colors are preserved */
+            .total-card {
+                background: #fff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .total-delivered {
+                border-left-color: #10b981 !important;
+            }
+
+            .total-rejected {
+                border-left-color: #ef4444 !important;
+            }
+
+            .total-hours {
+                border-left-color: #3b82f6 !important;
+            }
+
+            .total-ontime {
+                border-left-color: #8b5cf6 !important;
+            }
+
+            .total-valid-days {
+                border-left-color: #f59e0b !important;
+            }
+
+            table th {
+                background-color: #f3f4f6 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            table tr:nth-child(even) {
+                background-color: #f9fafb !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .bg-success {
+                background-color: #10b981 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .bg-warning {
+                background-color: #f59e0b !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .bg-danger {
+                background-color: #ef4444 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
         }
 
         body {
@@ -21,6 +113,30 @@
             font-size: 10px;
             margin: 0;
             padding: 2mm;
+        }
+
+        .print-button {
+            text-align: center;
+            margin-bottom: 10px;
+            padding: 10px;
+        }
+
+        .print-button button {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .print-button button:hover {
+            background-color: #2563eb;
+        }
+
+        .letterhead-space {
+            display: none;
         }
 
         .header {
@@ -60,6 +176,9 @@
             padding: 2px 3px;
             vertical-align: top;
             width: 12.5%;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            color-adjust: exact;
         }
 
         .total-delivered {
@@ -123,6 +242,9 @@
             font-size: 9px;
             line-height: 1.1;
             height: 4.5mm;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            color-adjust: exact;
         }
 
         table td {
@@ -141,6 +263,9 @@
 
         table tr:nth-child(even) {
             background-color: #f9fafb;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            color-adjust: exact;
         }
 
         .badge {
@@ -154,21 +279,39 @@
         .bg-success {
             background-color: #10b981;
             color: white;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            color-adjust: exact;
         }
 
         .bg-warning {
             background-color: #f59e0b;
             color: white;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            color-adjust: exact;
         }
 
         .bg-danger {
             background-color: #ef4444;
             color: white;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            color-adjust: exact;
         }
     </style>
 </head>
 
 <body>
+    <div class="print-button no-print">
+        <button onclick="window.print()">
+            <i class="fa fa-print"></i> Print
+        </button>
+    </div>
+
+    <!-- Letterhead space - only visible when printing -->
+    <div class="letterhead-space no-print"></div>
+
     <div class="header">
         <h2>Rider Activities Report</h2>
         <p><strong>Rider:</strong> {{ $rider->name ?? 'N/A' }}</p>
@@ -233,7 +376,7 @@
                 $rider = DB::Table('riders')->where('id', $r->rider_id)->first();
                 @endphp
                 <td>{{ $rider->name ?? 'N/A' }}</td>
-                <td>{{ $rider->designation }}</td>
+                <td>{{ $rider->designation ?? 'N/A' }}</td>
                 <td>{{ $r->delivered_orders }}</td>
                 <td>
                     @if($r->ontime_orders_percentage)
@@ -257,6 +400,13 @@
             @endforeach
         </tbody>
     </table>
+
+    <script>
+        // Auto-print when page loads (optional - comment out if you want manual print)
+        // window.onload = function() {
+        //     window.print();
+        // };
+    </script>
 </body>
 
 </html>

@@ -224,7 +224,7 @@ class LedgerDataTable extends DataTable
     if (request('month')) {
       $query->where('billing_month', request('month') . '-01');
     }
-    $query = $query->orderBy('trans_date', 'ASC');
+    $query = $query->orderBy('billing_month', 'ASC')->orderBy('trans_date', 'ASC');
     return $query;
   }
 

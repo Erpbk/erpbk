@@ -18,3 +18,8 @@ package-lock.json
 *.zip
 .env
 *.lock
+
+# Laravel generated files
+/storage/framework/sessions/
+/storage/framework/views/
+/storage/framework/cache/

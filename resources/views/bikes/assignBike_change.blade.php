@@ -1,10 +1,7 @@
 @php
 $bike = DB::table('bikes')->where('id', $id)->first();
-$selectedRider = $bike && $bike->rider_id ? $bike->rider_id : null;
-$selectedWarehouse = $bike && $bike->warehouse ? $bike->warehouse : null;
-$selectedCustomer = $bike && $bike->customer_id ? $bike->customer_id : null;
-$emirateHub = $bike && $bike->emirates ? $bike->emirates : null;
 $vehicleTypeName = '';
+$rider = DB::table('riders')->where('id', $bike->rider_id)->first();
 
 if ($bike && $bike->vehicle_type) {
 $vehicleModel = DB::table('vehicle_models')->where('id', $bike->vehicle_type)->first();
@@ -24,24 +21,19 @@ $selectedDesignation = 'Cyclist';
 @endphp
 <script src="{{ asset('js/modal_custom.js') }}"></script>
 <form action="{{ route('bikes.assignrider', $id) }}" method="post" id="formajax">
+    @csrf
     <input type="hidden" name="bike_id" value="{{$id}}" />
-    <input type="hidden" name="emirate_hub" value="{{$emirateHub}}" />
     <div class="row">
 
         <div class="col-md-3 form-group">
             <label>Change Status</label>
-            <select class="form-control warehouse form-select" name="warehouse" id="warehouse" onchange="bike_status()">
-                {!! App\Helpers\General::get_warehouse($selectedWarehouse) !!}
+            <select class="form-control warehouse form-select" name="warehouse" id="warehouse">
+                {!! App\Helpers\General::get_warehouse(1) !!}
             </select>
         </div>
-        <div class="col-md-3 form-group" id="rider_select">
-            <label>Change Rider</label>
-            {!! Form::select(
-            'rider_id',
-            \App\Models\Riders::dropdown(),
-            $selectedRider, // preselected value
-            ['class' => 'form-select select2', 'id' => 'rider_id']
-            ) !!}
+        <div class="col-md-3 form-group">
+            <label>Rider</label>
+            <input type="text" name="rider" class="form-control" readonly placeholder="Rider Not Found" value="{{ $rider->rider_id . '-' . $rider->name}}">
         </div>
         <div class="col-md-3 form-group">
             <label>Designation</label>
@@ -52,15 +44,10 @@ $selectedDesignation = 'Cyclist';
             {!! Form::select(
             'customer_id_display',
             App\Models\Customers::dropdown(),
-            $selectedCustomer,
+            1,
             ['class' => 'form-select select2', 'id' => 'customer_id_display', 'disabled' => true]
             ) !!}
-            {!! Form::hidden('customer_id', $selectedCustomer) !!}
-        </div>
-
-        <div class="form-group col-md-3" id="active_date">
-            <label for="exampleInputEmail1">Date</label>
-            <input type="date" name="note_date" class="form-control" placeholder="Date">
+            {!! Form::hidden('customer_id', '1') !!}
         </div>
         <div class="form-group col-md-3" id="return_date">
             <label for="exampleInputEmail1">Return Date</label>
@@ -88,18 +75,7 @@ $selectedDesignation = 'Cyclist';
     // Pass vehicle type name to JavaScript
     var vehicleTypeName = '{{ $vehicleTypeName }}';
 
-    function bike_status() {
-        var status = $('.warehouse').find(":selected").val();
-        if (status === 'Active' || status === 'Absconded') {
-            $("#rider_select").show("fast");
-            $("#active_date").show("fast");
-            $("#return_date").hide("fast");
-        } else {
-            $("#rider_select").hide("fast");
-            $("#active_date").hide("fast");
-            $("#return_date").show("fast");
-        }
-    }
+    
 
     function updateDesignationBasedOnVehicleType() {
         var designation = '';

@@ -344,6 +344,12 @@
         border: 1px solid #c82333;
     }
     
+    .road-onroadRed {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); /* Both red tones */
+        border: 2px solid #b02a37; /* Darker red border */
+        color: #ffffff;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 768px) {
         .bike-info-sidebar {
@@ -550,8 +556,11 @@
                 $emiratesData = [
                     'dxb' => ['arabic' => 'دبي', 'english' => 'DUBAI'],
                     'auh' => ['arabic' => 'أبوظبي', 'english' => 'ABU DHABI'],
+                    'shj' => ['arabic' => 'الشارقة', 'english' => 'SHARJAH'],
                     'rak' => ['arabic' => 'رأس الخــيمة', 'english' => 'RAS AL KHAIMAH'],
-                    'uaq' => ['arabic' => 'ام القوين', 'english' => 'UMM AL QUWAIN'],
+                    'fuj' => ['arabic' => 'الفجيرة', 'english' => 'FUJAIRAH'],
+                    'ajm' => ['arabic' => 'عجمان', 'english' => 'AJMAN'],
+                    'uaq' => ['arabic' => 'أم القيوين', 'english' => 'UMM AL QUWAIN'],
                 ];
                 
                 $currentEmirate = $emiratesData[$emirateCode] ?? null;
@@ -591,8 +600,16 @@
                     </div>
                 @else
                     <!-- Default Badge for other emirates -->
-                    <div class="plate-default">
-                        {{ $bikes->emirates ?? 'N/A' }}
+                    <div class="number-plate ">
+                        
+                        <!-- Bike code - top right corner -->
+                        @if($bikeCode != 'N/A')
+                            <div class="plate-bike-code-corner">{{ $bikeCode }}</div>
+                        @endif
+                        
+                        <!-- Plate number - center -->
+                        <div class="plate-number">{{ $plateNumber }}</div>
+                    
                     </div>
                 @endif
             </div>
@@ -604,12 +621,15 @@
                 $roadStatus = 'N/A';
                 $roadStatusClass = '';
                 
-                if ($warehouse === 'active' || $warehouse === 'absconded') {
+                if ($warehouse === 'active') {
                     $roadStatus = 'On Road';
                     $roadStatusClass = 'road-onroad';
                 } elseif ($warehouse === 'return' || $warehouse === 'vacation' || $warehouse === 'express garage') {
                     $roadStatus = 'Off Road';
                     $roadStatusClass = 'road-offroad';
+                }else{
+                    $roadStatus = 'On Road';
+                    $roadStatusClass = 'road-onroadRed';
                 }
             @endphp
             

@@ -15,7 +15,7 @@
             font-family: 'Segoe UI', Calibri, sans-serif; 
             line-height: 1.3;
             background: #f5f7fa;
-            padding: 10px;
+            padding: 10px 200px;
             font-size: 9pt; 
          }
          
@@ -292,24 +292,10 @@
                 </h1>
             </div>
             <!-- Rider Data Section -->
-            <h2 style="padding-left: 8pt; margin-bottom: 8px;">Rider Details :</h2>
-            
-            <table style="border-collapse:collapse;width:100%; margin-bottom: 10px;">
-              <tr>
-                  <th style="width: 15%;">Rider Status:</th>
-                  <td style="width: 20%;">
-                     <input type="text" class="editable-field" id="riderStatus" value="{{App\Helpers\General::RiderStatus(@$contract->rider->status)}}">
-                  </td>
-                  <th style="width: 15%; padding-left: 20px;">Supervisor:</th>
-                  <td style="width: 20%;">
-                     <input type="text" class="editable-field" id="supervisor" value="{{@$contract->rider->fleet_supervisor}}">
-                  </td>
-                  <th style="width: 10%; padding-left: 20px;">Date:</th>
-                  <td style="width: 20%;">
-                     <input type="text" class="editable-field" id="date" value="{{@$contract->note_date->format('Y-m-d')}}">
-                  </td>
-              </tr>
-            </table>
+            <div style="display: flex; justify-content: space-between; align-items: center;  margin-bottom: 8px;">
+                <span><h2>Rider Details :</h2></span>
+                <input type="text" style="width: 20%" class="editable-field" id="date" value="{{@$contract->note_date->format('Y-m-d')}}">
+            </div>    
             
             <!-- Personal Details Table -->
             <table style="border-collapse:collapse;width:100%; margin-bottom: 10px;" cellspacing="0">

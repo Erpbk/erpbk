@@ -71,14 +71,14 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('bikes/contract/{id?}', [\App\Http\Controllers\BikesController::class, 'returnContract'])->name('bikes.returnContract');
     Route::any('bikes/contract_upload/{id?}', [\App\Http\Controllers\BikesController::class, 'contract_upload'])->name('bike_contract_upload');
     Route::get('bikes/delete/{id}', [\App\Http\Controllers\BikesController::class, 'destroy'])->name('bikes.delete');
-    
+
     Route::resource('bikes', App\Http\Controllers\BikesController::class);
-    
-    
-   
-    //Route::get('bikes/import-bikes', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.importbikes');
-    //Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
-    
+
+
+
+    Route::get('bikes/import-bikes', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.importbikes');
+    Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
+
 
     Route::resource('customers', App\Http\Controllers\CustomersController::class);
     Route::get('customer/ledger/{id}', [\App\Http\Controllers\CustomersController::class, 'ledger'])->name('customer.ledger');

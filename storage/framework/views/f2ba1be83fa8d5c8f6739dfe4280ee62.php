@@ -82,15 +82,16 @@
          <?php case ('warehouse'): ?>
          <td tabindex="0">
             <?php
-            $badgeClass = match($r->warehouse) {
+            $bike_warehouse = DB::table('bike_histories')->where('bike_id', $r->id)->first();
+            $badgeClass = match($bike_warehouse->warehouse ?? 'Inactive') {
             'Active' => 'bg-label-success',
             'Return' => 'bg-label-warning',
             'Vacation' => 'bg-label-info',
             'Absconded' => 'bg-label-danger',
-            default => 'bg-label-secondary'
+            'Inactive' => 'bg-label-danger',
             };
             ?>
-            <span class="badge <?php echo e($badgeClass); ?>"><?php echo e($r->warehouse ?? '-'); ?></span>
+            <span class="badge <?php echo e($badgeClass); ?>"><?php echo e($bike_warehouse->warehouse ?? 'Inactive'); ?></span>
          </td>
          <?php break; ?>
          <?php case ('status'): ?>

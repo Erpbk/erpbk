@@ -138,6 +138,7 @@
         <thead>
           <tr>
             <th>Date</th>
+            <th>Day</th>
             <th>ID</th>
             <th>Name</th>
             <th>Designation</th>
@@ -158,6 +159,7 @@
             data-invalid="{{ $r->delivery_rating == 'No' ? 1 : 0 }}"
             data-off="{{ ($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0 }}">
             <td>{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</td>
+            <td>{{ \Carbon\Carbon::parse($r->date)->format('l') }}</td>
             <td>{{ $r->d_rider_id }}</td>
             @php
             $rider = DB::Table('riders')->where('id' , $r->rider_id)->first();

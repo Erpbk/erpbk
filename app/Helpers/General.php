@@ -240,8 +240,8 @@ class General
   public static function get_warehouse($id = 0)
   {
     $array = [
-      'Active' => 'Active',
-      /*  'Impound' => 'Impound',
+      /*'Active' => 'Active',
+        'Impound' => 'Impound',
        'City Garage' => 'City Garage',
        'Clutch Garage' => 'Clutch Garage',
        'Express Garage' => 'Express Garage',

@@ -33,7 +33,7 @@
          $voucher = null;
          $voucherNumber = null;
 
-         if ($r->status === 'unpaid') {
+         if ($r->status) {
          $voucher = DB::table('vouchers')
          ->where('ref_id', $r->id)
          ->where('voucher_type', 'RFV')

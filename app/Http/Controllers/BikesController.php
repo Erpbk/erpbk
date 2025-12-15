@@ -342,7 +342,17 @@ class BikesController extends AppBaseController
       return redirect(route('bikes.index'));
     }
 
-    return view('bikes.show')->with('bikes', $bikes);
+    $mulkiyaFile = DB::table('files')
+    ->where('type', 'bike')
+    ->where('type_id', $id)
+    ->where(function($query) {
+        $query->where('name', 'LIKE', '%mulkiya%')
+              ->orWhere('name', 'LIKE', '%Mulkiya%')
+              ->orWhere('name', 'LIKE', '%MULKIYA%');
+    })
+    ->first();
+
+    return view('bikes.show2')->with('bikes', $bikes)->with('mulkiyaFile', $mulkiyaFile);
   }
 
   /**
@@ -424,108 +434,92 @@ class BikesController extends AppBaseController
     if ($request->isMethod('post')) {
       $rules = [
         'bike_id'   => 'required|exists:bikes,id',
-        'rider_id'  => 'nullable|exists:riders,id',
-        'warehouse' => 'required|string'
+        'warehouse' => 'required|string',
+        'return_date' => [
+                  'required',
+                  'date',
+                  function ($attribute, $value, $fail) use ($request) {
+                      // Check if date is empty
+                      if (empty($value)) {
+                          $fail('Return date is required.');
+                          return;
+                      }
+                      // Get the last assign date for this bike from bike history
+                      $lastAssignDate = DB::table('bike_histories')
+                          ->where('bike_id', $request->bike_id)
+                          ->where('warehouse', 'Active')
+                          ->orderBy('note_date', 'desc')
+                          ->value('note_date');
+                      
+                      // If there's a last assign date, check that return date is after it
+                      if ($lastAssignDate && strtotime($value) < strtotime($lastAssignDate)) {
+                          $fail('Return date cannot be before the last Assignment date (' . \Carbon\Carbon::parse($lastAssignDate)->format('d-m-Y') . ').');
+                          return;
+                      }
+                      // We can alo check if date is in the future 
+                      if(strtotime($value) >= strtotime('tomorrow')) {
+                          $fail('Return date cannot be later than today.');
+                          return;
+                      }
+                  }
+              ],
       ];
       $messages = [
         'bike_id.required' => 'Bike ID Required',
         'bike_id.exists'   => 'Invalid Bike ID',
-        'rider_id.exists'  => 'Invalid Rider ID'
       ];
 
       $this->validate($request, $rules, $messages);
 
       DB::beginTransaction();
       try {
+
         $bike = Bikes::findOrFail($request->bike_id);
-        if ($bike->warehouse === 'Active' && $request->warehouse === 'Active') {
-          return response()->json(['error' => 'This bike is already active and assigned to a rider.'], 400);
-        }
+        $rider = DB::table('riders')->where('id', $bike->rider_id)->first();
         $designation = $request->designation;
-        if (empty($designation) && $bike->vehicle_type) {
-          $vehicleModel = DB::table('vehicle_models')->where('id', $bike->vehicle_type)->first();
-          $vehicleTypeName = $vehicleModel ? strtolower($vehicleModel->name) : '';
-          if (strpos($vehicleTypeName, 'bike') !== false) {
-            $designation = 'Rider';
-          } elseif (strpos($vehicleTypeName, 'car') !== false || strpos($vehicleTypeName, 'van') !== false) {
-            $designation = 'Driver';
-          } elseif (strpos($vehicleTypeName, 'cyclist') !== false) {
-            $designation = 'Cyclist';
-          } else {
-            $designation = null;
-          }
-        }
+        $message = "*Bike* 🏍️\n";
+        $message .= "────────────────\n";
+        $message .= "*Bike No:* {$bike->plate}\n";
+        $message .= "*ID:* {$rider->rider_id}\n";
+        $message .= "*Name:* {$rider->name}\n";
+        if($request->warehouse == 'Absconded')
+          $message .= "*Absconding Date:* {$request->return_date}\n";
+        else
+          $message .= "*Return Date:* {$request->return_date}\n";
+        $message .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
+        $message .= "*Note:*" . $request->notes??''. "\n";
+
         // Status handling
-        switch ($request->warehouse) {
-          case 'Active':
-            Riders::where('id', $request->rider_id)
-              ->update([
-                'status'      => 1,
-                'designation' => $designation,
-                'customer_id' => $request->customer_id
-              ]);
-
-            $bike->update([
-              'rider_id'  => $request->rider_id,
-              'customer_id' => $request->customer_id,
-              'warehouse' => 'Active'
-            ]);
-            BikeHistory::create([
-              'bike_id'     => $bike->id,
-              'rider_id'    => $bike->rider_id,
-              'warehouse'   => 'Active',
-              'note_date'   => $request->note_date,
-              'return_date' => null,
-              'notes'       => $request->notes ?? null,
-              'created_by'  => Auth::id()
-            ]);
-
-            // Fire event for WhatsApp notification
-            $rider = Riders::find($request->rider_id);
-            if ($rider) {
-              event(new \App\Events\BikeAssignedEvent($bike, $rider, now(), Auth::user()));
-            }
-            break;
-          case 'Absconded':
+        if($request->warehouse == 'Absconded') {
             Riders::where('id', $bike->rider_id)
-              ->update(['status' => 5, 'designation' => $designation, 'customer_id' => $request->customer_id]);
-
-            $bike->update(['warehouse' => 'Absconded', 'customer_id' => $request->customer_id]);
-            $this->closeLastHistory($bike, 'Absconded', $bike->rider_id, $request->notes, $request->return_date);
-            break;
-
-          case 'Vacation':
+              ->update(['status' => 5, 'designation' => null, 'customer_id' => null, 'emirate_hub' => null]);
+            $bike->update(['warehouse' => 'Absconded', 'customer_id' => null]);
+            $this->updateBikeHistory2($bike, 'Absconded', $bike->rider_id, $message);
+        }elseif ($request->warehouse == 'Vacation') {
             Riders::where('id', $bike->rider_id)
               ->update([
                 'status'      => 4,
                 'designation' => null,
                 'customer_id' => null,
               ]);
-
-            $this->closeLastHistory($bike, 'Vacation', $bike->rider_id, $request->notes, $request->return_date);
-
-            $bike->update([
-              'rider_id'  => null,
-              'warehouse' => 'Vacation',
-            ]);
-            break;
-
-          case 'Return':
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
+            $bike->update(['rider_id' => null, 'warehouse' => 'Return', 'customer_id' => null]);
+            
+        }elseif ($request->warehouse == 'Return') {
             Riders::where('id', $bike->rider_id)
               ->update([
                 'status'      => 3,
                 'designation' => null,
                 'customer_id' => null
               ]);
-            $this->closeLastHistory($bike, 'Return', $bike->rider_id, $request->notes, $request->return_date);
-
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
             $bike->update([
               'rider_id'  => null,
-              'warehouse' => 'Return'
+              'warehouse' => 'Return',
+              'customer_id' => null,
             ]);
-            break;
+        }else {
 
-          default:
             return response()->json([
               'success' => false,
               'errors'  => 'Invalid warehouse status.'
@@ -543,114 +537,189 @@ class BikesController extends AppBaseController
       }
     }
 
-    return view('bikes.assignriders', compact('id'));
+    return view('bikes.assignBike_change', compact('id'));
   }
 
-  private function closeLastHistory($bike, $status, $rider_id, $notes, $return_date)
+  private function updateBikeHistory($bike, $status, $rider_id, $notes, $return_date)
   {
+    
     $userid = Auth::user()->id;
+    
     $lastHistory = BikeHistory::where('bike_id', $bike->id)
       ->where('rider_id', $rider_id)
       ->whereNull('return_date')
       ->latest('note_date')
       ->first();
-    if ($lastHistory) {
-      $lastHistory->update([
-        'warehouse'   => $status,
-        'return_date' => $return_date,
-        'notes'       => $notes,
-        'updated_by' => $userid
-      ]);
-    }
+
+   if($bike->warehouse == 'Absconded'){
+      $notes = $lastHistory->notes . "\n" . $notes;
+    } 
+
+    $lastHistory->update([
+      'warehouse'   => $status,
+      'return_date' => $return_date,
+      'notes'       => $notes,
+      'updated_by' => $userid
+    ]);
+    
+    
   }
+
+  private function updateBikeHistory2($bike, $status, $rider_id, $notes)
+  {
+    $userid = Auth::user()->id;
+    
+    $lastHistory = BikeHistory::where('bike_id', $bike->id)
+      ->where('rider_id', $rider_id)
+      ->whereNull('return_date')
+      ->latest('note_date')
+      ->first();
+
+    $lastHistory->update([
+      'warehouse'   => $status,
+      'notes'       => $notes,
+    ]);
+    
+    
+  }
+
   public function assign_rider(Request $request, $id)
   {
-    if ($request->isMethod('post')) {
-      $rules = [
-        'bike_id'  => 'required',
-        'rider_id' => 'nullable|unique:bikes',
-      ];
-      $message = [
-        'bike_id.required' => 'ID Required',
-        'rider_id.unique'  => 'Rider has already been assigned.',
-      ];
-      $this->validate($request, $rules, $message);
+      if ($request->isMethod('post')) {
+          $rules = [
+              'bike_id'  => 'required',
+              'customer_id' => 'required',
+              'rider_id' => [
+                  'required',
+                  function ($attribute, $value, $fail) use ($request) {
+                      if ($value) {
+                          // Check if bike exists
+                          $bike = DB::table('bikes')->where('id', $request->bike_id)->first(); 
+                          if (!$bike) {
+                              $fail('Bike not found.');
+                              return;
+                          }
+                          // Check if bike is inactive (status = 1 or 2)
+                          if ($bike->status == 2 ) {
+                              $fail('Cannot assign rider to an inactive bike.');
+                              return;
+                          }
+                          // Check if rider has any bike that's not "Returned" or "Vacation"
+                          $assignedBike = DB::table('bikes')
+                              ->where('rider_id', $value)
+                              ->whereNotIn('warehouse', ['Return', 'Vacation', 'Express Garage'])
+                              ->first();
+                          
+                          if ($assignedBike) {
+                              $fail('Rider is already assigned to ' . ($assignedBike->plate ? 'bike #' . $assignedBike->plate : 'a vehicle') . '.');
+                          }
+                      }
+                  }
+              ],
+              'note_date' => [
+                  'required',
+                  'date',
+                  function ($attribute, $value, $fail) use ($request) {
+                      // Check if date is empty
+                      if (empty($value)) {
+                          $fail('Assignment date is required.');
+                          return;
+                      }
+                      // Get the last return date for this bike from bike history
+                      $lastReturnDate = DB::table('bike_histories')
+                          ->where('bike_id', $request->bike_id)
+                          ->where('warehouse', 'Return')
+                          ->where('warehouse', 'Vacation')
+                          ->orderBy('return_date', 'desc')
+                          ->value('return_date');
+                      
+                      // If there's a last return date, check that assignment date is after it
+                      if ($lastReturnDate && strtotime($value) < strtotime($lastReturnDate)) {
+                          $fail('Assignment date cannot be before the last return date (' . \Carbon\Carbon::parse($lastReturnDate)->format('d-m-Y') . ').');
+                          return;
+                      }
+                      // We can alo check if date is in the future 
+                      if(strtotime($value) >= strtotime('tomorrow')) {
+                          $fail('Assignment date cannot be later than today.');
+                          return;
+                       }
+                  }
+              ],
+          ];
+          
+          $message = [
+              'bike_id.required' => 'Bike ID is required.',
+              'note_date.required' => 'Assignment date is required.',
+              'customer_id.required' => 'Project is required.',
+          ];
+          
+          $this->validate($request, $rules, $message);
 
-      $data = $request->all();
-      DB::beginTransaction();
-      try {
-        $bike = Bikes::where('id', $request->bike_id)->orderByDesc('id')->first();
-        if (!$bike) {
-          return response()->json(['error' => 'Bike not found.'], 404);
-        }
-        // Determine designation based on vehicle type
-        $designation = null;
-        if ($bike->vehicle_type) {
-          $vehicleModel = DB::table('vehicle_models')->where('id', $bike->vehicle_type)->first();
-          $vehicleTypeName = $vehicleModel ? strtolower($vehicleModel->name) : '';
-          $customer_id = $request->customer_id;
-          $emirate_hub = $request->emirate_hub;
-          if (strpos($vehicleTypeName, 'bike') !== false) {
-            $designation = 'Rider';
-          } elseif (strpos($vehicleTypeName, 'car') !== false || strpos($vehicleTypeName, 'van') !== false) {
-            $designation = 'Driver';
-          } elseif (strpos($vehicleTypeName, 'cyclist') !== false) {
-            $designation = 'Cyclist';
-          } else {
-            $designation = null;
-          }
-        }
-        // Update rider status + designation depending on warehouse
-        if ($request->warehouse == 'Active') {
-          Riders::where('id', $request->rider_id)
-            ->update(['status' => 1, 'designation' => $designation, 'customer_id' => $customer_id, 'emirate_hub' => $emirate_hub]);
-          $bike->update(['rider_id' => $request->rider_id, 'warehouse' => $request->warehouse]);
+          $data = $request->all();
+          DB::beginTransaction();
+          try {
+              $bike = Bikes::findOrFail($request->bike_id);
+              $rider = DB::table('riders')->where('id', $request->rider_id)->first();
+              $designation = $request->designation;
+              $customer_id = $request->customer_id;
 
-          // Fire event for WhatsApp notification
-          $rider = Riders::find($request->rider_id);
-          if ($rider) {
-            event(new \App\Events\BikeAssignedEvent($bike, $rider, now(), Auth::user()));
+              $message = "*Bike* 🏍️\n";
+              $message .= "────────────────\n";
+              $message .= "*Bike No:* {$bike->plate}\n";
+              $message .= "*ID:* {$rider->rider_id}\n";
+              $message .= "*Name:* {$rider->name}\n";
+              $message .= "*Assign Date:* {$request->note_date}\n";
+              $message .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
+              $message .= "*Note:*" . $request->notes??''. "\n";
+              
+              // Update rider status + designation depending on warehouse
+              Riders::where('id', $request->rider_id)
+                  ->update(['status' => 1, 'designation' => $designation, 'customer_id' => $customer_id, 'emirate_hub' => $bike->emirates]);
+              $bike->update(['rider_id' => $request->rider_id, 'warehouse' => $request->warehouse]);
+
+              // Fire event for WhatsApp notification
+              $rider = Riders::find($request->rider_id);
+              if ($rider) {
+                   event(new \App\Events\BikeAssignedEvent($bike, $rider, now(), Auth::user()));
+                  }
+              
+              
+              // Save bike history with created_by
+              $data['created_by'] = Auth::id();
+              $data['notes'] = $message;
+              BikeHistory::create($data);
+              DB::commit();
+              return response()->json(['message' => 'Rider assigned successfully.']);
+              
+          } catch (QueryException $e) {
+              DB::rollBack();
+              return response()->json([
+                  'success' => 'false',
+                  'errors'  => $e->getMessage(),
+              ], 400);
           }
-        } elseif ($request->warehouse == 'Absconded') {
-          $data['rider_id'] = $bike->rider_id;
-          Riders::where('id', $bike->rider_id)
-            ->update(['status' => 5, 'designation' => $designation, 'customer_id' => $customer_id, 'emirate_hub' => $emirate_hub]);
-          $bike->update(['rider_id' => $bike->rider_id, 'warehouse' => $request->warehouse]);
-        } elseif ($request->warehouse == 'Vacation') {
-          $data['rider_id'] = $bike->rider_id;
-          Riders::where('id', $bike->rider_id)
-            ->update(['status' => 4, 'designation' => 'null', 'customer_id' => 'null', 'emirate_hub' => 'null']);
-          $bike->update(['rider_id' => $request->rider_id, 'warehouse' => $request->warehouse]);
-        } else {
-          Riders::where('id', $bike->rider_id)
-            ->update(['status' => 3, 'designation' => 'null', 'customer_id' => 'null', 'emirate_hub' => 'null']);
-          $bike->update(['rider_id' => $request->rider_id, 'warehouse' => $request->warehouse]);
-        }
-        // Save bike history with created_by
-        $data['created_by'] = Auth::id(); // Save who assigned the bike
-        BikeHistory::create($data);
-        DB::commit();
-        return response()->json(['message' => 'Rider assigned successfully.']);
-      } catch (QueryException $e) {
-        DB::rollBack();
-        return response()->json([
-          'success' => 'false',
-          'errors'  => $e->getMessage(),
-        ], 400);
       }
-    }
 
-    return view('bikes.assign_rider', compact('id'));
+      return view('bikes.assignBike_active', compact('id'));
   }
 
 
-  public function contract($id)
+  public function assignContract($id)
   {
     $contract = BikeHistory::find($id);
 
 
-    return view('bikes.contract', compact('contract'));
+    return view('bikes.assignContract', compact('contract'));
   }
+
+  public function returnContract($id)
+  {
+    $contract = BikeHistory::find($id);
+
+
+    return view('bikes.returnContract', compact('contract'));
+  }
+
   public function contract_upload(Request $request)
   {
     $contract = BikeHistory::find($request->id);

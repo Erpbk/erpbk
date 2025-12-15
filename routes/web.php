@@ -65,12 +65,15 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('bikes/export', [\App\Http\Controllers\BikesController::class, 'exportCustomizableBikes'])->name('bikes.export');
     Route::get('bikes/download-template', [\App\Http\Controllers\BikesController::class, 'downloadSampleTemplate'])->name('bikes.download-template');
 
-    Route::resource('bikes', App\Http\Controllers\BikesController::class);
     Route::any('bikes/assign_rider/{id?}', [BikesController::class, 'assign_rider'])->name('bikes.assign_rider');
     Route::any('bikes/assignrider/{id?}', [BikesController::class, 'assignrider'])->name('bikes.assignrider');
-    Route::get('bikes/contract/{id?}', [\App\Http\Controllers\BikesController::class, 'contract'])->name('bike.contract');
+    Route::get('bikes/contracts/{id?}', [\App\Http\Controllers\BikesController::class, 'assignContract'])->name('bikes.assignContract');
+    Route::get('bikes/contract/{id?}', [\App\Http\Controllers\BikesController::class, 'returnContract'])->name('bikes.returnContract');
     Route::any('bikes/contract_upload/{id?}', [\App\Http\Controllers\BikesController::class, 'contract_upload'])->name('bike_contract_upload');
     Route::get('bikes/delete/{id}', [\App\Http\Controllers\BikesController::class, 'destroy'])->name('bikes.delete');
+    
+    Route::resource('bikes', App\Http\Controllers\BikesController::class);
+    
     
    
     //Route::get('bikes/import-bikes', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.importbikes');

@@ -73,7 +73,7 @@ class FilesController extends AppBaseController
 
     $files = $this->filesRepository->create($input);
 
-    return response()->json(['message' => 'File uploaded successfully.']);
+    return response()->json(['message' => 'File uploaded successfully.', 'reload' => true]);
 
   }
 

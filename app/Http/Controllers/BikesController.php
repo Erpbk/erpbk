@@ -457,10 +457,10 @@ class BikesController extends AppBaseController
                           return;
                       }
                       // We can alo check if date is in the future 
-                      if(strtotime($value) > strtotime('tomorrow')) {
-    $fail('Return date cannot be later than today.');
-    return;
-}
+                      if(strtotime($value) >= strtotime('tomorrow')) {
+                          $fail('Return date cannot be later than today.');
+                          return;
+                      }
                   }
               ],
       ];
@@ -475,15 +475,26 @@ class BikesController extends AppBaseController
       try {
 
         $bike = Bikes::findOrFail($request->bike_id);
+        $rider = DB::table('riders')->where('id', $bike->rider_id)->first();
         $designation = $request->designation;
+        $message = "*Bike* 🏍️\n";
+        $message .= "────────────────\n";
+        $message .= "*Bike No:* {$bike->plate}\n";
+        $message .= "*ID:* {$rider->rider_id}\n";
+        $message .= "*Name:* {$rider->name}\n";
+        if($request->warehouse == 'Absconded')
+          $message .= "*Absconding Date:* {$request->return_date}\n";
+        else
+          $message .= "*Return Date:* {$request->return_date}\n";
+        $message .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
+        $message .= "*Note:*" . $request->notes??''. "\n";
 
         // Status handling
         if($request->warehouse == 'Absconded') {
-          
             Riders::where('id', $bike->rider_id)
               ->update(['status' => 5, 'designation' => null, 'customer_id' => null, 'emirate_hub' => null]);
             $bike->update(['warehouse' => 'Absconded', 'customer_id' => null]);
-            $this->updateBikeHistory2($bike, 'Absconded', $bike->rider_id, $request->notes, null);
+            $this->updateBikeHistory2($bike, 'Absconded', $bike->rider_id, $message);
         }elseif ($request->warehouse == 'Vacation') {
             Riders::where('id', $bike->rider_id)
               ->update([
@@ -491,8 +502,8 @@ class BikesController extends AppBaseController
                 'designation' => null,
                 'customer_id' => null,
               ]);
-            $this->updateBikeHistory($bike, 'Vacation', $bike->rider_id, $request->notes, $request->return_date);
-            $bike->update(['rider_id' => null, 'warehouse' => 'Vacation', 'customer_id' => null]);
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
+            $bike->update(['rider_id' => null, 'warehouse' => 'Return', 'customer_id' => null]);
             
         }elseif ($request->warehouse == 'Return') {
             Riders::where('id', $bike->rider_id)
@@ -501,7 +512,7 @@ class BikesController extends AppBaseController
                 'designation' => null,
                 'customer_id' => null
               ]);
-            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $request->notes, $request->return_date);
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
             $bike->update([
               'rider_id'  => null,
               'warehouse' => 'Return',
@@ -554,13 +565,9 @@ class BikesController extends AppBaseController
     
   }
 
-  private function updateBikeHistory2($bike, $status, $rider_id, $notes, $return_date)
+  private function updateBikeHistory2($bike, $status, $rider_id, $notes)
   {
     $userid = Auth::user()->id;
-
-    if (empty(trim($notes ?? ''))) {
-        $notes = 'Rider Absconded (' . now()->format('Y-m-d'). ')';
-    }
     
     $lastHistory = BikeHistory::where('bike_id', $bike->id)
       ->where('rider_id', $rider_id)
@@ -632,8 +639,8 @@ class BikesController extends AppBaseController
                           return;
                       }
                       // We can alo check if date is in the future 
-                      if(strtotime($value) > time()) {
-                          $fail('Assignment date cannot be in the future.');
+                      if(strtotime($value) >= strtotime('tomorrow')) {
+                          $fail('Assignment date cannot be later than today.');
                           return;
                        }
                   }
@@ -643,6 +650,7 @@ class BikesController extends AppBaseController
           $message = [
               'bike_id.required' => 'Bike ID is required.',
               'note_date.required' => 'Assignment date is required.',
+              'customer_id.required' => 'Project is required.',
           ];
           
           $this->validate($request, $rules, $message);
@@ -651,9 +659,18 @@ class BikesController extends AppBaseController
           DB::beginTransaction();
           try {
               $bike = Bikes::findOrFail($request->bike_id);
-              
+              $rider = DB::table('riders')->where('id', $request->rider_id)->first();
               $designation = $request->designation;
               $customer_id = $request->customer_id;
+
+              $message = "*Bike* 🏍️\n";
+              $message .= "────────────────\n";
+              $message .= "*Bike No:* {$bike->plate}\n";
+              $message .= "*ID:* {$rider->rider_id}\n";
+              $message .= "*Name:* {$rider->name}\n";
+              $message .= "*Assign Date:* {$request->note_date}\n";
+              $message .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
+              $message .= "*Note:*" . $request->notes??''. "\n";
               
               // Update rider status + designation depending on warehouse
               Riders::where('id', $request->rider_id)
@@ -669,6 +686,7 @@ class BikesController extends AppBaseController
               
               // Save bike history with created_by
               $data['created_by'] = Auth::id();
+              $data['notes'] = $message;
               BikeHistory::create($data);
               DB::commit();
               return response()->json(['message' => 'Rider assigned successfully.']);
@@ -686,13 +704,22 @@ class BikesController extends AppBaseController
   }
 
 
-  public function contract($id)
+  public function assignContract($id)
   {
     $contract = BikeHistory::find($id);
 
 
-    return view('bikes.contract', compact('contract'));
+    return view('bikes.assignContract', compact('contract'));
   }
+
+  public function returnContract($id)
+  {
+    $contract = BikeHistory::find($id);
+
+
+    return view('bikes.returnContract', compact('contract'));
+  }
+
   public function contract_upload(Request $request)
   {
     $contract = BikeHistory::find($request->id);

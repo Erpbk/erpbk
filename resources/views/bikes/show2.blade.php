@@ -21,7 +21,7 @@
           @if($mulkiyaFile)
             <div class="document-id">
                 <a href="{{ url('storage2/' . $mulkiyaFile->type . '/'.$mulkiyaFile->type_id.'/'.$mulkiyaFile->file_name)}}" target="_blank">
-                  Mulkiya
+                  <i class="ti ti-download"></i>Mulkiya
                 </a>
             </div>
           @elseif($authorized)

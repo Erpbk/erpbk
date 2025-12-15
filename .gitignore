@@ -1,25 +1,54 @@
+# Dependencies
 /node_modules
+/vendor
+/vendor1
+yarn.lock
+package-lock.json
+*.lock
+
+# Environment
+.env
+.env.backup
+.env.example
+.env.production
+*.env
+
+# Laravel generated files
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/cache/*
+!/storage/framework/sessions/.gitkeep
+!/storage/framework/views/.gitkeep
+!/storage/framework/cache/.gitkeep
+
+# Storage
 /public/hot
 /public/storage
 /storage/*.key
-/vendor
-.env.backup
+storage/framework/sessions/*
+storage/framework/views/*
+
+# IDE
+/.idea
+/.vscode
+*.swp
+*.swo
+
+# Testing
 .phpunit.result.cache
+
+# Deployment
 docker-compose.override.yml
 Homestead.json
 Homestead.yaml
+
+# Logs
 npm-debug.log
 yarn-error.log
-yarn.lock
-package-lock.json
-/.idea
-/.vscode
-.env
-*.zip
-.env
-*.lock
 
-# Laravel generated files
-/storage/framework/sessions/
-/storage/framework/views/
-/storage/framework/cache/
+# Archives
+*.zip
+
+# Operating System files
+.DS_Store
+Thumbs.db

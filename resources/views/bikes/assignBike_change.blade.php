@@ -24,13 +24,19 @@ $selectedDesignation = 'Cyclist';
     @csrf
     <input type="hidden" name="bike_id" value="{{$id}}" />
     <div class="row">
-
+        @if($bike->warehouse != 'Absconded')
         <div class="col-md-3 form-group">
             <label>Change Status</label>
             <select class="form-control warehouse form-select" name="warehouse" id="warehouse">
                 {!! App\Helpers\General::get_warehouse(1) !!}
             </select>
         </div>
+        @else
+        <div class="col-md-3 form-group">
+            <label>Change Status</label>
+            <input type="text" class="form-control" name="warehouse" id="warehouse" value="Return" readonly/>
+        </div>
+        @endif
         <div class="col-md-3 form-group">
             <label>Rider</label>
             <input type="text" name="rider" class="form-control" readonly placeholder="Rider Not Found" value="{{ $rider->rider_id . '-' . $rider->name}}">

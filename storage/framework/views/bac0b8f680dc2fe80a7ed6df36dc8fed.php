@@ -1,8 +1,8 @@
 <?php $__env->startSection('page_content'); ?>
 <?php
 ?>
-    <div class="card table-responsive px-2 py-0" >
-        <?php echo $__env->make('bike_histories.table', ['bikeHistory' => $bikeHistory], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+    <div>
+        <?php echo $__env->make('bike_histories.table2', ['bikeHistory' => $bikeHistory], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
     </div>
 <?php $__env->stopSection(); ?>
 

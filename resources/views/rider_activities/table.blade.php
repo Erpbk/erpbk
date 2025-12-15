@@ -76,6 +76,7 @@
    <thead class="text-center">
       <tr role="row">
          <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Date: activate to sort column ascending">Date</th>
+         <th title="Day" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Day: activate to sort column ascending">Day</th>
          <th title="ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="ID: activate to sort column ascending">ID</th>
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending">Name</th>
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending">Fleet/Zone</th>
@@ -98,6 +99,7 @@
          data-invalid="{{ $r->delivery_rating == 'No' ? 1 : 0 }}"
          data-off="{{ ($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0 }}">
          <td>{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</td>
+         <td>{{ \Carbon\Carbon::parse($r->date)->format('l') }}</td>
          <td>{{ $r->d_rider_id }}</td>
          @php
          $rider = DB::Table('riders')->where('id' , $r->rider_id)->first();

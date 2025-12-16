@@ -1060,7 +1060,7 @@ class SalikController extends AppBaseController
             return response()->json([
                 'options' => [
                     [
-                        'value' => $account ? $account->id : '',
+                        'value' => $rider ? $rider->id : '',
                         'label' => $rider->rider_id . ' - ' . $rider->name
                     ]
                 ]

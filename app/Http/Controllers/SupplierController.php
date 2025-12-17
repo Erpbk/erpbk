@@ -21,36 +21,36 @@ use Flash;
 
 class SupplierController extends AppBaseController
 {
-    use GlobalPagination;
+  use GlobalPagination;
   public function index(Request $request)
   {
     // Use global pagination trait
-        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Supplier::query()
-        ->orderBy('id', 'asc');
+      ->orderBy('id', 'asc');
     if ($request->has('name') && !empty($request->name)) {
-        $query->where('name', 'like', '%' . $request->name . '%');
+      $query->where('name', 'like', '%' . $request->name . '%');
     }
     if ($request->has('company_name') && !empty($request->company_name)) {
-        $query->where('company_name',$request->company_name);
+      $query->where('company_name', $request->company_name);
     }
     if ($request->has('status') && !empty($request->status)) {
-        $query->where('status',$request->status);
+      $query->where('status', $request->status);
     }
     // Apply pagination using the trait
-        $data = $this->applyPagination($query, $paginationParams);
+    $data = $this->applyPagination($query, $paginationParams);
     if ($request->ajax()) {
-        $tableData = view('Suppliers.table', [
-            'data' => $data,
-        ])->render();
-        $paginationLinks = $data->links('components.global-pagination')->render();
-        return response()->json([
-            'tableData' => $tableData,
-            'paginationLinks' => $paginationLinks,
-        ]);
+      $tableData = view('Suppliers.table', [
+        'data' => $data,
+      ])->render();
+      $paginationLinks = $data->links('components.global-pagination')->render();
+      return response()->json([
+        'tableData' => $tableData,
+        'paginationLinks' => $paginationLinks,
+      ]);
     }
     return view('Suppliers.index', [
-        'data' => $data,
+      'data' => $data,
     ]);
   }
 
@@ -142,8 +142,6 @@ class SupplierController extends AppBaseController
       'supplier' => $supplier,
       'files' => $files
     ]);
-
-
   }
 
   public function edit($id)
@@ -191,22 +189,49 @@ class SupplierController extends AppBaseController
       $supplier->account_id = $account->id;
       $supplier->save();
     }
-
-
-
   }
 
   public function destroy(Supplier $supplier)
   {
-    // Delete the associated Chart of Account entry
-    if ($supplier->account_id) {
-      Accounts::where('id', $supplier->account_id)->delete();
+    DB::beginTransaction();
+    try {
+      // ✅ FIX: Check for transactions and ledger entries before deleting account
+      if ($supplier->account_id) {
+        // Check if account has any transactions
+        $transactionsCount = Transactions::where('account_id', $supplier->account_id)->count();
+
+        if ($transactionsCount > 0) {
+          Flash::error("Cannot delete supplier. The supplier account has {$transactionsCount} transaction(s). Please remove all transactions first.");
+          return redirect()->back();
+        }
+
+        // Check if account has any ledger entries
+        $ledgerEntriesCount = DB::table('ledger_entries')
+          ->where('account_id', $supplier->account_id)
+          ->count();
+
+        if ($ledgerEntriesCount > 0) {
+          Flash::error("Cannot delete supplier. The supplier account has {$ledgerEntriesCount} ledger entry(ies). Please clear all ledger entries first.");
+          return redirect()->back();
+        }
+
+        // Safe to delete account now
+        Accounts::where('id', $supplier->account_id)->delete();
+        \Log::info("Deleted account ID: {$supplier->account_id} for supplier ID: {$supplier->id}");
+      }
+
+      // Delete the supplier
+      $supplier->delete();
+
+      DB::commit();
+      Flash::success('Supplier and its account deleted successfully.');
+    } catch (\Exception $e) {
+      DB::rollBack();
+      \Log::error("Error deleting Supplier ID: {$supplier->id} - " . $e->getMessage());
+      Flash::error('Error deleting Supplier: ' . $e->getMessage());
     }
 
-    // Then delete the supplier
-    $supplier->delete();
-
-    return redirect()->route('suppliers.index')->with('success', 'Supplier and its account deleted successfully.');
+    return redirect()->route('suppliers.index');
   }
 
   public function ledger($id, LedgerDataTable $ledgerDataTable)
@@ -237,9 +262,9 @@ class SupplierController extends AppBaseController
       ]);
   }
   //     public function files($supplier_id, FilesDataTable $filesDataTable)
-//   {
-//     return $filesDataTable->with(['supplier_id' => $supplier_id])->render('suppliers.document');
-//   }
+  //   {
+  //     return $filesDataTable->with(['supplier_id' => $supplier_id])->render('suppliers.document');
+  //   }
 
   public function document($supplier_id)
   {
@@ -289,5 +314,3 @@ class SupplierController extends AppBaseController
     return view('suppliers.document', compact('files', 'supplier'));
   }
 }
-
-

@@ -30,6 +30,15 @@ $errorsRoute = $errorsRoute ?? route('rider.activities_import_errors', ['type' =
         <small>Note: The file should have headers with date, rider_id, payout_type, and other activity fields. See sample file for format.</small>
       </p>
     </div>
+    <div class="row">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+          <a href="{{ url('sample/noon_activity_sample.xlsx') }}" class="text-success w-100" download="Noon Activities Sample">
+            <i class="fa fa-file-download text-success"></i> &nbsp; Download Sample File
+          </a>
+        </div>
+      </div>
+    </div>
     <div class="col-12 mt-3 mb-3">
       <label class="mb-3 pl-2">Select file</label>
       <input type="file" name="file" class="form-control mb-3" style="height: 40px;" accept=".csv,.xlsx,.xls" />

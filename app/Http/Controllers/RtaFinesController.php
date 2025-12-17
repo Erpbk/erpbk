@@ -844,19 +844,89 @@ class RtaFinesController extends AppBaseController
 
         if (empty($rtaFines)) {
             Flash::error('Rta Fines not found');
+            return redirect()->back();
         }
-        Transactions::where('reference_id', $rtaFines->id)->delete();
-        Vouchers::where('ref_id', $rtaFines->id)->delete();
-        LedgerEntry::where('account_id', $rtaFines->rta_account_id)->delete();
-        $this->rtaFinesRepository->delete($id);
-        /* if ($rtaFines->transactions->count() > 0) {
-      return response()->json(['errors' => ['error' => 'RTA Fine have transactions!']], 422);
 
-    } else {
-      $this->rtaFinesRepository->delete($id);
-    } */
-        Flash::success('RTA Fine deleted successfully.');
+        DB::beginTransaction();
+        try {
+            $billingMonth = $rtaFines->billing_month;
+            $riderAccountId = DB::table('accounts')->where('ref_id', $rtaFines->rider_id)->value('id');
+
+            // Delete only specific transactions related to this RTA fine
+            Transactions::where('reference_id', $rtaFines->id)
+                ->where('reference_type', 'RTA')
+                ->delete();
+
+            // Delete only specific vouchers related to this RTA fine
+            Vouchers::where('ref_id', $rtaFines->id)
+                ->where('voucher_type', 'RFV')
+                ->delete();
+
+            // ✅ FIX: Delete only the ledger entry for this specific billing month, not all entries
+            // Recalculate ledger entries after deletion instead of deleting all
+            if ($riderAccountId) {
+                $this->recalculateLedgerAfterDeletion($riderAccountId, $billingMonth);
+            }
+
+            // Delete the RTA fine record
+            $this->rtaFinesRepository->delete($id);
+
+            DB::commit();
+            Flash::success('RTA Fine deleted successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Error deleting RTA Fine ID: {$id} - " . $e->getMessage());
+            Flash::error('Error deleting RTA Fine: ' . $e->getMessage());
+        }
+
         return redirect()->back();
+    }
+
+    /**
+     * Recalculate ledger entries after deletion
+     * This ensures ledger integrity without deleting all entries
+     */
+    private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
+    {
+        // Delete only the ledger entry for this specific billing month
+        DB::table('ledger_entries')
+            ->where('account_id', $accountId)
+            ->where('billing_month', $billingMonth)
+            ->delete();
+
+        // Get the last ledger entry before this billing month
+        $lastLedger = DB::table('ledger_entries')
+            ->where('account_id', $accountId)
+            ->where('billing_month', '<', $billingMonth)
+            ->orderBy('billing_month', 'desc')
+            ->first();
+
+        $openingBalance = $lastLedger ? $lastLedger->closing_balance : 0.00;
+
+        // Recalculate totals for this month after deletion
+        $monthTransactions = Transactions::where('account_id', $accountId)
+            ->where('billing_month', $billingMonth)
+            ->get();
+
+        $debitTotal = $monthTransactions->sum('debit');
+        $creditTotal = $monthTransactions->sum('credit');
+        $closingBalance = $openingBalance + $debitTotal - $creditTotal;
+
+        // Only insert a new ledger entry if there are still transactions for this month
+        if ($monthTransactions->count() > 0) {
+            DB::table('ledger_entries')->insert([
+                'account_id'      => $accountId,
+                'billing_month'   => $billingMonth,
+                'opening_balance' => $openingBalance,
+                'debit_balance'   => $debitTotal,
+                'credit_balance'  => $creditTotal,
+                'closing_balance' => $closingBalance,
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+        }
+
+        \Log::info("Recalculated ledger for account {$accountId} and billing month {$billingMonth}");
     }
 
     public function getrider($id)

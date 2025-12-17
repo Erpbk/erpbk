@@ -185,11 +185,11 @@ class RidersController extends AppBaseController
               $q->orWhere('l_license', 1);
             } elseif ($status === 'active') {
               // Active riders: status = 1 (regardless of bike assignment)
-              $q->orWhere('status', 1);
+              $q->orWhere('riders.status', 1);
             } elseif ($status === 'inactive') {
               // Inactive riders: status = 3 OR no active bike assigned
               $q->orWhere(function ($subQuery) {
-                $subQuery->where('status', 3);
+                $subQuery->where('riders.status', 3);
               })->orWhere(function ($subQuery) {
                 $subQuery->whereDoesntHave('bikes', function ($bikeQuery) {
                   $bikeQuery->where('warehouse', 'Active');
@@ -206,11 +206,11 @@ class RidersController extends AppBaseController
           $query->where('l_license', 1);
         } elseif ($statusFilters === 'active') {
           // Active riders: status = 1 AND have active bike assigned
-          $query->where('status', 1);
+          $query->where('riders.status', 1);
         } elseif ($statusFilters === 'inactive') {
           // Inactive riders: status = 3 OR no active bike assigned
           $query->where(function ($q) {
-            $q->where('status', 3)->orWhereDoesntHave('bikes', function ($bikeQuery) {
+            $q->where('riders.status', 3)->orWhereDoesntHave('bikes', function ($bikeQuery) {
               $bikeQuery->where('warehouse', 'Active');
             });
           });

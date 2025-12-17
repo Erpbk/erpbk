@@ -228,10 +228,7 @@ class RiderInvoicesController extends AppBaseController
         $transactions = new TransactionService();
         $transactions->deleteTransaction($trans_code);
 
-        // Delete related vouchers
-        Vouchers::where('trans_code', $trans_code)
-          ->where('ref_id', $id)
-          ->delete();
+
 
         // ✅ FIX: Recalculate ledger for all affected accounts
         foreach ($affectedAccountsData as $transData) {

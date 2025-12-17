@@ -30,12 +30,17 @@
          <td><?php echo e(\Carbon\Carbon::parse($r->billing_month)->format('M Y')); ?></td>
          <?php
          $fileUrl = asset('storage/' . $r->attachment_path);
+         $voucher = null;
+         $voucherNumber = null;
+
+         if ($r->status) {
          $voucher = DB::table('vouchers')
          ->where('ref_id', $r->id)
          ->where('voucher_type', 'RFV')
          ->orderByDesc('id')
          ->first();
          $voucherNumber = $voucher ? $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) : null;
+         }
          ?>
          <td><a href="<?php echo e($fileUrl); ?>" target="_blank"><?php echo e($r->ticket_no); ?></a></td>
          <td>

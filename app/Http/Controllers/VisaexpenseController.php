@@ -1435,13 +1435,89 @@ class VisaexpenseController extends AppBaseController
 
         if (empty($visaExpenses)) {
             Flash::error('Visa Expense Entry not found');
+            return redirect()->back();
         }
-        Transactions::where('reference_id', $visaExpenses->id)->delete();
-        Vouchers::where('ref_id', $visaExpenses->id)->delete();
-        LedgerEntry::where('account_id', $visaExpenses->rider_id)->delete();
-        $visaExpenses->delete($id);
-        Flash::success('Visa Expenses Entry deleted successfully.');
+
+        DB::beginTransaction();
+        try {
+            $billingMonth = $visaExpenses->billing_month;
+            $riderAccountId = DB::table('accounts')->where('ref_id', $visaExpenses->rider_id)->value('id');
+
+            // Delete only specific transactions related to this visa expense
+            Transactions::where('reference_id', $visaExpenses->id)
+                ->where('reference_type', 'VE') // Assuming 'VE' for Visa Expense
+                ->delete();
+
+            // Delete only specific vouchers related to this visa expense
+            Vouchers::where('ref_id', $visaExpenses->id)
+                ->where('voucher_type', 'VL') // Assuming 'VL' for Visa Loan
+                ->delete();
+
+            // ✅ FIX: Delete only the ledger entry for this specific billing month, not all entries
+            // Recalculate ledger entries after deletion instead of deleting all
+            if ($riderAccountId) {
+                $this->recalculateLedgerAfterDeletion($riderAccountId, $billingMonth);
+            }
+
+            // Delete the visa expense record
+            $visaExpenses->delete();
+
+            DB::commit();
+            Flash::success('Visa Expenses Entry deleted successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Error deleting Visa Expense ID: {$id} - " . $e->getMessage());
+            Flash::error('Error deleting Visa Expense: ' . $e->getMessage());
+        }
+
         return redirect()->back();
+    }
+
+    /**
+     * Recalculate ledger entries after deletion
+     * This ensures ledger integrity without deleting all entries
+     */
+    private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
+    {
+        // Delete only the ledger entry for this specific billing month
+        DB::table('ledger_entries')
+            ->where('account_id', $accountId)
+            ->where('billing_month', $billingMonth)
+            ->delete();
+
+        // Get the last ledger entry before this billing month
+        $lastLedger = DB::table('ledger_entries')
+            ->where('account_id', $accountId)
+            ->where('billing_month', '<', $billingMonth)
+            ->orderBy('billing_month', 'desc')
+            ->first();
+
+        $openingBalance = $lastLedger ? $lastLedger->closing_balance : 0.00;
+
+        // Recalculate totals for this month after deletion
+        $monthTransactions = Transactions::where('account_id', $accountId)
+            ->where('billing_month', $billingMonth)
+            ->get();
+
+        $debitTotal = $monthTransactions->sum('debit');
+        $creditTotal = $monthTransactions->sum('credit');
+        $closingBalance = $openingBalance + $debitTotal - $creditTotal;
+
+        // Only insert a new ledger entry if there are still transactions for this month
+        if ($monthTransactions->count() > 0) {
+            DB::table('ledger_entries')->insert([
+                'account_id'      => $accountId,
+                'billing_month'   => $billingMonth,
+                'opening_balance' => $openingBalance,
+                'debit_balance'   => $debitTotal,
+                'credit_balance'  => $creditTotal,
+                'closing_balance' => $closingBalance,
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+        }
+
+        \Log::info("Recalculated ledger for account {$accountId} and billing month {$billingMonth}");
     }
 
     /**

@@ -442,12 +442,90 @@ class VouchersController extends Controller
   public function destroy($id)
   {
     /** @var Vouchers $vouchers */
-    Vouchers::where('trans_code', $id)->delete();
-    $transactions = new TransactionService();
-    $transactions->deleteTransaction($id);
-    // Flash::success('Vouchers deleted successfully.');
+    DB::beginTransaction();
+    try {
+      // Get voucher details before deletion for ledger recalculation
+      $voucher = Vouchers::where('trans_code', $id)->first();
 
-    return response()->json(['message' => 'Vouchers deleted successfully.']);
+      if (!$voucher) {
+        return response()->json(['errors' => ['error' => 'Voucher not found.']], 404);
+      }
+
+      $billingMonth = $voucher->billing_month;
+
+      // Get all accounts involved in this voucher's transactions
+      $affectedAccounts = Transactions::where('trans_code', $id)
+        ->pluck('account_id')
+        ->unique();
+
+      // Delete vouchers with trans_code filter
+      Vouchers::where('trans_code', $id)->delete();
+
+      // Delete transactions using the service (already filters by trans_code)
+      $transactions = new TransactionService();
+      $transactions->deleteTransaction($id);
+
+      // ✅ FIX: Recalculate ledger for all affected accounts
+      foreach ($affectedAccounts as $accountId) {
+        if ($accountId && $billingMonth) {
+          $this->recalculateLedgerAfterDeletion($accountId, $billingMonth);
+        }
+      }
+
+      DB::commit();
+      return response()->json(['message' => 'Vouchers deleted successfully.']);
+    } catch (\Exception $e) {
+      DB::rollBack();
+      \Log::error("Error deleting Voucher trans_code: {$id} - " . $e->getMessage());
+      return response()->json(['errors' => ['error' => 'Error deleting voucher: ' . $e->getMessage()]], 500);
+    }
+  }
+
+  /**
+   * Recalculate ledger entries after deletion
+   * This ensures ledger integrity without deleting all entries
+   */
+  private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
+  {
+    // Delete only the ledger entry for this specific billing month
+    DB::table('ledger_entries')
+      ->where('account_id', $accountId)
+      ->where('billing_month', $billingMonth)
+      ->delete();
+
+    // Get the last ledger entry before this billing month
+    $lastLedger = DB::table('ledger_entries')
+      ->where('account_id', $accountId)
+      ->where('billing_month', '<', $billingMonth)
+      ->orderBy('billing_month', 'desc')
+      ->first();
+
+    $openingBalance = $lastLedger ? $lastLedger->closing_balance : 0.00;
+
+    // Recalculate totals for this month after deletion
+    $monthTransactions = Transactions::where('account_id', $accountId)
+      ->where('billing_month', $billingMonth)
+      ->get();
+
+    $debitTotal = $monthTransactions->sum('debit');
+    $creditTotal = $monthTransactions->sum('credit');
+    $closingBalance = $openingBalance + $debitTotal - $creditTotal;
+
+    // Only insert a new ledger entry if there are still transactions for this month
+    if ($monthTransactions->count() > 0) {
+      DB::table('ledger_entries')->insert([
+        'account_id'      => $accountId,
+        'billing_month'   => $billingMonth,
+        'opening_balance' => $openingBalance,
+        'debit_balance'   => $debitTotal,
+        'credit_balance'  => $creditTotal,
+        'closing_balance' => $closingBalance,
+        'created_at'      => now(),
+        'updated_at'      => now(),
+      ]);
+    }
+
+    \Log::info("Recalculated ledger for account {$accountId} and billing month {$billingMonth}");
   }
 
   public static function GetInvoiceBalance()

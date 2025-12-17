@@ -208,19 +208,98 @@ class RiderInvoicesController extends AppBaseController
 
     if (empty($riderInvoices)) {
       Flash::error('Rider Invoices not found');
-
       return redirect(route('riderInvoices.index'));
     }
 
-    $trans_code = Transactions::where('reference_type', 'Invoice')->where('reference_id', $id)->value('trans_code');
-    $transactions = new TransactionService();
-    $transactions->deleteTransaction($trans_code);
+    DB::beginTransaction();
+    try {
+      // Get billing month and affected accounts before deletion
+      $trans_code = Transactions::where('reference_type', 'Invoice')
+        ->where('reference_id', $id)
+        ->value('trans_code');
 
-    $this->riderInvoicesRepository->delete($id);
+      if ($trans_code) {
+        // Get all accounts involved in this invoice's transactions
+        $affectedAccountsData = Transactions::where('trans_code', $trans_code)
+          ->select('account_id', 'billing_month')
+          ->get();
 
-    Flash::success('Rider Invoices deleted successfully.');
+        // Delete transactions
+        $transactions = new TransactionService();
+        $transactions->deleteTransaction($trans_code);
+
+        // Delete related vouchers
+        Vouchers::where('trans_code', $trans_code)
+          ->where('ref_id', $id)
+          ->delete();
+
+        // ✅ FIX: Recalculate ledger for all affected accounts
+        foreach ($affectedAccountsData as $transData) {
+          if ($transData->account_id && $transData->billing_month) {
+            $this->recalculateLedgerAfterDeletion($transData->account_id, $transData->billing_month);
+          }
+        }
+      }
+
+      // Delete the invoice
+      $this->riderInvoicesRepository->delete($id);
+
+      DB::commit();
+      Flash::success('Rider Invoices deleted successfully.');
+    } catch (\Exception $e) {
+      DB::rollBack();
+      \Log::error("Error deleting Rider Invoice ID: {$id} - " . $e->getMessage());
+      Flash::error('Error deleting Rider Invoice: ' . $e->getMessage());
+    }
 
     return redirect(route('riderInvoices.index'));
+  }
+
+  /**
+   * Recalculate ledger entries after deletion
+   * This ensures ledger integrity without deleting all entries
+   */
+  private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
+  {
+    // Delete only the ledger entry for this specific billing month
+    DB::table('ledger_entries')
+      ->where('account_id', $accountId)
+      ->where('billing_month', $billingMonth)
+      ->delete();
+
+    // Get the last ledger entry before this billing month
+    $lastLedger = DB::table('ledger_entries')
+      ->where('account_id', $accountId)
+      ->where('billing_month', '<', $billingMonth)
+      ->orderBy('billing_month', 'desc')
+      ->first();
+
+    $openingBalance = $lastLedger ? $lastLedger->closing_balance : 0.00;
+
+    // Recalculate totals for this month after deletion
+    $monthTransactions = Transactions::where('account_id', $accountId)
+      ->where('billing_month', $billingMonth)
+      ->get();
+
+    $debitTotal = $monthTransactions->sum('debit');
+    $creditTotal = $monthTransactions->sum('credit');
+    $closingBalance = $openingBalance + $debitTotal - $creditTotal;
+
+    // Only insert a new ledger entry if there are still transactions for this month
+    if ($monthTransactions->count() > 0) {
+      DB::table('ledger_entries')->insert([
+        'account_id'      => $accountId,
+        'billing_month'   => $billingMonth,
+        'opening_balance' => $openingBalance,
+        'debit_balance'   => $debitTotal,
+        'credit_balance'  => $creditTotal,
+        'closing_balance' => $closingBalance,
+        'created_at'      => now(),
+        'updated_at'      => now(),
+      ]);
+    }
+
+    \Log::info("Recalculated ledger for account {$accountId} and billing month {$billingMonth}");
   }
 
   /**

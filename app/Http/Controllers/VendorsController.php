@@ -166,18 +166,37 @@ class VendorsController extends AppBaseController
       return response()->json(['errors' => ['error' => 'Vendor not found!']], 422);
     }
 
-
-    if ($vendor->transactions->count() > 0) {
-      return response()->json(['errors' => ['error' => 'Vendor have transactions!']], 422);
-    } else {
-
-      if ($vendor->account) {
-        $vendor->account->delete();
+    DB::beginTransaction();
+    try {
+      // Check if vendor has transactions
+      if ($vendor->transactions->count() > 0) {
+        return response()->json(['errors' => ['error' => 'Vendor have transactions!']], 422);
       }
+
+      // ✅ FIX: Check if vendor account has ledger entries before deletion
+      if ($vendor->account) {
+        $ledgerEntriesCount = DB::table('ledger_entries')
+          ->where('account_id', $vendor->account->id)
+          ->count();
+
+        if ($ledgerEntriesCount > 0) {
+          return response()->json(['errors' => ['error' => "Cannot delete vendor. The vendor account has {$ledgerEntriesCount} ledger entry(ies)."]], 422);
+        }
+
+        // Safe to delete account
+        $vendor->account->delete();
+        \Log::info("Deleted account ID: {$vendor->account->id} for vendor ID: {$vendor->id}");
+      }
+
+      // Delete the vendor
       $this->vendorsRepository->delete($id);
+
+      DB::commit();
+      return response()->json(['message' => 'Vendor deleted successfully.']);
+    } catch (\Exception $e) {
+      DB::rollBack();
+      \Log::error("Error deleting Vendor ID: {$id} - " . $e->getMessage());
+      return response()->json(['errors' => ['error' => 'Error deleting vendor: ' . $e->getMessage()]], 500);
     }
-
-
-    return response()->json(['message' => 'Vendor deleted successfully.']);
   }
 }

@@ -18,7 +18,7 @@ use App\Repositories\SupplierInvoicesRepository;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
-use Flash; 
+use Flash;
 use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\SupplierInvoiceItems;
@@ -51,7 +51,7 @@ class SupplierInvoicesController extends AppBaseController
         }
 
         if ($request->has('supplier_id') && !empty($request->supplier_id)) {
-            $query->where('supplier_id',$request->supplier_id);
+            $query->where('supplier_id', $request->supplier_id);
         }
         if ($request->filled('inv_date_to')) {
             $fromDate = \Carbon\Carbon::createFromFormat('Y-d-m', $request->inv_date_to);
@@ -63,9 +63,9 @@ class SupplierInvoicesController extends AppBaseController
             $query->where('inv_date', '<=', $toDate);
         }
         if ($request->has('billing_month') && !empty($request->billing_month)) {
-        $billingMonth = \Carbon\Carbon::parse($request->billing_month);
+            $billingMonth = \Carbon\Carbon::parse($request->billing_month);
             $query->whereYear('billing_month', $billingMonth->year)
-                  ->whereMonth('billing_month', $billingMonth->month);
+                ->whereMonth('billing_month', $billingMonth->month);
         }
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
@@ -91,9 +91,9 @@ class SupplierInvoicesController extends AppBaseController
     {
         $supplier = Supplier::dropdown();
         $items = Items::dropdown();
-        
+
         $itemsWithPrices = Items::select('id', 'price')->get()->pluck('price', 'id');
-        
+
         return view('supplier_invoices.create', compact('supplier', 'itemsWithPrices', 'items'));
     }
 
@@ -109,36 +109,36 @@ class SupplierInvoicesController extends AppBaseController
         Flash::success('Supplier Invoices saved successfully.');
 
         return redirect(route('supplier_invoices.index'));
-        
-    //     // Validate the request
-    // $request->validate([
-    //     'supplier_id' => 'required|exists:suppliers,id',
-    //     'invoice_date' => 'required|date',
-    //     'items' => 'required|array',
-    //     'items.*.item_id' => 'required|exists:items,id',
-    //     'items.*.qty' => 'required|numeric|min:1',
-    //     'items.*.rate' => 'required|numeric|min:0',
-    // ]);
 
-    // $invoice = new SupplierInvoice();
-    // $invoice->fill($request->only(['supplier_id', 'date', 'total']));
-    // $invoice->save();
+        //     // Validate the request
+        // $request->validate([
+        //     'supplier_id' => 'required|exists:suppliers,id',
+        //     'invoice_date' => 'required|date',
+        //     'items' => 'required|array',
+        //     'items.*.item_id' => 'required|exists:items,id',
+        //     'items.*.qty' => 'required|numeric|min:1',
+        //     'items.*.rate' => 'required|numeric|min:0',
+        // ]);
 
-    // if ($request->has('items')) {
-    //     foreach ($request->items as $item) {
-    //         $invoice->items()->create([
-    //             'item_id'   => $item['item_id'],
-    //             'qty'       => $item['qty'],
-    //             'rate'      => $item['rate'],
-    //             'discount'  => $item['discount'],
-    //             'tax'       => $item['tax'],
-    //             'amount'    => $item['amount'],
-    //         ]);
-    //     }
-    // }
+        // $invoice = new SupplierInvoice();
+        // $invoice->fill($request->only(['supplier_id', 'date', 'total']));
+        // $invoice->save();
 
-    // return redirect()->route('invoices.index')->with('success', 'Invoice created successfully.');
-    
+        // if ($request->has('items')) {
+        //     foreach ($request->items as $item) {
+        //         $invoice->items()->create([
+        //             'item_id'   => $item['item_id'],
+        //             'qty'       => $item['qty'],
+        //             'rate'      => $item['rate'],
+        //             'discount'  => $item['discount'],
+        //             'tax'       => $item['tax'],
+        //             'amount'    => $item['amount'],
+        //         ]);
+        //     }
+        // }
+
+        // return redirect()->route('invoices.index')->with('success', 'Invoice created successfully.');
+
     }
 
     /**
@@ -151,10 +151,9 @@ class SupplierInvoicesController extends AppBaseController
         if (empty($supplierInvoice)) {
             Flash::error('Supplier Invoice not found');
             return redirect(route('supplier_invoices.index'));
-            
         }
-        
-     
+
+
 
         return view('supplier_invoices.show')->with('supplierInvoice', $supplierInvoice);
     }
@@ -165,27 +164,27 @@ class SupplierInvoicesController extends AppBaseController
     public function edit($id)
     {
         $invoice = SupplierInvoices::with('items')->find($id);
-        
-       
-        
-        
+
+
+
+
         if (!$invoice) {
             Flash::error('Supplier Invoice not found');
             return redirect(route('supplierInvoices.index'));
         }
-        
-         $supplier = Supplier::dropdown();
+
+        $supplier = Supplier::dropdown();
         $items = Items::dropdown();
-           $itemsWithPrices = Items::select('id', 'price')->get()->pluck('price', 'id');
+        $itemsWithPrices = Items::select('id', 'price')->get()->pluck('price', 'id');
 
-       
 
-//  $itemsWithPrices = Items::select('id', 'price')->get()->pluck('price', 'id');
 
-// if (!$invoice) {
-//     Flash::error('Supplier Invoice not found');
-//     return redirect(route('supplier_invoices.index'));
-// }
+        //  $itemsWithPrices = Items::select('id', 'price')->get()->pluck('price', 'id');
+
+        // if (!$invoice) {
+        //     Flash::error('Supplier Invoice not found');
+        //     return redirect(route('supplier_invoices.index'));
+        // }
 
         return view('supplier_invoices.edit', compact('supplier', 'items',  'invoice', 'itemsWithPrices'));
     }
@@ -193,27 +192,27 @@ class SupplierInvoicesController extends AppBaseController
     /**
      * Update the specified SupplierInvoices in storage.
      */
-public function update($id, UpdateSupplierInvoicesRequest $request)
-{
-    // Try to find the invoice first
-    $supplierInvoice = $this->supplierInvoicesRepository->find($id);
+    public function update($id, UpdateSupplierInvoicesRequest $request)
+    {
+        // Try to find the invoice first
+        $supplierInvoice = $this->supplierInvoicesRepository->find($id);
 
-    if (empty($supplierInvoice)) {
-        Flash::error('Supplier Invoice not found');
+        if (empty($supplierInvoice)) {
+            Flash::error('Supplier Invoice not found');
+            return redirect(route('supplier_invoices.index'));
+        }
+
+        // Call the repository method to update the invoice and related data
+        $updatedInvoice = $this->supplierInvoicesRepository->record($request, $id);
+
+        if ($updatedInvoice) {
+            Flash::success('Supplier Invoice updated successfully.');
+        } else {
+            Flash::error('Failed to update the Supplier Invoice.');
+        }
+
         return redirect(route('supplier_invoices.index'));
     }
-
-    // Call the repository method to update the invoice and related data
-    $updatedInvoice = $this->supplierInvoicesRepository->record($request, $id);
-
-    if ($updatedInvoice) {
-        Flash::success('Supplier Invoice updated successfully.');
-    } else {
-        Flash::error('Failed to update the Supplier Invoice.');
-    }
-
-    return redirect(route('supplier_invoices.index'));
-}
 
 
     /**
@@ -230,15 +229,95 @@ public function update($id, UpdateSupplierInvoicesRequest $request)
             return redirect(route('supplierInvoices.index'));
         }
 
-        $trans_code = Transactions::where('reference_type', 'Invoice')->where('reference_id', $id)->value('trans_code');
-        $transactions = new TransactionService();
-        $transactions->deleteTransaction($trans_code);
+        DB::beginTransaction();
+        try {
+            // Get billing month and affected accounts before deletion
+            $trans_code = Transactions::where('reference_type', 'Invoice')
+                ->where('reference_id', $id)
+                ->value('trans_code');
 
-        $this->supplierInvoicesRepository->delete($id);
+            if ($trans_code) {
+                // Get all accounts involved in this invoice's transactions
+                $affectedAccountsData = Transactions::where('trans_code', $trans_code)
+                    ->select('account_id', 'billing_month')
+                    ->get();
 
-        Flash::success('Supplier Invoice deleted successfully.');
+                // Delete transactions
+                $transactions = new TransactionService();
+                $transactions->deleteTransaction($trans_code);
+
+                // Delete related vouchers
+                Vouchers::where('trans_code', $trans_code)
+                    ->where('ref_id', $id)
+                    ->delete();
+
+                // ✅ FIX: Recalculate ledger for all affected accounts
+                foreach ($affectedAccountsData as $transData) {
+                    if ($transData->account_id && $transData->billing_month) {
+                        $this->recalculateLedgerAfterDeletion($transData->account_id, $transData->billing_month);
+                    }
+                }
+            }
+
+            // Delete the invoice
+            $this->supplierInvoicesRepository->delete($id);
+
+            DB::commit();
+            Flash::success('Supplier Invoice deleted successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Error deleting Supplier Invoice ID: {$id} - " . $e->getMessage());
+            Flash::error('Error deleting Supplier Invoice: ' . $e->getMessage());
+        }
 
         return redirect(route('supplierInvoices.index'));
+    }
+
+    /**
+     * Recalculate ledger entries after deletion
+     * This ensures ledger integrity without deleting all entries
+     */
+    private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
+    {
+        // Delete only the ledger entry for this specific billing month
+        DB::table('ledger_entries')
+            ->where('account_id', $accountId)
+            ->where('billing_month', $billingMonth)
+            ->delete();
+
+        // Get the last ledger entry before this billing month
+        $lastLedger = DB::table('ledger_entries')
+            ->where('account_id', $accountId)
+            ->where('billing_month', '<', $billingMonth)
+            ->orderBy('billing_month', 'desc')
+            ->first();
+
+        $openingBalance = $lastLedger ? $lastLedger->closing_balance : 0.00;
+
+        // Recalculate totals for this month after deletion
+        $monthTransactions = Transactions::where('account_id', $accountId)
+            ->where('billing_month', $billingMonth)
+            ->get();
+
+        $debitTotal = $monthTransactions->sum('debit');
+        $creditTotal = $monthTransactions->sum('credit');
+        $closingBalance = $openingBalance + $debitTotal - $creditTotal;
+
+        // Only insert a new ledger entry if there are still transactions for this month
+        if ($monthTransactions->count() > 0) {
+            DB::table('ledger_entries')->insert([
+                'account_id'      => $accountId,
+                'billing_month'   => $billingMonth,
+                'opening_balance' => $openingBalance,
+                'debit_balance'   => $debitTotal,
+                'credit_balance'  => $creditTotal,
+                'closing_balance' => $closingBalance,
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+        }
+
+        \Log::info("Recalculated ledger for account {$accountId} and billing month {$billingMonth}");
     }
 
     /**
@@ -284,15 +363,10 @@ public function update($id, UpdateSupplierInvoicesRequest $request)
         $invoice = SupplierInvoices::find($id);
         return view('supplier_invoices.send_email', compact('invoice'));
     }
-    
+
 
     public function ledger()
     {
         return (new LedgerDataTable('supplier'))->render('supplier.ledger');
     }
-
-
-
-
-
 }

@@ -29,7 +29,7 @@ class PermissionsController extends AppBaseController
      */
     public function index(PermissionsDataTable $permissionsDataTable)
     {
-    return $permissionsDataTable->render('permissions.index');
+        return $permissionsDataTable->render('permissions.index');
     }
 
 
@@ -50,32 +50,28 @@ class PermissionsController extends AppBaseController
         $rules = [
             'name' => 'required',
         ];
-        $message=[
-            'name.required'=>'Name Required',
+        $message = [
+            'name.required' => 'Name Required',
         ];
         $this->validate($request, $rules, $message);
-        $fixstr=str_replace(' ', '_', strtolower($request->name));
-        $data=request()->except(['_token']);
-        $id=$request->id;
-        if($id=='' || $id==0){
-            $ret=Permission::create($data);
-                Permission::create(['name'=>$fixstr.'_view', 'parent_id'=>$ret->id]);
-                Permission::create(['name'=>$fixstr.'_create','parent_id'=>$ret->id]);
-                Permission::create(['name'=>$fixstr.'_edit','parent_id'=>$ret->id]);
-                Permission::create(['name'=>$fixstr.'_delete','parent_id'=>$ret->id]);
-            
-         
-        }else{
+        $fixstr = str_replace(' ', '_', strtolower($request->name));
+        $data = request()->except(['_token']);
+        $id = $request->id;
+        if ($id == '' || $id == 0) {
+            $ret = Permission::create($data);
+            Permission::create(['name' => $fixstr . '_view', 'parent_id' => $ret->id]);
+            Permission::create(['name' => $fixstr . '_create', 'parent_id' => $ret->id]);
+            Permission::create(['name' => $fixstr . '_edit', 'parent_id' => $ret->id]);
+            Permission::create(['name' => $fixstr . '_delete', 'parent_id' => $ret->id]);
+        } else {
             Permission::where('parent_id', $id)->delete();
-            $ret=Permission::where('id', $id)->update($data);
-                Permission::create(['name'=>$fixstr.'_view', 'parent_id'=>$id]);
-                Permission::create(['name'=>$fixstr.'_create','parent_id'=>$id]);
-                Permission::create(['name'=>$fixstr.'_edit','parent_id'=>$id]);
-                Permission::create(['name'=>$fixstr.'_delete','parent_id'=>$id]);
-               
-            
+            $ret = Permission::where('id', $id)->update($data);
+            Permission::create(['name' => $fixstr . '_view', 'parent_id' => $id]);
+            Permission::create(['name' => $fixstr . '_create', 'parent_id' => $id]);
+            Permission::create(['name' => $fixstr . '_edit', 'parent_id' => $id]);
+            Permission::create(['name' => $fixstr . '_delete', 'parent_id' => $id]);
         }
-       
+
 
         Flash::success('Permissions saved successfully.');
 
@@ -142,17 +138,34 @@ class PermissionsController extends AppBaseController
     public function destroy($id)
     {
         $permissions = $this->permissionsRepository->find($id);
-        Permission::where('parent_id', $id)->delete();
 
         if (empty($permissions)) {
             Flash::error('Permissions not found');
-
             return redirect(route('permissions.index'));
         }
 
-        $this->permissionsRepository->delete($id);
+        DB::beginTransaction();
+        try {
+            // ✅ FIX: Delete child permissions with proper parent_id filter
+            // Check if there are child permissions
+            $childPermissionsCount = Permission::where('parent_id', $id)->count();
 
-        Flash::success('Permissions deleted successfully.');
+            if ($childPermissionsCount > 0) {
+                // Delete all child permissions first
+                Permission::where('parent_id', $id)->delete();
+                \Log::info("Deleted {$childPermissionsCount} child permissions for parent permission ID: {$id}");
+            }
+
+            // Delete the parent permission
+            $this->permissionsRepository->delete($id);
+
+            DB::commit();
+            Flash::success('Permissions deleted successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Error deleting Permission ID: {$id} - " . $e->getMessage());
+            Flash::error('Error deleting Permission: ' . $e->getMessage());
+        }
 
         return redirect(route('permissions.index'));
     }

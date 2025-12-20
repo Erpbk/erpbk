@@ -128,13 +128,23 @@
          <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage }}% @else - @endif</td>
          <td>{{ $r->rejected_orders }}</td>
          <td>
-            @if ($r->delivery_rating == 'Yes')
-            <span class="badge bg-success">Valid</span>
-            @elseif($r->delivery_rating == 'No')
-            <span class="badge bg-warning">Invalid</span>
-            @else
-            <span class="badge bg-danger">Off</span>
-            @endif
+            @php
+            $orders = $r->delivered_orders ?? 0;
+            $hours = $r->login_hr ?? 0;
+
+            // Determine status based on new logic
+            if ($hours == 0) {
+            $status = 'Off';
+            $badgeClass = 'bg-danger';
+            } elseif (($orders >= 5 && $hours >= 10) || ($orders >= 10)) {
+            $status = 'Valid';
+            $badgeClass = 'bg-success';
+            } else {
+            $status = 'Invalid';
+            $badgeClass = 'bg-warning';
+            }
+            @endphp
+            <span class="badge {{ $badgeClass }}">{{ $status }}</span>
          </td>
       </tr>
       @endforeach

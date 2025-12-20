@@ -150,20 +150,28 @@ class ImportLiveActivities implements ToCollection
     $rider = Riders::where('rider_id', trim($row[1]))->first();
     $date  = $this->currentDate; // Always use current date
 
+    // Get login hours
+    $loginHours = (float) ($row[9] ?? 0);
+
+    // Determine attendance status based on login hours
+    // If login hours = 0, mark as Absent, otherwise Present
+    $attendanceStatus = ($loginHours == 0) ? 'Absent' : 'Present';
+
     $data = [
       'rider_id'                    => $rider->id,
       'd_rider_id'                  => trim($row[1]),
       'date'                        => $date,
       'payout_type'                 => $row[5] ?? null,
       'delivered_orders'            => (int) ($row[14] ?? 0),
-      'ontime_orders_percentage'    => (float) str_replace('%', '', $row[22] ?? 0),
+      'ontime_orders_percentage'    => (float) str_replace('%', '', $row[20] ?? 0),
       'rejected_orders'             => (int) ($row[17] ?? 0),
-      'login_hr'                    => (float) ($row[10] ?? 0),
-      'delivery_rating'             => (float) ($row[8] ?? 0),
+      'login_hr'                    => $loginHours,
+      'delivery_rating'             => $attendanceStatus ?? null,
     ];
 
     // Update or create only for current date
     // This will update existing records for today, or create new ones
+    // This allows the system to refresh/update activities every 2 hours for the same day
     liveactivities::updateOrCreate(
       [
         'rider_id' => $rider->id,
@@ -173,4 +181,3 @@ class ImportLiveActivities implements ToCollection
     );
   }
 }
-

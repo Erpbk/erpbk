@@ -97,17 +97,14 @@
                   <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </select>
               </div>
-
               <div class="form-group col-md-12">
-                <label for="payout_type">Filter by Payout Type</label>
-                <select class="form-control" id="payout_type" name="payout_type">
+                <label for="bike_assignment_status">Filter by Status</label>
+                <select class="form-control " id="bike_assignment_status" name="bike_assignment_status">
                   <option value="" selected>Select</option>
-                  <?php $__currentLoopData = $payoutTypes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $type): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                  <option value="<?php echo e($type); ?>" <?php echo e(request('payout_type') == $type ? 'selected' : ''); ?>><?php echo e($type); ?></option>
-                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                  <option value="Active" <?php echo e(request('bike_assignment_status') == 'Active' ? 'selected' : ''); ?>>Active</option>
+                  <option value="Inactive" <?php echo e(request('bike_assignment_status') == 'Inactive' ? 'selected' : ''); ?>>Inactive</option>
                 </select>
               </div>
-
               <div class="col-md-12 form-group text-center">
                 <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
               </div>
@@ -225,6 +222,11 @@
     $('#valid_day').select2({
       dropdownParent: $('#searchTopbody'),
       placeholder: "Filter By Valid Day",
+      allowClear: true, // ✅ cross icon enable
+    });
+    $('#bike_assignment_status').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By Bike Assignment",
       allowClear: true, // ✅ cross icon enable
     });
     $('#from_date_range').on('change', function() {

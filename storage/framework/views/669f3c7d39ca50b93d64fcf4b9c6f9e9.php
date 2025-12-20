@@ -21,18 +21,17 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
       <?php if(!empty($importTypeLabel)): ?>
       <h5 class="text-primary mb-3"><?php echo e($importTypeLabel); ?></h5>
       <?php endif; ?>
-      <?php if(!empty($sampleDownloadUrl)): ?>
-      <a href="<?php echo e($sampleDownloadUrl); ?>" class="text-success w-100" download="<?php echo e($sampleDownloadLabel ?? 'Rider Activities Sample'); ?>">
-        <i class="fa fa-file-download text-success"></i> &nbsp; <?php echo e($sampleDownloadLabel ?? 'Download Sample File'); ?>
-
-      </a>
-      <?php endif; ?>
       <p class="text-muted mt-2">
         <small>Note: The file should have headers with date, rider_id, payout_type, and other activity fields. See sample file for format.</small>
       </p>
-      <div class="alert alert-info mt-2">
-        <strong>⚠️ Important:</strong> Only records with today's date (<?php echo e($currentDate ?? date('Y-m-d')); ?>) will be imported or updated. 
-        Records with other dates will be skipped. For each day, you can import multiple times to update the same day's records.
+    </div>
+    <div class="row">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+          <a href="<?php echo e(url('sample/live_activity_sample.xlsx')); ?>" class="text-success w-100" download="Noon Activities Sample">
+            <i class="fa fa-file-download text-success"></i> &nbsp; Download Sample File
+          </a>
+        </div>
       </div>
     </div>
     <div class="col-12 mt-3 mb-3">

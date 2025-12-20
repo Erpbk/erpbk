@@ -91,14 +91,32 @@ class RiderActivitiesController extends AppBaseController
         if ($request->filled('valid_day')) {
             $validDay = $request->valid_day;
             if ($validDay == 'Off') {
-                // Filter for records that are neither 'Yes' nor 'No'
+                // Filter for records where hours = 0
+                $query->where('login_hr', 0);
+            } elseif ($validDay == 'Yes') {
+                // Valid: (orders >= 5 AND hours >= 10) OR (orders >= 10 and hours > 0)
                 $query->where(function ($q) {
-                    $q->where('delivery_rating', '!=', 'Yes')
-                        ->where('delivery_rating', '!=', 'No')
-                        ->orWhereNull('delivery_rating');
+                    $q->where(function ($subQ) {
+                        // Case 1: 5+ orders AND 10+ hours
+                        $subQ->where('delivered_orders', '>=', 5)
+                            ->where('login_hr', '>=', 10);
+                    })->orWhere(function ($subQ) {
+                        // Case 2: 10+ orders (with hours > 0)
+                        $subQ->where('delivered_orders', '>=', 10)
+                            ->where('login_hr', '>', 0);
+                    });
                 });
-            } else {
-                $query->where('delivery_rating', $validDay);
+            } elseif ($validDay == 'No') {
+                // Invalid: hours > 0 but doesn't meet valid criteria
+                $query->where('login_hr', '>', 0)
+                    ->where(function ($q) {
+                        // Not valid: neither (5+ orders AND 10+ hours) nor (10+ orders)
+                        $q->where(function ($subQ) {
+                            // Less than 5 orders OR less than 10 hours
+                            $subQ->where('delivered_orders', '<', 5)
+                                ->orWhere('login_hr', '<', 10);
+                        })->where('delivered_orders', '<', 10); // AND less than 10 orders
+                    });
             }
         }
 

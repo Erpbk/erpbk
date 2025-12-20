@@ -117,44 +117,25 @@
               <a class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
             </small>
           </div>
-          <div class="card-body d-flex align-items-end">
-            <div class="w-100">
-              <div class="row gy-3">
-                <div class="col-md-3 col-6">
-                  <div class="d-flex align-items-center">
-                    <div class="badge rounded bg-label-primary me-4 p-2"><i class="menu-icon tf-icons ti ti-shopping-cart"></i></div>
-                    <div class="card-info">
-                      <h5 class="mb-0">{{$result->sum('delivered_orders')+$result->sum('rejected_orders')}}</h5>
-                      <small>Total Orders</small>
-                    </div>
-                  </div>
+          <div class="card-body">
+            <div id="totalsBar" class="mb-2">
+              <div class="totals-cards">
+
+                <div class="total-card total-valid-days">
+                  <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
+                  <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
                 </div>
-                <div class="col-md-3 col-6">
-                  <div class="d-flex align-items-center">
-                    <div class="badge rounded bg-label-info me-4 p-2"><i class="menu-icon tf-icons ti ti-motorbike"></i></div>
-                    <div class="card-info">
-                      <h5 class="mb-0">{{$result->sum('delivered_orders')}}</h5>
-                      <small>Delivered</small>
-                    </div>
-                  </div>
+                <div class="total-card total-ontime">
+                  <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
+                  <div class="value" id="avg_ontime">{{ number_format($totals['avg_ontime'] ?? 0, 2) }}%</div>
                 </div>
-                <div class="col-md-3 col-6">
-                  <div class="d-flex align-items-center">
-                    <div class="badge rounded bg-label-danger me-4 p-2"><i class="menu-icon tf-icons ti ti-bike-off"></i></div>
-                    <div class="card-info">
-                      <h5 class="mb-0">{{$result->sum('rejected_orders')}}</h5>
-                      <small>Rejected</small>
-                    </div>
-                  </div>
+                <div class="total-card total-rejected">
+                  <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
+                  <div class="value" id="total_rejected">{{ number_format($totals['total_rejected'] ?? 0) }}</div>
                 </div>
-                <div class="col-md-3 col-6">
-                  <div class="d-flex align-items-center">
-                    <div class="badge rounded bg-label-success me-4 p-2"><i class="menu-icon tf-icons ti ti-clock"></i></div>
-                    <div class="card-info">
-                      <h5 class="mb-0">{{$result->sum('login_hr')}}</h5>
-                      <small>Login Hours</small>
-                    </div>
-                  </div>
+                <div class="total-card total-hours">
+                  <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
+                  <div class="value" id="total_hours">{{ number_format($totals['total_hours'] ?? 0, 2) }}</div>
                 </div>
               </div>
             </div>

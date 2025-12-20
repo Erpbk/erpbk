@@ -1,37 +1,149 @@
 @push('third_party_stylesheets')
+<style>
+   /* Totals cards */
+   .totals-cards {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      margin-bottom: 15px;
+   }
+
+   .total-card {
+      flex: 1 1 0;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-left-width: 4px;
+      border-radius: 8px;
+      padding: 8px 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+   }
+
+   .total-card .label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      color: #6b7280;
+      margin-bottom: 4px;
+   }
+
+   .total-card .label i {
+      font-size: 11px;
+   }
+
+   .total-card .value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111827;
+   }
+
+   .total-delivered {
+      border-left-color: #10b981;
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.06), rgba(16, 185, 129, 0.02));
+   }
+
+   .total-rejected {
+      border-left-color: #ef4444;
+      background: linear-gradient(180deg, rgba(239, 68, 68, 0.06), rgba(239, 68, 68, 0.02));
+   }
+
+   .total-hours {
+      border-left-color: #3b82f6;
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
+   }
+
+   .total-ontime {
+      border-left-color: #8b5cf6;
+      background: linear-gradient(180deg, rgba(139, 92, 246, 0.06), rgba(139, 92, 246, 0.02));
+   }
+
+   .total-valid-days {
+      border-left-color: #f59e0b;
+      background: linear-gradient(180deg, rgba(245, 158, 11, 0.06), rgba(245, 158, 11, 0.02));
+   }
+
+   /* Table header bold */
+   #dataTableBuilder thead th {
+      font-weight: bold;
+   }
+</style>
 @endpush
+
+
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
          <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Date: activate to sort column ascending">Date</th>
+         <th title="Day" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Day: activate to sort column ascending">Day</th>
          <th title="ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="ID: activate to sort column ascending">ID</th>
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending">Name</th>
-         <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending">Fleet/Zone</th>
          <th title="Fleet Supr" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Fleet Supr">Fleet Supr</th>
+         <th title="Project" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Project">Project</th>
+         <th title="Status" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
          <th title="Delivered" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Delivered: activate to sort column ascending">Delivered</th>
+         <th title="HR" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="HR: activate to sort column ascending">HR</th>
          <th title="Ontime%" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ontime%: activate to sort column ascending">Ontime%</th>
          <th title="Rejected" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rejected: activate to sort column ascending">Rejected</th>
-         <th title="HR" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="HR: activate to sort column ascending">HR</th>
-         <th title="Rating" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rating: activate to sort column ascending">Valid Day</th>
+         <th title="Rating" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rating: activate to sort column ascending">Attendance</th>
       </tr>
    </thead>
    <tbody>
       @foreach($data as $r)
-      <tr class="text-center">
+      <tr class="text-center"
+         data-delivered="{{ $r->delivered_orders ?? 0 }}"
+         data-rejected="{{ $r->rejected_orders ?? 0 }}"
+         data-hours="{{ $r->login_hr ?? 0 }}"
+         data-ontime="{{ $r->ontime_orders_percentage ?? 0 }}"
+         data-valid="{{ $r->delivery_rating == 'Yes' ? 1 : 0 }}"
+         data-invalid="{{ $r->delivery_rating == 'No' ? 1 : 0 }}"
+         data-off="{{ ($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0 }}">
          <td>{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</td>
+         <td>{{ \Carbon\Carbon::parse($r->date)->format('l') }}</td>
          <td>{{ $r->d_rider_id }}</td>
          @php
          $rider = DB::Table('riders')->where('id' , $r->rider_id)->first();
          @endphp
          <td> <a href="{{route('rider.activities',$r->rider_id)}}">{{ $rider->name }}</a> </td>
-         <td>{{ $rider->emirate_hub }}</td>
          <td>{{ $rider->fleet_supervisor }}</td>
-         <td>{{ $r->delivered_orders }}</td>
-         <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage * 100 }}% @else - @endif</td>
-         <td>{{ $r->rejected_orders }}</td>
-         <td>{{ $r->login_hr }}</td>
+         <td>{{ DB::table('customers')->where('id', $rider->customer_id)->first()->name ?? '-' }}</td>
+         @php
+         $hasActiveBike = DB::table('bikes')->where('rider_id', $rider->id)->where('warehouse', 'Active')->exists();
+         $isWalker = $rider->designation === 'Walker';
+
+         if ($isWalker) {
+         $statusText = 'Active';
+         $badgeClass = 'bg-label-success';
+         } else {
+         $statusText = $hasActiveBike ? 'Active' : 'Inactive';
+         $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
+         }
+         @endphp
          <td>
-            {{ $r->delivery_rating }}
+            <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+         </td>
+         <td>{{ $r->delivered_orders }}</td>
+         <td>{{ $r->login_hr }}</td>
+         <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage }}% @else - @endif</td>
+         <td>{{ $r->rejected_orders }}</td>
+         <td>
+            @php
+            $hours = $r->login_hr ?? 0;
+
+            // Determine status based on new logic
+            if ($hours == 0) {
+            $status = 'Absent';
+            $badgeClass = 'bg-danger';
+            } elseif ($hours > 0) {
+            $status = 'Present';
+            $badgeClass = 'bg-success';
+            } else {
+            $status = 'Absent';
+            $badgeClass = 'bg-warning';
+            }
+            @endphp
+            <span class="badge {{ $badgeClass }}">{{ $status }}</span>
          </td>
       </tr>
       @endforeach
@@ -40,28 +152,80 @@
 @if(method_exists($data, 'links'))
 {!! $data->links('components.global-pagination') !!}
 @endif
-<div class="modal modal-default filtetmodal fade" id="customoizecolmn" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-   <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-      <div class="modal-content">
-         <div class="modal-header">
-            <h5 class="modal-title">Filter Riders</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-         </div>
-         <div class="modal-body" id="searchTopbody">
-            <div style="display: none;" class="loading-overlay" id="loading-overlay">
-               <div class="spinner-border text-primary" role="status"></div>
-            </div>
-            <form id="filterForm" action="{{ route('banks.index') }}" method="GET">
-               <div class="row">
-                  <div class="form-group col-md-12">
-                     <input type="number" name="search" class="form-control" placeholder="Search">
-                  </div>
-                  <div class="col-md-12 form-group text-center">
-                     <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                  </div>
-               </div>
-            </form>
-         </div>
-      </div>
-   </div>
-</div>
+
+
+@push('scripts')
+<script>
+   $(document).ready(function() {
+      // Recalculate totals when table is updated (for AJAX filtering)
+      calculateTotals();
+
+      // Recalculate when DataTable is redrawn (if using DataTables)
+      if ($.fn.DataTable) {
+         $('#dataTableBuilder').on('draw.dt', function() {
+            calculateTotals();
+         });
+      }
+   });
+
+   function calculateTotals() {
+      let workingDays = 0;
+      let validDays = 0;
+      let invalidDays = 0;
+      let offDays = 0;
+      let totalOrders = 0;
+      let totalRejected = 0;
+      let totalHours = 0;
+      let totalOntime = 0;
+      let ontimeCount = 0;
+
+      $('#dataTableBuilder tbody tr').each(function() {
+         const delivered = parseFloat($(this).data('delivered')) || 0;
+         const rejected = parseFloat($(this).data('rejected')) || 0;
+         const hours = parseFloat($(this).data('hours')) || 0;
+         const ontime = parseFloat($(this).data('ontime')) || 0;
+         const valid = parseInt($(this).data('valid')) || 0;
+         const invalid = parseInt($(this).data('invalid')) || 0;
+         const off = parseInt($(this).data('off')) || 0;
+
+         // Count working days (all rows)
+         workingDays++;
+
+         // Count day types
+         if (valid === 1) {
+            validDays++;
+         }
+         if (invalid === 1) {
+            invalidDays++;
+         }
+         if (off === 1) {
+            offDays++;
+         }
+
+         // Sum orders and hours
+         totalOrders += delivered;
+         totalRejected += rejected;
+         totalHours += hours;
+
+         // Calculate ontime percentage
+         if (ontime > 0) {
+            totalOntime += ontime;
+            ontimeCount++;
+         }
+      });
+
+      // Calculate average ontime percentage
+      const avgOntime = ontimeCount > 0 ? (totalOntime / ontimeCount) * 100 : 0;
+
+      // Update the totals display
+      $('#working_days').text(workingDays);
+      $('#valid_days').text(validDays);
+      $('#invalid_days').text(invalidDays);
+      $('#off_days').text(offDays);
+      $('#total_orders').text(totalOrders.toLocaleString());
+      $('#avg_ontime').text(avgOntime.toFixed(2) + '%');
+      $('#total_rejected').text(totalRejected.toLocaleString());
+      $('#total_hours').text(totalHours.toFixed(2));
+   }
+</script>
+@endpush

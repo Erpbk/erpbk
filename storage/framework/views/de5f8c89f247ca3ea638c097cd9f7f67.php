@@ -128,13 +128,23 @@
          <td><?php if($r->ontime_orders_percentage): ?><?php echo e($r->ontime_orders_percentage); ?>% <?php else: ?> - <?php endif; ?></td>
          <td><?php echo e($r->rejected_orders); ?></td>
          <td>
-            <?php if($r->delivery_rating == 'Yes'): ?>
-            <span class="badge bg-success">Valid</span>
-            <?php elseif($r->delivery_rating == 'No'): ?>
-            <span class="badge bg-warning">Invalid</span>
-            <?php else: ?>
-            <span class="badge bg-danger">Off</span>
-            <?php endif; ?>
+            <?php
+            $orders = $r->delivered_orders ?? 0;
+            $hours = $r->login_hr ?? 0;
+
+            // Determine status based on new logic
+            if ($hours == 0) {
+            $status = 'Off';
+            $badgeClass = 'bg-danger';
+            } elseif (($orders >= 5 && $hours >= 10) || ($orders >= 10)) {
+            $status = 'Valid';
+            $badgeClass = 'bg-success';
+            } else {
+            $status = 'Invalid';
+            $badgeClass = 'bg-warning';
+            }
+            ?>
+            <span class="badge <?php echo e($badgeClass); ?>"><?php echo e($status); ?></span>
          </td>
       </tr>
       <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>

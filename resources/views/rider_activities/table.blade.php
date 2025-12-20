@@ -79,12 +79,13 @@
          <th title="Day" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Day: activate to sort column ascending">Day</th>
          <th title="ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="ID: activate to sort column ascending">ID</th>
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending">Name</th>
-         <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending">Fleet/Zone</th>
          <th title="Fleet Supr" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Fleet Supr">Fleet Supr</th>
+         <th title="Project" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Project">Project</th>
+         <th title="Status" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
          <th title="Delivered" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Delivered: activate to sort column ascending">Delivered</th>
+         <th title="HR" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="HR: activate to sort column ascending">HR</th>
          <th title="Ontime%" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ontime%: activate to sort column ascending">Ontime%</th>
          <th title="Rejected" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rejected: activate to sort column ascending">Rejected</th>
-         <th title="HR" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="HR: activate to sort column ascending">HR</th>
          <th title="Rating" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rating: activate to sort column ascending">Valid Day</th>
       </tr>
    </thead>
@@ -105,12 +106,27 @@
          $rider = DB::Table('riders')->where('id' , $r->rider_id)->first();
          @endphp
          <td> <a href="{{route('rider.activities',$r->rider_id)}}">{{ $rider->name }}</a> </td>
-         <td>{{ $rider->emirate_hub }}</td>
          <td>{{ $rider->fleet_supervisor }}</td>
+         <td>{{ DB::table('customers')->where('id', $rider->customer_id)->first()->name ?? '-' }}</td>
+         @php
+         $hasActiveBike = DB::table('bikes')->where('rider_id', $rider->id)->where('warehouse', 'Active')->exists();
+         $isWalker = $rider->designation === 'Walker';
+
+         if ($isWalker) {
+         $statusText = 'Active';
+         $badgeClass = 'bg-label-success';
+         } else {
+         $statusText = $hasActiveBike ? 'Active' : 'Inactive';
+         $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
+         }
+         @endphp
+         <td>
+            <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+         </td>
          <td>{{ $r->delivered_orders }}</td>
-         <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage * 100 }}% @else - @endif</td>
-         <td>{{ $r->rejected_orders }}</td>
          <td>{{ $r->login_hr }}</td>
+         <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage }}% @else - @endif</td>
+         <td>{{ $r->rejected_orders }}</td>
          <td>
             @if ($r->delivery_rating == 'Yes')
             <span class="badge bg-success">Valid</span>

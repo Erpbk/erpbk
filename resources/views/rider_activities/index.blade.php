@@ -1,6 +1,11 @@
 @extends('layouts.app')
 
 @section('title','Rider Activities')
+
+@push('third_party_stylesheets')
+<link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
+@endpush
+
 @section('content')
 <section class="content-header">
   <div class="container-fluid">
@@ -14,89 +19,103 @@
         Add New
         </a> --}}
       </div>
-      <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">Filter Rider Activities</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+        <div class="filter-header">
+          <h5>Filter Rider Activities</h5>
+          <button type="button" class="btn-close" id="closeSidebar"></button>
+        </div>
+        <div class="filter-body" id="searchTopbody">
+          <form id="filterForm" action="{{ route('riderActivities.index') }}" method="GET">
+            <div class="row">
+              <div class="form-group col-md-12">
+                <label for="rider_id">Filter by Rider ID</label>
+                <select class="form-control" id="id" name="id">
+                  <option value="" selected>Select</option>
+                  @foreach($riders as $rider)
+                  <option value="{{ $rider->rider_id }}" {{ request('rider_id') == $rider->rider_id ? 'selected' : '' }}>
+                    {{ $rider->rider_id }}
+                  </option>
+                  @endforeach
+                </select>
+              </div>
+
+              <div class="form-group col-md-12">
+                <label for="rider_id">Filter by Rider</label>
+                <select class="form-control" id="rider_id" name="rider_id">
+                  <option value="" selected>Select</option>
+                  @foreach($riders as $rider)
+                  <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->rider_id ? 'selected' : '' }}>
+                    {{ $rider->name }}
+                  </option>
+                  @endforeach
+                </select>
+              </div>
+              <div class="form-group col-md-12">
+                <label for="from_date_range">From Date</label>
+                <select class="form-control" id="from_date_range" name="from_date_range">
+                  <option value="" selected>Select</option>
+                  <option value="Today" {{ request('from_date_range') == 'Today' ? 'selected' : '' }}>Today</option>
+                  <option value="Yesterday" {{ request('from_date_range') == 'Yesterday' ? 'selected' : '' }}>Yesterday</option>
+                  <option value="Last 7 Days" {{ request('from_date_range') == 'Last 7 Days' ? 'selected' : '' }}>Last 7 Days</option>
+                  <option value="Last 30 Days" {{ request('from_date_range') == 'Last 30 Days' ? 'selected' : '' }}>Last 30 Days</option>
+                  <option value="Last 90 Days" {{ request('from_date_range') == 'Last 90 Days' ? 'selected' : '' }}>Last 90 Days</option>
+                </select>
+              </div>
+              {{-- NEW DATE RANGE FILTER --}}
+              <div class="form-group col-md-12">
+                <label for="from_date">From Date</label>
+                <input type="date" name="from_date" class="form-control" value="{{ request('from_date') }}">
+              </div>
+
+              <div class="form-group col-md-12">
+                <label for="to_date">To Date</label>
+                <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}">
+              </div>
+
+              {{-- BILLING MONTH FILTER --}}
+              <div class="form-group col-md-12">
+                <label for="billing_month">Billing Month</label>
+                <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') ?? date('Y-m') }}">
+              </div>
+
+              <div class="form-group col-md-12">
+                <label for="valid_day">Filter by Valid Day</label>
+                <select class="form-control" id="valid_day" name="valid_day">
+                  <option value="" selected>All</option>
+                  <option value="Yes" {{ request('valid_day') == 'Yes' ? 'selected' : '' }}>Valid</option>
+                  <option value="No" {{ request('valid_day') == 'No' ? 'selected' : '' }}>Invalid</option>
+                  <option value="Off" {{ request('valid_day') == 'Off' ? 'selected' : '' }}>Off</option>
+                </select>
+              </div>
+
+              <div class="form-group col-md-12">
+                <label for="fleet_supervisor">Filter by Fleet Supervisor</label>
+                <select class="form-control" id="fleet_supervisor" name="fleet_supervisor">
+                  <option value="" selected>Select</option>
+                  @foreach($fleetSupervisors as $supervisor)
+                  <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>
+                    {{ $supervisor }}
+                  </option>
+                  @endforeach
+                </select>
+              </div>
+              <div class="form-group col-md-12">
+                <label for="bike_assignment_status">Filter by Status</label>
+                <select class="form-control " id="bike_assignment_status" name="bike_assignment_status">
+                  <option value="" selected>Select</option>
+                  <option value="Active" {{ request('bike_assignment_status') == 'Active' ? 'selected' : '' }}>Active</option>
+                  <option value="Inactive" {{ request('bike_assignment_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
+                </select>
+              </div>
+              <div class="col-md-12 form-group text-center">
+                <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+              </div>
             </div>
-            <div class="modal-body" id="searchTopbody">
-              <form id="filterForm" action="{{ route('riderActivities.index') }}" method="GET">
-                <div class="row">
-                  <div class="form-group col-md-4">
-                    <label for="id">ID</label>
-                    <input type="text" name="id" class="form-control" placeholder="Filter By ID" value="{{ request('id') }}">
-                  </div>
-
-                  <div class="form-group col-md-4">
-                    <label for="rider_id">Filter by Rider</label>
-                    <select class="form-control" id="rider_id" name="rider_id">
-                      <option value="" selected>Select</option>
-                      @foreach($riders as $rider)
-                      <option value="{{ $rider->rider_id }}" {{ request('rider_id') == $rider->rider_id ? 'selected' : '' }}>
-                        {{ $rider->rider_id . '-' . $rider->name }}
-                      </option>
-                      @endforeach
-                    </select>
-                  </div>
-
-                  {{-- NEW DATE RANGE FILTER --}}
-                  <div class="form-group col-md-4">
-                    <label for="from_date">From Date</label>
-                    <input type="date" name="from_date" class="form-control" value="{{ request('from_date') }}">
-                  </div>
-
-                  <div class="form-group col-md-4">
-                    <label for="to_date">To Date</label>
-                    <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}">
-                  </div>
-
-                  {{-- BILLING MONTH FILTER --}}
-                  <div class="form-group col-md-4">
-                    <label for="billing_month">Billing Month</label>
-                    <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') ?? date('Y-m') }}">
-                  </div>
-                  <div class="form-group col-md-4">
-                    <label for="valid_day">Filter by Valid Day</label>
-                    <select class="form-control" id="valid_day" name="valid_day">
-                      <option value="" selected>All</option>
-                      <option value="Yes" {{ request('valid_day') == 'Yes' ? 'selected' : '' }}>Valid</option>
-                      <option value="No" {{ request('valid_day') == 'No' ? 'selected' : '' }}>Invalid</option>
-                      <option value="Off" {{ request('valid_day') == 'Off' ? 'selected' : '' }}>Off</option>
-                    </select>
-                  </div>
-                  <div class="form-group col-md-4">
-                    <label for="fleet_supervisor">Filter by Fleet Supervisor</label>
-                    <select class="form-control" id="fleet_supervisor" name="fleet_supervisor">
-                      <option value="" selected>Select</option>
-                      @foreach($fleetSupervisors as $supervisor)
-                      <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>
-                        {{ $supervisor }}
-                      </option>
-                      @endforeach
-                    </select>
-                  </div>
-
-                  <div class="form-group col-md-4">
-                    <label for="payout_type">Filter by Payout Type</label>
-                    <select class="form-control" id="payout_type" name="payout_type">
-                      <option value="" selected>Select</option>
-                      @foreach($payoutTypes as $type)
-                      <option value="{{ $type }}" {{ request('payout_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
-                      @endforeach
-                    </select>
-                  </div>
-
-                  <div class="col-md-12 form-group text-center">
-                    <button type="submit" class="btn btn-primary mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
+          </form>
         </div>
       </div>
+      <!-- Filter Overlay -->
+      <div id="filterOverlay" class="filter-overlay"></div>
     </div>
     <div class="row mb-3">
       @php
@@ -115,7 +134,7 @@
         <div class="card h-100">
           <div class="card-header d-flex justify-content-between">
             <h5 class="card-title mb-0">Statistics</h5>
-            <small class="text-body-secondary"><a class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a></small>
+            <small class="text-body-secondary"><a class="btn btn-primary openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a></small>
           </div>
           <div class="card-body">
             <div id="totalsBar" class="mb-2">
@@ -187,21 +206,79 @@
       placeholder: "Filter By Rider",
       allowClear: true, // ✅ cross icon enable
     });
+    $('#from_date_range').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By From Date Range",
+      allowClear: true, // ✅ cross icon enable
+    });
+    $('#id').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By Rider ID",
+      allowClear: true, // ✅ cross icon enable
+    });
     $('#payout_type').select2({
       dropdownParent: $('#searchTopbody'),
       placeholder: "Filter By Payout Type",
       allowClear: true, // ✅ cross icon enable
+    });
+    $('#valid_day').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By Valid Day",
+      allowClear: true, // ✅ cross icon enable
+    });
+    $('#bike_assignment_status').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By Bike Assignment",
+      allowClear: true, // ✅ cross icon enable
+    });
+    $('#from_date_range').on('change', function() {
+      const selectedValue = $(this).val();
+      if (selectedValue === 'Today') {
+        $('#from_date').val(new Date().toISOString().split('T')[0]);
+      } else if (selectedValue === 'Yesterday') {
+        $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0]);
+      } else if (selectedValue === 'Last 7 Days') {
+        $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0]);
+      } else if (selectedValue === 'Last 30 Days') {
+        $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
+      } else if (selectedValue === 'Last 90 Days') {
+        $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 90)).toISOString().split('T')[0]);
+      }
     });
   });
 </script>
 
 <script type="text/javascript">
   $(document).ready(function() {
+    // Filter sidebar functionality - open on hover
+    $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function(e) {
+      e.preventDefault();
+      console.log('Filter button hovered!');
+      $('#filterSidebar').addClass('open');
+      $('#filterOverlay').addClass('show');
+      return false;
+    });
+
+    // Keep the original click handler for mobile devices
+    $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
+      e.preventDefault();
+      console.log('Filter button clicked!');
+      $('#filterSidebar').addClass('open');
+      $('#filterOverlay').addClass('show');
+      return false;
+    });
+
+    $('#closeSidebar, #filterOverlay').on('click', function() {
+      $('#filterSidebar').removeClass('open');
+      $('#filterOverlay').removeClass('show');
+    });
+
     $('#filterForm').on('submit', function(e) {
       e.preventDefault();
 
       $('#loading-overlay').show();
-      $('#searchModal').modal('hide');
+      $('#filterSidebar').removeClass('open');
+      $('#filterOverlay').removeClass('show');
 
       const loaderStartTime = Date.now();
 

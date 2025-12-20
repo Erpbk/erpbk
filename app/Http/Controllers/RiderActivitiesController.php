@@ -39,13 +39,16 @@ class RiderActivitiesController extends AppBaseController
         $query = RiderActivities::query()
             ->with('rider')
             ->orderByDesc('date');
-
         if ($request->filled('id')) {
-            $query->where('id', (int) $request->id);
+            $rider = Riders::where('rider_id', (int) $request->id)->first();
+            if ($rider) {
+                $query->where('rider_id', $rider->id);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
-
         if ($request->filled('rider_id')) {
-            $rider = Riders::where('rider_id', trim($request->rider_id))->first();
+            $rider = Riders::where('id', trim($request->rider_id))->first();
             if ($rider) {
                 $query->where('rider_id', $rider->id);
             } else {
@@ -53,8 +56,18 @@ class RiderActivitiesController extends AppBaseController
             }
         }
 
-        if ($request->filled('from_date')) {
-            $query->whereDate('date', '>=', $request->from_date);
+        if ($request->filled('from_date_range')) {
+            if ($request->from_date_range === 'Today') {
+                $query->whereDate('date', '>=', Carbon::today());
+            } else if ($request->from_date_range === 'Yesterday') {
+                $query->whereDate('date', '>=', Carbon::yesterday());
+            } else if ($request->from_date_range === 'Last 7 Days') {
+                $query->whereDate('date', '>=', Carbon::today()->subDays(7));
+            } else if ($request->from_date_range === 'Last 30 Days') {
+                $query->whereDate('date', '>=', Carbon::today()->subDays(30));
+            } else if ($request->from_date_range === 'Last 90 Days') {
+                $query->whereDate('date', '>=', Carbon::today()->subDays(90));
+            }
         }
 
         if ($request->filled('to_date')) {
@@ -97,6 +110,20 @@ class RiderActivitiesController extends AppBaseController
 
         if ($request->filled('payout_type')) {
             $query->where('payout_type', $request->payout_type);
+        }
+
+        if ($request->filled('bike_assignment_status')) {
+            $query->whereHas('rider', function ($q) use ($request) {
+                if ($request->bike_assignment_status === 'Active') {
+                    $q->whereHas('bikes', function ($q) {
+                        $q->where('warehouse', 'Active');
+                    });
+                } elseif ($request->bike_assignment_status === 'Inactive') {
+                    $q->whereDoesntHave('bikes', function ($q) {
+                        $q->where('warehouse', 'Active');
+                    });
+                }
+            });
         }
 
         // Get all data for totals calculation (before pagination)

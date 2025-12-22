@@ -95,7 +95,7 @@
          <?php break; ?>
          <?php case ('days'): ?>
          <?php
-         $days = DB::table('rider_activities')->where('d_rider_id', $r->rider_id)->whereMonth('date', now()->month)->whereYear('date', now()->year)->count('date');
+         $days = DB::table('rider_activities')->where('d_rider_id', $r->rider_id)->where('delivery_rating', 'Yes')->whereMonth('date', now()->month)->whereYear('date', now()->year)->count('date');
          ?>
          <td><?php echo e($days ? $days : '-'); ?></td>
          <?php break; ?>

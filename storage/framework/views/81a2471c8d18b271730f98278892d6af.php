@@ -64,9 +64,35 @@
       background: linear-gradient(180deg, rgba(245, 158, 11, 0.06), rgba(245, 158, 11, 0.02));
    }
 
-   /* Table header bold */
+   /* Table header bold and fixed */
    #dataTableBuilder thead th {
       font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background-color: #f8f9fa;
+      box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+   }
+
+   /* Ensure table container is scrollable */
+   .table-responsive {
+      max-height: calc(100vh - 300px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+   }
+
+   /* Hide scrollbar for Chrome, Safari and Opera */
+   .table-responsive::-webkit-scrollbar {
+      display: none;
+   }
+
+   /* Hide scrollbar for IE, Edge and Firefox */
+   .table-responsive {
+      -ms-overflow-style: none;
+      /* IE and Edge */
+      scrollbar-width: none;
+      /* Firefox */
    }
 </style>
 <?php $__env->stopPush(); ?>

@@ -103,7 +103,7 @@
         <div>Activities</div>
       </a>
     </li>
-    <li class="menu-item <?php echo e(Request::is('rider.riderActivities*') ? 'active' : ''); ?>">
+    <li class="menu-item <?php echo e(Request::is('liveactivities*') ? 'active' : ''); ?>">
       <a href="<?php echo e(route('rider.liveactivities')); ?>" class="menu-link ">
         <i class="menu-icon tf-icons ti ti-bike"></i>
         <div>Live Activities</div>

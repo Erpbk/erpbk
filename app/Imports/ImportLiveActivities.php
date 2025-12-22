@@ -20,7 +20,7 @@ class ImportLiveActivities implements ToCollection
 
   public function __construct()
   {
-    // Set current date (today) - only this date will be processed
+    // Store current date for reference
     $this->currentDate = Carbon::today()->format('Y-m-d');
   }
 
@@ -56,7 +56,7 @@ class ImportLiveActivities implements ToCollection
           continue;
         }
 
-        // Process row (only if date matches current date)
+        // Process row
         $this->processRow($row, $rowNumber);
 
         DB::commit();
@@ -88,7 +88,6 @@ class ImportLiveActivities implements ToCollection
         'skipped_count' => $this->skippedCount,
         'error_count' => count($this->importErrors),
         'errors'  => $this->importErrors,
-        'current_date' => $this->currentDate,
       ]
     ]);
   }
@@ -128,27 +127,16 @@ class ImportLiveActivities implements ToCollection
       ];
     }
 
-    // Check if date is today (current date)
-    $rowDate = date('Y-m-d', strtotime($row[0]));
-    if ($rowDate !== $this->currentDate) {
-      return [
-        'row'        => $rowNumber,
-        'error_type' => 'Date Not Allowed',
-        'message'    => "Date must be today ({$this->currentDate}). Date in file: {$rowDate}. Only current date's activities can be imported/updated.",
-        'rider_id'   => $row[1],
-      ];
-    }
-
     return null;
   }
 
   /**
-   * Save or update row (only for current date)
+   * Save or update row (updates existing rider record regardless of date)
    */
   private function processRow($row, $rowNumber)
   {
     $rider = Riders::where('rider_id', trim($row[1]))->first();
-    $date  = $this->currentDate; // Always use current date
+    $date  = date('Y-m-d', strtotime($row[0])); // Use date from import file
 
     // Get login hours
     $loginHours = (float) ($row[9] ?? 0);
@@ -169,13 +157,12 @@ class ImportLiveActivities implements ToCollection
       'delivery_rating'             => $attendanceStatus ?? null,
     ];
 
-    // Update or create only for current date
-    // This will update existing records for today, or create new ones
-    // This allows the system to refresh/update activities every 2 hours for the same day
+    // Update or create based on rider_id only
+    // This ensures only one record per rider exists, which gets updated with new date data
+    // No new records are created when importing activities for different dates
     liveactivities::updateOrCreate(
       [
-        'rider_id' => $rider->id,
-        'date'     => $date
+        'rider_id' => $rider->id
       ],
       $data
     );

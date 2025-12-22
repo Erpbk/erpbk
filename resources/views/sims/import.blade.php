@@ -29,7 +29,7 @@
                                     <label for="file">Excel File</label>
                                     <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.csv,.xls" required>
                                     <small class="form-text text-muted">Upload Excel file with Sim data</small>
-                                    <a href="{{ asset('templates/sim_template.xlsx') }}" class="btn btn-sm btn-outline-primary mt-2" download>
+                                    <a href="{{ asset('samples/sim_import_sample.xlsx') }}" class="btn btn-sm btn-outline-primary mt-2" download>
                                         <i class="fas fa-download"></i> Download Sim Template
                                     </a>
                                 </div>
@@ -110,7 +110,7 @@
             var $form = $(this);
             var $btn = $('#importBtn');
             var $progress = $('#importProgress');
-            var $result = $('#importResult'); 
+            var $result = $('#importResult');
 
             // Validate file selection
             if (!$('#file').val()) {
@@ -191,16 +191,30 @@
                         resultsHtml += '                <h6>⚠️ Skip Details</h6>';
                         resultsHtml += '                <table class="table table-sm">';
                         resultsHtml += '                    <tbody>';
-                        
+
                         // Add skip reasons
-                        var skipReasons = [
-                            { key: 'duplicate_db', label: 'Duplicate in Database' },
-                            { key: 'duplicate_excel', label: 'Duplicate in File' },
-                            { key: 'missing_data', label: 'Missing Data' },
-                            { key: 'no_bike', label: 'Bike Not Found' },
-                            { key: 'no_rider', label: 'No Rider Found For Bike' }
+                        var skipReasons = [{
+                                key: 'duplicate_db',
+                                label: 'Duplicate in Database'
+                            },
+                            {
+                                key: 'duplicate_excel',
+                                label: 'Duplicate in File'
+                            },
+                            {
+                                key: 'missing_data',
+                                label: 'Missing Data'
+                            },
+                            {
+                                key: 'no_bike',
+                                label: 'Bike Not Found'
+                            },
+                            {
+                                key: 'no_rider',
+                                label: 'No Rider Found For Bike'
+                            }
                         ];
-                        
+
                         for (var i = 0; i < skipReasons.length; i++) {
                             var reason = skipReasons[i];
                             if (stats[reason.key] > 0) {
@@ -210,12 +224,12 @@
                                 resultsHtml += '</tr>';
                             }
                         }
-                        
+
                         resultsHtml += '                    </tbody>';
                         resultsHtml += '                </table>';
                         resultsHtml += '            </div>';
                         resultsHtml += '        </div>';
-                        
+
                         // Add failed rows details
                         if (failedFines.length > 0) {
                             resultsHtml += '<div class="mt-3">';
@@ -239,7 +253,7 @@
                             resultsHtml += '                    </tr>';
                             resultsHtml += '                </thead>';
                             resultsHtml += '                <tbody>';
-                            
+
                             for (var j = 0; j < failedFines.length; j++) {
                                 var fine = failedFines[j];
                                 resultsHtml += '<tr>';
@@ -249,7 +263,7 @@
                                 resultsHtml += '    <td class="text-danger"><small>' + (fine.reason || 'Unknown error') + '</small></td>';
                                 resultsHtml += '</tr>';
                             }
-                            
+
                             resultsHtml += '                </tbody>';
                             resultsHtml += '            </table>';
                             resultsHtml += '        </div>';
@@ -281,7 +295,7 @@
                             resultsHtml += '                    </tr>';
                             resultsHtml += '                </thead>';
                             resultsHtml += '                <tbody>';
-                            
+
                             for (var j = 0; j < importedFines.length; j++) {
                                 var fine = importedFines[j];
                                 resultsHtml += '<tr>';
@@ -292,7 +306,7 @@
                                 resultsHtml += '    <td>' + (fine.detail || 'N/A') + '</td>';
                                 resultsHtml += '</tr>';
                             }
-                            
+
                             resultsHtml += '                </tbody>';
                             resultsHtml += '            </table>';
                             resultsHtml += '        </div>';
@@ -312,33 +326,33 @@
                             resultsHtml += '    No fines were imported. Please check your file and try again.';
                             resultsHtml += '</div>';
                         }
-                        
+
                         // Add buttons with proper event handlers
                         resultsHtml += '<div class="text-center mt-3">';
-                        resultsHtml += '    <a href="{{ route('sims.index') }}" class="btn btn-primary">';
+                        resultsHtml += '    <a href="{{ route("sims.index") }}" class="btn btn-primary">';
                         resultsHtml += '        <i class="fas fa-list"></i> View Imported Fines';
                         resultsHtml += '    </a>';
                         resultsHtml += '    <button type="button" class="btn btn-secondary ml-2" id="closeResultsBtn">';
                         resultsHtml += '        <i class="fas fa-times"></i> Close';
                         resultsHtml += '    </button>';
                         resultsHtml += '</div>';
-                        
+
                         resultsHtml += '    </div>';
                         resultsHtml += '</div>';
-                        
+
                         // Display the detailed results
                         $result.html(resultsHtml).show();
-                        
+
                         // Reset form
                         $form[0].reset();
-                        
+
                         // Add event listener for close button
                         setTimeout(function() {
                             $('#closeResultsBtn').on('click', function() {
                                 $result.hide();
                             });
                         }, 100);
-                        
+
                     } else {
                         $result.html(
                             '<div class="alert alert-danger">' +
@@ -423,14 +437,14 @@
     window.toggleFailedRows = function() {
         var div = document.getElementById('failedRows');
         var toggleBtn = document.getElementById('failedRowsToggle');
-        
+
         if (!div || !toggleBtn) return;
-        
+
         var chevron = toggleBtn.querySelector('.fa-chevron-down');
         if (!chevron) {
             chevron = toggleBtn.querySelector('.fa-chevron-up');
         }
-        
+
         if (div.style.display === 'none') {
             div.style.display = 'block';
             if (chevron) {
@@ -449,14 +463,14 @@
     window.toggleSuccessRows = function() {
         var div = document.getElementById('successRows');
         var toggleBtn = document.getElementById('successRowsToggle');
-        
+
         if (!div || !toggleBtn) return;
-        
+
         var chevron = toggleBtn.querySelector('.fa-chevron-down');
         if (!chevron) {
             chevron = toggleBtn.querySelector('.fa-chevron-up');
         }
-        
+
         if (div.style.display === 'none') {
             div.style.display = 'block';
             if (chevron) {

@@ -549,7 +549,7 @@
             <!-- Number Plate Display -->
             @php
                 $emirateCode = strtolower(trim($bikes->emirates ?? ''));
-                $plateNumber = $bikes->plate ?? 'N/A';
+                $plateNumber = $bikes->plate ?? '00000';
                 $bikeCode = $bikes->bike_code ?? 'N/A';
                 
                 // Define emirate names in Arabic and English
@@ -561,9 +561,10 @@
                     'fuj' => ['arabic' => 'الفجيرة', 'english' => 'FUJAIRAH'],
                     'ajm' => ['arabic' => 'عجمان', 'english' => 'AJMAN'],
                     'uaq' => ['arabic' => 'أم القيوين', 'english' => 'UMM AL QUWAIN'],
+                    '-' => ['arabic' => 'غير محدد', 'english' => 'UNSPECIFIED'],
                 ];
                 
-                $currentEmirate = $emiratesData[$emirateCode] ?? null;
+                $currentEmirate = $emiratesData[$emirateCode] ?? $emiratesData['-'];
                 
                 // Map warehouse names to status classes
                 $warehouse = $bikes->warehouse ?? '';
@@ -726,7 +727,7 @@
         
         <!-- Action Buttons - Smaller size -->
         <div class="bike-actions-compact">
-            @can('item_edit')
+            @can('bike_edit')
             <a href="{{ route('bikes.edit', $bikes->id) }}" 
                class="btn-compact btn-edit-compact show-modal"
                data-title="Edit Vehicle #{{ $bikes->plate }}">
@@ -734,26 +735,27 @@
                 <span>Edit Details</span>
             </a>
             @endcan
-
-            @if($bikes->rider_id)
-            <a href="javascript:void(0);" 
-               class="btn-compact btn-view-assignment show-modal"
-               data-size="xl"
-               data-title="Assigned Rider Details"
-               data-action="{{ route('bikes.assignrider', $bikes->id) }}">
-                <i class="fas fa-user-check"></i>
-                <span>Change Status</span>
-            </a>
-            @else
-            <a href="javascript:void(0);" 
-               class="btn-compact btn-assign-compact show-modal"
-               data-size="xl"
-               data-title="Assign Rider to Vehicle #{{ $bikes->plate }}"
-               data-action="{{ route('bikes.assign_rider', $bikes->id) }}">
-                <i class="fas fa-user-plus"></i>
-                <span>Assign Rider</span>
-            </a>
-            @endif
+            @can('bike_assign_edit')
+                @if($bikes->rider_id)
+                <a href="javascript:void(0);" 
+                class="btn-compact btn-view-assignment show-modal"
+                data-size="xl"
+                data-title="Assigned Rider Details"
+                data-action="{{ route('bikes.assignrider', $bikes->id) }}">
+                    <i class="fas fa-user-check"></i>
+                    <span>Change Status</span>
+                </a>
+                @else
+                <a href="javascript:void(0);" 
+                class="btn-compact btn-assign-compact show-modal"
+                data-size="xl"
+                data-title="Assign Rider to Vehicle #{{ $bikes->plate }}"
+                data-action="{{ route('bikes.assign_rider', $bikes->id) }}">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Assign Rider</span>
+                </a>
+                @endif
+            @endcan
         </div>
     </div>
   </div>
@@ -762,12 +764,16 @@
     <div class="nav-align-top">
       <ul class="nav nav-pills flex-column flex-md-row flex-wrap mb-3 row-gap-2">
         <li class="nav-item"><a class="nav-link @if(request()->segment(1) =='bikes') active @endif " href="{{route('bikes.show',$bikes->id)}}"><i class="ti ti-motorbike ti-sm me-1_5 mx-2"></i> Bike</a></li>
-        <li class="nav-item">
-          <a href="{{route('bikeHistories.index', ['bike_id'=>$bikes->id])}}" class="nav-link @if(request()->segment(1) =='bikeHistories') active @endif"><i class="fa fa-list-check"></i>&nbsp;History</a>
-        </li>
-        <li class="nav-item">
-          <a href="{{ route('files.index',['type_id'=>$bikes->id,'type'=>'bike']) }}" class="nav-link @if(request()->segment(1) =='files') active @endif"><i class="fa fa-file-lines"></i>&nbsp;Files</a>
-        </li>
+        @can('bike_assign_view')
+            <li class="nav-item">
+                <a href="{{route('bikeHistories.index', ['bike_id'=>$bikes->id])}}" class="nav-link @if(request()->segment(1) =='bikeHistories') active @endif"><i class="fa fa-list-check"></i>&nbsp;History</a>
+            </li>
+        @endcan
+        @can('files_view')
+            <li class="nav-item">
+                <a href="{{ route('files.index',['type_id'=>$bikes->id,'type'=>'bike']) }}" class="nav-link @if(request()->segment(1) =='files') active @endif"><i class="fa fa-file-lines"></i>&nbsp;Files</a>
+            </li>
+        @endcan
       </ul>
     </div>
     <div class="card mb-5" id="cardBody" style="height:660px !important;overflow: auto;">

@@ -47,13 +47,7 @@ $selectedDesignation = 'Cyclist';
         </div>
         <div class="col-md-3 form-group">
             <label>Project</label>
-            {!! Form::select(
-            'customer_id_display',
-            App\Models\Customers::dropdown(),
-            1,
-            ['class' => 'form-select select2', 'id' => 'customer_id_display', 'disabled' => true]
-            ) !!}
-            {!! Form::hidden('customer_id', '1') !!}
+            <input type="text" name="customer_id" class="form-control" readonly value="{{ App\Models\Customers::find($bike->customer_id)->name ?? 'N/A' }}">
         </div>
         <div class="form-group col-md-3" id="return_date">
             <label for="exampleInputEmail1">Return Date</label>

@@ -32,10 +32,22 @@ trait LogsActivity
             }
         });
 
-        // Log when a model is deleted
+        if (in_array('Illuminate\Database\Eloquent\SoftDeletes', class_uses_recursive(static::class))) {
+            static::forceDeleting(function (Model $model) {
+                if (auth()->check()) {
+                    ActivityLogger::custom('force_deleted', static::getModuleName(), $model);
+                }
+            });
+        }
+
+        // Keep the original deleting event for soft/regular deletes
         static::deleting(function (Model $model) {
             if (auth()->check()) {
-                ActivityLogger::deleted(static::getModuleName(), $model);
+                // Skip if this is a force delete (handled above)
+                $isForceDelete = $model->isForceDeleting() ?? false;
+                if (!$isForceDelete) {
+                    ActivityLogger::deleted(static::getModuleName(), $model);
+                }
             }
         });
 

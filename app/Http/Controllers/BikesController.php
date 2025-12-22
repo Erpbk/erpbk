@@ -429,6 +429,8 @@ class BikesController extends AppBaseController
 
     return response()->json(['message' => 'Bike deleted successfully.']);
   }
+
+  // Return bike
   public function assignrider(Request $request, $id)
   {
     if ($request->isMethod('post')) {
@@ -439,11 +441,7 @@ class BikesController extends AppBaseController
                   'required',
                   'date',
                   function ($attribute, $value, $fail) use ($request) {
-                      // Check if date is empty
-                      if (empty($value)) {
-                          $fail('Return date is required.');
-                          return;
-                      }
+                      
                       // Get the last assign date for this bike from bike history
                       $lastAssignDate = DB::table('bike_histories')
                           ->where('bike_id', $request->bike_id)
@@ -487,6 +485,9 @@ class BikesController extends AppBaseController
         else
           $message .= "*Return Date:* {$request->return_date}\n";
         $message .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
+        $project = DB::table('customers')->where('id', $bike->customer_id)->first();
+        $message .= "*Project:* {$project->name}\n";
+        $message .= "*Emirates:* {$bike->emirates}\n";
         $message .= "*Note:*" . $request->notes??''. "\n";
 
         // Status handling
@@ -510,7 +511,7 @@ class BikesController extends AppBaseController
               ->update([
                 'status'      => 3,
                 'designation' => null,
-                'customer_id' => null
+                'customer_id' => null,
               ]);
             $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
             $bike->update([
@@ -670,24 +671,22 @@ class BikesController extends AppBaseController
               $message .= "*Name:* {$rider->name}\n";
               $message .= "*Assign Date:* {$request->note_date}\n";
               $message .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
+              $project = DB::table('customers')->where('id', $customer_id)->first();
+              $message .= "*Project:* {$project->name}\n";
+              $message .= "*Emirates:* {$bike->emirates}\n";
               $message .= "*Note:*" . $request->notes??''. "\n";
               
               // Update rider status + designation depending on warehouse
-              Riders::where('id', $request->rider_id)
-                  ->update(['status' => 1, 'designation' => $designation, 'customer_id' => $customer_id, 'emirate_hub' => $bike->emirates]);
-              $bike->update(['rider_id' => $request->rider_id, 'warehouse' => $request->warehouse]);
-
-              // Fire event for WhatsApp notification
               $rider = Riders::find($request->rider_id);
-              if ($rider) {
-                   event(new \App\Events\BikeAssignedEvent($bike, $rider, now(), Auth::user()));
-                  }
+              $rider->update(['status' => 1, 'designation' => $designation, 'customer_id' => $customer_id, 'emirate_hub' => $bike->emirates]);
+              $bike->update(['rider_id' => $request->rider_id, 'warehouse' => $request->warehouse, 'customer_id' => $customer_id]);
               
               
-              // Save bike history with created_by
+              // Save bike history
               $data['created_by'] = Auth::id();
               $data['notes'] = $message;
-              BikeHistory::create($data);
+              $data['customer_id'] = $customer_id;
+              $bikeHistory = BikeHistory::create($data);
               DB::commit();
               return response()->json(['message' => 'Rider assigned successfully.']);
               

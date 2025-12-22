@@ -37,7 +37,7 @@ $selectedDesignation = 'Cyclist';
         </div>
         <div class="col-md-3 form-group">
             {!! Form::label('customer_id', 'Project') !!}
-            {!! Form::select('customer_id',App\Models\Customers::dropdown(),'',
+            {!! Form::select('customer_id',\App\Models\Customers::dropdown(),'',
             ['class' => 'form-select select2', 'id' => 'customer_id']) !!}
         </div>
         <div class="form-group col-md-3">

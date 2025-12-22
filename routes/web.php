@@ -142,11 +142,19 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('VisaExpense/getrider/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'getrider']);
 
 
-
+    Route::get('sims/trash', [\App\Http\Controllers\SimsController::class, 'trash'])->name('sims.trash');
+    Route::get('sims/trash/{id}', [\App\Http\Controllers\SimsController::class, 'showTrash'])->name('sims.showTrash');
+    Route::post('sims/empty-trash', [\App\Http\Controllers\SimsController::class, 'emptyTrash'])->name('sims.emptyTrash');
+    Route::get('sims/restore/{id}', [\App\Http\Controllers\SimsController::class, 'restore'])->name('sims.restore');
+    Route::match(['get', 'post'], 'sims/assign/{id}', [\App\Http\Controllers\SimsController::class, 'assign'])->name('sims.assign');
+    Route::match(['get', 'post'], 'sims/return/{id}', [\App\Http\Controllers\SimsController::class, 'return'])->name('sims.return');
+    Route::get('sims/export', [\App\Http\Controllers\SimsController::class, 'export'])->name('sims.export');
+    Route::match(['get', 'post'], 'sims/import', [\App\Http\Controllers\SimsController::class, 'import'])->name('sims.import');
 
 
     Route::resource('sims', App\Http\Controllers\SimsController::class);
     Route::get('sims/delete/{id}', [\App\Http\Controllers\SimsController::class, 'destroy'])->name('sims.delete');
+    
     /* Rider section starts from here */
 
     Route::resource('riders', App\Http\Controllers\RidersController::class);
@@ -294,6 +302,8 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('recruiters/{recruiter}/remove-riders', [\App\Http\Controllers\RecruitersController::class, 'removeRiders'])->name('recruiters.remove-riders');
 
     Route::resource('bikeHistories', App\Http\Controllers\BikeHistoryController::class);
+
+    Route::resource('simHistories', App\Http\Controllers\SimHistoryController::class);
 
     Route::resource('leasingCompanies', App\Http\Controllers\LeasingCompaniesController::class);
     Route::get('leasingCompanies/delete/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroy'])->name('leasingCompanies.delete');

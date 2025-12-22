@@ -13,12 +13,12 @@
 }
 
 #dataTableBuilder thead {
-    background: #344194;
+    background: #d4d4d6;
     backdrop-filter: blur(10px);
 }
 
 #dataTableBuilder thead th {
-    color: white;
+    color: black;
     font-weight: 500;
     font-size: 0.85rem;
     padding: 18px 15px;

@@ -7,157 +7,145 @@
 @endpush
 
 @section('content')
-<section class="content-header">
-  <div class="container-fluid">
-    <div class="row mb-2">
-      <div class="col-sm-6">
-        <h3>Rider Activities</h3>
-      </div>
-      <div class="col-sm-6">
-        {{-- <a class="btn btn-primary float-right"
-                       href="{{ route('riderActivities.create') }}">
-        Add New
-        </a> --}}
-      </div>
-      <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
-        <div class="filter-header">
-          <h5>Filter Rider Activities</h5>
-          <button type="button" class="btn-close" id="closeSidebar"></button>
-        </div>
-        <div class="filter-body" id="searchTopbody">
-          <form id="filterForm" action="{{ route('riderActivities.index') }}" method="GET">
-            <div class="row">
-              <div class="form-group col-md-12">
-                <label for="rider_id">Filter by Rider ID</label>
-                <select class="form-control" id="id" name="id">
-                  <option value="" selected>Select</option>
-                  @foreach($riders as $rider)
-                  <option value="{{ $rider->rider_id }}" {{ request('rider_id') == $rider->rider_id ? 'selected' : '' }}>
-                    {{ $rider->rider_id }}
-                  </option>
-                  @endforeach
-                </select>
-              </div>
-
-              <div class="form-group col-md-12">
-                <label for="rider_id">Filter by Rider</label>
-                <select class="form-control" id="rider_id" name="rider_id">
-                  <option value="" selected>Select</option>
-                  @foreach($riders as $rider)
-                  <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->rider_id ? 'selected' : '' }}>
-                    {{ $rider->name }}
-                  </option>
-                  @endforeach
-                </select>
-              </div>
-              <div class="form-group col-md-12">
-                <label for="from_date_range">From Date</label>
-                <select class="form-control" id="from_date_range" name="from_date_range">
-                  <option value="" selected>Select</option>
-                  <option value="Today" {{ request('from_date_range') == 'Today' ? 'selected' : '' }}>Today</option>
-                  <option value="Yesterday" {{ request('from_date_range') == 'Yesterday' ? 'selected' : '' }}>Yesterday</option>
-                  <option value="Last 7 Days" {{ request('from_date_range') == 'Last 7 Days' ? 'selected' : '' }}>Last 7 Days</option>
-                  <option value="Last 30 Days" {{ request('from_date_range') == 'Last 30 Days' ? 'selected' : '' }}>Last 30 Days</option>
-                  <option value="Last 90 Days" {{ request('from_date_range') == 'Last 90 Days' ? 'selected' : '' }}>Last 90 Days</option>
-                </select>
-              </div>
-              {{-- NEW DATE RANGE FILTER --}}
-              <div class="form-group col-md-12">
-                <label for="from_date">From Date</label>
-                <input type="date" name="from_date" class="form-control" value="{{ request('from_date') }}">
-              </div>
-
-              <div class="form-group col-md-12">
-                <label for="to_date">To Date</label>
-                <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}">
-              </div>
-
-              {{-- BILLING MONTH FILTER --}}
-              <div class="form-group col-md-12">
-                <label for="billing_month">Billing Month</label>
-                <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') ?? date('Y-m') }}">
-              </div>
-
-              <div class="form-group col-md-12">
-                <label for="valid_day">Filter by Valid Day</label>
-                <select class="form-control" id="valid_day" name="valid_day">
-                  <option value="" selected>All</option>
-                  <option value="Yes" {{ request('valid_day') == 'Yes' ? 'selected' : '' }}>Valid</option>
-                  <option value="No" {{ request('valid_day') == 'No' ? 'selected' : '' }}>Invalid</option>
-                  <option value="Off" {{ request('valid_day') == 'Off' ? 'selected' : '' }}>Off</option>
-                </select>
-              </div>
-
-              <div class="form-group col-md-12">
-                <label for="fleet_supervisor">Filter by Fleet Supervisor</label>
-                <select class="form-control" id="fleet_supervisor" name="fleet_supervisor">
-                  <option value="" selected>Select</option>
-                  @foreach($fleetSupervisors as $supervisor)
-                  <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>
-                    {{ $supervisor }}
-                  </option>
-                  @endforeach
-                </select>
-              </div>
-              <div class="form-group col-md-12">
-                <label for="bike_assignment_status">Filter by Status</label>
-                <select class="form-control " id="bike_assignment_status" name="bike_assignment_status">
-                  <option value="" selected>Select</option>
-                  <option value="Active" {{ request('bike_assignment_status') == 'Active' ? 'selected' : '' }}>Active</option>
-                  <option value="Inactive" {{ request('bike_assignment_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
-                </select>
-              </div>
-              <div class="col-md-12 form-group text-center">
-                <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-      <!-- Filter Overlay -->
-      <div id="filterOverlay" class="filter-overlay"></div>
+<div class="row mb-2">
+  <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+    <div class="filter-header">
+      <h5>Filter Rider Activities</h5>
+      <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
-    <div class="row mb-3">
-      @php
-      $activity = new App\Models\RiderActivities();
-      $result = $activity->select('*');
-      if(request('month')){
-      $result->where(\DB::raw('DATE_FORMAT(date, "%Y-%m")'), '=', request('month') ?? date('Y-m'));
-      }
-      if(request('rider_id')){
-      $result->where('rider_id',request('rider_id'));
-      }
-
-      //$activity->get();
-      @endphp
-      <div class="col-12 col-md-12">
-        <div class="card h-100">
-          <div class="card-header d-flex justify-content-between">
-            <h5 class="card-title mb-0">Statistics</h5>
-            <small class="text-body-secondary"><a class="btn btn-primary openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a></small>
+    <div class="filter-body" id="searchTopbody">
+      <form id="filterForm" action="{{ route('riderActivities.index') }}" method="GET">
+        <div class="row">
+          <div class="form-group col-md-12">
+            <label for="rider_id">Filter by Rider ID</label>
+            <select class="form-control" id="id" name="id">
+              <option value="" selected>Select</option>
+              @foreach($riders as $rider)
+              <option value="{{ $rider->rider_id }}" {{ request('rider_id') == $rider->rider_id ? 'selected' : '' }}>
+                {{ $rider->rider_id }}
+              </option>
+              @endforeach
+            </select>
           </div>
-          <div class="card-body">
-            <div id="totalsBar" class="mb-2">
-              <div class="totals-cards">
 
-                <div class="total-card total-valid-days">
-                  <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
-                  <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
-                </div>
-                <div class="total-card total-ontime">
-                  <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
-                  <div class="value" id="avg_ontime">{{ number_format($totals['avg_ontime'] ?? 0, 2) }}%</div>
-                </div>
-                <div class="total-card total-rejected">
-                  <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
-                  <div class="value" id="total_rejected">{{ number_format($totals['total_rejected'] ?? 0) }}</div>
-                </div>
-                <div class="total-card total-hours">
-                  <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
-                  <div class="value" id="total_hours">{{ number_format($totals['total_hours'] ?? 0, 2) }}</div>
-                </div>
-              </div>
-            </div>
+          <div class="form-group col-md-12">
+            <label for="rider_id">Filter by Rider</label>
+            <select class="form-control" id="rider_id" name="rider_id">
+              <option value="" selected>Select</option>
+              @foreach($riders as $rider)
+              <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->rider_id ? 'selected' : '' }}>
+                {{ $rider->name }}
+              </option>
+              @endforeach
+            </select>
+          </div>
+          <div class="form-group col-md-12">
+            <label for="from_date_range">From Date</label>
+            <select class="form-control" id="from_date_range" name="from_date_range">
+              <option value="" selected>Select</option>
+              <option value="Today" {{ request('from_date_range') == 'Today' ? 'selected' : '' }}>Today</option>
+              <option value="Yesterday" {{ request('from_date_range') == 'Yesterday' ? 'selected' : '' }}>Yesterday</option>
+              <option value="Last 7 Days" {{ request('from_date_range') == 'Last 7 Days' ? 'selected' : '' }}>Last 7 Days</option>
+              <option value="Last 30 Days" {{ request('from_date_range') == 'Last 30 Days' ? 'selected' : '' }}>Last 30 Days</option>
+              <option value="Last 90 Days" {{ request('from_date_range') == 'Last 90 Days' ? 'selected' : '' }}>Last 90 Days</option>
+            </select>
+          </div>
+          {{-- NEW DATE RANGE FILTER --}}
+          <div class="form-group col-md-12">
+            <label for="from_date">From Date</label>
+            <input type="date" name="from_date" class="form-control" value="{{ request('from_date') }}">
+          </div>
+
+          <div class="form-group col-md-12">
+            <label for="to_date">To Date</label>
+            <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}">
+          </div>
+
+          {{-- BILLING MONTH FILTER --}}
+          <div class="form-group col-md-12">
+            <label for="billing_month">Billing Month</label>
+            <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') ?? date('Y-m') }}">
+          </div>
+
+          <div class="form-group col-md-12">
+            <label for="valid_day">Filter by Valid Day</label>
+            <select class="form-control" id="valid_day" name="valid_day">
+              <option value="" selected>All</option>
+              <option value="Yes" {{ request('valid_day') == 'Yes' ? 'selected' : '' }}>Valid</option>
+              <option value="No" {{ request('valid_day') == 'No' ? 'selected' : '' }}>Invalid</option>
+              <option value="Off" {{ request('valid_day') == 'Off' ? 'selected' : '' }}>Off</option>
+            </select>
+          </div>
+
+          <div class="form-group col-md-12">
+            <label for="fleet_supervisor">Filter by Fleet Supervisor</label>
+            <select class="form-control" id="fleet_supervisor" name="fleet_supervisor">
+              <option value="" selected>Select</option>
+              @foreach($fleetSupervisors as $supervisor)
+              <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>
+                {{ $supervisor }}
+              </option>
+              @endforeach
+            </select>
+          </div>
+          <div class="form-group col-md-12">
+            <label for="bike_assignment_status">Filter by Status</label>
+            <select class="form-control " id="bike_assignment_status" name="bike_assignment_status">
+              <option value="" selected>Select</option>
+              <option value="Active" {{ request('bike_assignment_status') == 'Active' ? 'selected' : '' }}>Active</option>
+              <option value="Inactive" {{ request('bike_assignment_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
+            </select>
+          </div>
+          <div class="col-md-12 form-group text-center">
+            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- Filter Overlay -->
+  <div id="filterOverlay" class="filter-overlay"></div>
+</div>
+<section class="content">
+  @php
+  $activity = new App\Models\RiderActivities();
+  $result = $activity->select('*');
+  if(request('month')){
+  $result->where(\DB::raw('DATE_FORMAT(date, "%Y-%m")'), '=', request('month') ?? date('Y-m'));
+  }
+  if(request('rider_id')){
+  $result->where('rider_id',request('rider_id'));
+  }
+
+  //$activity->get();
+  @endphp
+  <div class="card h-100" style="border-radius: 0px !important;">
+    <div class="card-header d-flex justify-content-between">
+      <h5 class="card-title mb-0"><b>Rider Activities</b> (Statistics)</h5>
+      <small class="text-body-secondary">
+        <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="{{ route('rider.activities_import') }}"> <i class="ti ti-activity"></i> Impove Activities</a>
+        <a class="btn btn-primary openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
+      </small>
+    </div>
+    <div class="card-body">
+      <div id="totalsBar" class="mb-2">
+        <div class="totals-cards">
+
+          <div class="total-card total-valid-days">
+            <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
+            <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
+          </div>
+          <div class="total-card total-ontime">
+            <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
+            <div class="value" id="avg_ontime">{{ number_format($totals['avg_ontime'] ?? 0, 2) }}%</div>
+          </div>
+          <div class="total-card total-rejected">
+            <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
+            <div class="value" id="total_rejected">{{ number_format($totals['total_rejected'] ?? 0) }}</div>
+          </div>
+          <div class="total-card total-hours">
+            <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
+            <div class="value" id="total_hours">{{ number_format($totals['total_hours'] ?? 0, 2) }}</div>
           </div>
         </div>
       </div>
@@ -165,11 +153,11 @@
   </div>
 </section>
 
-<div class="content px-3">
+<div class="content">
   @include('flash::message')
   <div class="clearfix"></div>
 
-  <div class="card">
+  <div class="card" style="border-radius: 0px !important;">
     <div class="card-body table-responsive px-2 py-0" id="table-data">
       @include('rider_activities.table', ['data' => $data, 'totals' => $totals ?? []])
     </div>
@@ -301,6 +289,11 @@
             $('#total_hours').text(parseFloat(data.totals.total_hours || 0).toFixed(2));
           }
 
+          // Reinitialize table sorting after AJAX load
+          setTimeout(() => {
+            initializeTableSorting();
+          }, 100);
+
           // Update URL
           let newUrl = "{{ route('riderActivities.index') }}" + (formData ? '?' + formData : '');
           history.pushState(null, '', newUrl);
@@ -323,18 +316,29 @@
   });
 </script>
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  // Function to initialize table sorting
+  function initializeTableSorting() {
     const table = document.querySelector('#dataTableBuilder');
+    if (!table) return;
+
     const headers = table.querySelectorAll('th.sorting');
     const tbody = table.querySelector('tbody');
 
     headers.forEach((header, colIndex) => {
+      // Remove existing listeners to prevent duplicates
+      header.replaceWith(header.cloneNode(true));
+    });
+
+    // Re-select headers after cloning
+    const newHeaders = table.querySelectorAll('th.sorting');
+
+    newHeaders.forEach((header, colIndex) => {
       header.addEventListener('click', () => {
         const rows = Array.from(tbody.querySelectorAll('tr'));
         const isAsc = header.classList.contains('sorted-asc');
 
         // Clear previous sort classes
-        headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
+        newHeaders.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
 
         // Add new sort direction
         header.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
@@ -344,8 +348,25 @@
           let aText = a.children[colIndex]?.textContent.trim().toLowerCase();
           let bText = b.children[colIndex]?.textContent.trim().toLowerCase();
 
-          const aVal = isNaN(aText) ? aText : parseFloat(aText);
-          const bVal = isNaN(bText) ? bText : parseFloat(bText);
+          // Handle percentage signs
+          aText = aText.replace('%', '');
+          bText = bText.replace('%', '');
+
+          // Handle dates
+          const aDate = new Date(aText);
+          const bDate = new Date(bText);
+
+          let aVal, bVal;
+
+          if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime()) && aText.includes(' ')) {
+            // It's a date
+            aVal = aDate.getTime();
+            bVal = bDate.getTime();
+          } else {
+            // Number or text
+            aVal = isNaN(parseFloat(aText)) ? aText : parseFloat(aText);
+            bVal = isNaN(parseFloat(bText)) ? bText : parseFloat(bText);
+          }
 
           if (aVal < bVal) return isAsc ? 1 : -1;
           if (aVal > bVal) return isAsc ? -1 : 1;
@@ -356,6 +377,11 @@
         rows.forEach(row => tbody.appendChild(row));
       });
     });
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    initializeTableSorting();
   });
 </script>
 @endsection

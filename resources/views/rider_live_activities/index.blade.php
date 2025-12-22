@@ -1,144 +1,165 @@
 @extends('layouts.app')
 
 @section('title','Rider Live Activities')
+
+@push('third_party_stylesheets')
+<link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
+@endpush
+
 @section('content')
-<section class="content-header">
-  <div class="container-fluid">
-    <div class="row mb-2">
-      <div class="col-sm-6">
-        <h3>Rider Live Activities</h3>
-      </div>
-      <div class="col-sm-6">
-        {{-- <a class="btn btn-primary float-right"
-                       href="{{ route('riderActivities.create') }}">
-        Add New
-        </a> --}}
-      </div>
-      <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">Filter Rider Activities</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="searchTopbody">
-              <form id="filterForm" action="{{ route('rider.liveactivities') }}" method="GET">
-                <div class="row">
-                  <div class="form-group col-md-4">
-                    <label for="id">ID</label>
-                    <input type="text" name="id" class="form-control" placeholder="Filter By ID" value="{{ request('id') }}">
-                  </div>
+<div class="row mb-2">
+  <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+    <div class="filter-header">
+      <h5>Filter Live Activities</h5>
+      <button type="button" class="btn-close" id="closeSidebar"></button>
+    </div>
+    <div class="filter-body" id="searchTopbody">
+      <form id="filterForm" action="{{ route('rider.liveactivities') }}" method="GET">
+        <div class="row">
+          <div class="form-group col-md-12">
+            <label for="id">Filter by Rider ID</label>
+            <select class="form-control" id="id" name="id">
+              <option value="" selected>Select</option>
+              @foreach($riders as $rider)
+              <option value="{{ $rider->rider_id }}" {{ request('id') == $rider->rider_id ? 'selected' : '' }}>
+                {{ $rider->rider_id }}
+              </option>
+              @endforeach
+            </select>
+          </div>
 
-                  <div class="form-group col-md-4">
-                    <label for="rider_id">Filter by Rider</label>
-                    <select class="form-control" id="rider_id" name="rider_id">
-                      <option value="" selected>Select</option>
-                      @foreach($riders as $rider)
-                      <option value="{{ $rider->rider_id }}" {{ request('rider_id') == $rider->rider_id ? 'selected' : '' }}>
-                        {{ $rider->rider_id . '-' . $rider->name }}
-                      </option>
-                      @endforeach
-                    </select>
-                  </div>
+          <div class="form-group col-md-12">
+            <label for="rider_id">Filter by Rider</label>
+            <select class="form-control" id="rider_id" name="rider_id">
+              <option value="" selected>Select</option>
+              @foreach($riders as $rider)
+              <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->id ? 'selected' : '' }}>
+                {{ $rider->name }}
+              </option>
+              @endforeach
+            </select>
+          </div>
 
-                  {{-- NEW DATE RANGE FILTER --}}
-                  <div class="form-group col-md-4">
-                    <label for="from_date">From Date</label>
-                    <input type="date" name="from_date" class="form-control" value="{{ request('from_date') }}">
-                  </div>
+          <div class="form-group col-md-12">
+            <label for="from_date_range">From Date</label>
+            <select class="form-control" id="from_date_range" name="from_date_range">
+              <option value="" selected>Select</option>
+              <option value="Today" {{ request('from_date_range') == 'Today' ? 'selected' : '' }}>Today</option>
+              <option value="Yesterday" {{ request('from_date_range') == 'Yesterday' ? 'selected' : '' }}>Yesterday</option>
+              <option value="Last 7 Days" {{ request('from_date_range') == 'Last 7 Days' ? 'selected' : '' }}>Last 7 Days</option>
+              <option value="Last 30 Days" {{ request('from_date_range') == 'Last 30 Days' ? 'selected' : '' }}>Last 30 Days</option>
+              <option value="Last 90 Days" {{ request('from_date_range') == 'Last 90 Days' ? 'selected' : '' }}>Last 90 Days</option>
+            </select>
+          </div>
 
-                  <div class="form-group col-md-4">
-                    <label for="to_date">To Date</label>
-                    <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}">
-                  </div>
+          {{-- DATE RANGE FILTER --}}
+          <div class="form-group col-md-12">
+            <label for="from_date">From Date</label>
+            <input type="date" name="from_date" class="form-control" value="{{ request('from_date') }}">
+          </div>
 
-                  {{-- EXISTING BILLING MONTH FILTER --}}
-                  <div class="form-group col-md-4">
-                    <label for="billing_month_from">Billing Month From</label>
-                    <input type="date" name="billing_month_from" class="form-control" value="{{ request('billing_month_from') }}">
-                  </div>
+          <div class="form-group col-md-12">
+            <label for="to_date">To Date</label>
+            <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}">
+          </div>
 
-                  <div class="form-group col-md-4">
-                    <label for="billing_month_to">Billing Month To</label>
-                    <input type="date" name="billing_month_to" class="form-control" value="{{ request('billing_month_to') }}">
-                  </div>
+          {{-- BILLING MONTH FILTER --}}
+          <div class="form-group col-md-12">
+            <label for="billing_month">Billing Month</label>
+            <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') ?? date('Y-m') }}">
+          </div>
 
-                  <div class="form-group col-md-4">
-                    <label for="fleet_supervisor">Filter by Fleet Supervisor</label>
-                    <select class="form-control" id="fleet_supervisor" name="fleet_supervisor">
-                      <option value="" selected>Select</option>
-                      @foreach($fleetSupervisors as $supervisor)
-                      <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>
-                        {{ $supervisor }}
-                      </option>
-                      @endforeach
-                    </select>
-                  </div>
+          <div class="form-group col-md-12">
+            <label for="valid_day">Filter by Valid Day</label>
+            <select class="form-control" id="valid_day" name="valid_day">
+              <option value="" selected>All</option>
+              <option value="Yes" {{ request('valid_day') == 'Yes' ? 'selected' : '' }}>Valid</option>
+              <option value="No" {{ request('valid_day') == 'No' ? 'selected' : '' }}>Invalid</option>
+              <option value="Off" {{ request('valid_day') == 'Off' ? 'selected' : '' }}>Off</option>
+            </select>
+          </div>
 
-                  <div class="form-group col-md-4">
-                    <label for="payout_type">Filter by Payout Type</label>
-                    <select class="form-control" id="payout_type" name="payout_type">
-                      <option value="" selected>Select</option>
-                      @foreach($payoutTypes as $type)
-                      <option value="{{ $type }}" {{ request('payout_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
-                      @endforeach
-                    </select>
-                  </div>
+          <div class="form-group col-md-12">
+            <label for="fleet_supervisor">Filter by Fleet Supervisor</label>
+            <select class="form-control" id="fleet_supervisor" name="fleet_supervisor">
+              <option value="" selected>Select</option>
+              @foreach($fleetSupervisors as $supervisor)
+              <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>
+                {{ $supervisor }}
+              </option>
+              @endforeach
+            </select>
+          </div>
 
-                  <div class="col-md-12 form-group text-center">
-                    <button type="submit" class="btn btn-primary mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                  </div>
-                </div>
-              </form>
-            </div>
+          <div class="form-group col-md-12">
+            <label for="payout_type">Filter by Payout Type</label>
+            <select class="form-control" id="payout_type" name="payout_type">
+              <option value="" selected>Select</option>
+              @foreach($payoutTypes as $type)
+              <option value="{{ $type }}" {{ request('payout_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
+              @endforeach
+            </select>
+          </div>
+
+          <div class="form-group col-md-12">
+            <label for="bike_assignment_status">Filter by Status</label>
+            <select class="form-control" id="bike_assignment_status" name="bike_assignment_status">
+              <option value="" selected>Select</option>
+              <option value="Active" {{ request('bike_assignment_status') == 'Active' ? 'selected' : '' }}>Active</option>
+              <option value="Inactive" {{ request('bike_assignment_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
+            </select>
+          </div>
+
+          <div class="col-md-12 form-group text-center">
+            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
-    <div class="row mb-3">
-      @php
-      $activity = new App\Models\liveactivities();
-      $result = $activity->select('*');
-      if(request('month')){
-      $result->where(\DB::raw('DATE_FORMAT(date, "%Y-%m")'), '=', request('month') ?? date('Y-m'));
-      }
-      if(request('rider_id')){
-      $result->where('rider_id',request('rider_id'));
-      }
+  </div>
+  <!-- Filter Overlay -->
+  <div id="filterOverlay" class="filter-overlay"></div>
+</div>
+<section class="content">
+  @php
+  $activity = new App\Models\liveactivities();
+  $result = $activity->select('*');
+  if(request('month')){
+  $result->where(\DB::raw('DATE_FORMAT(date, "%Y-%m")'), '=', request('month') ?? date('Y-m'));
+  }
+  if(request('rider_id')){
+  $result->where('rider_id',request('rider_id'));
+  }
 
-      //$activity->get();
-      @endphp
-      <div class="col-12 col-md-12">
-        <div class="card h-100">
-          <div class="card-header d-flex justify-content-between">
-            <h5 class="card-title mb-0">Statistics</h5>
-            <small class="text-body-secondary">
-              <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="{{ route('rider.live_activities_import') }}"> <i class="ti ti-activity"></i> Import Live Activities</a>
-              <a class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
-            </small>
+  //$activity->get();
+  @endphp
+  <div class="card h-100" style="border-radius: 0px !important;">
+    <div class="card-header d-flex justify-content-between">
+      <h5 class="card-title mb-0"><b>Rider Live Activities</b> (Statistics)</h5>
+      <small class="text-body-secondary">
+        <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="{{ route('rider.live_activities_import') }}"> <i class="ti ti-activity"></i> Import Live Activities</a>
+        <a class="btn btn-primary openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
+      </small>
+    </div>
+    <div class="card-body">
+      <div id="totalsBar" class="mb-2">
+        <div class="totals-cards">
+
+          <div class="total-card total-valid-days">
+            <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
+            <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
           </div>
-          <div class="card-body">
-            <div id="totalsBar" class="mb-2">
-              <div class="totals-cards">
-
-                <div class="total-card total-valid-days">
-                  <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
-                  <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
-                </div>
-                <div class="total-card total-ontime">
-                  <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
-                  <div class="value" id="avg_ontime">{{ number_format($totals['avg_ontime'] ?? 0, 2) }}%</div>
-                </div>
-                <div class="total-card total-rejected">
-                  <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
-                  <div class="value" id="total_rejected">{{ number_format($totals['total_rejected'] ?? 0) }}</div>
-                </div>
-                <div class="total-card total-hours">
-                  <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
-                  <div class="value" id="total_hours">{{ number_format($totals['total_hours'] ?? 0, 2) }}</div>
-                </div>
-              </div>
-            </div>
+          <div class="total-card total-ontime">
+            <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
+            <div class="value" id="avg_ontime">{{ number_format($totals['avg_ontime'] ?? 0, 2) }}%</div>
+          </div>
+          <div class="total-card total-rejected">
+            <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
+            <div class="value" id="total_rejected">{{ number_format($totals['total_rejected'] ?? 0) }}</div>
+          </div>
+          <div class="total-card total-hours">
+            <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
+            <div class="value" id="total_hours">{{ number_format($totals['total_hours'] ?? 0, 2) }}</div>
           </div>
         </div>
       </div>
@@ -146,11 +167,11 @@
   </div>
 </section>
 
-<div class="content px-3">
+<div class="content">
   @include('flash::message')
   <div class="clearfix"></div>
 
-  <div class="card">
+  <div class="card" style="border-radius: 0px !important;">
     <div class="card-body table-responsive px-2 py-0" id="table-data">
       @include('rider_live_activities.table', ['data' => $data])
     </div>
@@ -187,21 +208,79 @@
       placeholder: "Filter By Rider",
       allowClear: true, // ✅ cross icon enable
     });
+    $('#from_date_range').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By From Date Range",
+      allowClear: true, // ✅ cross icon enable
+    });
+    $('#id').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By Rider ID",
+      allowClear: true, // ✅ cross icon enable
+    });
     $('#payout_type').select2({
       dropdownParent: $('#searchTopbody'),
       placeholder: "Filter By Payout Type",
       allowClear: true, // ✅ cross icon enable
+    });
+    $('#valid_day').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By Valid Day",
+      allowClear: true, // ✅ cross icon enable
+    });
+    $('#bike_assignment_status').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By Bike Assignment",
+      allowClear: true, // ✅ cross icon enable
+    });
+    $('#from_date_range').on('change', function() {
+      const selectedValue = $(this).val();
+      if (selectedValue === 'Today') {
+        $('#from_date').val(new Date().toISOString().split('T')[0]);
+      } else if (selectedValue === 'Yesterday') {
+        $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0]);
+      } else if (selectedValue === 'Last 7 Days') {
+        $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0]);
+      } else if (selectedValue === 'Last 30 Days') {
+        $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
+      } else if (selectedValue === 'Last 90 Days') {
+        $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 90)).toISOString().split('T')[0]);
+      }
     });
   });
 </script>
 
 <script type="text/javascript">
   $(document).ready(function() {
+    // Filter sidebar functionality - open on hover
+    $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function(e) {
+      e.preventDefault();
+      console.log('Filter button hovered!');
+      $('#filterSidebar').addClass('open');
+      $('#filterOverlay').addClass('show');
+      return false;
+    });
+
+    // Keep the original click handler for mobile devices
+    $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
+      e.preventDefault();
+      console.log('Filter button clicked!');
+      $('#filterSidebar').addClass('open');
+      $('#filterOverlay').addClass('show');
+      return false;
+    });
+
+    $('#closeSidebar, #filterOverlay').on('click', function() {
+      $('#filterSidebar').removeClass('open');
+      $('#filterOverlay').removeClass('show');
+    });
+
     $('#filterForm').on('submit', function(e) {
       e.preventDefault();
 
       $('#loading-overlay').show();
-      $('#searchModal').modal('hide');
+      $('#filterSidebar').removeClass('open');
+      $('#filterOverlay').removeClass('show');
 
       const loaderStartTime = Date.now();
 
@@ -215,6 +294,11 @@
         data: formData,
         success: function(data) {
           $('#table-data').html(data.tableData);
+
+          // Reinitialize table sorting after AJAX load
+          setTimeout(() => {
+            initializeTableSorting();
+          }, 100);
 
           // Update URL
           let newUrl = "{{ route('rider.liveactivities') }}" + (formData ? '?' + formData : '');
@@ -238,18 +322,29 @@
   });
 </script>
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  // Function to initialize table sorting
+  function initializeTableSorting() {
     const table = document.querySelector('#dataTableBuilder');
+    if (!table) return;
+
     const headers = table.querySelectorAll('th.sorting');
     const tbody = table.querySelector('tbody');
 
     headers.forEach((header, colIndex) => {
+      // Remove existing listeners to prevent duplicates
+      header.replaceWith(header.cloneNode(true));
+    });
+
+    // Re-select headers after cloning
+    const newHeaders = table.querySelectorAll('th.sorting');
+
+    newHeaders.forEach((header, colIndex) => {
       header.addEventListener('click', () => {
         const rows = Array.from(tbody.querySelectorAll('tr'));
         const isAsc = header.classList.contains('sorted-asc');
 
         // Clear previous sort classes
-        headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
+        newHeaders.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
 
         // Add new sort direction
         header.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
@@ -259,8 +354,25 @@
           let aText = a.children[colIndex]?.textContent.trim().toLowerCase();
           let bText = b.children[colIndex]?.textContent.trim().toLowerCase();
 
-          const aVal = isNaN(aText) ? aText : parseFloat(aText);
-          const bVal = isNaN(bText) ? bText : parseFloat(bText);
+          // Handle percentage signs
+          aText = aText.replace('%', '');
+          bText = bText.replace('%', '');
+
+          // Handle dates
+          const aDate = new Date(aText);
+          const bDate = new Date(bText);
+
+          let aVal, bVal;
+
+          if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime()) && aText.includes(' ')) {
+            // It's a date
+            aVal = aDate.getTime();
+            bVal = bDate.getTime();
+          } else {
+            // Number or text
+            aVal = isNaN(parseFloat(aText)) ? aText : parseFloat(aText);
+            bVal = isNaN(parseFloat(bText)) ? bText : parseFloat(bText);
+          }
 
           if (aVal < bVal) return isAsc ? 1 : -1;
           if (aVal > bVal) return isAsc ? -1 : 1;
@@ -271,6 +383,11 @@
         rows.forEach(row => tbody.appendChild(row));
       });
     });
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    initializeTableSorting();
   });
 </script>
 @endsection

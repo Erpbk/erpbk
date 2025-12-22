@@ -316,7 +316,7 @@
 
                 </div>
                 <div class="form-group col-md-12">
-                    <label for="bike_assignment_status">Filter by Bike Assignment</label>
+                    <label for="bike_assignment_status">Filter by Status</label>
                     <select class="form-control form-select" id="bike_assignment_status" name="bike_assignment_status">
                         <option value="" selected>Select</option>
                         <option value="Active" <?php echo e(request('bike_assignment_status') == 'Active' ? 'selected' : ''); ?>>Active</option>

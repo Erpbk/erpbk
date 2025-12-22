@@ -99,7 +99,7 @@
         <div>Activities</div>
       </a>
     </li>
-    <li class="menu-item {{ Request::is('rider.riderActivities*') ? 'active' : '' }}">
+    <li class="menu-item {{ Request::is('liveactivities*') ? 'active' : '' }}">
       <a href="{{ route('rider.liveactivities') }}" class="menu-link ">
         <i class="menu-icon tf-icons ti ti-bike"></i>
         <div>Live Activities</div>

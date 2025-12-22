@@ -83,8 +83,12 @@
         <input type="month" name="month" value="<?php echo e(request('month')??date('Y-m')); ?>" class="form-control" onchange="form.submit();" />
       </form>
       <a href="<?php echo e(route('riders.activities.pdf', ['id' => $filters['rider_id'], 'month' => request('month') ?? date('Y-m')])); ?>"
-        class="btn btn-sm btn-danger" target="_blank">
+        class="btn btn-sm btn-primary" style="padding: 1px 12px 1px 0px;" target="_blank">
         <i class="fa fa-file-pdf"></i> Download PDF
+      </a>
+      <a href="<?php echo e(route('riders.activities.print', ['id' => $filters['rider_id'], 'month' => request('month') ?? date('Y-m')])); ?>"
+        class="btn btn-sm btn-info" style="padding: 1px 12px 1px 0px;" target="_blank">
+        <i class="fa fa-print"></i> Print
       </a>
     </div>
   </div>
@@ -133,9 +137,10 @@
         <thead>
           <tr>
             <th>Date</th>
+            <th>Day</th>
             <th>ID</th>
             <th>Name</th>
-            <th>Payout</th>
+            <th>Designation</th>
             <th>Delivered</th>
             <th>Ontime%</th>
             <th>Rejected</th>
@@ -153,12 +158,13 @@
             data-invalid="<?php echo e($r->delivery_rating == 'No' ? 1 : 0); ?>"
             data-off="<?php echo e(($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0); ?>">
             <td><?php echo e(\Carbon\Carbon::parse($r->date)->format('d M Y')); ?></td>
+            <td><?php echo e(\Carbon\Carbon::parse($r->date)->format('l')); ?></td>
             <td><?php echo e($r->d_rider_id); ?></td>
             <?php
             $rider = DB::Table('riders')->where('id' , $r->rider_id)->first();
             ?>
             <td><?php echo e($rider->name); ?></td>
-            <td><?php echo e($r->payout_type); ?></td>
+            <td><?php echo e($rider->designation); ?></td>
             <td><?php echo e($r->delivered_orders); ?></td>
             <td>
               <?php if($r->ontime_orders_percentage): ?><?php echo e($r->ontime_orders_percentage * 100); ?>% <?php else: ?> - <?php endif; ?>
@@ -177,19 +183,6 @@
           </tr>
           <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
         </tbody>
-        <tfoot>
-          <tr>
-            <th>Date</th>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Payout</th>
-            <th>Delivered</th>
-            <th>Ontime%</th>
-            <th>Rejected</th>
-            <th>HR</th>
-            <th>Valid Day</th>
-          </tr>
-        </tfoot>
       </table>
 
 

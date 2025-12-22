@@ -361,15 +361,34 @@ class RiderActivitiesController extends AppBaseController
             ->orderByDesc('date');
 
         if ($request->filled('id')) {
-            $query->where('id', (int) $request->id);
-        }
-
-        if ($request->filled('rider_id')) {
-            $rider = Riders::where('rider_id', trim($request->rider_id))->first();
+            $rider = Riders::where('rider_id', (int) $request->id)->first();
             if ($rider) {
                 $query->where('rider_id', $rider->id);
             } else {
                 $query->whereRaw('1 = 0');
+            }
+        }
+
+        if ($request->filled('rider_id')) {
+            $rider = Riders::where('id', trim($request->rider_id))->first();
+            if ($rider) {
+                $query->where('rider_id', $rider->id);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        if ($request->filled('from_date_range')) {
+            if ($request->from_date_range === 'Today') {
+                $query->whereDate('date', '>=', Carbon::today());
+            } else if ($request->from_date_range === 'Yesterday') {
+                $query->whereDate('date', '>=', Carbon::yesterday());
+            } else if ($request->from_date_range === 'Last 7 Days') {
+                $query->whereDate('date', '>=', Carbon::today()->subDays(7));
+            } else if ($request->from_date_range === 'Last 30 Days') {
+                $query->whereDate('date', '>=', Carbon::today()->subDays(30));
+            } else if ($request->from_date_range === 'Last 90 Days') {
+                $query->whereDate('date', '>=', Carbon::today()->subDays(90));
             }
         }
 
@@ -381,27 +400,49 @@ class RiderActivitiesController extends AppBaseController
             $query->whereDate('date', '<=', $request->to_date);
         }
 
-        if ($request->filled('billing_month_from')) {
+        if ($request->filled('billing_month')) {
             try {
-                $from = Carbon::parse($request->billing_month_from)->startOfDay();
-                $query->whereDate('date', '>=', $from);
+                $month = $request->billing_month;
+                $year = date('Y', strtotime($month . '-01'));
+                $monthNum = date('m', strtotime($month . '-01'));
+                $query->whereYear('date', $year)->whereMonth('date', $monthNum);
             } catch (\Throwable $th) {
-                Log::warning('Invalid billing_month_from supplied for rider activities filter', [
-                    'value' => $request->billing_month_from,
+                Log::warning('Invalid billing_month supplied for rider live activities filter', [
+                    'value' => $request->billing_month,
                     'error' => $th->getMessage(),
                 ]);
             }
         }
 
-        if ($request->filled('billing_month_to')) {
-            try {
-                $to = Carbon::parse($request->billing_month_to)->endOfDay();
-                $query->whereDate('date', '<=', $to);
-            } catch (\Throwable $th) {
-                Log::warning('Invalid billing_month_to supplied for rider activities filter', [
-                    'value' => $request->billing_month_to,
-                    'error' => $th->getMessage(),
-                ]);
+        if ($request->filled('valid_day')) {
+            $validDay = $request->valid_day;
+            if ($validDay == 'Off') {
+                // Filter for records where hours = 0
+                $query->where('login_hr', 0);
+            } elseif ($validDay == 'Yes') {
+                // Valid: (orders >= 5 AND hours >= 10) OR (orders >= 10 and hours > 0)
+                $query->where(function ($q) {
+                    $q->where(function ($subQ) {
+                        // Case 1: 5+ orders AND 10+ hours
+                        $subQ->where('delivered_orders', '>=', 5)
+                            ->where('login_hr', '>=', 10);
+                    })->orWhere(function ($subQ) {
+                        // Case 2: 10+ orders (with hours > 0)
+                        $subQ->where('delivered_orders', '>=', 10)
+                            ->where('login_hr', '>', 0);
+                    });
+                });
+            } elseif ($validDay == 'No') {
+                // Invalid: hours > 0 but doesn't meet valid criteria
+                $query->where('login_hr', '>', 0)
+                    ->where(function ($q) {
+                        // Not valid: neither (5+ orders AND 10+ hours) nor (10+ orders)
+                        $q->where(function ($subQ) {
+                            // Less than 5 orders OR less than 10 hours
+                            $subQ->where('delivered_orders', '<', 5)
+                                ->orWhere('login_hr', '<', 10);
+                        })->where('delivered_orders', '<', 10); // AND less than 10 orders
+                    });
             }
         }
 
@@ -414,6 +455,31 @@ class RiderActivitiesController extends AppBaseController
         if ($request->filled('payout_type')) {
             $query->where('payout_type', $request->payout_type);
         }
+
+        if ($request->filled('bike_assignment_status')) {
+            $query->whereHas('rider', function ($q) use ($request) {
+                if ($request->bike_assignment_status === 'Active') {
+                    $q->whereHas('bikes', function ($q) {
+                        $q->where('warehouse', 'Active');
+                    });
+                } elseif ($request->bike_assignment_status === 'Inactive') {
+                    $q->whereDoesntHave('bikes', function ($q) {
+                        $q->where('warehouse', 'Active');
+                    });
+                }
+            });
+        }
+
+        // Get all data for totals calculation (before pagination)
+        $allData = (clone $query)->get();
+
+        // Calculate totals from all filtered data
+        $totals = [
+            'total_orders' => $allData->sum('delivered_orders'),
+            'total_rejected' => $allData->sum('rejected_orders'),
+            'total_hours' => $allData->sum('login_hr'),
+            'avg_ontime' => $allData->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage') ?? 0,
+        ];
 
         $data = $this->applyPagination($query, $paginationParams);
 
@@ -440,7 +506,7 @@ class RiderActivitiesController extends AppBaseController
             ->pluck('payout_type');
 
         if ($request->ajax()) {
-            $tableData = view('rider_live_activities.table', ['data' => $data])->render();
+            $tableData = view('rider_live_activities.table', ['data' => $data, 'totals' => $totals])->render();
             $paginationLinks = method_exists($data, 'links')
                 ? $data->links('components.global-pagination')->render()
                 : '';
@@ -448,10 +514,11 @@ class RiderActivitiesController extends AppBaseController
             return response()->json([
                 'tableData' => $tableData,
                 'paginationLinks' => $paginationLinks,
+                'totals' => $totals,
             ]);
         }
 
-        return view('rider_live_activities.index', compact('data', 'riders', 'fleetSupervisors', 'payoutTypes'));
+        return view('rider_live_activities.index', compact('data', 'riders', 'fleetSupervisors', 'payoutTypes', 'totals'));
     }
     public function liveimportactivities(Request $request)
     {

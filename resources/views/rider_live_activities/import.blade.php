@@ -28,7 +28,7 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
     <div class="row">
       <div class="col-12">
         <div class="d-flex justify-content-between align-items-center">
-          <a href="{{ url('sample/live_activity_sample.xlsx') }}" class="text-success w-100" download="Noon Activities Sample">
+          <a href="{{ url('sample/live_activity_sample.xlsx') }}" class="text-success w-100" download="Live Activities Sample">
             <i class="fa fa-file-download text-success"></i> &nbsp; Download Sample File
           </a>
         </div>

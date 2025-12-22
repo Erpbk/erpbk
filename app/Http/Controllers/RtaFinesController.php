@@ -952,9 +952,9 @@ class RtaFinesController extends AppBaseController
         }
     }
 
-    public function importForm($salikAccountId)
+    public function importForm($AccountId)
     {
-        $account = Accounts::findOrFail($salikAccountId);
+        $account = Accounts::findOrFail($AccountId);
         return view('rta_fines.import', compact('account'));
     }
 
@@ -979,7 +979,7 @@ class RtaFinesController extends AppBaseController
                     'results' => $importResult
                 ]);
             }
-            Flash::success("Rta Fines imported successfully with vouchers created. Records imported: {$importedCount}");
+            Flash::success("Rta Fines imported successfully with vouchers created. Records imported: {$importResult['stats']['imported']}.");
             return redirect()->back();
         } catch (\Exception $e) {
             \Log::error('Rta Fines import failed: ' . $e->getMessage());

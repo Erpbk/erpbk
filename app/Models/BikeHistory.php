@@ -20,7 +20,8 @@ class BikeHistory extends Model
     'created_by',
     'updated_by',
     'warehouse',
-    'contract'
+    'contract',
+    'customer_id'
   ];
 
   protected $casts = [

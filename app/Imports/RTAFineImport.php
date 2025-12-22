@@ -14,8 +14,8 @@ use App\Services\TransactionService;
 use Illuminate\Support\Collection;
 use App\Repositories\RtaFinesRepository;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use DB;
-use Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Session;
 

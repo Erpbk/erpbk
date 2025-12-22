@@ -27,7 +27,7 @@
           @elseif($authorized)
             <a class="btn btn-primary show-modal action-btn"
              href="javascript:void(0);" data-action="{{ route('files.create',['type_id'=> $bikes->id??1,'type'=> 'bike'??1]) }}" data-size="sm" data-title="Upload File">
-                Upload File
+                Upload Mulkiya
             </a>
           @else
             <div class="document-id">

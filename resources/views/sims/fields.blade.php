@@ -7,7 +7,19 @@
 <!-- Company Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('company', 'Company:') !!}
-    {!! Form::text('company', old('company', $sims->company ?? ''), ['class' => 'form-control', ]) !!}
+    @php
+        $companies  = DB::table('sims')
+            ->whereNotNull('company')
+            ->select('company')
+            ->distinct()
+            ->pluck('company');
+        @endphp
+    {!! Form::text('company', $sims->company ?? '', ['class' => 'form-control select2', 'list' => 'companies-list', 'autocomplete' => 'off']) !!}
+    <datalist id="companies-list">
+        @foreach($companies as $company)
+            <option value="{{ $company }}">
+        @endforeach
+    </datalist>
 </div>
 
 {{-- <!-- Assign To Field -->

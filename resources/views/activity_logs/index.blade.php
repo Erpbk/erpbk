@@ -165,7 +165,7 @@
                                         <small class="text-muted">{{ $log->ip_address ?? '-' }}</small>
                                     </td>
                                     <td>
-                                        <small class="text-muted">{{ $log->created_at->format('M d, Y H:i:s') }}</small>
+                                        <small class="text-muted">{{ $log->created_at->timezone('Asia/Dubai')->format('M d, Y H:i:s') }}</small>
                                     </td>
                                     <td>
                                         <a href="{{ route('activity-logs.show', $log) }}" class="btn btn-sm btn-outline-primary">

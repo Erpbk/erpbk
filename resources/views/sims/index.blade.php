@@ -241,6 +241,64 @@
         line-height: 1.3;
     }
 
+        .filter-sidebar {
+        position: fixed;
+        top: 0;
+        right: -420px;
+        width: 420px;
+        height: 100%;
+        background: #ffffff;
+        box-shadow: -2px 0 8px rgba(0, 0, 0, .1);
+        z-index: 1051;
+        transition: right .3s ease;
+        overflow-y: auto;
+        border-left: 1px solid #dee2e6;
+    }
+
+    .filter-sidebar.open {
+        right: 0;
+    }
+
+    .filter-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, .4);
+        z-index: 1050;
+        display: none;
+    }
+
+    .filter-overlay.show {
+        display: block;
+    }
+
+    .filter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+        background: #f8f9fa;
+    }
+
+    .filter-body {
+        padding: 1rem;
+        height: calc(100vh - 70px);
+        overflow-y: auto;
+    }
+
+    .filter-sidebar .btn-close {
+        box-shadow: none;
+    }
+
+    .card-search input {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        padding: 8px 12px;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 768px) {
         .action-dropdown-menu {
@@ -260,6 +318,7 @@
 
 @section('content')
     <section class="content-header">
+        @include('flash::message')
         <div class="container-fluid">
             <div class="row mb-2">
                 <div class="col-sm-6">
@@ -269,61 +328,61 @@
                         Trash
                     </a>
                     @endcan --}}
-                    <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static"role="dialog" aria-hidden="true">
-                       <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-                          <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Filter Sims</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                             <div class="modal-body" id="searchTopbody">
-                                <form id="filterForm" action="{{ route('sims.index') }}" method="GET">
-                                    <div class="row">
-                                        <div class="form-group col-md-4">
+                    <!-- Filter Sidebar -->
+                    <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+                        <div class="filter-header">
+                            <h5>Filter Sims</h5>
+                            <button type="button" class="btn-close" id="closeSidebar"></button>
+                        </div>
+                        <div class="filter-body" id="searchTopbody">
+                            <form id="filterForm" action="{{ route('sims.index') }}" method="GET">
+                                @csrf
+                                <div class="row">
+                                    <div class="form-group col-md-12">
                                             <label for="number">Sim Number</label>
                                             <input type="text" name="number" class="form-control" placeholder="Filter By Sim Number" value="{{ request('number') }}">
                                         </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="emi">EMI Number</label>
-                                            <input type="text" name="emi" class="form-control" placeholder="Filter By EMI Number" value="{{ request('title') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="company">Company</label>
-                                                <select class="form-control " id="company" name="company">
-                                                @php
-                                                $companies  = DB::table('sims')
-                                                    ->whereNotNull('company')
-                                                    ->select('company')
-                                                    ->distinct()
-                                                    ->pluck('company');
-                                                @endphp
-                                                <option value="" selected>Select</option>
-                                                @foreach($companies as $company)
-                                                    <option value="{{ $company }}" {{ request('company') == $company ? 'selected' : '' }}>{{ $company }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="status">Status</label>
-                                            <select class="form-control " id="status" name="status">
-                                                <option value="" selected>Select</option>
-                                                <option value="1" >Active</option>
-                                                <option value="0" >Inactive</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-12 form-group text-center">
-                                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                                        </div>
+                                    <div class="form-group col-md-12">
+                                        <label for="emi">EMI Number</label>
+                                        <input type="text" name="emi" class="form-control" placeholder="Filter By EMI Number" value="{{ request('emi') }}">
                                     </div>
-                                </form>
-                             </div>
-                          </div>
-                       </div>
+                                    <div class="form-group col-md-12">
+                                        <label for="company">Company</label>
+                                            <select class="form-control " id="company" name="company">
+                                            @php
+                                            $companies  = DB::table('sims')
+                                                ->whereNotNull('company')
+                                                ->select('company')
+                                                ->distinct()
+                                                ->pluck('company');
+                                            @endphp
+                                            <option value="" selected>Select</option>
+                                            @foreach($companies as $company)
+                                                <option value="{{ $company }}" {{ request('company') == $company ? 'selected' : '' }}>{{ $company }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-12">
+                                        <label for="status">Status</label>
+                                        <select class="form-control " id="status" name="status">
+                                            <option value="" selected>Select</option>
+                                            <option value="1" >Active</option>
+                                            <option value="0" >Inactive</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-12 form-group text-center">
+                                        <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
+    
+
     {{-- Include Column Control Panel --}}
     @include('components.column-control-panel', [
     'tableColumns' => $tableColumns,
@@ -332,9 +391,21 @@
     'fixedColumnsCount' => 1
     ])
 
+    @if(session('message'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('message') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
 
     <div class="content px-3">
-        @include('flash::message')
         <div class="clearfix"></div>
         <div class="card">
             <div class="card-body table-responsive px-2 py-0" id="table-data">
@@ -369,11 +440,6 @@ $(document).ready(function () {
         placeholder: "Filter By Company",
         allowClear: true
     });
-    $('#fleet_supervisor').select2({
-        dropdownParent: $('#searchTopbody'),
-        placeholder: "Filter By Super Visor",
-        allowClear: true
-    });
     $('#status').select2({
         dropdownParent: $('#searchTopbody'),
         placeholder: "Filter By status",
@@ -384,87 +450,48 @@ $(document).ready(function () {
 
 <script type="text/javascript">
 $(document).ready(function () {
-    $('#filterForm').on('submit', function (e) {
+    // Filter sidebar functionality
+    $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
+        console.log('Filter button clicked!'); // Debug line
+        $('#filterSidebar').addClass('open');
+        $('#filterOverlay').addClass('show');
+        return false;
+    });
 
-        e.preventDefault();
+    $('#closeSidebar, #filterOverlay').on('click', function() {
+        $('#filterSidebar').removeClass('open');
+        $('#filterOverlay').removeClass('show');
+    });
 
-        $('#loading-overlay').show();
-        $('#searchModal').modal('hide');
+    $('#filterForm').on('submit', function(e) {
+        // Let the form submit naturally - no need to prevent default
+        $('#filterSidebar').removeClass('open');
+        $('#filterOverlay').removeClass('show');
 
-        const loaderStartTime = Date.now();
-
-        // Exclude _token and empty fields
-        let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
-        let formData = $.param(filteredFields);
-        let filters = {
-                number: $('input[name="number"]').val(),
-                emi: $('input[name="emi"]').val(),
-                company: $('#company').val(),
-                status: $('#status').val(),
-                fleet_supervisor: $('#fleet_supervisor').val()
-            };
-
-        $.ajax({
-            url: "{{ route('sims.index') }}",
-            type: "GET",
-            data: formData,
-            success: function (data) {
-                $('#table-data').html(data.tableData);
-
-                // Update URL
-                let newUrl = "{{ route('sims.index') }}" + (formData ? '?' + formData : '');
-                history.pushState(null, '', newUrl);
-
-                // Re-initialize Column Control Panel
-                reinitializeColumnControl();
-                // Re-initialize Select2 for dynamically loaded selects
-                $('#company, #fleet_supervisor, #status').each(function() {
-                    if ($(this).hasClass('select2-hidden-accessible')) {
-                        $(this).select2('destroy');
-                    }
-                    $(this).select2({
-                        dropdownParent: $('#searchTopbody'),
-                        placeholder: $(this).attr('placeholder') || "Select...",
-                        allowClear: true
-                    });
-                });
-
-                // Ensure loader is visible at least 3s
-                const elapsed = Date.now() - loaderStartTime;
-                const remaining = 1000 - elapsed;
-                setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-            },
-            error: function (xhr, status, error) {
-                console.error(error);
-
-                const elapsed = Date.now() - loaderStartTime;
-                const remaining = 1000 - elapsed;
-                setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-            }
-        });
+        
     });
 
     // Action dropdown functionality
-        $(document).on('click', '#addSimDropdownBtn', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const dropdown = $('#addSimDropdown');
-            dropdown.toggleClass('show');
-        });
+    $(document).on('click', '#addSimDropdownBtn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const dropdown = $('#addSimDropdown');
+        dropdown.toggleClass('show');
+    });
 
-        // Close dropdown when clicking outside
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('.action-dropdown-container').length) {
-                $('#addSimDropdown').removeClass('show');
-            }
-        });
+    // Close dropdown when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.action-dropdown-container').length) {
+            $('#addSimDropdown').removeClass('show');
+        }
+    });
 
-        // Close dropdown when pressing escape
-        $(document).on('keydown', function(e) {
-            if (e.key === 'Escape') {
-                $('#addSimDropdown').removeClass('show');
-            }
-        });
+    // Close dropdown when pressing escape
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape') {
+            $('#addSimDropdown').removeClass('show');
+        }
+    });
 });
 
 </script>

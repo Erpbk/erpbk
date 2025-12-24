@@ -32,33 +32,37 @@ trait LogsActivity
             }
         });
 
-        if (in_array('Illuminate\Database\Eloquent\SoftDeletes', class_uses_recursive(static::class))) {
-            static::forceDeleting(function (Model $model) {
-                if (auth()->check()) {
-                    ActivityLogger::custom('force_deleted', static::getModuleName(), $model);
-                }
-            });
-        }
+        // if (in_array('Illuminate\Database\Eloquent\SoftDeletes', class_uses_recursive(static::class))) {
+        //     static::forceDeleting(function (Model $model) {
+        //         if (auth()->check()) {
+        //             ActivityLogger::custom('force_deleted', static::getModuleName(), $model);
+        //         }
+        //     });
+        // }
 
         // Keep the original deleting event for soft/regular deletes
         static::deleting(function (Model $model) {
             if (auth()->check()) {
-                // Skip if this is a force delete (handled above)
-                $isForceDelete = $model->isForceDeleting() ?? false;
-                if (!$isForceDelete) {
+                // // Skip if this is a force delete (handled above)
+                // $isForceDelete = false;
+                // if (in_array('Illuminate\Database\Eloquent\SoftDeletes', class_uses_recursive(static::class))) {
+                //     $isForceDelete = $model->isForceDeleting();
+                // }
+                // 
+                // if (!$isForceDelete) {
                     ActivityLogger::deleted(static::getModuleName(), $model);
-                }
+                // }
             }
         });
 
         // Log when a model is restored (for soft deletes) - only if model uses soft deletes
-        if (in_array('Illuminate\Database\Eloquent\SoftDeletes', class_uses_recursive(static::class))) {
-            static::restored(function (Model $model) {
-                if (auth()->check()) {
-                    ActivityLogger::custom('restored', static::getModuleName(), $model);
-                }
-            });
-        }
+        // if (in_array('Illuminate\Database\Eloquent\SoftDeletes', class_uses_recursive(static::class))) {
+        //     static::restored(function (Model $model) {
+        //         if (auth()->check()) {
+        //             ActivityLogger::custom('restored', static::getModuleName(), $model);
+        //         }
+        //     });
+        // }
     }
 
     /**

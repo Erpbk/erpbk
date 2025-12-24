@@ -288,7 +288,7 @@
                                             <input type="text" name="emi" class="form-control" placeholder="Filter By EMI Number" value="{{ request('title') }}">
                                         </div>
                                         <div class="form-group col-md-4">
-                                            <label for="company">Filter by Company</label>
+                                            <label for="company">Company</label>
                                                 <select class="form-control " id="company" name="company">
                                                 @php
                                                 $companies  = DB::table('sims')
@@ -304,23 +304,7 @@
                                             </select>
                                         </div>
                                         <div class="form-group col-md-4">
-                                            <label for="fleet_supervisor">Filter by Fleet Supervisor</label>
-                                            <select class="form-control " id="fleet_supervisor" name="fleet_supervisor">
-                                                @php
-                                                $fleets  = DB::table('sims')
-                                                    ->whereNotNull('fleet_supervisor')
-                                                    ->select('fleet_supervisor')
-                                                    ->distinct()
-                                                    ->pluck('fleet_supervisor');
-                                                @endphp
-                                                <option value="" selected>Select</option>
-                                                @foreach($fleets as $fleet)
-                                                    <option value="{{ $fleet }}" {{ request('fleet_supervisor') == $fleet ? 'selected' : '' }}>{{ $fleet }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="status">Filter by Status</label>
+                                            <label for="status">Status</label>
                                             <select class="form-control " id="status" name="status">
                                                 <option value="" selected>Select</option>
                                                 <option value="1" >Active</option>
@@ -340,13 +324,21 @@
             </div>
         </div>
     </section>
+    {{-- Include Column Control Panel --}}
+    @include('components.column-control-panel', [
+    'tableColumns' => $tableColumns,
+    'exportRoute' => 'sims.export',
+    'tableIdentifier' => 'sims_table',
+    'fixedColumnsCount' => 1
+    ])
+
 
     <div class="content px-3">
         @include('flash::message')
         <div class="clearfix"></div>
         <div class="card">
             <div class="card-body table-responsive px-2 py-0" id="table-data">
-                @include('sims.table')
+                @include('sims.table', ['data' => $data, 'stats' => $stats, 'tableColumns' => $tableColumns])
             </div>
         </div>
     </div>
@@ -404,6 +396,13 @@ $(document).ready(function () {
         // Exclude _token and empty fields
         let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
         let formData = $.param(filteredFields);
+        let filters = {
+                number: $('input[name="number"]').val(),
+                emi: $('input[name="emi"]').val(),
+                company: $('#company').val(),
+                status: $('#status').val(),
+                fleet_supervisor: $('#fleet_supervisor').val()
+            };
 
         $.ajax({
             url: "{{ route('sims.index') }}",
@@ -416,6 +415,8 @@ $(document).ready(function () {
                 let newUrl = "{{ route('sims.index') }}" + (formData ? '?' + formData : '');
                 history.pushState(null, '', newUrl);
 
+                // Re-initialize Column Control Panel
+                reinitializeColumnControl();
                 // Re-initialize Select2 for dynamically loaded selects
                 $('#company, #fleet_supervisor, #status').each(function() {
                     if ($(this).hasClass('select2-hidden-accessible')) {
@@ -444,24 +445,24 @@ $(document).ready(function () {
     });
 
     // Action dropdown functionality
-        $(document).on('click', '#addBikeDropdownBtn', function(e) {
+        $(document).on('click', '#addSimDropdownBtn', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            const dropdown = $('#addBikeDropdown');
+            const dropdown = $('#addSimDropdown');
             dropdown.toggleClass('show');
         });
 
         // Close dropdown when clicking outside
         $(document).on('click', function(e) {
             if (!$(e.target).closest('.action-dropdown-container').length) {
-                $('#addBikeDropdown').removeClass('show');
+                $('#addSimDropdown').removeClass('show');
             }
         });
 
         // Close dropdown when pressing escape
         $(document).on('keydown', function(e) {
             if (e.key === 'Escape') {
-                $('#addBikeDropdown').removeClass('show');
+                $('#addSimDropdown').removeClass('show');
             }
         });
 });
@@ -494,6 +495,18 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(initializeTableSorting, 100);
     });
 });
+
+function reinitializeColumnControl() {
+    // Check if column controller exists
+    if (typeof ColumnController !== 'undefined') {
+        // Reattach event listeners to new DOM elements
+        ColumnController.setupEventListeners();
+        ColumnController.loadUserSettings();
+    } else {
+        // If ColumnController not defined, wait and retry
+        setTimeout(reinitializeColumnControl, 100);
+    }
+}
 
 function initializeTableSorting() {
     const table = document.querySelector('#dataTableBuilder');

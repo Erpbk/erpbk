@@ -493,8 +493,8 @@ class BikesController extends AppBaseController
         // Status handling
         if($request->warehouse == 'Absconded') {
             Riders::where('id', $bike->rider_id)
-              ->update(['status' => 5, 'designation' => null, 'customer_id' => null, 'emirate_hub' => null]);
-            $bike->update(['warehouse' => 'Absconded', 'customer_id' => null]);
+              ->update(['status' => 5]);
+            $bike->update(['warehouse' => 'Absconded']);
             $this->updateBikeHistory2($bike, 'Absconded', $bike->rider_id, $message);
         }elseif ($request->warehouse == 'Vacation') {
             Riders::where('id', $bike->rider_id)

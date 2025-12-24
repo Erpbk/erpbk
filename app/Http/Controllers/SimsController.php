@@ -46,13 +46,10 @@ class SimsController extends AppBaseController
         $query->where('number', 'like', '%' . $request->number . '%');
     }
     if ($request->has('emi') && !empty($request->emi)) {
-        $query->where('emi',$request->emi);
+        $query->where('emi','like', '%' . $request->emi . '%');
     }
     if ($request->has('company') && !empty($request->company)) {
         $query->where('company',$request->company);
-    }
-    if ($request->has('fleet_supervisor') && !empty($request->fleet_supervisor)) {
-        $query->where('fleet_supervisor',$request->fleet_supervisor);
     }
     if ($request->has('status') && $request->status !== '') {
         $query->where('status', $request->status);
@@ -63,11 +60,14 @@ class SimsController extends AppBaseController
     // Calculate statistics
     $stats = [
         'total' => $statsQuery->count(),
-        'active' => $statsQuery->where('status', 'active')->count(),
-        'inactive' => $statsQuery->where('status', 'inactive')->count(),
-        'du' => $statsQuery->where('company', 'du')->count(),
-        'etisalat' => $statsQuery->where('company','etisalat')->count(),
+        'active' => $statsQuery->clone()->where('status', '1')->count(),
+        'inactive' => $statsQuery->clone()->where('status', '0')->count(),
+        'du' => $statsQuery->clone()->whereIn('company', ['du', 'Du', 'DU'])->count(),
+        'etisalat' => $statsQuery->clone()->whereIn('company',['etisalat','Etisalat'])->count(),
     ];
+
+    
+    $tableColumns = $this->getTableColumns();
 
     // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
@@ -75,6 +75,7 @@ class SimsController extends AppBaseController
         $tableData = view('sims.table', [
             'data' => $data,
             'stats' => $stats,
+            'tableColumns' => $tableColumns,
         ])->render();
         $paginationLinks = $data->links('components.global-pagination')->render();
         return response()->json([
@@ -83,8 +84,6 @@ class SimsController extends AppBaseController
             'stats' => $stats,
         ]);
     }
-
-    $tableColumns = $this->getTableColumns();
 
     return view('sims.index', [
         'data' => $data,

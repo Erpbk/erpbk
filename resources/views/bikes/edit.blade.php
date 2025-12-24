@@ -39,7 +39,26 @@
       </div>
       <div class="col-md-3 form-group col-3">
         {!! Form::label('color', 'Color:',['class'=>'required']) !!}
-        {!! Form::text('color', $bikes->color ?? '', ['class' => 'form-control', 'maxlength' => 100, 'maxlength' => 100]) !!}
+        
+        @php
+        $colors = DB::table('bikes')
+            ->whereNotNull('color')
+            ->select('color')
+            ->distinct()
+            ->pluck('color');
+        @endphp
+        
+        {!! Form::text('color', $bikes->color ?? '', [
+            'class' => 'form-control',
+            'list' => 'colorOptions',
+            'autocomplete' => 'off'
+        ]) !!}
+        
+        <datalist id="colorOptions">
+            @foreach($colors as $color)
+                <option value="{{ $color }}">
+            @endforeach
+        </datalist>
       </div>
       <div class="col-md-3 form-group col-3">
         {!! Form::label('model', 'Model:',['class'=>'required']) !!}
@@ -47,7 +66,19 @@
       </div>
       <div class="col-md-3 form-group col-3 hide-if-cyclist">
         {!! Form::label('model_type', 'Model Type:',['class'=>'required']) !!}
-        {!! Form::text('model_type', $bikes->model_type ?? '', ['class' => 'form-control', 'maxlength' => 100, 'maxlength' => 100]) !!}
+        @php
+          $modelType = DB::table('bikes')
+              ->whereNotNull('model_type')
+              ->select('model_type')
+              ->distinct()
+              ->pluck('model_type');
+        @endphp
+        {!! Form::text('model_type', $bikes->model_type ?? '', ['class' => 'form-control', 'list' => 'modelTypeOptions', 'autocomplete' => 'off']) !!}
+        <datalist id="modelTypeOptions">
+            @foreach($modelType as $type)
+                <option value="{{ $type }}">
+            @endforeach
+        </datalist>
       </div>
       <div class="col-md-3 form-group col-3">
         @php
@@ -93,7 +124,19 @@
       </div>
       <div class="col-md-3 form-group col-3 hide-if-cyclist">
         {!! Form::label('insurance_co', 'Insurance Co:') !!}
-        {!! Form::text('insurance_co', $bikes->insurance_co ?? '', ['class' => 'form-control', 'maxlength' => 255, 'maxlength' => 255]) !!}
+        @php
+        $insuranceCo = DB::table('bikes')
+            ->whereNotNull('insurance_co')
+            ->select('insurance_co')
+            ->distinct()
+            ->pluck('insurance_co');
+        @endphp
+        {!! Form::text('insurance_co', $bikes->insurance_co ?? '', ['class' => 'form-control', 'list' => 'insuranceCoOptions', 'autocomplete' => 'off']) !!}
+      ` <datalist id="insuranceCoOptions">
+          @foreach($insuranceCo as $company)
+              <option value="{{ $company }}">
+          @endforeach 
+      </datalist>
       </div>
       <div class="col-md-3 form-group col-3 hide-if-cyclist">
         {!! Form::label('policy_no', 'Policy No:') !!}

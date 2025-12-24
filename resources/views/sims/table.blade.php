@@ -1,9 +1,3 @@
-{{-- Include Column Control Panel --}}
-@include('components.column-control-panel', [
-'tableColumns' => $tableColumns,
-'exportRoute' => 'sims.export',
-'tableIdentifier' => 'sims_table'
-])
 
 
 <!-- Statistics Section - Will stick with headers -->
@@ -11,18 +5,18 @@
   <div class="sticky-statistics">
     <div class="container-fluid">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h4 class="mb-0 fw-bold col-md-9">SIM DETAILS</h4>
-        <a class=" col-md-1" style="align-content:flex-end" data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);">
+        <h4 class="mb-0 fw-bold">SIM DETAILS</h4>
+        {{-- <button style="align-content:flex-end !important" data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);">
           <i class="fa fa-search"></i>
-        </a>
+        </button> --}}
         <div class="action-buttons d-flex justify-content-end" >
             <div class="action-dropdown-container">
-                <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                <button class="action-dropdown-btn" id="addSimDropdownBtn">
                     <i class="ti ti-plus"></i>
                     <span>Add Sim</span>
                     <i class="ti ti-chevron-down"></i>
                 </button>
-                <div class="action-dropdown-menu" id="addBikeDropdown">
+                <div class="action-dropdown-menu" id="addSimDropdown">
                     @can('sim_create')
                     <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Sim" data-action="{{ route('sims.create') }}">
                         <i class="ti ti-plus"></i>
@@ -77,6 +71,9 @@
           <div class="value" id="total_hours">{{ $stats['etisalat'] ?? 0 }}</div>
         </div>
       </div>
+      <div class="d-flex justify-content-end" style="margin-top: 8px;">
+        <a class="btn btn-sm btn-primary"  href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#searchModal"><i class="fa fa-search"></i></a>
+      </div>
     </div>
   </div>
 </div>
@@ -115,7 +112,9 @@
         </td>
         <td>
           @if($r->assign_to)
+            <a href="{{ route('riders.show', $r->riders->id) }}" class="table-link">
             {{$r->riders->name}}
+            </a>
           @else
             -
           @endif

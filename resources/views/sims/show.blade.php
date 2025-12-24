@@ -16,8 +16,8 @@
 }
 
 .right-container {
-    flex: 0 0 63%; 
-    max-width: 63%;
+    flex: 0 0 68%; 
+    max-width: 68%;
 }
 
 /* SIM info card */
@@ -102,10 +102,10 @@
 }
 
 .info-value {
-    flex: 0 0 60%;
+    flex: 0 0 50%;
     color: #111827;
     font-size: 0.95rem;
-    font-weight: 100
+    font-weight: 100;
 }
 
 .info-value .badge {
@@ -121,6 +121,7 @@
     box-shadow: 0 4px 20px rgba(0,0,0,0.05);
     border: 1px solid #e5e7eb;
     height: 100%;
+    min-height: 500px;
     display: flex;
     flex-direction: column;
 }
@@ -142,8 +143,9 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    height: calc(100vh - 250px); /* Dynamic height */
     min-height: 450px;
-    max-height: calc(100vh - 300px); /* Dynamic height */
+    max-height: none;
 }
 
 .table-responsive {
@@ -384,12 +386,12 @@
     <section class="content-header">
         <div class="container-fluid">
             <div class="row mb-2">
-                <div class="col-sm-6">
+                <div class="col-sm-10">
                     <h1>Sims Details</h1>
                 </div>
-                <div class="col-sm-6">
-                    <a class="btn btn-default float-right" href="{{ route('sims.index') }}">
-                        Back
+                <div class="col-sm-2">
+                    <a class="btn btn-primary float-right" href="{{ route('sims.index') }}">
+                        <i class="fa fa-arrow-left"></i> Back
                     </a>
                 </div>
             </div>
@@ -421,7 +423,7 @@
                                     }
                                 @endphp
                                 <span class="sim-status-badge {{ $statusClass }}">{{ $statusText }}</span>
-                                <span class="sim-number-value">{{ $sims->number ?? 'N/A' }}</span>
+                                <a href="https://wa.me/{{ $sims->number }}"><span class="sim-number-value"><i class="fab fa-whatsapp"></i>{{ $sims->number ?? 'N/A' }}</span></a>
                             </div>
                         </div>
                     </div>
@@ -473,7 +475,7 @@
                         <div class="info-row">
                             <div class="info-label">Vendor:</div>
                             <div class="info-value">
-                                {{ $sims->vendor ?? 'N/A' }}
+                                {{ $sims->vendors->name ?? 'N/A' }}
                             </div>
                         </div>
                         

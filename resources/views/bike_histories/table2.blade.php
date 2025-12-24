@@ -192,7 +192,7 @@
                     @if(!empty($r->notes))
                         <span class="notes-cell wa-forward"
                               data-notes="{{ e($r->notes) }}">
-                            <i class="ti ti-arrow-forward"></i>
+                            <i class="fab fa-whatsapp"></i>
                         </span>
                     @else
                         <span class="text-muted">-</span>

@@ -134,23 +134,26 @@
         </div>
       </div>
       <table id="dataTableBuilder" class="table table-striped dataTable text-center" width="100%">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Day</th>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Designation</th>
-            <th>Delivered</th>
-            <th>Ontime%</th>
-            <th>Rejected</th>
-            <th>HR</th>
-            <th>Valid Day</th>
+        <thead class="text-center">
+          <tr role="row">
+            <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Date: activate to sort column ascending">Date</th>
+            <th title="Day" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Day: activate to sort column ascending">Day</th>
+            <th title="ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="ID: activate to sort column ascending">ID</th>
+            <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending">Name</th>
+            <th title="Fleet Supr" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Fleet Supr">Fleet Supr</th>
+            <th title="Project" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Project">Project</th>
+            <th title="Status" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
+            <th title="Delivered" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Delivered: activate to sort column ascending">Delivered</th>
+            <th title="HR" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="HR: activate to sort column ascending">HR</th>
+            <th title="Ontime%" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ontime%: activate to sort column ascending">Ontime%</th>
+            <th title="Rejected" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rejected: activate to sort column ascending">Rejected</th>
+            <th title="Rating" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rating: activate to sort column ascending">Valid Day</th>
           </tr>
         </thead>
         <tbody>
           <?php $__currentLoopData = $data; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $r): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-          <tr data-delivered="<?php echo e($r->delivered_orders ?? 0); ?>"
+          <tr class="text-center"
+            data-delivered="<?php echo e($r->delivered_orders ?? 0); ?>"
             data-rejected="<?php echo e($r->rejected_orders ?? 0); ?>"
             data-hours="<?php echo e($r->login_hr ?? 0); ?>"
             data-ontime="<?php echo e($r->ontime_orders_percentage ?? 0); ?>"
@@ -163,22 +166,46 @@
             <?php
             $rider = DB::Table('riders')->where('id' , $r->rider_id)->first();
             ?>
-            <td><?php echo e($rider->name); ?></td>
-            <td><?php echo e($rider->designation); ?></td>
-            <td><?php echo e($r->delivered_orders); ?></td>
+            <td> <a href="<?php echo e(route('rider.activities',$r->rider_id)); ?>"><?php echo e($rider->name); ?></a> </td>
+            <td><?php echo e($rider->fleet_supervisor); ?></td>
+            <td><?php echo e(DB::table('customers')->where('id', $rider->customer_id)->first()->name ?? '-'); ?></td>
+            <?php
+            $hasActiveBike = DB::table('bikes')->where('rider_id', $rider->id)->where('warehouse', 'Active')->exists();
+            $isWalker = $rider->designation === 'Walker';
+
+            if ($isWalker) {
+            $statusText = 'Active';
+            $badgeClass = 'bg-label-success';
+            } else {
+            $statusText = $hasActiveBike ? 'Active' : 'Inactive';
+            $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
+            }
+            ?>
             <td>
-              <?php if($r->ontime_orders_percentage): ?><?php echo e($r->ontime_orders_percentage * 100); ?>% <?php else: ?> - <?php endif; ?>
+              <span class="badge <?php echo e($badgeClass); ?>"><?php echo e($statusText); ?></span>
             </td>
-            <td><?php echo e($r->rejected_orders); ?></td>
+            <td><?php echo e($r->delivered_orders); ?></td>
             <td><?php echo e($r->login_hr); ?></td>
+            <td><?php if($r->ontime_orders_percentage): ?><?php echo e($r->ontime_orders_percentage); ?>% <?php else: ?> - <?php endif; ?></td>
+            <td><?php echo e($r->rejected_orders); ?></td>
             <td>
-              <?php if($r->delivery_rating == 'Yes'): ?>
-              <span class="badge bg-success">Valid</span>
-              <?php elseif($r->delivery_rating == 'No'): ?>
-              <span class="badge bg-warning">Invalid</span>
-              <?php else: ?>
-              <span class="badge bg-danger">Off</span>
-              <?php endif; ?>
+              <?php
+              $orders = $r->delivered_orders ?? 0;
+              $hours = $r->login_hr ?? 0;
+
+              // Determine status based on new logic
+              if ($hours == 0) {
+              $status = 'Off';
+              $badgeClass = 'bg-danger';
+              } elseif (($orders >= 5 && $hours >= 10) || ($orders >= 10)) {
+              $status = 'Valid';
+              $badgeClass = 'bg-success';
+              } else {
+              $status = 'Invalid';
+              $badgeClass = 'bg-warning';
+              }
+              ?>
+              <span class="badge <?php echo e($badgeClass); ?>"><?php echo e($status); ?></span>
             </td>
           </tr>
           <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>

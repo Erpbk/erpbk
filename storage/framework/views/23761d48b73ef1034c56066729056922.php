@@ -124,7 +124,7 @@
     <div class="card-header d-flex justify-content-between">
       <h5 class="card-title mb-0"><b>Rider Activities</b> (Statistics)</h5>
       <small class="text-body-secondary">
-        <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="<?php echo e(route('rider.activities_import')); ?>"> <i class="ti ti-activity"></i> Impove Activities</a>
+        <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="<?php echo e(route('rider.activities_import')); ?>"> <i class="ti ti-activity"></i> Import Activities</a>
         <a class="btn btn-primary openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
       </small>
     </div>

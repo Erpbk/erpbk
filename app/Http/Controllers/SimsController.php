@@ -34,7 +34,7 @@ class SimsController extends AppBaseController
    */
   public function index(Request $request)
   {
-
+    
     if (!auth()->user()->hasPermissionTo('sim_view')) {
       abort(403, 'Unauthorized action.');
     }
@@ -51,7 +51,7 @@ class SimsController extends AppBaseController
     if ($request->has('company') && !empty($request->company)) {
         $query->where('company',$request->company);
     }
-    if ($request->has('status') && $request->status !== '') {
+    if ($request->has('status') && !empty($request->status)) {
         $query->where('status', $request->status);
     }
 
@@ -65,12 +65,11 @@ class SimsController extends AppBaseController
         'du' => $statsQuery->clone()->whereIn('company', ['du', 'Du', 'DU'])->count(),
         'etisalat' => $statsQuery->clone()->whereIn('company',['etisalat','Etisalat'])->count(),
     ];
-
     
     $tableColumns = $this->getTableColumns();
 
     // Apply pagination using the trait
-        $data = $this->applyPagination($query, $paginationParams);
+    $data = $this->applyPagination($query, $paginationParams);
     if ($request->ajax()) {
         $tableData = view('sims.table', [
             'data' => $data,
@@ -503,21 +502,35 @@ private function getTableColumns()
     public function destroy($id)
     {
         // Find including soft deleted
-        $sims = Sims::withTrashed()->find($id);
+        //$sims = Sims::withTrashed()->find($id);
+
+        $sims = Sims::find($id);
         
         if (empty($sims)) {
-            return response()->json(['errors' => ['error' => 'Sim not found!']], 422);
+            return redirect()->back()->with('error', 'Sim not found!');
         }
         
         // Check if already soft deleted
-        if ($sims->trashed()) {
-            return response()->json(['errors' => ['error' => 'Sim is already deleted!']], 422);
+        // if ($sims->trashed()) {
+        //     return response()->json(['errors' => ['error' => 'Sim is already deleted!']], 422);
+        // }
+        
+        if($sims->status == 1){
+            return redirect()->back()->with('error', 'Active SIMs cannot be deleted. Please return the SIM before deleting.');
+        }
+
+        $sims->delete(); 
+        
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Sim deleted successfully.'
+            ]);
         }
         
-        $sims->delete(); // Soft delete
-        
-        return response()->json(['message' => 'Sim deleted successfully.']);
-    }
+        // For regular requests
+        return redirect()->back()->with('message', 'Sim deleted successfully.'); 
+   }
 
     public function restore($id)
     {

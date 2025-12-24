@@ -71,9 +71,6 @@
           <div class="value" id="total_hours">{{ $stats['etisalat'] ?? 0 }}</div>
         </div>
       </div>
-      <div class="d-flex justify-content-end" style="margin-top: 8px;">
-        <a class="btn btn-sm btn-primary"  href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#searchModal"><i class="fa fa-search"></i></a>
-      </div>
     </div>
   </div>
 </div>
@@ -83,14 +80,20 @@
   <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
     <thead class="text-center">
       <tr role="row">
-        <th title="Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Number: activate to sort column ascending">Number</th>
-        <th title="Company" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Company: activate to sort column ascending">Company</th>
-        <th title="Emi" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Emi: activate to sort column ascending">Emi</th>
-        <th title="Rider ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider ID: activate to sort column ascending">Rider ID</th> 
-        <th title="Rider Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider Name: activate to sort column ascending">Rider Name</th> 
-        <th title="Vendor" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Vendor: activate to sort column ascending">Vendor</th> 
-        <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th> 
-        <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
+         @php
+         $tableCols = $tableColumns ?? [];
+         $dataColumns = array_values(array_filter($tableCols, function($c){
+         $k = $c['data'] ?? ($c['key'] ?? null);
+         return $k !== 'search' && $k !== 'control';
+         }));
+         @endphp
+         @foreach($dataColumns as $col)
+         @php $title = $col['title'] ?? ($col['name'] ?? ($col['data'] ?? '')); @endphp
+         <th title="{{ $title }}" class="sorting" tabindex="0" rowspan="1" colspan="1">{{ $title }}</th>
+         @endforeach
+         <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
+            <a class="openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
+         </th>
       </tr>
     </thead>
     <tbody>
@@ -158,13 +161,15 @@
                   </a>
                   @endcan
                   @can('sim_delete')
-                  <a href="javascript:void(0);" class='dropdown-item waves-effect' onclick="confirmDelete()" data-action="{{ route('sims.delete', $r->id) }}">
-                     <i class="fa fa-trash my-1"></i> Delete
+                  <a href="#" class='dropdown-item waves-effect' 
+                    onclick="confirmDelete('{{ route('sims.delete', $r->id) }}')">
+                    <i class="fa fa-trash my-1"></i> Delete
                   </a>
                   @endcan
                </div>
             </div>
         </td>
+        <td> </td>
       </tr>
       @endforeach
     </tbody>

@@ -241,7 +241,7 @@
         line-height: 1.3;
     }
 
-        .filter-sidebar {
+    .filter-sidebar {
         position: fixed;
         top: 0;
         right: -420px;
@@ -366,8 +366,8 @@
                                         <label for="status">Status</label>
                                         <select class="form-control " id="status" name="status">
                                             <option value="" selected>Select</option>
-                                            <option value="1" >Active</option>
-                                            <option value="0" >Inactive</option>
+                                            <option value='active' >Active</option>
+                                            <option value='inactive' >Inactive</option>
                                         </select>
                                     </div>
                                     <div class="col-md-12 form-group text-center">
@@ -486,10 +486,17 @@ $(document).ready(function () {
         }
     });
 
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#filterSidebar').length) {
+            $('#filterSidebar').removeClass('open');
+        }
+    });
+
     // Close dropdown when pressing escape
     $(document).on('keydown', function(e) {
         if (e.key === 'Escape') {
             $('#addSimDropdown').removeClass('show');
+            $('#filterSidebar').removeClass('open');
         }
     });
 });

@@ -109,6 +109,16 @@ class BikesController extends AppBaseController
       $query->select('bikes.*');
     }
 
+    $statsQuery = clone $query;
+    $stats = [
+      'total' => $statsQuery->count(),
+      'active' => $statsQuery->clone()->where('status', 1)->count(),
+      'inactive' => $statsQuery->clone()->where('status', 2)->count(),
+      'onroad' => $statsQuery->clone()->where('warehouse', 'Active')->count(),
+      'offroad' => $statsQuery->clone()->whereIn('warehouse', ['Return', 'Vacation', 'Express Garage'])->count(),
+      'absconded' => $statsQuery->clone()->where('warehouse', 'Absconded')->count(),
+    ];
+
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
     if ($request->ajax()) {
@@ -118,6 +128,7 @@ class BikesController extends AppBaseController
       $paginationLinks = $data->links('components.global-pagination')->render();
       return response()->json([
         'tableData' => $tableData,
+        'stats' => $stats,
         'paginationLinks' => $paginationLinks,
       ]);
     }
@@ -126,6 +137,7 @@ class BikesController extends AppBaseController
 
     return view('bikes.index', [
       'data' => $data,
+      'stats' => $stats,
       'tableColumns' => $tableColumns,
     ]);
   }

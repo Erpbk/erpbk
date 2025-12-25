@@ -52,7 +52,10 @@ class SimsController extends AppBaseController
         $query->where('company',$request->company);
     }
     if ($request->has('status') && !empty($request->status)) {
-        $query->where('status', $request->status);
+        if($request->status == 'active')
+        $query->where('status', '1');
+        else
+        $query->where('status', '0');
     }
 
     $statsQuery = clone $query;

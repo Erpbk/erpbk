@@ -178,6 +178,99 @@
         line-height: 1.3;
     }
 
+    .totals-cards {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        margin: 0 10px 16px 10px;
+    }
+
+    .total-card {
+        flex: 1 1 0;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-left-width: 4px;
+        border-radius: 6px;
+        padding: 8px 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        margin-bottom: 0;
+    }
+
+    .total-card .label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+        color: #6b7280;
+        margin-bottom: 2px;
+    }
+
+    .total-card .label i {
+        font-size: 10px;
+    }
+
+    .total-card .value {
+        font-size: 14px;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .total-active {
+        border-left-color: #28a745;
+        background: linear-gradient(180deg, rgba(16, 185, 129, 0.06), rgba(16, 185, 129, 0.02));
+    }
+
+    .total-active .label {
+        color: #28a745;
+    }
+
+    .total-bikes {
+        border-left-color: #007bff;
+        background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
+    }
+
+    .total-bikes .label {
+        color: #007bff;
+    }
+
+    .total-inactive {
+        border-left-color: #373536;
+        background: linear-gradient(180deg, rgba(55, 53, 54, 0.06), rgba(55, 53, 54, 0.02));
+    }
+
+    .total-inactive .label {
+        color: #544d4d;
+    }
+
+    .total-absconded {
+        border-left-color: #dc3545;
+        background: linear-gradient(180deg, rgba(239, 68, 68, 0.06), rgba(239, 68, 68, 0.02));
+    }
+
+    .total-absconded .label {
+        color: #dc3545;
+    }
+
+    .total-onroad {
+        border-left-color: #6f42c1;
+        background: linear-gradient(180deg, rgba(111, 66, 193, 0.06), rgba(111, 66, 193, 0.02));
+    }
+
+    .total-onroad .label {
+        color: #6f42c1;
+    }
+
+    .total-offroad {
+        border-left-color: #c142bb;
+        background: linear-gradient(180deg, rgba(193, 66, 187, 0.06), rgba(193, 66, 187, 0.02));
+    }
+
+    .total-offroad .label {
+        color: #c142bb;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 768px) {
         .action-dropdown-menu {
@@ -200,7 +293,6 @@
     <div class="container-fluid">
         <div class="row mb-2">
             <div class="col-sm-6">
-                <h3>Vehicles</h3>
             </div>
             <div class="col-sm-6">
                 <div class="action-buttons d-flex justify-content-end">
@@ -417,6 +509,32 @@
             </div>
             <div class="card-search">
                 <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
+            </div>
+        </div>
+        <div class="totals-cards">
+            <div class="total-card total-bikes">
+                <div class="label"><i class="fa fa-motorcycle"></i>Total Bikes</div>
+                <div class="value" id="total_orders">{{ $stats['total'] ?? 0 }}</div>
+            </div>
+            <div class="total-card total-active">
+                <div class="label"><i class="fa fa-check-circle"></i>Active</div>
+                <div class="value" id="avg_ontime">{{ $stats['active'] ?? 0 }}</div>
+            </div>
+            <div class="total-card total-inactive">
+                <div class="label"><i class="fa fa-times-circle"></i>Inactive</div>
+                <div class="value" id="total_rejected">{{ $stats['inactive'] ?? 0 }}</div>
+            </div>
+                <div class="total-card total-onroad">
+                <div class="label"><i class="fa fa-building"></i>Onroad</div>
+                <div class="value" id="total_hours">{{ $stats['onroad'] ?? 0 }}</div>
+            </div>
+            <div class="total-card total-offroad">
+                <div class="label"><i class="fa fa-building"></i>Offroad</div>
+                <div class="value" id="total_hours">{{ $stats['offroad'] ?? 0 }}</div>
+            </div>
+            <div class="total-card total-absconded">
+                <div class="label"><i class="fa fa-user-secret"></i>Absconded</div>
+                <div class="value" id="total_hours">{{ $stats['absconded'] ?? 0 }}</div>
             </div>
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">

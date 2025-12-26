@@ -1201,7 +1201,7 @@
 .fleet-supervisor-section {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 20px;
-    padding: 24px;
+    padding: 10px;
     margin-bottom: 24px;
     box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
     position: relative;
@@ -1325,17 +1325,23 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
-    padding: 0 8px;
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
+    z-index: 2;
+    pointer-events: none;
 }
 
 .slider-btn {
+    pointer-events: auto;
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(58, 56, 56, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
+    color: black;
     cursor: pointer;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
@@ -1344,6 +1350,21 @@
     justify-content: center;
     font-size: 18px;
     z-index: 3;
+}
+
+.fleet-supervisor-slider-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    padding: 0 10px; 
+}
+
+.slider-track {
+    display: flex;
+    gap: 16px;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    width: fit-content;
+    transform: translateX(0);
 }
 
 .slider-btn:hover {
@@ -1391,14 +1412,6 @@
     gap: 16px;
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
-}
-
-.slider-track {
-    display: flex;
-    gap: 16px;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    width: fit-content;
-    transform: translateX(0);
 }
 
 .fleet-supervisor-card {

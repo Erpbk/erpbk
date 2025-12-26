@@ -617,12 +617,10 @@ $tableColumns = $columns;
     @include('flash::message')
     <div class="card">
         <div class="card-header d-flex justify-content-between">
-            <div class="card-title">
-                <!-- <h3>Riders</h3> -->
-            </div>
             <div class="card-search">
                 <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
             </div>
+            <button class="btn btn-outline-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Riders</button>
         </div>
         <div class="card-body table-responsive px-2 py-0">
             <div class="riders-table-container">
@@ -823,6 +821,12 @@ $tableColumns = $columns;
             if (!$(e.target).closest('.action-dropdown-container').length) {
                 $('.action-dropdown-menu').removeClass('show');
                 $('.action-dropdown-btn').removeClass('open');
+            }
+        });
+
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#filterSidebar').length) {
+                $('#filterSidebar').removeClass('open');
             }
         });
 

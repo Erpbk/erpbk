@@ -5,49 +5,11 @@
   <div class="sticky-statistics">
     <div class="container-fluid">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h4 class="mb-0 fw-bold">SIM DETAILS</h4>
         {{-- <button style="align-content:flex-end !important" data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);">
           <i class="fa fa-search"></i>
         </button> --}}
-        <div class="action-buttons d-flex justify-content-end" >
-            <div class="action-dropdown-container">
-                <button class="action-dropdown-btn" id="addSimDropdownBtn">
-                    <i class="ti ti-plus"></i>
-                    <span>Add Sim</span>
-                    <i class="ti ti-chevron-down"></i>
-                </button>
-                <div class="action-dropdown-menu" id="addSimDropdown">
-                    @can('sim_create')
-                    <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Sim" data-action="{{ route('sims.create') }}">
-                        <i class="ti ti-plus"></i>
-                        <div>
-                            <div class="action-dropdown-item-text">Add Sim</div>
-                            <div class="action-dropdown-item-desc">Add a new Sim to the system</div>
-                        </div>
-                    </a>
-                    @endcan
-                    @can('sim_create')
-                    <a class="action-dropdown-item" href="{{ route('sims.import') }}">
-                        <i class="ti ti-file-upload"></i>
-                        <span>Import Sim Data</span>
-                    </a>
-                    @endcan
-                    @can('sim_view')
-                    <a class="action-dropdown-item" href="{{ route('sims.export')}}" data-size="xl" data-title="Export Vehicles" data-action="{{ route('bikes.export') }}">
-                        <i class="ti ti-file-export"></i>
-                        <span>Export Sim Data</span>
-                    </a>
-                    <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
-                        <i class="ti ti-columns"></i>
-                        <div>
-                            <div class="action-dropdown-item-text">Column Control</div>
-                            <div class="action-dropdown-item-desc">Open column control modal</div>
-                        </div>
-                    </a>
-                    @endcan
-                </div>
-            </div>
-        </div>
+        <div></div>
+        <button class="btn btn-outline-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Sims</button>
       </div>
       <div class="totals-cards">
         <div class="total-card total-sims">
@@ -92,7 +54,7 @@
          <th title="{{ $title }}" class="sorting" tabindex="0" rowspan="1" colspan="1">{{ $title }}</th>
          @endforeach
          <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-            <a class="openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
+            &nbsp;
          </th>
       </tr>
     </thead>

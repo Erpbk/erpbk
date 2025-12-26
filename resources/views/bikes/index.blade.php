@@ -504,12 +504,10 @@
     @include('flash::message')
     <div class="card">
         <div class="card-header d-flex justify-content-between">
-            <div class="card-title">
-                <h3>Vehicles</h3>
-            </div>
             <div class="card-search">
                 <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
             </div>
+            <button class="btn btn-outline-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Vehicles</button>
         </div>
         <div class="totals-cards">
             <div class="total-card total-bikes">
@@ -609,6 +607,14 @@
 <script type="text/javascript">
     $(document).ready(function() {
         // Filter sidebar functionality
+        $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function(e) {
+            e.preventDefault();
+            console.log('Filter button hovered!'); // Debug line
+            $('#filterSidebar').addClass('open');
+            $('#filterOverlay').addClass('show');
+            return false;
+        });
+
         $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
             e.preventDefault();
             console.log('Filter button clicked!'); // Debug line
@@ -682,10 +688,17 @@
             }
         });
 
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#filterSidebar').length) {
+                $('#filterSidebar').removeClass('open');
+            }
+        });
+
         // Close dropdown when pressing escape
         $(document).on('keydown', function(e) {
             if (e.key === 'Escape') {
                 $('#addBikeDropdown').removeClass('show');
+                $('#filterSidebar').removeClass('open');
             }
         });
     });

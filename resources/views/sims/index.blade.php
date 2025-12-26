@@ -62,22 +62,31 @@
 
   /* Table container with scroll */
   .table-scroll-container {
-    max-height: 500px; /* Adjust as needed */
+    max-height: calc(100vh - 300px);
     overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .table-scroll-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .table-scroll-container {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
   }
 
   /* Make table headers sticky inside the scroll container */
   .table-scroll-container table thead th {
+    font-weight: bold;
     position: sticky;
-    top: 0; /* This will stick below the statistics */
-    background-color: #f8f9fa !important;
-    z-index: 999;
-    border-bottom: 2px solid #dee2e6;
-  }
-
-  /* Calculate top position based on statistics height */
-  .table-scroll-container.with-stats thead th {
-    top: 130px; /* Height of statistics + some padding */
+    top: 0;
+    z-index: 10;
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
   }
 
   /* Statistics card specific colors */
@@ -129,13 +138,6 @@
   /* Adjust table styling */
   #dataTableBuilder {
     margin-bottom: 0;
-  }
-
-  #dataTableBuilder thead th {
-    position: sticky;
-    top: 0;
-    background-color: #f8f9fa;
-    z-index: 100;
   }
 
   /* Action Dropdown Styles */

@@ -11,6 +11,37 @@
    th {
       white-space: nowrap;
    }
+
+   /* Table header bold and fixed */
+   #dataTableBuilder thead th {
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background-color: #f8f9fa;
+      box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+   }
+
+   /* Ensure table container is scrollable */
+   .table-responsive {
+      max-height: calc(100vh - 300px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+   }
+
+   /* Hide scrollbar for Chrome, Safari and Opera */
+   .table-responsive::-webkit-scrollbar {
+      display: none;
+   }
+
+   /* Hide scrollbar for IE, Edge and Firefox */
+   .table-responsive {
+      -ms-overflow-style: none;
+      /* IE and Edge */
+      scrollbar-width: none;
+      /* Firefox */
+   }
 </style>
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="">
@@ -27,10 +58,7 @@
          <th title="<?php echo e($title); ?>" class="sorting" tabindex="0" rowspan="1" colspan="1"><?php echo e($title); ?></th>
          <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
          <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-            <a class="openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
-         </th>
-         <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-            <a class="openColumnControlSidebar" href="javascript:void(0);" title="Column Control"> <i class="fa fa-columns"></i></a>
+            &nbsp;
          </th>
       </tr>
    </thead>
@@ -119,12 +147,12 @@
                   <a href="<?php echo e(route('bikes.show', $r->id)); ?>" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye my-1"></i>Show Bike
                   </a>
-                  <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('item_edit')): ?>
+                  <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('bike_edit')): ?>
                   <a href="<?php echo e(route('bikes.edit', $r->id)); ?>" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit my-1"></i>Edit
                   </a>
                   <?php endif; ?>
-                  <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('item_delete')): ?>
+                  <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('bike_delete')): ?>
                   <a href="javascript:void(0);" data-url="<?php echo e(route('bikes.delete', $r->id)); ?>" class='dropdown-item waves-effect delete-bike'>
                      <i class="fa fa-trash my-1"></i> Delete
                   </a>
@@ -137,7 +165,6 @@
          <td tabindex="0"><?php echo e(data_get($r, $key, '-')); ?></td>
          <?php endswitch; ?>
          <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-         <td></td>
          <td></td>
       </tr>
       <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>

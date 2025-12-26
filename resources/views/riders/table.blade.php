@@ -15,7 +15,7 @@
          <th title="{{ $title }}" class="sorting" tabindex="0" rowspan="1" colspan="1">{{ $title }}</th>
          @endforeach
          <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-            <a class="openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
+            &nbsp;
          </th>
 
       </tr>

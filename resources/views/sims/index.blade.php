@@ -329,54 +329,48 @@
                     </a>
                     @endcan --}}
                     <!-- Filter Sidebar -->
-                    <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
-                        <div class="filter-header">
-                            <h5>Filter Sims</h5>
-                            <button type="button" class="btn-close" id="closeSidebar"></button>
-                        </div>
-                        <div class="filter-body" id="searchTopbody">
-                            <form id="filterForm" action="{{ route('sims.index') }}" method="GET">
-                                @csrf
-                                <div class="row">
-                                    <div class="form-group col-md-12">
-                                            <label for="number">Sim Number</label>
-                                            <input type="text" name="number" class="form-control" placeholder="Filter By Sim Number" value="{{ request('number') }}">
-                                        </div>
-                                    <div class="form-group col-md-12">
-                                        <label for="emi">EMI Number</label>
-                                        <input type="text" name="emi" class="form-control" placeholder="Filter By EMI Number" value="{{ request('emi') }}">
-                                    </div>
-                                    <div class="form-group col-md-12">
-                                        <label for="company">Company</label>
-                                            <select class="form-control " id="company" name="company">
-                                            @php
-                                            $companies  = DB::table('sims')
-                                                ->whereNotNull('company')
-                                                ->select('company')
-                                                ->distinct()
-                                                ->pluck('company');
-                                            @endphp
-                                            <option value="" selected>Select</option>
-                                            @foreach($companies as $company)
-                                                <option value="{{ $company }}" {{ request('company') == $company ? 'selected' : '' }}>{{ $company }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-md-12">
-                                        <label for="status">Status</label>
-                                        <select class="form-control " id="status" name="status">
-                                            <option value="" selected>Select</option>
-                                            <option value='active' >Active</option>
-                                            <option value='inactive' >Inactive</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-12 form-group text-center">
-                                        <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                                    </div>
+                    
+                </div>
+                <div class="col-sm-6">
+                    <div class="action-buttons d-flex justify-content-end" >
+                    <div class="action-dropdown-container">
+                        <button class="action-dropdown-btn" id="addSimDropdownBtn">
+                            <i class="ti ti-plus"></i>
+                            <span>Add Sim</span>
+                            <i class="ti ti-chevron-down"></i>
+                        </button>
+                        <div class="action-dropdown-menu" id="addSimDropdown">
+                            @can('sim_create')
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Sim" data-action="{{ route('sims.create') }}">
+                                <i class="ti ti-plus"></i>
+                                <div>
+                                    <div class="action-dropdown-item-text">Add Sim</div>
+                                    <div class="action-dropdown-item-desc">Add a new Sim to the system</div>
                                 </div>
-                            </form>
+                            </a>
+                            @endcan
+                            @can('sim_create')
+                            <a class="action-dropdown-item" href="{{ route('sims.import') }}">
+                                <i class="ti ti-file-upload"></i>
+                                <span>Import Sim Data</span>
+                            </a>
+                            @endcan
+                            @can('sim_view')
+                            <a class="action-dropdown-item" href="{{ route('sims.export')}}" data-size="xl" data-title="Export Vehicles" data-action="{{ route('bikes.export') }}">
+                                <i class="ti ti-file-export"></i>
+                                <span>Export Sim Data</span>
+                            </a>
+                            <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
+                                <i class="ti ti-columns"></i>
+                                <div>
+                                    <div class="action-dropdown-item-text">Column Control</div>
+                                    <div class="action-dropdown-item-desc">Open column control modal</div>
+                                </div>
+                            </a>
+                            @endcan
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -390,6 +384,55 @@
     'tableIdentifier' => 'sims_table',
     'fixedColumnsCount' => 1
     ])
+
+    <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+        <div class="filter-header">
+            <h5>Filter Sims</h5>
+            <button type="button" class="btn-close" id="closeSidebar"></button>
+        </div>
+        <div class="filter-body" id="searchTopbody">
+            <form id="filterForm" action="{{ route('sims.index') }}" method="GET">
+                @csrf
+                <div class="row">
+                    <div class="form-group col-md-12">
+                            <label for="number">Sim Number</label>
+                            <input type="text" name="number" class="form-control" placeholder="Filter By Sim Number" value="{{ request('number') }}">
+                        </div>
+                    <div class="form-group col-md-12">
+                        <label for="emi">EMI Number</label>
+                        <input type="text" name="emi" class="form-control" placeholder="Filter By EMI Number" value="{{ request('emi') }}">
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="company">Company</label>
+                            <select class="form-control " id="company" name="company">
+                            @php
+                            $companies  = DB::table('sims')
+                                ->whereNotNull('company')
+                                ->select('company')
+                                ->distinct()
+                                ->pluck('company');
+                            @endphp
+                            <option value="" selected>Select</option>
+                            @foreach($companies as $company)
+                                <option value="{{ $company }}" {{ request('company') == $company ? 'selected' : '' }}>{{ $company }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="status">Status</label>
+                        <select class="form-control " id="status" name="status">
+                            <option value="" selected>Select</option>
+                            <option value='active' >Active</option>
+                            <option value='inactive' >Inactive</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12 form-group text-center">
+                        <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 
     @if(session('message'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -450,6 +493,15 @@ $(document).ready(function () {
 
 <script type="text/javascript">
 $(document).ready(function () {
+    // Filter sidebar functionality - open on hover
+    $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function(e) {
+        e.preventDefault();
+        console.log('Filter button hovered!'); // Debug line
+        $('#filterSidebar').addClass('open');
+        $('#filterOverlay').addClass('show');
+        return false;
+    });
+
     // Filter sidebar functionality
     $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
         console.log('Filter button clicked!'); // Debug line

@@ -27,10 +27,7 @@
          <th title="{{ $title }}" class="sorting" tabindex="0" rowspan="1" colspan="1">{{ $title }}</th>
          @endforeach
          <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-            <a class="openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
-         </th>
-         <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-            <a class="openColumnControlSidebar" href="javascript:void(0);" title="Column Control"> <i class="fa fa-columns"></i></a>
+            &nbsp;
          </th>
       </tr>
    </thead>
@@ -137,7 +134,6 @@
          <td tabindex="0">{{ data_get($r, $key, '-') }}</td>
          @endswitch
          @endforeach
-         <td></td>
          <td></td>
       </tr>
       @endforeach

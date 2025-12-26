@@ -66,3 +66,7 @@ select {
   z-index: 9999; /* Make sure it's above other content */
 
 }
+
+#dataTableBuilder thead th {
+  color: black !important;
+}

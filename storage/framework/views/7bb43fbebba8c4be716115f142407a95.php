@@ -4,6 +4,7 @@ $tableId = $tableId ?? 'dataTableBuilder';
 $tableColumns = $tableColumns ?? [];
 $exportRoute = $exportRoute ?? null;
 $tableIdentifier = $tableIdentifier ?? 'default_table';
+$fixedColumnsCount = 2; // Number of fixed action columns at the end (search, control)
 ?>
 
 <div id="columnControlSidebar" class="column-control-sidebar" style="z-index: 1111;">

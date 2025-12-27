@@ -112,11 +112,11 @@ class BikesController extends AppBaseController
     $statsQuery = clone $query;
     $stats = [
       'total' => $statsQuery->count(),
-      'active' => $statsQuery->clone()->where('status', 1)->count(),
-      'inactive' => $statsQuery->clone()->where('status', 2)->count(),
-      'onroad' => $statsQuery->clone()->where('warehouse', 'Active')->count(),
-      'offroad' => $statsQuery->clone()->whereIn('warehouse', ['Return', 'Vacation', 'Express Garage'])->count(),
-      'absconded' => $statsQuery->clone()->where('warehouse', 'Absconded')->count(),
+      'active' => $statsQuery->clone()->where('bikes.status', 1)->count(),
+      'inactive' => $statsQuery->clone()->where('bikes.status', 2)->count(),
+      'onroad' => $statsQuery->clone()->where('bikes.warehouse', 'Active')->count(),
+      'offroad' => $statsQuery->clone()->whereIn('bikes.warehouse', ['Return', 'Vacation', 'Express Garage'])->count(),
+      'absconded' => $statsQuery->clone()->where('bikes.warehouse', 'Absconded')->count(),
     ];
 
     // Apply pagination using the trait

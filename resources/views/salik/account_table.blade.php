@@ -27,17 +27,23 @@
                 @endif
             </td>
             <td>
-                <div class='btn-group'>
-                    <a href="{{ route('salik.tickets' , $r->id) }}" class='btn btn-default btn-xs'>
-                        <i class="fa fa-eye"></i>
-                    </a>
-                    <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}" class='btn btn-default btn-xs'>
-                        <i class="fa fa-edit"></i>
-                    </a>
-                    <a href="javascript:void(0);" onclick='confirmDelete("{{route('salik.deleteaccount', $r->id) }}")' class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Account">
-                        <i class="fa fa-trash"></i>
-                    </a>
+                <div class="dropdown">
+                    <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
+                        <a href="{{ route('salik.tickets', $r->id) }}" class="dropdown-item waves-effect">
+                            View
+                        </a>
+                        <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}"  class='dropdown-item waves-effect show-modal'>
+                            Edit
+                        </a>
+                        <a href="javascript:void(0);" onclick='confirmDelete("{{route('salik.deleteaccount', $r->id) }}")' class='dropdown-item confirm-modal' data-size="lg" data-title="Delete Account">
+                            Delete
+                        </a>
+                    </div>
                 </div>
+
             </td>
         </tr>
 
@@ -45,7 +51,7 @@
             <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Update Account</h5>
+                        <h5 class="modal-title">Update Account Details</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body" id="searchTopbody">

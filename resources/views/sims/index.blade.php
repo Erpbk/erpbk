@@ -16,20 +16,21 @@
   .sticky-statistics {
     background: white;
     border-bottom: 1px solid #dee2e6;
-    padding: 15px 0;
+    padding: 10px 0;
     margin-bottom: 0;
   }
 
   /* Make statistics cards compact */
   .sticky-statistics .totals-cards {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 0;
   }
 
   .sticky-statistics .total-card {
-    flex: 1 1 0;
+    flex: 1 1 calc(20% - 8px);
+    min-width: 120px;
     background: #fff;
     border: 1px solid #e5e7eb;
     border-left-width: 4px;
@@ -48,24 +49,32 @@
     letter-spacing: .3px;
     color: #6b7280;
     margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .sticky-statistics .total-card .label i {
     font-size: 10px;
+    flex-shrink: 0;
   }
 
   .sticky-statistics .total-card .value {
     font-size: 14px;
     font-weight: 700;
     color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Table container with scroll */
   .table-scroll-container {
-    max-height: calc(100vh - 300px);
+    max-height: calc(100vh - 350px);
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     position: relative;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   }
 
   /* Hide scrollbar for Chrome, Safari and Opera */
@@ -138,6 +147,15 @@
   /* Adjust table styling */
   #dataTableBuilder {
     margin-bottom: 0;
+    width: 100%;
+    min-width: 800px;
+  }
+
+  #dataTableBuilder td,
+  #dataTableBuilder th {
+    white-space: nowrap;
+    padding: 8px 12px;
+    vertical-align: middle;
   }
 
   /* Action Dropdown Styles */
@@ -303,15 +321,57 @@
 
     /* Responsive adjustments */
     @media (max-width: 768px) {
+        .sticky-statistics .totals-cards {
+        gap: 6px;
+        }
+        
+        .sticky-statistics .total-card {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 140px;
+        padding: 6px 8px;
+        }
+        
+        .sticky-statistics .total-card .label {
+        font-size: 9px;
+        }
+        
+        .sticky-statistics .total-card .value {
+        font-size: 12px;
+        }
+        
+        /* Reduce table cell padding on mobile */
+        #dataTableBuilder td,
+        #dataTableBuilder th {
+        padding: 6px 8px;
+        font-size: 12px;
+        }
+        
+        /* Make badges smaller on mobile */
+        .badge {
+        font-size: 10px !important;
+        padding: 3px 6px;
+        }
+        
+        /* Action dropdown adjustments */
         .action-dropdown-menu {
-            right: -20px;
-            min-width: 260px;
+        right: -20px;
+        min-width: 260px;
         }
 
         .action-dropdown-btn {
-            min-width: 120px;
-            padding: 10px 16px;
-            font-size: 13px;
+        min-width: 120px;
+        padding: 10px 16px;
+        font-size: 13px;
+        }
+        
+        /* Filter button on mobile */
+        .openFilterSidebar {
+        font-size: 12px;
+        padding: 6px 12px;
+        }
+        
+        .filter-sidebar {
+            width: 250px;
         }
     }
 </style>
@@ -319,21 +379,11 @@
 @endpush
 
 @section('content')
-    <section class="content-header">
+    <section class="content-header ">
         @include('flash::message')
-        <div class="container-fluid">
+        <div>
             <div class="row mb-2">
-                <div class="col-sm-6">
-                    {{-- @can('sim_create')
-                    <a class="btn btn-warning action-btn ms-2" style="margin-right: 5px;"
-                    href="{{ route('sims.trash') }}"  id="sim-trash-btn">
-                        Trash
-                    </a>
-                    @endcan --}}
-                    <!-- Filter Sidebar -->
-                    
-                </div>
-                <div class="col-sm-6">
+                <div class="col-sm-12 col-lg-12">
                     <div class="action-buttons d-flex justify-content-end" >
                     <div class="action-dropdown-container">
                         <button class="action-dropdown-btn" id="addSimDropdownBtn">
@@ -396,7 +446,7 @@
             <form id="filterForm" action="{{ route('sims.index') }}" method="GET">
                 @csrf
                 <div class="row">
-                    <div class="form-group col-md-12">
+                    <div class="form-group col-md-12 col-sm-12">
                             <label for="number">Sim Number</label>
                             <input type="text" name="number" class="form-control" placeholder="Filter By Sim Number" value="{{ request('number') }}">
                         </div>
@@ -436,21 +486,7 @@
         </div>
     </div>
 
-    @if(session('message'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ session('message') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            {{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    @endif
-
-
-    <div class="content px-3">
+    <div class="content">
         <div class="clearfix"></div>
         <div class="card">
             <div class="card-body table-responsive px-2 py-0" id="table-data">
@@ -458,6 +494,7 @@
             </div>
         </div>
     </div>
+
 @endsection
 
 @section('page-script')
@@ -503,6 +540,13 @@ $(document).ready(function () {
         $('#filterOverlay').addClass('show');
         return false;
     });
+
+    if ("{{ session('message') }}") {
+        toastr.success("{{ session('message') }}");
+    }
+    if ("{{ session('error') }}") {
+        toastr.error("{{ session('error') }}");
+    }
 
     // Filter sidebar functionality
     $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {

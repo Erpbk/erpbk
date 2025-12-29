@@ -188,16 +188,19 @@ class SalikController extends AppBaseController
         if ($request->filled('plate')) {
             $query->where('plate', 'like', '%' . $request->plate . '%');
         }
+
+        $paidAmount   = $query->clone()->where('status', 'paid')->sum('total_amount');
+        $unpaidAmount = $query->clone()->where('status', 'unpaid')->sum('total_amount');
+        $paidCount    = $query->clone()->where('status', 'paid')->where('salik_account_id', $id)->count();
+        $unpaidCount  = $query->clone()->where('status', 'unpaid')->where('salik_account_id', $id)->count();
+
         // Paginated data
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
         // All matching (filtered) data to calculate totals
         $filteredData = $query->get();
         // Calculate totals
-        $paidAmount   = $query->where('status', 'paid')->sum('total_amount');
-        $unpaidAmount = $query->where('status', 'unpaid')->sum('total_amount');
-        $paidCount    = salik::where('status', 'paid')->where('salik_account_id', $id)->count();
-        $unpaidCount  = salik::where('status', 'unpaid')->where('salik_account_id', $id)->count();
+        
         $account = Accounts::find($id);
         if ($request->ajax()) {
             $tableData = view('salik.table', [

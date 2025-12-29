@@ -7,10 +7,7 @@
             <th title="Rider" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Balance</th>
             <th title="Rider" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Admin Charges</th>
             <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Status</th>
-            <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action"><a data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a></th>
-            <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-                <a data-bs-toggle="modal" data-bs-target="#customoizecolmn" href="javascript:void(0);"> <i class="fa fa-filter"></i></a>
-            </th>
+            <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -30,26 +27,31 @@
                 @endif
             </td>
             <td>
-                <div class='btn-group'>
-                    <a href="{{ route('salik.tickets' , $r->id) }}" class='btn btn-default btn-xs'>
-                        <i class="fa fa-eye"></i>
-                    </a>
-                    <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}" class='btn btn-default btn-xs'>
-                        <i class="fa fa-edit"></i>
-                    </a>
-                    <a href="javascript:void(0);" onclick='confirmDelete("{{route('salik.deleteaccount', $r->id) }}")' class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Account">
-                        <i class="fa fa-trash"></i>
-                    </a>
+                <div class="dropdown">
+                    <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
+                        <a href="{{ route('salik.tickets', $r->id) }}" class="dropdown-item waves-effect">
+                            View
+                        </a>
+                        <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}"  class='dropdown-item waves-effect show-modal'>
+                            Edit
+                        </a>
+                        <a href="javascript:void(0);" onclick='confirmDelete("{{route('salik.deleteaccount', $r->id) }}")' class='dropdown-item confirm-modal' data-size="lg" data-title="Delete Account">
+                            Delete
+                        </a>
+                    </div>
                 </div>
+
             </td>
-            <td></td>
         </tr>
 
         <div class="modal modal-default filtetmodal fade" id="editaccount{{ $r->id }}" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Update Account</h5>
+                        <h5 class="modal-title">Update Account Details</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body" id="searchTopbody">

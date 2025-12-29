@@ -1,6 +1,19 @@
 @push('third_party_stylesheets')
 @endpush
 <style>
+   #dataTableBuilder {
+      margin-bottom: 0;
+      min-width: 800px; 
+      width: 100%;
+   }
+
+   #dataTableBuilder td,
+   #dataTableBuilder th {
+      white-space: nowrap;
+      padding: 8px 12px;
+      vertical-align: middle;
+   }
+
    td:focus,
    th:focus {
       outline: 2px solid #2196f3;
@@ -24,10 +37,11 @@
 
    /* Ensure table container is scrollable */
    .table-responsive {
-      max-height: calc(100vh - 300px);
+      max-height: calc(100vh - 240px);
       overflow-y: auto;
-      overflow-x: hidden;
+      overflow-x: auto;
       position: relative;
+      -webkit-overflow-scrolling: touch;
    }
 
    /* Hide scrollbar for Chrome, Safari and Opera */

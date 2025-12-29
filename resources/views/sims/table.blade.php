@@ -9,7 +9,7 @@
           <i class="fa fa-search"></i>
         </button> --}}
         <div></div>
-        <button class="btn btn-outline-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Sims</button>
+        <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Sims</button>
       </div>
       <div class="totals-cards">
         <div class="total-card total-sims">
@@ -131,7 +131,7 @@
                </div>
             </div>
         </td>
-        <td> </td>
+        <td> &nbsp;</td>
       </tr>
       @endforeach
     </tbody>

@@ -3,6 +3,32 @@
 /* Prevent word wrap in riders table headers */
 #dataTableBuilder thead th {
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+.table-responsive {
+    max-height: calc(100vh - 170px);
+    overflow-y: auto;
+    overflow-x: auto;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.table-responsive::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.table-responsive {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
 }
 
 /* Filter Sidebar Styles */
@@ -48,6 +74,8 @@
 
 .filter-body {
     padding: 1rem;
+    height: calc(100vh - 70px);
+    overflow-y: auto;
 }
 
 .filter-sidebar .btn-close {
@@ -1584,6 +1612,15 @@
 
     .fleet-stat-value {
         font-size: 20px;
+    }
+
+    .filter-sidebar {
+        width: 250px;
+    }
+
+    .openFilterSidebar {
+        font-size: 12px;
+        padding: 6px 12px;
     }
 }
 

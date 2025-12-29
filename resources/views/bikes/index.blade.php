@@ -180,13 +180,14 @@
 
     .totals-cards {
         display: flex;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         gap: 8px;
         margin: 0 10px 16px 10px;
     }
 
     .total-card {
-        flex: 1 1 0;
+        flex: 1 1 calc(16% - 8px);
+        min-width: 120px;
         background: #fff;
         border: 1px solid #e5e7eb;
         border-left-width: 4px;
@@ -205,16 +206,23 @@
         letter-spacing: .3px;
         color: #6b7280;
         margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .total-card .label i {
         font-size: 10px;
+        flex-shrink: 0;
     }
 
     .total-card .value {
         font-size: 14px;
         font-weight: 700;
         color: #111827;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .total-active {
@@ -283,14 +291,67 @@
             padding: 10px 16px;
             font-size: 13px;
         }
+
+        .totals-cards {
+        gap: 6px;
+        }
+        
+        .total-card {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 140px;
+        padding: 6px 8px;
+        }
+        
+        .total-card .label {
+        font-size: 9px;
+        }
+        
+        .total-card .value {
+        font-size: 12px;
+        }
+        
+        /* Reduce table cell padding on mobile */
+        #dataTableBuilder td,
+        #dataTableBuilder th {
+        padding: 6px 8px;
+        font-size: 12px;
+        }
+        
+        /* Make badges smaller on mobile */
+        .badge {
+        font-size: 10px !important;
+        padding: 3px 6px;
+        }
+        
+        /* Action dropdown adjustments */
+        .action-dropdown-menu {
+        right: -20px;
+        min-width: 260px;
+        }
+
+        .action-dropdown-btn {
+        min-width: 120px;
+        padding: 10px 16px;
+        font-size: 13px;
+        }
+        
+        /* Filter button on mobile */
+        .openFilterSidebar {
+        font-size: 12px;
+        padding: 6px 12px;
+        }
+
+        .filter-sidebar {
+            width: 250px;
+        }
     }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 @endpush
 
 @section('content')
-<section class="content-header">
-    <div class="container-fluid">
+<section class="row content-header">
+    <div>
         <div class="row mb-2">
             <div class="col-sm-6">
             </div>
@@ -500,14 +561,14 @@
 'tableIdentifier' => 'bikes_table'
 ])
 
-<div class="content container-fluid">
+<div class="content">
     @include('flash::message')
     <div class="card">
         <div class="card-header d-flex justify-content-between">
             <div class="card-search">
                 <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
             </div>
-            <button class="btn btn-outline-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Vehicles</button>
+            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Vehicles</button>
         </div>
         <div class="totals-cards">
             <div class="total-card total-bikes">

@@ -168,6 +168,9 @@ class RtaFinesController extends AppBaseController
         if ($request->filled('bike_id')) {
             $query->where('bike_id', $request->bike_id);
         }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
 
         // Paginated data
         // Apply pagination using the trait

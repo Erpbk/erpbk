@@ -178,8 +178,16 @@ class LedgerDataTable extends DataTable
         }
       } elseif ($row->reference_type == 'LV') {
         $visaex = DB::table('visa_expenses')->where('id', $row->reference_id)->first();
-        $rider = DB::Table('accounts')->where('id', $visaex->rider_id)->first();
-        $naration = 'Paid to <b>' . $rider->name . ' </b>' . $visaex->visa_status . 'Charges ' . $visaex->date . $view_file;
+        if ($visaex) {
+          $rider = DB::Table('accounts')->where('id', $visaex->rider_id)->first();
+          if ($rider) {
+            $naration = 'Paid to <b>' . $rider->name . ' </b>' . $visaex->visa_status . 'Charges ' . $visaex->date . $view_file;
+          } else {
+            $naration = $row->narration . ', ' . $view_file;
+          }
+        } else {
+          $naration = $row->narration . ', ' . $view_file;
+        }
       } else {
         $naration = $row->narration . ', ' . $view_file;
       }

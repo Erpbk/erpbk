@@ -15,6 +15,11 @@
                         Add New
                     </a>
                     @endcan
+                  @can('trash_view')
+                    <a class="btn btn-warning float-right me-2" href="{{ route('accounts.trash') }}">
+                        <i class="fa fa-trash-o"></i> View Trash
+                    </a>
+                    @endcan
                 </div>
             </div>
         </div>

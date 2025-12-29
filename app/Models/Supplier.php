@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Helpers\IConstants;
 
 class Supplier extends Model
 {
-    use LogsActivity, HasActiveStatus;
+    use LogsActivity, HasActiveStatus, SoftDeletes;
 
     public $table = 'suppliers';
 
@@ -36,6 +37,24 @@ class Supplier extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    protected $dates = ['deleted_at'];
+
+    /**
+     * Relationship: Get the account associated with this supplier
+     */
+    public function account()
+    {
+        return $this->hasOne(Accounts::class, 'id', 'account_id');
+    }
+
+    /**
+     * Relationship: Get all transactions for this supplier
+     */
+    public function transactions()
+    {
+        return $this->hasMany(Transactions::class, 'account_id', 'account_id');
+    }
 
     /**
      * Relationship: Get all items associated with this supplier

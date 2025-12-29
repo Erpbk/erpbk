@@ -12,11 +12,13 @@ use App\Models\LeasingCompanies;
 use App\Repositories\LeasingCompaniesRepository;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use App\Traits\HasTrashFunctionality;
+use App\Traits\TracksCascadingDeletions;
 use Flash;
 
 class LeasingCompaniesController extends AppBaseController
 {
-    use GlobalPagination;
+    use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
   /** @var LeasingCompaniesRepository $leasingCompaniesRepository*/
   private $leasingCompaniesRepository;
 
@@ -163,7 +165,7 @@ class LeasingCompaniesController extends AppBaseController
   }
 
   /**
-   * Remove the specified LeasingCompanies from storage.
+   * Remove the specified LeasingCompanies from storage (soft delete with cascade tracking).
    *
    * @throws \Exception
    */
@@ -173,19 +175,80 @@ class LeasingCompaniesController extends AppBaseController
 
     if (empty($leasingCompanies)) {
       return response()->json(['errors' => ['error' => 'Company not found!']], 422);
-
     }
 
-    if ($leasingCompanies->transactions->count() > 0) {
-      return response()->json(['errors' => ['error' => 'Company have transactions.!']], 422);
-    } else {
-      $leasingCompanies->account->delete();
+    // Check if leasing company has transactions - protect from deletion
+    if ($leasingCompanies->transactions()->count() > 0) {
+      return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has ' . $leasingCompanies->transactions()->count() . ' transaction(s). Please deactivate instead.']], 422);
     }
 
+    // Track cascaded deletions
+    $cascadedItems = [];
 
-    $this->leasingCompaniesRepository->delete($id);
+    // Get account data BEFORE deleting (important!)
+    $relatedAccount = $leasingCompanies->account;
 
-    return response()->json(['message' => 'Company deleted successfully.']);
+    // Soft delete the leasing company
+    $leasingCompanies->delete();
 
+    // Also soft delete the related account if exists and track it
+    if ($relatedAccount) {
+      $cascadedItems[] = [
+        'model' => 'Accounts',
+        'id' => $relatedAccount->id,
+        'name' => $relatedAccount->name,
+      ];
+
+      $relatedAccount->delete();
+
+      // Log the cascade
+      $this->trackCascadeDeletion(
+        'App\Models\LeasingCompanies',
+        $leasingCompanies->id,
+        $leasingCompanies->name,
+        'App\Models\Accounts',
+        $relatedAccount->id,
+        $relatedAccount->name,
+        'hasOne',
+        'account',
+        'soft'
+      );
+    }
+
+    // Build cascade message
+    $cascadeMessage = '';
+    if (!empty($cascadedItems)) {
+      $cascadeMessage = ' (Also deleted: ';
+      $parts = [];
+      foreach ($cascadedItems as $item) {
+        $parts[] = "{$item['model']}: {$item['name']}";
+      }
+      $cascadeMessage .= implode(', ', $parts) . ')';
+    }
+
+    return response()->json([
+      'message' => 'Leasing company moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=leasing_companies" class="alert-link">View Recycle Bin</a> to restore if needed.'
+    ]);
+  }
+
+  /**
+   * Get the model class for trash functionality
+   */
+  protected function getTrashModelClass()
+  {
+    return LeasingCompanies::class;
+  }
+
+  /**
+   * Get the trash configuration
+   */
+  protected function getTrashConfig()
+  {
+    return [
+      'name' => 'Leasing Company',
+      'display_columns' => ['name', 'contact_person', 'contact_number'],
+      'trash_view' => 'leasing_companies.trash',
+      'index_route' => 'leasingCompanies.index',
+    ];
   }
 }

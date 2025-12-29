@@ -1,0 +1,564 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use App\Models\Banks;
+use App\Models\Accounts;
+use App\Models\Customers;
+use App\Models\Vendors;
+use App\Models\Supplier;
+use App\Models\LeasingCompanies;
+use App\Models\Garages;
+use App\Models\Recruiters;
+use App\Models\Riders;
+use App\Models\Bikes;
+use App\Models\Sims;
+use App\Models\Items;
+use App\Models\DeletionCascade;
+use App\Traits\TracksCascadingDeletions;
+use Laracasts\Flash\Flash;
+
+class TrashController extends Controller
+{
+    use TracksCascadingDeletions;
+    /**
+     * List of models that support soft deletes
+     */
+    private $softDeleteModels = [
+        'banks' => [
+            'model' => Banks::class,
+            'name' => 'Banks',
+            'icon' => 'fa-bank',
+            'display_columns' => ['name', 'account_no', 'branch'],
+        ],
+        'accounts' => [
+            'model' => Accounts::class,
+            'name' => 'Accounts',
+            'icon' => 'fa-book',
+            'display_columns' => ['account_code', 'name', 'account_type'],
+        ],
+        'customers' => [
+            'model' => Customers::class,
+            'name' => 'Customers',
+            'icon' => 'fa-users',
+            'display_columns' => ['name', 'company_name', 'contact_number'],
+        ],
+        'vendors' => [
+            'model' => Vendors::class,
+            'name' => 'Vendors',
+            'icon' => 'fa-truck',
+            'display_columns' => ['name', 'email', 'contact_number'],
+        ],
+        'suppliers' => [
+            'model' => Supplier::class,
+            'name' => 'Suppliers',
+            'icon' => 'fa-industry',
+            'display_columns' => ['name', 'email', 'contact_number'],
+        ],
+        'leasing_companies' => [
+            'model' => LeasingCompanies::class,
+            'name' => 'Leasing Companies',
+            'icon' => 'fa-building',
+            'display_columns' => ['name', 'contact_person', 'contact_number'],
+        ],
+        'garages' => [
+            'model' => Garages::class,
+            'name' => 'Garages',
+            'icon' => 'fa-wrench',
+            'display_columns' => ['name', 'contact_person', 'contact_number'],
+        ],
+        'recruiters' => [
+            'model' => Recruiters::class,
+            'name' => 'Recruiters',
+            'icon' => 'fa-user-plus',
+            'display_columns' => ['name', 'email', 'contact_number'],
+        ],
+        'riders' => [
+            'model' => Riders::class,
+            'name' => 'Riders',
+            'icon' => 'fa-motorcycle',
+            'display_columns' => ['rider_id', 'name', 'personal_contact'],
+        ],
+        'bikes' => [
+            'model' => Bikes::class,
+            'name' => 'Bikes',
+            'icon' => 'fa-motorcycle',
+            'display_columns' => ['plate', 'model', 'chassis_number'],
+        ],
+        'sims' => [
+            'model' => Sims::class,
+            'name' => 'SIM Cards',
+            'icon' => 'fa-sim-card',
+            'display_columns' => ['number', 'company', 'status'],
+        ],
+        'items' => [
+            'model' => Items::class,
+            'name' => 'Items',
+            'icon' => 'fa-box',
+            'display_columns' => ['name', 'price', 'cost'],
+        ],
+    ];
+
+    /**
+     * Display centralized trash bin
+     */
+    public function index(Request $request)
+    {
+        // Check if user has permission to view trash
+        if (!auth()->user()->can('trash_view')) {
+            abort(403, 'You do not have permission to access the recycle bin.');
+        }
+
+        $moduleFilter = $request->get('module', 'all');
+        $searchQuery = $request->get('search', '');
+
+        $trashedRecords = [];
+        $totalCount = 0;
+
+        foreach ($this->softDeleteModels as $key => $config) {
+            // Check if user has either trash_view or module-specific permission
+            $hasPermission = auth()->user()->can('trash_view');
+
+            if (!$hasPermission) {
+                continue;
+            }
+
+            // Skip if filtering by specific module
+            if ($moduleFilter !== 'all' && $moduleFilter !== $key) {
+                continue;
+            }
+
+            $model = $config['model'];
+            $modelInstance = new $model;
+            $tableName = $modelInstance->getTable();
+
+            // Direct database query to fetch soft-deleted records
+            try {
+                $query = DB::table($tableName)
+                    ->whereNotNull('deleted_at');
+
+                // Apply search if provided
+                if ($searchQuery) {
+                    $query->where(function ($q) use ($config, $searchQuery) {
+                        foreach ($config['display_columns'] as $column) {
+                            $q->orWhere($column, 'like', '%' . $searchQuery . '%');
+                        }
+                    });
+                }
+
+                $records = $query->limit(100)
+                    ->orderBy('deleted_at', 'desc')
+                    ->get();
+
+                foreach ($records as $record) {
+                    // Check restore permission
+                    $canRestore = auth()->user()->can('trash_restore');
+
+                    // Check force delete permission
+                    $canForceDelete = auth()->user()->can('trash_force_delete');
+
+                    // Get cascade information - check if this was deleted as a cascade
+                    $causedBy = DeletionCascade::where('related_model', $config['model'])
+                        ->where('related_id', $record->id)
+                        ->with('deletedByUser')
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+
+                    // Get what this deletion cascaded to
+                    $cascadedTo = DeletionCascade::where('primary_model', $config['model'])
+                        ->where('primary_id', $record->id)
+                        ->with('deletedByUser')
+                        ->orderBy('created_at', 'desc')
+                        ->get();
+
+                    // Get the user who deleted this record
+                    $deletedByUser = null;
+                    if ($causedBy && $causedBy->deletedByUser) {
+                        $deletedByUser = $causedBy->deletedByUser;
+                    } elseif (isset($record->deleted_by) && $record->deleted_by) {
+                        $deletedByUser = \App\Models\User::find($record->deleted_by);
+                    }
+
+                    $trashedRecords[] = [
+                        'id' => $record->id,
+                        'module' => $key,
+                        'module_name' => $config['name'],
+                        'icon' => $config['icon'],
+                        'record' => $record,
+                        'display_columns' => $config['display_columns'],
+                        'deleted_at' => \Carbon\Carbon::parse($record->deleted_at),
+                        'can_restore' => $canRestore,
+                        'can_force_delete' => $canForceDelete,
+                        'caused_by' => $causedBy,
+                        'cascaded_to' => $cascadedTo,
+                        'deleted_by_user' => $deletedByUser,
+                    ];
+                    $totalCount++;
+                }
+            } catch (\Exception $e) {
+                // Log the error but continue processing other modules
+                Log::error("Error fetching trash for {$key}: " . $e->getMessage());
+                continue;
+            }
+        }
+
+        // Sort by deletion date (newest first)
+        usort($trashedRecords, function ($a, $b) {
+            return strtotime($b['deleted_at']) <=> strtotime($a['deleted_at']);
+        });
+
+        // Paginate manually
+        $perPage = 20;
+        $currentPage = $request->get('page', 1);
+        $offset = ($currentPage - 1) * $perPage;
+        $paginatedRecords = array_slice($trashedRecords, $offset, $perPage);
+
+        // Fetch cascade history directly from database
+        $cascadeHistory = DB::table('deletion_cascades')
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get();
+
+        return view('trash.index', [
+            'trashedRecords' => $paginatedRecords,
+            'modules' => $this->softDeleteModels,
+            'currentModule' => $moduleFilter,
+            'searchQuery' => $searchQuery,
+            'totalCount' => $totalCount,
+            'currentPage' => $currentPage,
+            'perPage' => $perPage,
+            'totalPages' => ceil($totalCount / $perPage),
+            'cascadeHistory' => $cascadeHistory,
+        ]);
+    }
+
+    /**
+     * Restore a deleted record
+     */
+    public function restore(Request $request, $module, $id)
+    {
+        if (!isset($this->softDeleteModels[$module])) {
+            Flash::error('Invalid module specified.');
+            return redirect()->route('trash.index');
+        }
+
+        $config = $this->softDeleteModels[$module];
+
+        // Check permission (either global trash_restore or module-specific)
+        $hasPermission = auth()->user()->can('trash_restore');
+
+        if (!$hasPermission) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $model = $config['model'];
+        $modelInstance = new $model;
+        $tableName = $modelInstance->getTable();
+
+        // Direct database query to check if record exists in trash
+        $record = DB::table($tableName)
+            ->where('id', $id)
+            ->whereNotNull('deleted_at')
+            ->first();
+
+        if (!$record) {
+            Flash::error('Record not found in trash.');
+            return redirect()->route('trash.index');
+        }
+
+        DB::beginTransaction();
+        try {
+            // Restore the primary record by setting deleted_at to NULL
+            DB::table($tableName)
+                ->where('id', $id)
+                ->update(['deleted_at' => null, 'updated_at' => now()]);
+
+            $restoredItems = [];
+
+            // DATABASE-DRIVEN: Fetch cascaded deletions from deletion_cascades table
+            $cascadedDeletions = DB::table('deletion_cascades')
+                ->where('primary_model', $config['model'])
+                ->where('primary_id', $id)
+                ->where('deletion_type', 'soft')
+                ->get();
+
+            // Restore each cascaded record based on database data
+            foreach ($cascadedDeletions as $cascade) {
+                // Find the related model class
+                $relatedModelClass = $cascade->related_model;
+
+                if (class_exists($relatedModelClass)) {
+                    try {
+                        $relatedModelInstance = new $relatedModelClass;
+                        $relatedTableName = $relatedModelInstance->getTable();
+
+                        // Restore related record directly in database
+                        $updated = DB::table($relatedTableName)
+                            ->where('id', $cascade->related_id)
+                            ->whereNotNull('deleted_at')
+                            ->update(['deleted_at' => null, 'updated_at' => now()]);
+
+                        if ($updated) {
+                            $restoredItems[] = class_basename($relatedModelClass) . ": {$cascade->related_name}";
+
+                            // Log the restoration
+                            activity()
+                                ->causedBy(auth()->user())
+                                ->withProperties([
+                                    'restored_with' => $config['model'],
+                                    'primary_id' => $id,
+                                    'cascade_type' => 'automatic',
+                                    'model' => $relatedModelClass,
+                                    'record_id' => $cascade->related_id,
+                                ])
+                                ->log('restored (cascaded from primary record)');
+                        }
+                    } catch (\Exception $e) {
+                        Log::error("Error restoring cascaded record: " . $e->getMessage());
+                        continue;
+                    }
+                }
+            }
+
+            DB::commit();
+
+            // Build restoration message
+            $message = $config['name'] . ' restored successfully.';
+            if (!empty($restoredItems)) {
+                $message .= ' (Also restored: ' . implode(', ', $restoredItems) . ')';
+            }
+
+            Flash::success($message);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Flash::error('Failed to restore record: ' . $e->getMessage());
+        }
+
+        return redirect()->route('trash.index');
+    }
+
+    /**
+     * Permanently delete a record
+     */
+    public function forceDestroy(Request $request, $module, $id)
+    {
+        if (!isset($this->softDeleteModels[$module])) {
+            Flash::error('Invalid module specified.');
+            return redirect()->route('trash.index');
+        }
+
+        $config = $this->softDeleteModels[$module];
+
+        // Check permission (either global trash_force_delete or module-specific)
+        $hasPermission = auth()->user()->can('trash_force_delete');
+
+        if (!$hasPermission) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $model = $config['model'];
+        $modelInstance = new $model;
+        $tableName = $modelInstance->getTable();
+
+        // Direct database query to check if record exists in trash
+        $record = DB::table($tableName)
+            ->where('id', $id)
+            ->whereNotNull('deleted_at')
+            ->first();
+
+        if (!$record) {
+            Flash::error('Record not found in trash.');
+            return redirect()->route('trash.index');
+        }
+
+        DB::beginTransaction();
+        try {
+            $deletedItems = [];
+
+            // DATABASE-DRIVEN: Fetch all cascaded deletions from deletion_cascades table
+            $cascadedDeletions = DB::table('deletion_cascades')
+                ->where('primary_model', $config['model'])
+                ->where('primary_id', $id)
+                ->get();
+
+            // Check for business constraints before permanent deletion
+            // Check constraint tables directly from database
+            $constraintTables = [
+                'transactions' => ['account_id', 'customer_id', 'vendor_id', 'supplier_id'],
+                'invoices' => ['customer_id', 'vendor_id'],
+                'vouchers' => ['account_id', 'bank_id'],
+                'journal_entries' => ['account_id'],
+            ];
+
+            foreach ($constraintTables as $constraintTable => $foreignKeys) {
+                try {
+                    foreach ($foreignKeys as $foreignKey) {
+                        // Check if this table and foreign key combination has any records
+                        if (Schema::hasColumn($constraintTable, $foreignKey)) {
+                            $count = DB::table($constraintTable)
+                                ->where($foreignKey, $id)
+                                ->count();
+
+                            if ($count > 0) {
+                                DB::rollBack();
+                                Flash::error("Cannot permanently delete {$config['name']}. Record has {$count} related records in {$constraintTable}.");
+                                return redirect()->route('trash.index');
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Table might not exist, continue checking other constraints
+                    continue;
+                }
+            }
+
+            // Check cascaded records for constraints
+            foreach ($cascadedDeletions as $cascade) {
+                $relatedModelClass = $cascade->related_model;
+
+                if (class_exists($relatedModelClass)) {
+                    try {
+                        $relatedModelInstance = new $relatedModelClass;
+                        $relatedTableName = $relatedModelInstance->getTable();
+
+                        // Check constraints for related records
+                        foreach ($constraintTables as $constraintTable => $foreignKeys) {
+                            foreach ($foreignKeys as $foreignKey) {
+                                try {
+                                    if (Schema::hasColumn($constraintTable, $foreignKey)) {
+                                        $count = DB::table($constraintTable)
+                                            ->where($foreignKey, $cascade->related_id)
+                                            ->count();
+
+                                        if ($count > 0) {
+                                            DB::rollBack();
+                                            Flash::error("Cannot permanently delete {$config['name']}. Related " .
+                                                class_basename($relatedModelClass) .
+                                                " ({$cascade->related_name}) has {$count} related records in {$constraintTable}.");
+                                            return redirect()->route('trash.index');
+                                        }
+                                    }
+                                } catch (\Exception $e) {
+                                    continue;
+                                }
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::error("Error checking constraints for cascaded record: " . $e->getMessage());
+                        continue;
+                    }
+                }
+            }
+
+            // DATABASE-DRIVEN: Permanently delete all cascaded records
+            foreach ($cascadedDeletions as $cascade) {
+                $relatedModelClass = $cascade->related_model;
+
+                if (class_exists($relatedModelClass)) {
+                    try {
+                        $relatedModelInstance = new $relatedModelClass;
+                        $relatedTableName = $relatedModelInstance->getTable();
+
+                        // Permanently delete from database
+                        DB::table($relatedTableName)
+                            ->where('id', $cascade->related_id)
+                            ->delete();
+
+                        $deletedItems[] = class_basename($relatedModelClass) . ": {$cascade->related_name}";
+
+                        // Log the permanent deletion
+                        activity()
+                            ->causedBy(auth()->user())
+                            ->withProperties([
+                                'deleted_with' => $config['model'],
+                                'primary_id' => $id,
+                                'cascade_type' => 'automatic',
+                                'model' => $relatedModelClass,
+                                'record_id' => $cascade->related_id,
+                                'record_name' => $cascade->related_name,
+                            ])
+                            ->log('force deleted (cascaded from primary record)');
+                    } catch (\Exception $e) {
+                        Log::error("Error deleting cascaded record: " . $e->getMessage());
+                        continue;
+                    }
+                }
+            }
+
+            // Remove all cascade records associated with this deletion
+            DB::table('deletion_cascades')
+                ->where('primary_model', $config['model'])
+                ->where('primary_id', $id)
+                ->delete();
+
+            DB::table('deletion_cascades')
+                ->where('related_model', $config['model'])
+                ->where('related_id', $id)
+                ->delete();
+
+            // Permanently delete the primary record from database
+            DB::table($tableName)
+                ->where('id', $id)
+                ->delete();
+
+            DB::commit();
+
+            // Build deletion message
+            $message = $config['name'] . ' permanently deleted.';
+            if (!empty($deletedItems)) {
+                $message .= ' (Also permanently deleted: ' . implode(', ', $deletedItems) . ')';
+            }
+
+            Flash::success($message);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Flash::error('Failed to permanently delete record: ' . $e->getMessage());
+        }
+
+        return redirect()->route('trash.index');
+    }
+
+    /**
+     * Get trash statistics
+     */
+    public function stats()
+    {
+        $stats = [];
+
+        foreach ($this->softDeleteModels as $key => $config) {
+            if (!auth()->user()->can('trash_view')) {
+                continue;
+            }
+
+            $model = $config['model'];
+
+            try {
+                $modelInstance = new $model;
+                $tableName = $modelInstance->getTable();
+
+                // Direct database query to count soft-deleted records
+                $count = DB::table($tableName)
+                    ->whereNotNull('deleted_at')
+                    ->count();
+
+                if ($count > 0) {
+                    $stats[] = [
+                        'module' => $key,
+                        'name' => $config['name'],
+                        'icon' => $config['icon'],
+                        'count' => $count,
+                    ];
+                }
+            } catch (\Exception $e) {
+                Log::error("Error fetching stats for {$key}: " . $e->getMessage());
+                continue;
+            }
+        }
+
+        return response()->json($stats);
+    }
+}

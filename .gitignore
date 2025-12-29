@@ -2,8 +2,8 @@
 /node_modules
 /vendor
 /vendor1
-yarn.lock
-package-lock.json
+/yarn.lock
+/package-lock.json
 *.lock
 
 # Environment
@@ -12,43 +12,60 @@ package-lock.json
 .env.example
 .env.production
 *.env
+.env.local
 
-# Laravel generated files
-/storage/framework/sessions/*
-/storage/framework/views/*
-/storage/framework/cache/*
-!/storage/framework/sessions/.gitkeep
-!/storage/framework/views/.gitkeep
+# Laravel
+/bootstrap/cache/
+/storage/*.key
+/storage/framework/cache/
+/storage/framework/sessions/
+/storage/framework/testing/
+/storage/framework/views/
+/storage/logs/
 !/storage/framework/cache/.gitkeep
-
-# Storage
+!/storage/framework/sessions/.gitkeep
+!/storage/framework/testing/.gitkeep
+!/storage/framework/views/.gitkeep
 /public/hot
 /public/storage
-/storage/*.key
-storage/framework/sessions/*
-storage/framework/views/*
+
+# Testing
+.phpunit.result.cache
+.coverage/
 
 # IDE
 /.idea
 /.vscode
 *.swp
 *.swo
+*.sublime-*
 
-# Testing
-.phpunit.result.cache
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+[Tt]humbs.db
+Thumbs.db
 
 # Deployment
 docker-compose.override.yml
 Homestead.json
 Homestead.yaml
+Vagrantfile
 
 # Logs
 npm-debug.log
 yarn-error.log
+*.log
 
 # Archives
 *.zip
+*.tar.gz
+*.rar
 
-# Operating System files
-.DS_Store
-Thumbs.db
+# Misc
+*.sql
+*.sqlite

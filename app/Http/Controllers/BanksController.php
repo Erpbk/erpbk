@@ -17,11 +17,12 @@ use App\Models\Transactions;
 use App\Repositories\BanksRepository;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
 use Flash;
 
 class BanksController extends AppBaseController
 {
-    use GlobalPagination;
+  use GlobalPagination, TracksCascadingDeletions;
   /** @var BanksRepository $banksRepository*/
   private $banksRepository;
 
@@ -40,7 +41,7 @@ class BanksController extends AppBaseController
       abort(403, 'Unauthorized action.');
     }
     // Use global pagination trait
-        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Banks::query()
       ->orderBy('id', 'asc');
     if ($request->has('name') && !empty($request->name)) {
@@ -59,7 +60,7 @@ class BanksController extends AppBaseController
       $query->where('status', $request->status);
     }
     // Apply pagination using the trait
-        $data = $this->applyPagination($query, $paginationParams);
+    $data = $this->applyPagination($query, $paginationParams);
     if ($request->ajax()) {
       $tableData = view('banks.table', [
         'data' => $data,
@@ -171,7 +172,7 @@ class BanksController extends AppBaseController
   }
 
   /**
-   * Remove the specified Banks from storage.
+   * Remove the specified Banks from storage (soft delete).
    *
    * @throws \Exception
    */
@@ -182,21 +183,163 @@ class BanksController extends AppBaseController
 
     if (empty($banks)) {
       Flash::error('Bank not found!');
+      return redirect(route('banks.index'));
     }
 
+    // Check if bank has transactions
+    if ($banks->transactions()->count() > 0) {
+      Flash::error('Cannot delete bank. Bank has ' . $banks->transactions()->count() . ' transaction(s). Please deactivate instead.');
+      return redirect(route('banks.index'));
+    }
 
-    if ($banks->transactions->count() > 0) {
-      Flash::error('Bank have transactions!');
-    } else {
+    // Track cascaded deletions
+    $cascadedItems = [];
 
-      if ($banks->account) {
-        $banks->account->delete();
+    // Get account data BEFORE deleting (important!)
+    $relatedAccount = $banks->account;
+
+    // Soft delete the bank
+    $banks->delete();
+
+    // Also soft delete the related account if exists and track it
+    if ($relatedAccount) {
+      $cascadedItems[] = [
+        'model' => 'Accounts',
+        'id' => $relatedAccount->id,
+        'name' => $relatedAccount->name,
+      ];
+
+      $relatedAccount->delete();
+
+      // Log the cascade
+      $this->trackCascadeDeletion(
+        'App\Models\Banks',
+        $banks->id,
+        $banks->name,
+        'App\Models\Accounts',
+        $relatedAccount->id,
+        $relatedAccount->name,
+        'hasOne',
+        'account',
+        'soft'
+      );
+    }
+
+    // Build cascade message
+    $cascadeMessage = '';
+    if (!empty($cascadedItems)) {
+      $cascadeMessage = ' (Also deleted: ';
+      $parts = [];
+      foreach ($cascadedItems as $item) {
+        $parts[] = "{$item['model']}: {$item['name']}";
       }
-      $this->banksRepository->delete($id);
-      Flash::success('Bank deleted successfully.');
+      $cascadeMessage .= implode(', ', $parts) . ')';
     }
+
+    Flash::success('Bank moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=banks" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
     return redirect(route('banks.index'));
   }
+
+  // ========================================================================
+  // DEPRECATED: Old trash methods - now handled by centralized TrashController
+  // These methods are kept for backward compatibility but should not be used
+  // Use /trash route instead for all trash operations
+  // ========================================================================
+
+  /*
+  public function trashed(Request $request)
+  {
+    if (!auth()->user()->hasPermissionTo('bank_view_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+
+    $query = Banks::onlyTrashed()
+      ->orderBy('deleted_at', 'desc');
+
+    // Apply same filters as index
+    if ($request->has('name') && !empty($request->name)) {
+      $query->where('name', 'like', '%' . $request->name . '%');
+    }
+    if ($request->has('account_no') && !empty($request->account_no)) {
+      $query->where('account_no', $request->account_no);
+    }
+
+    $data = $this->applyPagination($query, $paginationParams);
+
+    if ($request->ajax()) {
+      $tableData = view('banks.trashed_table', [
+        'data' => $data,
+      ])->render();
+      $paginationLinks = $data->links('components.global-pagination')->render();
+      return response()->json([
+        'tableData' => $tableData,
+        'paginationLinks' => $paginationLinks,
+      ]);
+    }
+
+    return view('banks.trashed', [
+      'data' => $data,
+    ]);
+  }
+
+  public function restore($id)
+  {
+    if (!auth()->user()->hasPermissionTo('bank_view_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $bank = Banks::onlyTrashed()->find($id);
+
+    if (empty($bank)) {
+      Flash::error('Bank not found in trash!');
+      return redirect(route('banks.trashed'));
+    }
+
+    // Restore the bank
+    $bank->restore();
+
+    // Restore the related account if it was soft deleted
+    if ($bank->account && $bank->account->trashed()) {
+      $bank->account->restore();
+    }
+
+    Flash::success('Bank restored successfully.');
+    return redirect(route('banks.index'));
+  }
+
+  public function forceDestroy($id)
+  {
+    if (!auth()->user()->hasPermissionTo('bank_view_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $bank = Banks::onlyTrashed()->find($id);
+
+    if (empty($bank)) {
+      Flash::error('Bank not found in trash!');
+      return redirect(route('banks.trashed'));
+    }
+
+    // Check if bank has any transactions (even soft deleted)
+    if ($bank->transactions()->withTrashed()->count() > 0) {
+      Flash::error('Cannot permanently delete bank. Bank has transaction history.');
+      return redirect(route('banks.trashed'));
+    }
+
+    // Permanently delete the related account
+    if ($bank->account) {
+      $bank->account->forceDelete();
+    }
+
+    // Permanently delete the bank
+    $bank->forceDelete();
+
+    Flash::success('Bank permanently deleted.');
+    return redirect(route('banks.trashed'));
+  }
+  */
   public function ledger($id, LedgerDataTable $ledgerDataTable)
   {
     $banks = Banks::find($id);

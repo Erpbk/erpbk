@@ -15,11 +15,13 @@ use App\Models\Transactions;
 use App\Repositories\CustomersRepository;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use App\Traits\HasTrashFunctionality;
+use App\Traits\TracksCascadingDeletions;
 use Flash;
 
 class CustomersController extends AppBaseController
 {
-    use GlobalPagination;
+  use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
   /** @var CustomersRepository $customersRepository*/
   private $customersRepository;
 
@@ -38,35 +40,35 @@ class CustomersController extends AppBaseController
       abort(403, 'Unauthorized action.');
     }
     // Use global pagination trait
-        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Customers::query()
-        ->orderBy('id', 'asc');
+      ->orderBy('id', 'asc');
     if ($request->has('name') && !empty($request->name)) {
-        $query->where('name', 'like', '%' . $request->name . '%');
+      $query->where('name', 'like', '%' . $request->name . '%');
     }
     if ($request->has('company_name') && !empty($request->company_name)) {
-        $query->where('company_name',$request->company_name);
+      $query->where('company_name', $request->company_name);
     }
     if ($request->has('account_id') && !empty($request->account_id)) {
-        $query->where('account_id',$request->account_id);
+      $query->where('account_id', $request->account_id);
     }
     if ($request->has('status') && !empty($request->status)) {
-        $query->where('status', $request->status);
+      $query->where('status', $request->status);
     }
     // Apply pagination using the trait
-        $data = $this->applyPagination($query, $paginationParams);
+    $data = $this->applyPagination($query, $paginationParams);
     if ($request->ajax()) {
-        $tableData = view('customers.table', [
-            'data' => $data,
-        ])->render();
-        $paginationLinks = $data->links('components.global-pagination')->render();
-        return response()->json([
-            'tableData' => $tableData,
-            'paginationLinks' => $paginationLinks,
-        ]);
+      $tableData = view('customers.table', [
+        'data' => $data,
+      ])->render();
+      $paginationLinks = $data->links('components.global-pagination')->render();
+      return response()->json([
+        'tableData' => $tableData,
+        'paginationLinks' => $paginationLinks,
+      ]);
     }
     return view('customers.index', [
-        'data' => $data,
+      'data' => $data,
     ]);
   }
 
@@ -107,7 +109,8 @@ class CustomersController extends AppBaseController
     $customers->account_id = $account->id;
     $customers->save();
 
-    return response()->json(['message' => 'Customer added successfully.']);
+    Flash::success('Customer added successfully.');
+    return redirect(route('customers.index'));
   }
 
   /**
@@ -118,7 +121,7 @@ class CustomersController extends AppBaseController
     $customers = $this->customersRepository->find($id);
 
     if (empty($customers)) {
-      Flash::error('Customers not found');
+      Flash::error('Customer not found');
 
       return redirect(route('customers.index'));
     }
@@ -134,7 +137,7 @@ class CustomersController extends AppBaseController
     $customers = $this->customersRepository->find($id);
 
     if (empty($customers)) {
-      Flash::error('Customers not found');
+      Flash::error('Customer not found');
 
       return redirect(route('customers.index'));
     }
@@ -150,7 +153,8 @@ class CustomersController extends AppBaseController
     $customers = $this->customersRepository->find($id);
 
     if (empty($customers)) {
-      return response()->json(['errors' => ['error' => 'Customer not found!']], 422);
+      Flash::error('Customer not found!');
+      return redirect(route('customers.index'));
     }
 
     $customers = $this->customersRepository->update($request->all(), $id);
@@ -158,11 +162,12 @@ class CustomersController extends AppBaseController
     $customers->account->status = $customers->status;
     $customers->save();
 
-    return response()->json(['message' => 'Customer updated successfully.']);
+    Flash::success('Customer updated successfully.');
+    return redirect(route('customers.index'));
   }
 
   /**
-   * Remove the specified Customers from storage.
+   * Remove the specified Customers from storage (soft delete with cascade tracking).
    *
    * @throws \Exception
    */
@@ -171,24 +176,62 @@ class CustomersController extends AppBaseController
     $customers = $this->customersRepository->find($id);
 
     if (empty($customers)) {
-      return response()->json(['errors' => ['error' => 'Customer not found!']], 422);
+      Flash::error('Customer not found!');
+      return redirect(route('customers.index'));
     }
 
+    // Check if customer has transactions - protect from deletion
+    if ($customers->transactions()->count() > 0) {
+      Flash::error('Cannot delete customer. Customer has ' . $customers->transactions()->count() . ' transaction(s). Please deactivate instead.');
+      return redirect(route('customers.index'));
+    }
 
-    if ($customers->transactions->count() > 0) {
-      return response()->json(['errors' => ['error' => 'Customer have transactions!']], 422);
+    // Track cascaded deletions
+    $cascadedItems = [];
 
-    } else {
+    // Get account data BEFORE deleting (important!)
+    $relatedAccount = $customers->account;
 
-      if ($customers->account) {
-        $customers->account->delete();
+    // Soft delete the customer
+    $customers->delete();
+
+    // Also soft delete the related account if exists and track it
+    if ($relatedAccount) {
+      $cascadedItems[] = [
+        'model' => 'Accounts',
+        'id' => $relatedAccount->id,
+        'name' => $relatedAccount->name,
+      ];
+
+      $relatedAccount->delete();
+
+      // Log the cascade
+      $this->trackCascadeDeletion(
+        'App\Models\Customers',
+        $customers->id,
+        $customers->name,
+        'App\Models\Accounts',
+        $relatedAccount->id,
+        $relatedAccount->name,
+        'hasOne',
+        'account',
+        'soft'
+      );
+    }
+
+    // Build cascade message
+    $cascadeMessage = '';
+    if (!empty($cascadedItems)) {
+      $cascadeMessage = ' (Also deleted: ';
+      $parts = [];
+      foreach ($cascadedItems as $item) {
+        $parts[] = "{$item['model']}: {$item['name']}";
       }
-      $this->customersRepository->delete($id);
-
+      $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
-
-    return response()->json(['message' => 'Customer deleted successfully.']);
+    Flash::success('Customer moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=customers" class="alert-link">View Recycle Bin</a> to restore if needed.');
+    return redirect(route('customers.index'));
   }
 
   public function ledger($id, LedgerDataTable $ledgerDataTable)
@@ -203,5 +246,26 @@ class CustomersController extends AppBaseController
   public function files($id, FilesDataTable $filesDataTable)
   {
     return $filesDataTable->with(['type_id' => $id, 'type' => 'customer'])->render('customers.document');
+  }
+
+  /**
+   * Get the model class for trash functionality
+   */
+  protected function getTrashModelClass()
+  {
+    return Customers::class;
+  }
+
+  /**
+   * Get the trash configuration
+   */
+  protected function getTrashConfig()
+  {
+    return [
+      'name' => 'Customer',
+      'display_columns' => ['name', 'company_name', 'contact_number'],
+      'trash_view' => 'customers.trash',
+      'index_route' => 'customers.index',
+    ];
   }
 }

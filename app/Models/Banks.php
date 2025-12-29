@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 
 class Banks extends Model
 {
-  use LogsActivity, HasActiveStatus;
+  use SoftDeletes, LogsActivity, HasActiveStatus;
 
   public $table = 'banks';
 
@@ -36,8 +37,16 @@ class Banks extends Model
     'account_type' => 'string',
     'balance' => 'decimal:2',
     'status' => 'integer',
-    'notes' => 'string'
+    'notes' => 'string',
+    'deleted_at' => 'datetime'
   ];
+
+  /**
+   * The attributes that should be included in the model's array form.
+   *
+   * @var array
+   */
+  protected $dates = ['deleted_at'];
 
   public static array $rules = [
     'name' => 'required|string|max:255',

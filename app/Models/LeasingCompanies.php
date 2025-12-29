@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
 class LeasingCompanies extends Model
 {
-    use LogsActivity;
+    use LogsActivity, SoftDeletes;
 
   public $table = 'leasing_companies';
 
@@ -27,6 +28,8 @@ class LeasingCompanies extends Model
     'detail' => 'string'
 
   ];
+
+  protected $dates = ['deleted_at'];
 
   public static array $rules = [
     'name' => 'nullable|string|max:255',

@@ -14,6 +14,9 @@ use App\Helpers\Account;
 use App\DataTables\LedgerDataTable;
 use App\Models\Transactions;
 use App\Models\Files;
+use App\Traits\HasTrashFunctionality;
+use App\Traits\TracksCascadingDeletions;
+use Illuminate\Support\Facades\DB;
 use Flash;
 
 
@@ -21,7 +24,7 @@ use Flash;
 
 class SupplierController extends AppBaseController
 {
-  use GlobalPagination;
+  use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
   public function index(Request $request)
   {
     // Use global pagination trait
@@ -115,7 +118,8 @@ class SupplierController extends AppBaseController
     $supplier->account_id = $account->id;
     $supplier->save();
 
-    return response()->json(['message' => 'Supplier created successfully.']);
+    Flash::success('Supplier created successfully.');
+    return redirect(route('suppliers.index'));
   }
 
 
@@ -131,16 +135,8 @@ class SupplierController extends AppBaseController
       return redirect(route('suppliers.index'));
     }
 
-    if (!$supplier->account_id) {
-      Flash::error('Supplier has no associated account_id. Run /suppliers/update-accounts to create accounts.');
-      return redirect(route('suppliers.index'));
-    }
-
-    $files = Transactions::where('account_id', $supplier->account_id)->get();
-
     return view('suppliers.show', [
       'supplier' => $supplier,
-      'files' => $files
     ]);
   }
 
@@ -169,7 +165,8 @@ class SupplierController extends AppBaseController
 
     $supplier = Supplier::all();
 
-    return redirect()->route('suppliers.index')->with('success', 'Supplier updated successfully.');
+    Flash::success('Supplier updated successfully.');
+    return redirect(route('suppliers.index'));
 
     $parentAccount = Accounts::updateOrCreate(
       ['name' => 'Supplier', 'account_type' => 'Liability', 'parent_id' => null],
@@ -193,45 +190,76 @@ class SupplierController extends AppBaseController
 
   public function destroy(Supplier $supplier)
   {
-    DB::beginTransaction();
-    try {
-      // ✅ FIX: Check for transactions and ledger entries before deleting account
-      if ($supplier->account_id) {
-        // Check if account has any transactions
-        $transactionsCount = Transactions::where('account_id', $supplier->account_id)->count();
-
-        if ($transactionsCount > 0) {
-          Flash::error("Cannot delete supplier. The supplier account has {$transactionsCount} transaction(s). Please remove all transactions first.");
-          return redirect()->back();
-        }
-
-        // Check if account has any ledger entries
-        $ledgerEntriesCount = DB::table('ledger_entries')
-          ->where('account_id', $supplier->account_id)
-          ->count();
-
-        if ($ledgerEntriesCount > 0) {
-          Flash::error("Cannot delete supplier. The supplier account has {$ledgerEntriesCount} ledger entry(ies). Please clear all ledger entries first.");
-          return redirect()->back();
-        }
-
-        // Safe to delete account now
-        Accounts::where('id', $supplier->account_id)->delete();
-        \Log::info("Deleted account ID: {$supplier->account_id} for supplier ID: {$supplier->id}");
-      }
-
-      // Delete the supplier
-      $supplier->delete();
-
-      DB::commit();
-      Flash::success('Supplier and its account deleted successfully.');
-    } catch (\Exception $e) {
-      DB::rollBack();
-      \Log::error("Error deleting Supplier ID: {$supplier->id} - " . $e->getMessage());
-      Flash::error('Error deleting Supplier: ' . $e->getMessage());
+    // Check if supplier has transactions - protect from deletion
+    if ($supplier->transactions()->count() > 0) {
+      Flash::error('Cannot delete supplier. Supplier has ' . $supplier->transactions()->count() . ' transaction(s). Please deactivate instead.');
+      return redirect(route('suppliers.index'));
     }
 
-    return redirect()->route('suppliers.index');
+    // Check if supplier account has ledger entries before deletion
+    if ($supplier->account) {
+      $ledgerEntriesCount = DB::table('ledger_entries')
+        ->where('account_id', $supplier->account->id)
+        ->count();
+
+      if ($ledgerEntriesCount > 0) {
+        Flash::error("Cannot delete supplier. The supplier account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.");
+        return redirect(route('suppliers.index'));
+      }
+    }
+
+    // Track cascaded deletions
+    $cascadedItems = [];
+
+    // Get account data BEFORE deleting (important!)
+    $relatedAccount = $supplier->account;
+
+    // Soft delete the supplier
+    $supplier->delete();
+
+    // Also soft delete the related account if exists and track it
+    if ($relatedAccount) {
+      $cascadedItems[] = [
+        'model' => 'Accounts',
+        'id' => $relatedAccount->id,
+        'name' => $relatedAccount->name,
+      ];
+
+      $relatedAccount->delete();
+
+      // Log the cascade
+      $this->trackCascadeDeletion(
+        'App\Models\Supplier',
+        $supplier->id,
+        $supplier->name,
+        'App\Models\Accounts',
+        $relatedAccount->id,
+        $relatedAccount->name,
+        'hasOne',
+        'account',
+        'soft'
+      );
+    }
+
+    // Build cascade message
+    $cascadeMessage = '';
+    if (!empty($cascadedItems)) {
+      $cascadeMessage = ' (Also deleted: ';
+      $parts = [];
+      foreach ($cascadedItems as $item) {
+        $parts[] = "{$item['model']}: {$item['name']}";
+      }
+      $cascadeMessage .= implode(', ', $parts) . ')';
+    }
+
+    // Return JSON response for AJAX calls or Flash + redirect for regular requests
+    if (request()->expectsJson() || request()->ajax()) {
+      Flash::success('Supplier moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=suppliers" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
+      return redirect(route('suppliers.index'));
+    }
+
+    Flash::success('Supplier moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=suppliers" class="alert-link">View Recycle Bin</a> to restore if needed.');
+    return redirect(route('suppliers.index'));
   }
 
   public function ledger($id, LedgerDataTable $ledgerDataTable)
@@ -312,5 +340,26 @@ class SupplierController extends AppBaseController
     $supplier = Supplier::find($supplier_id);
 
     return view('suppliers.document', compact('files', 'supplier'));
+  }
+
+  /**
+   * Get the model class for trash functionality
+   */
+  protected function getTrashModelClass()
+  {
+    return Supplier::class;
+  }
+
+  /**
+   * Get the trash configuration
+   */
+  protected function getTrashConfig()
+  {
+    return [
+      'name' => 'Supplier',
+      'display_columns' => ['name', 'email', 'contact_number'],
+      'trash_view' => 'suppliers.trash',
+      'index_route' => 'suppliers.index',
+    ];
   }
 }

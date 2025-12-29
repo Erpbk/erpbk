@@ -11,12 +11,15 @@ use App\Models\Recruiters;
 use App\Repositories\RecruitersRepository;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use App\Traits\HasTrashFunctionality;
+use App\Traits\TracksCascadingDeletions;
+use Illuminate\Support\Facades\DB;
 use Flash;
 use App\Models\Riders;
 
 class RecruitersController extends AppBaseController
 {
-    use GlobalPagination;
+    use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
     /** @var RecruitersRepository $recruitersRepository*/
     private $recruitersRepository;
 
@@ -156,7 +159,7 @@ class RecruitersController extends AppBaseController
     }
 
     /**
-     * Remove the specified Recruiters from storage.
+     * Remove the specified Recruiters from storage (soft delete with cascade tracking).
      *
      * @throws \Exception
      */
@@ -168,16 +171,75 @@ class RecruitersController extends AppBaseController
             return response()->json(['errors' => ['error' => 'Recruiter not found!']], 422);
         }
 
-
-        if ($recruiter->transactions->count() > 0) {
-            return response()->json(['errors' => ['error' => 'Recruiter have transactions!']], 422);
-        } else {
-            // Remove the account deletion
-            $this->recruitersRepository->delete($id);
+        // Check if recruiter has transactions - protect from deletion
+        if ($recruiter->transactions()->count() > 0) {
+            return response()->json(['errors' => ['error' => 'Cannot delete recruiter. Recruiter has ' . $recruiter->transactions()->count() . ' transaction(s). Please deactivate instead.']], 422);
         }
 
+        // Check if recruiter has active riders
+        $activeRidersCount = $recruiter->riders()->whereNull('deleted_at')->count();
+        if ($activeRidersCount > 0) {
+            return response()->json(['errors' => ['error' => "Cannot delete recruiter. Recruiter has {$activeRidersCount} active rider(s). Please reassign riders first."]], 422);
+        }
 
-        return response()->json(['message' => 'Recruiter deleted successfully.']);
+        // Check if recruiter account has ledger entries before deletion
+        if ($recruiter->account) {
+            $ledgerEntriesCount = DB::table('ledger_entries')
+                ->where('account_id', $recruiter->account->id)
+                ->count();
+
+            if ($ledgerEntriesCount > 0) {
+                return response()->json(['errors' => ['error' => "Cannot delete recruiter. The recruiter account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first."]], 422);
+            }
+        }
+
+        // Track cascaded deletions
+        $cascadedItems = [];
+
+        // Get account data BEFORE deleting (important!)
+        $relatedAccount = $recruiter->account;
+
+        // Soft delete the recruiter
+        $recruiter->delete();
+
+        // Also soft delete the related account if exists and track it
+        if ($relatedAccount) {
+            $cascadedItems[] = [
+                'model' => 'Accounts',
+                'id' => $relatedAccount->id,
+                'name' => $relatedAccount->name,
+            ];
+
+            $relatedAccount->delete();
+
+            // Log the cascade
+            $this->trackCascadeDeletion(
+                'App\Models\Recruiters',
+                $recruiter->id,
+                $recruiter->name,
+                'App\Models\Accounts',
+                $relatedAccount->id,
+                $relatedAccount->name,
+                'hasOne',
+                'account',
+                'soft'
+            );
+        }
+
+        // Build cascade message
+        $cascadeMessage = '';
+        if (!empty($cascadedItems)) {
+            $cascadeMessage = ' (Also deleted: ';
+            $parts = [];
+            foreach ($cascadedItems as $item) {
+                $parts[] = "{$item['model']}: {$item['name']}";
+            }
+            $cascadeMessage .= implode(', ', $parts) . ')';
+        }
+
+        return response()->json([
+            'message' => 'Recruiter moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=recruiters" class="alert-link">View Recycle Bin</a> to restore if needed.'
+        ]);
     }
 
     /**
@@ -188,7 +250,7 @@ class RecruitersController extends AppBaseController
         $recruiter = $this->recruitersRepository->find((int)$id);
 
         if (empty($recruiter)) {
-            Flash::error('Recruiters not found');
+            Flash::error('Recruiter not found');
             return redirect(route('recruiters.index'));
         }
 
@@ -209,7 +271,8 @@ class RecruitersController extends AppBaseController
         $recruiter = $this->recruitersRepository->find((int)$recruiterId);
 
         if (empty($recruiter)) {
-            return response()->json(['errors' => ['error' => 'Recruiter not found!']], 422);
+            Flash::error('Recruiter not found');
+            return redirect(route('recruiters.index'));
         }
 
         // Validate the request
@@ -224,10 +287,8 @@ class RecruitersController extends AppBaseController
         // Update riders to assign to this recruiter
         Riders::whereIn('id', $riderIds)->update(['recruiter_id' => $recruiterId]);
 
-        return response()->json([
-            'message' => count($riderIds) . ' riders assigned to recruiter successfully.',
-            'recruiter' => $recruiter
-        ]);
+        Flash::success(count($riderIds) . ' riders assigned to recruiter successfully.');
+        return redirect(route('recruiters.show', $recruiterId));
     }
 
     /**
@@ -238,7 +299,8 @@ class RecruitersController extends AppBaseController
         $recruiter = $this->recruitersRepository->find((int)$recruiterId);
 
         if (empty($recruiter)) {
-            return response()->json(['errors' => ['error' => 'Recruiter not found!']], 422);
+            Flash::error('Recruiter not found');
+            return redirect(route('recruiters.index'));
         }
 
         // Validate the request
@@ -255,10 +317,8 @@ class RecruitersController extends AppBaseController
             ->where('recruiter_id', $recruiterId)
             ->update(['recruiter_id' => null]);
 
-        return response()->json([
-            'message' => $updatedCount . ' riders removed from recruiter successfully.',
-            'recruiter' => $recruiter
-        ]);
+        Flash::success($updatedCount . ' riders removed from recruiter successfully.');
+        return redirect(route('recruiters.show', $recruiterId));
     }
 
     /**
@@ -271,7 +331,9 @@ class RecruitersController extends AppBaseController
             ->select('id', 'name', 'rider_id')
             ->get();
 
-        return response()->json($unassignedRiders);
+        return view('recruiters.unassigned-riders', [
+            'unassignedRiders' => $unassignedRiders
+        ]);
     }
 
     /**
@@ -282,12 +344,33 @@ class RecruitersController extends AppBaseController
         $recruiter = $this->recruitersRepository->find((int)$recruiterId);
 
         if (empty($recruiter)) {
-            Flash::error('Recruiter not found');
+            Flash::error('Recruiter not found!');
             return redirect(route('recruiters.index'));
         }
 
         return view('recruiters.assign-riders', [
             'recruiter' => $recruiter
         ]);
+    }
+
+    /**
+     * Get the model class for trash functionality
+     */
+    protected function getTrashModelClass()
+    {
+        return Recruiters::class;
+    }
+
+    /**
+     * Get the trash configuration
+     */
+    protected function getTrashConfig()
+    {
+        return [
+            'name' => 'Recruiter',
+            'display_columns' => ['name', 'email', 'contact_number'],
+            'trash_view' => 'recruiters.trash',
+            'index_route' => 'recruiters.index',
+        ];
     }
 }

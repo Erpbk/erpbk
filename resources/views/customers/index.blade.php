@@ -16,6 +16,11 @@
                         Add New
                     </a>
                     @endcan
+                    @can('trash_view')
+                    <a class="btn btn-warning" href="{{ route('customers.trash') }}">
+                        <i class="fa fa-trash-o"></i> View Trash
+                    </a>
+                    @endcan
                     <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static"role="dialog" aria-hidden="true">
                        <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
                           <div class="modal-content">
@@ -109,7 +114,7 @@
 function confirmDelete(url) {
     Swal.fire({
         title: 'Are you sure?',
-        text: "You won't be able to revert this!",
+        text: "This will move the customer to the Recycle Bin!",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
@@ -117,7 +122,48 @@ function confirmDelete(url) {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            window.location.href = url;
+            // Show loading
+            $('#loading-overlay').show();
+            
+            // Send DELETE request via AJAX
+            $.ajax({
+                url: url,
+                type: 'DELETE',
+                data: {
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    $('#loading-overlay').hide();
+                    
+                    // Show success message with HTML content
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Deleted!',
+                        html: response.message,
+                        showConfirmButton: true,
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        // Reload the page to refresh the table
+                        location.reload();
+                    });
+                },
+                error: function(xhr) {
+                    $('#loading-overlay').hide();
+                    
+                    let errorMessage = 'An error occurred while deleting.';
+                    if (xhr.responseJSON && xhr.responseJSON.errors) {
+                        errorMessage = Object.values(xhr.responseJSON.errors).join('<br>');
+                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        html: errorMessage
+                    });
+                }
+            });
         }
     })
 }

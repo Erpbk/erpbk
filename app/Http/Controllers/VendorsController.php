@@ -12,11 +12,14 @@ use App\Models\vendors;
 use App\Repositories\VendorsRepository;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use App\Traits\HasTrashFunctionality;
+use App\Traits\TracksCascadingDeletions;
+use Illuminate\Support\Facades\DB;
 use Flash;
 
 class VendorsController extends AppBaseController
 {
-  use GlobalPagination;
+  use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
   /** @var VendorsRepository $vendorsRepository*/
   private $vendorsRepository;
 
@@ -99,7 +102,8 @@ class VendorsController extends AppBaseController
     $vendor->account_id = $account->id;
     $vendor->save();
 
-    return response()->json(['message' => 'Vendor added successfully.']);
+    Flash::success('Vendor added successfully.');
+    return redirect(route('vendors.index'));
   }
 
   /**
@@ -110,7 +114,7 @@ class VendorsController extends AppBaseController
     $vendors = $this->vendorsRepository->find($id);
 
     if (empty($vendors)) {
-      Flash::error('Vendors not found');
+      Flash::error('Vendor not found');
 
       return redirect(route('vendors.index'));
     }
@@ -126,7 +130,7 @@ class VendorsController extends AppBaseController
     $vendors = $this->vendorsRepository->find($id);
 
     if (empty($vendors)) {
-      Flash::error('Vendors not found');
+      Flash::error('Vendor not found');
 
       return redirect(route('vendors.index'));
     }
@@ -143,18 +147,20 @@ class VendorsController extends AppBaseController
 
     if (empty($vendor)) {
 
-      return response()->json(['errors' => ['error' => 'Vendor not found!']], 422);
+      Flash::error('Vendor not found!');
+      return redirect(route('vendors.index'));
     }
 
     $vendor = $this->vendorsRepository->update($request->all(), $id);
     $vendor->account->status = $vendor->status;
     $vendor->save();
 
-    return response()->json(['message' => 'Vendor updated successfully.']);
+    Flash::success('Vendor updated successfully.');
+    return redirect(route('vendors.index'));
   }
 
   /**
-   * Remove the specified Vendors from storage.
+   * Remove the specified Vendors from storage (soft delete with cascade tracking).
    *
    * @throws \Exception
    */
@@ -163,40 +169,101 @@ class VendorsController extends AppBaseController
     $vendor = $this->vendorsRepository->find($id);
 
     if (empty($vendor)) {
-      return response()->json(['errors' => ['error' => 'Vendor not found!']], 422);
+      Flash::error('Vendor not found!');
+      return redirect(route('vendors.index'));
     }
 
-    DB::beginTransaction();
-    try {
-      // Check if vendor has transactions
-      if ($vendor->transactions->count() > 0) {
-        return response()->json(['errors' => ['error' => 'Vendor have transactions!']], 422);
-      }
-
-      // ✅ FIX: Check if vendor account has ledger entries before deletion
-      if ($vendor->account) {
-        $ledgerEntriesCount = DB::table('ledger_entries')
-          ->where('account_id', $vendor->account->id)
-          ->count();
-
-        if ($ledgerEntriesCount > 0) {
-          return response()->json(['errors' => ['error' => "Cannot delete vendor. The vendor account has {$ledgerEntriesCount} ledger entry(ies)."]], 422);
-        }
-
-        // Safe to delete account
-        $vendor->account->delete();
-        \Log::info("Deleted account ID: {$vendor->account->id} for vendor ID: {$vendor->id}");
-      }
-
-      // Delete the vendor
-      $this->vendorsRepository->delete($id);
-
-      DB::commit();
-      return response()->json(['message' => 'Vendor deleted successfully.']);
-    } catch (\Exception $e) {
-      DB::rollBack();
-      \Log::error("Error deleting Vendor ID: {$id} - " . $e->getMessage());
-      return response()->json(['errors' => ['error' => 'Error deleting vendor: ' . $e->getMessage()]], 500);
+    // Check if vendor has transactions - protect from deletion
+    if ($vendor->transactions()->count() > 0) {
+      Flash::error('Cannot delete vendor. Vendor has ' . $vendor->transactions()->count() . ' transaction(s). Please deactivate instead.');
+      return redirect(route('vendors.index'));
     }
+
+    // Check if vendor account has ledger entries before deletion
+    if ($vendor->account) {
+      $ledgerEntriesCount = DB::table('ledger_entries')
+        ->where('account_id', $vendor->account->id)
+        ->count();
+
+      if ($ledgerEntriesCount > 0) {
+        Flash::error("Cannot delete vendor. The vendor account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.");
+        return redirect(route('vendors.index'));
+      }
+    }
+
+    // Track cascaded deletions
+    $cascadedItems = [];
+
+    // Get account data BEFORE deleting (important!)
+    $relatedAccount = $vendor->account;
+
+    // Soft delete the vendor
+    $vendor->delete();
+
+    // Also soft delete the related account if exists and track it
+    if ($relatedAccount) {
+      $cascadedItems[] = [
+        'model' => 'Accounts',
+        'id' => $relatedAccount->id,
+        'name' => $relatedAccount->name,
+      ];
+
+      $relatedAccount->delete();
+
+      // Log the cascade
+      $this->trackCascadeDeletion(
+        'App\Models\Vendors',
+        $vendor->id,
+        $vendor->name,
+        'App\Models\Accounts',
+        $relatedAccount->id,
+        $relatedAccount->name,
+        'hasOne',
+        'account',
+        'soft'
+      );
+    }
+
+    // Build cascade message
+    $cascadeMessage = '';
+    if (!empty($cascadedItems)) {
+      $cascadeMessage = ' (Also deleted: ';
+      $parts = [];
+      foreach ($cascadedItems as $item) {
+        $parts[] = "{$item['model']}: {$item['name']}";
+      }
+      $cascadeMessage .= implode(', ', $parts) . ')';
+    }
+
+    // Return JSON response for AJAX calls or Flash + redirect for regular requests
+    if (request()->expectsJson() || request()->ajax()) {
+      return response()->json([
+        'message' => 'Vendor moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=vendors" class="alert-link">View Recycle Bin</a> to restore if needed.'
+      ]);
+    }
+
+    Flash::success('Vendor moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=vendors" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
+    return redirect(route('vendors.index'));
+  }
+
+  /**
+   * Get the model class for trash functionality
+   */
+  protected function getTrashModelClass()
+  {
+    return vendors::class;
+  }
+
+  /**
+   * Get the trash configuration
+   */
+  protected function getTrashConfig()
+  {
+    return [
+      'name' => 'Vendor',
+      'display_columns' => ['name', 'email', 'contact_number'],
+      'trash_view' => 'vendors.trash',
+      'index_route' => 'vendors.index',
+    ];
   }
 }

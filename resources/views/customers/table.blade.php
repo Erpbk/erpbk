@@ -52,7 +52,7 @@
                </a>
                @endcan
                @can('customer_delete')
-               <a href="javascript:void(0);"  onclick='confirmDelete("{{route('customers.delete', $r->id) }}")' class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Customer">
+               <a href="javascript:void(0);"  onclick='confirmDelete("{{route('customers.destroy', $r->id) }}")' class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Customer">
                <i class="fa fa-trash"></i>
                </a>
                @endcan

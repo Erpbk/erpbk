@@ -49,6 +49,14 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home-dashboard');
 
+    // ============================================================
+    // CENTRALIZED TRASH/RECYCLE BIN MODULE
+    // ============================================================
+    Route::get('/trash', [App\Http\Controllers\TrashController::class, 'index'])->name('trash.index');
+    Route::post('/trash/{module}/{id}/restore', [App\Http\Controllers\TrashController::class, 'restore'])->name('trash.restore');
+    Route::delete('/trash/{module}/{id}/force-destroy', [App\Http\Controllers\TrashController::class, 'forceDestroy'])->name('trash.force-destroy');
+    Route::get('/trash/stats', [App\Http\Controllers\TrashController::class, 'stats'])->name('trash.stats');
+
     Route::resource('items', App\Http\Controllers\ItemsController::class);
     Route::resource('garage-items', App\Http\Controllers\GarageItemsController::class);
     Route::get('garage-items/{id}/vouchers', [App\Http\Controllers\GarageItemsController::class, 'vouchers'])->name('garage-items.vouchers');
@@ -84,6 +92,10 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('customer/ledger/{id}', [\App\Http\Controllers\CustomersController::class, 'ledger'])->name('customer.ledger');
     Route::get('customer/files/{id}', [\App\Http\Controllers\CustomersController::class, 'files'])->name('customer.files');
     Route::get('customers/delete/{id}', [\App\Http\Controllers\CustomersController::class, 'destroy'])->name('customers.delete');
+    // Customers Trash Routes
+    Route::get('customers/trash', [\App\Http\Controllers\CustomersController::class, 'trash'])->name('customers.trash');
+    Route::post('customers/trash/{id}/restore', [\App\Http\Controllers\CustomersController::class, 'restoreTrash'])->name('customers.restore');
+    Route::delete('customers/trash/{id}/force-destroy', [\App\Http\Controllers\CustomersController::class, 'forceDestroyTrash'])->name('customers.force-destroy');
 
     Route::get('rtaFines/import/{id}', [\App\Http\Controllers\RtaFinesController::class, 'importForm'])->name('rtaFines.import.form');
     Route::post('rtaFines/import', [\App\Http\Controllers\RtaFinesController::class, 'import'])->name('rtaFines.import');
@@ -154,7 +166,7 @@ Route::middleware(['auth', 'web'])->group(function () {
 
     Route::resource('sims', App\Http\Controllers\SimsController::class);
     Route::get('sims/delete/{id}', [\App\Http\Controllers\SimsController::class, 'destroy'])->name('sims.delete');
-    
+
     /* Rider section starts from here */
 
     Route::resource('riders', App\Http\Controllers\RidersController::class);
@@ -291,11 +303,19 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::resource('vendors', App\Http\Controllers\VendorsController::class);
 
     Route::get('vendors/delete/{id}', [\App\Http\Controllers\VendorsController::class, 'destroy'])->name('vendors.delete');
+    // Vendors Trash Routes
+    Route::get('vendors/trash', [\App\Http\Controllers\VendorsController::class, 'trash'])->name('vendors.trash');
+    Route::post('vendors/trash/{id}/restore', [\App\Http\Controllers\VendorsController::class, 'restoreTrash'])->name('vendors.restore');
+    Route::delete('vendors/trash/{id}/force-destroy', [\App\Http\Controllers\VendorsController::class, 'forceDestroyTrash'])->name('vendors.force-destroy');
 
     Route::resource('recruiters', App\Http\Controllers\RecruitersController::class);
     Route::get('recruiters/{recruiter}/riders', [RecruitersController::class, 'showRiders'])->name('recruiters.riders');
     Route::get('recruiters/delete/{id}', [\App\Http\Controllers\RecruitersController::class, 'destroy'])->name('recruiters.delete');
     Route::get('recruiters', [\App\Http\Controllers\RecruitersController::class, 'index'])->name('recruiters.index');
+    // Recruiters Trash Routes
+    Route::get('recruiters/trash', [\App\Http\Controllers\RecruitersController::class, 'trash'])->name('recruiters.trash');
+    Route::post('recruiters/trash/{id}/restore', [\App\Http\Controllers\RecruitersController::class, 'restoreTrash'])->name('recruiters.restore');
+    Route::delete('recruiters/trash/{id}/force-destroy', [\App\Http\Controllers\RecruitersController::class, 'forceDestroyTrash'])->name('recruiters.force-destroy');
     Route::post('recruiters/{recruiter}/assign-riders', [\App\Http\Controllers\RecruitersController::class, 'assignRiders'])->name('recruiters.assign-riders');
     Route::get('recruiters/unassigned-riders', [\App\Http\Controllers\RecruitersController::class, 'getUnassignedRiders'])->name('recruiters.unassigned-riders');
     Route::get('recruiters/{recruiter}/assign-riders', [\App\Http\Controllers\RecruitersController::class, 'showAssignRidersView'])->name('recruiters.assign-riders');
@@ -307,6 +327,10 @@ Route::middleware(['auth', 'web'])->group(function () {
 
     Route::resource('leasingCompanies', App\Http\Controllers\LeasingCompaniesController::class);
     Route::get('leasingCompanies/delete/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroy'])->name('leasingCompanies.delete');
+    // Leasing Companies Trash Routes
+    Route::get('leasingCompanies/trash', [\App\Http\Controllers\LeasingCompaniesController::class, 'trash'])->name('leasingCompanies.trash');
+    Route::post('leasingCompanies/trash/{id}/restore', [\App\Http\Controllers\LeasingCompaniesController::class, 'restoreTrash'])->name('leasingCompanies.restore');
+    Route::delete('leasingCompanies/trash/{id}/force-destroy', [\App\Http\Controllers\LeasingCompaniesController::class, 'forceDestroyTrash'])->name('leasingCompanies.force-destroy');
     Route::resource('garages', App\Http\Controllers\GaragesController::class);
     Route::get('garages/delete/{id}', [\App\Http\Controllers\GaragesController::class, 'destroy'])->name('garages.delete');
     Route::resource('banks', App\Http\Controllers\BanksController::class);
@@ -315,6 +339,12 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('bank/delete/{id}', [\App\Http\Controllers\BanksController::class, 'destroy'])->name('bank.delete');
     Route::get('banks/receipts', [\App\Http\Controllers\BanksController::class, 'receipts'])->name('banks.receipts');
     Route::get('banks/payments', [\App\Http\Controllers\BanksController::class, 'payments'])->name('banks.payments');
+
+    // Soft Delete Routes for Banks - DEPRECATED: Use centralized trash module (/trash)
+    // Route::get('banks/trashed/list', [\App\Http\Controllers\BanksController::class, 'trashed'])->name('banks.trashed');
+    // Route::post('banks/{id}/restore', [\App\Http\Controllers\BanksController::class, 'restore'])->name('banks.restore');
+    // Route::delete('banks/{id}/force-delete', [\App\Http\Controllers\BanksController::class, 'forceDestroy'])->name('banks.force-destroy');
+
     Route::resource('vouchers', \App\Http\Controllers\VouchersController::class);
     Route::any('voucher/import', [\App\Http\Controllers\VouchersController::class, 'import'])->name('voucher.import');
     Route::get('get_invoice_balance', [\App\Http\Controllers\VouchersController::class, 'GetInvoiceBalance'])->name('get_invoice_balance');
@@ -346,6 +376,10 @@ Route::middleware(['auth', 'web'])->group(function () {
 
         Route::resource('accounts', App\Http\Controllers\AccountsController::class);
         Route::get('tree', [\App\Http\Controllers\AccountsController::class, 'tree'])->name('accounts.tree');
+        // Accounts Trash Routes
+        Route::get('trash', [\App\Http\Controllers\AccountsController::class, 'trash'])->name('accounts.trash');
+        Route::post('trash/{id}/restore', [\App\Http\Controllers\AccountsController::class, 'restoreTrash'])->name('accounts.restore');
+        Route::delete('trash/{id}/force-destroy', [\App\Http\Controllers\AccountsController::class, 'forceDestroyTrash'])->name('accounts.force-destroy');
 
         Route::get('/ledgerreport', [LedgerController::class, 'ledger'])->name('accounts.ledgerreport');
         Route::get('/ledger', [LedgerController::class, 'index'])->name('accounts.ledger');
@@ -440,6 +474,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('suppliers/datatable', [SupplierController::class, 'datatable'])->name('suppliers.datatable');
     Route::get('suppliers/document/{id}', [SupplierController::class, 'document'])->name('suppliers.document');
     Route::get('suppliers/files/{id}', [SupplierController::class, 'files'])->name('suppliers.files');
+    // Suppliers Trash Routes
+    Route::get('suppliers/trash', [SupplierController::class, 'trash'])->name('suppliers.trash');
+    Route::post('suppliers/trash/{id}/restore', [SupplierController::class, 'restoreTrash'])->name('suppliers.restore');
+    Route::delete('suppliers/trash/{id}/force-destroy', [SupplierController::class, 'forceDestroyTrash'])->name('suppliers.force-destroy');
 
     // Supplier invoices
     Route::resource('supplierInvoices', SupplierInvoicesController::class);

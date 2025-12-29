@@ -4,12 +4,13 @@ namespace App\Models;
 
 use App\Helpers\IConstants;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 
 class Recruiters extends Model
 {
-    use LogsActivity, HasActiveStatus;
+    use LogsActivity, HasActiveStatus, SoftDeletes;
 
     public $table = 'recruiters';
 
@@ -33,6 +34,8 @@ class Recruiters extends Model
         'tax_number' => 'string',
         'status' => 'integer'
     ];
+
+    protected $dates = ['deleted_at'];
 
     public static array $rules = [
         'name' => 'required|string|max:255',

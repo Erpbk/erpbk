@@ -12,22 +12,22 @@
                 <a href="{{ route('receipts.index') }}" class="@if(request()->segment(1) =='receipts') btn btn-primary @else btn btn-default @endif action-btn"><i class="fa fa-receipt"></i> Receipts</a>
                 <a href="{{ route('payments.index') }}" class="@if(request()->segment(1) =='payments') btn btn-primary @else btn btn-default @endif action-btn"><i class="ti ti-cash"></i> Payments</a>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-6 d-flex gap-2 justify-content-end">
                 @can('bank_create')
                 @if(request()->segment(1) =='banks')
-                <a class="btn btn-primary float-right show-modal action-btn"
+                <a class="btn btn-primary show-modal action-btn"
                     href="javascript:void(0);" data-action="{{ route('banks.create') }}" data-title="Add New" data-size="lg">
-                    Add New
+                    <i class="fa fa-plus"></i> Add New
                 </a>
                 @elseif(request()->segment(1) =='receipts')
-                <a class="btn btn-primary float-right show-modal action-btn"
+                <a class="btn btn-primary show-modal action-btn"
                     href="javascript:void(0);" data-action="{{ route('receipts.create') }}" data-title="Add New" data-size="lg">
-                    Add New
+                    <i class="fa fa-plus"></i> Add New
                 </a>
                 @elseif(request()->segment(1) =='payments')
-                <a class="btn btn-primary float-right show-modal action-btn"
+                <a class="btn btn-primary show-modal action-btn"
                     href="javascript:void(0);" data-action="{{ route('payments.create') }}" data-title="Add New" data-size="lg">
-                    Add New
+                    <i class="fa fa-plus"></i> Add New
                 </a>
                 @endif
                 @endcan

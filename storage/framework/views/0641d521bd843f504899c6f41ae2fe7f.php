@@ -6,6 +6,16 @@
     
   </a>
 </li>
+
+
+<?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('trash_view')): ?>
+<li class="menu-item <?php echo e(Request::is('trash*') ? 'active' : ''); ?>">
+  <a href="<?php echo e(route('trash.index')); ?>" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-trash text-warning"></i>
+    <div>Recycle Bin</div>
+  </a>
+</li>
+<?php endif; ?>
 <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('bank_view')): ?>
 <li class="menu-item <?php echo e(Request::is('banks') ? 'active' : ''); ?> <?php echo e(Request::is('bank*') ? 'active' : ''); ?>">
   <a href="<?php echo e(route('banks.index')); ?>" class="menu-link">
@@ -152,14 +162,14 @@
 </li>
 <?php endif; ?>
 
-
+<?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('inventory_view')): ?>
 <li class="menu-item ">
   <a href="#" class="menu-link">
     <i class="menu-icon tf-icons ti ti-device-sim"></i>
     <div>Inventory</div>
   </a>
 </li>
-
+<?php endif; ?>
 <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('visaexpense_view')): ?>
 <li class="menu-item <?php echo e(Request::is('VisaExpense*') ? 'active' : ''); ?>">
   <a href="<?php echo e(route('VisaExpense.index')); ?>" class="menu-link">
@@ -174,12 +184,14 @@
   </a>
 </li>
 <?php endif; ?>
+<?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('expense_view')): ?>
 <li class="menu-item ">
   <a href="#" class="menu-link">
     <i class="menu-icon tf-icons ti ti-device-sim"></i>
     <div>Expenses</div>
   </a>
 </li>
+<?php endif; ?>
 <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('leasing_view')): ?>
 <li class="menu-item <?php echo e(Request::is('leasingCompanies*') ? 'active' : ''); ?>">
   <a href="<?php echo e(route('leasingCompanies.index')); ?>" class="menu-link">
@@ -223,12 +235,14 @@
   </ul>
 </li>
 <?php endif; ?>
+<?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('asset_view')): ?>
 <li class="menu-item ">
   <a href="#" class="menu-link">
     <i class="menu-icon tf-icons ti ti-device-sim"></i>
     <div>Assets</div>
   </a>
 </li>
+<?php endif; ?>
 <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('files_view')): ?>
 <li class="menu-item <?php echo e(Request::is('upload_files*') ? 'active' : ''); ?>">
   <a href="<?php echo e(route('upload_files.index')); ?>" class="menu-link">
@@ -335,6 +349,7 @@
     <div data-i18n="Front Pages">Company Settings</div>
   </a>
   <ul class="menu-sub">
+
     <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('gn_settings')): ?>
     <li class="menu-item <?php echo e(Request::is('settings/company') ? 'active' : ''); ?>">
       <a href="<?php echo e(route('settings')); ?>" class="menu-link">

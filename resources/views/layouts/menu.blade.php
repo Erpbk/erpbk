@@ -6,6 +6,16 @@
     {{-- <div class="badge bg-white text-dark rounded-pill ms-auto">2</div>  --}}
   </a>
 </li>
+
+{{-- CENTRALIZED RECYCLE BIN --}}
+@can('trash_view')
+<li class="menu-item {{ Request::is('trash*') ? 'active' : '' }}">
+  <a href="{{ route('trash.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-trash text-warning"></i>
+    <div>Recycle Bin</div>
+  </a>
+</li>
+@endcan
 @can('bank_view')
 <li class="menu-item {{ Request::is('banks') ? 'active' : '' }} {{ Request::is('bank*') ? 'active' : '' }}">
   <a href="{{ route('banks.index') }}" class="menu-link">
@@ -153,14 +163,14 @@
 </li>
 @endcan
 
-
+@can('inventory_view')
 <li class="menu-item ">
   <a href="#" class="menu-link">
     <i class="menu-icon tf-icons ti ti-device-sim"></i>
     <div>Inventory</div>
   </a>
 </li>
-
+@endcan
 @can('visaexpense_view')
 <li class="menu-item {{ Request::is('VisaExpense*') ? 'active' : '' }}">
   <a href="{{ route('VisaExpense.index') }}" class="menu-link">
@@ -175,12 +185,14 @@
   </a>
 </li>
 @endcan
+@can('expense_view')
 <li class="menu-item ">
   <a href="#" class="menu-link">
     <i class="menu-icon tf-icons ti ti-device-sim"></i>
     <div>Expenses</div>
   </a>
 </li>
+@endcan
 @can('leasing_view')
 <li class="menu-item {{ Request::is('leasingCompanies*') ? 'active' : '' }}">
   <a href="{{ route('leasingCompanies.index') }}" class="menu-link">
@@ -224,12 +236,14 @@
   </ul>
 </li>
 @endcanany
+@can('asset_view')
 <li class="menu-item ">
   <a href="#" class="menu-link">
     <i class="menu-icon tf-icons ti ti-device-sim"></i>
     <div>Assets</div>
   </a>
 </li>
+@endcan
 @can('files_view')
 <li class="menu-item {{ Request::is('upload_files*') ? 'active' : '' }}">
   <a href="{{ route('upload_files.index') }}" class="menu-link">
@@ -356,6 +370,7 @@
     <div data-i18n="Front Pages">Company Settings</div>
   </a>
   <ul class="menu-sub">
+
     @can('gn_settings')
     <li class="menu-item {{ Request::is('settings/company') ? 'active' : '' }}">
       <a href="{{ route('settings') }}" class="menu-link">

@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 
 class Accounts extends Model
 {
-  use LogsActivity, HasActiveStatus;
+  use LogsActivity, HasActiveStatus, SoftDeletes;
 
   public $table = 'accounts';
 
@@ -32,6 +33,8 @@ class Accounts extends Model
     'opening_balance' => 'decimal:2',
     'is_locked' => 'boolean',
   ];
+
+  protected $dates = ['deleted_at']; // Added for SoftDeletes
 
   public static array $rules = [
 

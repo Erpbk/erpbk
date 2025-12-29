@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 
 class Customers extends Model
 {
-  use LogsActivity, HasActiveStatus;
+  use LogsActivity, HasActiveStatus, SoftDeletes;
 
   public $table = 'customers';
 
@@ -32,6 +33,8 @@ class Customers extends Model
     'tax_number' => 'string',
     'tax_percentage' => 'decimal:2'
   ];
+
+  protected $dates = ['deleted_at'];
 
   public static array $rules = [
     'name' => 'required|string|max:255',

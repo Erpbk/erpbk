@@ -5,16 +5,17 @@
 {{-- SortableJS for drag and drop functionality --}}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
+<style></style>
 @endpush
 @section('content')
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 <section class="content-header">
-    <div class="container-fluid">
+    <div>
         <!-- Enhanced Fleet Supervisor Accordion Section -->
         <div class="filter-tabs-section mb-4" id="filter-tabs-section">
-            <div class="container-fluid d-flex justify-content-between">
+            <div class="d-flex justify-content-between">
                 @php
                 $activeFiltersCount = count(request('rider_status', [])) + (request('balance_filter') ? 1 : 0);
 
@@ -613,14 +614,14 @@ $tableColumns = $columns;
 'exportRoute' => route('rider.exportCustomizableRiders'),
 'tableIdentifier' => 'riders_table'
 ])
-<div class="content container-fluid">
+<div class="content">
     @include('flash::message')
     <div class="card">
         <div class="card-header d-flex justify-content-between">
             <div class="card-search">
                 <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
             </div>
-            <button class="btn btn-outline-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Riders</button>
+            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Riders</button>
         </div>
         <div class="card-body table-responsive px-2 py-0">
             <div class="riders-table-container">

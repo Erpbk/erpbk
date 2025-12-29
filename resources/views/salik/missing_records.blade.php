@@ -1,14 +1,25 @@
 @extends('layouts.app')
 
 @section('title', 'Missing Salik Records')
-
-@section('content')
-<style>
+@push('third_party_stylesheets')
+<style> 
+   .total-card {
+        flex: 1 1 calc(15% - 8px) !important;
+    }
+    
     .missing-records h3 {
         color: #ffffff !important;
     }
+
+    #missingTable thead tr th {
+        color: white !important;
+        text-align: center;
+    }
 </style>
-<div class="container-fluid">
+@endpush
+
+@section('content')
+<div >
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -38,62 +49,38 @@
                     </div>
                 </div>
 
-                <div class="card-body ">
-                    <!-- Summary Cards -->
-                    <div class="row mb-4 missing-records">
-                        <div class="col-md-2">
-                            <div class="card bg-warning text-white">
-                                <div class="card-body text-center">
-                                    <h3 class="mb-1">{{ isset($failedImports) ? $failedImports->total() : count($missingRecords) }}</h3>
-                                    <p class="mb-0">Total Missing Records</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="card bg-primary text-white">
-                                <div class="card-body text-center">
-                                    <h3 class="mb-1">AED {{ number_format($totalAmount ?? 0, 2) }}</h3>
-                                    <p class="mb-0">Total Amount</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="card bg-danger text-white">
-                                <div class="card-body text-center">
-                                    <h3 class="mb-1">{{ count(array_filter($missingRecords, fn($r) => $r['reason'] === 'No bike found with this plate number')) }}</h3>
-                                    <p class="mb-0">Missing Bikes</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="card bg-info text-white">
-                                <div class="card-body text-center">
-                                    <h3 class="mb-1">{{ count(array_filter($missingRecords, fn($r) => $r['reason'] === 'No rider assigned for this trip date')) }}</h3>
-                                    <p class="mb-0">Missing Riders</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="card bg-secondary text-white">
-                                <div class="card-body text-center">
-                                    <h3 class="mb-1">{{ count(array_filter($missingRecords, fn($r) => $r['reason'] === 'No account found for rider')) }}</h3>
-                                    <p class="mb-0">Missing Accounts</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="card bg-success text-white">
-                                <div class="card-body text-center">
-                                    <h3 class="mb-1">{{ $importStats['successful_imports'] ?? 0 }}</h3>
-                                    <p class="mb-0">Successful Imports</p>
-                                </div>
-                            </div>
-                        </div>
+                <div class="totals-cards">
+                    <div class="total-card total-blue">
+                        <div class="label"><i class="fa fa-ticket"></i>Total Missing Record</div>
+                        <div class="value" id="total_orders">{{ isset($failedImports) ? $failedImports->total() : count($missingRecords) }}</div>
                     </div>
+                    <div class="total-card total-1">
+                        <div class="label"><i class="fa fa-times-circle"></i>Total Amount</div>
+                        <div class="value" id="avg_ontime">AED {{ number_format($totalAmount ?? 0, 2) }}</div>
+                    </div>
+                    <div class="total-card total-red">
+                        <div class="label"><i class="fas fa-stamp"></i>Missing Bikes</div>
+                        <div class="value" id="total_rejected">{{ count(array_filter($missingRecords, fn($r) => $r['reason'] === 'No bike found with this plate number')) }}</div>
+                    </div>
+                    <div class="total-card total-green">
+                        <div class="label"><i class="far fa-money-bill-alt"></i>Missing Riders</div>
+                        <div class="value" id="total_hours">{{ count(array_filter($missingRecords, fn($r) => $r['reason'] === 'No rider assigned for this trip date')) }}</div>
+                    </div>
+                    <div class="total-card total-2">
+                        <div class="label"><i class="far fa-money-bill-alt"></i>Missing Accounts</div>
+                        <div class="value" id="total_hours">{{ count(array_filter($missingRecords, fn($r) => $r['reason'] === 'No account found for rider')) }}</div>
+                    </div>
+                    <div class="total-card total-3">
+                        <div class="label"><i class="far fa-money-bill-alt"></i>Successful Imports</div>
+                        <div class="value" id="total_hours">{{ $importStats['successful_imports'] ?? 0 }}</div>
+                    </div>
+                </div>
+
+                <div class="card-body ">
 
                     <!-- Missing Records Table -->
                     <div class="table-responsive">
-                        <table class="table table-bordered table-hover">
+                        <table class="table table-bordered table-hover" id="missingTable">
                             <thead class="table-dark">
                                 <tr>
                                     <th>#</th>

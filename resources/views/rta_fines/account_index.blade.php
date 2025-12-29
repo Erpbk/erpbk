@@ -1,4 +1,171 @@
 ﻿@extends('rta_fines.viewindex')
+@push('third_party_stylesheets')
+<style> 
+  .totals-cards {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 10px 16px 10px;
+    }
+
+    .total-card {
+        flex: 1 1 calc(10% - 8px);
+        min-width: 120px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-left-width: 4px;
+        border-radius: 6px;
+        padding: 8px 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        margin-bottom: 0;
+    }
+
+    .total-card .label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+        color: #6b7280;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .total-card .label i {
+        font-size: 10px;
+        flex-shrink: 0;
+    }
+
+    .total-card .value {
+        font-size: 14px;
+        font-weight: 700;
+        color: #111827;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .total-paid {
+        border-left-color: #28a745;
+        background: linear-gradient(180deg, rgba(16, 185, 129, 0.06), rgba(16, 185, 129, 0.02));
+    }
+
+    .total-paid .label {
+        color: #28a745;
+    }
+
+    .total-accounts {
+        border-left-color: #007bff;
+        background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
+    }
+
+    .total-accounts .label {
+        color: #007bff;
+    }
+
+    .total-inactive {
+        border-left-color: #373536;
+        background: linear-gradient(180deg, rgba(55, 53, 54, 0.06), rgba(55, 53, 54, 0.02));
+    }
+
+    .total-inactive .label {
+        color: #544d4d;
+    }
+
+    .total-unpaid {
+        border-left-color: #dc3545;
+        background: linear-gradient(180deg, rgba(239, 68, 68, 0.06), rgba(239, 68, 68, 0.02));
+    }
+
+    .total-unpaid .label {
+        color: #dc3545;
+    }
+
+    .total-amount {
+        border-left-color: #6f42c1;
+        background: linear-gradient(180deg, rgba(111, 66, 193, 0.06), rgba(111, 66, 193, 0.02));
+    }
+
+    .total-amount .label {
+        color: #6f42c1;
+    }
+
+    .total-tickets-amount {
+        border-left-color: #c142bb;
+        background: linear-gradient(180deg, rgba(193, 66, 187, 0.06), rgba(193, 66, 187, 0.02));
+    }
+
+    .total-tickets-amount .label {
+        color: #c142bb;
+    }
+
+    .total-service-charges {
+        border-left-color: #17a2b8;
+        background: linear-gradient(180deg, rgba(23, 162, 184, 0.06), rgba(23, 162, 184, 0.02));
+    }
+
+    .total-service-charges .label {
+        color: #17a2b8;
+    }
+
+    .total-admin-charges {
+        border-left-color: #ffc107;
+        background: linear-gradient(180deg, rgba(255, 193, 7, 0.06), rgba(255, 193, 7, 0.02));
+    }
+
+    .total-admin-charges .label {
+        color: #ffc107;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .action-dropdown-menu {
+            right: -20px;
+            min-width: 260px;
+        }
+
+        .action-dropdown-btn {
+            min-width: 120px;
+            padding: 10px 16px;
+            font-size: 13px;
+        }
+
+        .totals-cards {
+        gap: 6px;
+        }
+        
+        .total-card {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 140px;
+        padding: 6px 8px;
+        }
+        
+        .total-card .label {
+        font-size: 9px;
+        }
+        
+        .total-card .value {
+        font-size: 12px;
+        }
+        
+        /* Reduce table cell padding on mobile */
+        #dataTableBuilder td,
+        #dataTableBuilder th {
+        padding: 6px 8px;
+        font-size: 12px;
+        }
+        
+        /* Make badges smaller on mobile */
+        .badge {
+        font-size: 10px !important;
+        padding: 3px 6px;
+        }
+    }
+</style>
+@endpush
 @section('page_content')
 <div class="modal modal-default filtetmodal fade" id="createaccount" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
@@ -40,7 +207,7 @@
   <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Filter Fines</h5>
+        <h5 class="modal-title">Filter Accounts</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body" id="searchTopbody">
@@ -63,11 +230,45 @@
     </div>
   </div>
 </div>
-<div class="content px-3">
+<div class="content">
   @include('flash::message')
+  
   <div class="clearfix"></div>
-
   <div class="card">
+    <div class="card-header d-flex justify-content-between">
+        <div></div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#searchModal"> <i class="fa fa-search"></i>  Filter RTA Accounts</button>
+    </div>
+    <div class="totals-cards">
+        <div class="total-card total-accounts">
+            <div class="label"><i class="fas fa-landmark"></i>Total Accounts</div>
+            <div class="value" id="total_orders">{{ $data->count() ?? 0 }}</div>
+        </div>
+        <div class="total-card total-unpaid">
+            <div class="label"><i class="fa fa-times-circle"></i>Unpaid Fines</div>
+            <div class="value" id="avg_ontime">{{ DB::table('rta_fines')->where('status', 'unpaid')->count() ?? 0 }}</div>
+        </div>
+        <div class="total-card total-paid">
+            <div class="label"><i class="fas fa-stamp"></i>Paid Fines</div>
+            <div class="value" id="total_rejected">{{ DB::table('rta_fines')->where('status', 'paid')->count() ?? 0 }}</div>
+        </div>
+            <div class="total-card total-amount">
+            <div class="label"><i class="far fa-money-bill-alt"></i>Total Amount</div>
+            <div class="value" id="total_hours">{{ DB::table('rta_fines')->sum('total_amount') ?? 0 }}</div>
+        </div>
+        <div class="total-card total-tickets-amount">
+            <div class="label"><i class="far fa-money-bill-alt"></i>Ticket Amount</div>
+            <div class="value" id="total_hours">{{ DB::table('rta_fines')->sum('amount') ?? 0 }}</div>
+        </div>
+        <div class="total-card total-service-charges">
+            <div class="label"><i class="far fa-money-bill-alt"></i>Service Charges</div>
+            <div class="value" id="total_hours">{{ DB::table('rta_fines')->sum('service_charges') ?? 0 }}</div>
+        </div>
+        <div class="total-card total-admin-charges">
+            <div class="label"><i class="far fa-money-bill-alt"></i>Admin Charges</div>
+            <div class="value" id="total_hours">{{ DB::table('rta_fines')->sum('admin_fee') ?? 0 }}</div>
+        </div>
+    </div>
     <div class="card-body table-responsive px-2 py-0" id="table-data">
       @include('rta_fines.account_table', ['data' => $data])
     </div>
@@ -114,6 +315,7 @@
 
 <script type="text/javascript">
   $(document).ready(function() {
+
     $('#filterForm').on('submit', function(e) {
       e.preventDefault();
 

@@ -1,5 +1,78 @@
 @extends('layouts.app')
 @section('title','Salik')
+@push('third_party_stylesheets')
+<style> 
+
+    #dataTableBuilder {
+      margin-bottom: 0;
+      min-width: 800px; 
+      width: 100%;
+   }
+
+   #dataTableBuilder td,
+   #dataTableBuilder th {
+      white-space: nowrap;
+      padding: 8px 12px;
+      vertical-align: middle;
+   }
+
+   td:focus,
+   th:focus {
+      outline: 2px solid #2196f3;
+      outline-offset: -2px;
+      background: #e3f2fd;
+   }
+
+   th {
+      white-space: nowrap;
+   }
+
+   /* Table header bold and fixed */
+   #dataTableBuilder thead th {
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background-color: #f8f9fa;
+      box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+   }
+
+   /* Ensure table container is scrollable */
+   .table-responsive {
+      max-height: calc(100vh - 240px);
+      overflow-y: auto;
+      overflow-x: auto;
+      position: relative;
+      -webkit-overflow-scrolling: touch;
+   }
+
+   /* Hide scrollbar for Chrome, Safari and Opera */
+   .table-responsive::-webkit-scrollbar {
+      display: none;
+   }
+
+   /* Hide scrollbar for IE, Edge and Firefox */
+   .table-responsive {
+      -ms-overflow-style: none;
+      /* IE and Edge */
+      scrollbar-width: none;
+      /* Firefox */
+   }
+
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+
+        /* Reduce table cell padding on mobile */
+        #dataTableBuilder td,
+        #dataTableBuilder th {
+        padding: 6px 8px;
+        font-size: 12px;
+        }
+        
+    }
+</style>
+@endpush
 @section('content')
 <section class="content-header">
     <div class="container-fluid">
@@ -18,138 +91,105 @@
                 <a class="btn btn-warning waves-effect waves-light action-btn me-2" href="{{ route('salik.missing.records') }}">
                     <i class="fas fa-exclamation-triangle"></i> Missing Records
                 </a>
-                <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Filter Salik</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body" id="searchTopbody">
-                                <form method="GET" action="{{ route('salik.tickets' , $account->id) }}" id="filterForm" class="mb-4">
-                                    <div class="row align-items-end">
-                                        <div class="col-md-4">
-                                            <label for="transaction_id">Transaction ID</label>
-                                            <input type="text" name="transaction_id" id="transaction_id" class="form-control" placeholder="Filter By Transaction ID" value="{{ request('transaction_id') }}">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="rider_id">Rider</label>
-                                            <select name="rider_id" id="rider_id" class="form-contro">
-                                                <option value="">All Riders</option>
-                                                @foreach(DB::table('riders')->select('id', 'rider_id', 'name')->get() as $rider)
-                                                <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->id ? 'selected' : '' }}>{{ $rider->rider_id }} - {{ $rider->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="trip_date">Trip Date</label>
-                                            <input type="date" name="trip_date" id="trip_date" class="form-control" placeholder="Filter By Trip Date" value="{{ request('trip_date') }}">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="billing_month">Billing Month</label>
-                                            <input type="month" name="billing_month" id="billing_month" class="form-control" placeholder="Filter By Billing Month" value="{{ request('billing_month') }}">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="tag_number">Tag Number</label>
-                                            <input type="text" name="tag_number" id="tag_number" class="form-control" placeholder="Filter By Tag Number" value="{{ request('tag_number') }}">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="plate">Plate</label>
-                                            <input type="text" name="plate" id="plate" class="form-control" placeholder="Filter By Plate" value="{{ request('plate') }}">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="direction">Direction</label>
-                                            <select name="direction" id="direction" class="form-control">
-                                                <option value="">All Directions</option>
-                                                @foreach(DB::table('saliks')->select('direction')->distinct()->whereNotNull('direction')->pluck('direction') as $direction)
-                                                <option value="{{ $direction }}" {{ request('direction') == $direction ? 'selected' : '' }}>{{ $direction }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="toll_gate">Toll Gate</label>
-                                            <select name="toll_gate" id="toll_gate" class="form-control">
-                                                <option value="">All Toll Gates</option>
-                                                @foreach(DB::table('saliks')->select('toll_gate')->distinct()->whereNotNull('toll_gate')->pluck('toll_gate') as $toll_gate)
-                                                <option value="{{ $toll_gate }}" {{ request('toll_gate') == $toll_gate ? 'selected' : '' }}>{{ $toll_gate }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <button type="submit" class="btn btn-primary">Filter</button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-md-12 mt-3">
-                <div class="card h-100">
-                    <div class="card-body d-flex align-items-end">
-                        <div class="w-100">
-                            <div class="row gy-3">
-
-                                <div class="col-md-3 col-6">
-                                    <div class="d-flex align-items-center">
-                                        <div class="badge rounded bg-label-danger me-4 p-2">
-                                            <i class="menu-icon tf-icons ti ti-cash"></i>
-                                        </div>
-                                        <div class="card-info">
-                                            <h5 class="mb-0 unpaid-amount">{{ number_format($unpaidAmount ?? 0, 2) }}</h5>
-                                            <small>Total Unpaid Amount</small>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-3 col-6">
-                                    <div class="d-flex align-items-center">
-                                        <div class="badge rounded bg-label-info me-4 p-2">
-                                            <i class="menu-icon tf-icons ti ti-cash"></i>
-                                        </div>
-                                        <div class="card-info">
-                                            <h5 class="mb-0 paid-amount">{{ number_format($paidAmount ?? 0, 2) }}</h5>
-                                            <small>Total Paid Amount</small>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-3 col-6">
-                                    <div class="d-flex align-items-center">
-                                        <div class="badge rounded bg-label-success me-4 p-2">
-                                            <i class="menu-icon tf-icons ti ti-receipt"></i>
-                                        </div>
-                                        <div class="card-info">
-                                            <h5 class="mb-0 paid-count">{{ $paidCount ?? 0 }}</h5>
-                                            <small>Paid Salik</small>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-3 col-6">
-                                    <div class="d-flex align-items-center">
-                                        <div class="badge rounded bg-label-danger me-4 p-2">
-                                            <i class="menu-icon tf-icons ti ti-receipt"></i>
-                                        </div>
-                                        <div class="card-info">
-                                            <h5 class="mb-0 unpaid-count">{{ $unpaidCount ?? 0 }}</h5>
-                                            <small>Unpaid Salik</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 </section>
-<div class="content px-3">
+
+<!-- Filter Sidebar -->
+<div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+    <div class="filter-header">
+        <h5>Filter Fines</h5>
+        <button type="button" class="btn-close" id="closeSidebar"></button>
+    </div>
+    <div class="filter-body" id="searchTopbody">
+        <form id="filterForm" action="{{ route('salik.tickets', $account->id) }}" method="GET">
+            <div class="row">
+                <div class="form-group col-md-12">
+                    <label for="transaction_id">Transaction ID</label>
+                    <input type="text" name="transaction_id" id="transaction_id" class="form-control" placeholder="Filter By Transaction ID" value="{{ request('transaction_id') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="billing_month">Billing Month</label>
+                    <input type="month" name="billing_month" id="billing_month" class="form-control" placeholder="Filter By Billing Month" value="{{ request('billing_month') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="rider_id">Filter by Rider</label>
+                    <label for="rider_id">Rider</label>
+                    <select name="rider_id" id="rider_id" class="form-contro">
+                        <option value="">All Riders</option>
+                        @foreach(DB::table('riders')->select('id', 'rider_id', 'name')->get() as $rider)
+                        <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->id ? 'selected' : '' }}>{{ $rider->rider_id }} - {{ $rider->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="trip_date">Trip Date</label>
+                    <input type="date" name="trip_date" id="trip_date" class="form-control" placeholder="Filter By Trip Date" value="{{ request('trip_date') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="tag_number">Tag Number</label>
+                    <input type="text" name="tag_number" id="tag_number" class="form-control" placeholder="Filter By Tag Number" value="{{ request('tag_number') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="plate">Plate</label>
+                    <input type="text" name="plate" id="plate" class="form-control" placeholder="Filter By Plate" value="{{ request('plate') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="direction">Direction</label>
+                    <select name="direction" id="direction" class="form-control">
+                        <option value="">All Directions</option>
+                        @foreach(DB::table('saliks')->select('direction')->distinct()->whereNotNull('direction')->pluck('direction') as $direction)
+                        <option value="{{ $direction }}" {{ request('direction') == $direction ? 'selected' : '' }}>{{ $direction }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="toll_gate">Toll Gate</label>
+                    <select name="toll_gate" id="toll_gate" class="form-control">
+                        <option value="">All Toll Gates</option>
+                        @foreach(DB::table('saliks')->select('toll_gate')->distinct()->whereNotNull('toll_gate')->pluck('toll_gate') as $toll_gate)
+                        <option value="{{ $toll_gate }}" {{ request('toll_gate') == $toll_gate ? 'selected' : '' }}>{{ $toll_gate }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-12 form-group text-center">
+                    <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Filter Overlay -->
+<div id="filterOverlay" class="filter-overlay"></div>
+
+
+<div class="content">
     @include('flash::message')
     <div class="clearfix"></div>
     <div class="card">
+        <div class="card-header d-flex justify-content-between">
+            <div></div>
+            <button class="btn btn-primary openFilterSidebar" id="openFilterSidebar"> <i class="fa fa-search"></i>  Filter Fines</button>
+        </div>
+        <div class="totals-cards">
+            <div class="total-card total-red">
+                <div class="label"><i class="fa fa-times-circle"></i>Unpaid Saliks</div>
+                <div class="value" id="avg_ontime">{{ $unpaidCount ?? 0 }}</div>
+            </div>
+            <div class="total-card total-2">
+                <div class="label"><i class="far fa-money-bill-alt"></i>Unpaid Amount</div>
+                <div class="value" id="total_hours">{{ $unpaidAmount ?? 0 }}</div>
+            </div>
+            <div class="total-card total-green">
+                <div class="label"><i class="fas fa-stamp"></i>Paid Salik</div>
+                <div class="value" id="total_rejected">{{ $paidCount ?? 0 }}</div>
+            </div>
+            <div class="total-card total-3">
+                <div class="label"><i class="fa fa-ticket"></i>Paid Amount</div>
+                <div class="value" id="total_orders">{{ $paidAmount ?? 0 }}</div>
+            </div>
+        </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
             @include('salik.table', ['data' => $data])
         </div>
@@ -236,46 +276,44 @@
 
 <script type="text/javascript">
     $(document).ready(function() {
-        $('#filterForm').on('submit', function(e) {
+        $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function(e) {
             e.preventDefault();
+            console.log('Filter button hovered!'); // Debug line
+            $('#filterSidebar').addClass('open');
+            $('#filterOverlay').addClass('show');
+            return false;
+        });
 
-            $('#loading-overlay').show();
-            $('#searchModal').modal('hide');
+        $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
+            e.preventDefault();
+            console.log('Filter button clicked!'); // Debug line
+            $('#filterSidebar').addClass('open');
+            $('#filterOverlay').addClass('show');
+            return false;
+        });
 
-            const loaderStartTime = Date.now();
+        $('#closeSidebar, #filterOverlay').on('click', function() {
+            $('#filterSidebar').removeClass('open');
+            $('#filterOverlay').removeClass('show');
+        });
 
-            let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
-            let formData = $.param(filteredFields);
+        $('#filterForm').on('submit', function(e) {
+            // Let the form submit naturally - no need to prevent default
+            $('#filterSidebar').removeClass('open');
+            $('#filterOverlay').removeClass('show');
+        });
 
-            $.ajax({
-                url: "{{ route('salik.tickets', $account->id) }}",
-                type: "GET",
-                data: formData,
-                success: function(data) {
-                    $('#table-data').html(data.tableData);
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#filterSidebar').length) {
+                $('#filterSidebar').removeClass('open');
+            }
+        });
 
-                    // Update the totals
-                    $('.paid-amount').text(data.totals.paidAmount);
-                    $('.unpaid-amount').text(data.totals.unpaidAmount);
-                    $('.paid-count').text(data.totals.paidCount);
-                    $('.unpaid-count').text(data.totals.unpaidCount);
-
-                    // Update the URL
-                    let newUrl = "{{ route('salik.tickets', $account->id) }}" + (formData ? '?' + formData : '');
-                    history.pushState(null, '', newUrl);
-
-                    // Minimum 1s loader
-                    const elapsed = Date.now() - loaderStartTime;
-                    const remaining = 1000 - elapsed;
-                    setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-                },
-                error: function(xhr, status, error) {
-                    console.error(error);
-                    const elapsed = Date.now() - loaderStartTime;
-                    const remaining = 1000 - elapsed;
-                    setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-                }
-            });
+        // Close dropdown when pressing escape
+        $(document).on('keydown', function(e) {
+            if (e.key === 'Escape') {
+                $('#filterSidebar').removeClass('open');
+            }
         });
     });
 </script>

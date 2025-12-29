@@ -1,6 +1,11 @@
-﻿@extends('rta_fines.viewindex')
+﻿@extends('layouts.app')
 @section('title', 'Salik Accounts')
-@section('page_content')
+@section('content')
+<style>
+    .total-card {
+        flex: 1 1 calc(15% - 8px) !important;
+    }
+</style>
 <div class="modal modal-default filtetmodal fade" id="createsalikaccount" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
         <div class="modal-content">
@@ -37,7 +42,7 @@
     <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Filter Fines</h5>
+                <h5 class="modal-title">Filter Accounts</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="searchTopbody">
@@ -60,11 +65,55 @@
         </div>
     </div>
 </div>
-<div class="content px-3">
+
+<div >
+    <div class="row mb-2">
+        <div class="col-sm-6 d-flex gap">
+            <h4 style="padding-left: 20px; font-weight: bold; margin-top: 10px;">RTA Salik Accounts</h4>
+        </div>
+        <div class="col-sm-6 text-end mb-2">
+            <a class="btn btn-primary action-btn show-modal"
+                href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#createsalikaccount">
+                Add New Salik Account
+            </a>
+        </div>
+    </div>
+</div>
+<div class="content">
     @include('flash::message')
     <div class="clearfix"></div>
 
     <div class="card">
+        <div class="card-header d-flex justify-content-between">
+            <div></div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#searchModal"> <i class="fa fa-search"></i>  Filter Accounts</button>
+        </div>
+        <div class="totals-cards">
+            <div class="total-card total-blue">
+                <div class="label"><i class="fas fa-landmark"></i>Total Accounts</div>
+                <div class="value" id="total_orders">{{ $data->count() ?? 0 }}</div>
+            </div>
+            <div class="total-card total-red">
+                <div class="label"><i class="fa fa-times-circle"></i>Unpaid Saliks</div>
+                <div class="value" id="avg_ontime">{{ DB::table('saliks')->where('status', 'unpaid')->count() ?? 0 }}</div>
+            </div>
+            <div class="total-card total-green">
+                <div class="label"><i class="fas fa-stamp"></i>Paid Saliks</div>
+                <div class="value" id="total_rejected">{{ DB::table('saliks')->where('status', 'paid')->count() ?? 0 }}</div>
+            </div>
+                <div class="total-card total-1">
+                <div class="label"><i class="far fa-money-bill-alt"></i>Total Amount</div>
+                <div class="value" id="total_hours">{{ DB::table('saliks')->sum('total_amount') ?? 0 }}</div>
+            </div>
+            <div class="total-card total-2">
+                <div class="label"><i class="far fa-money-bill-alt"></i>Salik Amount</div>
+                <div class="value" id="total_hours">{{ DB::table('saliks')->sum('amount') ?? 0 }}</div>
+            </div>
+            <div class="total-card total-3">
+                <div class="label"><i class="far fa-money-bill-alt"></i>Admin Charges</div>
+                <div class="value" id="total_hours">{{ DB::table('saliks')->sum('admin_charges') ?? 0 }}</div>
+            </div>
+        </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
             @include('salik.account_table', ['data' => $data])
         </div>

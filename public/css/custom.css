@@ -71,3 +71,230 @@ select {
   color: black !important;
   text-align: center !important;
 }
+
+.totals-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 10px 16px 10px;
+}
+
+.total-card {
+    flex: 1 1 calc(25% - 8px);
+    min-width: 120px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left-width: 4px;
+    border-radius: 6px;
+    padding: 8px 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    margin-bottom: 0;
+}
+
+.total-card .label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    color: #6b7280;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.total-card .label i {
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
+.total-card .value {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.total-green {
+    border-left-color: #28a745;
+    background: linear-gradient(180deg, rgba(16, 185, 129, 0.06), rgba(16, 185, 129, 0.02));
+}
+
+.total-green .label {
+    color: #28a745;
+}
+
+.total-blue {
+    border-left-color: #007bff;
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
+}
+
+.total-blue .label {
+    color: #007bff;
+}
+
+.total-red {
+    border-left-color: #dc3545;
+    background: linear-gradient(180deg, rgba(239, 68, 68, 0.06), rgba(239, 68, 68, 0.02));
+}
+
+.total-red .label {
+    color: #dc3545;
+}
+
+.total-1 {
+    border-left-color: #c142bb;
+    background: linear-gradient(180deg, rgba(193, 66, 187, 0.06), rgba(193, 66, 187, 0.02));
+}
+
+.total-1 .label {
+    color: #c142bb;
+}
+
+.total-black {
+    border-left-color: #373536;
+    background: linear-gradient(180deg, rgba(55, 53, 54, 0.06), rgba(55, 53, 54, 0.02));
+}
+
+.total-2 {
+    border-left-color: #6f42c1;
+    background: linear-gradient(180deg, rgba(111, 66, 193, 0.06), rgba(111, 66, 193, 0.02));
+}
+
+.total-2 .label {
+    color: #6f42c1;
+}
+
+.total-3 {
+    border-left-color: #17a2b8;
+    background: linear-gradient(180deg, rgba(23, 162, 184, 0.06), rgba(23, 162, 184, 0.02));
+}
+
+.total-3 .label {
+    color: #17a2b8;
+}
+
+.total-4 {
+    border-left-color: #ffc107;
+    background: linear-gradient(180deg, rgba(255, 193, 7, 0.06), rgba(255, 193, 7, 0.02));
+}
+
+.total-4 .label {
+    color: #ffc107;
+}
+
+.total-black .label {
+    color: #544d4d;
+}
+
+.filter-sidebar {
+  position: fixed;
+  top: 0;
+  right: -420px;
+  width: 420px;
+  height: 100%;
+  background: #ffffff;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, .1);
+  z-index: 1051;
+  transition: right .3s ease;
+  overflow-y: auto;
+  border-left: 1px solid #dee2e6;
+}
+
+.filter-sidebar.open {
+  right: 0;
+}
+
+.filter-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, .4);
+  z-index: 1050;
+  display: none;
+}
+
+.filter-overlay.show {
+  display: block;
+}
+
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #eee;
+  background: #f8f9fa;
+}
+
+.filter-body {
+  padding: 1rem;
+  height: calc(100vh - 70px);
+  overflow-y: auto;
+}
+
+.filter-sidebar .btn-close {
+  box-shadow: none;
+}
+
+.card-search input {
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  padding: 8px 12px;
+}
+
+.card-search input:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+@media (max-width: 576px) {
+  .filter-sidebar {
+      width: 100%;
+      right: -100%;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+
+  .totals-cards {
+  gap: 6px;
+  }
+  
+  .total-card {
+  flex: 1 1 calc(50% - 6px);
+  min-width: 140px;
+  padding: 6px 8px;
+  }
+  
+  .total-card .label {
+  font-size: 9px;
+  }
+  
+  .total-card .value {
+  font-size: 12px;
+  }
+  
+  
+  /* Make badges smaller on mobile */
+  .badge {
+  font-size: 10px !important;
+  padding: 3px 6px;
+  }
+
+  .openFilterSidebar {
+  font-size: 12px;
+  padding: 6px 12px;
+  }
+
+  .filter-sidebar {
+      width: 250px;
+  }
+}

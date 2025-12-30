@@ -311,84 +311,38 @@
                 <h3>{{ $account->name }} | Rta Fines</h3>
             </div>
             <div class="col-sm-6">
-                <a class="btn btn-primary action-btn show-modal"
-                    href="javascript:void(0);" data-action="{{ route('rtaFines.create' , $account->id) }}" data-size="lg" data-title="New Fine">
-                    Add New
-                </a>
-                <a class="btn btn-success waves-effect waves-light action-btn me-2" href="{{ route('rtaFines.import.form', $account->id) }}">
-                    <i class="fas fa-upload"></i> Import Excel
-                </a>
-                {{-- <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Filter Fines</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body" id="searchTopbody">
-                                <form id="filterForm" action="{{ route('rtaFines.tickets', $account->id) }}" method="GET">
-                                    <div class="row">
-                                        <div class="form-group col-md-4">
-                                            <label for="ticket_no">Ticket Number</label>
-                                            <input type="number" name="ticket_no" class="form-control" placeholder="Filter By Ticket Number" value="{{ request('ticket_no') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="trans_code">Transcation Code</label>
-                                            <input type="text" name="trans_code" class="form-control" placeholder="Filter By Transcation Code" value="{{ request('trans_code') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="billing_month">Billing Month</label>
-                                            <input type="month" name="billing_month" class="form-control" placeholder="Filter By Billing Month" value="{{ request('billing_month') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="rider_id">Filter by Rider</label>
-                                            <select class="form-control " id="rider_id" name="rider_id">
-                                                <option value="">Select</option>
-                                                @php
-                                                $riderid = DB::table('rta_fines')
-                                                ->whereNotNull('rider_id')
-                                                ->where('rider_id', '!=', '')
-                                                ->pluck('rider_id')
-                                                ->unique();
-                                                $riders = DB::table('riders')
-                                                ->whereIn('id', $riderid)
-                                                ->select('id', 'rider_id', 'name')
-                                                ->get();
-                                                @endphp
-                                                @foreach($riders as $rider)
-                                                <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->id ? 'selected' : '' }}>{{ $rider->rider_id }} - {{ $rider->name}}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="bike_id">Filter by Bike</label>
-                                            <select class="form-control " id="bike_id" name="bike_id">
-                                                @php
-                                                $bikeid = DB::table('rta_fines')
-                                                ->whereNotNull('bike_id')
-                                                ->where('bike_id', '!=', '')
-                                                ->pluck('bike_id')
-                                                ->unique();
-                                                $bikes = DB::table('bikes')
-                                                ->whereIn('id', $bikeid)
-                                                ->select('id', 'plate')
-                                                ->get();
-                                                @endphp
-                                                <option value="" selected>Select</option>
-                                                @foreach($bikes as $bike)
-                                                <option value="{{ $bike->id }}" {{ request('bike_id') == $bike->id ? 'selected' : '' }}>{{ $bike->plate }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="col-md-12 form-group text-center">
-                                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
+                <div class="action-buttons d-flex justify-content-end">
+                    <div class="action-dropdown-container">
+                        <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                            <i class="ti ti-plus"></i>
+                            <span>Add Fine</span>
+                            <i class="ti ti-chevron-down"></i>
+                        </button>
+                        <div class="action-dropdown-menu" id="addBikeDropdown">
+                            @can('rtafine_create')
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="New Fine" data-action="{{ route('rtaFines.create' , $account->id) }}">
+                                <i class="ti ti-plus"></i>
+                                <div>
+                                    <div class="action-dropdown-item-text">Add New Fine</div>
+                                    <div class="action-dropdown-item-desc">Add a new fine against a bike</div>
+                                </div>
+                            </a>
+                            @endcan
+                            @can('rtafine_create')
+                            <a class="action-dropdown-item" href="{{ route('rtaFines.import.form', $account->id) }}">
+                                <i class="ti ti-file-upload"></i>
+                                <span>Import Fines</span>
+                            </a>
+                            @endcan
+                            @can('bike_view')
+                            <a class="action-dropdown-item" href="#" data-size="xl" data-title="Export Vehicles" data-action="#">
+                                <i class="ti ti-file-export"></i>
+                                <span>Export Fines</span>
+                            </a>
+                            @endcan
                         </div>
                     </div>
-                </div> --}}
+                </div>
             </div>
         </div>
     </div>

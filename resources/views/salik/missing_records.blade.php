@@ -19,37 +19,63 @@
 @endpush
 
 @section('content')
+<section class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h3>Missing Salik Records</h3>
+            </div>
+            <div class="col-sm-6">
+                <div class="action-buttons d-flex justify-content-end">
+                    <div class="action-dropdown-container">
+                        <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                            <i class="ti ti-arrow-left"></i>
+                            <span>Go Back</span>
+                            <i class="ti ti-chevron-down"></i>
+                        </button>
+                        <div class="action-dropdown-menu" id="addBikeDropdown">
+                            @can('salik_create')
+                            <a class="action-dropdown-item" href="{{ route('salik.index') }}">
+                                <i class="ti ti-arrow-left"></i>
+                                <div>
+                                    <div class="action-dropdown-item-text">Go Back</div>
+                                    <div class="action-dropdown-item-desc">Back to salik Accounts list</div>
+                                </div>
+                            </a>
+                            @endcan
+                            @can('salik_create')
+                            <a class="action-dropdown-item" href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#analyzeExcelModal">
+                                <i class="ti ti-file-search"></i>
+                                <span>Analyze Excel</span>
+                            </a>
+                            @endcan
+                            @can('bike_view')
+                            <a class="action-dropdown-item" href="{{ route('salik.export.missing.records') }}">
+                                <i class="ti ti-download"></i>
+                                <span>Export Excel</span>
+                            </a>
+                            @endcan
+
+                            @can('salik_create')
+                            <a class="action-dropdown-item" href="javascript:void(0)" onclick="clearOldFailedImports('{{ route('salik.clear.failed.imports') }}')">
+                                <i class="ti ti-trash"></i>
+                                <span>Clear Old Records</span>    
+                            </a>
+                            @endcan
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
 <div >
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="card-title mb-0">
-                            <i class="ti ti-alert-triangle text-warning me-2"></i>
-                            Missing Salik Records
-                        </h4>
-                        <div class="d-flex gap-2">
-                            <a href="{{ route('salik.index') }}" class="btn btn-secondary">
-                                <i class="ti ti-arrow-left me-1"></i>Back to Salik
-                            </a>
-                            <a href="{{ route('salik.import.form', 1) }}" class="btn btn-primary">
-                                <i class="ti ti-upload me-1"></i>Import Salik
-                            </a>
-                            <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#analyzeExcelModal">
-                                <i class="ti ti-file-search me-1"></i>Analyze Excel
-                            </button>
-                            <a href="{{ route('salik.export.missing.records') }}" class="btn btn-success">
-                                <i class="ti ti-download me-1"></i>Export to Excel
-                            </a>
-                            <button type="button" class="btn btn-danger" onclick="clearOldFailedImports()">
-                                <i class="ti ti-trash me-1"></i>Clear Old Records
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="totals-cards">
+                <div class="totals-cards py-4">
                     <div class="total-card total-blue">
                         <div class="label"><i class="fa fa-ticket"></i>Total Missing Record</div>
                         <div class="value" id="total_orders">{{ isset($failedImports) ? $failedImports->total() : count($missingRecords) }}</div>
@@ -248,6 +274,7 @@
 @endsection
 
 @section('page-script')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     // Function to change per page count
     function changePerPage(perPage) {
@@ -257,31 +284,46 @@
     }
 
     // Global function for clearing failed imports - Version 1.1
-    function clearOldFailedImports() {
-        const clearAll = confirm('Do you want to clear ALL failed import records?\n\nClick OK to clear ALL records\nClick Cancel to clear only old records (older than 30 days)');
-
-        if (clearAll || confirm('Are you sure you want to clear old failed import records (older than 30 days)? This action cannot be undone.')) {
-            $.ajax({
-                url: '{{ route("salik.clear.failed.imports") }}',
-                type: 'POST',
-                data: {
-                    _token: '{{ csrf_token() }}',
-                    clear_all: clearAll
-                },
-                success: function(response) {
-                    if (response.success) {
-                        alert('Success: ' + response.message);
-                        location.reload(); // Reload the page to show updated data
-                    } else {
-                        alert('Error: ' + response.message);
+    function clearOldFailedImports(url) {
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: url,
+                    method: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}' 
+                    },
+                    beforeSend: function() {
+                        Swal.showLoading();
+                    },
+                    success: function(response) {
+                        Swal.fire(
+                            'Deleted!',
+                            response.message || 'Failed imports have been cleared.',
+                            'success'
+                        ).then(() => {
+                            window.location.reload();
+                        });
+                    },
+                    error: function(xhr) {
+                        // Error handling
+                        Swal.fire(
+                            'Error!',
+                            xhr.responseJSON?.message || 'Something went wrong.',
+                            'error'
+                        );
                     }
-                },
-                error: function(xhr) {
-                    const errorMsg = xhr.responseJSON?.message || 'An error occurred while clearing records';
-                    alert('Error: ' + errorMsg);
-                }
-            });
-        }
+                });
+            }
+        });
     }
 
     // Global function for displaying analysis results

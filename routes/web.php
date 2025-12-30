@@ -519,7 +519,7 @@ Route::get('receipts/headbytype/{id}', [\App\Http\Controllers\ReceiptController:
 Route::get('salik/missing-records', [\App\Http\Controllers\SalikController::class, 'showMissingRecords'])->name('salik.missing.records');
 Route::get('salik/export-missing-records', [\App\Http\Controllers\SalikController::class, 'exportMissingRecords'])->name('salik.export.missing.records');
 Route::post('salik/analyze-excel', [\App\Http\Controllers\SalikController::class, 'analyzeExcelFile'])->name('salik.analyze.excel');
-Route::post('salik/clear-failed-imports', [\App\Http\Controllers\SalikController::class, 'clearFailedImports'])->name('salik.clear.failed.imports');
+Route::any('salik/clear-failed-imports', [\App\Http\Controllers\SalikController::class, 'clearFailedImports'])->name('salik.clear.failed.imports');
 Route::get('salik/import/{salik_account_id}', [\App\Http\Controllers\SalikController::class, 'importForm'])->name('salik.import.form');
 Route::post('salik/import', [\App\Http\Controllers\SalikController::class, 'import'])->name('salik.import');
 Route::post('salik/test-import', [\App\Http\Controllers\SalikController::class, 'testImport'])->name('salik.test.import');

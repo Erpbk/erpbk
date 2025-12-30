@@ -323,18 +323,6 @@
         padding: 3px 6px;
         }
         
-        /* Action dropdown adjustments */
-        .action-dropdown-menu {
-        right: -20px;
-        min-width: 260px;
-        }
-
-        .action-dropdown-btn {
-        min-width: 120px;
-        padding: 10px 16px;
-        font-size: 13px;
-        }
-        
         /* Filter button on mobile */
         .openFilterSidebar {
         font-size: 12px;
@@ -350,10 +338,11 @@
 @endpush
 
 @section('content')
-<section class="row content-header">
+<section class="content-header">
     <div>
         <div class="row mb-2">
-            <div class="col-sm-6">
+            <div class="col-sm-6 px-4">
+                <h2>Vehicles</h2>
             </div>
             <div class="col-sm-6">
                 <div class="action-buttons d-flex justify-content-end">

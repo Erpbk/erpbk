@@ -81,16 +81,45 @@
                 <h3>{{ $account->name }} | Salik</h3>
             </div>
             <div class="col-sm-6">
-                <a class="btn btn-primary action-btn show-modal"
-                    href="javascript:void(0);" data-action="{{ route('salik.create' , $account->id) }}" data-size="lg" data-title="New Salik">
-                    Add New
-                </a>
-                <a class="btn btn-success waves-effect waves-light action-btn me-2" href="{{ route('salik.import.form', $account->id) }}">
-                    <i class="fas fa-upload"></i> Import Excel
-                </a>
-                <a class="btn btn-warning waves-effect waves-light action-btn me-2" href="{{ route('salik.missing.records') }}">
-                    <i class="fas fa-exclamation-triangle"></i> Missing Records
-                </a>
+                <div class="action-buttons d-flex justify-content-end">
+                    <div class="action-dropdown-container">
+                        <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                            <i class="ti ti-plus"></i>
+                            <span>Add Salik</span>
+                            <i class="ti ti-chevron-down"></i>
+                        </button>
+                        <div class="action-dropdown-menu" id="addBikeDropdown">
+                            @can('salik_create')
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Salik" data-action="{{ route('salik.create' , $account->id) }}">
+                                <i class="ti ti-plus"></i>
+                                <div>
+                                    <div class="action-dropdown-item-text">Add New Salik</div>
+                                    <div class="action-dropdown-item-desc">Add a new salik against a bike</div>
+                                </div>
+                            </a>
+                            @endcan
+                            @can('salik_create')
+                            <a class="action-dropdown-item" href="{{ route('salik.import.form', $account->id) }}">
+                                <i class="ti ti-file-upload"></i>
+                                <span>Import Saliks</span>
+                            </a>
+                            @endcan
+                            @can('bike_view')
+                            <a class="action-dropdown-item" href="#" data-size="xl" data-title="Export Salik Sheet" data-action="#">
+                                <i class="ti ti-file-export"></i>
+                                <span>Export Saliks</span>
+                            </a>
+                            @endcan
+
+                            @can('salik_create')
+                            <a class="action-dropdown-item" href="{{ route('salik.missing.records') }}" >
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>Missing Salik Records</span>    
+                            </a>
+                            @endcan
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

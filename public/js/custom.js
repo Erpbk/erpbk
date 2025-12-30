@@ -388,6 +388,22 @@ $(document).ready(function () {
       alert('At least one row is required.');
     }
   });
+
+  // Action dropdown functionality
+  $(document).on('click', '#addBikeDropdownBtn', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const dropdown = $('#addBikeDropdown');
+      dropdown.toggleClass('show');
+  });
+
+  // Close dropdown when clicking outside
+  $(document).on('click', function(e) {
+      if (!$(e.target).closest('.action-dropdown-container').length) {
+          $('#addBikeDropdown').removeClass('show');
+      }
+  });
+
 });
 
 function bodyblock() {

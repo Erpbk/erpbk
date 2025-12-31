@@ -1,14 +1,12 @@
 <?php $__env->startSection('title','Users'); ?>
 <?php $__env->startSection('content'); ?>
-<?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('user_edit')): ?>
 <h4 class="mb-4">Top 5 Roles</h4>
 
 <p class="mb-4">A role provided access to predefined menus and features so that depending on <br> assigned role an administrator can have access to what user needs.</p>
 <!-- Role cards -->
 <div class="row g-4">
-    <?php $__currentLoopData = $roles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $role): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-    <?php if($role->name != 'Super Admin'): ?>
-    <div class="col-xl-4 col-lg-6 col-md-6">
+  <?php $__currentLoopData = $roles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $role): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+  <div class="col-xl-4 col-lg-6 col-md-6">
 
     <div class="card">
       <div class="card-body">
@@ -26,9 +24,8 @@
       </div>
     </div>
   </div>
-  <?php endif; ?>
 
-<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 
   <div class="col-xl-4 col-lg-6 col-md-6">
     <div class="card h-100">
@@ -48,36 +45,34 @@
       </div>
     </div>
   </div>
-  <?php endif; ?>
-    <section class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h3>Users</h3>
-                </div>
-                <div class="col-sm-6">
-                  <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('user_create')): ?>
-                    <a class="btn btn-primary float-right show-modal" style="float:right;" data-action="<?php echo e(route('users.create')); ?>"
-                       href="javascript:void(0)" data-title="Add User Account" data-size="xl">
-                        Add User
-                    </a>
-                    <?php endif; ?>
-                </div>
-            </div>
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h3>Users</h3>
         </div>
-    </section>
-
-    <div class="content px-md-3">
-
-        <?php echo $__env->make('flash::message', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
-
-        <div class="clearfix"></div>
-
-        <div class="card">
-            <?php echo $__env->make('users.table', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+        <div class="col-sm-6">
+          <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('user_create')): ?>
+          <a class="btn btn-primary float-right show-modal" style="float:right;" data-action="<?php echo e(route('users.create')); ?>"
+            href="javascript:void(0)" data-title="Add User Account" data-size="xl">
+            Add User
+          </a>
+          <?php endif; ?>
         </div>
+      </div>
     </div>
+  </section>
 
-<?php $__env->stopSection(); ?>
+  <div class="content px-md-3">
 
+    <?php echo $__env->make('flash::message', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+
+    <div class="clearfix"></div>
+
+    <div class="card">
+      <?php echo $__env->make('users.table', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+    </div>
+  </div>
+
+  <?php $__env->stopSection(); ?>
 <?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\xammp1\htdocs\erpbk\resources\views/users/index.blade.php ENDPATH**/ ?>

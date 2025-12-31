@@ -22,7 +22,7 @@ use App\Models\Activity;
 
 class UserController extends AppBaseController
 {
-    use GlobalPagination;
+  use GlobalPagination;
   /** @var UserRepository $userRepository*/
   private $userRepository;
 
@@ -50,9 +50,7 @@ class UserController extends AppBaseController
       }
     }*/
 
-    if (!auth()->user()->hasPermissionTo('user_view')) {
-      abort(403, 'Unauthorized action.');
-    }
+
     $roles = Role::all();
 
     return $userDataTable->render('users.index', compact('roles'));

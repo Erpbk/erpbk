@@ -181,12 +181,12 @@ class LedgerDataTable extends DataTable
         if ($visaex) {
           $rider = DB::Table('accounts')->where('id', $visaex->rider_id)->first();
           if ($rider) {
-            $naration = 'Paid to <b>' . $rider->name . ' </b>' . $visaex->visa_status . 'Charges ' . $visaex->date . $view_file;
+            $naration = 'Paid to <b>' . $rider->name . ' </b>' . $visaex->visa_status . ' Charges ' . $visaex->date . $view_file;
           } else {
-            $naration = $row->narration . ', ' . $view_file;
+            $naration = $row->narration . ' (Rider not found) ' . $view_file;
           }
         } else {
-          $naration = $row->narration . ', ' . $view_file;
+          $naration = $row->narration . ' (Visa expense not found) ' . $view_file;
         }
       } else {
         $naration = $row->narration . ', ' . $view_file;
@@ -197,7 +197,6 @@ class LedgerDataTable extends DataTable
         'billing_month' => $month,
         'voucher' => $voucher_text,
         'narration' => $naration,
-        $view_file,
         'debit' => number_format($row->debit, 2),
         'credit' => number_format($row->credit, 2),
         'balance' => number_format($runningBalance, 2),

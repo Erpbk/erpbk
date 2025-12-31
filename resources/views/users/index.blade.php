@@ -1,15 +1,13 @@
 @extends('layouts.app')
 @section('title','Users')
 @section('content')
-@can('user_edit')
 <h4 class="mb-4">Top 5 Roles</h4>
 
 <p class="mb-4">A role provided access to predefined menus and features so that depending on <br> assigned role an administrator can have access to what user needs.</p>
 <!-- Role cards -->
 <div class="row g-4">
-    @foreach($roles as $role)
-    @if($role->name != 'Super Admin')
-    <div class="col-xl-4 col-lg-6 col-md-6">
+  @foreach($roles as $role)
+  <div class="col-xl-4 col-lg-6 col-md-6">
 
     <div class="card">
       <div class="card-body">
@@ -27,9 +25,8 @@
       </div>
     </div>
   </div>
-  @endcan
 
-@endforeach
+  @endforeach
 
   <div class="col-xl-4 col-lg-6 col-md-6">
     <div class="card h-100">
@@ -49,34 +46,33 @@
       </div>
     </div>
   </div>
-  @endcan
-    <section class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h3>Users</h3>
-                </div>
-                <div class="col-sm-6">
-                  @can('user_create')
-                    <a class="btn btn-primary float-right show-modal" style="float:right;" data-action="{{ route('users.create') }}"
-                       href="javascript:void(0)" data-title="Add User Account" data-size="xl">
-                        Add User
-                    </a>
-                    @endcan
-                </div>
-            </div>
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h3>Users</h3>
         </div>
-    </section>
-
-    <div class="content px-md-3">
-
-        @include('flash::message')
-
-        <div class="clearfix"></div>
-
-        <div class="card">
-            @include('users.table')
+        <div class="col-sm-6">
+          @can('user_create')
+          <a class="btn btn-primary float-right show-modal" style="float:right;" data-action="{{ route('users.create') }}"
+            href="javascript:void(0)" data-title="Add User Account" data-size="xl">
+            Add User
+          </a>
+          @endcan
         </div>
+      </div>
     </div>
+  </section>
 
-@endsection
+  <div class="content px-md-3">
+
+    @include('flash::message')
+
+    <div class="clearfix"></div>
+
+    <div class="card">
+      @include('users.table')
+    </div>
+  </div>
+
+  @endsection

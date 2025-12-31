@@ -13,7 +13,7 @@
                 @enderror
             </div>
 
-            <!-- Courier ID -->
+            {{-- <!-- Courier ID -->
             <div class="form-group col-sm-4">
                 {!! Form::label('courier_id', 'Courier ID:') !!}
                 {!! Form::number('courier_id', null, ['class' => 'form-control', 'id' => 'courier_id_field']) !!}
@@ -21,7 +21,7 @@
                 @error('courier_id')
                 <span class="text-danger">{{ $message }}</span>
                 @enderror
-            </div>
+            </div> --}}
 
             <!-- Name -->
             <div class="form-group col-sm-4">
@@ -29,11 +29,18 @@
                 {!! Form::text('name', null, ['class' => 'form-control', 'maxlength' => 191, 'required']) !!}
             </div>
 
+            <!-- Date of Joining -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('doj', 'Date Of Joining:',['class'=>'required']) !!}
+                {!! Form::date('doj', null, ['class' => 'form-control','id'=>'doj','required']) !!}
+            </div>
+
             <!-- Rider Contact -->
             <div class="form-group col-sm-4">
                 {!! Form::label('personal_contact', 'Rider Contact:') !!}
                 {!! Form::tel('personal_contact', null, ['class' => 'form-control', 'placeholder' => '05XXXXXXXX', 'maxlength' => 10]) !!}
             </div>
+
             <!-- Personal Email -->
             <div class="form-group col-sm-4">
                 {!! Form::label('personal_email', 'Personal Email:',['class'=>'required']) !!}
@@ -51,6 +58,18 @@
                 'required',
                 'placeholder' => 'Select Nationality'
                 ]) !!}
+            </div>
+
+            <!-- Passport -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('passport', 'Passport:',['class'=>'required']) !!}
+                {!! Form::text('passport', null, ['class' => 'form-control', 'maxlength' => 50]) !!}
+            </div>
+
+            <!-- Passport Expiry -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('passport_expiry', 'Passport Expiry:',['class'=>'required']) !!}
+                {!! Form::date('passport_expiry', null, ['class' => 'form-control','id'=>'passport_expiry']) !!}
             </div>
 
             <!-- Ethnicity -->
@@ -73,40 +92,117 @@
     </div>
 </div>
 
+<!-- Visa Info Section -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white fs-5 fw-bold p-4">Visa Info</div>
+    <div class="card-body">
+        <div class="row">
+            <!-- License No -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('license_no', 'License No:',['class'=>'required']) !!}
+                {!! Form::text('license_no', null, ['class' => 'form-control', 'maxlength' => 50]) !!}
+            </div>
+            <!-- License Expiry -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('license_expiry', 'License Expiry:',['class'=>'required']) !!}
+                {!! Form::date('license_expiry', null, ['class' => 'form-control','id'=>'license_expiry']) !!}
+            </div>
+
+            <!-- Visa Sponsor -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('visa_sponsor', 'Visa Sponsor:') !!}
+                {!! Form::text('visa_sponsor', null, ['class' => 'form-control', 'placeholder' => 'Enter Visa Sponsor', 'maxlength' => 50]) !!}
+            </div>
+
+            <!-- Road Permit -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('road_permit', 'Road Permit:') !!}
+                {!! Form::text('road_permit', null, ['class' => 'form-control', 'placeholder' => 'Enter Road Permit No.','maxlength' => 50 ]) !!}
+            </div>
+        
+            <!-- Road Permit Expiry -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('road_permit_expiry', 'Road Permit Expiry:') !!}
+                {!! Form::date('road_permit_expiry', null, ['class' => 'form-control','id'=>'road_permit_expiry']) !!}
+            </div>
+
+            <!-- Visa Occupation -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('visa_occupation', 'Visa Occupation:',['class'=>'required']) !!}
+                {!! Form::text('visa_occupation', null, ['class' => 'form-control', 'placeholder' => 'Enter Visa Occupation','maxlength' => 50, 'required' ]) !!}
+            </div>
+
+            <!-- Visa Status -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('visa_status', 'Visa Status:') !!}
+                {!! Form::select('visa_status',
+                Common::Dropdowns('visa-status'),
+                null,
+                [
+                'class' => 'form-select',
+                'placeholder' => 'Select Visa Status'
+                ]) !!}
+            </div>
+            
+            <!-- Passport Handover -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('passport_handover', 'Passport Handover:',['class'=>'required']) !!}
+                {!! Form::select('passport_handover',
+                Common::Dropdowns('passport-handover'),
+                null,
+                [
+                'class' => 'form-select',
+                'placeholder' => 'Select Passport Handover'
+                ]) !!}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Job Info Section -->
 <div class="card mb-4">
     <div class="card-header bg-primary text-white fs-5 fw-bold p-4">Job Info</div>
     <div class="card-body">
         <div class="row">
 
-            <!-- Company Contact -->
+            {{-- <!-- Mashreq ID -->
             <div class="form-group col-sm-4">
-                {!! Form::label('company_contact', 'Company Contact:') !!}
-                {!! Form::tel('company_contact', null, ['class' => 'form-control', 'placeholder' => '05XXXXXXXX', 'maxlength' => 10]) !!}
+                {!! Form::label('mashreq_id', 'Mashreq Id:') !!}
+                {!! Form::text('mashreq_id', null, ['class' => 'form-control', 'maxlength' => 191]) !!}
+            </div> --}}
+
+            <!-- Emirate ID -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('emirate_id', 'Emirate ID:',['class'=>'required']) !!}
+                <!-- {!! Form::text('emirate_id', null, ['class' => 'form-control','id'=>'emirate_id','placeholder' => '784-2000-6871718-8', 'required']) !!} -->
+                {!! Form::text('emirate_id', null, [
+                'class' => 'form-control',
+                'required',
+                'id' => 'emirate_id',
+                'placeholder' => '784-2000-6871718-8',
+                'oninput' => 'formatEmirateId(this)',
+                'maxlength' => '18'
+                ]) !!}
             </div>
 
-            <!-- Date of Joining -->
+            <!-- Emirate Expiry -->
             <div class="form-group col-sm-4">
-                {!! Form::label('doj', 'Date Of Joining:',['class'=>'required']) !!}
-                {!! Form::date('doj', null, ['class' => 'form-control','id'=>'doj','required']) !!}
+                {!! Form::label('emirate_exp', 'Emirate Expiry:',['class'=>'required']) !!}
+                {!! Form::date('emirate_exp', null, ['class' => 'form-control','id'=>'emirate_exp','required']) !!}
             </div>
+
             <!-- CDM Deposit ID -->
             <div class="form-group col-sm-4">
                 {!! Form::label('cdm_deposit_id', 'CDM Deposit ID:') !!}
                 {!! Form::text('cdm_deposit_id', null, ['class' => 'form-control', 'maxlength' => 191]) !!}
             </div>
 
-            <!-- Mashreq ID -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('mashreq_id', 'Mashreq Id:') !!}
-                {!! Form::text('mashreq_id', null, ['class' => 'form-control', 'maxlength' => 191]) !!}
-            </div>
-
-            <!-- Branded Plate No -->
+            {{-- <!-- Branded Plate No -->
             <div class="form-group col-sm-4">
                 {!! Form::label('branded_plate_no', 'Branded Plate No:') !!}
                 {!! Form::text('branded_plate_no', null, ['class' => 'form-control', 'maxlength' => 191]) !!}
-            </div>
+            </div> --}}
+
             <!-- Fleet Supervisor -->
             <div class="form-group col-sm-4">
                 {!! Form::label('fleet_supervisor', 'Fleet Supervisor:',['class'=>'required']) !!}
@@ -132,6 +228,8 @@
                 'required'
                 ]) !!}
             </div>
+
+            <!-- Vendor -->
             <div class="form-group col-sm-4">
                 {!! Form::label('VID', 'Vendor:',['class'=>'required']) !!}
                 {!! Form::select('VID',App\Models\Vendors::dropdown(),null,
@@ -146,6 +244,8 @@
                     @endforeach
                 </select>
             </div>
+
+            <!-- VAT -->
             <div class="form-group col-sm-4">
                 <label>VAT</label>
                 <div class="form-check">
@@ -159,99 +259,6 @@
     </div>
 </div>
 
-<!-- Visa Info Section -->
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white fs-5 fw-bold p-4">Visa Info</div>
-    <div class="card-body">
-        <div class="row">
-            <!-- Visa Sponsor -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('visa_sponsor', 'Visa Sponsor:') !!}
-                {!! Form::text('visa_sponsor', null, ['class' => 'form-control', 'placeholder' => 'Enter Visa Sponsor', 'maxlength' => 50]) !!}
-            </div>
-
-            <!-- Visa Occupation -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('visa_occupation', 'Visa Occupation:',['class'=>'required']) !!}
-                {!! Form::text('visa_occupation', null, ['class' => 'form-control', 'placeholder' => 'Enter Visa Occupation','maxlength' => 50, 'required' ]) !!}
-            </div>
-
-            <!-- Visa Status -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('visa_status', 'Visa Status:') !!}
-                {!! Form::select('visa_status',
-                Common::Dropdowns('visa-status'),
-                null,
-                [
-                'class' => 'form-select',
-                'placeholder' => 'Select Visa Status'
-                ]) !!}
-            </div>
-        </div>
-
-        <div class="row">
-            <!-- Emirate ID -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('emirate_id', 'Emirate ID:',['class'=>'required']) !!}
-                <!-- {!! Form::text('emirate_id', null, ['class' => 'form-control','id'=>'emirate_id','placeholder' => '784-2000-6871718-8', 'required']) !!} -->
-                {!! Form::text('emirate_id', null, [
-                'class' => 'form-control',
-                'required',
-                'id' => 'emirate_id',
-                'placeholder' => '784-2000-6871718-8',
-                'oninput' => 'formatEmirateId(this)',
-                'maxlength' => '18'
-                ]) !!}
-            </div>
-
-            <!-- Emirate Expiry -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('emirate_exp', 'Emirate Expiry:',['class'=>'required']) !!}
-                {!! Form::date('emirate_exp', null, ['class' => 'form-control','id'=>'emirate_exp','required']) !!}
-            </div>
-
-            <!-- License No -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('license_no', 'License No:',['class'=>'required']) !!}
-                {!! Form::text('license_no', null, ['class' => 'form-control', 'maxlength' => 50]) !!}
-            </div>
-        </div>
-
-        <div class="row">
-            <!-- License Expiry -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('license_expiry', 'License Expiry:',['class'=>'required']) !!}
-                {!! Form::date('license_expiry', null, ['class' => 'form-control','id'=>'license_expiry']) !!}
-            </div>
-
-            <!-- Passport -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('passport', 'Passport:',['class'=>'required']) !!}
-                {!! Form::text('passport', null, ['class' => 'form-control', 'maxlength' => 50]) !!}
-            </div>
-
-            <!-- Passport Expiry -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('passport_expiry', 'Passport Expiry:',['class'=>'required']) !!}
-                {!! Form::date('passport_expiry', null, ['class' => 'form-control','id'=>'passport_expiry']) !!}
-            </div>
-        </div>
-
-        <div class="row">
-            <!-- Passport Handover -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('passport_handover', 'Passport Handover:',['class'=>'required']) !!}
-                {!! Form::select('passport_handover',
-                Common::Dropdowns('passport-handover'),
-                null,
-                [
-                'class' => 'form-select',
-                'placeholder' => 'Select Passport Handover'
-                ]) !!}
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- Labor Info Section -->
 <div class="card mb-4">
@@ -318,13 +325,13 @@
 
             <!-- C3 Card -->
             <div class="form-group col-sm-4">
-                {!! Form::label('c3_card', 'C3 Card:') !!}
+                {!! Form::label('c3_card', 'Salary Card:') !!}
                 {!! Form::select('c3_card',
                 Common::Dropdowns('c3-card'),
                 null,
                 [
                 'class' => 'form-select',
-                'placeholder' => 'Select C3 Card'
+                'placeholder' => 'Select Sallary Type'
                 ]) !!}
             </div>
         </div>

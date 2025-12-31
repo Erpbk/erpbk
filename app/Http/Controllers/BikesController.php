@@ -357,11 +357,7 @@ class BikesController extends AppBaseController
     $mulkiyaFile = DB::table('files')
     ->where('type', 'bike')
     ->where('type_id', $id)
-    ->where(function($query) {
-        $query->where('name', 'LIKE', '%mulkiya%')
-              ->orWhere('name', 'LIKE', '%Mulkiya%')
-              ->orWhere('name', 'LIKE', '%MULKIYA%');
-    })
+    ->where('name', 'LIKE', '%mulkiya%')
     ->first();
 
     return view('bikes.show2')->with('bikes', $bikes)->with('mulkiyaFile', $mulkiyaFile);

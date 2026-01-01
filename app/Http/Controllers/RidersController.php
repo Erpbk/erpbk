@@ -513,25 +513,7 @@ class RidersController extends AppBaseController
       $input = $request->all();
       $items = $request->get('items');
 
-      // Check if rider with this rider_id already exists
-      $existingRider = Riders::where('rider_id', $input['rider_id'])->first();
-      if ($existingRider) {
-        DB::rollback();
-
-        if (request()->ajax()) {
-          return response()->json([
-            'success' => false,
-            'message' => 'A rider with ID ' . $input['rider_id'] . ' already exists. Please use a different Rider ID.',
-            'errors' => [
-              'rider_id' => ['A rider with this ID already exists.']
-            ]
-          ], 422);
-        }
-
-        Flash::error('A rider with ID ' . $input['rider_id'] . ' already exists.');
-        return redirect()->back()->withInput();
-      }
-
+      
       $riders = $this->ridersRepository->create($input);
       if ($riders) {
 

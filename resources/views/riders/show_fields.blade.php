@@ -38,7 +38,7 @@
             </div>
             <!--col-->
             <div class="col-md-3 form-group col-3">
-                <label>Personal Gmail ID </label>
+                <label>Personal Email ID </label>
                 <p>{{@$result['personal_email']}}</p>
             </div>
             <!--col-->
@@ -100,7 +100,7 @@
                     <input type="text" class="form-control form-control-sm" name="company_contact" value="{{@$result['company_contact']}}">
                 </div>
                 <div class="col-md-3 form-group col-3">
-                    <label>Personal Gmail ID</label>
+                    <label>Personal Email ID</label>
                     <input type="email" class="form-control form-control-sm" name="personal_email" value="{{@$result['personal_email']}}">
                 </div>
                 <div class="col-md-3 form-group col-3">

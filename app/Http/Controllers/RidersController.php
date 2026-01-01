@@ -44,7 +44,7 @@ use App\Traits\GlobalPagination;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Flash;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -1461,7 +1461,41 @@ class RidersController extends AppBaseController
 
   public function files($rider_id, FilesDataTable $filesDataTable)
   {
-    return $filesDataTable->with(['type_id' => $rider_id, 'type' => 'rider'])->render('riders.document');
+    $expectedFiles = [
+        'profile' => 'Profile Photo',
+        'passport' => ['Passport 1st Page', 'Passport 2nd Page'],
+        'nic' => ['NIC/National ID Front', 'NIC/National ID Back'],
+        'emirates' => ['Emirates ID Front', 'Emirates ID Back'],
+        'labor' => 'Labor Card',
+        'residency' => 'Residency',
+        'mol' => 'MOL/Job Offer Letter',
+        'license' => 'Driving License',
+        'health' => 'Health Insurance',
+        'workers' => 'Workers Insurance',
+        'road' => 'Road Permit',
+        'contract' => 'Rider Contract'
+    ];
+
+    $riderFiles = DB::table('files')
+                  ->where('type', 'rider')
+                  ->where('type_id', $rider_id)
+                  ->get()
+                  ->pluck('name');
+
+    $riderFiles = $riderFiles->all();
+    $missingFiles = [];
+
+    foreach($expectedFiles as $key => $desc){
+        $found = false;
+        foreach($riderFiles as $riderFile){
+            if(str_contains($riderFile, $key)){
+              $found = true;
+              break;
+            }
+        }
+        if(!$found) $missingFiles[$key] = $desc;
+    }
+    return $filesDataTable->with(['type_id' => $rider_id, 'type' => 'rider', 'missingFiles' => $missingFiles])->render('riders.document', compact('missingFiles'));
   }
 
   public function sendEmail($id, Request $request)

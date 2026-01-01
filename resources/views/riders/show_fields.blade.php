@@ -16,11 +16,11 @@
                 <label class="required">Rider ID </label>
                 <p>{{$result['rider_id']}}</p>
             </div>
-            <!--col-->
+            {{-- <!--col-->
             <div class="col-md-3 form-group col-3">
                 <label>Courier ID </label>
                 <p>{{@$result['courier_id']}}</p>
-            </div>
+            </div> --}}
             <!--col-->
             <div class="col-md-3 form-group col-3">
                 <label>Rider Name </label>
@@ -43,20 +43,13 @@
                 <p>{{@$result['personal_email']}}</p>
             </div>
             <!--col-->
-            {{-- <div class="col-md-3 form-group">
-                      <label>Email</label>
-                      <input type="text" class="form-control form-control-sm" name="email" placeholder="Person Email">
-                  </div> --}}
-            <!--col-->
             <div class="col-md-3 form-group col-3">
                 <label>Nationality </label>
                 <p>{{$rider?->country?->name}}</p>
-
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Ethnicity</label>
                 <p>{{@$result['ethnicity']}}</p>
-
             </div>
             <!--col-->
             <div class="col-md-3 form-group col-3">
@@ -64,17 +57,16 @@
                 <p>{{@App\Helpers\General::DateFormat($result['dob'])}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label>Vendor </label>
-                <p>{{@$rider->vendor->name}}</p>
-
+                <label>Date of Joining </label>
+                <p>{{@App\Helpers\General::DateFormat($result['doj'])}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label>Customer </label>
-                <p>{{@$rider->customer->name}}</p>
+                <label>Passport </label>
+                <p>{{@$result['passport']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label>Recruiter </label>
-                <p>{{@$rider->recruiter->name}}</p>
+                <label @if(strtotime($result['passport_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Passport Expiry </label>
+                <p @if(strtotime($result['passport_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['passport_expiry'])}}</p>
             </div>
         </div>
 
@@ -155,6 +147,123 @@
         </form>
     </div>
 </div>
+
+<div class="card border">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div><i class="ti ti-note ti-sm me-1_5 me-2" style=" background: #3a3a3c52;color: #3a3a3c;"></i><b>Visa & Registerations</b></div>
+            <button type="button" class="btn btn-sm edit-btn" data-section="visa">
+                <i class="ti ti-edit me-1"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3 form-group col-3">
+                <label>Licence No </label>
+                <p>{{@$result['license_no']}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label @if(strtotime($result['license_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Licence Expiry </label>
+                <p @if(strtotime($result['license_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['license_expiry'])}}</p>
+            </div>
+            <!--col-->
+            <div class="col-md-3 form-group col-3">
+                <label>Emirate ID </label>
+                <p>{{@$result['emirate_id']}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label @if(strtotime($result['emirate_exp']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>EID EXP Date </label>
+                <p @if(strtotime($result['emirate_exp']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['emirate_exp'])}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Road Permit No.</label>
+                <p>{{$result['road_permit'] ?? ''}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label @if(strtotime($result['road_permit_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>ROAD PERMIT EXPIRY </label>
+                <p @if(strtotime($result['road_permit_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['road_permit_expiry'])}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Visa Sponsor</label>
+                <p>{{@$result['visa_sponsor']}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Occupation on Visa </label>
+                <p>{{@$result['visa_occupation']}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Visa Status</label>
+                <p>{{@$result['visa_status']}}</p>
+
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Passport Handover </label>
+                <p>{{@$result['passport_handover']}}</p>
+            </div>
+        </div>
+    </div>
+    <!-- Edit Form for Visa & Registrations -->
+    <div class="card-body edit-form" id="edit-visa" style="display: none;">
+        <form class="section-form" data-section="visa">
+            @csrf
+            <div class="row">
+                <div class="col-md-3 form-group col-3">
+                    <label>Visa Sponsor</label>
+                    <input type="text" class="form-control form-control-sm" name="visa_sponsor" value="{{@$result['visa_sponsor']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>Occupation on Visa</label>
+                    <input type="text" class="form-control form-control-sm" name="visa_occupation" value="{{@$result['visa_occupation']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>Visa Status</label>
+                    <input type="text" class="form-control form-control-sm" name="visa_status" value="{{@$result['visa_status']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>Emirate ID</label>
+                    <input type="text" class="form-control form-control-sm" name="emirate_id" value="{{@$result['emirate_id']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>EID EXP Date</label>
+                    <input type="date" class="form-control form-control-sm" name="emirate_exp" value="{{@$result['emirate_exp']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>Licence No</label>
+                    <input type="text" class="form-control form-control-sm" name="license_no" value="{{@$result['license_no']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>Licence Expiry</label>
+                    <input type="date" class="form-control form-control-sm" name="license_expiry" value="{{@$result['license_expiry']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>Passport</label>
+                    <input type="text" class="form-control form-control-sm" name="passport" value="{{@$result['passport']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>Passport Expiry</label>
+                    <input type="date" class="form-control form-control-sm" name="passport_expiry" value="{{@$result['passport_expiry']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>Passport Handover</label>
+                    <input type="text" class="form-control form-control-sm" name="passport_handover" value="{{@$result['passport_handover']}}">
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <i class="ti ti-check me-1"></i>Update
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm cancel-edit">
+                        <i class="ti ti-x me-1"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+
 <div class="card border">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
@@ -167,10 +276,6 @@
     <div class="card-body">
         <div class="row">
             <div class="col-md-3 form-group col-3">
-                <label>Date of Joining </label>
-                <p>{{@App\Helpers\General::DateFormat($result['doj'])}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
                 <label>Project </label>
                 <p>{{@$rider->customer->name}}</p>
 
@@ -179,18 +284,10 @@
                 <label>Designation </label>
                 <p>{{@$result['designation']}}</p>
             </div>
-            {{-- <div class="col-md-3 form-group">
-              <label>NF DID</label>
-              <input type="text" class="form-control form-control-sm" name="NFDID" placeholder="NF DID">
-          </div> --}}
             <div class="col-md-3 form-group col-3">
                 <label>CDM Deposit ID</label>
                 <p>{{@$result['cdm_deposit_id']}}</p>
             </div>
-            {{-- <div class="col-md-3 form-group">
-              <label>Dept</label>
-              <input type="text" class="form-control form-control-sm dat" name="DEPT" placeholder="Dept">
-          </div> --}}
             <div class="col-md-3 form-group col-3">
                 <label>Fleet Supervisor </label>
                 <p>{{@$result['fleet_supervisor']}}</p>
@@ -209,6 +306,15 @@
             <div class="col-md-3 form-group col-3">
                 <label>Rider Reference </label>
                 <p>{{@$result['rider_reference']}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Vendor </label>
+                <p>{{@$rider->vendor->name}}</p>
+
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Recruiter </label>
+                <p>{{@$rider->recruiter->name}}</p>
             </div>
         </div>
     </div>
@@ -283,120 +389,7 @@
     </div>
 </div>
 
-<div class="card border">
-    <div class="card-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div><i class="ti ti-note ti-sm me-1_5 me-2" style=" background: #3a3a3c52;color: #3a3a3c;"></i><b>Visa & Registerations</b></div>
-            <button type="button" class="btn btn-sm edit-btn" data-section="visa">
-                <i class="ti ti-edit me-1"></i>
-            </button>
-        </div>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-3 form-group col-3">
-                <label>Visa Sponsor</label>
-                <p>{{@$result['visa_sponsor']}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Occupation on Visa </label>
-                <p>{{@$result['visa_occupation']}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Visa Status</label>
-                <p>{{@$result['visa_status']}}</p>
 
-            </div>
-            <!--col-->
-            <div class="col-md-3 form-group col-3">
-                <label>Emirate ID </label>
-                <p>{{@$result['emirate_id']}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label @if(strtotime($result['emirate_exp']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>EID EXP Date </label>
-                <p @if(strtotime($result['emirate_exp']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['emirate_exp'])}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Licence No </label>
-                <p>{{@$result['license_no']}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label @if(strtotime($result['license_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Licence Expiry </label>
-                <p @if(strtotime($result['license_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['license_expiry'])}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Passport </label>
-                <p>{{@$result['passport']}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label @if(strtotime($result['passport_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Passport Expiry </label>
-                <p @if(strtotime($result['passport_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['passport_expiry'])}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Passport Handover </label>
-                <p>{{@$result['passport_handover']}}</p>
-            </div>
-        </div>
-    </div>
-    <!-- Edit Form for Visa & Registrations -->
-    <div class="card-body edit-form" id="edit-visa" style="display: none;">
-        <form class="section-form" data-section="visa">
-            @csrf
-            <div class="row">
-                <div class="col-md-3 form-group col-3">
-                    <label>Visa Sponsor</label>
-                    <input type="text" class="form-control form-control-sm" name="visa_sponsor" value="{{@$result['visa_sponsor']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Occupation on Visa</label>
-                    <input type="text" class="form-control form-control-sm" name="visa_occupation" value="{{@$result['visa_occupation']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Visa Status</label>
-                    <input type="text" class="form-control form-control-sm" name="visa_status" value="{{@$result['visa_status']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Emirate ID</label>
-                    <input type="text" class="form-control form-control-sm" name="emirate_id" value="{{@$result['emirate_id']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>EID EXP Date</label>
-                    <input type="date" class="form-control form-control-sm" name="emirate_exp" value="{{@$result['emirate_exp']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Licence No</label>
-                    <input type="text" class="form-control form-control-sm" name="license_no" value="{{@$result['license_no']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Licence Expiry</label>
-                    <input type="date" class="form-control form-control-sm" name="license_expiry" value="{{@$result['license_expiry']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Passport</label>
-                    <input type="text" class="form-control form-control-sm" name="passport" value="{{@$result['passport']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Passport Expiry</label>
-                    <input type="date" class="form-control form-control-sm" name="passport_expiry" value="{{@$result['passport_expiry']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Passport Handover</label>
-                    <input type="text" class="form-control form-control-sm" name="passport_handover" value="{{@$result['passport_handover']}}">
-                </div>
-            </div>
-            <div class="row mt-3">
-                <div class="col-12">
-                    <button type="submit" class="btn btn-success btn-sm">
-                        <i class="ti ti-check me-1"></i>Update
-                    </button>
-                    <button type="button" class="btn btn-secondary btn-sm cancel-edit">
-                        <i class="ti ti-x me-1"></i>
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
 <div class="card border">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">

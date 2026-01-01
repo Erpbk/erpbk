@@ -5,35 +5,104 @@
     <section class="content">
         <div class="container-fluid mt-3"> --}}
 
-          <div class=" card-action mb-0">
-@can('rider_document')
-            <div class="card-header align-items-center">
-              <h5 class="card-action-title mb-0"><i class="ti ti-file-upload ti-lg text-body me-2"></i>Files</h5>
-              <a class="btn btn-primary show-modal action-btn"
-                       href="javascript:void(0);" data-action="{{ route('files.create',['type_id'=>request()->segment(3),'type'=>'rider']) }}" data-size="sm" data-title="Upload File">
-                        Upload File
-                    </a>
-            </div>
-            <div class="card-body pt-0 px-2">
-              @push('third_party_stylesheets')
-              @include('layouts.datatables_css')
-          @endpush
+<div class=" card-action mb-0">
+    @can('rider_document')
+        <div class="card-header align-items-center">
+            <h5 class="card-action-title mb-0"><i class="ti ti-file-upload ti-lg text-body me-2"></i>Files</h5>
+            <a class="btn btn-primary show-modal action-btn"
+            href="javascript:void(0);" data-action="{{ route('files.create',['type_id'=>request()->segment(3),'type'=>'rider']) }}" data-size="sm" data-title="Upload File">
+                Upload File
+            </a>
+        </div>
+        {{-- Files Table --}}
+        <div class="card-body pt-0 px-2">
+            @push('third_party_stylesheets')
+                @include('layouts.datatables_css')
+            @endpush
 
-          <div class="card-body px-0 pt-0" >
-              {!! $dataTable->table(['width' => '100%', 'class' => 'table table-striped dataTable']) !!}
-          </div>
-
-          @push('third_party_scripts')
-              @include('layouts.datatables_js')
-              {!! $dataTable->scripts() !!}
-          @endpush
+            <div class="card-body px-0 pt-0" >
+                {!! $dataTable->table(['width' => '100%', 'class' => 'table table-striped dataTable']) !!}
             </div>
 
-             @else
-            <div class="alert alert-warning  text-center m-3"><i class="fa fa-warning"></i> You don't have permission.</div>
-            @endcan
-
-          </div>
+            @push('third_party_scripts')
+                @include('layouts.datatables_js')
+                {!! $dataTable->scripts() !!}
+            @endpush
+        </div>
+    @endcan
+    @can('rider_document')
+         <!-- MISSING FILES SECTION -->
+        @if(!empty($missingFiles))
+        <div class="card mb-4 border-warning">   
+            <div class="table-responsive my-3">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr class="row flex">
+                            <h4 class="px-4"><i class="ti ti-alert-triangle text-danger px-1"></i>Missing Documents</h4>
+                            <small class="text-muted px-4">
+                                <i class="ti ti-info-circle me-1"></i>
+                                {{ count($missingFiles) ?? 0 }} documents pending
+                            </small>
+                        </tr>
+                        <tr>
+                            <th width="50">#</th>
+                            <th>Document</th>
+                            <th width="120" class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @php $counter = 1; @endphp
+                        @foreach($missingFiles as $key => $fileName)
+                            @if(!is_array($fileName))
+                            <tr>
+                                <td>{{ $counter++ }}</td>
+                                <td>{{ $fileName }}</td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-primary show-modal action-btn"
+                                        href="javascript:void(0);" 
+                                        data-action="{{ route('files.create', [
+                                            'type_id' => request()->segment(3),
+                                            'type' => 'rider',
+                                            'suggested_name' => $fileName
+                                        ]) }}" 
+                                        data-size="md" 
+                                        data-title="Upload {{ $fileName }}">
+                                        <i class="ti ti-upload"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            @else
+                                @foreach($fileName as $index => $desc)
+                                <tr>
+                                    <td>{{ $counter++ }}</td>
+                                    <td>{{ $desc }}</td>
+                                    <td class="text-end">
+                                        <a class="btn btn-sm btn-primary show-modal action-btn"
+                                            href="javascript:void(0);" 
+                                            data-action="{{ route('files.create', [
+                                                'type_id' => request()->segment(3),
+                                                'type' => 'rider',
+                                                'suggested_name' => $desc
+                                            ]) }}" 
+                                            data-size="md" 
+                                            data-title="Upload {{ $desc }}">
+                                            <i class="ti ti-upload"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            @endif
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endif
+    @endcan
+    @cannot('rider_document')
+        <div class="alert alert-warning  text-center m-3"><i class="fa fa-warning"></i> You don't have permission.</div>
+    @endcannot
+</div>
 
 
 

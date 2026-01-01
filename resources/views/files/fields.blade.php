@@ -11,8 +11,23 @@
 <!-- File Name Field -->
 <div class="col-12">
   <input type="hidden" name="name"  value="0"/>
-
 </div>
+
+@php
+  $suggest = request('suggested_name') ?? false ;
+@endphp
+@if($suggest)
+  <div class="col-12">
+    <input type="hidden" name="suggested_name"  value="{{ $suggest }}"/>
+    <label class=" pl-2">File Name Will Be stored As: <strong class="text-danger">{{ $suggest }}</strong></label>
+  </div>
+@else
+  <div class="col-12">
+    <label class=" pl-2">Suggest File Name</label>
+    <input type="text" name="suggested_name" class="form-control" style="height: 40px;" nullable/>
+    <small class="text-muted mb-3">Optional: This Will be Saved Instead of File Name</small>
+  </div>
+@endif
 
 <div class="col-12">
   <label class=" pl-2">Select file</label>

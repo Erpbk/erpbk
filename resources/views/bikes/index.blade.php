@@ -723,21 +723,6 @@
             confirmDelete(url);
         });
 
-        // Action dropdown functionality
-        $(document).on('click', '#addBikeDropdownBtn', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const dropdown = $('#addBikeDropdown');
-            dropdown.toggleClass('show');
-        });
-
-        // Close dropdown when clicking outside
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('.action-dropdown-container').length) {
-                $('#addBikeDropdown').removeClass('show');
-            }
-        });
-
         $(document).on('click', function(e) {
             if (!$(e.target).closest('#filterSidebar').length) {
                 $('#filterSidebar').removeClass('open');

@@ -65,9 +65,9 @@ class FilesController extends AppBaseController
       $input['file_name']->storeAs($input['type'] . '/' . $input['type_id'] . '/', $name);
 
       if(empty($input['suggested_name']))
-        $input['name'] = strtolower($input['file_name']->getClientOriginalName());
+        $input['name'] = $input['file_name']->getClientOriginalName();
       else
-        $input['name'] = strtolower($input['suggested_name']);
+        $input['name'] = $input['suggested_name'];
       
       $input['file_name'] = $name;
       $input['file_type'] = $extension;

@@ -26,7 +26,8 @@
             </div>
           @elseif($authorized)
             <a class="btn btn-primary show-modal action-btn"
-             href="javascript:void(0);" data-action="{{ route('files.create',['type_id'=> $bikes->id??1,'type'=> 'bike'??1]) }}" data-size="sm" data-title="Upload File">
+             href="javascript:void(0);" 
+             data-action="{{ route('files.create',['type_id'=> $bikes->id,'type'=> 'bike', 'suggested_name' => 'Mulkiya']) }}" data-size="sm" data-title="Upload File">
                 Upload Mulkiya
             </a>
           @else
@@ -43,40 +44,35 @@
       <div class="col-md-6">
         <table class="info-table">
           <tr>
-            <td class="table-label">Contract Number:</td>
-            <td class="table-value">{{ $bikes->contract_number ?? 'N/A' }}</td>
+            <td class="table-label">Current Project:</td>
+            <td class="table-value">{{ $bikes->customer->name ?? 'N/A'}}</td>
           </tr>
           <tr>
             <td class="table-label">Traffic File Number:</td>
             <td class="table-value">{{ $bikes->traffic_file_number ?? 'N/A' }}</td>
           </tr>
           <tr>
-            <td class="table-label">Leasing Company:</td>
-            <td class="table-value">{{ DB::table('leasing_companies')->where('id', $bikes->company)->first()->name ?? 'N/A' }}</td>
-          </tr>
-          <tr>
             <td class="table-label">Insurance Company:</td>
             <td class="table-value">{{ $bikes->insurance_co ?? 'N/A' }}</td>
+          </tr>
+          <tr>
+            <td class="table-label" @if(strtotime($bikes->insurance_expiry) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Insurance Expiry:</td>
+            <td class="table-value" @if(strtotime($bikes->insurance_expiry) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{ $bikes->insurance_expiry ?? 'N/A' }}</td>
           </tr>
         </table>
       </div>
       <div class="col-md-6">
         <table class="info-table">
           <tr>
-            <td class="table-label">License Expiry:</td>
-            <td class="table-value">{{ $bikes->expiry_date ?? 'N/A' }}</td>
-          </tr>
-          <tr>
-            <td class="table-label">Insurance Expiry:</td>
-            <td class="table-value">{{ $bikes->insurance_expiry ?? 'N/A' }}</td>
-          </tr>
-          <tr>
-            <td class="table-label">Policy Number:</td>
-            <td class="table-value">{{ $bikes->policy_no ?? 'N/A' }}</td>
-          </tr>
-          <tr>
             <td class="table-label">Registration Date:</td>
             <td class="table-value">{{ $bikes->registration_date ?? 'N/A' }}</td>
+          </tr>
+          <tr>
+            <td class="table-label">Leasing Company:</td>
+            <td class="table-value">{{ DB::table('leasing_companies')->where('id', $bikes->company)->first()->name ?? 'N/A' }}</td>
+          </tr>
+            <td class="table-label">Policy Number:</td>
+            <td class="table-value">{{ $bikes->policy_no ?? 'N/A' }}</td>
           </tr>
         </table>
       </div>

@@ -104,10 +104,10 @@
       <div class="col-md-3 form-group col-3">
         {!! Form::label('emirate_hub', 'Emirate Hub:', ['class' => 'required']) !!}
         {!! Form::select(
-        'emirate_hub',
+        'emirates',
         Common::Dropdowns('emirates-hub'),
-        old('emirate_hub', $bikes->emirate_hub ?? ''), // ✅ selected value
-        ['class' => 'form-select select2', 'required']
+        old('emirates', $bikes->emirates ?? ''), // ✅ selected value
+        ['class' => 'form-select select2','required', 'placeholder' => 'Select Emirate']
         ) !!}
       </div>
       <div class="col-md-3 form-group col-3">

@@ -53,7 +53,6 @@
                     <tbody>
                         @php $counter = 1; @endphp
                         @foreach($missingFiles as $key => $fileName)
-                            @if(!is_array($fileName))
                             <tr>
                                 <td>{{ $counter++ }}</td>
                                 <td>{{ $fileName }}</td>
@@ -71,27 +70,6 @@
                                     </a>
                                 </td>
                             </tr>
-                            @else
-                                @foreach($fileName as $index => $desc)
-                                <tr>
-                                    <td>{{ $counter++ }}</td>
-                                    <td>{{ $desc }}</td>
-                                    <td class="text-end">
-                                        <a class="btn btn-sm btn-primary show-modal action-btn"
-                                            href="javascript:void(0);" 
-                                            data-action="{{ route('files.create', [
-                                                'type_id' => request()->segment(3),
-                                                'type' => 'rider',
-                                                'suggested_name' => $desc
-                                            ]) }}" 
-                                            data-size="md" 
-                                            data-title="Upload {{ $desc }}">
-                                            <i class="ti ti-upload"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                @endforeach
-                            @endif
                         @endforeach
                     </tbody>
                 </table>

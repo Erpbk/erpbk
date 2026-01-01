@@ -310,7 +310,7 @@ Route::middleware(['auth', 'web'])->group(function () {
 
     Route::resource('recruiters', App\Http\Controllers\RecruitersController::class);
     Route::get('recruiters/{recruiter}/riders', [RecruitersController::class, 'showRiders'])->name('recruiters.riders');
-    Route::get('recruiters/delete/{id}', [\App\Http\Controllers\RecruitersController::class, 'destroy'])->name('recruiters.delete');
+    Route::delete('recruiters/delete/{id}', [\App\Http\Controllers\RecruitersController::class, 'destroy'])->name('recruiters.delete');
     Route::get('recruiters', [\App\Http\Controllers\RecruitersController::class, 'index'])->name('recruiters.index');
     // Recruiters Trash Routes
     Route::get('recruiters/trash', [\App\Http\Controllers\RecruitersController::class, 'trash'])->name('recruiters.trash');

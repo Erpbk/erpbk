@@ -88,6 +88,7 @@ class ImportLiveActivities implements ToCollection
         'skipped_count' => $this->skippedCount,
         'error_count' => count($this->importErrors),
         'errors'  => $this->importErrors,
+        'current_date' => $this->currentDate,
       ]
     ]);
   }
@@ -145,18 +146,21 @@ class ImportLiveActivities implements ToCollection
     // If login hours = 0, mark as Absent, otherwise Present
     $attendanceStatus = ($loginHours == 0) ? 'Absent' : 'Present';
 
+    // Parse ontime percentage
+    $ontimePercentage = $row[20] ?? '0';
+    $ontimePercentage = (float) str_replace('%', '', $ontimePercentage);
+
     $data = [
       'rider_id'                    => $rider->id,
       'd_rider_id'                  => trim($row[1]),
       'date'                        => $date,
       'payout_type'                 => $row[5] ?? null,
       'delivered_orders'            => (int) ($row[14] ?? 0),
-      'ontime_orders_percentage'    => (float) str_replace('%', '', $row[20] ?? 0),
+      'ontime_orders_percentage'    => $ontimePercentage,
       'rejected_orders'             => (int) ($row[17] ?? 0),
       'login_hr'                    => $loginHours,
-      'delivery_rating'             => $attendanceStatus ?? null,
+      'delivery_rating'             => $attendanceStatus,
     ];
-
     // Update or create based on rider_id only
     // This ensures only one record per rider exists, which gets updated with new date data
     // No new records are created when importing activities for different dates

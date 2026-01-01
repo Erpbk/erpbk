@@ -571,6 +571,7 @@ $customTitles = [
 'doj' => 'Date of Joining',
 'recruiter_id' => 'Recruiter',
 'l_license' => 'Learning',
+'emirate_hub' => 'Emirates',
 ];
 return $customTitles[$key] ?? ucwords(str_replace('_', ' ', $key));
 };
@@ -621,7 +622,7 @@ $tableColumns = $columns;
             <div class="card-search">
                 <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
             </div>
-            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Riders</button>
+            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Riders</button>
         </div>
         <div class="card-body table-responsive px-2 py-0">
             <div class="riders-table-container">

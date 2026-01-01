@@ -72,8 +72,7 @@
 <!-- Emirates Field -->
 <div class="form-group col-sm-4">
     {!! Form::label('emirate_hub', 'Emirate Hub:',['class'=>'required']) !!}
-    {!! Form::select('emirate_hub',Common::Dropdowns('emirates-hub'),null,
-    ['class' => 'form-select', 'required']) !!}
+    {!! Form::select('emirate_hub', Common::Dropdowns('emirates-hub'),null, ['class' => 'form-select select2', 'required']) !!}
 </div>
 
 <!-- Registration Date Field -->

@@ -54,6 +54,10 @@
          @php $bike = DB::table('bikes')->where('rider_id', $r->id)->first(); @endphp
          <td>{{ $bike ? $bike->plate : '-' }}</td>
          @break
+         @case('emirate_hub')
+         @php $bike = DB::table('bikes')->where('rider_id', $r->id)->first(); @endphp
+         <td>{{ $bike && $bike->emirates ? $bike->emirates : '-' }}</td>
+         @break
          @case('status')
          @php
          $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();

@@ -18,11 +18,6 @@
                     Add New
                 </a>
                 @endcan
-                @can('trash_view')
-                <a class="btn btn-warning float-right me-2" href="{{ route('recruiters.trash') }}">
-                    <i class="fa fa-trash-o"></i> View Trash
-                </a>
-                @endcan
                 <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
                         <div class="modal-content">

@@ -177,7 +177,7 @@ class RecruitersController extends AppBaseController
         }
 
         // Check if recruiter has active riders
-        $activeRidersCount = $recruiter->riders()->whereNull('deleted_at')->count();
+        $activeRidersCount = $recruiter->riders()->withoutGlobalScopes()->count();
         if ($activeRidersCount > 0) {
             return response()->json(['errors' => ['error' => "Cannot delete recruiter. Recruiter has {$activeRidersCount} active rider(s). Please reassign riders first."]], 422);
         }
@@ -255,7 +255,7 @@ class RecruitersController extends AppBaseController
         }
 
         // Eager load the recruiter relationship for all riders
-        $riders = $recruiter->riders()->with('recruiter')->paginate(10);
+        $riders = $recruiter->riders()->withoutGlobalScopes()->with('recruiter')->paginate(10);
 
         return view('recruiters.riders', [
             'recruiter' => $recruiter,

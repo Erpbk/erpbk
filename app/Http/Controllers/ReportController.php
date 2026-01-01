@@ -86,6 +86,11 @@ class ReportController extends Controller
       }
     }
 
+    // Filter by WPS status
+    if ($request->has('wps_status') && !empty($request->wps_status)) {
+      $result = $result->where('wps', $request->wps_status);
+    }
+
     // Global pagination
     $perPage = $request->get('per_page', 25);
 
@@ -158,11 +163,11 @@ class ReportController extends Controller
       }
       $data .= '<tr>';
       $data .= '<td  >' . @$rider->rider_id . '</td>';
-      $data .= '<td  >' . @$rider->name . '</td>';
+      $data .= '<td  ><a target="_blank" href="' . route('riders.show', $rider->id) . '">' . @$rider->name . '</a></td>';
       $data .= '<td >' . @$rider->vendor->name . '</td>';
       $data .= '<td >' . @$rider->designation . '</td>';
-      $data .= '<td >' . @$rider->person_code . '</td>';
-      $data .= '<td >' . @$rider->labor_card_number . '</td>';
+      $data .= '<td style="mso-number-format:\'\@\';">' . @$rider->person_code . '</td>';
+      $data .= '<td style="mso-number-format:\'\@\';">' . @$rider->labor_card_number . '</td>';
       $data .= '<td  >' . @$rider->bikes->plate . '</td>';
       $data .= '<td  >' . $rider->wps . '</td>';
 
@@ -261,6 +266,10 @@ class ReportController extends Controller
         });
       }
     }
+    // Filter by WPS status
+    if ($request->has('wps_status') && !empty($request->wps_status)) {
+      $result = $result->where('wps', $request->wps_status);
+    }
     if ($quickSearch = trim((string) $request->quick_search)) {
       $result = $result->where(function ($query) use ($quickSearch) {
         $query->where('name', 'like', '%' . $quickSearch . '%')
@@ -358,11 +367,11 @@ class ReportController extends Controller
 
       $data .= '<tr>';
       $data .= '<td>' . e($rider->rider_id) . '</td>';
-      $data .= '<td>' . e($rider->name) . '</td>';
+      $data .= '<td><a target="_blank" href="' . route('riders.show', $rider->id) . '">' . e($rider->name) . '</a></td>';
       $data .= '<td>' . e(optional($rider->vendor)->name) . '</td>';
       $data .= '<td>' . e($rider->designation) . '</td>';
-      $data .= '<td>' . e($rider->person_code) . '</td>';
-      $data .= '<td>' . e($rider->labor_card_number) . '</td>';
+      $data .= '<td style="mso-number-format:\'\@\';">' . e($rider->person_code) . '</td>';
+      $data .= '<td style="mso-number-format:\'\@\';">' . e($rider->labor_card_number) . '</td>';
       $data .= '<td>' . e(optional($rider->bikes)->plate) . '</td>';
       $data .= '<td>' . e($rider->wps) . '</td>';
       $data .= '<td><span class="badge ' . $badgeClass . '">' . $statusText . '</span></td>';

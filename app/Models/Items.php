@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
 class Items extends Model
 {
-  use LogsActivity;
+  use LogsActivity, SoftDeletes;
 
   public $table = 'items';
 

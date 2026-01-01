@@ -1462,13 +1462,13 @@ class RidersController extends AppBaseController
   public function files($rider_id, FilesDataTable $filesDataTable)
   {
     $expectedFiles = [
-        'profile' => 'Profile Photo',
-        'passport' => ['Passport 1st Page', 'Passport 2nd Page'],
-        'nic' => ['NIC/National ID Front', 'NIC/National ID Back'],
-        'emirates' => ['Emirates ID Front', 'Emirates ID Back'],
+        'photo' => 'Profile Photo',
+        'passport' => 'Passport',
+        'nic' => 'NIC/National ID',
+        'emirates' => 'Emirates ID',
         'labor' => 'Labor Card',
         'residency' => 'Residency',
-        'mol' => 'MOL/Job Offer Letter',
+        'offer' => 'MOL/Job Offer Letter',
         'license' => 'Driving License',
         'health' => 'Health Insurance',
         'workers' => 'Workers Insurance',
@@ -1480,9 +1480,11 @@ class RidersController extends AppBaseController
                   ->where('type', 'rider')
                   ->where('type_id', $rider_id)
                   ->get()
-                  ->pluck('name');
-
-    $riderFiles = $riderFiles->all();
+                  ->pluck('name')
+                  ->map(function($file) {
+                      return strtolower($file);
+                  })
+                  ->toArray();
     $missingFiles = [];
 
     foreach($expectedFiles as $key => $desc){

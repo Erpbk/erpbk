@@ -108,4 +108,9 @@ class Bikes extends Model
   {
     return $this->belongsTo(LeasingCompanies::class, 'company');
   }
+
+  public function customer()
+  {
+    return $this->belongsTo(Customers::class, 'customer_id');
+  }
 }

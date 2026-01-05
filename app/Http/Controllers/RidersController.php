@@ -934,8 +934,17 @@ class RidersController extends AppBaseController
       $image_name->storeAs('profile', $name);
 
       $rider = Riders::find($request->id);
+      if(isset($rider->image_name)) {
+        if (file_exists(storage_path('app/profile' . $rider->image_name)))
+          unlink(storage_path('app/profile/' . $rider->image_name));
+      }
+
       $rider->image_name = $name;
       $rider->save();
+
+      if(request()->ajax()) {
+        return response()->json(['success'=> true,'message'=> 'Profile picture uploaded successfully.']);
+      }
 
       Flash::success('Profile picture uploaded successfully.');
       return redirect()->back();
@@ -1444,7 +1453,6 @@ class RidersController extends AppBaseController
   public function files($rider_id)
   {
     $expectedFiles = [
-        'photo' => 'Profile Photo',
         'passport' => 'Passport',
         'nic' => 'NIC/National ID',
         'emirates' => 'Emirates ID',

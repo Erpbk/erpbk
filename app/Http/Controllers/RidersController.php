@@ -934,8 +934,17 @@ class RidersController extends AppBaseController
       $image_name->storeAs('profile', $name);
 
       $rider = Riders::find($request->id);
+      if(isset($rider->image_name)) {
+        if (file_exists(storage_path('app/profile' . $rider->image_name)))
+          unlink(storage_path('app/profile/' . $rider->image_name));
+      }
+
       $rider->image_name = $name;
       $rider->save();
+
+      if(request()->ajax()) {
+        return response()->json(['success'=> true,'message'=> 'Profile picture uploaded successfully.']);
+      }
 
       Flash::success('Profile picture uploaded successfully.');
       return redirect()->back();
@@ -1441,10 +1450,9 @@ class RidersController extends AppBaseController
     return view('riders.advanceloan-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
   }
 
-  public function files($rider_id, FilesDataTable $filesDataTable)
+  public function files($rider_id)
   {
     $expectedFiles = [
-        'photo' => 'Profile Photo',
         'passport' => 'Passport',
         'nic' => 'NIC/National ID',
         'emirates' => 'Emirates ID',
@@ -1461,25 +1469,20 @@ class RidersController extends AppBaseController
     $riderFiles = DB::table('files')
                   ->where('type', 'rider')
                   ->where('type_id', $rider_id)
-                  ->get()
-                  ->pluck('name')
-                  ->map(function($file) {
-                      return strtolower($file);
-                  })
-                  ->toArray();
+                  ->get();
     $missingFiles = [];
 
     foreach($expectedFiles as $key => $desc){
         $found = false;
         foreach($riderFiles as $riderFile){
-            if(str_contains($riderFile, $key)){
+            if(str_contains(strtolower($riderFile->name), $key)){
               $found = true;
               break;
             }
         }
         if(!$found) $missingFiles[$key] = $desc;
     }
-    return $filesDataTable->with(['type_id' => $rider_id, 'type' => 'rider', 'missingFiles' => $missingFiles])->render('riders.document', compact('missingFiles'));
+    return view('riders.document', compact('missingFiles', 'riderFiles'));
   }
 
   public function sendEmail($id, Request $request)

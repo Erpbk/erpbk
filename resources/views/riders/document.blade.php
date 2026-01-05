@@ -6,43 +6,32 @@
         <div class="container-fluid mt-3"> --}}
 
 <div class=" card-action mb-0">
-    @can('rider_document')
-        <div class="card-header align-items-center">
-            <h5 class="card-action-title mb-0"><i class="ti ti-file-upload ti-lg text-body me-2"></i>Files</h5>
-            <a class="btn btn-primary show-modal action-btn"
-            href="javascript:void(0);" data-action="{{ route('files.create',['type_id'=>request()->segment(3),'type'=>'rider']) }}" data-size="sm" data-title="Upload File">
-                Upload File
-            </a>
-        </div>
-        {{-- Files Table --}}
-        <div class="card-body pt-0 px-2">
-            @push('third_party_stylesheets')
-                @include('layouts.datatables_css')
-            @endpush
 
-            <div class="card-body px-0 pt-0" >
-                {!! $dataTable->table(['width' => '100%', 'class' => 'table table-striped dataTable']) !!}
-            </div>
-
-            @push('third_party_scripts')
-                @include('layouts.datatables_js')
-                {!! $dataTable->scripts() !!}
-            @endpush
-        </div>
-    @endcan
     @can('rider_document')
-         <!-- MISSING FILES SECTION -->
-        @if(!empty($missingFiles))
+
+         <!--FILES SECTION -->
         <div class="card mb-4 border-warning">   
             <div class="table-responsive my-3">
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
-                        <tr class="row flex">
-                            <h4 class="px-4"><i class="ti ti-alert-triangle text-danger px-1"></i>Missing Documents</h4>
-                            <small class="text-muted px-4">
-                                <i class="ti ti-info-circle me-1"></i>
-                                {{ count($missingFiles) ?? 0 }} documents pending
-                            </small>
+                        <tr class="row flex align-items-center m-0">
+                            <div class="d-flex justify-content-between align-items-center p-3">
+                                <div>
+                                    <h4 class="mb-1"><i class="ti ti-file text-primary me-2"></i>Documents</h4>
+                                    <small class="text-muted">
+                                        <i class="ti ti-info-circle me-1"></i>
+                                        {{ count($missingFiles) ?? 0 }} documents pending
+                                    </small>
+                                </div>
+                                
+                                <a class="btn btn-primary show-modal action-btn"
+                                href="javascript:void(0);" 
+                                data-action="{{ route('files.create',['type_id'=>request()->segment(3),'type'=>'rider']) }}" 
+                                data-size="sm" 
+                                data-title="Upload File">
+                                    <i class="ti ti-upload me-1"></i>Upload File
+                                </a>
+                            </div>
                         </tr>
                         <tr>
                             <th width="50">#</th>
@@ -52,109 +41,128 @@
                     </thead>
                     <tbody>
                         @php $counter = 1; @endphp
-                        @foreach($missingFiles as $key => $fileName)
+                        @foreach ($riderFiles as $riderFile)
                             <tr>
                                 <td>{{ $counter++ }}</td>
-                                <td>{{ $fileName }}</td>
-                                <td class="text-end">
-                                    <a class="btn btn-sm btn-primary show-modal action-btn"
-                                        href="javascript:void(0);" 
-                                        data-action="{{ route('files.create', [
-                                            'type_id' => request()->segment(3),
-                                            'type' => 'rider',
-                                            'suggested_name' => $fileName
-                                        ]) }}" 
-                                        data-size="md" 
-                                        data-title="Upload {{ $fileName }}">
-                                        <i class="ti ti-upload"></i>
-                                    </a>
+                                <td>{{ ucwords(str_replace('_', ' ', $riderFile->name)) }}</td>
+                                <td>
+                                    <div class="dropdown text-end" style="margin-right: 15px;" >
+                                        <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $riderFile->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
+                                            <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
+                                        </button>
+                                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $riderFile->id }}" style="z-index: 1050;">
+                                            <a href="{{ url('storage2/' . $riderFile->type . '/'.$riderFile->type_id.'/'.$riderFile->file_name) }}" target="_blank" class='dropdown-item waves-effect'>
+                                                <i class="fa fa-eye my-1"></i>Show file
+                                            </a>
+                                            @can('files_delete')
+                                            <a href="javascript:void(0);" data-url="{{ route('files.destroy', $riderFile->id) }}" target="_blank" class='dropdown-item waves-effect delete-file'>
+                                                <i class="fa fa-trash my-1"></i> Delete
+                                            </a>
+                                            @endcan
+                                        </div>
+                                    </div>
+                                    {{-- <div class='btn-group'>
+                                        @can('files_view') 
+                                            <a href="{{ url('storage2/' . $riderFile->type . '/'.$riderFile->type_id.'/'.$riderFile->file_name)}}" target="_blank" class='btn btn-default btn-sm'>
+                                                <i class="fa fa-eye"></i>
+                                            </a>
+                                        @endcan
+                                        @can('files_delete')
+                                            <a href="{{ route('files.destroy', $riderFile->id)}}" class='btn btn-default btn-sm'>
+                                                <i class="fa fa-trash"></i>
+                                            </a>
+                                            {{-- {!! Form::button('<i class="fa fa-trash"></i>', [
+                                                'type' => 'submit',
+                                                'class' => 'btn btn-danger btn-sm',
+                                                'onclick' => 'return confirm("Are you sure you want to delete this?")'
+
+                                            ]) !!} 
+                                        @endcan
+                                    </div> --}}
                                 </td>
                             </tr>
-                        @endforeach
+                        @endforeach       
+                        @if(!empty($missingFiles))
+                            @foreach($missingFiles as $key => $fileName)
+                                <tr>
+                                    <td>{{ $counter++ }}</td>
+                                    <td>{{ $fileName }}</td>
+                                    <td class="text-end">
+                                        <a class="btn btn-sm btn-primary show-modal action-btn"
+                                            href="javascript:void(0);" 
+                                            data-action="{{ route('files.create', [
+                                                'type_id' => request()->segment(3),
+                                                'type' => 'rider',
+                                                'suggested_name' => $fileName
+                                            ]) }}" 
+                                            data-size="md" 
+                                            data-title="Upload {{ $fileName }}">
+                                            <i class="ti ti-upload"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @endif
                     </tbody>
                 </table>
             </div>
         </div>
-        @endif
     @endcan
     @cannot('rider_document')
         <div class="alert alert-warning  text-center m-3"><i class="fa fa-warning"></i> You don't have permission.</div>
     @endcannot
 </div>
 
+@endsection
 
+@section('page-script')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-{{--           <iframe src="{{url("laravel-filemanager?id=".$rider->id)}}" style="width: 100%; height: 500px; overflow: hidden; border: none;"></iframe>
- --}}
-{{--
-                    <form action="{{route('rider.document',$rider->id)}}" method="post" enctype="multipart/form-data" id="formajax">
-                        @csrf
-                        @php
-                        $existing = [];
-                        @endphp
-                @foreach($files as $file)
-                @php
-                    array_push($existing,$file->type);
-                @endphp
-                <div class=" p-2 mb-2">
-                    <h6>{{App\Helpers\General::file_types($file->type)}}</h6>
-                    <div class="row">
-                            <input type="hidden" name="documents[{{$file->type}}][type]" value="{{$file->type}}" />
-                            <div class="col-3">
-                                <label>Expiry Date</label>
-                                <input type="date" name="documents[{{$file->type}}][expiry_date]" value="{{$file->expiry_date}}" class="form-control form-control-sm" />
-                            </div>
-                            <div class="col-3">
-                                <label>Document Upload</label>
-                                <input type="file" name="documents[{{$file->type}}][file_name]"  />
-                            </div>
-                            <div class="col-3">
-                                <a href="{{ url('storage2/rider/'.$file->file_name)}}" class="btn btn-default" target="_blank">
-
-                                @if($file->file_type == 'pdf')
-                                    <i class="fa fa-file-pdf text-danger"></i>
-                                @elseif(in_array($file->file_type,['jpeg','jpg','png']))
-                                    <i class="fa fa-file-image text-primary"></i>
-                                    @else
-                                    <i class="fa fa-file text-info"></i>
-                                    @endif
-
-                                &nbsp;
-                               View Document
-                                </a>
-
-                            </div>
-
-                    </div>
-                </div>
-                @endforeach
-                @foreach(App\Helpers\General::file_types() as $key=>$value)
-                @if(!in_array($key,$existing))
-                <div class=" p-2 mb-2">
-                    <h6>{{$value}}</h6>
-                    <div class="row">
-                            <input type="hidden" name="documents[{{$key}}][type]" value="{{$key}}" />
-                            <div class="col-3">
-                                <label>Expiry Date</label>
-                                <input type="date" name="documents[{{$key}}][expiry_date]" class="form-control form-control-sm" />
-                            </div>
-                            <div class="col-3">
-                                <label>Document Upload</label>
-                                <input type="file" name="documents[{{$key}}][file_name]"  />
-                            </div>
-                            <div class="col-3"></div>
-
-                    </div>
-                </div>
-                @endif
-                @endforeach
-                <input type="hidden" id="reload_page" value="1"/>
-                <button type="submit" class="btn btn-primary mb-3 mt-3">Save Documents</button>
-                    </form> --}}
-
-{{--
-    </div>
-</div>
- --}}
-
+<script type="text/javascript">
+    $(document).ready(function() {
+        // Handle delete file functionality with AJAX
+        $(document).on('click', '.delete-file', function(e) {
+            e.preventDefault();
+            const url = $(this).data('url');
+            
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "You won't be able to revert this!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Send AJAX DELETE request
+                    $.ajax({
+                        url: url,
+                        type: 'DELETE',
+                        data: {
+                            _token: '{{ csrf_token() }}'
+                        },
+                        success: function(response) {
+                            Swal.fire(
+                                'Deleted!',
+                                'File has been deleted.',
+                                'success'
+                            ).then(() => {
+                                // Reload the page to update the list
+                                location.reload();
+                            });
+                        },
+                        error: function(xhr) {
+                            Swal.fire(
+                                'Error!',
+                                'Failed to delete file.',
+                                'error'
+                            );
+                        }
+                    });
+                }
+            });
+        });
+    });
+</script>
 @endsection

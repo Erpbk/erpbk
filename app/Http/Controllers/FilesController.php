@@ -147,15 +147,28 @@ class FilesController extends AppBaseController
     }
 
     if (empty($files)) {
-      Flash::error('Files not found');
 
+      if (request()->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Files not found'
+            ], 404);
+        }
+
+      Flash::error('Files not found');
       return redirect(route('files.index'));
     }
 
     $this->filesRepository->delete($id);
 
-    Flash::success('Files deleted successfully.');
+    if (request()->ajax()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Files deleted successfully.'
+        ], 200);
+    }
 
+    Flash::success('Files deleted successfully.');
     return redirect(route('files.index'));
   }
 }

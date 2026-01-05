@@ -23,9 +23,9 @@
   </div>
 @else
   <div class="col-12">
-    <label class=" pl-2">Suggest File Name</label>
+    <label class=" pl-2">Suggest File Name<small class="text-muted"> (Optional)</small></label>
     <input type="text" name="suggested_name" class="form-control" style="height: 40px;" nullable/>
-    <small class="text-muted mb-3">Optional: This Will be Saved Instead of File Name</small>
+    <small class="text-muted mb-3">This Will be Saved Instead of File Name</small>
   </div>
 @endif
 

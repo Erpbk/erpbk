@@ -1,13 +1,10 @@
-@extends('riders.view')
+@extends('bikes.view')
 
 @section('page_content')
-{{--     <!-- Main content -->
-    <section class="content">
-        <div class="container-fluid mt-3"> --}}
 
 <div class=" card-action mb-0">
 
-    @can('rider_document')
+    @can('bike_document')
 
          <!--FILES SECTION -->
         <div class="card mb-4 border-warning">   
@@ -41,16 +38,16 @@
                     </thead>
                     <tbody>
                         @php $counter = 1; @endphp
-                        @foreach ($files as $riderFile)
+                        @foreach ($files as $file)
                             <tr>
                                 <td>{{ $counter++ }}</td>
                                 <td>
-                                    <a href="{{ url('storage2/' . $riderFile->type . '/'.$riderFile->type_id.'/'.$riderFile->file_name) }}" target="_blank" >
-                                        {{ ucwords(str_replace('_', ' ', $riderFile->name)) }}
+                                    <a href="{{ url('storage2/' . $file->type . '/'.$file->type_id.'/'.$file->file_name) }}" target="_blank" >
+                                        {{ ucwords(str_replace('_', ' ', $file->name)) }}
                                     </a>
                                 </td>
                                 <td class="text-end">
-                                    <a href="javascript:void(0);" data-url="{{ route('files.destroy', $riderFile->id) }}" target="_blank" class='btn btn-danger btn-sm delete-file'>
+                                    <a href="javascript:void(0);" data-url="{{ route('files.destroy', $file->id) }}" target="_blank" class='btn btn-danger btn-sm delete-file'>
                                         <i class="fa fa-trash my-1"></i>
                                     </a>
                                 </td>
@@ -82,7 +79,7 @@
             </div>
         </div>
     @endcan
-    @cannot('rider_document')
+    @cannot('bike_document')
         <div class="alert alert-warning  text-center m-3"><i class="fa fa-warning"></i> You don't have permission.</div>
     @endcannot
 </div>

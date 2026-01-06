@@ -914,6 +914,11 @@ class RidersController extends AppBaseController
       $doc->storeAs('contract', $name);
 
       $rider = Riders::find($request->id);
+      if(isset($rider->contract)) {
+        if (file_exists(storage_path('app/contract/' . $rider->contract)))
+          unlink(storage_path('app/contract/' . $rider->contract));
+      }
+
       $rider->contract = $name;
       $rider->save();
 
@@ -935,7 +940,7 @@ class RidersController extends AppBaseController
 
       $rider = Riders::find($request->id);
       if(isset($rider->image_name)) {
-        if (file_exists(storage_path('app/profile' . $rider->image_name)))
+        if (file_exists(storage_path('app/profile/' . $rider->image_name)))
           unlink(storage_path('app/profile/' . $rider->image_name));
       }
 
@@ -1466,7 +1471,7 @@ class RidersController extends AppBaseController
         'contract' => 'Rider Contract'
     ];
 
-    $riderFiles = DB::table('files')
+    $files = DB::table('files')
                   ->where('type', 'rider')
                   ->where('type_id', $rider_id)
                   ->get();
@@ -1474,7 +1479,7 @@ class RidersController extends AppBaseController
 
     foreach($expectedFiles as $key => $desc){
         $found = false;
-        foreach($riderFiles as $riderFile){
+        foreach($files as $riderFile){
             if(str_contains(strtolower($riderFile->name), $key)){
               $found = true;
               break;
@@ -1482,7 +1487,7 @@ class RidersController extends AppBaseController
         }
         if(!$found) $missingFiles[$key] = $desc;
     }
-    return view('riders.document', compact('missingFiles', 'riderFiles'));
+    return view('riders.document', compact('missingFiles', 'files'));
   }
 
   public function sendEmail($id, Request $request)

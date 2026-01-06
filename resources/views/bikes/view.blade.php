@@ -771,7 +771,7 @@
         @endcan
         @can('files_view')
             <li class="nav-item">
-                <a href="{{ route('files.index',['type_id'=>$bikes->id,'type'=>'bike']) }}" class="nav-link @if(request()->segment(1) =='files') active @endif"><i class="fa fa-file-lines"></i>&nbsp;Files</a>
+                <a href="{{route('bikes.files',$bikes->id)}}" class="nav-link @if(request()->segment(2) =='files') active @endif"><i class="fa fa-file-lines"></i>&nbsp;Files</a>
             </li>
         @endcan
       </ul>

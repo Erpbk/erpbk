@@ -1075,4 +1075,33 @@ class BikesController extends AppBaseController
     $writer->save('php://output');
     exit;
   }
+
+  public function files($bike_id)
+  {
+    $bikes = Bikes::find($bike_id);
+
+    $expectedFiles = [
+        'mulkiya' => 'Mulkiya',
+        'insurance' => 'Bike Insurance',
+        'advertising' => 'Advertising Permit',
+    ];
+
+    $files = DB::table('files')
+                  ->where('type', 'bike')
+                  ->where('type_id', $bike_id)
+                  ->get();
+    $missingFiles = [];
+
+    foreach($expectedFiles as $key => $desc){
+        $found = false;
+        foreach($files as $file){
+            if(str_contains(strtolower($file->name), $key)){
+              $found = true;
+              break;
+            }
+        }
+        if(!$found) $missingFiles[$key] = $desc;
+    }
+    return view('bikes.files', compact('missingFiles', 'files','bikes'));
+  }
 }

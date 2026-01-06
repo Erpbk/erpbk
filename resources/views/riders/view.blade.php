@@ -278,11 +278,21 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
         @isset($result)
         <div class="profile-img">
           @php
-          if(@$result['image_name']){
-          $image_name = url('storage2/profile/'.$result['image_name']);//Storage::url('app/profile/'.$result['image_name']);
-          }else{
-          $image_name = asset('uploads/default.png');
-          }
+          $profile = DB::table('files')->where('name','LIKE','%photo%')
+                          ->orWhere('name','LIKE','%Photo%')
+                          ->orWhere('name','LIKE','%picture%')
+                          ->orWhere('name','LIKE','%Picture%')
+                          ->orWhere('name','LIKE','%profile%')
+                          ->orWhere('name','LIKE','%Profile%')
+                          ->first();
+
+          if(@$result['image_name'])
+            $image_name = url('storage2/profile/'.$result['image_name']);
+          elseif (isset($profile))
+            $image_name = url('storage2/'. $profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
+          else
+            $image_name = asset('uploads/default.png');
+          
           @endphp
           <img src="{{ $image_name}}" id="output" width="270" class="profile-user-img img-fluid" />
         </div>
@@ -294,18 +304,18 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
             <div class="col-md-12 mt-2">
               <div class="d-flex align-items-baseline">
                 <div class="user-info" style="width: 100%;">
-                  <h6>
-                    <b>
-                      @isset($result)
-                      {{ \Illuminate\Support\Str::limit($result['rider_id'] ?? 'not-set', 25) }} - {{ \Illuminate\Support\Str::limit($result['name'] ?? 'not-set', 25) }}
-                      @endisset
-                    </b>
-
-                  </h6>
-                  <div class="mt-2" style="width: 100%;display: flex;gap: 10px;">
+                  <div class="mt-2" style="width: 100%;display: flex;gap: 10px; margin-bottom: 10px;">
                     <span class="badge bg-label-primary">@isset($result){{$result['designation']??'not-set'}}@endisset</span>
                     <span class="badge @isset($result) @if($result['status'] == 1) bg-label-success @else bg-label-danger @endif @endisset">@isset($result){{App\Helpers\General::RiderStatus($result['status'])??'not-set'}}@endisset</span>
                   </div>
+                  <span>{{ $result['rider_id'] ?? 'not-set' }}</span>
+                  <h6>
+                    <b>
+                      @isset($result)
+                       {{ $result['name'] ?? 'not-set' }}
+                      @endisset
+                    </b>
+                  </h6>
                 </div>
                 <div class="text-end" style="width: 14%;">
                   <i class="ti ti-edit ti-sm"

@@ -259,6 +259,11 @@
                                     <small class="d-block text-muted">
                                         (ID: {{ $item['caused_by']->primary_id }})
                                     </small>
+                                    @if($item['caused_by']->deletedByUser)
+                                    <small class="d-block text-muted">
+                                        <i class="fa fa-user"></i> Deleted by: {{ $item['caused_by']->deletedByUser->name }}
+                                    </small>
+                                    @endif
                                 </div>
                                 @endif
 
@@ -274,6 +279,12 @@
                                         <strong>{{ class_basename($cascade->related_model) }}</strong>:
                                         {{ $cascade->related_name }}
                                         <span class="text-muted">(#{{ $cascade->related_id }})</span>
+                                        @if($cascade->deletedByUser)
+                                        <br>
+                                        <span class="text-muted ms-3">
+                                            <i class="fa fa-user"></i> Deleted by: {{ $cascade->deletedByUser->name }}
+                                        </span>
+                                        @endif
                                     </small>
                                     @endforeach
                                 </div>
@@ -295,19 +306,19 @@
                                     </button>
                                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $item['id'] }}">
                                         @if($item['can_restore'])
-                                        <a href="#" class="dropdown-item waves-effect restore-item" data-form-id="restore-form-{{ $item['id'] }}">
+                                        <a href="javascript:void(0);" class="dropdown-item waves-effect restore-item" data-form-id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}">
                                             <i class="fa fa-undo text-success my-1"></i> Restore
                                         </a>
-                                        <form id="restore-form-{{ $item['id'] }}" action="{{ route('trash.restore', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
+                                        <form id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route('trash.restore', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
                                             @csrf
                                         </form>
                                         @endif
 
                                         @if($item['can_force_delete'])
-                                        <a href="#" class="dropdown-item waves-effect delete-item" data-form-id="delete-form-{{ $item['id'] }}">
+                                        <a href="javascript:void(0);" class="dropdown-item waves-effect delete-item" data-form-id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}">
                                             <i class="fa fa-trash-o text-danger my-1"></i> Delete Forever
                                         </a>
-                                        <form id="delete-form-{{ $item['id'] }}" action="{{ route('trash.force-destroy', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
+                                        <form id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route('trash.force-destroy', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
                                             @csrf
                                             @method('DELETE')
                                         </form>
@@ -456,29 +467,66 @@
 
 @push('scripts')
 <script>
-    $(document).ready(function() {
+    (function() {
         // Auto-submit form when module filter changes
-        $('select[name="module"]').on('change', function() {
-            $(this).closest('form').submit();
-        });
+        const moduleSelect = document.querySelector('select[name="module"]');
+        if (moduleSelect) {
+            moduleSelect.addEventListener('change', function() {
+                this.form?.submit();
+            });
+        }
 
-        // Handle restore action
-        $('.restore-item').on('click', function(e) {
-            e.preventDefault();
-            var formId = $(this).data('form-id');
-            if (confirm('Are you sure you want to restore this record?')) {
-                $('#' + formId).submit();
-            }
-        });
+        async function handleActionClick(event, selector, confirmMessage) {
+            const trigger = event.target.closest(selector);
+            if (!trigger) return;
+            event.preventDefault();
+            const formId = trigger.dataset.formId;
+            if (!formId) return;
+            const form = document.getElementById(formId);
+            if (!form) return;
 
-        // Handle delete forever action
-        $('.delete-item').on('click', function(e) {
-            e.preventDefault();
-            var formId = $(this).data('form-id');
-            if (confirm('WARNING! This will PERMANENTLY delete this record. This action CANNOT be undone! Are you absolutely sure?')) {
-                $('#' + formId).submit();
+            const ok = confirm(confirmMessage);
+            if (!ok) return;
+
+            const action = form.getAttribute('action');
+            const method = (form.getAttribute('method') || 'POST').toUpperCase();
+            const formData = new FormData(form);
+            // Respect method spoofing
+            const override = formData.get('_method');
+            const fetchMethod = override ? override.toUpperCase() : method;
+
+            try {
+                const response = await fetch(action, {
+                    method: fetchMethod === 'GET' ? 'POST' : fetchMethod, // avoid GET for mutations
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': formData.get('_token') || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: fetchMethod === 'GET' ? null : formData,
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok || data.success === false) {
+                    alert(data.message || 'Action failed. Please try again.');
+                    return;
+                }
+
+                // Remove the row from the table
+                const row = trigger.closest('tr');
+                if (row) row.remove();
+
+                alert(data.message || 'Action completed successfully.');
+            } catch (err) {
+                console.error(err);
+                alert('Action failed. Please try again.');
             }
+        }
+
+        document.addEventListener('click', function(event) {
+            handleActionClick(event, '.restore-item', 'Are you sure you want to restore this record?');
+            handleActionClick(event, '.delete-item', 'WARNING! This will PERMANENTLY delete this record. This action CANNOT be undone! Are you absolutely sure?');
         });
-    });
+    })();
 </script>
 @endpush

@@ -8,7 +8,7 @@ use App\Traits\LogsActivity;
 
 class Sims extends Model
 {
-    use LogsActivity;
+    use SoftDeletes, LogsActivity;
 
   public $table = 'sims';
 
@@ -35,6 +35,8 @@ class Sims extends Model
     'updated_at' => 'datetime',
     'deleted_at' => 'datetime'
   ];
+
+  protected $dates = ['deleted_at'];
 
   public static array $rules = [
     'number' => 'required|string|max:191',

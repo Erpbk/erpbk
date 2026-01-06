@@ -293,40 +293,40 @@
         }
 
         .totals-cards {
-        gap: 6px;
+            gap: 6px;
         }
-        
+
         .total-card {
-        flex: 1 1 calc(50% - 6px);
-        min-width: 140px;
-        padding: 6px 8px;
+            flex: 1 1 calc(50% - 6px);
+            min-width: 140px;
+            padding: 6px 8px;
         }
-        
+
         .total-card .label {
-        font-size: 9px;
+            font-size: 9px;
         }
-        
+
         .total-card .value {
-        font-size: 12px;
+            font-size: 12px;
         }
-        
+
         /* Reduce table cell padding on mobile */
         #dataTableBuilder td,
         #dataTableBuilder th {
-        padding: 6px 8px;
-        font-size: 12px;
+            padding: 6px 8px;
+            font-size: 12px;
         }
-        
+
         /* Make badges smaller on mobile */
         .badge {
-        font-size: 10px !important;
-        padding: 3px 6px;
+            font-size: 10px !important;
+            padding: 3px 6px;
         }
-        
+
         /* Filter button on mobile */
         .openFilterSidebar {
-        font-size: 12px;
-        padding: 6px 12px;
+            font-size: 12px;
+            padding: 6px 12px;
         }
 
         .filter-sidebar {
@@ -339,6 +339,7 @@
 
 @section('content')
 <section class="content-header">
+    @include('flash::message')
     <div>
         <div class="row mb-2">
             <div class="col-sm-6 px-4">
@@ -377,12 +378,12 @@
 
                             @can('bike_create')
                             <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
-                                    <i class="ti ti-columns"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">Column Control</div>
-                                        <div class="action-dropdown-item-desc">Open column control modal</div>
-                                    </div>
-                                </a>
+                                <i class="ti ti-columns"></i>
+                                <div>
+                                    <div class="action-dropdown-item-text">Column Control</div>
+                                    <div class="action-dropdown-item-desc">Open column control modal</div>
+                                </div>
+                            </a>
                             @endcan
                         </div>
                     </div>
@@ -557,7 +558,7 @@
             <div class="card-search">
                 <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
             </div>
-            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Vehicles</button>
+            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Vehicles</button>
         </div>
         <div class="totals-cards">
             <div class="total-card total-bikes">
@@ -572,7 +573,7 @@
                 <div class="label"><i class="fa fa-times-circle"></i>Inactive</div>
                 <div class="value" id="total_rejected">{{ $stats['inactive'] ?? 0 }}</div>
             </div>
-                <div class="total-card total-onroad">
+            <div class="total-card total-onroad">
                 <div class="label"><i class="fa fa-building"></i>Onroad</div>
                 <div class="value" id="total_hours">{{ $stats['onroad'] ?? 0 }}</div>
             </div>

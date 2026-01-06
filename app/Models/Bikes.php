@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
 class Bikes extends Model
 {
-    use LogsActivity;
+  use SoftDeletes, LogsActivity;
 
   public $table = 'bikes';
 
@@ -56,8 +57,11 @@ class Bikes extends Model
       'insurance_expiry' => 'date', */
     'insurance_co' => 'string',
     'policy_no' => 'string',
-    'customer_id' => 'string'
+    'customer_id' => 'string',
+    'deleted_at' => 'datetime'
   ];
+
+  protected $dates = ['deleted_at'];
 
   public static array $rules = [
     'plate' => 'required|string|max:100',

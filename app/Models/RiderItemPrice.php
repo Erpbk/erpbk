@@ -17,4 +17,9 @@ class RiderItemPrice extends Model
   {
     return $this->hasOne(Items::class, 'id', 'item_id');
   }
+
+  public function deletedBy()
+  {
+    return $this->belongsTo(\App\Models\User::class, 'deleted_by', 'id');
+  }
 }

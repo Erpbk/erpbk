@@ -146,6 +146,7 @@ class SalikController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = salik::query()
             ->orderBy('id', 'asc')
+            ->orderBy('billing_month', 'desc')
             ->where('salik_account_id', $id);
         if ($request->filled('transaction_id')) {
             $query->where('transaction_id', 'like', '%' . $request->transaction_id . '%');
@@ -200,7 +201,7 @@ class SalikController extends AppBaseController
         // All matching (filtered) data to calculate totals
         $filteredData = $query->get();
         // Calculate totals
-        
+
         $account = Accounts::find($id);
         if ($request->ajax()) {
             $tableData = view('salik.table', [

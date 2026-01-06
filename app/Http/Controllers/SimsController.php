@@ -12,6 +12,7 @@ use App\Models\Sims;
 use App\Models\Riders;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
 use Flash;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
@@ -20,313 +21,311 @@ use App\Models\User;
 
 class SimsController extends AppBaseController
 {
-    use GlobalPagination;
-  /** @var SimsRepository $simsRepository*/
-  private $simsRepository;
+    use GlobalPagination, TracksCascadingDeletions;
+    /** @var SimsRepository $simsRepository*/
+    private $simsRepository;
 
-  public function __construct(SimsRepository $simsRepo)
-  {
-    $this->simsRepository = $simsRepo;
-  }
-
-  /**
-   * Display a listing of the Sims.
-   */
-  public function index(Request $request)
-  {
-    
-    if (!auth()->user()->hasPermissionTo('sim_view')) {
-      abort(403, 'Unauthorized action.');
-    }
-    // Use global pagination trait
-    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Sims::query()
-        ->orderBy('id', 'asc');
-    if ($request->has('number') && !empty($request->number)) {
-        $query->where('number', 'like', '%' . $request->number . '%');
-    }
-    if ($request->has('emi') && !empty($request->emi)) {
-        $query->where('emi','like', '%' . $request->emi . '%');
-    }
-    if ($request->has('company') && !empty($request->company)) {
-        $query->where('company',$request->company);
-    }
-    if ($request->has('status') && !empty($request->status)) {
-        if($request->status == 'active')
-        $query->where('status', '1');
-        else
-        $query->where('status', '0');
+    public function __construct(SimsRepository $simsRepo)
+    {
+        $this->simsRepository = $simsRepo;
     }
 
-    $statsQuery = clone $query;
-    
-    // Calculate statistics
-    $stats = [
-        'total' => $statsQuery->count(),
-        'active' => $statsQuery->clone()->where('status', '1')->count(),
-        'inactive' => $statsQuery->clone()->where('status', '0')->count(),
-        'du' => $statsQuery->clone()->whereIn('company', ['du', 'Du', 'DU'])->count(),
-        'etisalat' => $statsQuery->clone()->whereIn('company',['etisalat','Etisalat'])->count(),
-    ];
-    
-    $tableColumns = $this->getTableColumns();
+    /**
+     * Display a listing of the Sims.
+     */
+    public function index(Request $request)
+    {
 
-    // Apply pagination using the trait
-    $data = $this->applyPagination($query, $paginationParams);
-    if ($request->ajax()) {
-        $tableData = view('sims.table', [
+        if (!auth()->user()->hasPermissionTo('sim_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+        // Use global pagination trait
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+        $query = Sims::query()
+            ->orderBy('id', 'asc');
+        if ($request->has('number') && !empty($request->number)) {
+            $query->where('number', 'like', '%' . $request->number . '%');
+        }
+        if ($request->has('emi') && !empty($request->emi)) {
+            $query->where('emi', 'like', '%' . $request->emi . '%');
+        }
+        if ($request->has('company') && !empty($request->company)) {
+            $query->where('company', $request->company);
+        }
+        if ($request->has('status') && !empty($request->status)) {
+            if ($request->status == 'active')
+                $query->where('status', '1');
+            else
+                $query->where('status', '0');
+        }
+
+        $statsQuery = clone $query;
+
+        // Calculate statistics
+        $stats = [
+            'total' => $statsQuery->count(),
+            'active' => $statsQuery->clone()->where('status', '1')->count(),
+            'inactive' => $statsQuery->clone()->where('status', '0')->count(),
+            'du' => $statsQuery->clone()->whereIn('company', ['du', 'Du', 'DU'])->count(),
+            'etisalat' => $statsQuery->clone()->whereIn('company', ['etisalat', 'Etisalat'])->count(),
+        ];
+
+        $tableColumns = $this->getTableColumns();
+
+        // Apply pagination using the trait
+        $data = $this->applyPagination($query, $paginationParams);
+        if ($request->ajax()) {
+            $tableData = view('sims.table', [
+                'data' => $data,
+                'stats' => $stats,
+                'tableColumns' => $tableColumns,
+            ])->render();
+            $paginationLinks = $data->links('components.global-pagination')->render();
+            return response()->json([
+                'tableData' => $tableData,
+                'paginationLinks' => $paginationLinks,
+                'stats' => $stats,
+            ]);
+        }
+
+        return view('sims.index', [
             'data' => $data,
             'stats' => $stats,
             'tableColumns' => $tableColumns,
-        ])->render();
-        $paginationLinks = $data->links('components.global-pagination')->render();
-        return response()->json([
-            'tableData' => $tableData,
-            'paginationLinks' => $paginationLinks,
-            'stats' => $stats,
         ]);
     }
 
-    return view('sims.index', [
-        'data' => $data,
-        'stats' => $stats,
-        'tableColumns' => $tableColumns,
-    ]);
-  }
-  
-private function getTableColumns()
-{
-    $computedColumns = [
-        'rider_name' => 'Rider Name',
-    ];
+    private function getTableColumns()
+    {
+        $computedColumns = [
+            'rider_name' => 'Rider Name',
+        ];
 
-    // Get all columns from sims table
-    $filteredColumns = \Illuminate\Support\Facades\Schema::getColumnListing('sims');
+        // Get all columns from sims table
+        $filteredColumns = \Illuminate\Support\Facades\Schema::getColumnListing('sims');
 
-    // Columns to exclude
-    $exclude = ['id', 'created_at', 'updated_at', 'deleted_at', 'fleet_supervisor', 'created_by', 'updated_by'];
+        // Columns to exclude
+        $exclude = ['id', 'created_at', 'updated_at', 'deleted_at', 'fleet_supervisor', 'created_by', 'updated_by'];
 
-    // Final filtered columns
-    $dbColumns = array_diff($filteredColumns, $exclude);
-    
-    // Preferred order (can include both DB and computed columns)
-    $preferredOrder = [
-        'number',
-        'company',
-        'emi',
-        'assign_to',
-        'rider_name', // Computed column
-        'vendor',
-        'status',
-    ];
+        // Final filtered columns
+        $dbColumns = array_diff($filteredColumns, $exclude);
 
-    $columns = [];
-    $added = [];
-    $makeTitle = function ($key) use ($computedColumns) {
-        return $computedColumns[$key] ?? ucwords(str_replace('_', ' ', $key));
-    };
+        // Preferred order (can include both DB and computed columns)
+        $preferredOrder = [
+            'number',
+            'company',
+            'emi',
+            'assign_to',
+            'rider_name', // Computed column
+            'vendor',
+            'status',
+        ];
 
-    // Process preferred order
-    foreach ($preferredOrder as $key) {
-        // Check if it's a valid column (either in DB or computed)
-        if (in_array($key, $dbColumns) || array_key_exists($key, $computedColumns)) {
-            $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
-            $added[$key] = true;
+        $columns = [];
+        $added = [];
+        $makeTitle = function ($key) use ($computedColumns) {
+            return $computedColumns[$key] ?? ucwords(str_replace('_', ' ', $key));
+        };
+
+        // Process preferred order
+        foreach ($preferredOrder as $key) {
+            // Check if it's a valid column (either in DB or computed)
+            if (in_array($key, $dbColumns) || array_key_exists($key, $computedColumns)) {
+                $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
+                $added[$key] = true;
+            }
         }
-    }
 
-    // Add remaining DB columns
-    foreach ($dbColumns as $key) {
-        if (!isset($added[$key])) {
-            $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
+        // Add remaining DB columns
+        foreach ($dbColumns as $key) {
+            if (!isset($added[$key])) {
+                $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
+            }
         }
-    }
 
-    // Add remaining computed columns not in preferred order
-    foreach ($computedColumns as $key => $title) {
-        if (!isset($added[$key])) {
-            $columns[] = ['data' => $key, 'title' => $title];
+        // Add remaining computed columns not in preferred order
+        foreach ($computedColumns as $key => $title) {
+            if (!isset($added[$key])) {
+                $columns[] = ['data' => $key, 'title' => $title];
+            }
         }
-    }
 
-    // Append fixed utility columns (must match frontend expectations)
-    $columns = array_merge($columns, [
-        ['data' => 'action', 'title' => 'Actions'],
-        ['data' => 'search', 'title' => 'Search'],
-        ['data' => 'control', 'title' => 'Control'],
-    ]);
-
-    return $columns;
-}
-
-  /**
-   * Show the form for creating a new Sims.
-   */
-  public function create()
-  {
-    return view('sims.create');
-  }
-
-  /**
-   * Store a newly created Sims in storage.
-   */
-  public function store(Request $request)
-{
-    $input = $request->all();
-    $input['created_by'] = auth()->id();
-    $input['status'] = 0;
-    
-    // Validation rules
-    $rules = [
-        'number' => 'required|string|min:10|max:13|unique:sims,number',
-        'company' => 'required|string',
-        'emi' => 'required|min:15|max:25',
-        'vendor' => 'nullable|integer',
-        'fleet_supervisor' => 'nullable|string|max:50',
-    ];
-    
-    // Custom validation messages
-    $messages = [
-        'number.required' => 'SIM number is required',
-        'number.min' => 'SIM number must be at least 10 characters long',
-        'number.max' => 'SIM number cannot exceed 13 characters',
-        'number.unique' => 'This SIM number already exists',
-        'company.required' => 'Company name is required',
-        'emi.required' => 'EMI number is required',
-        'emi.min' => 'EMI number must be at least 15 characters',
-        'emi.max' => 'EMI number cannot exceed 20 characters',
-    ];
-    
-    // Perform validation
-    $this->validate($request, $rules, $messages);
-    
-    try {
-        $sims = Sims::create($input);
-        
-        return response()->json([
-            'message' => 'Sim added successfully.',
+        // Append fixed utility columns (must match frontend expectations)
+        $columns = array_merge($columns, [
+            ['data' => 'action', 'title' => 'Actions'],
+            ['data' => 'search', 'title' => 'Search'],
+            ['data' => 'control', 'title' => 'Control'],
         ]);
-        
-    } catch (\Exception $e) {
-        \Log::error('Error creating SIM: ' . $e->getMessage());
-        
-        return response()->json([
-            'errors' => ['error' => 'Failed to create SIM. Please try again.'],
-            'message' => 'Server error occurred.'
-        ], 500);
-    }
-}
 
-  /**
-   * Display the specified Sims.
-   */
-  public function show($id)
-  {
-    $sims = Sims::find($id);
-
-    if (empty($sims)) {
-      Flash::error('Sims not found');
-
-      return redirect(route('sims.index'));
+        return $columns;
     }
 
-    $simHistories = SimHistory::where('sim_id', $sims->id)->orderBy('created_at', 'desc')->get();
-
-    return view('sims.show')->with('sims', $sims)->with('simHistories', $simHistories);
-  }
-
-  public function showTrash($id)
-  {
-    $sims = Sims::onlyTrashed()->find($id);
-
-    if (empty($sims)) {
-      Flash::error('Trash is Empty');
-
-      return redirect(route('sims.trash'));
+    /**
+     * Show the form for creating a new Sims.
+     */
+    public function create()
+    {
+        return view('sims.create');
     }
 
-    
-    $simHistories = $sims->histories;
+    /**
+     * Store a newly created Sims in storage.
+     */
+    public function store(Request $request)
+    {
+        $input = $request->all();
+        $input['created_by'] = auth()->id();
+        $input['status'] = 0;
 
-    return view('sims.show')->with('sims', $sims)->with('simHistories', $simHistories);
-  }
+        // Validation rules
+        $rules = [
+            'number' => 'required|string|min:10|max:13|unique:sims,number',
+            'company' => 'required|string',
+            'emi' => 'required|min:15|max:25',
+            'vendor' => 'nullable|integer',
+            'fleet_supervisor' => 'nullable|string|max:50',
+        ];
 
-  /**
-   * Show the form for editing the specified Sims.
-   */
-  public function edit($id)
-  {
-    $sims = Sims::find($id);
+        // Custom validation messages
+        $messages = [
+            'number.required' => 'SIM number is required',
+            'number.min' => 'SIM number must be at least 10 characters long',
+            'number.max' => 'SIM number cannot exceed 13 characters',
+            'number.unique' => 'This SIM number already exists',
+            'company.required' => 'Company name is required',
+            'emi.required' => 'EMI number is required',
+            'emi.min' => 'EMI number must be at least 15 characters',
+            'emi.max' => 'EMI number cannot exceed 20 characters',
+        ];
 
-    if (empty($sims)) {
-      Flash::error('Sims not found');
+        // Perform validation
+        $this->validate($request, $rules, $messages);
 
-      return redirect(route('sims.index'));
+        try {
+            $sims = Sims::create($input);
+
+            return response()->json([
+                'message' => 'Sim added successfully.',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error creating SIM: ' . $e->getMessage());
+
+            return response()->json([
+                'errors' => ['error' => 'Failed to create SIM. Please try again.'],
+                'message' => 'Server error occurred.'
+            ], 500);
+        }
     }
 
-    return view('sims.edit')->with('sims', $sims);
-  }
+    /**
+     * Display the specified Sims.
+     */
+    public function show($id)
+    {
+        $sims = Sims::find($id);
 
-  /**
-   * Update the specified Sims in storage.
-   */
-  public function update($id, UpdateSimsRequest $request)
-{
-    $sims = Sims::find($id);
+        if (empty($sims)) {
+            Flash::error('Sims not found');
 
-    if (empty($sims)) {
-        return response()->json(['errors' => ['error' => 'Sim not found!']], 422);
+            return redirect(route('sims.index'));
+        }
+
+        $simHistories = SimHistory::where('sim_id', $sims->id)->orderBy('created_at', 'desc')->get();
+
+        return view('sims.show')->with('sims', $sims)->with('simHistories', $simHistories);
     }
 
-    // Add updated_by from authenticated user
-    $input = $request->all();
-    $input['updated_by'] = auth()->id();
-    
-    // Handle checkbox status
-    $input['status'] = 0;
-    
-    // Define validation rules
-    $rules = [
-        'company' => 'required|string|max:191',
-        'vendor' => 'nullable|integer',
-        'fleet_supervisor' => 'nullable|string|max:50',
-        'emi' => 'required|min:15|max:25',
-    ];
-    
-    // Custom validation messages
-    $messages = [
-        'company.required' => 'Company name is required',
-        'company.max' => 'Company name cannot exceed 191 characters',
-        'emi.required' => 'EMI number is required',
-        'emi.min' => 'EMI number must be at least 15 characters',
-        'emi.max' => 'EMI number cannot exceed 25 characters',
-    ];
-    
-    // Perform validation
-    $this->validate($request, $rules, $messages);
-    
-    try {
-        $sims->update($input);
-        return response()->json([
-            'message' => 'Sim updated successfully.',
-            'data' => $sims
-        ]);
-        
-    } catch (\Exception $e) {
-        \Log::error('Error updating SIM: ' . $e->getMessage());
-        
-        return response()->json([
-            'errors' => ['error' => 'Failed to update SIM. Please try again.'],
-            'message' => 'Server error occurred.'
-        ], 500);
-    }
-}
+    public function showTrash($id)
+    {
+        $sims = Sims::onlyTrashed()->find($id);
 
-  /**
-   * Remove the specified Sims from storage.
-   *
-   * @throws \Exception
-   */
+        if (empty($sims)) {
+            Flash::error('Trash is Empty');
+
+            return redirect(route('sims.trash'));
+        }
+
+
+        $simHistories = $sims->histories;
+
+        return view('sims.show')->with('sims', $sims)->with('simHistories', $simHistories);
+    }
+
+    /**
+     * Show the form for editing the specified Sims.
+     */
+    public function edit($id)
+    {
+        $sims = Sims::find($id);
+
+        if (empty($sims)) {
+            Flash::error('Sims not found');
+
+            return redirect(route('sims.index'));
+        }
+
+        return view('sims.edit')->with('sims', $sims);
+    }
+
+    /**
+     * Update the specified Sims in storage.
+     */
+    public function update($id, UpdateSimsRequest $request)
+    {
+        $sims = Sims::find($id);
+
+        if (empty($sims)) {
+            return response()->json(['errors' => ['error' => 'Sim not found!']], 422);
+        }
+
+        // Add updated_by from authenticated user
+        $input = $request->all();
+        $input['updated_by'] = auth()->id();
+
+        // Handle checkbox status
+        $input['status'] = 0;
+
+        // Define validation rules
+        $rules = [
+            'company' => 'required|string|max:191',
+            'vendor' => 'nullable|integer',
+            'fleet_supervisor' => 'nullable|string|max:50',
+            'emi' => 'required|min:15|max:25',
+        ];
+
+        // Custom validation messages
+        $messages = [
+            'company.required' => 'Company name is required',
+            'company.max' => 'Company name cannot exceed 191 characters',
+            'emi.required' => 'EMI number is required',
+            'emi.min' => 'EMI number must be at least 15 characters',
+            'emi.max' => 'EMI number cannot exceed 25 characters',
+        ];
+
+        // Perform validation
+        $this->validate($request, $rules, $messages);
+
+        try {
+            $sims->update($input);
+            return response()->json([
+                'message' => 'Sim updated successfully.',
+                'data' => $sims
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error updating SIM: ' . $e->getMessage());
+
+            return response()->json([
+                'errors' => ['error' => 'Failed to update SIM. Please try again.'],
+                'message' => 'Server error occurred.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove the specified Sims from storage.
+     *
+     * @throws \Exception
+     */
 
     public function assign(Request $request, $id)
     {
@@ -335,13 +334,13 @@ private function getTableColumns()
             return response()->json(['errors' => ['error' => 'Sim not found!']], 422);
         }
 
-        if($request->isMethod('post')){
+        if ($request->isMethod('post')) {
             $input = $request->all();
             $rules = [
                 'assign_to' => [
                     'required',
                     'exists:riders,id',
-                    'unique:sims,assign_to',  
+                    'unique:sims,assign_to',
                     function ($attribute, $value, $fail) {
                         //Check rider status
                         $rider = Riders::find($value);
@@ -387,7 +386,6 @@ private function getTableColumns()
                 ]);
 
                 Riders::where('id', $input['assign_to'])->update(['company_contact' => $sims->number]);
-
             } catch (\Exception $e) {
                 \Log::error('Error assigning SIM: ' . $e->getMessage());
                 return response()->json([
@@ -418,7 +416,7 @@ private function getTableColumns()
             return view('sims.return')->with('sims', $sims)->with('rider_name', $rider_name);
         }
 
-        
+
 
         $rules = [
             'return_date' => [
@@ -463,7 +461,6 @@ private function getTableColumns()
             return response()->json([
                 'message' => 'Sim returned successfully.',
             ]);
-            
         } catch (\Exception $e) {
             \Log::error('Error returning SIM: ' . $e->getMessage());
             return response()->json([
@@ -473,34 +470,34 @@ private function getTableColumns()
         }
     }
 
-  public function trash(Request $request)
-  {
-      if (!auth()->user()->hasPermissionTo('sim_delete')) {
-          abort(403, 'Unauthorized action.');
-      }
+    public function trash(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('sim_delete')) {
+            abort(403, 'Unauthorized action.');
+        }
 
-      // Use global pagination trait
-      $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-      $query = Sims::onlyTrashed()->orderBy('id', 'asc');
+        // Use global pagination trait
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+        $query = Sims::onlyTrashed()->orderBy('id', 'asc');
 
-      // Apply pagination using the trait
-      $trash = $this->applyPagination($query, $paginationParams);
+        // Apply pagination using the trait
+        $trash = $this->applyPagination($query, $paginationParams);
 
-      if ($request->ajax()) {
-          $tableData = view('sims.trash_table', [
-              'data' => $trash,
-          ])->render();
-          $paginationLinks = $trash->links('components.global-pagination')->render();
-          return response()->json([
-              'tableData' => $tableData,
-              'paginationLinks' => $paginationLinks,
-          ]);
-      }
+        if ($request->ajax()) {
+            $tableData = view('sims.trash_table', [
+                'data' => $trash,
+            ])->render();
+            $paginationLinks = $trash->links('components.global-pagination')->render();
+            return response()->json([
+                'tableData' => $tableData,
+                'paginationLinks' => $paginationLinks,
+            ]);
+        }
 
-      return view('sims.trash', [
-          'data' => $trash,
-      ]);
-  }
+        return view('sims.trash', [
+            'data' => $trash,
+        ]);
+    }
 
     public function destroy($id)
     {
@@ -508,67 +505,95 @@ private function getTableColumns()
         //$sims = Sims::withTrashed()->find($id);
 
         $sims = Sims::find($id);
-        
+
         if (empty($sims)) {
-            return redirect()->back()->with('error', 'Sim not found!');
-        }
-        
-        // Check if already soft deleted
-        // if ($sims->trashed()) {
-        //     return response()->json(['errors' => ['error' => 'Sim is already deleted!']], 422);
-        // }
-        
-        if($sims->status == 1){
-            return redirect()->back()->with('error', 'Active SIMs cannot be deleted. Please return the SIM before deleting.');
+            return $this->respondSimDeleteError('Sim not found!');
         }
 
-        $sims->delete(); 
-        
+        // Prevent deletion if SIM is assigned to a rider
+        if (!is_null($sims->assign_to)) {
+            return $this->respondSimDeleteError('Cannot delete SIM because it is currently assigned to a rider. Please return the SIM before deleting.');
+        }
+
+        // Prevent deletion if SIM has any history
+        $historyCount = $sims->histories()->count();
+        if ($historyCount > 0) {
+            return $this->respondSimDeleteError('Cannot delete SIM because it has usage history. Please keep the record or clear history before deleting.');
+        }
+
+        if ($sims->status == 1) {
+            return $this->respondSimDeleteError('Active SIMs cannot be deleted. Please return the SIM before deleting.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $sims->delete(); // Soft delete
+
+            // Log deletion to cascade table for audit (self-reference to capture the deletion event)
+            $this->trackCascadeDeletion(
+                \App\Models\Sims::class,
+                $sims->id,
+                $sims->number,
+                \App\Models\Sims::class,
+                $sims->id,
+                $sims->number,
+                'self',
+                null,
+                'soft'
+            );
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error deleting SIM: ' . $e->getMessage(), ['sim_id' => $sims->id ?? $id]);
+            return $this->respondSimDeleteError('Failed to delete SIM. Please try again.');
+        }
+
         if (request()->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Sim deleted successfully.'
+                'message' => 'Sim moved to Recycle Bin.'
             ]);
         }
-        
+
         // For regular requests
-        return redirect()->back()->with('message', 'Sim deleted successfully.'); 
-   }
+        return redirect()->back()->with('message', 'Sim moved to Recycle Bin.');
+    }
 
     public function restore($id)
     {
         $sims = Sims::withTrashed()->find($id);
-        
+
         if (empty($sims)) {
             return response()->json(['errors' => ['error' => 'Sim not found!']], 422);
         }
-        
+
         if (!$sims->trashed()) {
             return response()->json(['errors' => ['error' => 'Sim is not deleted!']], 422);
         }
-        
+
         $sims->restore(); // Restore from soft delete
-        
+
         return response()->json(['message' => 'Sim restored successfully.']);
     }
 
     public function forceDestroy($id)
     {
         $sims = Sims::withTrashed()->find($id);
-        
+
         if (empty($sims)) {
             return response()->json(['errors' => ['error' => 'Sim not found!']], 422);
         }
-        
+
         $sims->forceDelete(); // Permanent delete
-        
+
         return response()->json(['message' => 'Sim permanently deleted.']);
     }
 
     public function emptyTrash()
     {
         Sims::onlyTrashed()->forceDelete();
-        
+
         return response()->json(['message' => 'Trash emptied successfully.']);
     }
 
@@ -611,5 +636,17 @@ private function getTableColumns()
                 'message' => 'Server error occurred.' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString(),
             ], 500);
         }
+    }
+
+    /**
+     * Standardized response for SIM deletion errors (supports both AJAX and regular requests).
+     */
+    private function respondSimDeleteError(string $message)
+    {
+        if (request()->ajax()) {
+            return response()->json(['errors' => ['error' => $message]], 422);
+        }
+
+        return redirect()->back()->with('error', $message);
     }
 }

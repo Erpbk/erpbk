@@ -1456,37 +1456,94 @@ class RidersController extends AppBaseController
   }
 
   public function files($rider_id)
-  {
+{
+    // Define documents in a more structured way
     $expectedFiles = [
-        'passport' => 'Passport',
-        'nic' => 'NIC/National ID',
-        'emirates' => 'Emirates ID',
-        'labor' => 'Labor Card',
-        'residency' => 'Residency',
-        'offer' => 'MOL/Job Offer Letter',
-        'license' => 'Driving License',
-        'health' => 'Health Insurance',
-        'workers' => 'Workers Insurance',
-        'road' => 'Road Permit',
-        'contract' => 'Rider Contract'
+        'single' => [
+            'photo' => 'Profile Photo',
+            'offer' => 'Job Offer Letter ( MOL )',
+            'entry' => 'Entry Permit',
+            'residency' => 'Residency',
+            'health' => 'Health insurance',
+            'workers' => 'Workers Compensation Insurance',
+            'road' => 'Road Permit',
+            'contract' => 'Agreement/Contract'
+        ],
+        'dual' => [
+            'passport' => [
+                'front' => 'Passport ( First Page )',
+                'back' => 'Passport ( Second Page )'
+            ],
+            'nic' => [
+                'front' => 'Home Country NIC ( Front )',
+                'back' => 'Home Country NIC ( Back )'
+            ],
+            'labor' => [
+                'front' => 'Labor Card ( Front )',
+                'back' => 'Labor Card ( Back )'
+            ],
+            'emirates' => [
+                'front' => 'Emirates ID ( Front )',
+                'back' => 'Emirates ID ( Back )'
+            ],
+            'license' => [
+                'front' => 'Bike License ( Front )',
+                'back' => 'Bike License ( Back )'
+            ]
+        ]
     ];
 
     $files = DB::table('files')
                   ->where('type', 'rider')
                   ->where('type_id', $rider_id)
                   ->get();
+    
     $missingFiles = [];
+    $fileStatus = [];
 
-    foreach($expectedFiles as $key => $desc){
+    // Check single documents
+    foreach($expectedFiles['single'] as $key => $name){
         $found = false;
         foreach($files as $riderFile){
             if(str_contains(strtolower($riderFile->name), $key)){
-              $found = true;
-              break;
+                $found = true;
+                break;
             }
         }
-        if(!$found) $missingFiles[$key] = $desc;
+        
+        if(!$found){
+            $missingFiles[$key] = $name;
+        }
     }
+
+    // Check dual documents
+    foreach($expectedFiles['dual'] as $key => $sides){
+        $foundFront = false;
+        $foundBack = false;
+        
+        foreach($files as $riderFile){
+            if(str_contains(strtolower($riderFile->name), $key)){
+                if(str_contains(strtolower($riderFile->name), 'back') || 
+                   ($key == 'passport' && str_contains(strtolower($riderFile->name), 'second'))){
+                    $foundBack = true;
+                }elseif(str_contains(strtolower($riderFile->name), 'front') || 
+                   ($key == 'passport' && str_contains(strtolower($riderFile->name), 'first'))) {
+                    $foundFront = true;
+                }else{
+                  $foundBack = true;
+                  $foundFront = true;
+                }
+            }
+        }
+        
+        if(!$foundFront){
+            $missingFiles[$key.'_front'] = $sides['front'];
+        }
+        if(!$foundBack){
+            $missingFiles[$key.'_back'] = $sides['back'];
+        }
+    }
+    
     return view('riders.document', compact('missingFiles', 'files'));
   }
 

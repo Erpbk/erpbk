@@ -8,6 +8,9 @@
     display: flex;
     gap: 10px;
     margin-top: 10px;
+    align-items: stretch; 
+    height: calc(100vh - 200px); 
+    min-height: 450px;
 }
 
 .left-container {
@@ -16,8 +19,8 @@
 }
 
 .right-container {
-    flex: 0 0 68%; 
-    max-width: 68%;
+    flex: 0 0 64%; 
+    max-width: 64%;
 }
 
 /* SIM info card */
@@ -27,7 +30,7 @@
     padding: 25px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.05);
     border: 1px solid #e5e7eb;
-    height: fit-content;
+    height: 100%;
 }
 
 .sim-info-header {
@@ -121,7 +124,7 @@
     box-shadow: 0 4px 20px rgba(0,0,0,0.05);
     border: 1px solid #e5e7eb;
     height: 100%;
-    min-height: 500px;
+    min-height: 0;
     display: flex;
     flex-direction: column;
 }
@@ -143,8 +146,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 250px); /* Dynamic height */
-    min-height: 450px;
+    min-height: 0;
     max-height: none;
 }
 
@@ -157,6 +159,11 @@
     min-height: 0;
     overflow-x: hidden; /* Prevent horizontal scroll */
     overflow-y: auto; /* Only vertical scroll */
+}
+
+.left-container, .right-container {
+    display: flex;
+    flex-direction: column;
 }
 
 #simHistoryTable {
@@ -384,13 +391,13 @@
 
 @section('content')
     <section class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-10">
-                    <h1>Sims Details</h1>
+        <div class="px-3">
+            <div class="row mb-2 align-items-center">
+                <div class="col">
+                    <h2 class="m-0">Sim Details</h2>
                 </div>
-                <div class="col-sm-2">
-                    <a class="btn btn-primary float-right" href="{{ route('sims.index') }}">
+                <div class="col-auto">
+                    <a class="btn btn-primary" href="{{ route('sims.index') }}">
                         <i class="fa fa-arrow-left"></i> Back
                     </a>
                 </div>
@@ -398,7 +405,7 @@
         </div>
     </section>
 
-    <div class="content px-3">
+    <div class="content">
         <div class="sim-detail-container">
             <!-- Left Container: SIM Information -->
             <div class="left-container">
@@ -570,7 +577,7 @@
                                             <td>
                                                 @if($history->notes)
                                                     <div class="notes-container">
-                                                        <span title="Click to Expand" class="notes-preview">{{ Str::limit($history->notes, 20) }}</span>
+                                                        <span title="Click to Expand" class="notes-preview">{{ Str::limit($history->notes, 10) }}</span>
                                                         <div class="notes-full">{{ $history->notes }}</div>
                                                     </div>
                                                 @else

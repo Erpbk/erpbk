@@ -332,9 +332,22 @@ class TrashController extends Controller
                 $message .= ' (Also restored: ' . implode(', ', $restoredItems) . ')';
             }
 
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                ]);
+            }
+
             Flash::success($message);
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to restore record: ' . $e->getMessage(),
+                ], 422);
+            }
             Flash::error('Failed to restore record: ' . $e->getMessage());
         }
 
@@ -513,9 +526,22 @@ class TrashController extends Controller
                 $message .= ' (Also permanently deleted: ' . implode(', ', $deletedItems) . ')';
             }
 
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                ]);
+            }
+
             Flash::success($message);
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to permanently delete record: ' . $e->getMessage(),
+                ], 422);
+            }
             Flash::error('Failed to permanently delete record: ' . $e->getMessage());
         }
 

@@ -54,12 +54,13 @@ class SalikImport implements ToCollection
                     // --- Safe mapping (index based) ---
                     $transactionId       = $row[0] ?? null;
                     $tripDateRaw         = $row[1] ?? null;
+                    $transactionPostDateRaw = $row[3] ?? null;
                     $tripDate            = $this->parseTripDate($tripDateRaw);
                     $tripDateForStorage  = $tripDate ? $tripDate->format('d M Y') : null;
                     $tripDateForQueries  = $tripDate ? $tripDate->toDateString() : null;
                     $tripTimeRaw         = $row[2] ?? null;
                     $tripTime            = $this->parseTripTime($tripTimeRaw);
-                    $transactionPostDate = $row[3] ?? null;
+                    $transactionPostDate = $this->parseTransactionPostDate($transactionPostDateRaw);
                     $tollGate            = $row[4] ?? null;
                     $direction           = $row[5] ?? null;
                     $tagNumber           = $row[6] ?? null;
@@ -297,6 +298,31 @@ class SalikImport implements ToCollection
             return $parsed->format('h:i:s A');
         } catch (\Exception $e) {
             \Log::warning("Unable to parse trip time value: {$tripTime}. Error: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Normalize transaction post date to "d M Y" (e.g., "01 Oct 2025")
+     */
+    private function parseTransactionPostDate($transactionPostDate)
+    {
+        if (empty($transactionPostDate)) {
+            return null;
+        }
+
+        try {
+            if ($transactionPostDate instanceof Carbon) {
+                $date = $transactionPostDate;
+            } elseif (is_numeric($transactionPostDate)) {
+                $date = Carbon::instance(ExcelDate::excelToDateTimeObject($transactionPostDate));
+            } else {
+                $date = Carbon::parse($transactionPostDate);
+            }
+
+            return $date->format('d M Y');
+        } catch (\Exception $e) {
+            \Log::warning("Unable to parse transaction post date value: {$transactionPostDate}. Error: " . $e->getMessage());
             return null;
         }
     }

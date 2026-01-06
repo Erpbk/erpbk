@@ -23,6 +23,7 @@ class Items extends Model
     'barcode',
     'created_by',
     'updated_by',
+    'deleted_by',
     'customer_id',
     'supplier_id',
     'status'
@@ -60,5 +61,9 @@ class Items extends Model
   public function supplier()
   {
     return $this->belongsTo(Supplier::class, 'supplier_id', 'id');
+  }
+  public function deletedBy()
+  {
+    return $this->belongsTo(\App\Models\User::class, 'deleted_by', 'id');
   }
 }

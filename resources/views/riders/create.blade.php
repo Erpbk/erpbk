@@ -118,7 +118,6 @@
         gap: 8px;
     }
 </style>
-
 @endsection
 @push('page-scripts')
 
@@ -286,54 +285,53 @@
                         if (xhr.responseJSON && xhr.responseJSON.errors) {
                             const errors = xhr.responseJSON.errors;
                             errorMessage = 'Please fix the following errors:\n';
-                            
+
                             // Track all error messages to show them all
                             let allErrorMessages = [];
-                            
+
                             // Display inline errors for each field
                             Object.keys(errors).forEach(function(key) {
                                 // Get ALL error messages for this field (not just first)
                                 errors[key].forEach(function(errorMsg) {
                                     allErrorMessages.push('• ' + errorMsg);
                                 });
-                                
+
                                 // Highlight the specific field with error
                                 const fieldElement = $('[name="' + key + '"]');
                                 if (fieldElement.length) {
                                     fieldElement.addClass('is-invalid');
-                                    
+
                                     // Show inline error message (show first error for this field)
                                     const errorDiv = $('#' + key + '_error');
                                     if (errorDiv.length) {
                                         errorDiv.text(errors[key][0]).show().css('display', 'block');
                                     }
                                 }
-                                
+
                                 // Special handling for rider_id field
                                 if (key === 'rider_id') {
                                     $('#rider_id_field').addClass('is-invalid').focus();
                                     $('#rider_id_error').text(errors[key][0]).show().css('display', 'block');
                                 }
-                                
+
                                 // Special handling for courier_id field
                                 if (key === 'courier_id') {
                                     $('#courier_id_field').addClass('is-invalid');
                                     $('#courier_id_error').text(errors[key][0]).show().css('display', 'block');
                                 }
                             });
-                            
+
                             // Add all collected error messages to the notification
                             errorMessage += allErrorMessages.join('\n');
-                            
-                        }else if (xhr.responseJSON && xhr.responseJSON.message) {
+
+                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
                             errorMessage = xhr.responseJSON.message;
-                        }else {
+                        } else {
                             errorMessage = 'Validation error occurred. Please check your inputs.';
                         }
-                        
+
                         showNotification(errorMessage, 'error');
-                    } 
-                    else if (xhr.status === 500) {
+                    } else if (xhr.status === 500) {
                         const message = xhr.responseJSON && xhr.responseJSON.message ?
                             xhr.responseJSON.message :
                             'Server error occurred. Please try again.';

@@ -186,49 +186,87 @@ class ItemsController extends AppBaseController
       // Track cascaded deletions
       $cascadedItems = [];
 
-      // Cascade soft delete: Soft delete related RiderItemPrice records
+      // Get related data BEFORE deleting (important!)
       $riderItemPrices = RiderItemPrice::where('item_id', $id)->get();
-      if ($riderItemPrices->count() > 0) {
-        foreach ($riderItemPrices as $riderItemPrice) {
-          $cascadedItems[] = [
-            'model' => 'RiderItemPrice',
-            'id' => $riderItemPrice->id,
-            'name' => "Rider ID: {$riderItemPrice->RID}, Price: {$riderItemPrice->price}",
-          ];
 
-          // Soft delete the related record
-          $riderItemPrice->delete();
+      // Log item deletion with related record count
+      \Log::info('Item deletion: checking for related RiderItemPrice records', [
+        'item_id' => $item->id,
+        'item_name' => $item->name,
+        'related_count' => $riderItemPrices->count()
+      ]);
 
-          // Log the cascade deletion
-          $this->trackCascadeDeletion(
-            'App\Models\Items',
-            $item->id,
-            $item->name,
-            'App\Models\RiderItemPrice',
-            $riderItemPrice->id,
-            "Rider ID: {$riderItemPrice->RID}, Price: {$riderItemPrice->price}",
-            'hasMany',
-            'riderItemPrices',
-            'soft'
-          );
-        }
-      }
+      // Set who deleted the item before soft deleting
+      $item->deleted_by = auth()->id();
+      $item->save();
 
       // Soft delete the item itself
       $item->delete();
+
+      // Always process related records - Cascade soft delete and track each one
+      foreach ($riderItemPrices as $riderItemPrice) {
+        $cascadedItems[] = [
+          'model' => 'RiderItemPrice',
+          'id' => $riderItemPrice->id,
+          'name' => "Rider ID: {$riderItemPrice->RID}, Price: {$riderItemPrice->price}",
+        ];
+
+        // Set who deleted the related record before soft deleting
+        $riderItemPrice->deleted_by = auth()->id();
+        $riderItemPrice->save();
+
+        // Soft delete the related record
+        $riderItemPrice->delete();
+
+        // Track cascade deletion to database - runs for EVERY related record
+        \Log::info('Tracking cascade deletion', [
+          'primary_model' => 'App\Models\Items',
+          'primary_id' => $item->id,
+          'primary_name' => $item->name,
+          'related_model' => 'App\Models\RiderItemPrice',
+          'related_id' => $riderItemPrice->id,
+          'related_name' => "Rider ID: {$riderItemPrice->RID}, Price: {$riderItemPrice->price}",
+        ]);
+
+        $cascadeRecord = $this->trackCascadeDeletion(
+          'App\Models\Items',
+          $item->id,
+          $item->name,
+          'App\Models\RiderItemPrice',
+          $riderItemPrice->id,
+          "Rider ID: {$riderItemPrice->RID}, Price: {$riderItemPrice->price}",
+          'hasMany',
+          'riderItemPrices',
+          'soft'
+        );
+
+        \Log::info('Cascade deletion tracked successfully', [
+          'cascade_record_id' => $cascadeRecord ? $cascadeRecord->id : 'NULL'
+        ]);
+      }
 
       DB::commit();
 
       // Build cascade message
       $cascadeMessage = '';
       if (!empty($cascadedItems)) {
-        $cascadeMessage = ' (Also deleted: ' . count($cascadedItems) . ' related rider item price(s))';
+        $cascadeMessage = ' (Also deleted: ';
+        $parts = [];
+        foreach ($cascadedItems as $deletedItem) {
+          $parts[] = "{$deletedItem['model']}: {$deletedItem['name']}";
+        }
+        $cascadeMessage .= implode(', ', $parts) . ')';
       }
 
       Flash::success('Item moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=items" class="alert-link">View Recycle Bin</a> to restore if needed.');
       return redirect()->back();
     } catch (\Exception $e) {
       DB::rollBack();
+      \Log::error('Failed to delete item with cascades', [
+        'item_id' => $id,
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString()
+      ]);
       Flash::error('Failed to delete item: ' . $e->getMessage());
       return redirect()->back();
     }

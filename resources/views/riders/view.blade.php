@@ -278,14 +278,18 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
         @isset($result)
         <div class="profile-img">
           @php
-          $profile = DB::table('files')->where('name','LIKE','%photo%')
-                          ->orWhere('name','LIKE','%Photo%')
-                          ->orWhere('name','LIKE','%picture%')
-                          ->orWhere('name','LIKE','%Picture%')
-                          ->orWhere('name','LIKE','%profile%')
-                          ->orWhere('name','LIKE','%Profile%')
-                          ->first();
-
+          $profile = DB::table('files')
+                    ->where('type', 'rider')
+                    ->where('type_id', $result['id'])
+                    ->where(function($query) {
+                        $query->where('name', 'LIKE', '%photo%')
+                              ->orWhere('name', 'LIKE', '%Photo%')
+                              ->orWhere('name', 'LIKE', '%picture%') 
+                              ->orWhere('name', 'LIKE', '%Picture%')
+                              ->orWhere('name', 'LIKE', '%profile%')
+                              ->orWhere('name', 'LIKE', '%Profile%');
+                    })
+                    ->first();
           if(@$result['image_name'])
             $image_name = url('storage2/profile/'.$result['image_name']);
           elseif (isset($profile))

@@ -15,7 +15,8 @@
          <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Service Charges</th>
          <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Admin Fee</th>
          <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Total Amount</th>
-         <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Status</th>
+         <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Reference No: activate to sort column ascending">Reference No</th>
+         <th title="Reference" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
          <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
       </tr>
    </thead>
@@ -69,6 +70,7 @@
          <td>AED {{ number_format($r->service_charges, 2) }}</td>
          <td>AED {{ number_format($r->admin_fee, 2) }}</td>
          <td>AED {{ number_format($r->total_amount, 2) }}</td>
+         <td>{{ $r->reference_number ?? '-'}}</td>
          <td>
             @if($r->status == 'paid')
             <span class="badge bg-success">Paid</span>

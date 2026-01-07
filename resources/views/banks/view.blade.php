@@ -44,13 +44,16 @@
                             <b>Details:</b> <span class="float-right">{{$banks->notes}}</span>
                          </li>
                          <li class="list-group-item pb-1" >
-                            <b>Status:</b> <span class="float-right">@php
+                            <b>Status:</b>
+                            <span class="float-right"
+                            >@php
                                 if ($banks->status == 1) {
-          echo '<span class="badge  bg-success">Active</span>';
-        } else {
-          echo '<span class="badge  bg-danger">Inactive</span>';
-        }
-                            @endphp</span>
+                                  echo '<span class="badge  bg-success">Active</span>';
+                                } else {
+                                  echo '<span class="badge  bg-danger">Inactive</span>';
+                                }
+                            @endphp
+                            </span>
                          </li>
 
                       </ul>

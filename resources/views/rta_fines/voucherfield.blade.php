@@ -24,6 +24,11 @@
     {!! Form::text('ticket_no', $data->ticket_no, ['class' => 'form-control', 'maxlength' => 50, 'readonly']) !!}
 </div>
 
+<div class="form-group col-sm-6">
+    {!! Form::label('reference_number', 'Reference No:', ['class' => 'readonly']) !!}
+    {!! Form::text('reference_number', $data->reference_number, ['class' => 'form-control', 'maxlength' => 50, 'readonly']) !!}
+</div>
+
 <!-- Rider Id Field -->
 <div class="form-group col-sm-6">
     <label class="readonly">Bike:</label>
@@ -53,11 +58,18 @@
     <select class="form select select2" id="account_id" name="account" required>
         <option value=""></option>
         @php
-        $bank = DB::table('accounts')->where('id', 994)->first();
-        $cash = DB::table('accounts')->where('id', 1643)->first();
+        $leasing_companies = DB::table('leasing_companies')->where('status','1')->get();
+        // $bank = DB::table('accounts')->where('id', 994)->first();
+        // $cash = DB::table('accounts')->where('id', 1643)->first();
         @endphp
 
-        @foreach(DB::table('accounts')
+        @foreach ($leasing_companies as $company)
+        <option value="{{ $company->account_id ?? '' }}">
+            {{ $company->name ?? ''}}
+        </option>
+        @endforeach
+
+        {{-- @foreach(DB::table('accounts')
         ->where('status', 1)
         ->whereIn('parent_id', [$bank->id, $cash->id])
         ->orderBy('id', 'asc')
@@ -65,7 +77,7 @@
         <option value="{{ $acc->id }}">
             {{ $acc->name }}
         </option>
-        @endforeach
+        @endforeach --}}
     </select>
 </div>
 <div class="form-group col-sm-6">

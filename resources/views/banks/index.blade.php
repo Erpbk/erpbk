@@ -1,7 +1,80 @@
 ﻿@extends('banks.viewindex')
 @section('page_content')
 
-<div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
+<!-- Filter Sidebar -->
+<div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+    <div class="filter-header">
+        <h5>Filter Banks</h5>
+        <button type="button" class="btn-close" id="closeSidebar"></button>
+    </div>
+    <div class="filter-body" id="searchTopbody">
+        <form id="filterForm" action="{{ route('banks.index') }}" method="GET">
+            <div class="row">
+                <div class="form-group col-md-12">
+                    <label for="name">Bank Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="Filter By Bank Name" value="{{ request('name') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="name">Bank Title</label>
+                    <input type="text" name="title" class="form-control" placeholder="Filter By Bank Title" value="{{ request('title') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="name">Account Number</label>
+                    <input type="text" name="account_no" class="form-control" placeholder="Filter By Account Number" value="{{ request('account_no') }}">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="account_type">Filter by Account Type</label>
+                    <select class="form-control " id="account_type" name="account_type">
+                        @php
+                        $accounttype = DB::table('banks')
+                        ->whereNotNull('account_type')
+                        ->select('account_type')
+                        ->distinct()
+                        ->pluck('account_type');
+                        @endphp
+                        <option value="" selected>Select</option>
+                        @foreach($accounttype as $type)
+                        <option value="{{ $type }}" {{ request('account_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="branch">Filter by Bank Branch</label>
+                    <select class="form-control " id="branch" name="branch">
+                        @php
+                        $branch = DB::table('banks')
+                        ->whereNotNull('branch')
+                        ->where('branch', '!=', '')
+                        ->select('branch')
+                        ->distinct()
+                        ->pluck('branch');
+                        @endphp
+                        <option value="" selected>Select</option>
+                        @foreach($branch as $br)
+                        <option value="{{ $br }}" {{ request('branch') == $br ? 'selected' : '' }}>{{ $br }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="status">Filter by Status</label>
+                    <select class="form-control " id="status" name="status">
+                        <option value="" selected>Select</option>
+                        <option value="1" {{ request('status') == 1 ? 'selected' : '' }}>Active</option>
+                        <option value="3" {{ request('status') == 3 ? 'selected' : '' }}>In Active</option>
+                    </select>
+                </div>
+                <div class="col-md-12 form-group text-center">
+                    <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Filter Overlay -->
+<div id="filterOverlay" class="filter-overlay"></div>
+
+{{-- old search modal --}}
+{{-- <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
         <div class="modal-content">
             <div class="modal-header">
@@ -72,13 +145,16 @@
             </div>
         </div>
     </div>
-</div>
-<div class="content px-3">
+</div> --}}
+<div class="content py-1">
     @include('flash::message')
     <div class="clearfix"></div>
 
     <div class="card">
-        <div class="card-body table-responsive px-2 py-0" id="table-data">
+        <div class="card-header text-end">
+            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Banks</button>
+        </div>
+        <div class="card-body table-responsive py-0" id="table-data">
             @include('banks.table', ['data' => $data])
         </div>
     </div>

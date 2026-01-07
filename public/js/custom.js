@@ -389,6 +389,27 @@ $(document).ready(function () {
     }
   });
 
+  $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function(e) {
+      e.preventDefault();
+      console.log('Filter button hovered!'); // Debug line
+      $('#filterSidebar').addClass('open');
+      $('#filterOverlay').addClass('show');
+      return false;
+  });
+
+  $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
+      e.preventDefault();
+      console.log('Filter button clicked!'); // Debug line
+      $('#filterSidebar').addClass('open');
+      $('#filterOverlay').addClass('show');
+      return false;
+  });
+
+  $('#closeSidebar, #filterOverlay').on('click', function() {
+      $('#filterSidebar').removeClass('open');
+      $('#filterOverlay').removeClass('show');
+  });
+
   // Action dropdown functionality
   $(document).on('click', '#addBikeDropdownBtn', function(e) {
       e.preventDefault();
@@ -401,6 +422,20 @@ $(document).ready(function () {
   $(document).on('click', function(e) {
       if (!$(e.target).closest('.action-dropdown-container').length) {
           $('#addBikeDropdown').removeClass('show');
+      }
+  });
+
+  $(document).on('click', function(e) {
+    if (!$(e.target).closest('#filterSidebar').length) {
+        $('#filterSidebar').removeClass('open');
+    }
+  });
+
+  // Close dropdown when pressing escape
+  $(document).on('keydown', function(e) {
+      if (e.key === 'Escape') {
+          $('#addBikeDropdown').removeClass('show');
+          $('#filterSidebar').removeClass('open');
       }
   });
 

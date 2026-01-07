@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use Flash;
+use DB;
 
 class BanksController extends AppBaseController
 {
@@ -351,7 +352,9 @@ class BanksController extends AppBaseController
 
   public function files($id, FilesDataTable $filesDataTable)
   {
-    return $filesDataTable->with(['type_id' => $id, 'type' => 'bank'])->render('banks.document');
+    $files = DB::table('files')->where('type','bank')->where('type_id', $id)->latest('id')->get();
+    return view('banks.document', compact('files'));
+    // return $filesDataTable->with(['type_id' => $id, 'type' => 'bank'])->render('banks.document');
   }
 
   public function receipts(Request $request)

@@ -7,7 +7,7 @@
         <div class="row mb-2">
             <div class="col-sm-6">
                 <h3>Traffic Fine Ticket #{{ $data->ticket_no }}</h3>
-            </div>
+            {{-- </div>
             <div class="col-sm-6">
                 <div class="modal modal-default filtetmodal fade" id="createaccount" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
@@ -33,7 +33,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> --}}
         </div>
     </div>
 </section>

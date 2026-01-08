@@ -3,92 +3,340 @@
 
 @section('content')
 @php
+  use Carbon\Carbon;
+  use App\Models\Transactions;
+  
   $banks = App\Models\Banks::find(request()->segment(3));
+  $statusColor = $banks->status == 1 ? 'success' : 'danger';
+  $statusText = $banks->status == 1 ? 'Active' : 'Inactive';
+  
+  // Get current month start and end dates
+  $currentMonthStart = Carbon::now()->startOfMonth()->format('Y-m-d');
+  $currentMonthEnd = Carbon::now()->endOfMonth()->format('Y-m-d');
+  
+  // Calculate current balance
+  $totalCredit = Transactions::where('account_id', $banks->account_id)
+                ->sum('credit');
+  
+  $totalDebit = Transactions::where('account_id', $banks->account_id)
+                ->sum('debit');
+  
+  $currentBalance = $totalCredit - $totalDebit;
+  
+  // Calculate current month transactions
+  $currentMonthCredit = Transactions::where('account_id', $banks->account_id)
+                      ->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])
+                      ->sum('credit');
+  
+  $currentMonthDebit = Transactions::where('account_id', $banks->account_id)
+                      ->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])
+                      ->sum('debit');
+  
+  $netFlow = $currentMonthCredit - $currentMonthDebit;
 @endphp
 
-<div class="row" style="">
-  <div class="col-xl-3 col-md-3 col-lg-5 order-1 order-md-0">
-    <!-- User Card -->
-    <div class="card mb-6">
-      <div class="card-body pt-12">
-        <div class="user-avatar-section">
-          <div class=" d-flex align-items-center flex-column">
-
-            <div class="user-info text-center">
-              <h6>{{$banks->name}}</h6>
-              <span class="badge bg-label-primary">{{$banks->branch}}</span>
-
+<div class="row">
+  <!-- Left Column - Bank Information -->
+  <div class="col-xl-4 col-lg-4 col-md-12 order-1 order-lg-0">
+    <!-- Bank Profile Card -->
+    <div class="card mb-4 shadow-sm border-0">
+      <div class="card-header bg-gradient-primary text-white py-3">
+        <div class="d-flex align-items-center">
+          <div class="avatar avatar-lg bg-white rounded-circle p-2 me-3">
+            <i class="fas fa-university fa-3x text-primary"></i>
+          </div>
+          <div>
+            <h4 class="mb-0 text-white">{{ $banks->name }}</h4>
+            <p class="mb-0 opacity-75">{{ $banks->branch }}</p>
+          </div>
+          <a class="btn btn-primary btn-sm show-modal d-flex align-items-center justify-content-right ms-auto" 
+               data-title="Edit Bank Details" 
+               data-size ="lg"
+               data-action="{{ route('banks.edit', $banks->id) }}" 
+               href="javascript:void(0);">
+              <i class="fas fa-edit me-2"></i>
+              <span class="fw-semibold">Edit</span>
+          </a>
+        </div>
+      </div>
+      
+      <!-- Quick Overview Section (Under Header) -->
+      <div class="card-body py-4 border-bottom">
+        <h6 class="text-muted mb-3 d-flex align-items-center">
+          <i class="fas fa-chart-line me-2"></i>Quick Overview
+        </h6>
+        
+        <!-- Current Balance (Prominent Display) -->
+        <div class="text-center mb-4">
+          <div class="p-4 rounded @if($currentBalance >= 0) bg-opacity-10 border border-success border-opacity-25 @else bg-danger bg-opacity-10 border border-danger border-opacity-25 @endif">
+            <p class="mb-1 text-muted small">Current Balance</p>
+            <p class="mb-0 fw-bold display-6 @if($currentBalance >= 0) text-success @else text-danger @endif">
+              {{ number_format($currentBalance, 2) }}
+            </p>
+            <small class="text-muted">As of {{ date('M d, Y') }}</small>
+          </div>
+        </div>
+        
+        <!-- Monthly Summary -->
+        <div class="row g-3">
+          <div class="col-6">
+            <div class="p-3 rounded bg-opacity-10 border-start border-success border-3">
+              <div class="d-flex align-items-center">
+                <div class="bg-opacity-25 rounded-circle p-2 me-3">
+                  <i class="fas fa-arrow-down text-success fa-sm"></i>
+                </div>
+                <div>
+                  <p class="mb-1 text-muted small">Month Credit</p>
+                  <p class="mb-0 fw-bold text-success">{{ number_format($currentMonthCredit, 2) }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-6">
+            <div class="p-3 rounded bg-opacity-10 border-start border-warning border-3">
+              <div class="d-flex align-items-center">
+                <div class="bg-opacity-25 rounded-circle p-2 me-3">
+                  <i class="fas fa-arrow-up text-warning fa-sm"></i>
+                </div>
+                <div>
+                  <p class="mb-1 text-muted small">Month Debit</p>
+                  <p class="mb-0 fw-bold text-warning">{{ number_format($currentMonthDebit, 2) }}</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+        
+        <!-- Net Flow -->
+        <div class="mt-4 pt-3 border-top">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <span class="text-muted">
+                <i class="fas fa-exchange-alt me-1"></i>Net Flow
+              </span>
+              <small class="d-block text-muted">{{ date('M Y') }}</small>
+            </div>
+            <span class="fw-bold fs-5 @if($netFlow >= 0) text-success @else text-danger @endif">
+              {{ number_format($netFlow, 2) }}
+            </span>
+          </div>
+          
+          <!-- Progress bar -->
+          @if(($currentMonthCredit + $currentMonthDebit) > 0)
+          <div class="progress mt-3" style="height: 8px;">
+            @php
+              $creditPercentage = ($currentMonthCredit / ($currentMonthCredit + $currentMonthDebit)) * 100;
+              $debitPercentage = ($currentMonthDebit / ($currentMonthCredit + $currentMonthDebit)) * 100;
+            @endphp
+            <div class="progress-bar bg-success" role="progressbar" 
+                 style="width: {{ $creditPercentage }}%" 
+                 title="Credit: {{ number_format($currentMonthCredit, 2) }}">
+            </div>
+            <div class="progress-bar bg-warning" role="progressbar" 
+                 style="width: {{ $debitPercentage }}%" 
+                 title="Debit: {{ number_format($currentMonthDebit, 2) }}">
+            </div>
+          </div>
+          <div class="d-flex justify-content-between mt-2">
+            <small class="text-success">
+              <i class="fas fa-circle fa-xs"></i> Credit ({{ round($creditPercentage, 1) }}%)
+            </small>
+            <small class="text-warning">
+              <i class="fas fa-circle fa-xs"></i> Debit ({{ round($debitPercentage, 1) }}%)
+            </small>
+          </div>
+          @endif
+        </div>
+      </div>
+      
+      <!-- Bank Details Section (After Quick Overview) -->
+      <div class="card-body pt-3">
+        <!-- Status Badge -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="mb-0 text-muted small">Account Status</h6>
+          <span class="badge bg-label-{{ $statusColor }} bg-opacity-10 text-{{ $statusColor }} border border-{{ $statusColor }} border-opacity-25 py-1 px-2 rounded-pill">
+            <i class="fas fa-circle fa-xs me-1"></i><span class="small">{{ $statusText }}</span>
+          </span>
+        </div>
 
-        <h5 class="pb-4 border-bottom mb-4"></h5>
-        <div class="info-container">
-          <ul class="list-unstyled mb-6">
+        <!-- Bank Details -->
+        <div class="bank-details-card">
+          <h6 class="section-title text-muted mb-2 pb-1 border-bottom small">
+            <i class="fas fa-info-circle me-2 fa-sm"></i>Bank Information
+          </h6>
+          
+          <div class="info-list">
+            <div class="info-item d-flex align-items-center mb-2 p-2 rounded bg-light-hover">
+              <div class="icon-container p-1 me-2">
+                <i class="fas fa-credit-card fa-sm text-info"></i>
+              </div>
+              <div class="flex-grow-1">
+                <small class="text-muted d-block">Account Type</small>
+                <p class="mb-0 fw-semibold small">{{ $banks->account_type }}</p>
+              </div>
+            </div>
 
-                      <ul class="p-0 mb-3" >
-                        <li class="list-group-item pb-1" >
-                            <b>Bank ID:</b> <span class="float-right">{{$banks->id}}</span>
-                         </li>
+            <div class="info-item d-flex align-items-center mb-2 p-2 rounded bg-light-hover">
+              <div class="icon-container p-1 me-2">
+                <i class="fas fa-user-circle fa-sm text-success"></i>
+              </div>
+              <div class="flex-grow-1">
+                <small class="text-muted d-block">Account Title</small>
+                <p class="mb-0 fw-semibold small">{{ $banks->account_title }}</p>
+              </div>
+            </div>
 
-                         <li class="list-group-item pb-1" >
-                            <b>Account Type:</b> <span class="float-right">{{$banks->account_type}}</span>
-                         </li>
-                         <li class="list-group-item pb-1" >
-                            <b>Account Title:</b> <span class="float-right">{{$banks->account_title}}</span>
-                         </li>
-                          <li class="list-group-item pb-1" >
-                            <b>Account No:</b> <span class="float-right">{{$banks->account_no}}</span>
-                         </li>
-                          <li class="list-group-item pb-1" >
-                            <b>Details:</b> <span class="float-right">{{$banks->notes}}</span>
-                         </li>
-                         <li class="list-group-item pb-1" >
-                            <b>Status:</b>
-                            <span class="float-right"
-                            >@php
-                                if ($banks->status == 1) {
-                                  echo '<span class="badge  bg-success">Active</span>';
-                                } else {
-                                  echo '<span class="badge  bg-danger">Inactive</span>';
-                                }
-                            @endphp
-                            </span>
-                         </li>
+            <div class="info-item d-flex align-items-center mb-2 p-2 rounded bg-light-hover">
+              <div class="icon-container p-1 me-2">
+                <i class="fas fa-hashtag fa-sm text-warning"></i>
+              </div>
+              <div class="flex-grow-1">
+                <small class="text-muted d-block">Account Number</small>
+                <p class="mb-0 fw-semibold small font-monospace">{{ $banks->account_no }}</p>
+              </div>
+            </div>
 
-                      </ul>
-
-          </ul>
-          <div class="d-flex justify-content-center">
-
-            <a href="javascript:void(0);" data-title="Edit" data-action="{{route('banks.edit', $banks->id)}}" class="btn btn-outline-primary btn-sm waves-effect waves-light btn-block me-1 show-modal"><i class="fa fa-edit"></i>&nbsp;Edit</a>
+            @if($banks->notes)
+            <div class="info-item mb-2 p-2 rounded bg-light-hover">
+              <div class="d-flex align-items-start">
+                <div class="icon-container p-1 me-2">
+                  <i class="fas fa-sticky-note fa-sm text-secondary"></i>
+                </div>
+                <div class="flex-grow-1">
+                  <small class="text-muted d-block mb-1">Additional Details</small>
+                  <p class="mb-0 text-muted small">{{ $banks->notes }}</p>
+                </div>
+              </div>
+            </div>
+            @endif
           </div>
         </div>
       </div>
     </div>
-    <!-- /User Card -->
-
   </div>
-  <div class="col-xl-9 col-md-9 col-lg-7 order-0 order-md-1">
-    <div class="nav-align-top">
-      <ul class="nav nav-pills flex-column flex-md-row flex-wrap mb-3 row-gap-2">
 
-        <li class="nav-item"><a class="nav-link @if(request()->segment(2) =='files') active @endif " href="{{route('bank.files',$banks->id)}}"><i class="ti ti-file-upload ti-sm me-1_5"></i>Files</a></li>
-        <li class="nav-item"><a class="nav-link @if(request()->segment(2) =='ledger') active @endif" href="{{route('bank.ledger',$banks->id)}}"><i class="ti ti-file ti-sm me-1_5"></i>Ledger</a></li>
-
-
-      </ul>
+  <!-- Right Column - Tabs Content -->
+  <div class="col-xl-8 col-lg-8 col-md-12 order-0 order-lg-1">
+    <!-- Tabs Navigation -->
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-body p-3">
+        <ul class="nav nav-pills nav-justified nav-pills-custom gap-2" role="tablist">
+          <li class="nav-item" role="presentation">
+            <a class="nav-link @if(request()->segment(2) == 'files') active @endif d-flex align-items-center justify-content-center py-3" 
+               href="{{ route('bank.files', $banks->id) }}">
+              <i class="fas fa-file-upload fa-lg me-2"></i>
+              <span class="fw-semibold">Files & Documents</span>
+            </a>
+          </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link @if(request()->segment(2) == 'ledger') active @endif d-flex align-items-center justify-content-center py-3" 
+               href="{{ route('bank.ledger', $banks->id) }}">
+              <i class="fas fa-file-invoice-dollar fa-lg me-2"></i>
+              <span class="fw-semibold">Bank Ledger</span>
+            </a>
+          </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link @if(request()->segment(2) == 'receipts') active @endif d-flex align-items-center justify-content-center py-3" 
+               href="{{ route('banks.receipts', $banks->id) }}">
+              <i class="fa fa-receipt fa-lg me-2"></i>
+              <span class="fw-semibold">Receipts</span>
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
 
-    <div class="card mb-5" id="cardBody" style="height:660px !important;overflow: auto;">
+    <!-- Tab Content Area -->
+    <div class="card-body" id="cardBody">
       @yield('page_content')
     </div>
-
-
-
-  </div>
 </div>
 
+<style>
+  .bank-details-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 10px;
+    padding: 1.5rem;
+  }
 
+  .info-item:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  }
+
+  .nav-pills-custom .nav-link {
+    border-radius: 8px;
+    margin: 0 5px;
+    color: #6c757d;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+  }
+
+  .nav-pills-custom .nav-link.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  }
+
+  .nav-pills-custom .nav-link:not(.active):hover {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+  }
+
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .btn-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    transition: all 0.3s ease;
+  }
+
+  .btn-gradient:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  }
+
+  .icon-container {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .section-title {
+    position: relative;
+    padding-left: 10px;
+  }
+
+  .section-title:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 3px;
+  }
+
+  .bg-light-hover {
+    background-color: rgba(248, 249, 250, 0.5);
+  }
+
+  /* Improved balance display */
+  .display-6 {
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+</style>
 
 @endsection

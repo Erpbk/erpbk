@@ -136,14 +136,14 @@
             let formData = $.param(filteredFields);
 
             $.ajax({
-                url: "{{ route('banks.receipts') }}",
+                url: "{{ route('receipts.index') }}",
                 type: "GET",
                 data: formData,
                 success: function(data) {
                     $('#table-data').html(data.tableData);
 
                     // Update URL
-                    let newUrl = "{{ route('banks.receipts') }}" + (formData ? '?' + formData : '');
+                    let newUrl = "{{ route('receipts.index') }}" + (formData ? '?' + formData : '');
                     history.pushState(null, '', newUrl);
 
 

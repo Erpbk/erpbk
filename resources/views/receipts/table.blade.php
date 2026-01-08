@@ -12,9 +12,6 @@
             <th title="Description" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Description: activate to sort column ascending">Description</th>
             <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
             <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action"><a data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a></th>
-            <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-                <a data-bs-toggle="modal" data-bs-target="#customoizecolmn" href="javascript:void(0);"> <i class="fa fa-filter"></i></a>
-            </th>
         </tr>
     </thead>
     <tbody>
@@ -48,7 +45,6 @@
                 <a href="{{ route('receipts.show', $receipt->id) }}" class="btn btn-sm btn-info" title="View"><i class="fa fa-eye"></i></a>
                 <a href="javascript:void(0);" class="btn btn-sm btn-warning show-modal" data-title="Update" data-size="lg" data-action="{{ route('receipts.edit', $receipt->id) }}"><i class="fa fa-pencil"></i></a>
             </td>
-            <td></td>
         </tr>
         @endforeach
     </tbody>

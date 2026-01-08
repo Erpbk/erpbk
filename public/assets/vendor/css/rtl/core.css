@@ -25526,13 +25526,11 @@ th.sorting.sorted-desc::after {
 }
 #cardBody .card{
   margin-bottom: 15px;
-  border-radius: 26px;
   border: 2px solid #9593997a !important;
   padding: 0;
 }
 #cardBody .card .card-header{
     background-color: #d6d3db54;
-    border-radius: 25px 25px 0px 0px;
     margin-bottom: 10px;
 }
 #cardBody .card .card-header i{

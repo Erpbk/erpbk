@@ -20,6 +20,9 @@ use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use Flash;
 use DB;
+use Carbon\Carbon;
+use App\Models\Receipt;
+
 
 class BanksController extends AppBaseController
 {
@@ -353,13 +356,45 @@ class BanksController extends AppBaseController
   public function files($id, FilesDataTable $filesDataTable)
   {
     $files = DB::table('files')->where('type','bank')->where('type_id', $id)->latest('id')->get();
-    return view('banks.document', compact('files'));
+    $banks = Banks::find( $id );
+    $currentMonthStart = Carbon::now()->startOfMonth()->format('Y-m-d');
+    $currentMonthEnd = Carbon::now()->endOfMonth()->format('Y-m-d');
+    
+    // Calculate current balance (sum of credit - sum of debit)
+    $totalCredit = DB::table('transactions')
+        ->where('account_id', $banks->account_id)
+        ->sum('credit');
+    
+    $totalDebit = DB::table('transactions')
+        ->where('account_id', $banks->account_id)
+        ->sum('debit');
+    
+    $currentBalance = $totalCredit - $totalDebit;
+    
+    // Calculate current month transactions
+    $currentMonthCredit = DB::table('transactions')
+        ->where('account_id', $banks->account_id)
+        ->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])
+        ->sum('credit');
+    
+    $currentMonthDebit = DB::table('transactions')
+        ->where('account_id', $banks->account_id)
+        ->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])
+        ->sum('debit'); 
+    return view('banks.document', compact('files','currentBalance','currentMonthCredit','currentMonthDebit'));
     // return $filesDataTable->with(['type_id' => $id, 'type' => 'bank'])->render('banks.document');
   }
 
-  public function receipts(Request $request)
+  public function receipts(Request $request, $id)
   {
-    return view('banks.receipts.receipts');
+    $banks = Banks::find($id);
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Receipt::query()->latest('id');
+    $query->where('account_id', $banks->account_id);
+    
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    return view('banks.receipts', compact('data','banks'));
   }
 
   public function payments(Request $request)

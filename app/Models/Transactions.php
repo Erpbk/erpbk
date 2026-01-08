@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
 class Transactions extends Model
 {
-    use LogsActivity;
+  use SoftDeletes, LogsActivity;
 
   protected $fillable = [
     'trans_code',
@@ -19,6 +20,7 @@ class Transactions extends Model
     'credit',
     'billing_month',
     'narration',
+    'deleted_by',
   ];
 
   function account()

@@ -168,6 +168,68 @@
                                 N/A
                             @endif
                         </div>
+                        @else
+                        <table id="simHistoryTable">
+                            <thead>
+                                <tr>
+                                    <th>Rider</th>
+                                    <th>Assign Date</th>
+                                    <th>Assign By</th>
+                                    <th>Return Date</th>
+                                    <th>Return By</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($simHistories as $history)
+                                <tr>
+                                    @php
+                                    $rider = App\Models\Riders::find($history->rider_id);
+                                    @endphp
+                                    <td>
+                                        <a href="{{ route('riders.show', $rider->id) }}"
+                                            class="table-link"
+                                            target="_blank">
+                                            {{ $rider ? $rider->name : '-' }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="date-display" data-toggle="tooltip" title="{{ $history->note_date }}">
+                                            {{ \Carbon\Carbon::parse($history->note_date)->format('d M, Y') }}
+                                        </span>
+                                    </td>
+                                    @php
+                                    $assignedBy = App\Models\User::find($history->assigned_by);
+                                    @endphp
+                                    <td>{{ $assignedBy ? $assignedBy->name : '-' }}</td>
+                                    <td>
+                                        @if($history->return_date)
+                                        <span class="date-display" data-toggle="tooltip" title="{{ $history->return_date }}">
+                                            {{ \Carbon\Carbon::parse($history->return_date)->format('d M, Y') }}
+                                        </span>
+                                        @else
+                                        -
+                                        @endif
+                                    </td>
+                                    @php
+                                    $returnedBy = App\Models\User::find($history->returned_by);
+                                    @endphp
+                                    <td>{{ $returnedBy ? $returnedBy->name : '-' }}</td>
+                                    <td>
+                                        @if($history->notes)
+                                        <div class="notes-container">
+                                            <span title="Click to Expand" class="notes-preview">{{ Str::limit($history->notes, 10) }}</span>
+                                            <div class="notes-full">{{ $history->notes }}</div>
+                                        </div>
+                                        @else
+                                        -
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -258,19 +320,33 @@
 
 @section('page-script')
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    // Show full notes on click
-    document.querySelectorAll('.notes-preview').forEach(function (preview) {
-        const container = preview.closest('.notes-container');
-        const fullNotes = container.querySelector('.notes-full');
-        
-        preview.addEventListener('click', function (e) {
-            e.stopPropagation();
-            
-            // Hide any other open notes
-            document.querySelectorAll('.notes-full').forEach(function (notes) {
-                if (notes !== fullNotes) {
-                    notes.style.display = 'none';
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show full notes on click
+        document.querySelectorAll('.notes-preview').forEach(function(preview) {
+            const container = preview.closest('.notes-container');
+            const fullNotes = container.querySelector('.notes-full');
+
+            preview.addEventListener('click', function(e) {
+                e.stopPropagation();
+
+                // Hide any other open notes
+                document.querySelectorAll('.notes-full').forEach(function(notes) {
+                    if (notes !== fullNotes) {
+                        notes.style.display = 'none';
+                    }
+                });
+
+                // Toggle current notes
+                if (fullNotes.style.display === 'block') {
+                    fullNotes.style.display = 'none';
+                } else {
+                    fullNotes.style.display = 'block';
+
+                    // Position the notes box
+                    const rect = preview.getBoundingClientRect();
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    fullNotes.style.top = (rect.bottom + scrollTop + 5) + 'px';
+                    fullNotes.style.left = (rect.left - 100) + 'px';
                 }
             });
             
@@ -290,21 +366,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 fullNotes.style.left = (x - 150) + 'px';
             }
         });
-    });
-    
-    // Close notes when clicking elsewhere
-    document.addEventListener('click', function () {
-        document.querySelectorAll('.notes-full').forEach(function (notes) {
-            notes.style.display = 'none';
+
+        // Close notes when clicking elsewhere
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.notes-full').forEach(function(notes) {
+                notes.style.display = 'none';
+            });
         });
-    });
-    
-    // Prevent notes from closing when clicking inside them
-    document.querySelectorAll('.notes-full').forEach(function (notes) {
-        notes.addEventListener('click', function (e) {
-            e.stopPropagation();
+
+        // Prevent notes from closing when clicking inside them
+        document.querySelectorAll('.notes-full').forEach(function(notes) {
+            notes.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
         });
-    });
 
     // Initialize Bootstrap tooltips
     $('[data-toggle="tooltip"]').tooltip();

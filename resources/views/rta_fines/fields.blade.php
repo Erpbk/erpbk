@@ -49,7 +49,7 @@
         $rider = $bikes ? DB::table('riders')->where('id', $rtaFines->rider_id)->first() : null;
         @endphp
 
-        @foreach(DB::table('riders')->where('status' , 1)->get() as $r)
+        @foreach(DB::table('riders')->get() as $r)
         @php
         $account = DB::table('accounts')
         ->where('ref_id', $r->id)

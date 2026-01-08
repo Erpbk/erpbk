@@ -122,7 +122,7 @@
                   </a>
                   @endcan
                   @can('rider_delete')
-                  <a href="{{ route('rider.delete', $r->id) }}" class='dropdown-item waves-effect'>
+                  <a href="javascript:void(0);" onclick="confirmDelete('{{ route('rider.delete', $r->id) }}')" class='dropdown-item waves-effect'>
                      <i class="fa fa-trash my-1"></i> Delete
                   </a>
                   @endcan

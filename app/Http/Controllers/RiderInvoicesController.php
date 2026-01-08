@@ -18,6 +18,7 @@ use App\Repositories\RiderInvoicesRepository;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
 use Flash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,7 @@ use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class RiderInvoicesController extends AppBaseController
 {
-  use GlobalPagination;
+  use GlobalPagination, TracksCascadingDeletions;
   /** @var RiderInvoicesRepository $riderInvoicesRepository*/
   private $riderInvoicesRepository;
 
@@ -211,35 +212,72 @@ class RiderInvoicesController extends AppBaseController
       return redirect(route('riderInvoices.index'));
     }
 
+    // ✅ Check if invoice is paid - prevent deletion of paid invoices
+    if ($riderInvoices->status == 1) {
+      Flash::error('Cannot delete paid invoice. Only unpaid invoices can be deleted.');
+      return redirect(route('riderInvoices.index'));
+    }
+
     DB::beginTransaction();
     try {
-      // Get billing month and affected accounts before deletion
-      $trans_code = Transactions::where('reference_type', 'Invoice')
+      // Get all transactions for this specific invoice (both 'Invoice' and 'RiderInvoice' reference types)
+      $invoiceTransactions = Transactions::where(function ($query) use ($id) {
+        $query->where('reference_type', 'Invoice')
+          ->orWhere('reference_type', 'RiderInvoice');
+      })
         ->where('reference_id', $id)
-        ->value('trans_code');
+        ->get();
 
-      if ($trans_code) {
-        // Get all accounts involved in this invoice's transactions
-        $affectedAccountsData = Transactions::where('trans_code', $trans_code)
-          ->select('account_id', 'billing_month')
-          ->get();
+      if ($invoiceTransactions->count() > 0) {
+        // Get unique account and billing month combinations for ledger recalculation
+        $affectedAccountsData = $invoiceTransactions
+          ->unique(function ($transaction) {
+            return $transaction->account_id . '-' . $transaction->billing_month;
+          })
+          ->map(function ($transaction) {
+            return [
+              'account_id' => $transaction->account_id,
+              'billing_month' => $transaction->billing_month
+            ];
+          });
 
-        // Delete transactions
-        $transactions = new TransactionService();
-        $transactions->deleteTransaction($trans_code);
+        // Store invoice name for cascade logging
+        $invoiceName = "Rider Invoice #{$id} - " . ($riderInvoices->rider->name ?? 'Unknown Rider');
 
+        // Delete only transactions for this specific invoice and log cascade
+        foreach ($invoiceTransactions as $transaction) {
+          // Log cascade deletion for each transaction
+          $this->trackCascadeDeletion(
+            RiderInvoices::class,
+            $id,
+            $invoiceName,
+            Transactions::class,
+            $transaction->id,
+            "Transaction #{$transaction->id} - {$transaction->narration}",
+            'hasMany',
+            'transactions',
+            'hard' // Transactions are hard deleted
+          );
 
+          // Hard delete the transaction
+          $transaction->forceDelete();
+        }
 
-        // ✅ FIX: Recalculate ledger for all affected accounts
+        // ✅ Recalculate ledger for all affected accounts
         foreach ($affectedAccountsData as $transData) {
-          if ($transData->account_id && $transData->billing_month) {
-            $this->recalculateLedgerAfterDeletion($transData->account_id, $transData->billing_month);
+          if ($transData['account_id'] && $transData['billing_month']) {
+            $this->recalculateLedgerAfterDeletion($transData['account_id'], $transData['billing_month']);
           }
         }
       }
 
-      // Delete the invoice
-      $this->riderInvoicesRepository->delete($id);
+      // Delete related rider invoice items
+      DB::table('rider_invoice_items')->where('inv_id', $id)->delete();
+
+      // Set deleted_by and soft delete the invoice
+      $riderInvoices->deleted_by = Auth::id();
+      $riderInvoices->save();
+      $riderInvoices->delete();
 
       DB::commit();
       Flash::success('Rider Invoices deleted successfully.');
@@ -323,7 +361,9 @@ class RiderInvoicesController extends AppBaseController
       }
 
       $deletedCount = 0;
+      $skippedCount = 0;
       $errors = [];
+      $skippedInvoices = [];
 
       // Start database transaction for atomicity
       DB::beginTransaction();
@@ -338,24 +378,71 @@ class RiderInvoicesController extends AppBaseController
               continue;
             }
 
-            // Get transaction code for this invoice
-            $trans_code = Transactions::where('reference_type', 'Invoice')
-              ->where('reference_id', $invoiceId)
-              ->value('trans_code');
+            // ✅ Check if invoice is paid - skip paid invoices
+            if ($riderInvoice->status == 1) {
+              $skippedCount++;
+              $skippedInvoices[] = "Invoice ID {$invoiceId} (paid)";
+              continue;
+            }
 
-            if ($trans_code) {
-              // Delete related transactions using TransactionService
-              $transactionService = new TransactionService();
-              $transactionService->deleteTransaction($trans_code);
+            // Get all transactions for this specific invoice (both 'Invoice' and 'RiderInvoice' reference types)
+            $invoiceTransactions = Transactions::where(function ($query) use ($invoiceId) {
+              $query->where('reference_type', 'Invoice')
+                ->orWhere('reference_type', 'RiderInvoice');
+            })
+              ->where('reference_id', $invoiceId)
+              ->get();
+
+            if ($invoiceTransactions->count() > 0) {
+              // Get unique account and billing month combinations for ledger recalculation
+              $affectedAccountsData = $invoiceTransactions
+                ->unique(function ($transaction) {
+                  return $transaction->account_id . '-' . $transaction->billing_month;
+                })
+                ->map(function ($transaction) {
+                  return [
+                    'account_id' => $transaction->account_id,
+                    'billing_month' => $transaction->billing_month
+                  ];
+                });
+
+              // Store invoice name for cascade logging
+              $invoiceName = "Rider Invoice #{$invoiceId} - " . ($riderInvoice->rider->name ?? 'Unknown Rider');
+
+              // Delete only transactions for this specific invoice and log cascade
+              foreach ($invoiceTransactions as $transaction) {
+                // Log cascade deletion for each transaction
+                $this->trackCascadeDeletion(
+                  RiderInvoices::class,
+                  $invoiceId,
+                  $invoiceName,
+                  Transactions::class,
+                  $transaction->id,
+                  "Transaction #{$transaction->id} - {$transaction->narration}",
+                  'hasMany',
+                  'transactions',
+                  'hard' // Transactions are hard deleted
+                );
+
+                // Hard delete the transaction
+                $transaction->forceDelete();
+              }
+
+              // ✅ Recalculate ledger for all affected accounts
+              foreach ($affectedAccountsData as $transData) {
+                if ($transData['account_id'] && $transData['billing_month']) {
+                  $this->recalculateLedgerAfterDeletion($transData['account_id'], $transData['billing_month']);
+                }
+              }
             }
 
             // Delete related rider invoice items
-            \DB::table('rider_invoice_items')->where('inv_id', $invoiceId)->delete();
+            DB::table('rider_invoice_items')->where('inv_id', $invoiceId)->delete();
 
-
-
-            // Delete the invoice itself
-            $this->riderInvoicesRepository->delete($invoiceId);
+            // Set deleted_by and soft delete the invoice
+            $riderInvoice->deleted_by = Auth::id();
+            $riderInvoice->save();
+            $riderInvoice->delete();
 
             $deletedCount++;
           } catch (\Exception $e) {
@@ -366,23 +453,39 @@ class RiderInvoicesController extends AppBaseController
         // Commit transaction if all deletions were successful
         DB::commit();
 
+        // Build response message
+        $messageParts = [];
         if ($deletedCount > 0) {
-          $message = "Successfully deleted {$deletedCount} invoice(s).";
-          if (!empty($errors)) {
-            $message .= " Errors: " . implode(', ', $errors);
-          }
+          $messageParts[] = "Successfully deleted {$deletedCount} invoice(s).";
+        }
+        if ($skippedCount > 0) {
+          $messageParts[] = "Skipped {$skippedCount} paid invoice(s) (cannot be deleted).";
+        }
+        if (!empty($errors)) {
+          $messageParts[] = "Errors: " . implode(', ', $errors);
+        }
 
+        $message = implode(' ', $messageParts);
+
+        if ($deletedCount > 0) {
           return response()->json([
             'success' => true,
             'message' => $message,
             'deleted_count' => $deletedCount,
+            'skipped_count' => $skippedCount,
+            'skipped_invoices' => $skippedInvoices,
             'errors' => $errors
           ]);
         } else {
+          $statusCode = ($skippedCount > 0 || !empty($errors)) ? 400 : 400;
           return response()->json([
             'success' => false,
-            'message' => 'No invoices were deleted. Errors: ' . implode(', ', $errors)
-          ], 400);
+            'message' => $message ?: 'No invoices were deleted.',
+            'deleted_count' => 0,
+            'skipped_count' => $skippedCount,
+            'skipped_invoices' => $skippedInvoices,
+            'errors' => $errors
+          ], $statusCode);
         }
       } catch (\Exception $e) {
         // Rollback transaction on any error

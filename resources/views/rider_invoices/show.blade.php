@@ -337,9 +337,17 @@
             // Preserve items-only total (includes VAT per row if applied)
             $items_total = $running_total;
             @endphp
+            @php
+            $totalOrders = DB::table('rider_activities')
+            ->where('rider_id', $riderInvoice->rider->id)
+            ->whereYear('date', date('Y', strtotime($riderInvoice->billing_month)))
+            ->whereMonth('date', date('m', strtotime($riderInvoice->billing_month)))
+            ->sum('delivered_orders');
+            @endphp
+
             <tr class="accent-total">
-                <td colspan="3" style="text-align:right; padding: 8px;">Total Orders</td>
-                <td class="num">{{$total_qty}}</td>
+                <td colspan="3" style="text-align:right; padding: 8px;">Total Orders ({{date('M-Y',strtotime($riderInvoice->billing_month))}})</td>
+                <td class="num">{{ $totalOrders }}</td>
                 <td colspan="4" style="text-align:right; padding: 8px;">ITEMS TOTAL</td>
                 <td class="num" style="padding: 8px; font-size: 14px;">{{ number_format($items_total, 2) }}</td>
             </tr>

@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 
 class Riders extends Model
 {
-  use LogsActivity, HasActiveStatus;
+  use SoftDeletes, LogsActivity, HasActiveStatus;
 
   public $table = 'riders';
 
@@ -75,7 +76,8 @@ class Riders extends Model
     'customer_id',
     'attendance_date',
     'recuriter',
-    'recruiter_id'
+    'recruiter_id',
+    'deleted_by'
   ];
 
   protected $casts = [
@@ -129,8 +131,16 @@ class Riders extends Model
     'attendance' => 'string',
     'policy_no' => 'string',
     'recuriter' => 'string',
-    'recruiter_id' => 'integer'
+    'recruiter_id' => 'integer',
+    'deleted_at' => 'datetime'
   ];
+
+  /**
+   * The attributes that should be included in the model's array form.
+   *
+   * @var array
+   */
+  protected $dates = ['deleted_at'];
 
   public static array $rules = [
     'name' => 'required|string|max:191',

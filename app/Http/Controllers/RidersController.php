@@ -41,17 +41,19 @@ use App\Models\visa_installment_plan;
 use Illuminate\Support\Facades\Auth;
 use App\Repositories\RidersRepository;
 use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Flash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class RidersController extends AppBaseController
 {
-  use GlobalPagination;
+  use GlobalPagination, TracksCascadingDeletions;
   /** @var RidersRepository $ridersRepository*/
   private $ridersRepository;
 
@@ -513,7 +515,7 @@ class RidersController extends AppBaseController
       $input = $request->all();
       $items = $request->get('items');
 
-      
+
       $riders = $this->ridersRepository->create($input);
       if ($riders) {
 
@@ -694,7 +696,7 @@ class RidersController extends AppBaseController
   }
 
   /**
-   * Remove the specified Riders from storage.
+   * Remove the specified Riders from storage (soft delete).
    *
    * @throws \Exception
    */
@@ -704,11 +706,10 @@ class RidersController extends AppBaseController
 
     if (empty($riders)) {
       Flash::error('Riders not found');
-
       return redirect(route('riders.index'));
     }
 
-    // Check if rider account has any transactions
+    // Check if rider account has any transactions (like Banks does)
     if ($riders->account_id) {
       $accountTransactions = Transactions::where('account_id', $riders->account_id)->count();
       if ($accountTransactions > 0) {
@@ -719,8 +720,7 @@ class RidersController extends AppBaseController
 
     // Check if rider has any vouchers (by ref_id or rider_id)
     $vouchersCount = Vouchers::where(function ($query) use ($id) {
-      $query->where('ref_id', $id)
-        ->orWhere('rider_id', $id);
+      $query->where('ref_id', $id);
     })->count();
 
     if ($vouchersCount > 0) {
@@ -786,13 +786,13 @@ class RidersController extends AppBaseController
     }
 
     // Check visa expenses
-    $visaExpensesCount = visa_expenses::where('rider_id', $id)->count();
+    $visaExpensesCount = visa_expenses::where('rider_id', $riders->account_id)->count();
     if ($visaExpensesCount > 0) {
       $relatedRecords[] = $visaExpensesCount . ' visa expense record(s)';
     }
 
     // Check visa installment plans
-    $visaInstallmentCount = visa_installment_plan::where('rider_id', $id)->count();
+    $visaInstallmentCount = visa_installment_plan::where('rider_id', $riders->account_id)->count();
     if ($visaInstallmentCount > 0) {
       $relatedRecords[] = $visaInstallmentCount . ' visa installment plan record(s)';
     }
@@ -816,10 +816,59 @@ class RidersController extends AppBaseController
       return redirect(route('riders.index'));
     }
 
-    $this->ridersRepository->delete($id);
+    // Track cascaded deletions
+    $cascadedItems = [];
 
-    Flash::success('Riders deleted successfully.');
+    // Store rider data BEFORE deleting (important!)
+    $riderId = $riders->id;
+    $riderName = $riders->name . ' (' . $riders->rider_id . ')';
+    $relatedAccount = $riders->account;
 
+    // Set deleted_by if column exists
+    if (Schema::hasColumn('riders', 'deleted_by')) {
+      $riders->deleted_by = Auth::id();
+      $riders->save();
+    }
+
+    // Soft delete the rider
+    $riders->delete();
+
+    // Also soft delete the related account if exists and track it
+    if ($relatedAccount) {
+      $cascadedItems[] = [
+        'model' => 'Accounts',
+        'id' => $relatedAccount->id,
+        'name' => $relatedAccount->name,
+      ];
+
+      $relatedAccount->delete();
+
+      // Log the cascade
+      $this->trackCascadeDeletion(
+        'App\Models\Riders',
+        $riderId,
+        $riderName,
+        'App\Models\Accounts',
+        $relatedAccount->id,
+        $relatedAccount->name,
+        'hasOne',
+        'account',
+        'soft'
+      );
+    }
+
+    // Build cascade message
+    $cascadeMessage = '';
+    if (!empty($cascadedItems)) {
+      $cascadeMessage = ' (Also deleted: ';
+      $parts = [];
+      foreach ($cascadedItems as $item) {
+        $parts[] = "{$item['model']}: {$item['name']}";
+      }
+      $cascadeMessage .= implode(', ', $parts) . ')';
+    }
+
+    Flash::success('Rider moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=riders" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
     return redirect(route('riders.index'));
   }
 
@@ -914,7 +963,7 @@ class RidersController extends AppBaseController
       $doc->storeAs('contract', $name);
 
       $rider = Riders::find($request->id);
-      if(isset($rider->contract)) {
+      if (isset($rider->contract)) {
         if (file_exists(storage_path('app/contract/' . $rider->contract)))
           unlink(storage_path('app/contract/' . $rider->contract));
       }
@@ -939,7 +988,7 @@ class RidersController extends AppBaseController
       $image_name->storeAs('profile', $name);
 
       $rider = Riders::find($request->id);
-      if(isset($rider->image_name)) {
+      if (isset($rider->image_name)) {
         if (file_exists(storage_path('app/profile/' . $rider->image_name)))
           unlink(storage_path('app/profile/' . $rider->image_name));
       }
@@ -947,8 +996,8 @@ class RidersController extends AppBaseController
       $rider->image_name = $name;
       $rider->save();
 
-      if(request()->ajax()) {
-        return response()->json(['success'=> true,'message'=> 'Profile picture uploaded successfully.']);
+      if (request()->ajax()) {
+        return response()->json(['success' => true, 'message' => 'Profile picture uploaded successfully.']);
       }
 
       Flash::success('Profile picture uploaded successfully.');
@@ -1456,94 +1505,98 @@ class RidersController extends AppBaseController
   }
 
   public function files($rider_id)
-{
+  {
     // Define documents in a more structured way
     $expectedFiles = [
-        'single' => [
-            'photo' => 'Profile Photo',
-            'offer' => 'Job Offer Letter ( MOL )',
-            'entry' => 'Entry Permit',
-            'residency' => 'Residency',
-            'health' => 'Health insurance',
-            'workers' => 'Workers Compensation Insurance',
-            'road' => 'Road Permit',
-            'contract' => 'Agreement/Contract'
+      'single' => [
+        'photo' => 'Profile Photo',
+        'offer' => 'Job Offer Letter ( MOL )',
+        'entry' => 'Entry Permit',
+        'residency' => 'Residency',
+        'health' => 'Health insurance',
+        'workers' => 'Workers Compensation Insurance',
+        'road' => 'Road Permit',
+        'contract' => 'Agreement/Contract'
+      ],
+      'dual' => [
+        'passport' => [
+          'front' => 'Passport ( First Page )',
+          'back' => 'Passport ( Second Page )'
         ],
-        'dual' => [
-            'passport' => [
-                'front' => 'Passport ( First Page )',
-                'back' => 'Passport ( Second Page )'
-            ],
-            'nic' => [
-                'front' => 'Home Country NIC ( Front )',
-                'back' => 'Home Country NIC ( Back )'
-            ],
-            'labor' => [
-                'front' => 'Labor Card ( Front )',
-                'back' => 'Labor Card ( Back )'
-            ],
-            'emirates' => [
-                'front' => 'Emirates ID ( Front )',
-                'back' => 'Emirates ID ( Back )'
-            ],
-            'license' => [
-                'front' => 'Bike License ( Front )',
-                'back' => 'Bike License ( Back )'
-            ]
+        'nic' => [
+          'front' => 'Home Country NIC ( Front )',
+          'back' => 'Home Country NIC ( Back )'
+        ],
+        'labor' => [
+          'front' => 'Labor Card ( Front )',
+          'back' => 'Labor Card ( Back )'
+        ],
+        'emirates' => [
+          'front' => 'Emirates ID ( Front )',
+          'back' => 'Emirates ID ( Back )'
+        ],
+        'license' => [
+          'front' => 'Bike License ( Front )',
+          'back' => 'Bike License ( Back )'
         ]
+      ]
     ];
 
     $files = DB::table('files')
-                  ->where('type', 'rider')
-                  ->where('type_id', $rider_id)
-                  ->get();
-    
+      ->where('type', 'rider')
+      ->where('type_id', $rider_id)
+      ->get();
+
     $missingFiles = [];
     $fileStatus = [];
 
     // Check single documents
-    foreach($expectedFiles['single'] as $key => $name){
-        $found = false;
-        foreach($files as $riderFile){
-            if(str_contains(strtolower($riderFile->name), $key)){
-                $found = true;
-                break;
-            }
+    foreach ($expectedFiles['single'] as $key => $name) {
+      $found = false;
+      foreach ($files as $riderFile) {
+        if (str_contains(strtolower($riderFile->name), $key)) {
+          $found = true;
+          break;
         }
-        
-        if(!$found){
-            $missingFiles[$key] = $name;
-        }
+      }
+
+      if (!$found) {
+        $missingFiles[$key] = $name;
+      }
     }
 
     // Check dual documents
-    foreach($expectedFiles['dual'] as $key => $sides){
-        $foundFront = false;
-        $foundBack = false;
-        
-        foreach($files as $riderFile){
-            if(str_contains(strtolower($riderFile->name), $key)){
-                if(str_contains(strtolower($riderFile->name), 'back') || 
-                   ($key == 'passport' && str_contains(strtolower($riderFile->name), 'second'))){
-                    $foundBack = true;
-                }elseif(str_contains(strtolower($riderFile->name), 'front') || 
-                   ($key == 'passport' && str_contains(strtolower($riderFile->name), 'first'))) {
-                    $foundFront = true;
-                }else{
-                  $foundBack = true;
-                  $foundFront = true;
-                }
-            }
+    foreach ($expectedFiles['dual'] as $key => $sides) {
+      $foundFront = false;
+      $foundBack = false;
+
+      foreach ($files as $riderFile) {
+        if (str_contains(strtolower($riderFile->name), $key)) {
+          if (
+            str_contains(strtolower($riderFile->name), 'back') ||
+            ($key == 'passport' && str_contains(strtolower($riderFile->name), 'second'))
+          ) {
+            $foundBack = true;
+          } elseif (
+            str_contains(strtolower($riderFile->name), 'front') ||
+            ($key == 'passport' && str_contains(strtolower($riderFile->name), 'first'))
+          ) {
+            $foundFront = true;
+          } else {
+            $foundBack = true;
+            $foundFront = true;
+          }
         }
-        
-        if(!$foundFront){
-            $missingFiles[$key.'_front'] = $sides['front'];
-        }
-        if(!$foundBack){
-            $missingFiles[$key.'_back'] = $sides['back'];
-        }
+      }
+
+      if (!$foundFront) {
+        $missingFiles[$key . '_front'] = $sides['front'];
+      }
+      if (!$foundBack) {
+        $missingFiles[$key . '_back'] = $sides['back'];
+      }
     }
-    
+
     return view('riders.document', compact('missingFiles', 'files'));
   }
 

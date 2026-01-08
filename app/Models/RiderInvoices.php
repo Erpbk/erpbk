@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
 class RiderInvoices extends Model
 {
-    use LogsActivity;
+    use SoftDeletes, LogsActivity;
 
   public $table = 'rider_invoices';
 
@@ -30,7 +31,8 @@ class RiderInvoices extends Model
     'billing_month',
     'gaurantee',
     'notes',
-    'status'
+    'status',
+    'deleted_by'
   ];
 
   protected $casts = [

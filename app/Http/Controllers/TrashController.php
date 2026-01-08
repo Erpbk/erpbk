@@ -18,6 +18,7 @@ use App\Models\Riders;
 use App\Models\Bikes;
 use App\Models\Sims;
 use App\Models\Items;
+use App\Models\RiderInvoices;
 use App\Models\DeletionCascade;
 use App\Traits\TracksCascadingDeletions;
 use Laracasts\Flash\Flash;
@@ -100,6 +101,12 @@ class TrashController extends Controller
             'name' => 'Items',
             'icon' => 'fa-box',
             'display_columns' => ['name', 'price', 'cost'],
+        ],
+        'rider_invoices' => [
+            'model' => RiderInvoices::class,
+            'name' => 'Rider Invoices',
+            'icon' => 'fa-file-invoice',
+            'display_columns' => ['id', 'rider_id', 'billing_month', 'total_amount', 'status'],
         ],
     ];
 

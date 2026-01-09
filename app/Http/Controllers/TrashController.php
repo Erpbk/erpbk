@@ -18,10 +18,12 @@ use App\Models\Riders;
 use App\Models\Bikes;
 use App\Models\Sims;
 use App\Models\Items;
+use App\Models\salik;
 use App\Models\RiderInvoices;
 use App\Models\DeletionCascade;
 use App\Traits\TracksCascadingDeletions;
 use Laracasts\Flash\Flash;
+use App\Models\RtaFines;
 
 class TrashController extends Controller
 {
@@ -107,6 +109,30 @@ class TrashController extends Controller
             'name' => 'Rider Invoices',
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'rider_id', 'billing_month', 'total_amount', 'status'],
+        ],
+        'rta_account' => [
+            'model' => Accounts::class,
+            'name' => 'RTA Account',
+            'icon' => 'fa-file-invoice',
+            'display_columns' => ['id', 'name', 'account_code', 'account_type'],
+        ],
+        'rta_fines' => [
+            'model' => RtaFines::class,
+            'name' => 'RTA Fines',
+            'icon' => 'fa-file-invoice',
+            'display_columns' => ['id', 'rider_id', 'billing_month', 'ticket_no', 'amount', 'status'],
+        ],
+        'salik' => [
+            'model' => salik::class,
+            'name' => 'Salik',
+            'icon' => 'fa-file-invoice',
+            'display_columns' => ['id', 'rider_id', 'billing_month', 'ticket_no', 'amount', 'status'],
+        ],
+        'salik_accounts' => [
+            'model' => Accounts::class,
+            'name' => 'Salik Account',
+            'icon' => 'fa-file-invoice',
+            'display_columns' => ['id', 'name', 'account_code', 'account_type'],
         ],
     ];
 

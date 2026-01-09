@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
 use App\Helpers\Account;
 use App\Helpers\Common;
 use App\Http\Controllers\AppBaseController;
@@ -28,7 +29,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class SalikController extends AppBaseController
 {
-    use GlobalPagination;
+    use GlobalPagination, TracksCascadingDeletions;
     /** @var SalikRepository $salikRepository*/
     private $salikRepository;
 
@@ -91,16 +92,36 @@ class SalikController extends AppBaseController
     }
     public function deleteaccount($id)
     {
-        // Check if there are any rtaFines related to this account
-        $hasFines = salik::where('salik_account_id', $id)->exists();
+        // Check if there are any salik entries related to this account (including soft deleted)
+        $hasSalik = salik::withTrashed()->where('salik_account_id', $id)->exists();
 
-        if ($hasFines) {
-            Flash::error('Cannot delete account. There are existing Salik linked to this account.');
+        if ($hasSalik) {
+            Flash::error('Cannot delete account. There are existing Salik entries linked to this account.');
             return redirect()->back();
         }
 
-        // If no fines, proceed to delete the account
-        Accounts::where('id', $id)->delete();
+        // Check if there are any ledger transactions related to this account
+        $hasLedgerEntries = LedgerEntry::where('account_id', $id)->exists();
+
+        if ($hasLedgerEntries) {
+            Flash::error('Cannot delete account. There are existing ledger transactions linked to this account.');
+            return redirect()->back();
+        }
+
+        // Check if there are any transactions related to this account (including soft deleted)
+        $hasTransactions = Transactions::withTrashed()->where('account_id', $id)->exists();
+
+        if ($hasTransactions) {
+            Flash::error('Cannot delete account. There are existing transactions linked to this account.');
+            return redirect()->back();
+        }
+
+        // Get account details before deletion for cascade tracking
+        $account = Accounts::findOrFail($id);
+        $accountName = $account->name ?? "Account #{$id}";
+
+        // Soft delete the account
+        $account->delete();
 
         Flash::success('Account deleted successfully.');
         return redirect()->back();
@@ -769,6 +790,7 @@ class SalikController extends AppBaseController
             $adminCharges = $salik->admin_charges ?? 0;
             $transactionId = $salik->transaction_id;
             $billingMonth = date('Y-m-01', strtotime($salik->trip_date ?? $salik->billing_month));
+            $salikIdentifier = $salik->transaction_id ?? "Salik #{$id}";
 
             \Log::info("Starting deletion of Salik entry - ID: {$id}, Transaction ID: {$transactionId}, Amount: {$amount}, Admin Charges: {$adminCharges}");
 
@@ -783,14 +805,44 @@ class SalikController extends AppBaseController
 
             if ($relatedSaliks->count() > 0) {
                 // This is part of a group - adjust the group voucher
-                $this->adjustGroupVoucherForDeletion($salik, $relatedSaliks, $amount, $adminCharges, $billingMonth);
+                $this->adjustGroupVoucherForDeletion($salik, $relatedSaliks, $amount, $adminCharges, $billingMonth, $salikIdentifier);
             } else {
                 // This is a standalone entry - delete all related records
-                $this->deleteStandaloneEntry($salik, $billingMonth);
+                $this->deleteStandaloneEntry($salik, $billingMonth, $salikIdentifier);
             }
 
-            // Finally, delete the Salik entry itself
+            // Finally, soft delete the Salik entry itself
             $salik->delete();
+
+            // Track the primary Salik deletion itself
+            try {
+                $primaryCascadeRecord = \App\Models\DeletionCascade::create([
+                    'primary_model' => salik::class,
+                    'primary_id' => $salik->id,
+                    'primary_name' => $salikIdentifier,
+                    'related_model' => salik::class,
+                    'related_id' => $salik->id,
+                    'related_name' => $salikIdentifier,
+                    'relationship_type' => 'self',
+                    'relationship_name' => 'salik',
+                    'deletion_type' => 'soft',
+                    'deleted_by' => auth()->id(),
+                    'deletion_reason' => 'Salik entry deleted',
+                    'metadata' => [
+                        'ip_address' => request()->ip(),
+                        'user_agent' => request()->userAgent(),
+                        'timestamp' => now()->toIso8601String(),
+                        'status' => $salik->status,
+                        'amount' => $salik->amount,
+                        'total_amount' => $salik->total_amount,
+                        'admin_charges' => $adminCharges,
+                    ],
+                ]);
+                \Log::info("Primary Salik deletion tracked, cascade record ID: " . ($primaryCascadeRecord->id ?? 'N/A'));
+            } catch (\Exception $e) {
+                \Log::error("Failed to track Salik deletion: " . $e->getMessage());
+                \Log::error("Stack trace: " . $e->getTraceAsString());
+            }
 
             \Log::info("Successfully deleted Salik entry ID: {$id} and all related vouchers/transactions");
 
@@ -822,7 +874,7 @@ class SalikController extends AppBaseController
         }
     }
 
-    private function adjustGroupVoucherForDeletion($salik, $relatedSaliks, $amount, $adminCharges, $billingMonth)
+    private function adjustGroupVoucherForDeletion($salik, $relatedSaliks, $amount, $adminCharges, $billingMonth, $salikIdentifier = null)
     {
         $transactionService = new TransactionService();
         $riderAccount = DB::table('accounts')->where('ref_id', $salik->rider_id)->first();
@@ -845,11 +897,35 @@ class SalikController extends AppBaseController
         }
 
         if ($mainVoucherTransCode) {
-            // Remove the specific Salik transaction from the voucher
-            Transactions::where('reference_id', $salik->id)
+            // Get the specific Salik transaction before deletion for cascade tracking
+            $salikTransaction = Transactions::where('reference_id', $salik->id)
                 ->where('trans_code', $mainVoucherTransCode)
                 ->where('account_id', $salik->salik_account_id)
-                ->delete();
+                ->first();
+
+            // Remove the specific Salik transaction from the voucher
+            if ($salikTransaction) {
+                $salikTransaction->delete(); // Soft delete
+
+                // Track cascade deletion
+                try {
+                    $cascadeRecord = $this->trackCascadeDeletion(
+                        salik::class,
+                        $salik->id,
+                        $salikIdentifier ?? ($salik->transaction_id ?? "Salik #{$salik->id}"),
+                        Transactions::class,
+                        $salikTransaction->id,
+                        "Transaction #{$salikTransaction->id} (Trans Code: {$salikTransaction->trans_code})",
+                        'hasMany',
+                        'transactions',
+                        'soft',
+                        'Cascade deletion from Salik group entry deletion'
+                    );
+                    \Log::info("Cascade deletion tracked for Salik transaction {$salikTransaction->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
+                } catch (\Exception $e) {
+                    \Log::error("Failed to track cascade deletion for Salik transaction {$salikTransaction->id}: " . $e->getMessage());
+                }
+            }
 
             // Update the rider debit transaction (reduce by amount + admin charges)
             $riderTransaction = Transactions::where('trans_code', $mainVoucherTransCode)
@@ -860,7 +936,25 @@ class SalikController extends AppBaseController
             if ($riderTransaction) {
                 $riderTransaction->debit -= ($amount + $adminCharges);
                 if ($riderTransaction->debit <= 0) {
-                    $riderTransaction->delete();
+                    // Track cascade deletion before deleting
+                    try {
+                        $cascadeRecord = $this->trackCascadeDeletion(
+                            salik::class,
+                            $salik->id,
+                            $salikIdentifier ?? ($salik->transaction_id ?? "Salik #{$salik->id}"),
+                            Transactions::class,
+                            $riderTransaction->id,
+                            "Transaction #{$riderTransaction->id} (Rider Debit - Trans Code: {$riderTransaction->trans_code})",
+                            'hasMany',
+                            'transactions',
+                            'soft',
+                            'Cascade deletion from Salik group entry deletion - rider transaction'
+                        );
+                        \Log::info("Cascade deletion tracked for rider transaction {$riderTransaction->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to track cascade deletion for rider transaction {$riderTransaction->id}: " . $e->getMessage());
+                    }
+                    $riderTransaction->delete(); // Soft delete
                 } else {
                     // Update narration with new count after deletion
                     $remainingCount = $relatedSaliks->count(); // Count after deletion
@@ -879,7 +973,25 @@ class SalikController extends AppBaseController
                 if ($adminTransaction) {
                     $adminTransaction->credit -= $adminCharges;
                     if ($adminTransaction->credit <= 0) {
-                        $adminTransaction->delete();
+                        // Track cascade deletion before deleting
+                        try {
+                            $cascadeRecord = $this->trackCascadeDeletion(
+                                salik::class,
+                                $salik->id,
+                                $salikIdentifier ?? ($salik->transaction_id ?? "Salik #{$salik->id}"),
+                                Transactions::class,
+                                $adminTransaction->id,
+                                "Transaction #{$adminTransaction->id} (Admin Charges - Trans Code: {$adminTransaction->trans_code})",
+                                'hasMany',
+                                'transactions',
+                                'soft',
+                                'Cascade deletion from Salik group entry deletion - admin transaction'
+                            );
+                            \Log::info("Cascade deletion tracked for admin transaction {$adminTransaction->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
+                        } catch (\Exception $e) {
+                            \Log::error("Failed to track cascade deletion for admin transaction {$adminTransaction->id}: " . $e->getMessage());
+                        }
+                        $adminTransaction->delete(); // Soft delete
                     } else {
                         // Update narration with remaining count
                         $remainingCount = $relatedSaliks->count(); // Count of remaining Salik entries
@@ -895,7 +1007,25 @@ class SalikController extends AppBaseController
             if ($mainVoucher) {
                 $mainVoucher->amount -= ($amount + $adminCharges);
                 if ($mainVoucher->amount <= 0) {
-                    $mainVoucher->delete();
+                    // Track cascade deletion before deleting
+                    try {
+                        $cascadeRecord = $this->trackCascadeDeletion(
+                            salik::class,
+                            $salik->id,
+                            $salikIdentifier ?? ($salik->transaction_id ?? "Salik #{$salik->id}"),
+                            Vouchers::class,
+                            $mainVoucher->id,
+                            "Voucher #{$mainVoucher->id} (Type: {$mainVoucher->voucher_type})",
+                            'hasMany',
+                            'vouchers',
+                            'soft',
+                            'Cascade deletion from Salik group entry deletion - main voucher'
+                        );
+                        \Log::info("Cascade deletion tracked for main voucher {$mainVoucher->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to track cascade deletion for main voucher {$mainVoucher->id}: " . $e->getMessage());
+                    }
+                    $mainVoucher->delete(); // Soft delete
                 } else {
                     // Update voucher remarks with new count
                     $remainingCount = $relatedSaliks->count();
@@ -928,36 +1058,76 @@ class SalikController extends AppBaseController
         \Log::info("Adjusted group voucher for Salik deletion - ID: {$salik->id}, Amount: {$amount}, Admin: {$adminCharges}");
     }
 
-    private function deleteStandaloneEntry($salik, $billingMonth)
+    private function deleteStandaloneEntry($salik, $billingMonth, $salikIdentifier)
     {
         $transactionService = new TransactionService();
 
         \Log::info("Deleting standalone Salik entry - ID: {$salik->id}, Transaction ID: {$salik->transaction_id}");
 
-        // Delete all related transactions (both 'Salik' and 'Salik Voucher' reference types)
+        // Get related transactions before deletion for cascade tracking
         $deletedTransactions = Transactions::where('reference_id', $salik->id)
             ->whereIn('reference_type', ['Salik', 'Salik Voucher'])
             ->get();
 
-        // Log the transactions being deleted for rider narration tracking
-        foreach ($deletedTransactions as $transaction) {
-            \Log::info("Deleting transaction - ID: {$transaction->id}, Account: {$transaction->account_id}, Narration: {$transaction->narration}");
-        }
+        // Get related vouchers before deletion for cascade tracking
+        $relatedVouchers = Vouchers::where('ref_id', $salik->id)->get();
 
-        Transactions::where('reference_id', $salik->id)
-            ->whereIn('reference_type', ['Salik', 'Salik Voucher'])
-            ->delete();
-
-        // Delete all related vouchers
-        Vouchers::where('ref_id', $salik->id)->delete();
-
-        // Also delete vouchers by trans_code if they reference this Salik entry
+        // Also get vouchers by trans_code if they reference this Salik entry
         $transCode = $salik->trans_code;
         if ($transCode) {
-            \Log::info("Deleting vouchers and transactions with trans_code: {$transCode}");
-            Vouchers::where('trans_code', $transCode)->delete();
-            // Delete all transactions with this trans_code
-            Transactions::where('trans_code', $transCode)->delete();
+            $transCodeVouchers = Vouchers::where('trans_code', $transCode)->get();
+            $relatedVouchers = $relatedVouchers->merge($transCodeVouchers)->unique('id');
+
+            $transCodeTransactions = Transactions::where('trans_code', $transCode)->get();
+            $deletedTransactions = $deletedTransactions->merge($transCodeTransactions)->unique('id');
+        }
+
+        // Soft delete related transactions and track cascade
+        foreach ($deletedTransactions as $transaction) {
+            $transaction->delete(); // Soft delete
+
+            // Track cascade deletion
+            try {
+                $cascadeRecord = $this->trackCascadeDeletion(
+                    salik::class,
+                    $salik->id,
+                    $salikIdentifier,
+                    Transactions::class,
+                    $transaction->id,
+                    "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code})",
+                    'hasMany',
+                    'transactions',
+                    'soft',
+                    'Cascade deletion from Salik entry deletion'
+                );
+                \Log::info("Cascade deletion tracked for transaction {$transaction->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
+            } catch (\Exception $e) {
+                \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+            }
+        }
+
+        // Soft delete related vouchers and track cascade
+        foreach ($relatedVouchers as $voucher) {
+            $voucher->delete(); // Soft delete
+
+            // Track cascade deletion
+            try {
+                $cascadeRecord = $this->trackCascadeDeletion(
+                    salik::class,
+                    $salik->id,
+                    $salikIdentifier,
+                    Vouchers::class,
+                    $voucher->id,
+                    "Voucher #{$voucher->id} (Type: {$voucher->voucher_type})",
+                    'hasMany',
+                    'vouchers',
+                    'soft',
+                    'Cascade deletion from Salik entry deletion'
+                );
+                \Log::info("Cascade deletion tracked for voucher {$voucher->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
+            } catch (\Exception $e) {
+                \Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage());
+            }
         }
 
         // Update ledger entries using TransactionService to reverse the transactions

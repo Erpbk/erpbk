@@ -5,6 +5,7 @@ namespace App\Models;
 use Eloquent as Model;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
 /**
@@ -30,7 +31,7 @@ use App\Traits\LogsActivity;
  */
 class Vouchers extends Model
 {
-  use HasFactory, LogsActivity;
+  use HasFactory, LogsActivity, SoftDeletes;
 
   public $table = 'vouchers';
 
@@ -71,7 +72,11 @@ class Vouchers extends Model
    *
    * @var array
    */
+  protected $casts = [
+    'deleted_at' => 'datetime'
+  ];
 
+  protected $dates = ['deleted_at'];
 
   /**
    * Validation rules

@@ -18,7 +18,8 @@ trait TracksCascadingDeletions
         $relatedName,
         $relationshipType = 'hasOne',
         $relationshipName = null,
-        $deletionType = 'soft'
+        $deletionType = 'soft',
+        $reason = null
     ) {
         return DeletionCascade::logCascade(
             $primaryModel,
@@ -29,7 +30,8 @@ trait TracksCascadingDeletions
             $relatedName,
             $relationshipType,
             $relationshipName,
-            $deletionType
+            $deletionType,
+            $reason
         );
     }
 
@@ -83,4 +85,3 @@ trait TracksCascadingDeletions
         return 'Also deleted: ' . implode(', ', $parts);
     }
 }
-

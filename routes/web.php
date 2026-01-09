@@ -339,7 +339,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('bank/files/{id}', [\App\Http\Controllers\BanksController::class, 'files'])->name('bank.files');
     Route::get('bank/delete/{id}', [\App\Http\Controllers\BanksController::class, 'destroy'])->name('bank.delete');
     Route::get('banks/receipts/{id}', [\App\Http\Controllers\BanksController::class, 'receipts'])->name('banks.receipts');
-    Route::get('banks/payments', [\App\Http\Controllers\BanksController::class, 'payments'])->name('banks.payments');
+    Route::get('banks/payments/{id}', [\App\Http\Controllers\BanksController::class, 'payments'])->name('banks.payments');
 
     // Soft Delete Routes for Banks - DEPRECATED: Use centralized trash module (/trash)
     // Route::get('banks/trashed/list', [\App\Http\Controllers\BanksController::class, 'trashed'])->name('banks.trashed');

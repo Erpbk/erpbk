@@ -81,7 +81,7 @@
             <div class="row">
                 <div class="col-md-3 form-group col-3">
                     <label class="required">Rider ID</label>
-                    <input type="text" class="form-control form-control-sm" name="rider_id" value="{{$result['rider_id']}}" readonly>
+                    <input type="text" class="form-control form-control-sm" name="rider_id" value="{{$result['rider_id']}}">
                 </div>
                 {{-- <div class="col-md-3 form-group col-3">
                     <label>Courier ID</label>

@@ -37,7 +37,7 @@
 
 <div class="row">
   <!-- Left Column - Bank Information -->
-  <div class="col-xl-4 col-lg-4 col-md-12 order-1 order-lg-0">
+  <div class="col-xl-3 col-lg-3 col-md-12 order-1 order-lg-0">
     <!-- Bank Profile Card -->
     <div class="card mb-4 shadow-sm border-0">
       <div class="card-header bg-gradient-primary text-white py-3">
@@ -68,7 +68,7 @@
         
         <!-- Current Balance (Prominent Display) -->
         <div class="text-center mb-4">
-          <div class="p-4 rounded @if($currentBalance >= 0) bg-opacity-10 border border-success border-opacity-25 @else bg-danger bg-opacity-10 border border-danger border-opacity-25 @endif">
+          <div class="p-4 rounded @if($currentBalance >= 0) bg-opacity-10 border border-success border-opacity-25 @else border border-danger border-opacity-25 @endif">
             <p class="mb-1 text-muted small">Current Balance</p>
             <p class="mb-0 fw-bold display-6 @if($currentBalance >= 0) text-success @else text-danger @endif">
               {{ number_format($currentBalance, 2) }}
@@ -217,7 +217,7 @@
   </div>
 
   <!-- Right Column - Tabs Content -->
-  <div class="col-xl-8 col-lg-8 col-md-12 order-0 order-lg-1">
+  <div class="col-xl-9 col-lg-9 col-md-12 order-0 order-lg-1 h-100">
     <!-- Tabs Navigation -->
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-body p-3">
@@ -226,7 +226,7 @@
             <a class="nav-link @if(request()->segment(2) == 'files') active @endif d-flex align-items-center justify-content-center py-3" 
                href="{{ route('bank.files', $banks->id) }}">
               <i class="fas fa-file-upload fa-lg me-2"></i>
-              <span class="fw-semibold">Files & Documents</span>
+              <span class="fw-semibold">Documents</span>
             </a>
           </li>
           <li class="nav-item" role="presentation">
@@ -243,12 +243,19 @@
               <span class="fw-semibold">Receipts</span>
             </a>
           </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link @if(request()->segment(2) == 'payments') active @endif d-flex align-items-center justify-content-center py-3" 
+               href="{{ route('banks.payments', $banks->id) }}">
+              <i class="fas fa-dollar-sign fa-lg me-2"></i>
+              <span class="fw-semibold">Payments</span>
+            </a>
+          </li>
         </ul>
       </div>
     </div>
 
     <!-- Tab Content Area -->
-    <div class="card-body" id="cardBody">
+    <div id="cardBody">
       @yield('page_content')
     </div>
 </div>

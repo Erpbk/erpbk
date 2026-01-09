@@ -1,59 +1,7 @@
 @push('third_party_stylesheets')
 <style>
-   #dataTableBuilder {
-      margin-bottom: 0;
-      min-width: 800px; 
-      width: 100%;
-   }
-
-   #dataTableBuilder td,
-   #dataTableBuilder th {
-      white-space: nowrap;
-      padding: 8px 12px;
-      vertical-align: middle;
-   }
-
-   td:focus,
-   th:focus {
-      outline: 2px solid #2196f3;
-      outline-offset: -2px;
-      background: #e3f2fd;
-   }
-
-   th {
-      white-space: nowrap;
-   }
-
-   /* Table header bold and fixed */
-   #dataTableBuilder thead th {
-      font-weight: bold;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background-color: #f8f9fa;
-      box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
-   }
-
-   /* Ensure table container is scrollable */
    .table-responsive {
       max-height: calc(100vh - 280px);
-      overflow-y: auto;
-      overflow-x: auto;
-      position: relative;
-      -webkit-overflow-scrolling: touch;
-   }
-
-   /* Hide scrollbar for Chrome, Safari and Opera */
-   .table-responsive::-webkit-scrollbar {
-      display: none;
-   }
-
-   /* Hide scrollbar for IE, Edge and Firefox */
-   .table-responsive {
-      -ms-overflow-style: none;
-      /* IE and Edge */
-      scrollbar-width: none;
-      /* Firefox */
    }
 </style>
 @endpush
@@ -106,23 +54,6 @@
                   @endcan
                </div>
             </div>
-        </td>
-         {{-- <td>
-            <div class='btn-group'>
-                <!-- <a href="javascript:void(0);" data-action="{{ route('banks.show', $r->id) }}" class='btn btn-default btn-sm show-modal' data-size="lg" data-title="View">
-                    <i class="fa fa-eye"></i>
-                </a> -->
-                @can('bank_edit')
-                <a href="javascript:void(0);" data-action="{{ route('banks.edit', $r->id) }}" class='btn btn-info btn-sm show-modal' data-size="lg" data-title="Update Bank">
-                    <i class="fa fa-edit"></i>
-                </a>
-                @endcan
-                @can('bank_delete')
-                <a href="javascript:void(0);"  onclick='confirmDelete("{{route('bank.delete', $r->id) }}")' class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Bank">
-                    <i class="fa fa-trash"></i>
-                </a>
-                @endcan
-            </div> --}}
          </td>
       </tr>
       @endforeach

@@ -650,9 +650,9 @@ class RidersController extends AppBaseController
   /**
    * Update the specified Riders in storage.
    */
-  public function update($id, UpdateRidersRequest $request)
+  public function update($id,Request $request)
   {
-    $riders = $this->ridersRepository->getRiderWithItemsRelations($id);
+    $riders = Riders::find($id);
     // $items = $riders->items;
     $items = $request->get('items');
     if (empty($riders)) {
@@ -660,8 +660,9 @@ class RidersController extends AppBaseController
 
       return redirect(route('riders.index'));
     }
+    $data = $request->except(['_token', 'items']);
 
-    $riders = $this->ridersRepository->update($request->all(), $id);
+    $riders->update($data);
     if ($riders) {
 
       $riders->account->name = $riders->name;

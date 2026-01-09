@@ -22,6 +22,7 @@ use Flash;
 use DB;
 use Carbon\Carbon;
 use App\Models\Receipt;
+use App\Models\Payment;
 
 
 class BanksController extends AppBaseController
@@ -397,8 +398,15 @@ class BanksController extends AppBaseController
     return view('banks.receipts', compact('data','banks'));
   }
 
-  public function payments(Request $request)
+  public function payments(Request $request, $id)
   {
-    return view('banks.payments.payments');
+    $banks = Banks::find($id);
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Payment::query()->latest('id');
+    $query->where('account_id', $banks->account_id);
+    
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    return view('banks.payments', compact('data','banks'));
   }
 }

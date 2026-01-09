@@ -143,16 +143,23 @@ class ReceiptController extends Controller
         return redirect()->back();
     }
 
-    public function destroy($id)
+    public function destroy($id,Request $request)
     {
-        $receipt = $this->receiptsRepository->find($id);
+        $receipt = Receipt::find($id);
         if (empty($receipt)) {
+            if($request->ajax()) {
+                return response()->json(['success'=> false,'message'=> 'Receipt Not Found']);
+            }
             Flash::error('Receipt not found!');
+            return redirect()->back();
         } else {
-            $this->receiptsRepository->delete($id);
-            Flash::success('Receipt deleted successfully.');
+            $receipt->delete();
+            if($request->ajax()){
+                return response()->json(['success'=> true,'message'=> 'Receipt Deleted Successfuly']);
+            }
         }
-        return redirect(route('receipts.index'));
+        Flash::success('Receipt deleted successfully.');
+        return redirect()->back();
     }
 
     /**

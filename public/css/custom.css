@@ -358,12 +358,49 @@ select {
   box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
 }
 
+table {
+  text-align: center;
+}
+
+th {
+  white-space: nowrap;
+}
+
+#dataTableBuilder thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #f8f9fa;
+}
+
+/* Ensure table container is scrollable */
+.table-responsive {
+  overflow-y: auto;
+  overflow-x: auto;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.table-responsive::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.table-responsive {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
 @media (max-width: 576px) {
   .filter-sidebar {
       width: 100%;
       right: -100%;
   }
 }
+
 
 /* Responsive adjustments */
 @media (max-width: 768px) {

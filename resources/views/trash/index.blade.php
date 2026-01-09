@@ -244,32 +244,9 @@
 
                             <!-- Cascade Information -->
                             <td>
-                                {{-- Show if this was deleted by cascade --}}
-                                @if(isset($item['caused_by']) && $item['caused_by'])
-                                <div class="mb-2">
-                                    <span class="badge bg-warning text-dark d-block mb-1">
-                                        <i class="fa fa-level-up"></i> Caused By
-                                    </span>
-                                    <small class="d-block">
-                                        <strong>{{ class_basename($item['caused_by']->primary_model) }}</strong>
-                                    </small>
-                                    <small class="d-block text-muted">
-                                        {{ $item['caused_by']->primary_name }}
-                                    </small>
-                                    <small class="d-block text-muted">
-                                        (ID: {{ $item['caused_by']->primary_id }})
-                                    </small>
-                                    @if($item['caused_by']->deletedByUser)
-                                    <small class="d-block text-muted">
-                                        <i class="fa fa-user"></i> Deleted by: {{ $item['caused_by']->deletedByUser->name }}
-                                    </small>
-                                    @endif
-                                </div>
-                                @endif
-
                                 {{-- Show if this deletion caused other deletions --}}
                                 @if(isset($item['cascaded_to']) && $item['cascaded_to'] && count($item['cascaded_to']) > 0)
-                                <div>
+                                <div class="mb-2">
                                     <span class="badge bg-info d-block mb-1">
                                         <i class="fa fa-level-down"></i> Cascaded To ({{ count($item['cascaded_to']) }})
                                     </span>
@@ -287,6 +264,29 @@
                                         @endif
                                     </small>
                                     @endforeach
+                                </div>
+                                @endif
+
+                                {{-- Show if this was deleted by cascade --}}
+                                @if(isset($item['caused_by']) && $item['caused_by'])
+                                <div>
+                                    <span class="badge bg-warning text-dark d-block mb-1">
+                                        <i class="fa fa-level-up"></i> Caused By
+                                    </span>
+                                    <small class="d-block">
+                                        <strong>{{ class_basename($item['caused_by']->primary_model) }}</strong>
+                                    </small>
+                                    <small class="d-block text-muted">
+                                        {{ $item['caused_by']->primary_name }}
+                                    </small>
+                                    <small class="d-block text-muted">
+                                        (ID: {{ $item['caused_by']->primary_id }})
+                                    </small>
+                                    @if($item['caused_by']->deletedByUser)
+                                    <small class="d-block text-muted">
+                                        <i class="fa fa-user"></i> Deleted by: {{ $item['caused_by']->deletedByUser->name }}
+                                    </small>
+                                    @endif
                                 </div>
                                 @endif
 

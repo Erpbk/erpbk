@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
 class RtaFines extends Model
 {
-    use LogsActivity;
+    use LogsActivity, SoftDeletes;
 
   public $table = 'rta_fines';
 
@@ -44,8 +45,11 @@ class RtaFines extends Model
     'service_charges' => 'decimal:2',
     'admin_fee' => 'decimal:2',
     'total_amount' => 'decimal:2',
-    'status' => 'string'
+    'status' => 'string',
+    'deleted_at' => 'datetime'
   ];
+
+  protected $dates = ['deleted_at'];
 
   public static array $rules = [
     'trans_date' => 'nullable',

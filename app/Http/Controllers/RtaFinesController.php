@@ -20,6 +20,7 @@ use App\Services\TransactionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
 use Flash;
 use DB;
 use App\Imports\RTAFineImport;
@@ -27,7 +28,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class RtaFinesController extends AppBaseController
 {
-    use GlobalPagination;
+    use GlobalPagination, TracksCascadingDeletions;
     /** @var RtaFinesRepository $rtaFinesRepository*/
     private $rtaFinesRepository;
 
@@ -91,16 +92,36 @@ class RtaFinesController extends AppBaseController
     }
     public function deleteaccount($id)
     {
-        // Check if there are any rtaFines related to this account
-        $hasFines = rtaFines::where('rta_account_id', $id)->exists();
+        // Check if there are any rtaFines (tickets) related to this account (including soft deleted)
+        $hasFines = RtaFines::withTrashed()->where('rta_account_id', $id)->exists();
 
         if ($hasFines) {
-            Flash::error('Cannot delete account. There are existing RTA fines linked to this account.');
+            Flash::error('Cannot delete account. There are existing RTA fines (tickets) linked to this account.');
             return redirect()->back();
         }
 
-        // If no fines, proceed to delete the account
-        Accounts::where('id', $id)->delete();
+        // Check if there are any ledger transactions related to this account
+        $hasLedgerEntries = LedgerEntry::where('account_id', $id)->exists();
+
+        if ($hasLedgerEntries) {
+            Flash::error('Cannot delete account. There are existing ledger transactions linked to this account.');
+            return redirect()->back();
+        }
+
+        // Check if there are any transactions related to this account (including soft deleted)
+        $hasTransactions = Transactions::withTrashed()->where('account_id', $id)->exists();
+
+        if ($hasTransactions) {
+            Flash::error('Cannot delete account. There are existing transactions linked to this account.');
+            return redirect()->back();
+        }
+
+        // Get account details before deletion for cascade tracking
+        $account = Accounts::findOrFail($id);
+        $accountName = $account->name ?? "Account #{$id}";
+
+        // Soft delete the account
+        $account->delete();
 
         Flash::success('Account deleted successfully.');
         return redirect()->back();
@@ -374,7 +395,7 @@ class RtaFinesController extends AppBaseController
 
     public function viewvoucher($id)
     {
-        $data = rtaFines::where('id', $id)->first();
+        $data = RtaFines::where('id', $id)->first();
         $accounts = Accounts::where('id', $data->rta_account_id)->first();
         return view('rta_fines.viewvoucher', compact('data', 'accounts'));
     }
@@ -536,7 +557,7 @@ class RtaFinesController extends AppBaseController
 
     public function fileUpload(Request $request, $id)
     {
-        $fines = rtaFines::find($id);
+        $fines = RtaFines::find($id);
 
         if ($request->hasFile('attachment_path')) {
             $photo = $request->file('attachment_path');
@@ -843,10 +864,14 @@ class RtaFinesController extends AppBaseController
     {
         $rtaFines = $this->rtaFinesRepository->find($id);
 
-        //$banks = $this->banksRepository->find($id);
-
         if (empty($rtaFines)) {
             Flash::error('Rta Fines not found');
+            return redirect()->back();
+        }
+
+        // Prevent deletion of paid tickets
+        if ($rtaFines->status === 'paid') {
+            Flash::error('Cannot delete paid tickets. Only unpaid tickets can be deleted.');
             return redirect()->back();
         }
 
@@ -854,28 +879,109 @@ class RtaFinesController extends AppBaseController
         try {
             $billingMonth = $rtaFines->billing_month;
             $riderAccountId = DB::table('accounts')->where('ref_id', $rtaFines->rider_id)->value('id');
+            $ticketIdentifier = $rtaFines->ticket_no ?? "Ticket #{$id}";
 
-            // Delete only specific transactions related to this RTA fine
-            Transactions::where('reference_id', $rtaFines->id)
+            // Get related transactions before deletion for cascade tracking
+            $relatedTransactions = Transactions::where('reference_id', $rtaFines->id)
                 ->where('reference_type', 'RTA')
-                ->delete();
+                ->where('trans_code', $rtaFines->trans_code)
+                ->get();
 
-            // Delete only specific vouchers related to this RTA fine
-            Vouchers::where('ref_id', $rtaFines->id)
+            // Get related vouchers before deletion for cascade tracking
+            $relatedVouchers = Vouchers::where('ref_id', $rtaFines->id)
                 ->where('voucher_type', 'RFV')
-                ->delete();
+                ->where('trans_code', $rtaFines->trans_code)
+                ->get();
 
-            // ✅ FIX: Delete only the ledger entry for this specific billing month, not all entries
-            // Recalculate ledger entries after deletion instead of deleting all
+            // Soft delete related transactions and track cascade
+            foreach ($relatedTransactions as $transaction) {
+                $transaction->delete(); // Soft delete
+
+                // Track cascade deletion
+                try {
+                    $cascadeRecord = $this->trackCascadeDeletion(
+                        RtaFines::class,
+                        $rtaFines->id,
+                        $ticketIdentifier,
+                        Transactions::class,
+                        $transaction->id,
+                        "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code})",
+                        'hasMany',
+                        'transactions',
+                        'soft',
+                        'Cascade deletion from RTA Fine ticket deletion'
+                    );
+                    \Log::info("Cascade deletion tracked for transaction {$transaction->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
+                } catch (\Exception $e) {
+                    \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+                    \Log::error("Stack trace: " . $e->getTraceAsString());
+                }
+            }
+
+            // Soft delete related vouchers and track cascade
+            foreach ($relatedVouchers as $voucher) {
+                $voucher->delete(); // Soft delete
+
+                // Track cascade deletion
+                try {
+                    $cascadeRecord = $this->trackCascadeDeletion(
+                        RtaFines::class,
+                        $rtaFines->id,
+                        $ticketIdentifier,
+                        Vouchers::class,
+                        $voucher->id,
+                        "Voucher #{$voucher->id} (Type: {$voucher->voucher_type})",
+                        'hasMany',
+                        'vouchers',
+                        'soft',
+                        'Cascade deletion from RTA Fine ticket deletion'
+                    );
+                    \Log::info("Cascade deletion tracked for voucher {$voucher->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
+                } catch (\Exception $e) {
+                    \Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage());
+                    \Log::error("Stack trace: " . $e->getTraceAsString());
+                }
+            }
+
+            // Recalculate ledger entries after deletion
             if ($riderAccountId) {
                 $this->recalculateLedgerAfterDeletion($riderAccountId, $billingMonth);
             }
 
-            // Delete the RTA fine record
-            $this->rtaFinesRepository->delete($id);
+            // Soft delete the RTA fine record
+            $rtaFines->delete();
+
+            // Track the primary RTA Fine deletion itself
+            try {
+                $primaryCascadeRecord = \App\Models\DeletionCascade::create([
+                    'primary_model' => RtaFines::class,
+                    'primary_id' => $rtaFines->id,
+                    'primary_name' => $ticketIdentifier,
+                    'related_model' => RtaFines::class,
+                    'related_id' => $rtaFines->id,
+                    'related_name' => $ticketIdentifier,
+                    'relationship_type' => 'self',
+                    'relationship_name' => 'rta_fine',
+                    'deletion_type' => 'soft',
+                    'deleted_by' => auth()->id(),
+                    'deletion_reason' => 'RTA Fine ticket deleted',
+                    'metadata' => [
+                        'ip_address' => request()->ip(),
+                        'user_agent' => request()->userAgent(),
+                        'timestamp' => now()->toIso8601String(),
+                        'status' => $rtaFines->status,
+                        'amount' => $rtaFines->amount,
+                        'total_amount' => $rtaFines->total_amount,
+                    ],
+                ]);
+                \Log::info("Primary RTA Fine deletion tracked, cascade record ID: " . ($primaryCascadeRecord->id ?? 'N/A'));
+            } catch (\Exception $e) {
+                \Log::error("Failed to track RTA Fine deletion: " . $e->getMessage());
+                \Log::error("Stack trace: " . $e->getTraceAsString());
+            }
 
             DB::commit();
-            Flash::success('RTA Fine deleted successfully.');
+            Flash::success('RTA Fine deleted successfully with all related records.');
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error("Error deleting RTA Fine ID: {$id} - " . $e->getMessage());

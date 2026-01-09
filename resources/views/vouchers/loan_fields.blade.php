@@ -19,7 +19,7 @@ $rider_account = \App\Models\Accounts::where('ref_id', $rider->id)->first();
     </div>
     <div class="form-group col-md-2">
         <label>Amount</label>
-        <input type="number" step="any" name="dr_amount[]" class="form-control dr_amount" placeholder="Loan Amount" onchange="getTotal();" required>
+        <input type="number" step="any" name="dr_amount[]" id="first-dr-amount" class="form-control dr_amount" placeholder="Loan Amount" onchange="getTotal(); syncSecondRowAmount();" required>
     </div>
     {{-- <div class="form-group col-md-2">
             <label>Cr Amount</label>
@@ -57,7 +57,7 @@ $rider_account = \App\Models\Accounts::where('ref_id', $rider->id)->first();
         </div>
         <div class="form-group col-md-2">
             <label>Amount</label>
-            <input type="number" step="any" name="dr_amount[]" class="form-control dr_amount" placeholder="Loan Amount" onchange="getTotal();" required readonly>
+            <input type="number" step="any" name="cr_amount[]" id="second-cr-amount" class="form-control cr_amount" placeholder="Loan Amount" onchange="getTotal();" readonly required>
         </div>
     </div>
     @endisset
@@ -79,6 +79,24 @@ $rider_account = \App\Models\Accounts::where('ref_id', $rider->id)->first();
                 updateDeleteButtons();
                 getTotal();
             }
+        });
+
+        // Sync second row credit amount with first row debit amount (for advance loan)
+        function syncSecondRowAmount() {
+            var firstAmount = $('#first-dr-amount').val();
+            if (firstAmount) {
+                $('#second-cr-amount').val(firstAmount);
+            }
+        }
+
+        // Sync on input/change
+        $(document).on('input change', '#first-dr-amount', function() {
+            syncSecondRowAmount();
+        });
+
+        // Ensure sync before form submission
+        $('form').on('submit', function() {
+            syncSecondRowAmount();
         });
 
         // Initialize delete buttons state

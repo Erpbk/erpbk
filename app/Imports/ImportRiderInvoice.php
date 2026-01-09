@@ -80,7 +80,7 @@ class ImportRiderInvoice implements ToCollection
             }
             $RID = $rider->id;
             $VID = $rider->VID;
-            $zone = $rider->emirate_hub;
+            $zone = $row[5] ?? 'DXB';
             //$VID = AssignVendorRider::where('RID', $RID)->value('VID');
             if (isset($row[3])) {
               // Check for duplicate invoice for same rider and billing month

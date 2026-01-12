@@ -22,7 +22,7 @@
             $rider = DB::table('riders')->where('id', $r->rider_id)->first();
             @endphp
             <td><a href="{{ route('riders.show', $rider->id) }}">{{ $rider->rider_id }} - {{ $rider->name }}</a></td>
-            <td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M Y') : 'N/A' }}</td>
+            <td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M-Y') : 'N/A' }}</td>
             <td>{{ App\Helpers\General::DateFormat($r->trip_date) }}</td>
             <td>{{ $r->trip_time }}</td>
             <td>{{ $r->toll_gate }}</td>
@@ -54,5 +54,5 @@
     </tbody>
 </table>
 @if(method_exists($data, 'links'))
-    {!! $data->links('components.global-pagination') !!}
+{!! $data->links('components.global-pagination') !!}
 @endif

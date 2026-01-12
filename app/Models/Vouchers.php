@@ -64,7 +64,8 @@ class Vouchers extends Model
     'lease_company',
     'attach_file',
     'Updated_By',
-    'status'
+    'status',
+    'deleted_by'
   ];
 
   /**

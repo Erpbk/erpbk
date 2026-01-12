@@ -61,7 +61,7 @@ class ImportRiderVoucherOnly implements ToCollection
                 } elseif ($voucherType == 'Penalty') {
                     $voucherType = 'PN';
                 } else {
-                    $voucherType = 'JV';
+                    $voucherType = 'JV'; // Default to Journal Voucher
                 }
                 $code = trim((string)($row[6] ?? ''));
 

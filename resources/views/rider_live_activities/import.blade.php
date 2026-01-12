@@ -1,5 +1,6 @@
 @php
 $successMessage = session('success');
+$errorMessage = session('error');
 $importSummary = session('activities_import_summary');
 $validationErrors = $errors ? $errors->all() : [];
 $formAction = $formAction ?? route('rider.live_activities_import');
@@ -10,7 +11,7 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
   action="{{ $formAction }}"
   method="POST"
   enctype="multipart/form-data"
-  id="formajax"
+  id="live-activities-import-form"
   data-errors-route="{{ $errorsRoute }}"
   data-success-message="{{ $successMessage }}"
   data-summary='@json($importSummary)'
@@ -45,27 +46,13 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    const formElement = document.getElementById('formajax');
-    const errorsRoute = formElement ? formElement.dataset.errorsRoute : null;
-    const successMessage = formElement ? formElement.dataset.successMessage : '';
-    let summary = null;
-    let validationErrors = [];
+    const errorsRoute = '{{ $errorsRoute }}';
 
-    if (formElement && formElement.dataset.summary) {
-      try {
-        summary = JSON.parse(formElement.dataset.summary);
-      } catch (error) {
-        summary = null;
-      }
-    }
-
-    if (formElement && formElement.dataset.validationErrors) {
-      try {
-        validationErrors = JSON.parse(formElement.dataset.validationErrors) || [];
-      } catch (error) {
-        validationErrors = [];
-      }
-    }
+    // Get messages from PHP session
+    const successMessage = @json($successMessage ?? '');
+    const errorMessage = @json($errorMessage ?? '');
+    const summary = @json($importSummary ?? null);
+    const validationErrors = @json($validationErrors ?? []);
 
     const escapeHtml = (value) => {
       if (value === null || value === undefined) {
@@ -79,17 +66,57 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
         .replace(/'/g, '&#039;');
     };
 
-    if (successMessage) {
+    // Show error message from session flash if exists (takes priority)
+    if (errorMessage) {
+      // Check if error message contains multiple errors (separated by |)
+      const errorParts = errorMessage.split(' | ');
+
+      if (errorParts.length > 1) {
+        // Multiple errors - show in a list
+        let errorList = '<ul style="text-align: left; margin: 0; padding-left: 20px; max-height: 400px; overflow-y: auto;">';
+        errorParts.forEach((error) => {
+          errorList += `<li style="margin-bottom: 8px;">${escapeHtml(error)}</li>`;
+        });
+        errorList += '</ul>';
+
+        Swal.fire({
+          icon: 'error',
+          title: '⚠️ Import Failed',
+          html: errorList,
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#dc3545',
+          width: '700px',
+          customClass: {
+            popup: 'text-left'
+          }
+        });
+      } else {
+        // Single error message
+        Swal.fire({
+          icon: 'error',
+          title: '⚠️ Import Failed',
+          text: errorMessage,
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#dc3545'
+        });
+      }
+    }
+
+    // Show success message from session flash if exists and no errors
+    if (successMessage && !errorMessage) {
       Swal.fire({
         icon: 'success',
-        title: 'Import Successful',
+        title: '✅ Import Successful',
         text: successMessage,
         confirmButtonText: 'OK',
-        confirmButtonColor: '#28a745'
+        confirmButtonColor: '#28a745',
+        timer: 3000,
+        timerProgressBar: true
       });
     }
 
-    if (summary && Array.isArray(summary.errors) && summary.errors.length) {
+    // Check for errors from import summary if exists (only if no error message from flash)
+    if (!errorMessage && summary && Array.isArray(summary.errors) && summary.errors.length) {
       const totalRows = summary.total_rows ?? 0;
       const successCount = summary.success_count ?? 0;
       const skippedCount = summary.skipped_count ?? 0;
@@ -189,6 +216,15 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
         confirmButtonText: 'Great!',
         confirmButtonColor: '#28a745',
         width: '500px'
+      });
+    } else if (successMessage && (!summary || !summary.errors || !summary.errors.length)) {
+      // Only show success message if there are no errors in the summary
+      Swal.fire({
+        icon: 'success',
+        title: 'Import Successful',
+        text: successMessage,
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#28a745'
       });
     }
 

@@ -21,13 +21,14 @@ use App\Services\TransactionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
 use Illuminate\Validation\Rule;
 use Flash;
 use DB;
 
 class VisaexpenseController extends AppBaseController
 {
-    use GlobalPagination;
+    use GlobalPagination, TracksCascadingDeletions;
 
     protected $visaRepo;
     public function __construct(VisaExpensesRepository $visaRepo)
@@ -153,7 +154,7 @@ class VisaexpenseController extends AppBaseController
 
     public function deleteaccount($id)
     {
-        // Check if any visa_expenses exist for this rider_id
+        // Check if any visa_expenses exist for this account
         $hasExpenses = visa_expenses::where('rider_id', $id)->exists();
 
         if ($hasExpenses) {
@@ -161,7 +162,47 @@ class VisaexpenseController extends AppBaseController
             return redirect()->back();
         }
 
-        // No expenses — safe to delete
+        // Check if any installment plans exist for this account
+        $hasInstallments = visa_installment_plan::where('rider_id', $id)->exists();
+
+        if ($hasInstallments) {
+            Flash::error('Cannot delete account. Installment Plan entries exist for this account.');
+            return redirect()->back();
+        }
+
+        // Check if any transactions exist for this account related to visa expenses
+        $hasTransactions = Transactions::where('account_id', $id)
+            ->where(function ($query) {
+                $query->where('reference_type', 'LV')
+                    ->orWhere('reference_type', 'VL')
+                    ->orWhere('reference_type', 'VE');
+            })
+            ->exists();
+
+        if ($hasTransactions) {
+            Flash::error('Cannot delete account. Transactions related to Visa Expenses exist for this account.');
+            return redirect()->back();
+        }
+
+        // Check if any vouchers exist for this account related to visa expenses
+        $account = Accounts::findOrFail($id);
+        $riderId = $account->ref_id;
+
+        if ($riderId) {
+            $hasVouchers = Vouchers::where('rider_id', $riderId)
+                ->where(function ($query) {
+                    $query->where('voucher_type', 'LV')
+                        ->orWhere('voucher_type', 'VL');
+                })
+                ->exists();
+
+            if ($hasVouchers) {
+                Flash::error('Cannot delete account. Vouchers related to Visa Expenses exist for this account.');
+                return redirect()->back();
+            }
+        }
+
+        // No related records — safe to delete
         Accounts::where('id', $id)->delete();
         Flash::success('Account deleted successfully.');
         return redirect()->back();
@@ -945,10 +986,87 @@ class VisaexpenseController extends AppBaseController
 
                     $firstRiderId = $firstRiderId ?: $inst->rider_id;
 
-                    // Delete related vouchers and transactions
-                    Vouchers::where('ref_id', $inst->id)
+                    $installmentIdentifier = "Installment Plan #{$deleteId} - Billing Month: {$inst->billing_month} (Amount: " . number_format($inst->amount, 2) . ")";
+
+                    // Get related vouchers before deletion (include soft deleted to be safe)
+                    $relatedVouchers = Vouchers::withTrashed()
+                        ->where('ref_id', $inst->id)
                         ->where('voucher_type', 'VL')
-                        ->delete();
+                        ->whereNull('deleted_at') // Only get non-deleted vouchers
+                        ->get();
+
+                    \Log::info("Found " . $relatedVouchers->count() . " vouchers to track for installment {$deleteId} in finalizePayment", [
+                        'voucher_ids' => $relatedVouchers->pluck('id')->toArray()
+                    ]);
+
+                    // Get related transactions before deletion
+                    $relatedTransactions = Transactions::where('reference_id', $inst->id)
+                        ->where('reference_type', 'VL')
+                        ->get();
+
+                    // Track cascade deletions for vouchers BEFORE deletion
+                    foreach ($relatedVouchers as $voucher) {
+                        try {
+                            \Log::info("Attempting to track cascade deletion for voucher {$voucher->id}", [
+                                'primary_model' => visa_installment_plan::class,
+                                'primary_id' => $inst->id,
+                                'related_model' => Vouchers::class,
+                                'related_id' => $voucher->id,
+                            ]);
+
+                            $cascadeRecord = $this->trackCascadeDeletion(
+                                visa_installment_plan::class,
+                                $inst->id,
+                                $installmentIdentifier,
+                                Vouchers::class,
+                                $voucher->id,
+                                "Voucher #{$voucher->id} ({$voucher->voucher_type}-" . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) . ", Amount: " . number_format($voucher->amount, 2) . ")",
+                                'hasMany',
+                                'vouchers',
+                                'soft',
+                                'Cascade deletion from Installment Plan deletion via finalizePayment - voucher'
+                            );
+
+                            if ($cascadeRecord && $cascadeRecord->id) {
+                                \Log::info("Cascade deletion tracked successfully for voucher {$voucher->id}, cascade record ID: {$cascadeRecord->id}");
+                            } else {
+                                \Log::warning("Cascade deletion tracking returned null for voucher {$voucher->id}");
+                            }
+                        } catch (\Exception $e) {
+                            \Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage(), [
+                                'exception' => $e,
+                                'trace' => $e->getTraceAsString()
+                            ]);
+                        }
+                    }
+
+                    // Track cascade deletions for transactions
+                    foreach ($relatedTransactions as $transaction) {
+                        try {
+                            $this->trackCascadeDeletion(
+                                visa_installment_plan::class,
+                                $inst->id,
+                                $installmentIdentifier,
+                                Transactions::class,
+                                $transaction->id,
+                                "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code}, Amount: " . ($transaction->debit > 0 ? number_format($transaction->debit, 2) : number_format($transaction->credit, 2)) . ")",
+                                'hasMany',
+                                'transactions',
+                                'soft',
+                                'Cascade deletion from Installment Plan deletion via finalizePayment - transaction'
+                            );
+                        } catch (\Exception $e) {
+                            \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+                        }
+                    }
+
+                    // Cascade delete vouchers related to this installment (soft delete with deleted_by)
+                    // Use the same collection that was used for tracking
+                    foreach ($relatedVouchers as $voucher) {
+                        $voucher->deleted_by = auth()->id();
+                        $voucher->save();
+                        $voucher->delete();
+                    }
                     Transactions::where('reference_id', $inst->id)
                         ->where('reference_type', 'VL')
                         ->delete();
@@ -960,12 +1078,40 @@ class VisaexpenseController extends AppBaseController
                         ->where('parent_id', 1)
                         ->first();
                     if ($liabilityAccount) {
+                        // Get ledger entry before deletion
+                        $ledgerEntry = \DB::table('ledger_entries')
+                            ->where('account_id', $liabilityAccount->id)
+                            ->where('billing_month', $inst->billing_month)
+                            ->first();
+
+                        if ($ledgerEntry) {
+                            try {
+                                $this->trackCascadeDeletion(
+                                    visa_installment_plan::class,
+                                    $inst->id,
+                                    $installmentIdentifier,
+                                    \App\Models\LedgerEntry::class,
+                                    $ledgerEntry->id,
+                                    "Ledger Entry #{$ledgerEntry->id} (Account ID: {$liabilityAccount->id}, Billing Month: {$inst->billing_month})",
+                                    'hasOne',
+                                    'ledger_entry',
+                                    'hard',
+                                    'Cascade deletion from Installment Plan deletion via finalizePayment - ledger entry'
+                                );
+                            } catch (\Exception $e) {
+                                \Log::error("Failed to track cascade deletion for ledger entry {$ledgerEntry->id}: " . $e->getMessage());
+                            }
+                        }
+
                         \DB::table('ledger_entries')
                             ->where('account_id', $liabilityAccount->id)
                             ->where('billing_month', $inst->billing_month)
                             ->delete();
                     }
 
+                    // Delete the installment (soft delete with deleted_by)
+                    $inst->deleted_by = auth()->id();
+                    $inst->save();
                     $inst->delete();
                 }
             }
@@ -1201,10 +1347,87 @@ class VisaexpenseController extends AppBaseController
                 return redirect()->back();
             }
 
-            // Delete related vouchers
-            Vouchers::where('ref_id', $installment->id)
+            $installmentIdentifier = "Installment Plan #{$id} - Billing Month: {$installment->billing_month} (Amount: " . number_format($installment->amount, 2) . ")";
+
+            // Get related vouchers before deletion (include soft deleted to be safe)
+            $relatedVouchers = Vouchers::withTrashed()
+                ->where('ref_id', $installment->id)
                 ->where('voucher_type', 'VL')
-                ->delete();
+                ->whereNull('deleted_at') // Only get non-deleted vouchers
+                ->get();
+
+            \Log::info("Found " . $relatedVouchers->count() . " vouchers to track for installment {$id}", [
+                'voucher_ids' => $relatedVouchers->pluck('id')->toArray()
+            ]);
+
+            // Get related transactions before deletion
+            $relatedTransactions = Transactions::where('reference_id', $installment->id)
+                ->where('reference_type', 'VL')
+                ->get();
+
+            // Track cascade deletions for vouchers BEFORE deletion
+            foreach ($relatedVouchers as $voucher) {
+                try {
+                    \Log::info("Attempting to track cascade deletion for voucher {$voucher->id}", [
+                        'primary_model' => visa_installment_plan::class,
+                        'primary_id' => $installment->id,
+                        'related_model' => Vouchers::class,
+                        'related_id' => $voucher->id,
+                    ]);
+
+                    $cascadeRecord = $this->trackCascadeDeletion(
+                        visa_installment_plan::class,
+                        $installment->id,
+                        $installmentIdentifier,
+                        Vouchers::class,
+                        $voucher->id,
+                        "Voucher #{$voucher->id} ({$voucher->voucher_type}-" . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) . ", Amount: " . number_format($voucher->amount, 2) . ")",
+                        'hasMany',
+                        'vouchers',
+                        'soft',
+                        'Cascade deletion from Installment Plan deletion - voucher'
+                    );
+
+                    if ($cascadeRecord && $cascadeRecord->id) {
+                        \Log::info("Cascade deletion tracked successfully for voucher {$voucher->id}, cascade record ID: {$cascadeRecord->id}");
+                    } else {
+                        \Log::warning("Cascade deletion tracking returned null for voucher {$voucher->id}");
+                    }
+                } catch (\Exception $e) {
+                    \Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage(), [
+                        'exception' => $e,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            }
+
+            // Track cascade deletions for transactions
+            foreach ($relatedTransactions as $transaction) {
+                try {
+                    $this->trackCascadeDeletion(
+                        visa_installment_plan::class,
+                        $installment->id,
+                        $installmentIdentifier,
+                        Transactions::class,
+                        $transaction->id,
+                        "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code}, Amount: " . ($transaction->debit > 0 ? number_format($transaction->debit, 2) : number_format($transaction->credit, 2)) . ")",
+                        'hasMany',
+                        'transactions',
+                        'soft',
+                        'Cascade deletion from Installment Plan deletion - transaction'
+                    );
+                } catch (\Exception $e) {
+                    \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+                }
+            }
+
+            // Cascade delete vouchers related to this installment (soft delete with deleted_by)
+            // Use the same collection that was used for tracking
+            foreach ($relatedVouchers as $voucher) {
+                $voucher->deleted_by = auth()->id();
+                $voucher->save();
+                $voucher->delete();
+            }
 
             // Delete related transactions
             Transactions::where('reference_id', $installment->id)
@@ -1219,13 +1442,40 @@ class VisaexpenseController extends AppBaseController
                 ->first();
 
             if ($liabilityAccount) {
+                // Get ledger entry before deletion
+                $ledgerEntry = DB::table('ledger_entries')
+                    ->where('account_id', $liabilityAccount->id)
+                    ->where('billing_month', $installment->billing_month)
+                    ->first();
+
+                if ($ledgerEntry) {
+                    try {
+                        $this->trackCascadeDeletion(
+                            visa_installment_plan::class,
+                            $installment->id,
+                            $installmentIdentifier,
+                            \App\Models\LedgerEntry::class,
+                            $ledgerEntry->id,
+                            "Ledger Entry #{$ledgerEntry->id} (Account ID: {$liabilityAccount->id}, Billing Month: {$installment->billing_month})",
+                            'hasOne',
+                            'ledger_entry',
+                            'hard',
+                            'Cascade deletion from Installment Plan deletion - ledger entry'
+                        );
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to track cascade deletion for ledger entry {$ledgerEntry->id}: " . $e->getMessage());
+                    }
+                }
+
                 DB::table('ledger_entries')
                     ->where('account_id', $liabilityAccount->id)
                     ->where('billing_month', $installment->billing_month)
                     ->delete();
             }
 
-            // Delete the installment
+            // Delete the installment (soft delete with deleted_by)
+            $installment->deleted_by = auth()->id();
+            $installment->save();
             $installment->delete();
 
             DB::commit();
@@ -1431,8 +1681,6 @@ class VisaexpenseController extends AppBaseController
     {
         $visaExpenses = visa_expenses::find($id);
 
-        //$banks = $this->banksRepository->find($id);
-
         if (empty($visaExpenses)) {
             Flash::error('Visa Expense Entry not found');
             return redirect()->back();
@@ -1442,24 +1690,161 @@ class VisaexpenseController extends AppBaseController
         try {
             $billingMonth = $visaExpenses->billing_month;
             $riderAccountId = DB::table('accounts')->where('ref_id', $visaExpenses->rider_id)->value('id');
+            $visaExpenseIdentifier = "Visa Expense #{$id} - {$visaExpenses->visa_status} (Amount: " . number_format($visaExpenses->amount, 2) . ")";
+
+            // Get related transactions before deletion
+            $relatedTransactions = Transactions::where('reference_id', $visaExpenses->id)
+                ->where('reference_type', 'LV')
+                ->get();
+
+            // Get related transactions by trans_code
+            $transCodeTransactions = Transactions::where('trans_code', $visaExpenses->trans_code)
+                ->where('reference_type', 'LV')
+                ->get();
+
+            // Get related vouchers before deletion (include soft deleted to be safe)
+            $relatedVouchers = Vouchers::withTrashed()
+                ->where('ref_id', $visaExpenses->id)
+                ->where('voucher_type', 'LV')
+                ->whereNull('deleted_at') // Only get non-deleted vouchers
+                ->get();
+
+            \Log::info("Found " . $relatedVouchers->count() . " vouchers to track for visa expense {$id}", [
+                'voucher_ids' => $relatedVouchers->pluck('id')->toArray()
+            ]);
+
+            // Track cascade deletions for transactions
+            foreach ($relatedTransactions as $transaction) {
+                try {
+                    $this->trackCascadeDeletion(
+                        visa_expenses::class,
+                        $visaExpenses->id,
+                        $visaExpenseIdentifier,
+                        Transactions::class,
+                        $transaction->id,
+                        "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code}, Amount: " . ($transaction->debit > 0 ? number_format($transaction->debit, 2) : number_format($transaction->credit, 2)) . ")",
+                        'hasMany',
+                        'transactions',
+                        'soft',
+                        'Cascade deletion from Visa Expense deletion - transaction by reference_id'
+                    );
+                } catch (\Exception $e) {
+                    \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+                }
+            }
+
+            // Track cascade deletions for transactions by trans_code
+            foreach ($transCodeTransactions as $transaction) {
+                // Skip if already tracked
+                if ($relatedTransactions->contains('id', $transaction->id)) {
+                    continue;
+                }
+                try {
+                    $this->trackCascadeDeletion(
+                        visa_expenses::class,
+                        $visaExpenses->id,
+                        $visaExpenseIdentifier,
+                        Transactions::class,
+                        $transaction->id,
+                        "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code}, Amount: " . ($transaction->debit > 0 ? number_format($transaction->debit, 2) : number_format($transaction->credit, 2)) . ")",
+                        'hasMany',
+                        'transactions',
+                        'soft',
+                        'Cascade deletion from Visa Expense deletion - transaction by trans_code'
+                    );
+                } catch (\Exception $e) {
+                    \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+                }
+            }
+
+            // Track cascade deletions for vouchers BEFORE deletion
+            foreach ($relatedVouchers as $voucher) {
+                try {
+                    \Log::info("Attempting to track cascade deletion for voucher {$voucher->id}", [
+                        'primary_model' => visa_expenses::class,
+                        'primary_id' => $visaExpenses->id,
+                        'related_model' => Vouchers::class,
+                        'related_id' => $voucher->id,
+                    ]);
+
+                    $cascadeRecord = $this->trackCascadeDeletion(
+                        visa_expenses::class,
+                        $visaExpenses->id,
+                        $visaExpenseIdentifier,
+                        Vouchers::class,
+                        $voucher->id,
+                        "Voucher #{$voucher->id} ({$voucher->voucher_type}-" . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) . ", Amount: " . number_format($voucher->amount, 2) . ")",
+                        'hasMany',
+                        'vouchers',
+                        'soft',
+                        'Cascade deletion from Visa Expense deletion - voucher'
+                    );
+
+                    if ($cascadeRecord && $cascadeRecord->id) {
+                        \Log::info("Cascade deletion tracked successfully for voucher {$voucher->id}, cascade record ID: {$cascadeRecord->id}");
+                    } else {
+                        \Log::warning("Cascade deletion tracking returned null for voucher {$voucher->id}");
+                    }
+                } catch (\Exception $e) {
+                    \Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage(), [
+                        'exception' => $e,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            }
 
             // Delete only specific transactions related to this visa expense
             Transactions::where('reference_id', $visaExpenses->id)
-                ->where('reference_type', 'VE') // Assuming 'VE' for Visa Expense
+                ->where('reference_type', 'LV')
                 ->delete();
 
-            // Delete only specific vouchers related to this visa expense
-            Vouchers::where('ref_id', $visaExpenses->id)
-                ->where('voucher_type', 'VL') // Assuming 'VL' for Visa Loan
+            // Delete transactions by trans_code if they exist
+            Transactions::where('trans_code', $visaExpenses->trans_code)
+                ->where('reference_type', 'LV')
                 ->delete();
+
+            // Cascade delete vouchers related to this visa expense (soft delete with deleted_by)
+            // Use the same collection that was used for tracking
+            foreach ($relatedVouchers as $voucher) {
+                $voucher->deleted_by = auth()->id();
+                $voucher->save();
+                $voucher->delete();
+            }
 
             // ✅ FIX: Delete only the ledger entry for this specific billing month, not all entries
             // Recalculate ledger entries after deletion instead of deleting all
             if ($riderAccountId) {
+                // Track ledger entry deletion if it exists
+                $ledgerEntry = DB::table('ledger_entries')
+                    ->where('account_id', $riderAccountId)
+                    ->where('billing_month', $billingMonth)
+                    ->first();
+
+                if ($ledgerEntry) {
+                    try {
+                        $this->trackCascadeDeletion(
+                            visa_expenses::class,
+                            $visaExpenses->id,
+                            $visaExpenseIdentifier,
+                            \App\Models\LedgerEntry::class,
+                            $ledgerEntry->id,
+                            "Ledger Entry #{$ledgerEntry->id} (Account ID: {$riderAccountId}, Billing Month: {$billingMonth})",
+                            'hasOne',
+                            'ledger_entry',
+                            'hard',
+                            'Cascade deletion from Visa Expense deletion - ledger entry recalculation'
+                        );
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to track cascade deletion for ledger entry {$ledgerEntry->id}: " . $e->getMessage());
+                    }
+                }
+
                 $this->recalculateLedgerAfterDeletion($riderAccountId, $billingMonth);
             }
 
-            // Delete the visa expense record
+            // Delete the visa expense record (soft delete with deleted_by)
+            $visaExpenses->deleted_by = auth()->id();
+            $visaExpenses->save();
             $visaExpenses->delete();
 
             DB::commit();

@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Models\Vouchers;
 
 class visa_expenses extends Model
 {
-    use LogsActivity;
+    use LogsActivity, SoftDeletes;
 
     protected $table = 'visa_expenses';
 
@@ -25,6 +26,7 @@ class visa_expenses extends Model
         'billing_month',
         'amount',
         'payment_status',
+        'deleted_by',
     ];
     public static array $rules = [
         'trans_date' => 'nullable',

@@ -2,6 +2,12 @@
 
 @section('title','Rider Live Activities')
 
+@php
+$importSummary = $importSummary ?? null;
+$importSuccessMessage = session('success');
+$importErrorMessage = session('error');
+@endphp
+
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
 @endpush
@@ -387,7 +393,160 @@
 
   // Initialize on page load
   document.addEventListener('DOMContentLoaded', function() {
-    initializeTableSorting();
-  });
+        initializeTableSorting();
+
+        // Handle import summary messages (redirected from import)
+        @if($importSummary)
+          (function() {
+              const summary = @json($importSummary);
+              const successMessage = @json($importSuccessMessage ?? '');
+              const errorMessage = @json($importErrorMessage ?? '');
+              const errorsRoute = @json(route('rider.live_activities_import_errors', ['type' => 'noon']));
+
+              const escapeHtml = (value) => {
+                if (value === null || value === undefined) {
+                  return '';
+                }
+                return String(value)
+                  .replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#039;');
+              };
+
+              // Priority: fatal errors > validation errors > summary errors > success
+              let messageShown = false;
+
+              // 1. Handle fatal error flash message
+              if (errorMessage && errorMessage.trim() !== '' && typeof Swal !== 'undefined') {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Import Failed',
+                  text: errorMessage,
+                  confirmButtonText: 'OK',
+                  confirmButtonColor: '#dc3545'
+                });
+                messageShown = true;
+                // 2. Check for summary errors (row-level errors) - only if no fatal error
+                if (!messageShown && summary && summary.errors && Array.isArray(summary.errors) && summary.errors.length > 0 && typeof Swal !== 'undefined') {
+                  const totalRows = summary.total_rows ?? 0;
+                  const successCount = summary.success_count ?? 0;
+                  const skippedCount = summary.skipped_count ?? 0;
+                  const errorCount = summary.error_count ?? summary.errors.length;
+
+                  let errorHtml = '<div style="text-align: left;">';
+                  errorHtml += '<div class="mb-3" style="background: #f8f9fa; padding: 15px; border-radius: 5px;">';
+                  errorHtml += '<div class="row">';
+                  errorHtml += `<div class='col-6'><strong>📊 Total Rows:</strong> <span style='color: #007bff;'>${escapeHtml(totalRows)}</span></div>`;
+                  errorHtml += `<div class='col-6'><strong>✅ Imported:</strong> <span style='color: #28a745;'>${escapeHtml(successCount)}</span></div>`;
+                  errorHtml += '</div>';
+                  errorHtml += "<div class='row mt-1'>";
+                  errorHtml += `<div class='col-6'><strong>⚠️ Skipped:</strong> <span style='color: #ffc107;'>${escapeHtml(skippedCount)}</span></div>`;
+                  errorHtml += `<div class='col-6'><strong>❌ Errors:</strong> <span style='color: #dc3545;'>${escapeHtml(errorCount)}</span></div>`;
+                  errorHtml += '</div>';
+                  errorHtml += '</div>';
+
+                  errorHtml += '<div class="alert alert-danger" style="max-height: 400px; overflow-y: auto; margin-bottom: 0;">';
+                  errorHtml += '<strong>⚠️ Error Details - Please Review:</strong>';
+                  errorHtml += '<table class="table table-sm table-bordered mt-2 mb-0" style="background: white;">';
+                  errorHtml += '<thead style="background: #343a40; color: white;">';
+                  errorHtml += '<tr>';
+                  errorHtml += '<th style="width: 80px; text-align: center;">Excel Row #</th>';
+                  errorHtml += '<th style="width: 150px;">Error Type</th>';
+                  errorHtml += '<th>What Went Wrong</th>';
+                  errorHtml += '<th style="width: 120px;">Rider ID</th>';
+                  errorHtml += '</tr>';
+                  errorHtml += '</thead>';
+                  errorHtml += '<tbody>';
+
+                  summary.errors.forEach((errorItem) => {
+                    const row = escapeHtml(errorItem.row ?? 'N/A');
+                    const errorType = escapeHtml(errorItem.error_type ?? 'N/A');
+                    const message = escapeHtml(errorItem.message ?? '-');
+                    const riderId = escapeHtml(errorItem.rider_id ?? errorItem.payout_type ?? 'N/A');
+
+                    errorHtml += '<tr>';
+                    errorHtml += `<td class="text-center" style="background: #fff3cd;"><strong style="color: #856404; font-size: 14px;">Row ${row}</strong></td>`;
+                    errorHtml += `<td><span class="badge badge-danger" style="font-size: 11px;">${errorType}</span></td>`;
+                    errorHtml += `<td style="font-size: 13px;">${message}</td>`;
+                    errorHtml += `<td><code>${riderId}</code></td>`;
+                    errorHtml += '</tr>';
+                  });
+
+                  errorHtml += '</tbody></table>';
+                  errorHtml += '</div>';
+
+                  errorHtml += '<div class="alert alert-info mt-3 mb-0" style="font-size: 13px;">';
+                  errorHtml += '<strong>📝 How to Fix These Errors:</strong>';
+                  errorHtml += '<ol style="margin-bottom: 0; padding-left: 25px;">';
+                  errorHtml += '<li><strong>Open your Excel file</strong> and locate the row numbers shown above</li>';
+                  errorHtml += '<li><strong>Check Rider IDs:</strong> Make sure they exist in the Riders database</li>';
+                  errorHtml += '<li><strong>Verify Dates:</strong> Use format YYYY-MM-DD. <strong>IMPORTANT:</strong> Only today\'s date will be processed. Other dates will be skipped.</li>';
+                  errorHtml += '<li><strong>Fill Empty Fields:</strong> Ensure rider_id and date are not blank</li>';
+                  errorHtml += '<li><strong>Save and Re-import:</strong> After fixing, upload the file again</li>';
+                  errorHtml += '</ol>';
+                  errorHtml += '</div>';
+                  errorHtml += '</div>';
+
+                  Swal.fire({
+                    icon: 'warning',
+                    title: `⚠️ Import Completed with ${escapeHtml(errorCount)} Error(s)`,
+                    html: errorHtml,
+                    width: '950px',
+                    showCancelButton: true,
+                    confirmButtonText: 'View Detailed Report',
+                    cancelButtonText: 'Close',
+                    confirmButtonColor: '#17a2b8',
+                    cancelButtonColor: '#6c757d',
+                    customClass: {
+                      popup: 'text-left',
+                      title: 'swal-title-custom'
+                    }
+                  }).then((result) => {
+                    if (result.isConfirmed && errorsRoute) {
+                      window.open(errorsRoute, '_blank');
+                    }
+                  });
+                  messageShown = true;
+                }
+                // 3. Show success if summary exists with no errors
+                else if (!messageShown && summary && (!summary.errors || !Array.isArray(summary.errors) || summary.errors.length === 0) && typeof Swal !== 'undefined') {
+                  const totalRows = summary.total_rows ?? 0;
+                  const successCount = summary.success_count ?? 0;
+
+                  let successHtml = '<div style="text-align: center;">';
+                  successHtml += '<div class="mb-3" style="background: #d4edda; padding: 20px; border-radius: 5px; border: 2px solid #28a745;">';
+                  successHtml += '<h4 style="color: #155724; margin-bottom: 15px;">✅ All Records Imported Successfully!</h4>';
+                  successHtml += '<div class="row">';
+                  successHtml += `<div class="col-6"><strong style="font-size: 16px;">Total Rows:</strong><br><span style="color: #007bff; font-size: 24px; font-weight: bold;">${escapeHtml(totalRows)}</span></div>`;
+                  successHtml += `<div class="col-6"><strong style="font-size: 16px;">Imported:</strong><br><span style="color: #28a745; font-size: 24px; font-weight: bold;">${escapeHtml(successCount)}</span></div>`;
+                  successHtml += '</div>';
+                  successHtml += '</div>';
+                  successHtml += '</div>';
+
+                  Swal.fire({
+                    icon: 'success',
+                    title: 'Import Successful',
+                    html: successHtml,
+                    confirmButtonText: 'Great!',
+                    confirmButtonColor: '#28a745',
+                    width: '500px'
+                  });
+                  messageShown = true;
+                }
+                // 4. Show simple success message if no summary but success message exists
+                else if (!messageShown && successMessage && successMessage.trim() !== '' && typeof Swal !== 'undefined') {
+                  Swal.fire({
+                    icon: 'success',
+                    title: 'Import Successful',
+                    text: successMessage,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#28a745'
+                  });
+                  messageShown = true;
+                }
+              })(); @endif
+          });
 </script>
 @endsection

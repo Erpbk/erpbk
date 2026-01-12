@@ -384,4 +384,78 @@
     initializeTableSorting();
   });
 </script>
+
+<script>
+  // Display SweetAlert messages from session flash
+  document.addEventListener('DOMContentLoaded', function() {
+    @php
+    $successMessage = session('success');
+    $errorMessage = session('error');
+    @endphp
+
+    const successMessage = @json($successMessage ?? '');
+    const errorMessage = @json($errorMessage ?? '');
+
+    const escapeHtml = (value) => {
+      if (value === null || value === undefined) {
+        return '';
+      }
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    // Show error message from session flash if exists
+    if (errorMessage) {
+      // Check if error message contains multiple errors (separated by |)
+      const errorParts = errorMessage.split(' | ');
+      
+      if (errorParts.length > 1) {
+        // Multiple errors - show in a list
+        let errorList = '<ul style="text-align: left; margin: 0; padding-left: 20px; max-height: 400px; overflow-y: auto;">';
+        errorParts.forEach((error) => {
+          errorList += `<li style="margin-bottom: 8px;">${escapeHtml(error)}</li>`;
+        });
+        errorList += '</ul>';
+
+        Swal.fire({
+          icon: 'error',
+          title: '⚠️ Import Failed',
+          html: errorList,
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#dc3545',
+          width: '700px',
+          customClass: {
+            popup: 'text-left'
+          }
+        });
+      } else {
+        // Single error message
+        Swal.fire({
+          icon: 'error',
+          title: '⚠️ Import Failed',
+          text: errorMessage,
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#dc3545'
+        });
+      }
+    }
+
+    // Show success message from session flash if exists
+    if (successMessage) {
+      Swal.fire({
+        icon: 'success',
+        title: '✅ Import Successful',
+        text: successMessage,
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#28a745',
+        timer: 3000,
+        timerProgressBar: true
+      });
+    }
+  });
+</script>
 @endsection

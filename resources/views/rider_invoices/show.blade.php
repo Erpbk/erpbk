@@ -338,16 +338,26 @@
             $items_total = $running_total;
             @endphp
             @php
-            $totalOrders = DB::table('rider_activities')
-            ->where('rider_id', $riderInvoice->rider->id)
-            ->whereYear('date', date('Y', strtotime($riderInvoice->billing_month)))
-            ->whereMonth('date', date('m', strtotime($riderInvoice->billing_month)))
-            ->sum('delivered_orders');
-            @endphp
+            $deliveryfee = DB::table('items')->where('name', 'Delivery fees')->first();
 
+            // Calculate total orders from delivery fee item
+            $totalOrders = 0;
+            $totalOrderValue = 0;
+
+            if ($deliveryfee && isset($deliveryfee->id)) {
+            // Find the delivery fee item in the rider invoice items
+            $deliveryFeeItem = collect($riderInvoice->items)->firstWhere('item_id', $deliveryfee->id);
+
+            if ($deliveryFeeItem && $deliveryFeeItem->qty > 0) {
+            // Calculate total orders: qty * price
+            $totalOrders = $deliveryFeeItem->qty;
+            $totalOrderValue = $deliveryFeeItem->qty * $deliveryfee->price;
+            }
+            }
+            @endphp
             <tr class="accent-total">
                 <td colspan="3" style="text-align:right; padding: 8px;">Total Orders ({{date('M-Y',strtotime($riderInvoice->billing_month))}})</td>
-                <td class="num">{{ $totalOrders }}</td>
+                <td class="num">{{ number_format($totalOrders, 0) }}</td>
                 <td colspan="4" style="text-align:right; padding: 8px;">ITEMS TOTAL</td>
                 <td class="num" style="padding: 8px; font-size: 14px;">{{ number_format($items_total, 2) }}</td>
             </tr>

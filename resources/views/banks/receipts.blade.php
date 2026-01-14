@@ -8,16 +8,23 @@
     <div class="content">
         @include('flash::message')
         <div class="clearfix"></div>
-
         <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <div class="card-search">
+                    <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
+                </div>
+                <button class="btn btn-primary btn-sm show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Receipt" data-action="{{ route('receipts.create') }}?id={{ request()->segment(3) }}">Add New</button>
+            </div>
             <div class="card-body table-responsive py-0" id="table-data">
                 <table class="table table-striped dataTable no-footer mt-3" id="dataTableBuilder">
                     <thead class="text-center">
                         <tr role="row">
-                            <th title="Transaction Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Transaction Number: activate to sort column ascending">Transaction Number</th>
+                            <th title="Transaction Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Transaction Number: activate to sort column ascending">Reference</th>
                             <th title="Sender" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Sender: activate to sort column ascending">Sender</th>
-                            <th title="Bank" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Bank: activate to sort column ascending">Bank</th>
+                            <th title="Bank" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Bank: activate to sort column ascending">Receiver</th>
                             <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
+                            <th title="Voucher" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher ID</th>
+                            <th title="Attachement" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachement: activate to sort column ascending">Attachement</th>
                             <th title="Date of Receipt" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date of Receipt: activate to sort column ascending">Date of Receipt</th>
                             <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
                             <th title="Description" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Description: activate to sort column ascending">Description</th>
@@ -28,22 +35,30 @@
                     <tbody>
                         @foreach($data as $receipt)
                         <tr>
-                            <td>{{ $receipt->transaction_number }}</td>
+                            <td>{{ $receipt->reference?? '-' }}</td>
                             <td>
-                                @php
-                                $account = $receipt->account_id ? \App\Models\Accounts::find($receipt->account_id) : null;
-                                @endphp
-                                {{ $account ? $account->name : '-' }}
+                                {!! nl2br($receipt->receivedFrom()) !!}
                             </td>
                             <td>
-                                @php
-                                $bank = $receipt->bank_id ? \App\Models\Banks::find($receipt->bank_id) : null;
-                                @endphp
-                                {{ $bank ? $bank->name : '-' }}
+                                {{ $receipt->bank->account->account_code . '-' .  $receipt->bank->account->name}}
                             </td>
                             <td>AED {{ number_format($receipt->amount, 2) }}</td>
-                            <td>{{ $receipt->date_of_receipt }}</td>
-                            <td>{{ $receipt->billing_month }}</td>
+                            <td>
+                                <a href="{{ route('vouchers.show', $receipt->voucher_id) }}" class="text-primary" target="_blank">
+                                    {{ $receipt->voucher->voucher_type . '-'. $receipt->voucher_id }}
+                                </a>
+                            </td>
+                            <td>
+                                @if($receipt->attachment)
+                                    <a href="{{ url('storage/vouchers/' . $receipt->attachment) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                        <i class="fa fa-file"></i> View
+                                    </a>
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td>{{ \App\Helpers\Common::DateFormat($receipt->date_of_receipt) }}</td>
+                            <td>{{ \App\Helpers\Common::MonthFormat($receipt->billing_month) }}</td>
                             <td>{{ $receipt->description }}</td>
                             <td>
                                 @if($receipt->status == 1)
@@ -59,16 +74,16 @@
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $receipt->id }}" style="z-index: 1050;">
                                     @can('bank_view')
-                                        <a href="{{ route('receipts.show' , $receipt->id)}}" class='dropdown-item waves-effect'>
+                                        <a href="{{ route('receipts.show' , $receipt->id)}}" target="_blank" class='dropdown-item waves-effect'>
                                             <i class="fa fa-eye my-1"></i>view
                                         </a>
                                     @endcan
                                     @can('bank_edit')
-                                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Update Bank Details" data-action="{{ route('receipts.edit', $receipt->id) }}">
+                                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Receipt Details" data-action="{{ route('receipts.edit', $receipt->id) }}">
                                             <i class="fa fa-edit my-1"></i> Edit
                                         </a>
                                     @endcan
-                                    @can('sim_delete')
+                                    @can('bank_delete')
                                     <a href="javascript:void(0);" class='dropdown-item waves-effect delete-receipt' 
                                         data-url="{{ route('receipts.destroy', $receipt->id) }}">
                                         <i class="fa fa-trash my-1"></i> Delete
@@ -83,7 +98,7 @@
                 </table>
                 @if($data->isEmpty())
                     <div class="text-center mt-5">
-                        <h3>No Payments found</h3> 
+                        <h3>No Receipts found</h3> 
                     </div>
                 @endif
                 @if(method_exists($data, 'links'))

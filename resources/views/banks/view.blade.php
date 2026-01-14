@@ -21,7 +21,7 @@
   $totalDebit = Transactions::where('account_id', $banks->account_id)
                 ->sum('debit');
   
-  $currentBalance = $totalCredit - $totalDebit;
+  $currentBalance = $totalDebit - $totalCredit;
   
   // Calculate current month transactions
   $currentMonthCredit = Transactions::where('account_id', $banks->account_id)
@@ -32,12 +32,12 @@
                       ->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])
                       ->sum('debit');
   
-  $netFlow = $currentMonthCredit - $currentMonthDebit;
+  $netFlow = $currentMonthDebit - $currentMonthCredit;
 @endphp
 
 <div class="row">
   <!-- Left Column - Bank Information -->
-  <div class="col-xl-3 col-lg-3 col-md-12 order-1 order-lg-0">
+  <div class="col-xl-4 col-lg-4 col-md-4 order-1 order-lg-0">
     <!-- Bank Profile Card -->
     <div class="card mb-4 shadow-sm border-0">
       <div class="card-header bg-gradient-primary text-white py-3">
@@ -70,7 +70,7 @@
         <div class="text-center mb-4">
           <div class="p-4 rounded @if($currentBalance >= 0) bg-opacity-10 border border-success border-opacity-25 @else border border-danger border-opacity-25 @endif">
             <p class="mb-1 text-muted small">Current Balance</p>
-            <p class="mb-0 fw-bold display-6 @if($currentBalance >= 0) text-success @else text-danger @endif">
+            <p class="mb-0 fw-bold @if($currentBalance >= 0) text-success @else text-danger @endif" style="font-size: 1.5rem">
               {{ number_format($currentBalance, 2) }}
             </p>
             <small class="text-muted">As of {{ date('M d, Y') }}</small>
@@ -80,28 +80,28 @@
         <!-- Monthly Summary -->
         <div class="row g-3">
           <div class="col-6">
-            <div class="p-3 rounded bg-opacity-10 border-start border-success border-3">
+            <div class="p-2 rounded bg-opacity-10 border-start border-success border-3">
               <div class="d-flex align-items-center">
-                <div class="bg-opacity-25 rounded-circle p-2 me-3">
-                  <i class="fas fa-arrow-down text-success fa-sm"></i>
+                <div class="bg-opacity-25 rounded-circle p-1 me-2">
+                  <i class="fas fa-arrow-up text-warning fa-sm"></i>
                 </div>
                 <div>
                   <p class="mb-1 text-muted small">Month Credit</p>
-                  <p class="mb-0 fw-bold text-success">{{ number_format($currentMonthCredit, 2) }}</p>
+                  <p class="mb-0 fw-bold text-warning">{{ number_format($currentMonthCredit, 2) }}</p>
                 </div>
               </div>
             </div>
           </div>
           
           <div class="col-6">
-            <div class="p-3 rounded bg-opacity-10 border-start border-warning border-3">
+            <div class="p-2 rounded bg-opacity-10 border-start border-warning border-3">
               <div class="d-flex align-items-center">
-                <div class="bg-opacity-25 rounded-circle p-2 me-3">
-                  <i class="fas fa-arrow-up text-warning fa-sm"></i>
+                <div class="bg-opacity-25 rounded-circle p-1 me-2">
+                  <i class="fas fa-arrow-down text-success fa-sm"></i>
                 </div>
                 <div>
                   <p class="mb-1 text-muted small">Month Debit</p>
-                  <p class="mb-0 fw-bold text-warning">{{ number_format($currentMonthDebit, 2) }}</p>
+                  <p class="mb-0 fw-bold text-success">{{ number_format($currentMonthDebit, 2) }}</p>
                 </div>
               </div>
             </div>
@@ -129,20 +129,20 @@
               $creditPercentage = ($currentMonthCredit / ($currentMonthCredit + $currentMonthDebit)) * 100;
               $debitPercentage = ($currentMonthDebit / ($currentMonthCredit + $currentMonthDebit)) * 100;
             @endphp
-            <div class="progress-bar bg-success" role="progressbar" 
+            <div class="progress-bar bg-warning" role="progressbar" 
                  style="width: {{ $creditPercentage }}%" 
                  title="Credit: {{ number_format($currentMonthCredit, 2) }}">
             </div>
-            <div class="progress-bar bg-warning" role="progressbar" 
+            <div class="progress-bar bg-success" role="progressbar" 
                  style="width: {{ $debitPercentage }}%" 
                  title="Debit: {{ number_format($currentMonthDebit, 2) }}">
             </div>
           </div>
           <div class="d-flex justify-content-between mt-2">
-            <small class="text-success">
+            <small class="text-warning">
               <i class="fas fa-circle fa-xs"></i> Credit ({{ round($creditPercentage, 1) }}%)
             </small>
-            <small class="text-warning">
+            <small class="text-success">
               <i class="fas fa-circle fa-xs"></i> Debit ({{ round($debitPercentage, 1) }}%)
             </small>
           </div>
@@ -217,7 +217,7 @@
   </div>
 
   <!-- Right Column - Tabs Content -->
-  <div class="col-xl-9 col-lg-9 col-md-12 order-0 order-lg-1 h-100">
+  <div class="col-xl-8 col-lg-8 col-md-8 order-0 order-lg-1 h-100">
     <!-- Tabs Navigation -->
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-body p-3">
@@ -233,7 +233,7 @@
             <a class="nav-link @if(request()->segment(2) == 'ledger') active @endif d-flex align-items-center justify-content-center py-3" 
                href="{{ route('bank.ledger', $banks->id) }}">
               <i class="fas fa-file-invoice-dollar fa-lg me-2"></i>
-              <span class="fw-semibold">Bank Ledger</span>
+              <span class="fw-semibold">Ledger</span>
             </a>
           </li>
           <li class="nav-item" role="presentation">
@@ -337,12 +337,6 @@
 
   .bg-light-hover {
     background-color: rgba(248, 249, 250, 0.5);
-  }
-
-  /* Improved balance display */
-  .display-6 {
-    font-size: 2.5rem;
-    font-weight: 700;
   }
 </style>
 

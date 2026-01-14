@@ -32,7 +32,7 @@
                         </tr>
                         <tr>
                             <th width="50">#</th>
-                            <th>Document</th>
+                            <th class="text-start">Document</th>
                             <th width="120" class="text-end">Action</th>
                         </tr>
                     </thead>
@@ -41,7 +41,7 @@
                         @foreach ($files as $file)
                             <tr>
                                 <td>{{ $counter++ }}</td>
-                                <td>
+                                <td class="text-start">
                                     <a href="{{ url('storage2/' . $file->type . '/'.$file->type_id.'/'.$file->file_name) }}" target="_blank" >
                                         {{ ucwords(str_replace('_', ' ', $file->name)) }}
                                     </a>
@@ -57,7 +57,7 @@
                             @foreach($missingFiles as $key => $fileName)
                                 <tr>
                                     <td>{{ $counter++ }}</td>
-                                    <td>{{ $fileName }}</td>
+                                    <td class="text-start">{{ $fileName }}</td>
                                     <td class="text-end">
                                         <a class="btn btn-sm btn-primary show-modal action-btn"
                                             href="javascript:void(0);" 

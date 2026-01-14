@@ -254,7 +254,7 @@ class VoucherService
     $data['billing_month'] = $request->billing_month;
     $data['ref_id'] = @$request->ref_id;
     $id = $request->v_trans_code;
-    if ($id) {
+    if ($id) {F
       Transaction::where('trans_code', $id)->delete();
       $trans_code = $id;
     } else {

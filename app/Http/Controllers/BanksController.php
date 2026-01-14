@@ -358,32 +358,8 @@ class BanksController extends AppBaseController
   {
     $files = DB::table('files')->where('type','bank')->where('type_id', $id)->latest('id')->get();
     $banks = Banks::find( $id );
-    $currentMonthStart = Carbon::now()->startOfMonth()->format('Y-m-d');
-    $currentMonthEnd = Carbon::now()->endOfMonth()->format('Y-m-d');
     
-    // Calculate current balance (sum of credit - sum of debit)
-    $totalCredit = DB::table('transactions')
-        ->where('account_id', $banks->account_id)
-        ->sum('credit');
-    
-    $totalDebit = DB::table('transactions')
-        ->where('account_id', $banks->account_id)
-        ->sum('debit');
-    
-    $currentBalance = $totalCredit - $totalDebit;
-    
-    // Calculate current month transactions
-    $currentMonthCredit = DB::table('transactions')
-        ->where('account_id', $banks->account_id)
-        ->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])
-        ->sum('credit');
-    
-    $currentMonthDebit = DB::table('transactions')
-        ->where('account_id', $banks->account_id)
-        ->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])
-        ->sum('debit'); 
-    return view('banks.document', compact('files','currentBalance','currentMonthCredit','currentMonthDebit'));
-    // return $filesDataTable->with(['type_id' => $id, 'type' => 'bank'])->render('banks.document');
+    return view('banks.document', compact('files'));
   }
 
   public function receipts(Request $request, $id)
@@ -391,7 +367,7 @@ class BanksController extends AppBaseController
     $banks = Banks::find($id);
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Receipt::query()->latest('id');
-    $query->where('account_id', $banks->account_id);
+    $query->where('bank_id', $banks->id);
     
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);

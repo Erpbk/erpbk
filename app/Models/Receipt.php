@@ -57,19 +57,8 @@ class Receipt extends Model
     }
 
     public function receivedFrom(){
-        $accountIds = array_map('intval', $this->payer_account_id);
-    
-        $query = Accounts::query();
         
-        foreach ($accountIds as $index => $id) {
-            if ($index === 0) {
-                $query->where('id', $id);
-            } else {
-                $query->orWhere('id', $id);
-            }
-        }
-        
-        $accounts = $query->get();
+        $accounts = Accounts::whereIn('id', $this->payer_account_id)->get();
         $receivedFrom = "";
         foreach ($accounts as $index => $account){
             if($index==0)

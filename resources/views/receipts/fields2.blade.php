@@ -216,7 +216,7 @@ function addNewRow(){
                 <select name="account_id[]" class="form-control account-select">
                     <option value="">Select</option>
                     @foreach(\App\Models\Accounts::where('status', 1)->get() as $payer)
-                    <option value="{{ $payer->id }}">{{ $payer->name }}</option>
+                    <option value="{{ $payer->id }}" {{ old('payer_account_id', isset($receipt) ? $receipt->payer_account_id : '') == $payer->id ? 'selected' : '' }}>{{ $payer->account_code.'-'.$payer->name }}</option>
                     @endforeach
                 </select>
             </div>

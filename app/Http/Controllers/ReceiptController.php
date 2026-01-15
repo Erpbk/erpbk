@@ -115,7 +115,7 @@ class ReceiptController extends Controller
     $input['billing_month'] = $input['billing_month'] . '-01';
     $input['account_id'] = $bank->account_id;
     $input['amount'] = $totalDebit; 
-    $input['payer_account_id'] = $accountIds[0];
+    $input['payer_account_id'] = array_unique($accountIds);
 
     try {
         DB::beginTransaction();

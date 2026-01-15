@@ -44,7 +44,7 @@
                             </td>
                             <td>AED {{ number_format($receipt->amount, 2) }}</td>
                             <td>
-                                <a href="{{ route('vouchers.show', $receipt->voucher_id) }}" class="text-primary" target="_blank">
+                                <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $receipt->voucher_id) }}" class="text-primary show-modal" data-title="Receipt Voucher" data-size="xl">
                                     {{ $receipt->voucher->voucher_type . '-'. $receipt->voucher_id }}
                                 </a>
                             </td>
@@ -73,11 +73,11 @@
                                     <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $receipt->id }}" style="z-index: 1050;">
-                                    @can('bank_view')
+                                    {{-- @can('bank_view')
                                         <a href="{{ route('receipts.show' , $receipt->id)}}" target="_blank" class='dropdown-item waves-effect'>
                                             <i class="fa fa-eye my-1"></i>view
                                         </a>
-                                    @endcan
+                                    @endcan --}}
                                     @can('bank_edit')
                                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Receipt Details" data-action="{{ route('receipts.edit', $receipt->id) }}">
                                             <i class="fa fa-edit my-1"></i> Edit

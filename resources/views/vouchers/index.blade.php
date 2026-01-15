@@ -96,7 +96,7 @@
                         Import Voucher
                     </a>
                     @foreach(App\Helpers\General::VoucherType() as $key => $value)
-                    @if($key !== 'RFV' && $key !== 'LV' && $key !== 'VL' && $key !== 'SV' && $key !== 'AL' && $key !== 'INC' && $key !== 'PN' && $key !== 'PAY' && $key !== 'COD' && $key !== 'VC' && $key !== 'RI' && $key !== 'GV')
+                    @if($key !== 'RFV' && $key !== 'LV' && $key !== 'VL' && $key !== 'SV' && $key !== 'AL' && $key !== 'INC' && $key !== 'PN' && $key !== 'PAY' && $key !== 'COD' && $key !== 'VC' && $key !== 'RI' && $key !== 'GV' && $key !== 'RV' && $key !== 'PV')
                     <a class="show-modal action-btn btn btn-primary" style="margin-right:5px;"
                         href="javascript:void(0);"
                         data-size="xl"

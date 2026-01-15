@@ -1,44 +1,48 @@
-﻿<!-- Transaction Number Field -->
+﻿<!-- reference Field -->
 <div class="form-group col-sm-6">
-  {!! Form::label('transaction_number', 'Transaction Number:') !!}
-  {!! Form::text('transaction_number', null, ['class' => 'form-control', 'maxlength' => 255]) !!}
+  {!! Form::label('reference', 'Reference:') !!}
+  {!! Form::text('reference', null, ['class' => 'form-control', 'maxlength' => 255]) !!}
 </div>
-<!-- Account Type Field -->
+
+<!-- Payment Type Field -->
 <div class="form-group col-sm-6">
-  {!! Form::label('account_type', 'Account Type:') !!}
-  <select name="account_type" onchange="selectHeadAccount(this.value)" id="account_type" class="form-control select2">
-    <option value="">Select</option>
-    @foreach(\App\Helpers\Accounts::AccountTypes() as $type => $label)
-    <option value="{{ $type }}" {{ old('account_type', isset($receipt) ? $receipt->account_type : '') == $type ? 'selected' : '' }}>{{ $label }}</option>
-    @endforeach
-  </select>
+  {!! Form::label('amount_type', 'Amount Type:') !!}
+  {!! Form::select('amount_type', 
+      ['' => 'Select', 'Cash' => 'Cash', 'Online' => 'Online', 'Cheque' => 'Cheque', 'Credit' => 'Credit'], 
+      old('amount_type', isset($receipt) ? $receipt->amount_type : ''), 
+      ['class' => 'form-control select2']
+  ) !!}
 </div>
-<!-- Head Account ID Field -->
-<div class="form-group col-sm-6">
-  {!! Form::label('head_account_id', 'Head Account:') !!}
-  <select name="head_account_id" onchange="selectAccount(this.value)" id="head_account_id" class="form-control select2">
-    <option value="">Select</option>
-    {{-- Options will be loaded dynamically --}}
-  </select>
-</div>
-<!-- Account ID Field -->
-<div class="form-group col-sm-6">
-  {!! Form::label('account_id', 'Account:') !!}
-  <select name="account_id" id="account_id" class="form-control select2">
-    <option value="">Select</option>
-    {{-- Options will be loaded dynamically --}}
-  </select>
-</div>
+
 <!-- Bank ID Field -->
+@if(!isset($bank) && !isset($receipt))
+  <div class="form-group col-sm-6">
+    {!! Form::label('bank_id', 'Recieving Account:') !!}
+    <select name="bank_id" id="bank_id" class="form-control select2">
+      <option value="">Select</option>
+      @foreach(\App\Models\Banks::where('status', 1)->get() as $bank)
+      <option value="{{ $bank->id }}" {{ old('bank_id', isset($receipt) ? $receipt->bank_id : '') == $bank->id ? 'selected' : '' }}>{{ $bank->name }}</option>
+      @endforeach
+    </select>
+  </div>
+@else
+  <div class="form-group col-sm-6">
+    {!! Form::label('bank_id', 'Recieved By:') !!}
+    {!! Form::hidden('bank_id', $bank->id ?? $receipt->bank_id ?? '')!!}
+    {!! Form::text('bank-name', $bank->name ?? $receipt->bank->name ?? '-', ['class' => 'form-control', 'readonly' => true]) !!}
+  </div>
+@endif
+
 <div class="form-group col-sm-6">
-  {!! Form::label('bank_id', 'Recieved By:') !!}
-  <select name="bank_id" id="bank_id" class="form-control select2">
+  {!! Form::label('payer_account_id', 'Payer Account:') !!}
+  <select name="payer_account_id" id="payer_account_id" class="form-control select2">
     <option value="">Select</option>
-    @foreach(\App\Models\Banks::where('status', 1)->get() as $bank)
-    <option value="{{ $bank->id }}" {{ old('bank_id', isset($receipt) ? $receipt->bank_id : '') == $bank->id ? 'selected' : '' }}>{{ $bank->name }}</option>
+    @foreach(\App\Models\Accounts::where('status', 1)->get() as $payer)
+    <option value="{{ $payer->id }}" {{ old('payer_account_id', isset($receipt) ? $receipt->payer_account_id : '') == $payer->id ? 'selected' : '' }}>{{ $payer->name }}</option>
     @endforeach
   </select>
 </div>
+
 <!-- Amount Field -->
 <div class="form-group col-sm-6">
   {!! Form::label('amount', 'Amount:') !!}

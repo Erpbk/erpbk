@@ -12,11 +12,12 @@ class Payment extends Model
     public $table = 'payments';
 
     public $fillable = [
+        'reference',
         'bank_id',
-        'account_type',
-        'head_account_id',
-        'account_id',
+        'amount_type',
+        'payee_account_id',
         'amount',
+        'voucher_id',
         'date_of_invoice',
         'date_of_payment',
         'billing_month',
@@ -28,25 +29,11 @@ class Payment extends Model
     ];
 
     protected $casts = [
-        'bank_id' => 'string',
-        'account_type' => 'string',
-        'head_account_id' => 'string',
-        'account_id' => 'string',
-        'amount' => 'decimal:2',
-        'date_of_invoice' => 'string',
-        'date_of_payment' => 'string',
-        'billing_month' => 'string',
-        'voucher_no' => 'string',
-        'voucher_type' => 'string',
-        'description' => 'string',
-        'status' => 'string',
-        'created_by' => 'string',
-        'updated_by' => 'string',
-        'attachment' => 'string',
+        'payee_account_id' => 'array',
     ];
 
     public static array $rules = [
-        'bank_id' => 'nullable|string|max:255',
+        'bank_id' => 'required|numeric',
         'account_type' => 'nullable|string|max:255',
         'head_account_id' => 'nullable|string|max:255',
         'account_id' => 'nullable|string|max:255',
@@ -60,4 +47,25 @@ class Payment extends Model
         'updated_by' => 'nullable|string|max:255',
         'attachment' => 'nullable|string|max:255',
     ];
+
+    public function voucher(){
+        return $this->hasOne(Vouchers::class,'id','voucher_id');
+    }
+
+    public function bank(){
+        return $this->belongsTo(Banks::class,'bank_id','id');
+    }
+
+    public function payedTo(){
+        
+        $accounts = Accounts::whereIn('id', $this->payee_account_id)->get();
+        $payedTo = "";
+        foreach ($accounts as $index => $account){
+            if($index==0)
+                $payedTo .= $account->account_code . '-'. $account->name;
+            else
+                $payedTo .= "\n\n".$account->account_code . '-'. $account->name;
+        }
+        return $payedTo;
+    }
 }

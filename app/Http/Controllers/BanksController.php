@@ -379,7 +379,7 @@ class BanksController extends AppBaseController
     $banks = Banks::find($id);
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Payment::query()->latest('id');
-    $query->where('account_id', $banks->account_id);
+    $query->where('bank_id', $id);
     
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);

@@ -142,6 +142,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('VisaExpense/updateInstallmentField', [\App\Http\Controllers\VisaexpenseController::class, 'updateInstallmentField'])->name('VisaExpense.updateInstallmentField');
     Route::post('VisaExpense/finalizePayment', [\App\Http\Controllers\VisaexpenseController::class, 'finalizePayment'])->name('VisaExpense.finalizePayment');
     Route::get('VisaExpense/deleteInstallment/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'deleteInstallment'])->name('VisaExpense.deleteInstallment');
+    Route::post('VisaExpense/getVisaStatusFee', [\App\Http\Controllers\VisaexpenseController::class, 'getVisaStatusFee'])->name('VisaExpense.getVisaStatusFee');
     Route::get('VisaExpense/generateInstallmentInvoice/{riderId}', [\App\Http\Controllers\VisaexpenseController::class, 'generateInstallmentInvoice'])->name('VisaExpense.generateInstallmentInvoice');
     Route::get('VisaExpense/autoMarkInstallments/{riderId?}', [\App\Http\Controllers\VisaexpenseController::class, 'autoMarkInstallmentsAsPaid'])->name('VisaExpense.autoMarkInstallments');
     Route::post('VisaExpense/recalculateInstallments', [\App\Http\Controllers\VisaexpenseController::class, 'recalculateInstallments'])->name('VisaExpense.recalculateInstallments');
@@ -327,7 +328,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::resource('simHistories', App\Http\Controllers\SimHistoryController::class);
 
     Route::resource('leasingCompanies', App\Http\Controllers\LeasingCompaniesController::class);
-    Route::get('leasingCompanies/delete/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroy'])->name('leasingCompanies.delete');
+    Route::delete('leasingCompanies/delete/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroy'])->name('leasingCompanies.delete');
     // Leasing Companies Trash Routes
     Route::get('leasingCompanies/trash', [\App\Http\Controllers\LeasingCompaniesController::class, 'trash'])->name('leasingCompanies.trash');
     Route::post('leasingCompanies/trash/{id}/restore', [\App\Http\Controllers\LeasingCompaniesController::class, 'restoreTrash'])->name('leasingCompanies.restore');
@@ -468,7 +469,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/suppliers/ledger/{id}', [SupplierController::class, 'ledger'])->name('suppliers.ledger');
     Route::get('/suppliers/{id}', [SupplierController::class, 'show'])->name('suppliers.show');
     Route::get('/suppliers/{id}/edit', [SupplierController::class, 'edit'])->name('suppliers.edit');
-    Route::get('suppliers/delete/{id}', [\App\Http\Controllers\GaragesController::class, 'destroy'])->name('suppliers.delete');
+    Route::delete('suppliers/delete/{id}', [\App\Http\Controllers\SupplierController::class, 'destroy'])->name('suppliers.delete');
 
     // Suppliers
     Route::resource('suppliers', SupplierController::class);

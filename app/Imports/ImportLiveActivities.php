@@ -8,7 +8,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\ToCollection;
 
 class ImportLiveActivities implements ToCollection
@@ -16,14 +15,6 @@ class ImportLiveActivities implements ToCollection
   private $importErrors = [];
   private $successCount = 0;
   private $skippedCount = 0;
-  private $totalRows = 0;
-  private $currentDate;
-
-  public function __construct()
-  {
-    // Store current date for reference
-    $this->currentDate = Carbon::today()->format('Y-m-d');
-  }
 
   public function collection(Collection $rows)
   {
@@ -33,7 +24,6 @@ class ImportLiveActivities implements ToCollection
     // First pass: Validate all rows without saving
     foreach ($rows as $row) {
       $rowNumber++;
-      $this->totalRows++;
 
       // Skip header rows
       if ($rowNumber <= 2) {
@@ -70,12 +60,9 @@ class ImportLiveActivities implements ToCollection
       // Store result in session before throwing exception
       session([
         'activities_import_summary' => [
-          'total_rows' => $this->totalRows,
-          'success_count' => 0,
-          'skipped_count' => $this->skippedCount,
-          'error_count' => count($this->importErrors),
+          'success' => 0,
+          'skipped' => $this->skippedCount,
           'errors'  => $this->importErrors,
-          'current_date' => $this->currentDate,
         ]
       ]);
       session()->save(); // Ensure session is saved before throwing exception
@@ -83,26 +70,90 @@ class ImportLiveActivities implements ToCollection
       throw ValidationException::withMessages(['file' => $errorMessages]);
     }
 
+    // Check if there are any valid rows to process
+    if (empty($validRows)) {
+      // No valid rows to import
+      session([
+        'activities_import_summary' => [
+          'success' => 0,
+          'skipped' => $this->skippedCount,
+          'errors'  => $this->importErrors,
+        ]
+      ]);
+      session()->save();
+
+      throw ValidationException::withMessages(['file' => ['No valid rows found to import. All rows were empty or skipped.']]);
+    }
+
     // Second pass: Save all valid rows (only if no errors)
     DB::beginTransaction();
     try {
       foreach ($validRows as $validRowData) {
-        $this->processRow($validRowData['row'], $validRowData['rowNumber']);
-        $this->successCount++;
+        try {
+          $this->processRow($validRowData['row']);
+          $this->successCount++;
+        } catch (\Throwable $rowError) {
+          // Log individual row error but continue with other rows
+          Log::error('Live Activity Import - Row Processing Failed', [
+            'row' => $validRowData['rowNumber'],
+            'rider_id' => $validRowData['row'][1] ?? 'N/A',
+            'error' => $rowError->getMessage(),
+          ]);
+
+          $this->importErrors[] = [
+            'row'        => $validRowData['rowNumber'],
+            'error_type' => 'Processing Error',
+            'message'    => 'Failed to save row: ' . $rowError->getMessage(),
+            'rider_id'   => $validRowData['row'][1] ?? 'N/A',
+          ];
+        }
       }
+
+      // If any errors occurred during processing, rollback and throw exception
+      if (!empty($this->importErrors)) {
+        DB::rollBack();
+
+        $errorMessages = [];
+        foreach ($this->importErrors as $error) {
+          $riderId = $error['rider_id'] ?? 'N/A';
+          $errorMessages[] = 'Row(' . $error['row'] . ') - ' . $error['error_type'] . ': ' . $error['message'] . ($riderId !== 'N/A' ? ' (Rider ID: ' . $riderId . ')' : '');
+        }
+
+        session([
+          'activities_import_summary' => [
+            'success' => 0,
+            'skipped' => $this->skippedCount,
+            'errors'  => $this->importErrors,
+          ]
+        ]);
+        session()->save();
+
+        throw ValidationException::withMessages(['file' => $errorMessages]);
+      }
+
       DB::commit();
+
+      // Log successful import
+      Log::info('Live Activity Import Successful', [
+        'success_count' => $this->successCount,
+        'skipped_count' => $this->skippedCount,
+      ]);
+    } catch (ValidationException $ve) {
+      // Re-throw validation exceptions
+      throw $ve;
     } catch (\Throwable $e) {
       DB::rollBack();
 
       $this->importErrors[] = [
-        'row'        => $validRowData['rowNumber'] ?? 'N/A',
+        'row'        => 'N/A',
         'error_type' => 'System Error',
-        'message'    => $e->getMessage(),
-        'rider_id'   => $validRowData['row'][1] ?? 'N/A',
+        'message'    => 'Database transaction failed: ' . $e->getMessage(),
+        'rider_id'   => 'N/A',
       ];
 
-      Log::error('Live Activity Import Failed', [
+      Log::error('Live Activity Import Failed - Transaction Error', [
         'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
       ]);
 
       $errorMessages = [];
@@ -113,15 +164,12 @@ class ImportLiveActivities implements ToCollection
 
       session([
         'activities_import_summary' => [
-          'total_rows' => $this->totalRows,
-          'success_count' => 0,
-          'skipped_count' => $this->skippedCount,
-          'error_count' => count($this->importErrors),
+          'success' => 0,
+          'skipped' => $this->skippedCount,
           'errors'  => $this->importErrors,
-          'current_date' => $this->currentDate,
         ]
       ]);
-      session()->save(); // Ensure session is saved before throwing exception
+      session()->save();
 
       throw ValidationException::withMessages(['file' => $errorMessages]);
     }
@@ -129,12 +177,9 @@ class ImportLiveActivities implements ToCollection
     // Store result in session
     session([
       'activities_import_summary' => [
-        'total_rows' => $this->totalRows,
-        'success_count' => $this->successCount,
-        'skipped_count' => $this->skippedCount,
-        'error_count' => count($this->importErrors),
+        'success' => $this->successCount,
+        'skipped' => $this->skippedCount,
         'errors'  => $this->importErrors,
-        'current_date' => $this->currentDate,
       ]
     ]);
     session()->save(); // Ensure session is saved
@@ -179,23 +224,21 @@ class ImportLiveActivities implements ToCollection
   }
 
   /**
-   * Save or update row (updates existing rider record regardless of date)
+   * Save or update row
    */
-  private function processRow($row, $rowNumber)
+  private function processRow($row)
   {
     $rider = Riders::where('rider_id', trim($row[1]))->first();
-    $date  = date('Y-m-d', strtotime($row[0])); // Use date from import file
 
-    // Get login hours
-    $loginHours = (float) ($row[9] ?? 0);
+    if (!$rider) {
+      throw new \Exception('Rider not found for ID: ' . trim($row[1]));
+    }
 
-    // Determine attendance status based on login hours
-    // If login hours = 0, mark as Absent, otherwise Present
-    $attendanceStatus = ($loginHours == 0) ? 'Absent' : 'Present';
+    $date = date('Y-m-d', strtotime($row[0]));
 
-    // Parse ontime percentage
-    $ontimePercentage = $row[20] ?? '0';
-    $ontimePercentage = (float) str_replace('%', '', $ontimePercentage);
+    if (!$date || $date == '1970-01-01') {
+      throw new \Exception('Invalid date format: ' . $row[0]);
+    }
 
     $data = [
       'rider_id'                    => $rider->id,
@@ -203,19 +246,24 @@ class ImportLiveActivities implements ToCollection
       'date'                        => $date,
       'payout_type'                 => $row[5] ?? null,
       'delivered_orders'            => (int) ($row[14] ?? 0),
-      'ontime_orders_percentage'    => $ontimePercentage,
+      'ontime_orders_percentage'    => (float) str_replace('%', '', $row[22] ?? 0),
       'rejected_orders'             => (int) ($row[17] ?? 0),
-      'login_hr'                    => $loginHours,
-      'delivery_rating'             => $attendanceStatus,
+      'login_hr'                    => (float) ($row[10] ?? 0),
+      'delivery_rating'             => $row[8] ?? '-',
     ];
-    // Update or create based on rider_id only
-    // This ensures only one record per rider exists, which gets updated with new date data
-    // No new records are created when importing activities for different dates
-    liveactivities::updateOrCreate(
+
+    $result = liveactivities::updateOrCreate(
       [
-        'rider_id' => $rider->id
+        'rider_id' => $rider->id,
+        'date'     => $date
       ],
       $data
     );
+
+    if (!$result || !$result->id) {
+      throw new \Exception('Failed to save live activity for Rider ID: ' . trim($row[1]) . ', Date: ' . $date);
+    }
+
+    return $result;
   }
 }

@@ -18,7 +18,7 @@ use Flash;
 
 class LeasingCompaniesController extends AppBaseController
 {
-    use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
+  use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
   /** @var LeasingCompaniesRepository $leasingCompaniesRepository*/
   private $leasingCompaniesRepository;
 
@@ -37,32 +37,32 @@ class LeasingCompaniesController extends AppBaseController
       abort(403, 'Unauthorized action.');
     }
     // Use global pagination trait
-        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = LeasingCompanies::query()
-        ->orderBy('id', 'desc');
+      ->orderBy('id', 'desc');
     if ($request->has('name') && !empty($request->name)) {
-        $query->where('name', 'like', '%' . $request->name . '%');
+      $query->where('name', 'like', '%' . $request->name . '%');
     }
     if ($request->has('contact_person') && !empty($request->contact_person)) {
-        $query->where('contact_person',$request->contact_person);
+      $query->where('contact_person', $request->contact_person);
     }
     if ($request->has('status') && !empty($request->status)) {
-        $query->where('status',$request->status);
+      $query->where('status', $request->status);
     }
     // Apply pagination using the trait
-        $data = $this->applyPagination($query, $paginationParams);
+    $data = $this->applyPagination($query, $paginationParams);
     if ($request->ajax()) {
-        $tableData = view('leasing_companies.table', [
-            'data' => $data,
-        ])->render();
-        $paginationLinks = $data->links('components.global-pagination')->render();
-        return response()->json([
-            'tableData' => $tableData,
-            'paginationLinks' => $paginationLinks,
-        ]);
+      $tableData = view('leasing_companies.table', [
+        'data' => $data,
+      ])->render();
+      $paginationLinks = $data->links('components.global-pagination')->render();
+      return response()->json([
+        'tableData' => $tableData,
+        'paginationLinks' => $paginationLinks,
+      ]);
     }
     return view('leasing_companies.index', [
-        'data' => $data,
+      'data' => $data,
     ]);
   }
 
@@ -106,7 +106,6 @@ class LeasingCompaniesController extends AppBaseController
     $leasingCompanies->save();
 
     return response()->json(['message' => 'Company added successfully.']);
-
   }
 
   /**
@@ -150,7 +149,6 @@ class LeasingCompaniesController extends AppBaseController
 
     if (empty($leasingCompanies)) {
       return response()->json(['errors' => ['error' => 'Company not found!']], 422);
-
     }
 
     $leasingCompanies = $this->leasingCompaniesRepository->update($request->all(), $id);
@@ -161,7 +159,6 @@ class LeasingCompaniesController extends AppBaseController
 
 
     return response()->json(['message' => 'Company updated successfully.']);
-
   }
 
   /**
@@ -178,20 +175,35 @@ class LeasingCompaniesController extends AppBaseController
     }
 
     // Check if leasing company has transactions - protect from deletion
-    if ($leasingCompanies->transactions()->count() > 0) {
-      return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has ' . $leasingCompanies->transactions()->count() . ' transaction(s). Please deactivate instead.']], 422);
+    $transactionCount = $leasingCompanies->transactions()->count();
+    if ($transactionCount > 0) {
+      return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has ' . $transactionCount . ' transaction(s). Please deactivate instead.']], 422);
+    }
+
+    // Check if leasing company has assigned bikes - protect from deletion
+    $bikeCount = $leasingCompanies->bikes()->count();
+    if ($bikeCount > 0) {
+      return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has ' . $bikeCount . ' assigned bike(s). Please deactivate instead.']], 422);
+    }
+
+    // Check if leasing company has related vouchers - protect from deletion
+    $voucherCount = $leasingCompanies->vouchers()->count();
+    if ($voucherCount > 0) {
+      return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has ' . $voucherCount . ' voucher(s). Please deactivate instead.']], 422);
     }
 
     // Track cascaded deletions
     $cascadedItems = [];
+    $leasingCompanyId = $leasingCompanies->id;
+    $leasingCompanyName = $leasingCompanies->name;
 
-    // Get account data BEFORE deleting (important!)
+    // Get related account BEFORE deleting (important!)
     $relatedAccount = $leasingCompanies->account;
 
     // Soft delete the leasing company
     $leasingCompanies->delete();
 
-    // Also soft delete the related account if exists and track it
+    // Track and soft delete the related account if exists
     if ($relatedAccount) {
       $cascadedItems[] = [
         'model' => 'Accounts',
@@ -201,17 +213,18 @@ class LeasingCompaniesController extends AppBaseController
 
       $relatedAccount->delete();
 
-      // Log the cascade
+      // Log the cascade deletion
       $this->trackCascadeDeletion(
         'App\Models\LeasingCompanies',
-        $leasingCompanies->id,
-        $leasingCompanies->name,
+        $leasingCompanyId,
+        $leasingCompanyName,
         'App\Models\Accounts',
         $relatedAccount->id,
         $relatedAccount->name,
         'hasOne',
         'account',
-        'soft'
+        'soft',
+        'Cascade deletion from Leasing Company deletion'
       );
     }
 

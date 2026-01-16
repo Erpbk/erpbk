@@ -2,6 +2,7 @@
 
 namespace App\DataTables;
 
+use App\Helpers\Common;
 use App\Models\RiderInvoices;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
@@ -22,6 +23,10 @@ class RiderInvoicesDataTable extends DataTable
     $dataTable->addColumn('action', 'rider_invoices.datatables_actions');
 
     $dataTable
+      ->addColumn('inv_date', function (RiderInvoices $riderInvoices) {
+        return $riderInvoices->inv_date ? Common::DateFormat($riderInvoices->inv_date) : '';
+      });
+    $dataTable
       ->addColumn('rider_id', function (RiderInvoices $riderInvoices) {
         return @$riderInvoices->rider->rider_id . '-' . @$riderInvoices->rider->name;
       });
@@ -33,6 +38,12 @@ class RiderInvoicesDataTable extends DataTable
       ->addColumn('status', function (RiderInvoices $riderInvoices) {
         return $riderInvoices->status == 1 ? 'Paid' : 'Unpaid';
       });
+
+    // Add filter for inv_date column
+    $dataTable->filterColumn('inv_date', function ($query, $keyword) {
+      $query->whereRaw("DATE_FORMAT(inv_date, '%d-%m-%Y') LIKE ?", ["%{$keyword}%"])
+        ->orWhereRaw("DATE_FORMAT(inv_date, '%Y-%m-%d') LIKE ?", ["%{$keyword}%"]);
+    });
 
     // Remove status column from DataTable
     $dataTable->filterColumn('billing_month', function ($query, $keyword) {
@@ -64,7 +75,7 @@ class RiderInvoicesDataTable extends DataTable
       $query->where('rider_id', $this->rider_id);
     }
     if (request('month')) {
-      $query->where(\DB::raw('DATE_FORMAT(billing_month, "%Y-%m")'), '=', request('month'));
+      $query->where(DB::raw('DATE_FORMAT(billing_month, "%Y-%m")'), '=', request('month'));
     }
     if (request('rider_id')) {
       $query->where('rider_id', request('rider_id'));

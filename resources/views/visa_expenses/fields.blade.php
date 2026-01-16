@@ -6,20 +6,20 @@
 </div>
 <div class="form-group col-sm-6">
     <label class="">Visa Status:</label>
-    <select class="form-control" id="visa_status" name="visa_status" required>
+    <select class="form-control select2" id="visa_status" name="visa_status" required>
         <option value="">Select Status</option>
         @foreach($visaStatuses as $status)
         <option value="{{ $status->name }}"
             data-fee="{{ $status->default_fee }}"
             {{ (isset($visaExpenses) && $visaExpenses->visa_status == $status->name) ? 'selected' : '' }}>
-            {{ $status->name }} ({{ $status->code }})
+            {{ $status->name }}
         </option>
         @endforeach
     </select>
 </div>
 <div class="form-group col-sm-6">
     {!! Form::label('amount', 'Amount:', ['class' => 'required']) !!}
-    {!! Form::number('amount', $visaExpenses->amount ?? '', ['id' => 'amount', 'class' => 'form-control','step'=>'any', 'required']) !!}
+    {!! Form::number('amount', $visaExpenses->amount ?? '', ['id' => 'amount', 'class' => 'form-control', 'required' , 'readonly']) !!}
 </div>
 <div class="form-group col-sm-6">
     {!! Form::label('billing_month', 'Billing Month:', ['class' => 'required']) !!}
@@ -29,35 +29,24 @@
     {!! Form::label('detail', 'Detail:', ['class' => 'required']) !!}
     {!! Form::textarea('detail', $visaExpenses->detail ?? '', ['class' => 'form-control', 'maxlength' => 500,'rows'=>3, 'required']) !!}
 </div>
-
+@push('scripts')
 <script>
     $(document).ready(function() {
-        // Function to update amount based on selected visa status
-        function updateAmountFromVisaStatus() {
-            var selectedOption = $('#visa_status option:selected');
-            var defaultFee = selectedOption.data('fee');
 
-            console.log('Selected Option:', selectedOption);
-            console.log('Default Fee (data-fee):', defaultFee);
-            console.log('Default Fee (type):', typeof defaultFee);
-
-            // Ensure defaultFee is a valid number
-            if (defaultFee !== undefined && !isNaN(parseFloat(defaultFee))) {
-                var parsedFee = parseFloat(defaultFee).toFixed(2);
-                console.log('Parsed Fee:', parsedFee);
-                $('#amount').val(parsedFee);
-                console.log('Amount Field Value:', $('#amount').val());
-            } else {
-                console.warn('Invalid default fee:', defaultFee);
-            }
+        function getVisaStatusFee() {
+            let fee = $('#visa_status option:selected').data('fee');
+            console.log(fee);
+            $('#amount').val(fee ? fee : '');
         }
 
-        // Trigger amount update on visa status change
-        $('#visa_status').on('change', updateAmountFromVisaStatus);
+        // bind change
+        $('#visa_status').on('change', function() {
+            getVisaStatusFee();
+        });
 
-        // Trigger on page load if a status is already selected
-        if ($('#visa_status').val()) {
-            updateAmountFromVisaStatus();
-        }
+        // initial load (edit case)
+        getVisaStatusFee();
     });
 </script>
+
+@endpush

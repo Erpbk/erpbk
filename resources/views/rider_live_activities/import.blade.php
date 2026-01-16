@@ -12,10 +12,7 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
   method="POST"
   enctype="multipart/form-data"
   id="live-activities-import-form"
-  data-errors-route="{{ $errorsRoute }}"
-  data-success-message="{{ $successMessage }}"
-  data-summary='@json($importSummary)'
-  data-validation-errors='@json($validationErrors)'>
+  data-no-ajax="true">
   @csrf
   <div class="row">
     <div class="col-12">
@@ -46,7 +43,36 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
+    const formElement = document.getElementById('live-activities-import-form');
     const errorsRoute = '{{ $errorsRoute }}';
+
+    // Prevent AJAX submission and toastr messages for this form
+    if (formElement) {
+      // Unbind any existing AJAX handlers that might intercept this form
+      $(formElement).off('submit');
+
+      // Ensure form does normal POST submission (not AJAX)
+      $(formElement).on('submit', function(e) {
+        // Allow normal form submission - don't prevent default
+        return true;
+      });
+
+      // Suppress toastr messages on this page
+      if (window.toastr && window.toastr.success) {
+        const originalSuccess = window.toastr.success;
+        window.toastr.success = function(message, title, options) {
+          // Don't show toastr for "Action performed successfully" or any success messages on import page
+          if (message && (
+              message.includes('Action performed successfully') ||
+              message.includes('Import') ||
+              message.includes('import')
+            )) {
+            return;
+          }
+          return originalSuccess.call(this, message, title, options);
+        };
+      }
+    }
 
     // Get messages from PHP session
     const successMessage = @json($successMessage ?? '');
@@ -115,12 +141,12 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
       });
     }
 
-    // Check for errors from import summary if exists (only if no error message from flash)
-    if (!errorMessage && summary && Array.isArray(summary.errors) && summary.errors.length) {
+    // Show errors from import summary if exists
+    if (summary && Array.isArray(summary.errors) && summary.errors.length) {
       const totalRows = summary.total_rows ?? 0;
-      const successCount = summary.success_count ?? 0;
-      const skippedCount = summary.skipped_count ?? 0;
-      const errorCount = summary.error_count ?? summary.errors.length;
+      const successCount = summary.success ?? summary.success_count ?? 0;
+      const skippedCount = summary.skipped ?? summary.skipped_count ?? 0;
+      const errorCount = summary.errors.length;
 
       let errorHtml = '<div style="text-align: left;">';
       errorHtml += '<div class="mb-3" style="background: #f8f9fa; padding: 15px; border-radius: 5px;">';
@@ -169,7 +195,7 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
       errorHtml += '<ol style="margin-bottom: 0; padding-left: 25px;">';
       errorHtml += '<li><strong>Open your Excel file</strong> and locate the row numbers shown above</li>';
       errorHtml += '<li><strong>Check Rider IDs:</strong> Make sure they exist in the Riders database</li>';
-      errorHtml += '<li><strong>Verify Dates:</strong> Use format YYYY-MM-DD. <strong>IMPORTANT:</strong> Only today\'s date will be processed. Other dates will be skipped.</li>';
+      errorHtml += '<li><strong>Verify Dates:</strong> Use format YYYY-MM-DD (e.g., 2024-01-15)</li>';
       errorHtml += '<li><strong>Fill Empty Fields:</strong> Ensure rider_id and date are not blank</li>';
       errorHtml += '<li><strong>Save and Re-import:</strong> After fixing, upload the file again</li>';
       errorHtml += '</ol>';
@@ -197,7 +223,7 @@ $errorsRoute = $errorsRoute ?? route('rider.live_activities_import_errors', ['ty
       });
     } else if (summary) {
       const totalRows = summary.total_rows ?? 0;
-      const successCount = summary.success_count ?? 0;
+      const successCount = summary.success ?? summary.success_count ?? 0;
 
       let successHtml = '<div style="text-align: center;">';
       successHtml += '<div class="mb-3" style="background: #d4edda; padding: 20px; border-radius: 5px; border: 2px solid #28a745;">';

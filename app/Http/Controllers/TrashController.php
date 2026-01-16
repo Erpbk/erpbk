@@ -24,6 +24,8 @@ use App\Models\DeletionCascade;
 use App\Traits\TracksCascadingDeletions;
 use Laracasts\Flash\Flash;
 use App\Models\RtaFines;
+use App\Models\Vouchers;
+use App\Models\Transactions;
 
 class TrashController extends Controller
 {
@@ -133,6 +135,18 @@ class TrashController extends Controller
             'name' => 'Salik Account',
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'name', 'account_code', 'account_type'],
+        ],
+        'vouchers' => [
+            'model' => Vouchers::class,
+            'name' => 'Vouchers',
+            'icon' => 'fa-file-invoice',
+            'display_columns' => ['id', 'trans_code', 'trans_date', 'billing_month', 'amount', 'status'],
+        ],
+        'transactions' => [
+            'model' => Transactions::class,
+            'name' => 'Transactions',
+            'icon' => 'fa-file-invoice',
+            'display_columns' => ['id', 'trans_code', 'trans_date', 'billing_month', 'amount', 'status'],
         ],
     ];
 

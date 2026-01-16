@@ -188,12 +188,18 @@ class SupplierController extends AppBaseController
     }
   }
 
-  public function destroy(Supplier $supplier)
+  public function destroy($id)
   {
+    $supplier = $this->suppliersRepository->find($id);
+
+    if (empty($supplier)) {
+      return response()->json(['errors' => ['error' => 'Supplier not found!']], 422);
+    }
+
     // Check if supplier has transactions - protect from deletion
-    if ($supplier->transactions()->count() > 0) {
-      Flash::error('Cannot delete supplier. Supplier has ' . $supplier->transactions()->count() . ' transaction(s). Please deactivate instead.');
-      return redirect(route('suppliers.index'));
+    $transactionCount = $supplier->transactions()->count();
+    if ($transactionCount > 0) {
+      return response()->json(['errors' => ['error' => 'Cannot delete supplier. Supplier has ' . $transactionCount . ' transaction(s). Please deactivate instead.']], 422);
     }
 
     // Check if supplier account has ledger entries before deletion
@@ -203,13 +209,14 @@ class SupplierController extends AppBaseController
         ->count();
 
       if ($ledgerEntriesCount > 0) {
-        Flash::error("Cannot delete supplier. The supplier account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.");
-        return redirect(route('suppliers.index'));
+        return response()->json(['errors' => ['error' => "Cannot delete supplier. The supplier account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first."]], 422);
       }
     }
 
     // Track cascaded deletions
     $cascadedItems = [];
+    $supplierId = $supplier->id;
+    $supplierName = $supplier->name;
 
     // Get account data BEFORE deleting (important!)
     $relatedAccount = $supplier->account;
@@ -230,14 +237,15 @@ class SupplierController extends AppBaseController
       // Log the cascade
       $this->trackCascadeDeletion(
         'App\Models\Supplier',
-        $supplier->id,
-        $supplier->name,
+        $supplierId,
+        $supplierName,
         'App\Models\Accounts',
         $relatedAccount->id,
         $relatedAccount->name,
         'hasOne',
         'account',
-        'soft'
+        'soft',
+        'Cascade deletion from Supplier deletion'
       );
     }
 
@@ -252,14 +260,9 @@ class SupplierController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
-    // Return JSON response for AJAX calls or Flash + redirect for regular requests
-    if (request()->expectsJson() || request()->ajax()) {
-      Flash::success('Supplier moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=suppliers" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
-      return redirect(route('suppliers.index'));
-    }
-
-    Flash::success('Supplier moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=suppliers" class="alert-link">View Recycle Bin</a> to restore if needed.');
-    return redirect(route('suppliers.index'));
+    return response()->json([
+      'message' => 'Supplier moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=suppliers" class="alert-link">View Recycle Bin</a> to restore if needed.'
+    ]);
   }
 
   public function ledger($id, LedgerDataTable $ledgerDataTable)

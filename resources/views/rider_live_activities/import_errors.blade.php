@@ -39,7 +39,7 @@
                         <div class="col-md-3">
                             <div class="card bg-success text-white">
                                 <div class="card-body text-center">
-                                    <h2 class="mb-0">{{ $summary['success_count'] ?? 0 }}</h2>
+                                    <h2 class="mb-0">{{ $summary['success'] ?? $summary['success_count'] ?? 0 }}</h2>
                                     <p class="mb-0">Imported Successfully</p>
                                 </div>
                             </div>
@@ -47,7 +47,7 @@
                         <div class="col-md-3">
                             <div class="card bg-warning text-white">
                                 <div class="card-body text-center">
-                                    <h2 class="mb-0">{{ $summary['skipped_count'] ?? 0 }}</h2>
+                                    <h2 class="mb-0">{{ $summary['skipped'] ?? $summary['skipped_count'] ?? 0 }}</h2>
                                     <p class="mb-0">Skipped</p>
                                 </div>
                             </div>
@@ -55,7 +55,7 @@
                         <div class="col-md-3">
                             <div class="card bg-danger text-white">
                                 <div class="card-body text-center">
-                                    <h2 class="mb-0">{{ $summary['error_count'] ?? 0 }}</h2>
+                                    <h2 class="mb-0">{{ $summary['error_count'] ?? count($errors) }}</h2>
                                     <p class="mb-0">Errors</p>
                                 </div>
                             </div>

@@ -55,4 +55,14 @@ class LeasingCompanies extends Model
   {
     return $this->hasMany(Transactions::class, 'account_id', 'account_id');
   }
+
+  function bikes()
+  {
+    return $this->hasMany(Bikes::class, 'company', 'id');
+  }
+
+  function vouchers()
+  {
+    return $this->hasMany(Vouchers::class, 'lease_company', 'id');
+  }
 }

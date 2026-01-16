@@ -565,7 +565,9 @@ class RiderActivitiesController extends AppBaseController
             ]);
         }
 
-        return view('rider_live_activities.index', compact('data', 'riders', 'fleetSupervisors', 'payoutTypes', 'totals'));
+        $importSummary = session('activities_import_summary');
+
+        return view('rider_live_activities.index', compact('data', 'riders', 'fleetSupervisors', 'payoutTypes', 'totals', 'importSummary'));
     }
     public function liveimportactivities(Request $request)
     {
@@ -591,7 +593,7 @@ class RiderActivitiesController extends AppBaseController
                     ? implode(' | ', $errors['file'])
                     : ($errors['file'][0] ?? 'Import validation failed');
                 session()->flash('error', 'Import failed: ' . $errorMessage);
-                return redirect()->route('rider.live_activities_import');
+                return redirect()->route('rider.liveactivities');
             } catch (\Throwable $th) {
                 // Error popup (includes other system errors)
                 // Also check session for any errors that might have been recorded
@@ -608,14 +610,13 @@ class RiderActivitiesController extends AppBaseController
                 } else {
                     session()->flash('error', 'Import failed: ' . $th->getMessage());
                 }
-                return redirect()->route('rider.live_activities_import');
+                return redirect()->route('rider.liveactivities');
             }
 
             // Always check session summary for errors after import completes
             $summary = session('activities_import_summary', []);
-            $currentDate = $summary['current_date'] ?? date('Y-m-d');
             $errors = $summary['errors'] ?? [];
-            $successCount = $summary['success_count'] ?? 0;
+            $successCount = $summary['success'] ?? 0;
 
             // Never show success if there are errors OR if no records were successfully imported
             if (!empty($errors)) {
@@ -627,22 +628,17 @@ class RiderActivitiesController extends AppBaseController
                 }
                 session()->flash('error', 'Import failed: ' . implode(' | ', $errorMessages));
             } elseif ($successCount == 0) {
-                session()->flash('error', 'Import failed: No records were imported.');
+                session()->flash('error', 'Import failed: No records were imported. Please check that your file contains valid data with matching Rider IDs.');
             } else {
-                // Success popup with date information only if no errors and records were imported
-                $message = "Live activities imported successfully for {$currentDate}. ";
-                if (isset($summary['success_count'])) {
-                    $message .= "Imported: {$summary['success_count']} records.";
-                }
-                session()->flash('success', $message);
+                // Success popup only if no errors and records were imported
+                session()->flash('success', "Live activities imported successfully. {$successCount} record(s) saved.");
             }
 
-            return redirect()->route('rider.live_activities_import');
+            return redirect()->route('rider.liveactivities');
         }
 
         $summary = session('activities_import_summary');
-        $currentDate = $summary['current_date'] ?? date('Y-m-d');
 
-        return view('rider_live_activities.import', compact('summary', 'currentDate'));
+        return view('rider_live_activities.import', compact('summary'));
     }
 }

@@ -257,7 +257,7 @@ class VisaexpenseController extends AppBaseController
                 'paginationLinks' => $paginationLinks,
             ]);
         }
-        $visaStatuses = VisaStatus::getActive();
+        $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
 
         return view('visa_expenses.index', [
             'data' => $data,
@@ -271,7 +271,7 @@ class VisaexpenseController extends AppBaseController
     public function create($id)
     {
         $data = Accounts::where('id', $id)->first();
-        $visaStatuses = VisaStatus::getActive();
+        $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
         return view('visa_expenses.create', compact('data', 'visaStatuses'));
     }
 
@@ -1649,7 +1649,7 @@ class VisaexpenseController extends AppBaseController
 
             return redirect(route('visaExpenses.index'));
         }
-        $visaStatuses = VisaStatus::getActive();
+        $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
         return view('visa_expenses.edit', compact('data', 'visaExpenses', 'visaStatuses'));
     }
 
@@ -2319,6 +2319,34 @@ class VisaexpenseController extends AppBaseController
             DB::rollBack();
             Flash::error('Error recalculating installments: ' . $e->getMessage());
             return redirect()->back();
+        }
+    }
+    public function getVisaStatusFee(Request $request)
+    {
+        $request->validate([
+            'visa_status' => 'required|string'
+        ]);
+        try {
+            $visaStatus = VisaStatus::where('name', $request->visa_status)->where('is_active', 1)->first();
+
+            if ($visaStatus) {
+                return response()->json([
+                    'success' => true,
+                    'amount' => $visaStatus->default_fee ?? 0
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Visa status not found',
+                'amount' => 0
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching visa status fee: ' . $e->getMessage(),
+                'amount' => 0
+            ], 500);
         }
     }
 }

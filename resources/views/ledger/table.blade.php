@@ -9,12 +9,6 @@
             <th title="Debit" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Debit: activate to sort column ascending">Debit</th>
             <th title="Credit" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Credit: activate to sort column ascending">Credit</th>
             <th title="Balance" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Balance: activate to sort column ascending">Balance</th>
-            <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-                <a class="openFilterSidebar" href="javascript:void(0);" title="Filters"> <i class="fa fa-search"></i></a>
-            </th>
-            <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-                <a class="openColumnControlSidebar" href="javascript:void(0);" title="Column Control"> <i class="fa fa-columns"></i></a>
-            </th>
         </tr>
     </thead>
     <tbody>
@@ -29,8 +23,6 @@
             <td class="text-end">{!! $entry->debit ?? '' !!}</td>
             <td class="text-end">{!! $entry->credit ?? '' !!}</td>
             <td class="text-end">{!! $entry->balance ?? '' !!}</td>
-            <td></td>
-            <td></td>
         </tr>
         @endforeach
         @else

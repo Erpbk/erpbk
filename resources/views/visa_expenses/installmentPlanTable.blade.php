@@ -159,20 +159,42 @@
     let IS_FINALIZING = false;
 
     function markAsPaid(installmentId) {
-        if (confirm('Are you sure you want to mark this installment as paid?')) {
-            submitForm('{{ route("VisaExpense.payInstallment") }}', {
-                'installment_id': installmentId
-            });
-        }
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'Are you sure you want to mark this installment as paid?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, mark as paid',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#6c757d'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                submitForm('{{ route("VisaExpense.payInstallment") }}', {
+                    'installment_id': installmentId
+                });
+            }
+        });
     }
 
     function markAsPending(installmentId) {
-        if (confirm('Are you sure you want to mark this installment as pending?')) {
-            submitForm('{{ route("VisaExpense.payInstallment") }}', {
-                'installment_id': installmentId,
-                'status': 'pending'
-            });
-        }
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'Are you sure you want to mark this installment as pending?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, mark as pending',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#6c757d'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                submitForm('{{ route("VisaExpense.payInstallment") }}', {
+                    'installment_id': installmentId,
+                    'status': 'pending'
+                });
+            }
+        });
     }
 
     // Edit functions - show input field
@@ -212,7 +234,13 @@
                 today.setHours(0, 0, 0, 0);
 
                 if (selectedDate < today) {
-                    alert('You cannot select a date in the past for pending installments.');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Invalid Date',
+                        text: 'You cannot select a date in the past for pending installments.',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#dc3545'
+                    });
                     dateInput.value = originalValue;
                     return;
                 }
@@ -235,20 +263,34 @@
                 // Mark row as modified
                 row.classList.add('bg-warning-subtle');
                 row.setAttribute('data-modified', '1');
-                showFinalizeBannerAttention();
-                updateFinalizeBannerVisibility();
                 return;
             } else {
                 // For pending installments, confirm and submit directly
-                if (confirm('Are you sure you want to update the date? This will also update subsequent installments, voucher and transactions.')) {
-                    submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
-                        'installment_id': installmentId,
-                        'field': 'date',
-                        'value': newValue,
-                        'update_subsequent': true
-                    });
-                    return;
-                }
+                Swal.fire({
+                    title: 'Update Date?',
+                    text: 'Are you sure you want to update the date? This will also update subsequent installments, voucher and transactions.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, update it',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#6c757d'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
+                            'installment_id': installmentId,
+                            'field': 'date',
+                            'value': newValue,
+                            'update_subsequent': true
+                        });
+                    } else {
+                        // User cancelled, revert to original value
+                        dateInput.value = originalValue;
+                        dateInput.classList.add('d-none');
+                        dateDisplay.classList.remove('d-none');
+                    }
+                });
+                return;
             }
         }
 
@@ -273,7 +315,13 @@
                 const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
                 if (selectedDate < currentMonth) {
-                    alert('You cannot select a billing month in the past for pending installments.');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Invalid Billing Month',
+                        text: 'You cannot select a billing month in the past for pending installments.',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#dc3545'
+                    });
                     billingInput.value = originalValue;
                     return;
                 }
@@ -296,20 +344,34 @@
                 // Mark row as modified
                 row.classList.add('bg-warning-subtle');
                 row.setAttribute('data-modified', '1');
-                showFinalizeBannerAttention();
-                updateFinalizeBannerVisibility();
                 return;
             } else {
                 // For pending installments, confirm and submit directly
-                if (confirm('Are you sure you want to update the billing month? This will also update subsequent installments, voucher and transactions.')) {
-                    submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
-                        'installment_id': installmentId,
-                        'field': 'billing_month',
-                        'value': newValue,
-                        'update_subsequent': true
-                    });
-                    return;
-                }
+                Swal.fire({
+                    title: 'Update Billing Month?',
+                    text: 'Are you sure you want to update the billing month? This will also update subsequent installments, voucher and transactions.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, update it',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#6c757d'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
+                            'installment_id': installmentId,
+                            'field': 'billing_month',
+                            'value': newValue,
+                            'update_subsequent': true
+                        });
+                    } else {
+                        // User cancelled, revert to original value
+                        billingInput.value = originalValue;
+                        billingInput.classList.add('d-none');
+                        billingDisplay.classList.remove('d-none');
+                    }
+                });
+                return;
             }
         }
 
@@ -328,43 +390,54 @@
 
         // Validate amount is positive
         if (!newValue || parseFloat(newValue) <= 0) {
-            alert('Amount must be greater than 0.');
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Amount',
+                text: 'Amount must be greater than 0.',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#dc3545'
+            });
             amountInput.value = originalValue;
             validateAmountInput(amountInput);
-        } else {
-            // Update display immediately for all installments (paid or pending)
-            amountDisplay.textContent = formatCurrency(parseFloat(newValue));
+            // Hide input, show display
+            amountInput.classList.add('d-none');
+            amountDisplay.classList.remove('d-none');
+            return;
+        }
 
-            // Track change if different from original; else remove from tracking
-            if (newValue !== originalValue) {
-                INSTALLMENT_AMOUNT_CHANGES[installmentId] = parseFloat(newValue);
-                amountInput.setAttribute('data-changed', '1');
-
-                // For paid installments, mark the row to indicate it needs finalization
-                if (isPaid) {
-                    row.classList.add('bg-warning-subtle');
-                    row.setAttribute('data-modified', '1');
-                    showFinalizeBannerAttention();
+        // If value changed, save to database
+        if (newValue !== originalValue) {
+            // Confirm before updating
+            Swal.fire({
+                title: 'Update Amount?',
+                text: 'Are you sure you want to update the amount? This will also update related vouchers and transactions.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, update it',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#6c757d'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
+                        'installment_id': installmentId,
+                        'field': 'amount',
+                        'value': newValue,
+                        'update_subsequent': false
+                    });
+                } else {
+                    // User cancelled, revert to original value
+                    amountInput.value = originalValue;
+                    amountInput.classList.add('d-none');
+                    amountDisplay.classList.remove('d-none');
                 }
-            } else {
-                delete INSTALLMENT_AMOUNT_CHANGES[installmentId];
-                amountInput.removeAttribute('data-changed');
-
-                // Remove highlight if reverting to original value
-                if (isPaid) {
-                    row.classList.remove('bg-warning-subtle');
-                    row.removeAttribute('data-modified');
-                }
-            }
+            });
+            return;
         }
 
         // Hide input, show display
         amountInput.classList.add('d-none');
         amountDisplay.classList.remove('d-none');
-
-        // Update indicators
-        updateInstallmentDifferenceBadge();
-        updateFinalizeBannerVisibility();
     }
 
     function submitForm(action, data) {
@@ -399,7 +472,13 @@
             const match = url && url.match(/deleteInstallment\/(\d+)/);
             const installmentId = match && match[1] ? match[1] : null;
             if (!installmentId) {
-                alert('Unable to detect installment to delete.');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Unable to detect installment to delete.',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#dc3545'
+                });
                 return false;
             }
 
@@ -418,14 +497,8 @@
                 row.style.opacity = '0.6';
             }
 
-            alert('First finalize the payment, otherwise it will not redirect to any module.');
-            updateInstallmentDifferenceBadge();
-            updateFinalizeBannerVisibility();
-            showFinalizeBannerAttention();
             return false;
         } catch (e) {
-            alert('First finalize the payment, otherwise it will not redirect to any module.');
-            showFinalizeBannerAttention();
             return false;
         }
     }
@@ -460,13 +533,8 @@
             // Add event listener for amount validation
             input.addEventListener('input', function() {
                 validateAmountInput(this);
-                updateInstallmentDifferenceBadge();
             });
         });
-
-        // Initial badge state on load
-        updateInstallmentDifferenceBadge();
-        updateFinalizeBannerVisibility();
     });
 
     // Client-side validation functions
@@ -520,176 +588,8 @@
             input.style.backgroundColor = '#d4edda';
             input.title = '';
         }
-
-        // Live tracking while typing (do not submit)
-        const originalVal = input.getAttribute('data-original');
-        const installmentId = input.id.replace('amount_input_', '');
-        if (!isNaN(amount) && amount > 0 && originalVal !== null) {
-            if (parseFloat(originalVal) !== amount) {
-                INSTALLMENT_AMOUNT_CHANGES[installmentId] = amount;
-                input.setAttribute('data-changed', '1');
-            } else {
-                delete INSTALLMENT_AMOUNT_CHANGES[installmentId];
-                input.removeAttribute('data-changed');
-            }
-        }
-
-        updateFinalizeBannerVisibility();
     }
 
-    // Difference badge logic
-    const MAIN_TOTAL_AMOUNT = parseFloat('{{ $data->first()->total_amount ?? 0 }}');
-    const PAID_TOTAL_AMOUNT = parseFloat('{{ $paidTotal ?? 0 }}');
-    const PENDING_TOTAL_ALL = parseFloat('{{ $pendingTotalAll ?? 0 }}');
-
-    function getPendingInstallmentsSumFromInputs() {
-        let sum = 0;
-        const pendingRows = document.querySelectorAll('tr[data-status="pending"]');
-        pendingRows.forEach(row => {
-            if (row.getAttribute('data-deleted') === '1') return;
-            const amountInput = row.querySelector('[id^="amount_input_"]');
-            if (amountInput) {
-                const val = parseFloat(amountInput.value);
-                if (!isNaN(val)) {
-                    sum += val;
-                }
-            }
-        });
-        return sum;
-    }
-
-    function getVisiblePendingDelta() {
-        let delta = 0;
-
-        // Process pending rows
-        const pendingRows = document.querySelectorAll('tr[data-status="pending"]');
-        pendingRows.forEach(row => {
-            if (row.getAttribute('data-deleted') === '1') return;
-            const amountInput = row.querySelector('[id^="amount_input_"]');
-            if (amountInput) {
-                const currentVal = parseFloat(amountInput.value);
-                const originalVal = parseFloat(amountInput.getAttribute('data-original'));
-                const safeCurrent = isNaN(currentVal) ? 0 : currentVal;
-                const safeOriginal = isNaN(originalVal) ? 0 : originalVal;
-                delta += (safeCurrent - safeOriginal);
-            }
-        });
-
-        // include paid rows that have been modified
-        const paidRows = document.querySelectorAll('tr[data-status="paid"][data-modified="1"]');
-        paidRows.forEach(row => {
-            const amountInput = row.querySelector('[id^="amount_input_"]');
-            if (amountInput) {
-                const currentVal = parseFloat(amountInput.value);
-                const originalVal = parseFloat(amountInput.getAttribute('data-original'));
-                const safeCurrent = isNaN(currentVal) ? 0 : currentVal;
-                const safeOriginal = isNaN(originalVal) ? 0 : originalVal;
-                // For paid rows, we need to add the difference to the pending total
-                delta += (safeCurrent - safeOriginal);
-            }
-        });
-
-        // include deletions delta (subtract original amounts)
-        for (const [id, originalAmount] of Object.entries(INSTALLMENT_DELETIONS)) {
-            const orig = parseFloat(originalAmount);
-            if (!isNaN(orig)) delta += -orig;
-        }
-        // include additions delta (add new amounts)
-        if (Array.isArray(INSTALLMENT_ADDITIONS) && INSTALLMENT_ADDITIONS.length > 0) {
-            for (const add of INSTALLMENT_ADDITIONS) {
-                const val = parseFloat(add.amount);
-                if (!isNaN(val)) delta += val;
-            }
-        }
-        return delta;
-    }
-
-    function updateInstallmentDifferenceBadge() {
-        const badge = document.getElementById('installment-diff-badge');
-        if (!badge) return;
-
-        // Start with server-side sum of all pending installments (across pages)
-        // Then adjust by delta from any visible edits not yet saved
-        const pendingLive = PENDING_TOTAL_ALL + getVisiblePendingDelta();
-        const combined = PAID_TOTAL_AMOUNT + pendingLive;
-        const diff = Math.abs(MAIN_TOTAL_AMOUNT - combined);
-        if (diff > 0.009) {
-            badge.classList.remove('d-none');
-        } else {
-            badge.classList.add('d-none');
-        }
-
-        // Update the bottom "Current" total in real-time
-        const currentEl = document.getElementById('current-total-amount');
-        if (currentEl) {
-            const visibleCurrentSum = getPendingInstallmentsSumFromInputs();
-            const additionsSum = Array.isArray(INSTALLMENT_ADDITIONS) ? INSTALLMENT_ADDITIONS.reduce((s, a) => s + (parseFloat(a.amount) || 0), 0) : 0;
-            const deletionsSum = Object.values(INSTALLMENT_DELETIONS).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-            currentEl.textContent = formatCurrency(visibleCurrentSum + additionsSum - deletionsSum);
-        }
-    }
-
-    function computeAmountsDiff() {
-        const pendingLive = PENDING_TOTAL_ALL + getVisiblePendingDelta();
-        const combined = PAID_TOTAL_AMOUNT + pendingLive;
-        return Math.abs(MAIN_TOTAL_AMOUNT - combined);
-    }
-
-    function isTotalValid() {
-        return computeAmountsDiff() <= 0.009;
-    }
-
-    function hasUnsavedChanges() {
-        return Object.keys(INSTALLMENT_AMOUNT_CHANGES).length > 0 ||
-            Object.keys(INSTALLMENT_DELETIONS).length > 0 ||
-            (Array.isArray(INSTALLMENT_ADDITIONS) && INSTALLMENT_ADDITIONS.length > 0) ||
-            (window.DATE_CHANGES && Object.keys(window.DATE_CHANGES).length > 0) ||
-            (window.BILLING_CHANGES && Object.keys(window.BILLING_CHANGES).length > 0);
-    }
-
-    function updateFinalizeBannerVisibility() {
-        const banner = document.getElementById('finalize-payment-banner');
-        const btn = document.getElementById('finalize-payment-btn');
-        const warn = document.getElementById('finalize-payment-warn');
-        if (!banner) return;
-        if (hasUnsavedChanges()) {
-            banner.classList.remove('d-none');
-            if (btn) {
-                const valid = isTotalValid();
-                btn.disabled = !valid;
-                btn.classList.toggle('btn-secondary', !valid);
-                btn.classList.toggle('btn-primary', valid);
-                btn.title = valid ? '' : 'Totals mismatch. Adjust amounts to match the required total.';
-            }
-            if (warn) {
-                warn.classList.toggle('d-none', isTotalValid());
-            }
-        } else {
-            banner.classList.add('d-none');
-            if (btn) btn.disabled = true;
-        }
-    }
-
-    function finalizePayment() {
-        if (!hasUnsavedChanges()) {
-            alert('No changes to finalize.');
-            return;
-        }
-        if (!isTotalValid()) {
-            alert('Totals mismatch. Adjust amounts to exactly match the required total before finalizing.');
-            return;
-        }
-        // Build payload of changes + deletions + additions + date changes + billing changes
-        const payload = {
-            changes: JSON.stringify(INSTALLMENT_AMOUNT_CHANGES),
-            deletions: JSON.stringify(Object.keys(INSTALLMENT_DELETIONS)),
-            additions: JSON.stringify(INSTALLMENT_ADDITIONS),
-            date_changes: JSON.stringify(window.DATE_CHANGES || {}),
-            billing_changes: JSON.stringify(window.BILLING_CHANGES || {})
-        };
-        IS_FINALIZING = true;
-        submitForm('{{ route("VisaExpense.finalizePayment") }}', payload);
-    }
 
     // Format currency (2 decimals, thousands separator)
     function formatCurrency(val) {
@@ -703,55 +603,18 @@
         }
     }
 
-    // Prevent leaving the module with unsaved changes
-    window.addEventListener('beforeunload', function(e) {
-        if ((hasUnsavedChanges() || !isTotalValid()) && !IS_FINALIZING) {
-            e.preventDefault();
-            e.returnValue = 'First finalize the payment.';
-            return 'First finalize the payment.';
-        }
-    });
-
-    // Intercept in-page link clicks and form submissions
-    document.addEventListener('click', function(e) {
-        if (IS_FINALIZING) return;
-        if (!hasUnsavedChanges() && isTotalValid()) return;
-        const link = e.target.closest('a');
-        if (link && link.getAttribute('href') && !link.getAttribute('href').startsWith('javascript')) {
-            e.preventDefault();
-            alert('First finalize the payment, otherwise it will not redirect to any module.');
-        }
-    });
-
-    document.addEventListener('submit', function(e) {
-        if (IS_FINALIZING) return;
-        if (!hasUnsavedChanges() && isTotalValid()) return;
-        e.preventDefault();
-        alert('First finalize the payment, otherwise it will not redirect to any module.');
-    }, true);
-
-    // Helper: draw a temporary attention border on the finalize banner
-    function showFinalizeBannerAttention() {
-        const banner = document.getElementById('finalize-payment-banner');
-        if (!banner) return;
-        banner.classList.remove('d-none');
-        try {
-            banner.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
-            });
-        } catch (e) {}
-        banner.classList.add('border', 'border-danger');
-        setTimeout(() => {
-            banner.classList.remove('border', 'border-danger');
-        }, 2000);
-    }
 
     // Public API to add a new installment (client-side only; requires finalize)
     function addNewInstallment(billingMonth, date, amount) {
         const val = parseFloat(amount);
         if (isNaN(val) || val <= 0) {
-            alert('Invalid amount for new installment.');
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Amount',
+                text: 'Invalid amount for new installment.',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#dc3545'
+            });
             return;
         }
         INSTALLMENT_ADDITIONS.push({
@@ -759,33 +622,9 @@
             date: date,
             amount: val
         });
-        updateInstallmentDifferenceBadge();
-        updateFinalizeBannerVisibility();
-        showFinalizeBannerAttention();
     }
 </script>
 
-<div id="installment-diff-badge" class="badge bg-warning text-dark shadow d-none" style="position: fixed; bottom: 20px; right: 20px; z-index: 1060;">
-    Installment amounts have a difference
-    <span class="ms-2"><i class="fa fa-exclamation-triangle"></i></span>
-    <span class="ms-2 small">Pending sum must equal total</span>
-</div>
-
-<div id="finalize-payment-banner" class="alert alert-warning border-0 shadow d-none" style="position: fixed; bottom: 70px; right: 20px; z-index: 1060;">
-    <div class="d-flex align-items-center">
-        <div>
-            <strong>Unsaved changes:</strong> Amounts changed. First finalize the payment.
-        </div>
-        <button id="finalize-payment-btn" type="button" class="btn btn-sm btn-primary ms-3" onclick="finalizePayment()">
-            <i class="fa fa-save me-1"></i> Finalize Payment
-        </button>
-    </div>
-    <div id="finalize-payment-warn" class="text-danger small mt-1 d-none">Totals mismatch. Adjust amounts to match the required total.</div>
-    <div class="small text-muted mt-1">Leaving this page is blocked until you finalize.</div>
-
-
-
-</div>
 
 <div class="modal modal-default filtetmodal fade" id="customoizecolmn" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-slide-top modal-full-top">

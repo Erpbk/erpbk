@@ -641,6 +641,7 @@ $tableColumns = $columns;
 </div>
 @endsection
 @section('page-script')
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script type="text/javascript">
     function confirmDelete(url) {

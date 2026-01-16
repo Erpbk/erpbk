@@ -79,6 +79,114 @@
     will-change: auto !important;
   }
 
+  /* Action Dropdown Styles */
+  .action-buttons {
+    position: relative;
+  }
+
+  .action-dropdown-container {
+    position: relative;
+    display: inline-block;
+  }
+
+  .action-dropdown-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    min-width: 160px;
+    justify-content: space-between;
+  }
+
+  .action-dropdown-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  }
+
+  .action-dropdown-btn:active {
+    transform: translateY(0);
+  }
+
+  .action-dropdown-btn.open i.ti-chevron-down {
+    transform: rotate(180deg);
+  }
+
+  .action-dropdown-btn i {
+    transition: transform 0.3s ease;
+  }
+
+  .action-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    min-width: 280px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .action-dropdown-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .action-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    color: #333;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .action-dropdown-item:last-child {
+    border-bottom: none;
+  }
+
+  .action-dropdown-item:hover {
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+    color: #667eea;
+    text-decoration: none;
+  }
+
+  .action-dropdown-item i {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+    color: #667eea;
+  }
+
+  .action-dropdown-item-text {
+    font-weight: 500;
+    font-size: 14px;
+  }
+
+  .action-dropdown-item-desc {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+  }
+
   /* Print styles */
   @media print {
 
@@ -185,95 +293,116 @@
 @section('content')
 <div class="content-wrapper">
   <section class="content-header">
-    <div class="container-fluid">
-      <div class="row mb-2">
-        <div class="col-sm-6">
-          <h3>Ledger</h3>
-        </div>
-        <div class="col-sm-6">
-          <button type="button" class="btn btn-primary action-btn" id="printLedgerBtn" style="margin-right: 5px;">
-            <i class="fa fa-print"></i>&nbsp;Print
-          </button>
-          <a class="btn btn-info action-btn" href="{{ route('ledger.export', request()->all()) }}">
-            <i class="fa fa-file-excel"></i>&nbsp;Export to Excel
-          </a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <div class="content px-0">
-    <div class="clearfix"></div>
-
-    <!-- Filter Sidebar -->
-    <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
-      <div class="filter-header">
-        <h5>Filter Ledger</h5>
-        <button type="button" class="btn-close" id="closeSidebar">&times;</button>
-      </div>
-      <div class="filter-body" id="searchTopbody">
-        <form id="filterForm" action="{{ route('accounts.ledger') }}" method="GET">
-          <div class="row">
-            <div class="form-group col-md-12">
-              <label for="account">Account</label>
-              {!! Form::select('account', App\Models\Accounts::dropdown(null), request('account'), ['class' => 'form-control select2', 'id' => 'account']) !!}
-            </div>
-            <div class="form-group col-md-12">
-              <label for="month">Billing Month</label>
-              <input type="month" name="month" class="form-control" value="{{ request('month') }}">
-            </div>
-            <div class="form-group col-md-12">
-              <label for="quick_search">Quick Search</label>
-              <input type="text" name="quick_search" id="quickSearchSidebar" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
-            </div>
-            <div class="col-md-12 form-group text-center">
-              <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-              <a href="{{ route('accounts.ledger') }}" class="btn btn-secondary pull-right mt-3 mr-2"><i class="fa fa-refresh mx-2"></i> Clear Filters</a>
+    <div class="">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Ledger @if(isset($data)) ({{ $data->total() }} Records) @endif</h3>
+        <div class="action-buttons">
+          <div class="action-dropdown-container">
+            <button class="action-dropdown-btn" id="addRiderDropdownBtn">
+              <i class="ti ti-plus"></i>
+              <span>Ledger Actions</span>
+              <i class="ti ti-chevron-down"></i>
+            </button>
+            <div class="action-dropdown-menu" id="addRiderDropdown">
+              <a class="action-dropdown-item" href="{{ route('ledger.export', request()->all()) }}">
+                <i class="ti ti-file-export"></i>
+                <div>
+                  <div class="action-dropdown-item-text">Export Ledger</div>
+                  <div class="action-dropdown-item-desc">Export ledger data to Excel</div>
+                </div>
+              </a>
+              <a class="action-dropdown-item" href="javascript:void(0);" onclick="printLedgerTable()">
+                <i class="ti ti-printer"></i>
+                <div>
+                  <div class="action-dropdown-item-text">Print Ledger</div>
+                  <div class="action-dropdown-item-desc">Print ledger data</div>
+                </div>
+              </a>
+              <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
+                <i class="ti ti-columns"></i>
+                <div>
+                  <div class="action-dropdown-item-text">Column Control</div>
+                  <div class="action-dropdown-item-desc">Open column control modal</div>
+                </div>
+              </a>
             </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
-    <div class="filter-overlay" id="filterOverlay"></div>
+</div>
+</section>
 
-    {{-- Include Column Control Panel --}}
-    @php
-    $tableColumns = [
-    ['data' => 'date', 'title' => 'Date'],
-    ['data' => 'account_name', 'title' => 'Account'],
-    ['data' => 'billing_month', 'title' => 'Month'],
-    ['data' => 'voucher', 'title' => 'Voucher'],
-    ['data' => 'narration', 'title' => 'Narration'],
-    ['data' => 'debit', 'title' => 'Debit'],
-    ['data' => 'credit', 'title' => 'Credit'],
-    ['data' => 'balance', 'title' => 'Balance'],
-    ['data' => 'search', 'title' => 'Search'],
-    ['data' => 'control', 'title' => 'Control']
-    ];
-    @endphp
-    @include('components.column-control-panel', [
-    'tableColumns' => $tableColumns,
-    'tableIdentifier' => 'ledger_table'
-    ])
-    <!-- Column Control Overlay -->
-    <div class="filter-overlay" id="columnControlOverlay"></div>
+<div class="content px-0">
+  <div class="clearfix"></div>
 
-    <div class="card">
-      <div class="card-header d-flex justify-content-between">
-        <div class="card-title">
-          <h3>Ledger @if(isset($data)) ({{ $data->total() }} Records) @endif</h3>
+  <!-- Filter Sidebar -->
+  <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+    <div class="filter-header">
+      <h5>Filter Ledger</h5>
+      <button type="button" class="btn-close" id="closeSidebar">&times;</button>
+    </div>
+    <div class="filter-body" id="searchTopbody">
+      <form id="filterForm" action="{{ route('accounts.ledger') }}" method="GET">
+        <div class="row">
+          <div class="form-group col-md-12">
+            <label for="account">Account</label>
+            {!! Form::select('account', App\Models\Accounts::dropdown(null), request('account'), ['class' => 'form-control select2', 'id' => 'account']) !!}
+          </div>
+          <div class="form-group col-md-12">
+            <label for="month">Billing Month</label>
+            <input type="month" name="month" class="form-control" value="{{ request('month') }}">
+          </div>
+          <div class="form-group col-md-12">
+            <label for="quick_search">Quick Search</label>
+            <input type="text" name="quick_search" id="quickSearchSidebar" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
+          </div>
+          <div class="col-md-12 form-group text-center">
+            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+            <a href="{{ route('accounts.ledger') }}" class="btn btn-secondary pull-right mt-3 mr-2"><i class="fa fa-refresh mx-2"></i> Clear Filters</a>
+          </div>
         </div>
-        <div class="card-search">
-          <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
-        </div>
+      </form>
+    </div>
+  </div>
+  <div class="filter-overlay" id="filterOverlay"></div>
+
+  {{-- Include Column Control Panel --}}
+  @php
+  $tableColumns = [
+  ['data' => 'date', 'title' => 'Date'],
+  ['data' => 'account_name', 'title' => 'Account'],
+  ['data' => 'billing_month', 'title' => 'Month'],
+  ['data' => 'voucher', 'title' => 'Voucher'],
+  ['data' => 'narration', 'title' => 'Narration'],
+  ['data' => 'debit', 'title' => 'Debit'],
+  ['data' => 'credit', 'title' => 'Credit'],
+  ['data' => 'balance', 'title' => 'Balance'],
+  ['data' => 'search', 'title' => 'Search'],
+  ['data' => 'control', 'title' => 'Control']
+  ];
+  @endphp
+  @include('components.column-control-panel', [
+  'tableColumns' => $tableColumns,
+  'tableIdentifier' => 'ledger_table'
+  ])
+  <!-- Column Control Overlay -->
+  <div class="filter-overlay" id="columnControlOverlay"></div>
+  <div class="card">
+    <div class="card-header d-flex justify-content-between">
+      <div class="card-search">
+        <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
       </div>
-      <div class="card-body px-2 py-0" id="table-data">
-        @include('ledger.table', ['data' => $data ?? collect()])
+      <div class="card-search">
+        <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Ledger</button>
       </div>
+    </div>
+    <div class="card-body px-2 py-0" id="table-data">
+      @include('ledger.table', ['data' => $data ?? collect()])
     </div>
   </div>
 </div>
-
+</div>
 <!-- Loading Overlay -->
 <div id="loading-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
   <div class="text-white text-center">
@@ -340,6 +469,40 @@
 
       // Initialize dropdowns on page load
       initializeDropdowns();
+
+      // Action dropdown functionality
+      $(document).on('click', '#addRiderDropdownBtn', function(e) {
+        e.stopPropagation();
+        var dropdown = $('#addRiderDropdown');
+        var isOpen = dropdown.hasClass('show');
+
+        // Close all other dropdowns
+        $('.action-dropdown-menu').removeClass('show');
+        $('.action-dropdown-btn').removeClass('open');
+
+        // Toggle current dropdown
+        if (!isOpen) {
+          dropdown.addClass('show');
+          $(this).addClass('open');
+        } else {
+          dropdown.removeClass('show');
+          $(this).removeClass('open');
+        }
+      });
+
+      // Close dropdown when clicking outside
+      $(document).on('click', function(e) {
+        if (!$(e.target).closest('.action-dropdown-container').length) {
+          $('.action-dropdown-menu').removeClass('show');
+          $('.action-dropdown-btn').removeClass('open');
+        }
+      });
+
+      // Close dropdown when clicking on a dropdown item
+      $(document).on('click', '.action-dropdown-item', function() {
+        $('.action-dropdown-menu').removeClass('show');
+        $('.action-dropdown-btn').removeClass('open');
+      });
 
       // Initialize Select2 for filter dropdowns if available
       if (typeof $.fn.select2 !== 'undefined') {
@@ -453,8 +616,8 @@
       });
     }); // End $(document).ready
 
-    // Print Ledger Table Function (DataTables style)
-    function printLedgerTable() {
+    // Print Ledger Table Function (DataTables style) - Make it globally accessible
+    window.printLedgerTable = function() {
       // Get account and month info for title
       var accountSelect = $('#account');
       var accountText = accountSelect.find('option:selected').text();

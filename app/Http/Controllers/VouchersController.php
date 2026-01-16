@@ -20,6 +20,7 @@ use App\Services\TransactionService;
 use App\Services\VoucherService;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
 use Flash;
 use Maatwebsite\Excel\Facades\Excel;
 use Response;
@@ -29,7 +30,7 @@ use Carbon\Carbon;
 
 class VouchersController extends Controller
 {
-  use GlobalPagination;
+  use GlobalPagination, TracksCascadingDeletions;
   /**
    * Display a listing of the Vouchers.
    *
@@ -444,26 +445,92 @@ class VouchersController extends Controller
     /** @var Vouchers $vouchers */
     DB::beginTransaction();
     try {
-      // Get voucher details before deletion for ledger recalculation
-      $voucher = Vouchers::where('trans_code', $id)->first();
+      // Get all vouchers with this trans_code before deletion for cascade tracking
+      $vouchers = Vouchers::where('trans_code', $id)->get();
 
-      if (!$voucher) {
+      if ($vouchers->isEmpty()) {
         return response()->json(['errors' => ['error' => 'Voucher not found.']], 404);
       }
 
+      // Use the first voucher for reference data
+      $voucher = $vouchers->first();
       $billingMonth = $voucher->billing_month;
 
+      // Get all related transactions before deletion for cascade tracking
+      $relatedTransactions = Transactions::where('trans_code', $id)->get();
+
       // Get all accounts involved in this voucher's transactions
-      $affectedAccounts = Transactions::where('trans_code', $id)
-        ->pluck('account_id')
-        ->unique();
+      $affectedAccounts = $relatedTransactions->pluck('account_id')->unique();
 
-      // Delete vouchers with trans_code filter
+      // Create voucher identifier for cascade tracking
+      $voucherIdentifier = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
+
+      // Soft delete and track each transaction
+      foreach ($relatedTransactions as $transaction) {
+        try {
+          // Track cascade deletion before deleting
+          $this->trackCascadeDeletion(
+            Vouchers::class,
+            $voucher->id,
+            $voucherIdentifier,
+            Transactions::class,
+            $transaction->id,
+            "Transaction #{$transaction->id} - {$transaction->narration} (Trans Code: {$transaction->trans_code})",
+            'hasMany',
+            'transactions',
+            'soft',
+            'Cascade deletion from Voucher deletion'
+          );
+
+          // Update deleted_by if field exists
+          if (in_array('deleted_by', $transaction->getFillable())) {
+            $transaction->deleted_by = auth()->id();
+            $transaction->save();
+          }
+
+          // Soft delete the transaction
+          $transaction->delete();
+        } catch (\Exception $e) {
+          \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+          // Continue with deletion even if tracking fails
+          $transaction->delete();
+        }
+      }
+
+      // Update deleted_by if field exists for all vouchers with this trans_code
+      if (in_array('deleted_by', $voucher->getFillable())) {
+        Vouchers::where('trans_code', $id)->update(['deleted_by' => auth()->id()]);
+      }
+
+      // Track each voucher deletion in cascade table before soft deleting
+      $user = auth()->user();
+      $userName = $user ? ($user->name ?? 'User #' . $user->id) : 'System';
+
+      foreach ($vouchers as $voucherToDelete) {
+        try {
+          $voucherIdentifier = $voucherToDelete->voucher_type . '-' . str_pad($voucherToDelete->id, 4, '0', STR_PAD_LEFT);
+
+          $this->trackCascadeDeletion(
+            User::class,
+            auth()->id(),
+            $userName,
+            Vouchers::class,
+            $voucherToDelete->id,
+            $voucherIdentifier,
+            'hasMany',
+            'vouchers',
+            'soft',
+            'User-initiated voucher deletion'
+          );
+          \Log::info("Voucher deletion tracked in cascade table for voucher ID: {$voucherToDelete->id}");
+        } catch (\Exception $e) {
+          \Log::error("Failed to track voucher deletion in cascade table for voucher ID: {$voucherToDelete->id} - " . $e->getMessage());
+          // Continue with deletion even if tracking fails
+        }
+      }
+
+      // Soft delete vouchers with trans_code filter
       Vouchers::where('trans_code', $id)->delete();
-
-      // Delete transactions using the service (already filters by trans_code)
-      $transactions = new TransactionService();
-      $transactions->deleteTransaction($id);
 
       // ✅ FIX: Recalculate ledger for all affected accounts
       foreach ($affectedAccounts as $accountId) {

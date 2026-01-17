@@ -47,7 +47,7 @@
 @can('leads_view')
 <li class="menu-item {{ Request::is('riderleads*') ? 'active' : '' }}">
   <a href="{{ route('riderleads.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-device-sim"></i>
+    <i class="menu-icon tf-icons ti ti-user-plus"></i>
     <div>Leads</div>
   </a>
 </li>
@@ -146,6 +146,16 @@
   </a>
 </li>
 @endcan
+
+@can('sim_view')
+<li class="menu-item {{ Request::is('fuelCards*') ? 'active' : '' }}">
+  <a href="{{ route('fuelCards.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-gas-station"></i>
+    <div>Fuel Cards</div>
+  </a>
+</li>
+@endcan
+
 @can('rtafine_view')
 <li class="menu-item {{ Request::is('rtaFines*') ? 'active' : '' }}">
   <a href="{{ route('rtaFines.index') }}" class="menu-link">
@@ -166,7 +176,7 @@
 @can('inventory_view')
 <li class="menu-item ">
   <a href="#" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-device-sim"></i>
+    <i class="menu-icon tf-icons ti ti-package"></i>
     <div>Inventory</div>
   </a>
 </li>
@@ -174,7 +184,7 @@
 @can('visaexpense_view')
 <li class="menu-item {{ Request::is('VisaExpense*') ? 'active' : '' }}">
   <a href="{{ route('VisaExpense.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-device-sim"></i>
+    <i class="menu-icon tf-icons ti ti-credit-card"></i>
     <div>Visa Expense</div>
   </a>
 </li>
@@ -255,7 +265,7 @@
 @can('voucher_view')
 <li class="menu-item {{ Request::is('vouchers*') ? 'active' : '' }}">
   <a href="{{ route('vouchers.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-device-sim"></i>
+    <i class="menu-icon tf-icons ti ti-ticket"></i>
     <div>Vouchers</div>
   </a>
 </li>

@@ -143,7 +143,8 @@ $importErrorMessage = session('error');
     <div class="card-header d-flex justify-content-between">
       <h5 class="card-title mb-0"><b>Rider Live Activities</b> (Statistics)</h5>
       <small class="text-body-secondary">
-        <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="{{ route('rider.live_activities_import') }}"> <i class="ti ti-activity"></i> Import Live Activities</a>
+        <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Live Activities" data-action="{{ route('rider.live_activities_import') }}"> <i class="ti ti-activity"></i> Import Live Activities</a>
+        <a class="btn btn-info mx-2" href="{{ route('rider.live_activities_import_errors') }}" title="View Last Import Errors"> <i class="fa fa-exclamation-triangle"></i> View Import Errors</a>
         <a class="btn btn-primary openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
       </small>
     </div>
@@ -538,45 +539,7 @@ $importErrorMessage = session('error');
           messageShown = true;
         }
 
-        // 3. Show success if summary exists with no errors
-        if (!messageShown && summary && (!summary.errors || !Array.isArray(summary.errors) || summary.errors.length === 0) && typeof Swal !== 'undefined') {
-          const totalRows = summary.total_rows ?? 0;
-          const successCount = summary.success ?? summary.success_count ?? 0;
 
-          let successHtml = '<div style="text-align: center;">';
-          successHtml += '<div class="mb-3" style="background: #d4edda; padding: 20px; border-radius: 5px; border: 2px solid #28a745;">';
-          successHtml += '<h4 style="color: #155724; margin-bottom: 15px;">✅ All Records Imported Successfully!</h4>';
-          successHtml += '<div class="row">';
-          successHtml += `<div class="col-6"><strong style="font-size: 16px;">Total Rows:</strong><br><span style="color: #007bff; font-size: 24px; font-weight: bold;">${escapeHtml(totalRows)}</span></div>`;
-          successHtml += `<div class="col-6"><strong style="font-size: 16px;">Imported:</strong><br><span style="color: #28a745; font-size: 24px; font-weight: bold;">${escapeHtml(successCount)}</span></div>`;
-          successHtml += '</div>';
-          successHtml += '</div>';
-          successHtml += '</div>';
-
-          Swal.fire({
-            icon: 'success',
-            title: 'Import Successful',
-            html: successHtml,
-            confirmButtonText: 'Great!',
-            confirmButtonColor: '#28a745',
-            width: '500px'
-          });
-          messageShown = true;
-        }
-
-        // 4. Show simple success message if no summary but success message exists
-        if (!messageShown && successMessage && successMessage.trim() !== '' && typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'success',
-            title: '✅ Import Successful',
-            text: successMessage,
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#28a745',
-            timer: 3000,
-            timerProgressBar: true
-          });
-          messageShown = true;
-        }
       })();
     @endif
   });

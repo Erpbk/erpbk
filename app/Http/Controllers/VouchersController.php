@@ -268,6 +268,8 @@ class VouchersController extends Controller
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'VC') {
       $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'INC') {
+      $data = Transactions::where('trans_code', $id)->get();
     } else {
       $data = Transactions::where('trans_code', $id)->where('debit', '>', 0)->get();
     }
@@ -407,7 +409,7 @@ class VouchersController extends Controller
 
 
 
-    if (in_array($request->voucher_type, ['LV', 'AL', 'COD', 'PN', 'PAY', 'VC'])) {
+    if (in_array($request->voucher_type, ['LV', 'AL', 'COD', 'PN', 'PAY', 'VC', 'INC'])) {
       $result = $voucherService->DefaultVoucher($request, 'debit');
     }
     /*  if (in_array($request->voucher_type, [13])) {

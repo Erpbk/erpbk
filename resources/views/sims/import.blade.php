@@ -29,7 +29,7 @@
                                     <label for="file">Excel File</label>
                                     <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.csv,.xls" required>
                                     <small class="form-text text-muted">Upload Excel file with Sim data</small>
-                                    <a href="{{ asset('samples/sim_import_sample.xlsx') }}" class="btn btn-sm btn-outline-primary mt-2" download>
+                                    <a href="{{ asset('samples/sims_template.xlsx') }}" class="btn btn-sm btn-outline-primary mt-2" download>
                                         <i class="fas fa-download"></i> Download Sim Template
                                     </a>
                                 </div>

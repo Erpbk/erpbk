@@ -20,13 +20,14 @@
         </tr>
     </thead>
     <tbody>
-        @if(isset($data) && $data->count() > 0)
-        @foreach($data as $voucher)
+        @if(isset($trashedRecords) && count($trashedRecords) > 0)
+        @foreach($trashedRecords as $item)
+        @php
+            $voucher = $item['record'];
+            $voucherId = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
+        @endphp
         <tr class="text-center">
             <td>
-                @php
-                $voucherId = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
-                @endphp
                 <a href="{{ route('vouchers.show', $voucher->id) }}" class="text-primary" target="_blank">{{ $voucherId }}</a>
             </td>
             <td>{{ \App\Helpers\Common::DateFormat($voucher->trans_date) }}</td>
@@ -62,40 +63,30 @@
             </td>
             <td style="position: relative;">
                 <div class="dropdown">
-                    <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $voucher->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $item['id'] }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}" style="z-index: 1050;">
-                        @can('voucher_document')
-                        <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
-                                data-action="{{ url('voucher/attach_file/'.$voucher->id) }}" class='dropdown-item waves-effect show-modal'>
-                                <i class="fa fa-file my-1"></i> Upload Document
-                            </a></li>
-                        @endcan
-                        @can('voucher_view')
-                        <li><a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank" class='dropdown-item waves-effect'>
-                                <i class="fa fa-eye my-1"></i> View
-                            </a></li>
-                        @endcan
-                        @can('voucher_edit')
-                        @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV']))
-                        <li><a href="javascript:void(0);" data-size="xl"
-                                data-title="Edit Voucher No. {{$voucher->voucher_type.'-'.str_pad($voucher->id,4,'0',STR_PAD_LEFT)}}"
-                                data-action="{{ route('vouchers.edit', $voucher->trans_code) }}"
-                                class='dropdown-item waves-effect show-modal'>
-                                <i class="fa fa-edit my-1"></i> Edit
-                            </a></li>
+                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $item['id'] }}" style="z-index: 1050;">
+                        @if($item['can_restore'])
+                        <a href="javascript:void(0);" class="dropdown-item waves-effect restore-item" data-form-id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}">
+                            <i class="fa fa-undo text-success my-1"></i> Restore
+                        </a>
+                        <form id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route('trash.restore', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
+                            @csrf
+                        </form>
                         @endif
-                        @endcan
-                        @can('voucher_delete')
-                        @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV', 'LV']))
-                        <li><a href="javascript:void(0);" onclick="deleteVoucher('{{ $voucher->trans_code }}')" class='dropdown-item waves-effect text-danger'>
-                                <i class="fa fa-trash my-1"></i> Delete
-                            </a></li>
+
+                        @if($item['can_force_delete'])
+                        <a href="javascript:void(0);" class="dropdown-item waves-effect delete-item" data-form-id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}">
+                            <i class="fa fa-trash-o text-danger my-1"></i> Delete Forever
+                        </a>
+                        <form id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route('trash.force-destroy', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
+                            @csrf
+                            @method('DELETE')
+                        </form>
                         @endif
-                        @endcan
-                        </ul>
                     </div>
+                </div>
             </td>
             <td></td>
             <td></td>
@@ -106,7 +97,7 @@
             <td colspan="12" class="text-center">
                 <div class="py-4">
                     <i class="fa fa-info-circle text-muted"></i>
-                    <p class="text-muted mb-0">No vouchers found</p>
+                    <p class="text-muted mb-0">No deleted vouchers found</p>
                 </div>
             </td>
         </tr>
@@ -114,43 +105,41 @@
     </tbody>
 </table>
 
-@if(isset($data))
+@if(isset($totalPages) && $totalPages > 1)
 <div class="pagination-wrapper">
-    {!! $data->appends(request()->query())->links('pagination') !!}
+    <nav>
+        <ul class="pagination justify-content-center mb-0">
+            <li class="page-item {{ $currentPage == 1 ? 'disabled' : '' }}">
+                <a class="page-link" href="{{ route('trash.index', array_merge(request()->all(), ['page' => $currentPage - 1])) }}">
+                    Previous
+                </a>
+            </li>
+
+            @for($i = 1; $i <= $totalPages; $i++)
+                <li class="page-item {{ $currentPage == $i ? 'active' : '' }}">
+                <a class="page-link" href="{{ route('trash.index', array_merge(request()->all(), ['page' => $i])) }}">
+                    {{ $i }}
+                </a>
+                </li>
+                @endfor
+
+                <li class="page-item {{ $currentPage == $totalPages ? 'disabled' : '' }}">
+                    <a class="page-link" href="{{ route('trash.index', array_merge(request()->all(), ['page' => $currentPage + 1])) }}">
+                        Next
+                    </a>
+                </li>
+        </ul>
+    </nav>
+    <p class="text-center text-muted mt-2 mb-0">
+        Showing {{ count($trashedRecords) }} of {{ $totalCount }} deleted records
+    </p>
 </div>
 @endif
 
 <script>
-    function deleteVoucher(transCode) {
-        if (confirm('Are you sure you want to delete this voucher?')) {
-            $.ajax({
-                url: '/vouchers/' + transCode,
-                type: 'DELETE',
-                data: {
-                    _token: '{{ csrf_token() }}'
-                },
-                success: function(result) {
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success('Voucher deleted successfully');
-                    } else {
-                        alert('Voucher deleted successfully');
-                    }
-                    location.reload();
-                },
-                error: function(xhr) {
-                    if (typeof toastr !== 'undefined') {
-                        toastr.error('Error deleting voucher');
-                    } else {
-                        alert('Error deleting voucher');
-                    }
-                }
-            });
-        }
-    }
-
     // Initialize Bootstrap dropdowns when this content is loaded
     $(document).ready(function() {
-        console.log('Table content loaded, initializing dropdowns');
+        console.log('Voucher trash table content loaded, initializing dropdowns');
 
         // Wait for Bootstrap to be available
         var attempts = 0;
@@ -171,7 +160,7 @@
                     }
                 }).filter(Boolean);
 
-                console.log('Dropdowns initialized in table:', dropdownList.length);
+                console.log('Dropdowns initialized in voucher trash table:', dropdownList.length);
             } else if (attempts < maxAttempts) {
                 console.log('Bootstrap not ready in table, retrying...', attempts);
                 setTimeout(tryInitialize, 100);
@@ -183,3 +172,4 @@
         setTimeout(tryInitialize, 100);
     });
 </script>
+

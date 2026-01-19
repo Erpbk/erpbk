@@ -1,5 +1,5 @@
 @php
-$amountEditVoucherTypes = ['AL', 'COD', 'PN', 'PAY', 'VC'];
+$amountEditVoucherTypes = ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC'];
 @endphp
 <div id="rows-container" style="width: 98%;">
     @isset($data)

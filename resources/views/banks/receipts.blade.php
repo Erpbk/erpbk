@@ -8,12 +8,15 @@
     <div class="content">
         @include('flash::message')
         <div class="clearfix"></div>
+        @can('receipt_view')
         <div class="card">
             <div class="card-header d-flex justify-content-between">
                 <div class="card-search">
                     <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
                 </div>
-                <button class="btn btn-primary btn-sm show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Receipt" data-action="{{ route('receipts.create') }}?id={{ request()->segment(3) }}">Add New</button>
+                @can('receipt_create')
+                    <button class="btn btn-primary btn-sm show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Receipt" data-action="{{ route('receipts.create') }}?id={{ request()->segment(3) }}">Add New</button>
+                @endcan
             </div>
             <div class="card-body table-responsive py-0" id="table-data">
                 <table class="table table-striped dataTable no-footer mt-3" id="dataTableBuilder">
@@ -78,12 +81,12 @@
                                             <i class="fa fa-eye my-1"></i>view
                                         </a>
                                     @endcan --}}
-                                    @can('bank_edit')
+                                    @can('receipt_edit')
                                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Receipt Details" data-action="{{ route('receipts.edit', $receipt->id) }}">
                                             <i class="fa fa-edit my-1"></i> Edit
                                         </a>
                                     @endcan
-                                    @can('bank_delete')
+                                    @can('receipt_delete')
                                     <a href="javascript:void(0);" class='dropdown-item waves-effect delete-receipt' 
                                         data-url="{{ route('receipts.destroy', $receipt->id) }}">
                                         <i class="fa fa-trash my-1"></i> Delete
@@ -106,6 +109,12 @@
                 @endif
             </div>
         </div>
+        @endcan
+        @cannot('receipt_view')
+            <div class="text-center mt-5">
+                <h3>You do not have permission to view Receipts.</h3> 
+            </div>
+        @endcannot
     </div>
 @endsection
 

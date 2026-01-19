@@ -147,7 +147,7 @@
 </li>
 @endcan
 
-@can('sim_view')
+@can('fuel_view')
 <li class="menu-item {{ Request::is('fuelCards*') ? 'active' : '' }}">
   <a href="{{ route('fuelCards.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-gas-station"></i>

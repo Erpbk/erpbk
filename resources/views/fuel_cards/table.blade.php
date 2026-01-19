@@ -38,12 +38,12 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  @can('bank_edit')
+                  @can('fuel_edit')
                      <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Update Card Details" data-action="{{ route('fuelCards.edit', $r->id) }}">
                         <i class="fa fa-edit my-1"></i> Edit
                      </a>
                   @endcan
-                  @can('sim_delete')
+                  @can('fuel_delete')
                   <a href="#" class='dropdown-item waves-effect' 
                     onclick="confirmDelete('{{route('fuelCards.destroy', $r->id) }}')">
                     <i class="fa fa-trash my-1"></i> Delete
@@ -57,10 +57,10 @@
    </tbody>
 </table>
 @if($data->isEmpty())
-         <div class="text-center mt-5">
-            <h3>No Fuel Cards found</h3> 
-         </div>
-      @endif
+   <div class="text-center mt-5">
+      <h3>No Fuel Cards found</h3> 
+   </div>
+@endif
 @if(method_exists($data, 'links'))
     {!! $data->links('components.global-pagination') !!}
 @endif

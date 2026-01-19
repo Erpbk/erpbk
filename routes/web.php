@@ -327,6 +327,10 @@ Route::middleware(['auth', 'web'])->group(function () {
 
     Route::resource('simHistories', App\Http\Controllers\SimHistoryController::class);
 
+    Route::resource('fuelCards', App\Http\Controllers\FuelCardController::class);
+    Route::any('fuelcards/import', [\App\Http\Controllers\FuelCardController::class,'import'])->name('fuelCards.import');
+    Route::get('fuelcards/export', [\App\Http\Controllers\FuelCardController::class,'export'])->name('fuelCards.export');
+
     Route::resource('leasingCompanies', App\Http\Controllers\LeasingCompaniesController::class);
     Route::delete('leasingCompanies/delete/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroy'])->name('leasingCompanies.delete');
     // Leasing Companies Trash Routes

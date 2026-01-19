@@ -350,29 +350,35 @@ class RiderActivitiesController extends AppBaseController
             // Always check session summary for errors after import completes
             $summary = session('activities_import_summary', []);
             $errors = $summary['errors'] ?? [];
+            $missingRecords = $summary['missing_records'] ?? [];
             $successCount = $summary['success'] ?? 0;
 
             // Log the summary for debugging
             Log::info('Rider Activities Import - Controller Summary Check', [
                 'success_count' => $successCount,
                 'error_count' => count($errors),
+                'missing_records_count' => count($missingRecords),
                 'summary' => $summary
             ]);
 
-            // Never show success if there are errors OR if no records were successfully imported
+            // Never show success if there are critical errors OR if no records were successfully imported
             if (!empty($errors)) {
-                // If there are errors, show error message instead of success
+                // If there are critical errors, show error message instead of success
                 $errorMessages = [];
                 foreach ($errors as $error) {
                     $riderId = $error['rider_id'] ?? 'N/A';
                     $errorMessages[] = 'Row(' . $error['row'] . ') - ' . $error['error_type'] . ': ' . $error['message'] . ($riderId !== 'N/A' ? ' (Rider ID: ' . $riderId . ')' : '');
                 }
                 session()->flash('error', 'Import failed: ' . implode(' | ', $errorMessages));
-            } elseif ($successCount == 0) {
-                session()->flash('error', 'Import failed: No records were imported. Please check that your file contains valid data with matching Rider IDs.');
+            } elseif ($successCount == 0 && empty($missingRecords)) {
+                session()->flash('error', 'Import failed: No records were imported. Please check that your file contains valid data.');
             } else {
-                // Success popup only if no errors and records were imported
-                session()->flash('success', "Rider activities imported successfully. {$successCount} record(s) saved.");
+                // Success popup if records were imported (even if some riders were missing)
+                $message = "Rider activities imported successfully. {$successCount} record(s) saved.";
+                if (!empty($missingRecords)) {
+                    $message .= " " . count($missingRecords) . " record(s) skipped due to missing riders. Check Missing Records list for details.";
+                }
+                session()->flash('success', $message);
             }
 
             return redirect()->route('riderActivities.index');
@@ -385,16 +391,144 @@ class RiderActivitiesController extends AppBaseController
 
 
     /**
-     * Display last Live Activities import errors.
+     * Display last Rider Activities import errors.
      */
-    public function liveimportErrors()
+    public function importErrors(Request $request)
     {
         $summary = session('activities_import_summary', []);
         $errors = $summary['errors'] ?? [];
+        $missingRecords = $summary['missing_records'] ?? [];
+
+        // Apply date filters if provided
+        if ($request->filled('from_date')) {
+            $fromDate = $request->from_date;
+            $missingRecords = array_filter($missingRecords, function ($record) use ($fromDate) {
+                $recordDate = $record['date'] ?? null;
+                if (!$recordDate || $recordDate == 'N/A') {
+                    return false;
+                }
+                return strtotime($recordDate) >= strtotime($fromDate);
+            });
+        }
+
+        if ($request->filled('to_date')) {
+            $toDate = $request->to_date;
+            $missingRecords = array_filter($missingRecords, function ($record) use ($toDate) {
+                $recordDate = $record['date'] ?? null;
+                if (!$recordDate || $recordDate == 'N/A') {
+                    return false;
+                }
+                return strtotime($recordDate) <= strtotime($toDate);
+            });
+        }
+
+        // Handle from_date_range shortcuts
+        if ($request->filled('from_date_range')) {
+            $fromDateRange = $request->from_date_range;
+            $fromDate = null;
+
+            if ($fromDateRange === 'Today') {
+                $fromDate = Carbon::today()->toDateString();
+            } else if ($fromDateRange === 'Yesterday') {
+                $fromDate = Carbon::yesterday()->toDateString();
+            } else if ($fromDateRange === 'Last 7 Days') {
+                $fromDate = Carbon::today()->subDays(7)->toDateString();
+            } else if ($fromDateRange === 'Last 30 Days') {
+                $fromDate = Carbon::today()->subDays(30)->toDateString();
+            } else if ($fromDateRange === 'Last 90 Days') {
+                $fromDate = Carbon::today()->subDays(90)->toDateString();
+            }
+
+            if ($fromDate) {
+                $missingRecords = array_filter($missingRecords, function ($record) use ($fromDate) {
+                    $recordDate = $record['date'] ?? null;
+                    if (!$recordDate || $recordDate == 'N/A') {
+                        return false;
+                    }
+                    return strtotime($recordDate) >= strtotime($fromDate);
+                });
+            }
+        }
+
+        // Re-index arrays after filtering
+        $missingRecords = array_values($missingRecords);
+
+        return view('rider_activities.import_errors', [
+            'summary' => $summary,
+            'errors' => $errors,
+            'missingRecords' => $missingRecords,
+            'importType' => 'Rider Activities',
+            'importRoute' => route('rider.activities_import'),
+        ]);
+    }
+
+    /**
+     * Display last Live Activities import errors.
+     */
+    public function liveimportErrors(Request $request)
+    {
+        $summary = session('activities_import_summary', []);
+        $errors = $summary['errors'] ?? [];
+        $missingRecords = $summary['missing_records'] ?? [];
+
+        // Apply date filters if provided
+        if ($request->filled('from_date')) {
+            $fromDate = $request->from_date;
+            $missingRecords = array_filter($missingRecords, function ($record) use ($fromDate) {
+                $recordDate = $record['date'] ?? null;
+                if (!$recordDate || $recordDate == 'N/A') {
+                    return false;
+                }
+                return strtotime($recordDate) >= strtotime($fromDate);
+            });
+        }
+
+        if ($request->filled('to_date')) {
+            $toDate = $request->to_date;
+            $missingRecords = array_filter($missingRecords, function ($record) use ($toDate) {
+                $recordDate = $record['date'] ?? null;
+                if (!$recordDate || $recordDate == 'N/A') {
+                    return false;
+                }
+                return strtotime($recordDate) <= strtotime($toDate);
+            });
+        }
+
+        // Handle from_date_range shortcuts
+        if ($request->filled('from_date_range')) {
+            $fromDateRange = $request->from_date_range;
+            $fromDate = null;
+
+            if ($fromDateRange === 'Today') {
+                $fromDate = Carbon::today()->toDateString();
+            } else if ($fromDateRange === 'Yesterday') {
+                $fromDate = Carbon::yesterday()->toDateString();
+            } else if ($fromDateRange === 'Last 7 Days') {
+                $fromDate = Carbon::today()->subDays(7)->toDateString();
+            } else if ($fromDateRange === 'Last 30 Days') {
+                $fromDate = Carbon::today()->subDays(30)->toDateString();
+            } else if ($fromDateRange === 'Last 90 Days') {
+                $fromDate = Carbon::today()->subDays(90)->toDateString();
+            }
+
+            if ($fromDate) {
+                $missingRecords = array_filter($missingRecords, function ($record) use ($fromDate) {
+                    $recordDate = $record['date'] ?? null;
+                    if (!$recordDate || $recordDate == 'N/A') {
+                        return false;
+                    }
+                    return strtotime($recordDate) >= strtotime($fromDate);
+                });
+            }
+        }
+
+        // Re-index arrays after filtering
+        $missingRecords = array_values($missingRecords);
 
         return view('rider_live_activities.import_errors', [
             'summary' => $summary,
             'errors' => $errors,
+            'missingRecords' => $missingRecords,
             'importType' => 'Live Activities',
             'importRoute' => route('rider.live_activities_import'),
         ]);
@@ -616,22 +750,27 @@ class RiderActivitiesController extends AppBaseController
             // Always check session summary for errors after import completes
             $summary = session('activities_import_summary', []);
             $errors = $summary['errors'] ?? [];
+            $missingRecords = $summary['missing_records'] ?? [];
             $successCount = $summary['success'] ?? 0;
 
-            // Never show success if there are errors OR if no records were successfully imported
+            // Never show success if there are critical errors OR if no records were successfully imported
             if (!empty($errors)) {
-                // If there are errors, show error message instead of success
+                // If there are critical errors, show error message instead of success
                 $errorMessages = [];
                 foreach ($errors as $error) {
                     $riderId = $error['rider_id'] ?? 'N/A';
                     $errorMessages[] = 'Row(' . $error['row'] . ') - ' . $error['error_type'] . ': ' . $error['message'] . ($riderId !== 'N/A' ? ' (Rider ID: ' . $riderId . ')' : '');
                 }
                 session()->flash('error', 'Import failed: ' . implode(' | ', $errorMessages));
-            } elseif ($successCount == 0) {
-                session()->flash('error', 'Import failed: No records were imported. Please check that your file contains valid data with matching Rider IDs.');
+            } elseif ($successCount == 0 && empty($missingRecords)) {
+                session()->flash('error', 'Import failed: No records were imported. Please check that your file contains valid data.');
             } else {
-                // Success popup only if no errors and records were imported
-                session()->flash('success', "Live activities imported successfully. {$successCount} record(s) saved.");
+                // Success popup if records were imported (even if some riders were missing)
+                $message = "Live activities imported successfully. {$successCount} record(s) saved.";
+                if (!empty($missingRecords)) {
+                    $message .= " " . count($missingRecords) . " record(s) skipped due to missing riders. Check Missing Records list for details.";
+                }
+                session()->flash('success', $message);
             }
 
             return redirect()->route('rider.liveactivities');

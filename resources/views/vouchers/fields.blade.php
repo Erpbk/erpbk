@@ -33,7 +33,7 @@ $voucherType = request("vt");
             <input type="hidden" name="payment_from" value="811" /><!--Sim Bike and Vendor Charges Account ID-->
             @endif
            --}}
-@if ($voucherType == 'VC' || $voucherType == 'COD' || $voucherType == 'PN' || $voucherType == 'IN' || $voucherType == 'PAY')
+@if ($voucherType == 'VC' || $voucherType == 'COD' || $voucherType == 'PN' || $voucherType == 'INC' || $voucherType == 'PAY')
 @else
 <div class="form-group col-md-2">
     <label for="exampleInputEmail1">Payment Type</label>
@@ -78,6 +78,11 @@ $voucherType = request("vt");
     @endif
 
     @if($voucherType == 'PN')
+    @php($accounts = \App\Models\Accounts::dropdown(null))
+    @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
+    @endif
+
+    @if($voucherType == 'INC')
     @php($accounts = \App\Models\Accounts::dropdown(null))
     @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
     @endif

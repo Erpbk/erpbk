@@ -591,6 +591,10 @@ class VisaexpenseController extends AppBaseController
 
     public function payInstallment(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('visaloan_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'installment_id' => 'required|exists:visa_installment_plans,id',
             'status' => 'nullable|in:pending,paid'
@@ -1349,15 +1353,14 @@ class VisaexpenseController extends AppBaseController
 
             $installmentIdentifier = "Installment Plan #{$id} - Billing Month: {$installment->billing_month} (Amount: " . number_format($installment->amount, 2) . ")";
 
-            // Get related vouchers before deletion (include soft deleted to be safe)
-            $relatedVouchers = Vouchers::withTrashed()
-                ->where('ref_id', $installment->id)
+            // Get related vouchers before deletion (only non-deleted vouchers)
+            $relatedVouchers = Vouchers::where('ref_id', $installment->id)
                 ->where('voucher_type', 'VL')
-                ->whereNull('deleted_at') // Only get non-deleted vouchers
                 ->get();
 
-            \Log::info("Found " . $relatedVouchers->count() . " vouchers to track for installment {$id}", [
-                'voucher_ids' => $relatedVouchers->pluck('id')->toArray()
+            \Log::info("Found " . $relatedVouchers->count() . " vouchers to delete for installment {$id}", [
+                'voucher_ids' => $relatedVouchers->pluck('id')->toArray(),
+                'installment_id' => $installment->id
             ]);
 
             // Get related transactions before deletion
@@ -1422,11 +1425,47 @@ class VisaexpenseController extends AppBaseController
             }
 
             // Cascade delete vouchers related to this installment (soft delete with deleted_by)
-            // Use the same collection that was used for tracking
-            foreach ($relatedVouchers as $voucher) {
-                $voucher->deleted_by = auth()->id();
-                $voucher->save();
-                $voucher->delete();
+            // Note: Using delete() performs soft deletion since Vouchers model uses SoftDeletes trait
+            if ($relatedVouchers->count() > 0) {
+                foreach ($relatedVouchers as $voucher) {
+                    try {
+                        \Log::info("Soft deleting voucher {$voucher->id} for installment {$installment->id}");
+                        $voucher->deleted_by = auth()->id();
+                        $voucher->save();
+                        // Soft delete: sets deleted_at timestamp (does not permanently delete from database)
+                        $voucher->delete();
+                        \Log::info("Successfully soft deleted voucher {$voucher->id}");
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to delete voucher {$voucher->id}: " . $e->getMessage(), [
+                            'exception' => $e,
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        throw $e; // Re-throw to trigger rollback
+                    }
+                }
+            } else {
+                \Log::warning("No vouchers found to delete for installment {$installment->id}");
+            }
+
+            // Double-check: Ensure all remaining vouchers are deleted (as a safety measure)
+            $remainingVouchers = Vouchers::where('ref_id', $installment->id)
+                ->where('voucher_type', 'VL')
+                ->whereNull('deleted_at')
+                ->get();
+
+            if ($remainingVouchers->count() > 0) {
+                \Log::warning("Found {$remainingVouchers->count()} remaining vouchers after deletion attempt, soft deleting them now");
+                foreach ($remainingVouchers as $voucher) {
+                    try {
+                        $voucher->deleted_by = auth()->id();
+                        $voucher->save();
+                        // Soft delete: sets deleted_at timestamp (does not permanently delete from database)
+                        $voucher->delete();
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to delete remaining voucher {$voucher->id}: " . $e->getMessage());
+                        throw $e;
+                    }
+                }
             }
 
             // Delete related transactions
@@ -1442,10 +1481,15 @@ class VisaexpenseController extends AppBaseController
                 ->first();
 
             if ($liabilityAccount) {
+                // Convert billing_month to proper date format for ledger_entries comparison
+                // billing_month in installment is stored as 'YYYY-MM', but ledger_entries expects 'YYYY-MM-DD'
+                $billingMonthForLedger = (strlen($installment->billing_month) <= 7) ?
+                    $installment->billing_month . '-01' : $installment->billing_month;
+
                 // Get ledger entry before deletion
                 $ledgerEntry = DB::table('ledger_entries')
                     ->where('account_id', $liabilityAccount->id)
-                    ->where('billing_month', $installment->billing_month)
+                    ->where('billing_month', $billingMonthForLedger)
                     ->first();
 
                 if ($ledgerEntry) {
@@ -1469,7 +1513,7 @@ class VisaexpenseController extends AppBaseController
 
                 DB::table('ledger_entries')
                     ->where('account_id', $liabilityAccount->id)
-                    ->where('billing_month', $installment->billing_month)
+                    ->where('billing_month', $billingMonthForLedger)
                     ->delete();
             }
 

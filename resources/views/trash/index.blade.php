@@ -165,6 +165,30 @@
     <div class="card">
         <div class="card-body p-0">
             <div class="table-responsive">
+                @php
+                // Check if all records are from the same module and if a module-specific table view exists
+                $firstModule = count($trashedRecords) > 0 ? $trashedRecords[0]['module'] : null;
+                $allSameModule = count($trashedRecords) > 0 && collect($trashedRecords)->every(function($item) use ($firstModule) {
+                return isset($item['module']) && $item['module'] == $firstModule;
+                });
+                // Use currentModule if filtering by specific module, otherwise use firstModule
+                $moduleToCheck = ($currentModule != 'all' && $currentModule) ? $currentModule : $firstModule;
+                $moduleTableView = $moduleToCheck && $allSameModule ? 'trash.' . $moduleToCheck . '_table' : null;
+                $moduleTableViewExists = $moduleTableView && view()->exists($moduleTableView);
+                @endphp
+                @if($moduleTableViewExists)
+                {{-- Render module-specific table that mirrors the original module structure --}}
+                @include($moduleTableView, [
+                'trashedRecords' => $trashedRecords,
+                'totalCount' => $totalCount,
+                'currentPage' => $currentPage,
+                'totalPages' => $totalPages,
+                'modules' => $modules,
+                'currentModule' => $currentModule,
+                'tableColumns' => $tableColumns ?? []
+                ])
+                @else
+                {{-- Generic table for other modules --}}
                 <table class="table table-striped dataTable no-footer mb-0">
                     <thead class="text-center">
                         <tr role="row">
@@ -330,12 +354,21 @@
                         @endforeach
                     </tbody>
                 </table>
+                @endif
             </div>
         </div>
     </div>
 
-    <!-- Pagination -->
-    @if($totalPages > 1)
+    <!-- Pagination (only show for generic table, module-specific tables have their own pagination) -->
+    @php
+    $firstModule = count($trashedRecords) > 0 ? $trashedRecords[0]['module'] : null;
+    $allSameModule = count($trashedRecords) > 0 && collect($trashedRecords)->every(function($item) use ($firstModule) {
+    return isset($item['module']) && $item['module'] == $firstModule;
+    });
+    $moduleTableView = $firstModule && $allSameModule ? 'trash.' . $firstModule . '_table' : null;
+    $moduleTableViewExists = $moduleTableView && view()->exists($moduleTableView);
+    @endphp
+    @if(!$moduleTableViewExists && $totalPages > 1)
     <div class="card mt-3">
         <div class="card-body">
             <nav>
@@ -480,6 +513,8 @@
             const trigger = event.target.closest(selector);
             if (!trigger) return;
             event.preventDefault();
+            event.stopPropagation();
+
             const formId = trigger.dataset.formId;
             if (!formId) return;
             const form = document.getElementById(formId);
@@ -491,41 +526,88 @@
             const action = form.getAttribute('action');
             const method = (form.getAttribute('method') || 'POST').toUpperCase();
             const formData = new FormData(form);
+
             // Respect method spoofing
             const override = formData.get('_method');
             const fetchMethod = override ? override.toUpperCase() : method;
 
+            // Show loading indicator
+            const originalText = trigger.innerHTML;
+            trigger.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+            trigger.disabled = true;
+
             try {
                 const response = await fetch(action, {
-                    method: fetchMethod === 'GET' ? 'POST' : fetchMethod, // avoid GET for mutations
+                    method: fetchMethod === 'GET' ? 'POST' : fetchMethod,
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRF-TOKEN': formData.get('_token') || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                        'Accept': 'application/json',
                     },
                     body: fetchMethod === 'GET' ? null : formData,
                 });
 
-                const data = await response.json().catch(() => ({}));
+                let data = {};
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    // If response is not JSON, try to get text
+                    const text = await response.text();
+                    if (response.ok) {
+                        data = {
+                            success: true,
+                            message: 'Action completed successfully.'
+                        };
+                    } else {
+                        data = {
+                            success: false,
+                            message: text || 'Action failed. Please try again.'
+                        };
+                    }
+                }
 
                 if (!response.ok || data.success === false) {
-                    alert(data.message || 'Action failed. Please try again.');
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(data.message || 'Action failed. Please try again.');
+                    } else {
+                        alert(data.message || 'Action failed. Please try again.');
+                    }
+                    trigger.innerHTML = originalText;
+                    trigger.disabled = false;
                     return;
                 }
 
-                // Remove the row from the table
-                const row = trigger.closest('tr');
-                if (row) row.remove();
+                // Show success message
+                if (typeof toastr !== 'undefined') {
+                    toastr.success(data.message || 'Action completed successfully.');
+                } else {
+                    alert(data.message || 'Action completed successfully.');
+                }
 
-                alert(data.message || 'Action completed successfully.');
+                // Reload the page to refresh the table
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
             } catch (err) {
-                console.error(err);
-                alert('Action failed. Please try again.');
+                console.error('Error:', err);
+                if (typeof toastr !== 'undefined') {
+                    toastr.error('Action failed. Please try again.');
+                } else {
+                    alert('Action failed. Please try again.');
+                }
+                trigger.innerHTML = originalText;
+                trigger.disabled = false;
             }
         }
 
+        // Handle restore and delete clicks
         document.addEventListener('click', function(event) {
-            handleActionClick(event, '.restore-item', 'Are you sure you want to restore this record?');
-            handleActionClick(event, '.delete-item', 'WARNING! This will PERMANENTLY delete this record. This action CANNOT be undone! Are you absolutely sure?');
+            if (event.target.closest('.restore-item')) {
+                handleActionClick(event, '.restore-item', 'Are you sure you want to restore this record?');
+            }
+            if (event.target.closest('.delete-item')) {
+                handleActionClick(event, '.delete-item', 'WARNING! This will PERMANENTLY delete this record. This action CANNOT be undone! Are you absolutely sure?');
+            }
         });
     })();
 </script>

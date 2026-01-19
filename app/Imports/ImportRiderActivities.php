@@ -13,6 +13,7 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 class ImportRiderActivities implements ToCollection
 {
   private $importErrors = [];
+  private $missingRecords = [];
   private $successCount = 0;
   private $skippedCount = 0;
 
@@ -36,11 +37,24 @@ class ImportRiderActivities implements ToCollection
         continue;
       }
 
-      // Validate row
+      // Validate row - separate missing riders from other errors
       $error = $this->validateRow($row, $rowNumber);
       if ($error) {
-        $this->importErrors[] = $error;
-        $this->skippedCount++;
+        // If it's a "Rider Not Found" error, add to missing records instead of errors
+        if ($error['error_type'] === 'Rider Not Found') {
+          $this->missingRecords[] = [
+            'row'        => $rowNumber,
+            'rider_id'   => $error['rider_id'] ?? 'N/A',
+            'date'       => $row[0] ?? 'N/A',
+            'error_type' => 'Rider Not Found',
+            'message'    => 'Rider ID does not exist in system',
+          ];
+          $this->skippedCount++;
+        } else {
+          // Other validation errors (empty rider ID, invalid date, etc.)
+          $this->importErrors[] = $error;
+          $this->skippedCount++;
+        }
         continue;
       }
 
@@ -48,8 +62,8 @@ class ImportRiderActivities implements ToCollection
       $validRows[] = ['row' => $row, 'rowNumber' => $rowNumber];
     }
 
-    // If there are any errors, throw ValidationException to prevent data storage
-    // This ensures no activities are saved if any Rider ID doesn't match
+    // Only throw exception for critical errors (not missing riders)
+    // Missing riders are tracked separately and won't prevent import
     if (!empty($this->importErrors)) {
       $errorMessages = [];
       foreach ($this->importErrors as $error) {
@@ -63,6 +77,7 @@ class ImportRiderActivities implements ToCollection
           'success' => 0,
           'skipped' => $this->skippedCount,
           'errors'  => $this->importErrors,
+          'missing_records' => $this->missingRecords,
         ]
       ]);
       session()->save(); // Ensure session is saved before throwing exception
@@ -78,6 +93,7 @@ class ImportRiderActivities implements ToCollection
           'success' => 0,
           'skipped' => $this->skippedCount,
           'errors'  => $this->importErrors,
+          'missing_records' => $this->missingRecords,
         ]
       ]);
       session()->save();
@@ -109,7 +125,7 @@ class ImportRiderActivities implements ToCollection
         }
       }
 
-      // If any errors occurred during processing, rollback and throw exception
+      // If any critical errors occurred during processing, rollback and throw exception
       if (!empty($this->importErrors)) {
         DB::rollBack();
 
@@ -124,6 +140,7 @@ class ImportRiderActivities implements ToCollection
             'success' => 0,
             'skipped' => $this->skippedCount,
             'errors'  => $this->importErrors,
+            'missing_records' => $this->missingRecords,
           ]
         ]);
         session()->save();
@@ -137,6 +154,7 @@ class ImportRiderActivities implements ToCollection
       Log::info('Rider Activity Import Successful', [
         'success_count' => $this->successCount,
         'skipped_count' => $this->skippedCount,
+        'missing_records_count' => count($this->missingRecords),
       ]);
     } catch (ValidationException $ve) {
       // Re-throw validation exceptions
@@ -167,6 +185,7 @@ class ImportRiderActivities implements ToCollection
           'success' => 0,
           'skipped' => $this->skippedCount,
           'errors'  => $this->importErrors,
+          'missing_records' => $this->missingRecords,
         ]
       ]);
       session()->save();
@@ -180,6 +199,7 @@ class ImportRiderActivities implements ToCollection
         'success' => $this->successCount,
         'skipped' => $this->skippedCount,
         'errors'  => $this->importErrors,
+        'missing_records' => $this->missingRecords,
       ]
     ]);
     session()->save(); // Ensure session is saved

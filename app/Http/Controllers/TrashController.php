@@ -180,13 +180,10 @@ class TrashController extends Controller
             }
 
             $model = $config['model'];
-            $modelInstance = new $model;
-            $tableName = $modelInstance->getTable();
 
-            // Direct database query to fetch soft-deleted records
+            // Use Eloquent model with onlyTrashed() to get soft-deleted records
             try {
-                $query = DB::table($tableName)
-                    ->whereNotNull('deleted_at');
+                $query = $model::onlyTrashed();
 
                 // Apply search if provided
                 if ($searchQuery) {
@@ -197,8 +194,8 @@ class TrashController extends Controller
                     });
                 }
 
-                $records = $query->limit(100)
-                    ->orderBy('deleted_at', 'desc')
+                $records = $query->orderBy('deleted_at', 'desc')
+                    ->limit(100)
                     ->get();
 
                 foreach ($records as $record) {
@@ -235,9 +232,9 @@ class TrashController extends Controller
                         'module' => $key,
                         'module_name' => $config['name'],
                         'icon' => $config['icon'],
-                        'record' => $record,
+                        'record' => $record, // Now this is an Eloquent model instance
                         'display_columns' => $config['display_columns'],
-                        'deleted_at' => \Carbon\Carbon::parse($record->deleted_at),
+                        'deleted_at' => $record->deleted_at,
                         'can_restore' => $canRestore,
                         'can_force_delete' => $canForceDelete,
                         'caused_by' => $causedBy,
@@ -303,14 +300,9 @@ class TrashController extends Controller
         }
 
         $model = $config['model'];
-        $modelInstance = new $model;
-        $tableName = $modelInstance->getTable();
 
-        // Direct database query to check if record exists in trash
-        $record = DB::table($tableName)
-            ->where('id', $id)
-            ->whereNotNull('deleted_at')
-            ->first();
+        // Use Eloquent to find the trashed record
+        $record = $model::onlyTrashed()->find($id);
 
         if (!$record) {
             Flash::error('Record not found in trash.');
@@ -319,10 +311,8 @@ class TrashController extends Controller
 
         DB::beginTransaction();
         try {
-            // Restore the primary record by setting deleted_at to NULL
-            DB::table($tableName)
-                ->where('id', $id)
-                ->update(['deleted_at' => null, 'updated_at' => now()]);
+            // Restore the primary record using Eloquent
+            $record->restore();
 
             $restoredItems = [];
 
@@ -340,16 +330,11 @@ class TrashController extends Controller
 
                 if (class_exists($relatedModelClass)) {
                     try {
-                        $relatedModelInstance = new $relatedModelClass;
-                        $relatedTableName = $relatedModelInstance->getTable();
+                        // Use Eloquent to restore the related record
+                        $relatedRecord = $relatedModelClass::onlyTrashed()->find($cascade->related_id);
 
-                        // Restore related record directly in database
-                        $updated = DB::table($relatedTableName)
-                            ->where('id', $cascade->related_id)
-                            ->whereNotNull('deleted_at')
-                            ->update(['deleted_at' => null, 'updated_at' => now()]);
-
-                        if ($updated) {
+                        if ($relatedRecord) {
+                            $relatedRecord->restore();
                             $restoredItems[] = class_basename($relatedModelClass) . ": {$cascade->related_name}";
 
                             // Log the restoration
@@ -379,7 +364,7 @@ class TrashController extends Controller
                 $message .= ' (Also restored: ' . implode(', ', $restoredItems) . ')';
             }
 
-            if ($request->ajax()) {
+            if ($request->ajax() || $request->wantsJson() || $request->expectsJson()) {
                 return response()->json([
                     'success' => true,
                     'message' => $message,
@@ -389,7 +374,7 @@ class TrashController extends Controller
             Flash::success($message);
         } catch (\Exception $e) {
             DB::rollBack();
-            if ($request->ajax()) {
+            if ($request->ajax() || $request->wantsJson() || $request->expectsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Failed to restore record: ' . $e->getMessage(),
@@ -421,14 +406,9 @@ class TrashController extends Controller
         }
 
         $model = $config['model'];
-        $modelInstance = new $model;
-        $tableName = $modelInstance->getTable();
 
-        // Direct database query to check if record exists in trash
-        $record = DB::table($tableName)
-            ->where('id', $id)
-            ->whereNotNull('deleted_at')
-            ->first();
+        // Use Eloquent to find the trashed record
+        $record = $model::onlyTrashed()->find($id);
 
         if (!$record) {
             Flash::error('Record not found in trash.');
@@ -520,28 +500,26 @@ class TrashController extends Controller
 
                 if (class_exists($relatedModelClass)) {
                     try {
-                        $relatedModelInstance = new $relatedModelClass;
-                        $relatedTableName = $relatedModelInstance->getTable();
+                        // Use Eloquent to permanently delete the related record
+                        $relatedRecord = $relatedModelClass::onlyTrashed()->find($cascade->related_id);
 
-                        // Permanently delete from database
-                        DB::table($relatedTableName)
-                            ->where('id', $cascade->related_id)
-                            ->delete();
+                        if ($relatedRecord) {
+                            $relatedRecord->forceDelete();
+                            $deletedItems[] = class_basename($relatedModelClass) . ": {$cascade->related_name}";
 
-                        $deletedItems[] = class_basename($relatedModelClass) . ": {$cascade->related_name}";
-
-                        // Log the permanent deletion
-                        activity()
-                            ->causedBy(auth()->user())
-                            ->withProperties([
-                                'deleted_with' => $config['model'],
-                                'primary_id' => $id,
-                                'cascade_type' => 'automatic',
-                                'model' => $relatedModelClass,
-                                'record_id' => $cascade->related_id,
-                                'record_name' => $cascade->related_name,
-                            ])
-                            ->log('force deleted (cascaded from primary record)');
+                            // Log the permanent deletion
+                            activity()
+                                ->causedBy(auth()->user())
+                                ->withProperties([
+                                    'deleted_with' => $config['model'],
+                                    'primary_id' => $id,
+                                    'cascade_type' => 'automatic',
+                                    'model' => $relatedModelClass,
+                                    'record_id' => $cascade->related_id,
+                                    'record_name' => $cascade->related_name,
+                                ])
+                                ->log('force deleted (cascaded from primary record)');
+                        }
                     } catch (\Exception $e) {
                         Log::error("Error deleting cascaded record: " . $e->getMessage());
                         continue;
@@ -560,10 +538,8 @@ class TrashController extends Controller
                 ->where('related_id', $id)
                 ->delete();
 
-            // Permanently delete the primary record from database
-            DB::table($tableName)
-                ->where('id', $id)
-                ->delete();
+            // Permanently delete the primary record using Eloquent
+            $record->forceDelete();
 
             DB::commit();
 
@@ -573,7 +549,7 @@ class TrashController extends Controller
                 $message .= ' (Also permanently deleted: ' . implode(', ', $deletedItems) . ')';
             }
 
-            if ($request->ajax()) {
+            if ($request->ajax() || $request->wantsJson() || $request->expectsJson()) {
                 return response()->json([
                     'success' => true,
                     'message' => $message,
@@ -583,7 +559,7 @@ class TrashController extends Controller
             Flash::success($message);
         } catch (\Exception $e) {
             DB::rollBack();
-            if ($request->ajax()) {
+            if ($request->ajax() || $request->wantsJson() || $request->expectsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Failed to permanently delete record: ' . $e->getMessage(),
@@ -610,13 +586,8 @@ class TrashController extends Controller
             $model = $config['model'];
 
             try {
-                $modelInstance = new $model;
-                $tableName = $modelInstance->getTable();
-
-                // Direct database query to count soft-deleted records
-                $count = DB::table($tableName)
-                    ->whereNotNull('deleted_at')
-                    ->count();
+                // Use Eloquent to count soft-deleted records
+                $count = $model::onlyTrashed()->count();
 
                 if ($count > 0) {
                     $stats[] = [

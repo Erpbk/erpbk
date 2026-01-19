@@ -74,10 +74,7 @@
 
                         <div class="form-group text-center">
                             <button type="submit" class="btn btn-success" id="importBtn">
-                                <i class="fas fa-upload"></i> Import RTA Fines
-                            </button>
-                            <button type="button" class="btn btn-info ml-2" id="testBtn">
-                                <i class="fas fa-bug"></i> Test File
+                                <i class="fas fa-upload"></i> Import Sims
                             </button>
                         </div>
 
@@ -204,14 +201,6 @@
                             {
                                 key: 'missing_data',
                                 label: 'Missing Data'
-                            },
-                            {
-                                key: 'no_bike',
-                                label: 'Bike Not Found'
-                            },
-                            {
-                                key: 'no_rider',
-                                label: 'No Rider Found For Bike'
                             }
                         ];
 
@@ -247,8 +236,8 @@
                             resultsHtml += '                <thead class="bg-light">';
                             resultsHtml += '                    <tr>';
                             resultsHtml += '                        <th width="15%">Row #</th>';
-                            resultsHtml += '                        <th width="25%">Ticket #</th>';
-                            resultsHtml += '                        <th width="20%">Bike Plate</th>';
+                            resultsHtml += '                        <th width="25%">Number #</th>';
+                            resultsHtml += '                        <th width="20%">Company</th>';
                             resultsHtml += '                        <th>Error Reason</th>';
                             resultsHtml += '                    </tr>';
                             resultsHtml += '                </thead>';
@@ -258,8 +247,8 @@
                                 var fine = failedFines[j];
                                 resultsHtml += '<tr>';
                                 resultsHtml += '    <td>' + (fine.excel_row || 'N/A') + '</td>';
-                                resultsHtml += '    <td>' + (fine.ticket_number || 'N/A') + '</td>';
-                                resultsHtml += '    <td>' + (fine.plate_number || 'N/A') + '</td>';
+                                resultsHtml += '    <td>' + (fine.number || 'N/A') + '</td>';
+                                resultsHtml += '    <td>' + (fine.company || 'N/A') + '</td>';
                                 resultsHtml += '    <td class="text-danger"><small>' + (fine.reason || 'Unknown error') + '</small></td>';
                                 resultsHtml += '</tr>';
                             }
@@ -287,10 +276,6 @@
                             resultsHtml += '            <table class="table table-sm table-bordered table-hover">';
                             resultsHtml += '                <thead class="bg-light">';
                             resultsHtml += '                    <tr>';
-                            resultsHtml += '                        <th width="10%">ID #</th>';
-                            resultsHtml += '                        <th width="20%">Ticket #</th>';
-                            resultsHtml += '                        <th width="15%">Bike Plate</th>';
-                            resultsHtml += '                        <th width="5%">Fine</th>';
                             resultsHtml += '                        <th>Details</th>';
                             resultsHtml += '                    </tr>';
                             resultsHtml += '                </thead>';
@@ -299,11 +284,7 @@
                             for (var j = 0; j < importedFines.length; j++) {
                                 var fine = importedFines[j];
                                 resultsHtml += '<tr>';
-                                resultsHtml += '    <td>' + (fine.id || 'N/A') + '</td>';
-                                resultsHtml += '    <td>' + (fine.ticket_number || 'N/A') + '</td>';
-                                resultsHtml += '    <td>' + (fine.plate_number || 'N/A') + '</td>';
-                                resultsHtml += '    <td>' + (fine.amount || 'N/A') + '</td>';
-                                resultsHtml += '    <td>' + (fine.detail || 'N/A') + '</td>';
+                                resultsHtml += '    <td>' + (fine || 'N/A') + '</td>';
                                 resultsHtml += '</tr>';
                             }
 

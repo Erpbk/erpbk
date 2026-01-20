@@ -55,6 +55,7 @@ class Vouchers extends Model
     'reason',
     'amount',
     'remarks',
+    'reference_number',
     'ref_id',
     'rider_id',
     'vendor_id',

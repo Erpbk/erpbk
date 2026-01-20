@@ -292,6 +292,7 @@ class VisaexpenseController extends AppBaseController
             ],
             'billing_month'  => 'required|date_format:Y-m',
             'detail'         => 'nullable|string',
+            'reference_number' => 'required|string|max:255',
             'amount'         => 'required|numeric|min:0',
             'attach_file'    => 'nullable|string|max:255',
         ]);
@@ -308,6 +309,7 @@ class VisaexpenseController extends AppBaseController
                 'amount'         => $request->amount,
                 'payment_status' => 'unpaid',
                 'detail'         => $validated['detail'],
+                'reference_number' => $validated['reference_number'],
                 'trans_date'     => $trans_date,
                 'trans_code'     => $trans_code,
             ]);
@@ -429,7 +431,8 @@ class VisaexpenseController extends AppBaseController
             'billing_month' => 'required|string',
             'number_of_installments' => 'required|integer|min:1|max:12',
             'installment_amounts' => 'required|array|min:1',
-            'installment_amounts.*' => 'required|numeric|min:0'
+            'installment_amounts.*' => 'required|numeric|min:0',
+            'reference_number' => 'required|string|max:255'
         ]);
 
         try {
@@ -498,6 +501,7 @@ class VisaexpenseController extends AppBaseController
                     'billing_month' => $billingMonthFormatted,
                     'amount' => $installmentAmount,
                     'total_amount' => $totalAmount, // Store the total amount for reference
+                    'reference_number' => $validated['reference_number'],
                     'status' => visa_installment_plan::STATUS_PENDING,
                     'date' => $installmentDate,
                     'created_by' => auth()->user()->id,
@@ -520,6 +524,7 @@ class VisaexpenseController extends AppBaseController
                         . $validated['number_of_installments']
                         . ' (Amount: ' . number_format($installmentAmount, 2) . ')',
                     'amount' => $installmentAmount,
+                    'reference_number' => $validated['reference_number'],
                     'Created_By' => auth()->user()->id,
                     'ref_id' => $installment->id,
                 ]);
@@ -591,6 +596,10 @@ class VisaexpenseController extends AppBaseController
 
     public function payInstallment(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('visaloan_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'installment_id' => 'required|exists:visa_installment_plans,id',
             'status' => 'nullable|in:pending,paid'
@@ -894,6 +903,7 @@ class VisaexpenseController extends AppBaseController
                         'voucher_type' => 'VL',
                         'remarks' => $rider->rider_id . ' - ' . $rider->name . ' - visa loan installment',
                         'amount' => (float) $newAmount,
+                        'reference_number' => $installment->reference_number ?? null,
                         'Created_By' => auth()->user()->id,
                         'ref_id' => $installment->id,
                     ]);
@@ -1159,6 +1169,7 @@ class VisaexpenseController extends AppBaseController
                         'billing_month' => $bm,
                         'amount' => $amount,
                         'total_amount' => $existingTotalAmount,
+                        'reference_number' => $contextInstallment->reference_number ?? null,
                         'status' => visa_installment_plan::STATUS_PENDING,
                         'date' => $date,
                         'created_by' => auth()->user()->id,
@@ -1178,6 +1189,7 @@ class VisaexpenseController extends AppBaseController
                         'voucher_type' => 'VL',
                         'remarks' => $rider->rider_id . ' - ' . $rider->name . ' - visa loan installment (new)',
                         'amount' => $amount,
+                        'reference_number' => $installment->reference_number ?? null,
                         'Created_By' => auth()->user()->id,
                         'ref_id' => $installment->id,
                     ]);
@@ -1349,15 +1361,14 @@ class VisaexpenseController extends AppBaseController
 
             $installmentIdentifier = "Installment Plan #{$id} - Billing Month: {$installment->billing_month} (Amount: " . number_format($installment->amount, 2) . ")";
 
-            // Get related vouchers before deletion (include soft deleted to be safe)
-            $relatedVouchers = Vouchers::withTrashed()
-                ->where('ref_id', $installment->id)
+            // Get related vouchers before deletion (only non-deleted vouchers)
+            $relatedVouchers = Vouchers::where('ref_id', $installment->id)
                 ->where('voucher_type', 'VL')
-                ->whereNull('deleted_at') // Only get non-deleted vouchers
                 ->get();
 
-            \Log::info("Found " . $relatedVouchers->count() . " vouchers to track for installment {$id}", [
-                'voucher_ids' => $relatedVouchers->pluck('id')->toArray()
+            \Log::info("Found " . $relatedVouchers->count() . " vouchers to delete for installment {$id}", [
+                'voucher_ids' => $relatedVouchers->pluck('id')->toArray(),
+                'installment_id' => $installment->id
             ]);
 
             // Get related transactions before deletion
@@ -1422,11 +1433,47 @@ class VisaexpenseController extends AppBaseController
             }
 
             // Cascade delete vouchers related to this installment (soft delete with deleted_by)
-            // Use the same collection that was used for tracking
-            foreach ($relatedVouchers as $voucher) {
-                $voucher->deleted_by = auth()->id();
-                $voucher->save();
-                $voucher->delete();
+            // Note: Using delete() performs soft deletion since Vouchers model uses SoftDeletes trait
+            if ($relatedVouchers->count() > 0) {
+                foreach ($relatedVouchers as $voucher) {
+                    try {
+                        \Log::info("Soft deleting voucher {$voucher->id} for installment {$installment->id}");
+                        $voucher->deleted_by = auth()->id();
+                        $voucher->save();
+                        // Soft delete: sets deleted_at timestamp (does not permanently delete from database)
+                        $voucher->delete();
+                        \Log::info("Successfully soft deleted voucher {$voucher->id}");
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to delete voucher {$voucher->id}: " . $e->getMessage(), [
+                            'exception' => $e,
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        throw $e; // Re-throw to trigger rollback
+                    }
+                }
+            } else {
+                \Log::warning("No vouchers found to delete for installment {$installment->id}");
+            }
+
+            // Double-check: Ensure all remaining vouchers are deleted (as a safety measure)
+            $remainingVouchers = Vouchers::where('ref_id', $installment->id)
+                ->where('voucher_type', 'VL')
+                ->whereNull('deleted_at')
+                ->get();
+
+            if ($remainingVouchers->count() > 0) {
+                \Log::warning("Found {$remainingVouchers->count()} remaining vouchers after deletion attempt, soft deleting them now");
+                foreach ($remainingVouchers as $voucher) {
+                    try {
+                        $voucher->deleted_by = auth()->id();
+                        $voucher->save();
+                        // Soft delete: sets deleted_at timestamp (does not permanently delete from database)
+                        $voucher->delete();
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to delete remaining voucher {$voucher->id}: " . $e->getMessage());
+                        throw $e;
+                    }
+                }
             }
 
             // Delete related transactions
@@ -1442,10 +1489,15 @@ class VisaexpenseController extends AppBaseController
                 ->first();
 
             if ($liabilityAccount) {
+                // Convert billing_month to proper date format for ledger_entries comparison
+                // billing_month in installment is stored as 'YYYY-MM', but ledger_entries expects 'YYYY-MM-DD'
+                $billingMonthForLedger = (strlen($installment->billing_month) <= 7) ?
+                    $installment->billing_month . '-01' : $installment->billing_month;
+
                 // Get ledger entry before deletion
                 $ledgerEntry = DB::table('ledger_entries')
                     ->where('account_id', $liabilityAccount->id)
-                    ->where('billing_month', $installment->billing_month)
+                    ->where('billing_month', $billingMonthForLedger)
                     ->first();
 
                 if ($ledgerEntry) {
@@ -1469,7 +1521,7 @@ class VisaexpenseController extends AppBaseController
 
                 DB::table('ledger_entries')
                     ->where('account_id', $liabilityAccount->id)
-                    ->where('billing_month', $installment->billing_month)
+                    ->where('billing_month', $billingMonthForLedger)
                     ->delete();
             }
 
@@ -1582,6 +1634,7 @@ class VisaexpenseController extends AppBaseController
                     'voucher_type'  => $request->voucher_type,
                     'remarks'       => $remarks,
                     'amount'        => $fine->amount,
+                    'reference_number' => $fine->reference_number ?? null,
                     'Created_By'    => $request->Created_By,
                     'attach_file'   => $docFile,
                     'pay_account'   => $request->account,
@@ -1663,11 +1716,16 @@ class VisaexpenseController extends AppBaseController
         $trans_code = $visaExpenses->trans_code;
         $billingMonth = $request->billing_month . "-01";
         $trans_date = $visaExpenses->trans_date ?? Carbon::today();
+        $request->validate([
+            'reference_number' => 'required|string|max:255',
+        ]);
+
         $visaExpenses->visa_status = $request->visa_status;
         $visaExpenses->billing_month = $billingMonth;
         $visaExpenses->date = $request->date;
         $visaExpenses->amount = $request->amount;
         $visaExpenses->detail = $request->detail;
+        $visaExpenses->reference_number = $request->reference_number;
         $visaExpenses->save();
         Flash::success('Visa Expense updated successfully');
         return redirect()->back();

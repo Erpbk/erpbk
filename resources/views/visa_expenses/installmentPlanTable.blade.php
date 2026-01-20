@@ -170,6 +170,18 @@
             cancelButtonColor: '#6c757d'
         }).then((result) => {
             if (result.isConfirmed) {
+                // Show loading state
+                Swal.fire({
+                    title: 'Processing...',
+                    text: 'Please wait while we update the status.',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
                 submitForm('{{ route("VisaExpense.payInstallment") }}', {
                     'installment_id': installmentId
                 });
@@ -189,6 +201,18 @@
             cancelButtonColor: '#6c757d'
         }).then((result) => {
             if (result.isConfirmed) {
+                // Show loading state
+                Swal.fire({
+                    title: 'Processing...',
+                    text: 'Please wait while we update the status.',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
                 submitForm('{{ route("VisaExpense.payInstallment") }}', {
                     'installment_id': installmentId,
                     'status': 'pending'
@@ -441,32 +465,45 @@
     }
 
     function submitForm(action, data) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = action;
+        try {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = action;
+            form.style.display = 'none';
 
-        // Add CSRF token
-        const csrfToken = document.createElement('input');
-        csrfToken.type = 'hidden';
-        csrfToken.name = '_token';
-        csrfToken.value = '{{ csrf_token() }}';
-        form.appendChild(csrfToken);
+            // Add CSRF token - try meta tag first, fallback to Blade syntax
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            const metaToken = document.querySelector('meta[name="csrf-token"]');
+            csrfToken.value = metaToken ? metaToken.getAttribute('content') : '{{ csrf_token() }}';
+            form.appendChild(csrfToken);
 
-        // Add data
-        for (const [key, value] of Object.entries(data)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
+            // Add data
+            for (const [key, value] of Object.entries(data)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
+
+            // Submit form
+            document.body.appendChild(form);
+            form.submit();
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An error occurred while processing your request. Please try again.',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#dc3545'
+            });
         }
-
-        // Submit form
-        document.body.appendChild(form);
-        form.submit();
     }
 
-    // Intercept deletion: mark as pending deletion and require finalize
+    // Soft delete with cascade tracking confirmation
     function confirmDeleteProtected(url) {
         try {
             const match = url && url.match(/deleteInstallment\/(\d+)/);
@@ -482,23 +519,43 @@
                 return false;
             }
 
-            const amountInput = document.getElementById('amount_input_' + installmentId);
-            const originalVal = amountInput ? parseFloat(amountInput.getAttribute('data-original')) : NaN;
-            const originalAmount = isNaN(originalVal) ? 0 : originalVal;
-
-            // Track deletion with original amount for diff calculations
-            INSTALLMENT_DELETIONS[installmentId] = originalAmount;
-
-            // Visually mark row as deleted and exclude from current total calculations
-            const row = amountInput ? amountInput.closest('tr') : null;
-            if (row) {
-                row.setAttribute('data-deleted', '1');
-                row.classList.add('table-danger');
-                row.style.opacity = '0.6';
-            }
+            // Show confirmation dialog mentioning soft deletion and cascade tracking
+            Swal.fire({
+                title: 'Delete Installment Plan?',
+                html: '<p>Are you sure you want to <strong>soft delete</strong> this installment plan?</p>' +
+                    '<p class="text-muted small">This will:</p>' +
+                    '<ul class="text-start text-muted small">' +
+                    '<li>Soft delete the installment plan (can be recovered from trash)</li>' +
+                    '<li>Soft delete all related vouchers (cascade deletion)</li>' +
+                    '<li>Delete related transactions</li>' +
+                    '<li>Delete related ledger entries</li>' +
+                    '<li>Store cascade deletion records for tracking</li>' +
+                    '</ul>',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, soft delete it',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Submit the deletion (route is GET, so we can use window.location)
+                    // The controller will handle soft deletion and cascade tracking
+                    window.location.href = url;
+                }
+            });
 
             return false;
         } catch (e) {
+            console.error('Error in confirmDeleteProtected:', e);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An error occurred while processing the deletion request.',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#dc3545'
+            });
             return false;
         }
     }

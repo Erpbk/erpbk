@@ -33,7 +33,7 @@ $voucherType = request("vt");
             <input type="hidden" name="payment_from" value="811" /><!--Sim Bike and Vendor Charges Account ID-->
             @endif
            --}}
-@if ($voucherType == 'VC' || $voucherType == 'COD' || $voucherType == 'PN' || $voucherType == 'IN' || $voucherType == 'PAY')
+@if ($voucherType == 'VC' || $voucherType == 'COD' || $voucherType == 'PN' || $voucherType == 'INC' || $voucherType == 'PAY')
 @else
 <div class="form-group col-md-2">
     <label for="exampleInputEmail1">Payment Type</label>
@@ -45,6 +45,11 @@ $voucherType = request("vt");
     <label for="exampleInputEmail1">Billing Month</label>
     {{-- {!! Form::select('billing_month',App\Helpers\CommonHelper::BillingMonth(),null ,['class' => 'form-control  select2 ','id'=>'billing_month']) !!}
  --}} <input type="month" name="billing_month" class="form-control " value="@isset($vouchers->billing_month){{date('Y-m',strtotime($vouchers->billing_month)) }}@endisset" required>
+</div>
+
+<div class="form-group col-md-2">
+    <label for="reference_number">Reference Number <span class="text-danger">*</span></label>
+    <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($vouchers->reference_number){{$vouchers->reference_number}}@endisset" placeholder="Reference Number" required>
 </div>
 
 </div>
@@ -78,6 +83,11 @@ $voucherType = request("vt");
     @endif
 
     @if($voucherType == 'PN')
+    @php($accounts = \App\Models\Accounts::dropdown(null))
+    @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
+    @endif
+
+    @if($voucherType == 'INC')
     @php($accounts = \App\Models\Accounts::dropdown(null))
     @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
     @endif

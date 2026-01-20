@@ -33,7 +33,7 @@ class SimImport implements ToCollection
             $processedSims = [];
             $importedSimIds = [];
 
-            $newSims = $rows->skip(1)->pluck(1)->filter()->toArray();
+            $newSims = $rows->skip(1)->pluck(0)->filter()->toArray();
             $existingSims = Sims::whereIn('number', $newSims)->pluck('number')->toArray();
             $existingSims = array_flip($existingSims);
 

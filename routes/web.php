@@ -53,6 +53,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     // CENTRALIZED TRASH/RECYCLE BIN MODULE
     // ============================================================
     Route::get('/trash', [App\Http\Controllers\TrashController::class, 'index'])->name('trash.index');
+    Route::get('/trash/{module}/{id}/show', [App\Http\Controllers\TrashController::class, 'show'])->name('trash.show');
     Route::post('/trash/{module}/{id}/restore', [App\Http\Controllers\TrashController::class, 'restore'])->name('trash.restore');
     Route::delete('/trash/{module}/{id}/force-destroy', [App\Http\Controllers\TrashController::class, 'forceDestroy'])->name('trash.force-destroy');
     Route::get('/trash/stats', [App\Http\Controllers\TrashController::class, 'stats'])->name('trash.stats');
@@ -328,16 +329,11 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::resource('simHistories', App\Http\Controllers\SimHistoryController::class);
 
     Route::resource('fuelCards', App\Http\Controllers\FuelCardController::class);
-<<<<<<< Updated upstream
-    Route::any('fuelcards/import', [\App\Http\Controllers\FuelCardController::class,'import'])->name('fuelCards.import');
-    Route::get('fuelcards/export', [\App\Http\Controllers\FuelCardController::class,'export'])->name('fuelCards.export');
-=======
     Route::any('fuelcards/import', [\App\Http\Controllers\FuelCardController::class, 'import'])->name('fuelCards.import');
     Route::get('fuelcards/export', [\App\Http\Controllers\FuelCardController::class, 'export'])->name('fuelCards.export');
     
     Route::any('fuelcards/assign/{id}', [\App\Http\Controllers\FuelCardHistoryController::class, 'assign'])->name('fuelCards.assign');
     Route::any('fuelcards/return/{id}', [\App\Http\Controllers\FuelCardHistoryController::class, 'return'])->name('fuelCards.return');
->>>>>>> Stashed changes
 
     Route::resource('leasingCompanies', App\Http\Controllers\LeasingCompaniesController::class);
     Route::delete('leasingCompanies/delete/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroy'])->name('leasingCompanies.delete');

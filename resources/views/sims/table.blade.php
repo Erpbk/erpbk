@@ -132,6 +132,11 @@
       @endforeach
     </tbody>
   </table>
+  @if($data->isEmpty())
+   <div class="text-center mt-5">
+      <h3>No Sims found</h3> 
+   </div>
+  @endif
 </div>
 
 @if(method_exists($data, 'links'))

@@ -55,10 +55,62 @@
                         <div class="col-md-3">
                             <div class="card bg-danger text-white">
                                 <div class="card-body text-center">
-                                    <h2 class="mb-0">{{ $summary['error_count'] ?? 0 }}</h2>
+                                    <h2 class="mb-0">{{ $summary['error_count'] ?? count($errors ?? []) }}</h2>
                                     <p class="mb-0">Errors</p>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                    @if(!empty($missingRecords))
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card bg-warning">
+                                <div class="card-body text-center">
+                                    <h2 class="mb-0">{{ count($missingRecords) }}</h2>
+                                    <p class="mb-0">Missing Records (Riders Not Found)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
+                    <!-- Date Filter Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fa fa-filter"></i> Filter by Date
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="GET" action="{{ route('rider.activities_import_errors') }}" class="row">
+                                <div class="form-group col-md-6">
+                                    <label for="from_date_range">From Date (Quick Select)</label>
+                                    <select class="form-control" id="from_date_range" name="from_date_range">
+                                        <option value="" selected>Select</option>
+                                        <option value="Today" {{ request('from_date_range') == 'Today' ? 'selected' : '' }}>Today</option>
+                                        <option value="Yesterday" {{ request('from_date_range') == 'Yesterday' ? 'selected' : '' }}>Yesterday</option>
+                                        <option value="Last 7 Days" {{ request('from_date_range') == 'Last 7 Days' ? 'selected' : '' }}>Last 7 Days</option>
+                                        <option value="Last 30 Days" {{ request('from_date_range') == 'Last 30 Days' ? 'selected' : '' }}>Last 30 Days</option>
+                                        <option value="Last 90 Days" {{ request('from_date_range') == 'Last 90 Days' ? 'selected' : '' }}>Last 90 Days</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label for="from_date">From Date</label>
+                                    <input type="date" name="from_date" id="from_date" class="form-control" value="{{ request('from_date') }}">
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label for="to_date">To Date</label>
+                                    <input type="date" name="to_date" id="to_date" class="form-control" value="{{ request('to_date') }}">
+                                </div>
+                                <div class="form-group col-md-12">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fa fa-filter"></i> Apply Filter
+                                    </button>
+                                    <a href="{{ route('rider.activities_import_errors') }}" class="btn btn-secondary">
+                                        <i class="fa fa-times"></i> Clear Filter
+                                    </a>
+                                </div>
+                            </form>
                         </div>
                     </div>
 
@@ -77,12 +129,52 @@
                         </a>
                     </div>
 
+                    @if(!empty($missingRecords))
+                    <div class="card mb-4">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="fa fa-exclamation-triangle"></i>
+                                Missing Records List ({{ count($missingRecords) }} records skipped)
+                            </h5>
+                            <small class="text-muted">These records were skipped because the Rider ID does not exist in the system.</small>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-striped table-hover mb-0" id="missingRecordsTable">
+                                    <thead class="thead-dark">
+                                        <tr>
+                                            <th class="text-center">#</th>
+                                            <th class="text-center">Excel Row</th>
+                                            <th>Rider ID</th>
+                                            <th>Date</th>
+                                            <th>Reason</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($missingRecords as $index => $record)
+                                        <tr>
+                                            <td class="text-center">{{ $index + 1 }}</td>
+                                            <td class="text-center">
+                                                <span class="badge badge-info">Row {{ $record['row'] ?? 'N/A' }}</span>
+                                            </td>
+                                            <td><code>{{ $record['rider_id'] ?? 'N/A' }}</code></td>
+                                            <td>{{ $record['date'] ?? 'N/A' }}</td>
+                                            <td><span class="badge badge-warning">{{ $record['message'] ?? 'Rider ID does not exist in system' }}</span></td>
+                                        </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
                     @if(!empty($errors))
                     <div class="card">
                         <div class="card-header bg-dark text-white">
                             <h5 class="mb-0">
                                 <i class="fa fa-list"></i>
-                                Detailed Error Analysis ({{ count($errors) }} errors found)
+                                Critical Errors ({{ count($errors) }} errors found)
                             </h5>
                         </div>
                         <div class="card-body p-0">
@@ -114,7 +206,7 @@
                             </div>
                         </div>
                     </div>
-                    @else
+                    @elseif(empty($missingRecords))
                     <div class="alert alert-success">
                         <i class="fa fa-check-circle me-2"></i>No import errors were found for the latest upload.
                     </div>
@@ -129,24 +221,50 @@
 
 @section('page-script')
 <script>
+    $(document).ready(function() {
+        // Auto-fill from_date when from_date_range is selected
+        $('#from_date_range').on('change', function() {
+            const selectedValue = $(this).val();
+            if (selectedValue === 'Today') {
+                $('#from_date').val(new Date().toISOString().split('T')[0]);
+            } else if (selectedValue === 'Yesterday') {
+                $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0]);
+            } else if (selectedValue === 'Last 7 Days') {
+                $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0]);
+            } else if (selectedValue === 'Last 30 Days') {
+                $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
+            } else if (selectedValue === 'Last 90 Days') {
+                $('#from_date').val(new Date(new Date().setDate(new Date().getDate() - 90)).toISOString().split('T')[0]);
+            }
+        });
+    });
+
     // Export to Excel function
     function exportToExcel() {
         // Check if errors table exists
         var table = document.getElementById('errorTable');
+        var missingTable = document.getElementById('missingRecordsTable');
 
-        // If table doesn't exist, show an error message
-        if (!table) {
-            alert('No error table found to export.');
+        // If neither table exists, show an error message
+        if (!table && !missingTable) {
+            alert('No tables found to export.');
             return;
         }
 
         try {
-            var html = table.outerHTML;
+            var html = '';
+            if (missingTable) {
+                html += '<h2>Missing Records</h2>' + missingTable.outerHTML + '<br><br>';
+            }
+            if (table) {
+                html += '<h2>Critical Errors</h2>' + table.outerHTML;
+            }
+
             var url = 'data:application/vnd.ms-excel;base64,' + btoa(unescape(encodeURIComponent(html)));
             var downloadLink = document.createElement("a");
             downloadLink.href = url;
 
-            downloadLink.download = 'rider_activities_import_errors_' + new Date().getTime() + '.xls';
+            downloadLink.download = 'rider_activities_import_report_' + new Date().getTime() + '.xls';
 
             document.body.appendChild(downloadLink);
             downloadLink.click();

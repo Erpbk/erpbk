@@ -78,7 +78,7 @@
                             </a></li>
                         @endcan
                         @can('voucher_edit')
-                        @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'PAY', 'VC', 'JV']))
+                        @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV']))
                         <li><a href="javascript:void(0);" data-size="xl"
                                 data-title="Edit Voucher No. {{$voucher->voucher_type.'-'.str_pad($voucher->id,4,'0',STR_PAD_LEFT)}}"
                                 data-action="{{ route('vouchers.edit', $voucher->trans_code) }}"
@@ -88,7 +88,7 @@
                         @endif
                         @endcan
                         @can('voucher_delete')
-                        @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'PAY', 'VC', 'JV', 'LV']))
+                        @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV', 'LV']))
                         <li><a href="javascript:void(0);" onclick="deleteVoucher('{{ $voucher->trans_code }}')" class='dropdown-item waves-effect text-danger'>
                                 <i class="fa fa-trash my-1"></i> Delete
                             </a></li>

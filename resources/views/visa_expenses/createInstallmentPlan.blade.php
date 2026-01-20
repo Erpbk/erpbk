@@ -27,7 +27,14 @@
                     </div>
                 </div>
             </div>
-
+            <!-- Reference Number -->
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    <label for="reference_number" class="form-label">Reference Number <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="reference_number" name="reference_number" placeholder="Reference Number" required>
+                    <small class="form-text text-muted">Reference number for this installment plan</small>
+                </div>
+            </div>
             <!-- Step 1: Select Number of Installments -->
             <div class="col-md-6">
                 <div class="form-group mb-3">
@@ -68,6 +75,8 @@
                     <small class="form-text text-muted">Select the first billing month</small>
                 </div>
             </div>
+
+
 
             <!-- Step 4: Dynamic Installment Input Fields -->
             <div class="col-md-12" id="installment-inputs-section" style="display: none;">

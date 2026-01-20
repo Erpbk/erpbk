@@ -47,6 +47,11 @@ $voucherType = request("vt");
  --}} <input type="month" name="billing_month" class="form-control " value="@isset($vouchers->billing_month){{date('Y-m',strtotime($vouchers->billing_month)) }}@endisset" required>
 </div>
 
+<div class="form-group col-md-2">
+    <label for="reference_number">Reference Number <span class="text-danger">*</span></label>
+    <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($vouchers->reference_number){{$vouchers->reference_number}}@endisset" placeholder="Reference Number" required>
+</div>
+
 </div>
 <div class="scrollbar">
 

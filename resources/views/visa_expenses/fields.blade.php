@@ -1,6 +1,10 @@
 <script src="{{ asset('js/modal_custom.js') }}"></script>
 
 <div class="form-group col-sm-6">
+    {!! Form::label('reference_number', 'Reference Number:', ['class' => 'required']) !!}
+    {!! Form::text('reference_number', $visaExpenses->reference_number ?? '', ['class' => 'form-control', 'placeholder' => 'Reference Number', 'required']) !!}
+</div>
+<div class="form-group col-sm-6">
     {!! Form::label('date', 'Date:' , ['class' => 'required']) !!}
     {!! Form::date('date', $visaExpenses->date ?? 'null', ['class' => 'form-control', 'required']) !!}
 </div>

@@ -352,6 +352,9 @@ class VouchersController extends Controller
         // Update voucher
         $vouchers->rider_id = $riderAccountId;
         $vouchers->amount = $totalDebit;
+        if ($request->has('reference_number')) {
+          $vouchers->reference_number = $request->reference_number;
+        }
         $vouchers->save();
 
         // Only update rider_id in rta_fines if this is the FIRST voucher with this ref_id

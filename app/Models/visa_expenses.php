@@ -23,6 +23,7 @@ class visa_expenses extends Model
         'rider_id',
         'visa_status',
         'detail',
+        'reference_number',
         'billing_month',
         'amount',
         'payment_status',

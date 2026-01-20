@@ -292,6 +292,7 @@ class VisaexpenseController extends AppBaseController
             ],
             'billing_month'  => 'required|date_format:Y-m',
             'detail'         => 'nullable|string',
+            'reference_number' => 'required|string|max:255',
             'amount'         => 'required|numeric|min:0',
             'attach_file'    => 'nullable|string|max:255',
         ]);
@@ -308,6 +309,7 @@ class VisaexpenseController extends AppBaseController
                 'amount'         => $request->amount,
                 'payment_status' => 'unpaid',
                 'detail'         => $validated['detail'],
+                'reference_number' => $validated['reference_number'],
                 'trans_date'     => $trans_date,
                 'trans_code'     => $trans_code,
             ]);
@@ -429,7 +431,8 @@ class VisaexpenseController extends AppBaseController
             'billing_month' => 'required|string',
             'number_of_installments' => 'required|integer|min:1|max:12',
             'installment_amounts' => 'required|array|min:1',
-            'installment_amounts.*' => 'required|numeric|min:0'
+            'installment_amounts.*' => 'required|numeric|min:0',
+            'reference_number' => 'required|string|max:255'
         ]);
 
         try {
@@ -498,6 +501,7 @@ class VisaexpenseController extends AppBaseController
                     'billing_month' => $billingMonthFormatted,
                     'amount' => $installmentAmount,
                     'total_amount' => $totalAmount, // Store the total amount for reference
+                    'reference_number' => $validated['reference_number'],
                     'status' => visa_installment_plan::STATUS_PENDING,
                     'date' => $installmentDate,
                     'created_by' => auth()->user()->id,
@@ -520,6 +524,7 @@ class VisaexpenseController extends AppBaseController
                         . $validated['number_of_installments']
                         . ' (Amount: ' . number_format($installmentAmount, 2) . ')',
                     'amount' => $installmentAmount,
+                    'reference_number' => $validated['reference_number'],
                     'Created_By' => auth()->user()->id,
                     'ref_id' => $installment->id,
                 ]);
@@ -898,6 +903,7 @@ class VisaexpenseController extends AppBaseController
                         'voucher_type' => 'VL',
                         'remarks' => $rider->rider_id . ' - ' . $rider->name . ' - visa loan installment',
                         'amount' => (float) $newAmount,
+                        'reference_number' => $installment->reference_number ?? null,
                         'Created_By' => auth()->user()->id,
                         'ref_id' => $installment->id,
                     ]);
@@ -1163,6 +1169,7 @@ class VisaexpenseController extends AppBaseController
                         'billing_month' => $bm,
                         'amount' => $amount,
                         'total_amount' => $existingTotalAmount,
+                        'reference_number' => $contextInstallment->reference_number ?? null,
                         'status' => visa_installment_plan::STATUS_PENDING,
                         'date' => $date,
                         'created_by' => auth()->user()->id,
@@ -1182,6 +1189,7 @@ class VisaexpenseController extends AppBaseController
                         'voucher_type' => 'VL',
                         'remarks' => $rider->rider_id . ' - ' . $rider->name . ' - visa loan installment (new)',
                         'amount' => $amount,
+                        'reference_number' => $installment->reference_number ?? null,
                         'Created_By' => auth()->user()->id,
                         'ref_id' => $installment->id,
                     ]);
@@ -1626,6 +1634,7 @@ class VisaexpenseController extends AppBaseController
                     'voucher_type'  => $request->voucher_type,
                     'remarks'       => $remarks,
                     'amount'        => $fine->amount,
+                    'reference_number' => $fine->reference_number ?? null,
                     'Created_By'    => $request->Created_By,
                     'attach_file'   => $docFile,
                     'pay_account'   => $request->account,
@@ -1707,11 +1716,16 @@ class VisaexpenseController extends AppBaseController
         $trans_code = $visaExpenses->trans_code;
         $billingMonth = $request->billing_month . "-01";
         $trans_date = $visaExpenses->trans_date ?? Carbon::today();
+        $request->validate([
+            'reference_number' => 'required|string|max:255',
+        ]);
+
         $visaExpenses->visa_status = $request->visa_status;
         $visaExpenses->billing_month = $billingMonth;
         $visaExpenses->date = $request->date;
         $visaExpenses->amount = $request->amount;
         $visaExpenses->detail = $request->detail;
+        $visaExpenses->reference_number = $request->reference_number;
         $visaExpenses->save();
         Flash::success('Visa Expense updated successfully');
         return redirect()->back();

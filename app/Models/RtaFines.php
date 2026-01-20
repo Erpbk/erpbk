@@ -31,7 +31,8 @@ class RtaFines extends Model
     'attachment',
     'attachment_path',
     'status',
-    'reference_number'
+    'reference_number',
+    'vat',
   ];
 
   protected $casts = [
@@ -44,6 +45,7 @@ class RtaFines extends Model
     'amount' => 'decimal:2',
     'service_charges' => 'decimal:2',
     'admin_fee' => 'decimal:2',
+    'vat' => 'decimal:2',
     'total_amount' => 'decimal:2',
     'status' => 'string',
     'deleted_at' => 'datetime'
@@ -67,6 +69,7 @@ class RtaFines extends Model
     'detail' => 'nullable|string|max:500',
     'amount' => 'required|numeric',
     'service_charges' => 'nullable|numeric',
+    'vat'=> 'nullable|numeric',
     'admin_fee' => 'nullable|numeric',
     'total_amount' => 'nullable|numeric',
     'status' => 'nullable|string|max:20',

@@ -1,4 +1,11 @@
 <script src="{{ asset('js/modal_custom.js') }}"></script>
+
+<!-- Reference Number -->
+<div class="form-group col-sm-6">
+    {!! Form::label('reference_number', 'Reference Number:') !!}
+    {!! Form::text('reference_number', $rtaFines->reference_number ?? '' , ['class' => 'form-control','step'=>'any']) !!}
+</div>
+
 <!-- Trip Date Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('trip_date', 'Trip Date:' , ['class' => 'required']) !!}
@@ -71,19 +78,11 @@
     </select>
 </div>
 <div class="form-group col-sm-6">
-    <label class="">Credit Account:</label>
-    <select class="form select select2" required id="rta_account_id" name="rta_account_id">
-        <option value=""></option>
-        @foreach(DB::table('accounts')->where('status' , 1)->get() as $a)
-        <option value="{{ $a->id }}" @if($data->id == $a->id) selected @endif>{{ $a->name }}</option>
-        @endforeach
-    </select>
+    {!! Form::label('credit_account', 'Credit Account:') !!}
+    <input type="hidden" name="rta_account_id" value="{{ $data->id }}">
+    {!! Form::text('credit_account',  $data->id.'-'.$data->name, ['class' => 'form-control','step'=>'any', 'readonly'=>true]) !!}
 </div>
-<!-- Amount Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('reference_number', 'Reference Number:', ['class' => '']) !!}
-    {!! Form::text('reference_number', $rtaFines->reference_number ?? '' , ['class' => 'form-control','step'=>'any']) !!}
-</div>
+
 <div class="form-group col-sm-6">
     {!! Form::label('attachment', 'Attachment:', ['class' => '']) !!}
     {!! Form::file('attachment', ['class' => 'form-control', '']) !!}
@@ -91,19 +90,23 @@
 <!-- Amount Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('admin_fee', 'Admin Charges:', ['class' => '']) !!}
-    {!! Form::number('admin_fee', $rtaFines->admin_fee ?? $data->admin_charges, ['class' => 'form-control','step'=>'any', 'readonly']) !!}
+    {!! Form::number('admin_fee', $rtaFines->admin_fee ?? '', ['class' => 'form-control','step'=>'any', 'readonly']) !!}
 </div>
 <!-- Amount Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('service_charges', 'Service Charges:', ['class' => '']) !!}
-    {!! Form::number('service_charges', $rtaFines->service_charges ?? $data->account_tax, ['class' => 'form-control','step'=>'any']) !!}
+    {!! Form::number('service_charges', $rtaFines->service_charges ?? '', ['class' => 'form-control','step'=>'any']) !!}
 </div>
 <!-- Amount Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('amount', 'Amount:', ['class' => 'required']) !!}
     {!! Form::number('amount', $rtaFines->amount ?? '', ['class' => 'form-control','step'=>'any', 'required']) !!}
 </div>
-
+<!-- Amount Field -->
+<div class="form-group col-sm-6">
+    {!! Form::label('vat', 'VAT:') !!}
+    {!! Form::number('vat', $rtaFines->vat ?? '', ['class' => 'form-control','step'=>'any', 'readonly'=>true]) !!}
+</div>
 
 <!-- Detail Field -->
 <div class="form-group col-sm-12">

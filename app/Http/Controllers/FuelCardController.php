@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\FuelCards;
+use App\Models\FuelCardHistory;
+use Flash;
+use Illuminate\Support\Facades\DB;
 use App\Traits\GlobalPagination;
 
 class FuelCardController extends Controller
@@ -13,7 +16,7 @@ class FuelCardController extends Controller
      public function index(Request $request)
     {
 
-        if (!auth()->user()->hasPermissionTo('sim_view')) {
+        if (!auth()->user()->hasPermissionTo('fuel_view')) {
             abort(403, 'Unauthorized action.');
         }
         // Use global pagination trait
@@ -30,6 +33,11 @@ class FuelCardController extends Controller
             $query->where('assigned_to', $request->assigned_to);
         }
 
+        $stats['total'] = $query->count();
+        $stats['active'] = (clone $query)->where('status', 'Active')->count();
+        $stats['inactive'] = (clone $query)->where('status', 'Inactive')->count();
+        $stats['inactive'] += (clone $query)->where('status', null)->count();
+
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
         if ($request->ajax()) {
@@ -40,11 +48,13 @@ class FuelCardController extends Controller
             return response()->json([
                 'tableData' => $tableData,
                 'paginationLinks' => $paginationLinks,
+                'stats' => $stats,
             ]);
         }
 
         return view('fuel_cards.index', [
             'data' => $data,
+            'stats' => $stats,
         ]);
     }
 
@@ -62,17 +72,32 @@ class FuelCardController extends Controller
     public function store(Request $request)
     {
         $this->validate($request, [
-            'card_number' => 'required|string|min:19|unique:fuel_cards,card_number',
+            'card_number' => 'required|string|min:16|unique:fuel_cards,card_number',
             'card_type'=> 'nullable|string|max:255',
             'assigned_to'=> 'nullable|integer',
             'status' =>'nullable|string',
             ]);
 
         $request['created_by'] = auth()->id();
-
+        if(($request['assigned_to']))
+            $request['status'] = 'Active';
+        else
+            $request['status'] = 'Inactive';
+        DB::beginTransaction();
         try{
-            FuelCards::create($request->all());
+            $card = FuelCards::create($request->all());
+            if($request['assigned_to']){
+                FuelCardHistory::create([
+                    'card_id' => $card->id,
+                    'assigned_to' => $request['assigned_to'],
+                    'assigned_by' => auth()->id(),
+                    'assign_date' => $request['assign_date'] ?? now(),
+                    'note'=> 'Initial Assignment',
+                ]);
+            }
+            DB::commit();
         }catch(\Exception $e){
+            DB::rollBack();
             if($request->ajax()){
                 return response()->json(['messahe' => 'An Error Occurred'. $e->getMessage() . $e->getTraceAsString()],500);
             }
@@ -92,8 +117,9 @@ class FuelCardController extends Controller
      */
     public function show(string $id)
     {
-        $fuelCard = FuelCards::find($id);
-        return view('fuel_cards.show')->with('fuelCard', $fuelCard);
+        $card = FuelCards::find($id);
+        $histories = $card->histories()->orderByDesc('id')->get();
+        return view('fuel_cards.show', compact('card', 'histories'));
     }
 
     /**
@@ -111,16 +137,25 @@ class FuelCardController extends Controller
     public function update(Request $request, string $id)
     {
         $this->validate($request, [
-            'card_number' => 'required|string|min:19|unique:fuel_cards,card_number'.$id,
+            'card_number' => 'required|string|min:16|unique:fuel_cards,card_number,'.$id,
             'card_type'=> 'nullable|string|max:255',
-            'assigned_to'=> 'nullable|integer',
-            'status' =>'nullable|string',
             ]);
 
+        $card = FuelCards::find($id);
+        if(!$card){
+            return response()->json(['message' => 'Card Not Found']);
+        }
+        $card->fill($request->all());
+        if($card->isClean()){
+            if($request->ajax()){
+                return response()->json(['message' => 'No Changes Detected To update'],200);
+            }
+            Flash::info('No Changes Detected');
+            return redirect()->back();
+        }
         $request['updated_by'] = auth()->id();
-
         try{
-            FuelCards::create($request->all());
+            $card->update($request->all());
         }catch(\Exception $e){
             if($request->ajax()){
                 return response()->json(['messahe' => 'An Error Occurred'. $e->getMessage()],500);
@@ -144,6 +179,9 @@ class FuelCardController extends Controller
         $fuelCard = FuelCards::find($id);
         if(!$fuelCard){
             return response()->json(['message'=> 'Fuel Card Not Found'],404);
+        }
+        if($fuelCard->histories()->count() > 0){
+            return response()->json(['message'=> 'Cannot delete Fuel Card with assignment history.'],400);
         }
         $fuelCard->delete();
         return response()->json(['message'=> 'Fuel Card Deleted successfully'],200);

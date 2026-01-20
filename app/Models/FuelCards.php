@@ -30,7 +30,7 @@ class FuelCards extends Model
     ];
 
     public static array $rules = [
-        'card_number'=> 'required|string|min:19',
+        'card_number'=> 'required|string|min:16',
         'card_type'=> 'nullable|string|max:255',
         'status'=> 'required|string|max:255',
         'assigned_to'=> 'nullable|numeric',
@@ -40,5 +40,9 @@ class FuelCards extends Model
     public function rider(){
 
         return $this->belongsTo(Riders::class,'assigned_to','id');
+    }
+
+    public function histories(){
+        return $this->hasMany(FuelCardHistory::class, 'card_id','id');
     }
 }

@@ -4,7 +4,16 @@
 
     <div class="card-body">
         <div class="row">
-            @include('fuel_cards.fields')
+            <div class="form-group col-sm-6">
+                {!! Form::label('card_number', 'Number:') !!}
+                {!! Form::text('card_number', null, ['class' => 'form-control']) !!}
+            </div>
+
+            <!-- Company Field -->
+            <div class="form-group col-sm-6">
+                {!! Form::label('card_type', 'Card type:') !!}
+                {!! Form::text('card_type', null, ['class' => 'form-control']) !!}
+            </div>
         </div>
     </div>
 

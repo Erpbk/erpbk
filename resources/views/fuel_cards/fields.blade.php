@@ -1,12 +1,12 @@
 <!-- Number Field -->
 <div class="form-group col-sm-6">
-    {!! Form::label('card_number', 'Number:') !!}
-    {!! Form::text('card_number', null, ['class' => 'form-control', 'readonly' => isset($fuelCard) ]) !!}
+    {!! Form::label('card_number', 'Number:', ['class' => 'required']) !!}
+    {!! Form::text('card_number', null, ['class' => 'form-control']) !!}
 </div>
 
 <!-- Company Field -->
 <div class="form-group col-sm-6">
-    {!! Form::label('card_type', 'Card type:') !!}
+    {!! Form::label('card_type', 'Card type:', ['class' => 'required']) !!}
     {!! Form::text('card_type', null, ['class' => 'form-control']) !!}
 </div>
 
@@ -24,15 +24,12 @@
     </select>
 </div>
 
-<!-- status Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('status', 'Status:') !!}
-    {!! Form::select('status', 
-        [ 'Active' => 'Active', 'Inactive' => 'Inactive'], 
-        old('status', $fuelCard->status ?? ''), 
-        ['class' => 'form-control select2', 'placeholder' => 'Select Status']
-    ) !!}
+<!-- Assign Date Field -->
+<div class="form-group col-md-6">
+    <label for="assign_date">Assign Date</label>
+    <input type="date" name="assign_date" class="form-control">
 </div>
+
 
 
 <script type="text/javascript">

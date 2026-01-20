@@ -20,6 +20,7 @@ class visa_installment_plan extends Model
         'rider_id',
         'amount',
         'total_amount',
+        'reference_number',
         'status',
         'created_by',
         'updated_by',

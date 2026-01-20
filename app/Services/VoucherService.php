@@ -28,10 +28,12 @@ class VoucherService
     $rules = [
       'trans_date' => 'required',
       'payment_type' => 'required',
+      'reference_number' => 'required|string|max:255',
     ];
     $message = [
       'trans_date.required' => 'Transaction Date Required',
       'payment_type.required' => 'Payment Type Required',
+      'reference_number.required' => 'Reference Number is required',
     ];
     $request->validate($rules, $message);
     $data = $request->except(['_method', '_token', 'v_trans_code', 'narration', 'dr_amount', 'cr_amount', 'account_id', 'id']);
@@ -588,6 +590,7 @@ class VoucherService
 
     //creating/updating voucher
     $data['amount'] = $total_amount;
+    $data['reference_number'] = $request->reference_number;
     if ($id) {
       $data['Updated_By'] = \Auth::user()->id;
 
@@ -617,12 +620,14 @@ class VoucherService
       /*             'CID' => 'required',
        */
       'dr_amount' => 'required',
+      'reference_number' => 'required|string|max:255',
     ];
     $message = [
       'trans_date.required' => 'Transaction Date Required',
       /*             'ref_id.required' => 'Please Select Sim',
        */
       'dr_amount.required' => 'Amount should be greater than 0',
+      'reference_number.required' => 'Reference Number is required',
       /*             'CID.required'=>' Company required',
        */
     ];
@@ -633,6 +638,7 @@ class VoucherService
     $data['payment_type'] = $request->payment_type ?? 0;
     $data['payment_from'] = $request->account_id[0];
     $data['billing_month'] = $request->billing_month;
+    $data['reference_number'] = $request->reference_number;
 
     $data['remarks'] = General::VoucherType($request->voucher_type) . ' Month of ' . date('M-Y', strtotime($data['billing_month']));
     $data['amount'] = array_sum($request->dr_amount);

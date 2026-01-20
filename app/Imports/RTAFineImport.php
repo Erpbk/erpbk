@@ -37,10 +37,10 @@ class RTAFineImport implements ToCollection
         DB::beginTransaction();
 
         try {
-            
+
             $adminAccount = DB::Table('accounts')->where('id', 1004)->first();
             $serviceAccount = DB::table('accounts')->where('id', 1368)->first();
-            
+
             $stats = [
                 'total' => 0,
                 'imported' => 0,
@@ -51,7 +51,7 @@ class RTAFineImport implements ToCollection
                 'no_bike' => 0,
                 'no_rider' => 0,
             ];
-            
+
             $failedFines = [];
             $processedTickets = [];
             $importedFineIds = [];
@@ -67,9 +67,9 @@ class RTAFineImport implements ToCollection
                 $stats['total']++;
 
                 if (collect($row)->take(8)->every(fn($cell) => trim($cell ?? '') === '')) {
-                   break;
+                    break;
                 }
-                
+
                 try {
                     // Extract data with validation
                     $bikePlate      = trim($row[0] ?? '');
@@ -83,8 +83,10 @@ class RTAFineImport implements ToCollection
 
 
                     // Validation
-                    if (empty($bikePlate) || empty($ticketNumber) || !$tripDate || 
-                        $fineAmount <= 0 || empty($fineDetails) ) {
+                    if (
+                        empty($bikePlate) || empty($ticketNumber) || !$tripDate ||
+                        $fineAmount <= 0 || empty($fineDetails)
+                    ) {
                         $failedFines[] = $this->createFailureEntry($rowIndex, $ticketNumber, $bikePlate, 'Missing or invalid required data');
                         $stats['missing_data']++;
                         continue;
@@ -157,20 +159,23 @@ class RTAFineImport implements ToCollection
                     $importedFineIds[] = $this->createSuccessEntry($rtaFine->id, $ticketNumber, $bikePlate, $rtaFine->total_amount, $rtaFine->detail);
 
                     // Process  transactions
-                    $this->processTransactions($rtaFine, $riderAccountId, $adminAccount, $serviceAccount
+                    $this->processTransactions(
+                        $rtaFine,
+                        $riderAccountId,
+                        $adminAccount,
+                        $serviceAccount
                     );
 
                     // Create voucher
                     $this->createVoucher($rtaFine, $riderAccountId);
 
                     $stats['imported']++;
-
                 } catch (\Exception $e) {
                     $stats['failed']++;
                     $failedFines[] = $this->createFailureEntry(
-                        $rowIndex, 
-                        $ticketNumber ?? $row[1], 
-                        $bikePlate ?? $row[0], 
+                        $rowIndex,
+                        $ticketNumber ?? $row[1],
+                        $bikePlate ?? $row[0],
                         $e->getMessage(),
                         ['exception' => $e->getTraceAsString()]
                     );
@@ -190,7 +195,6 @@ class RTAFineImport implements ToCollection
 
             \Log::info("Import completed", $stats);
             return $importedFineIds;
-
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error("Import failed: " . $e->getMessage());
@@ -198,13 +202,14 @@ class RTAFineImport implements ToCollection
         }
     }
 
-    public function getResults(){
+    public function getResults()
+    {
         return ($this->results);
     }
     private function createFailureEntry($rowIndex, $ticket, $plate, $reason, $extra = [])
     {
         return array_merge([
-            'excel_row' => $rowIndex + 1, 
+            'excel_row' => $rowIndex + 1,
             'ticket_number' => $ticket ?? 'Missing',
             'plate_number' => $plate ?? 'Missing',
             'reason' => $reason,
@@ -214,7 +219,7 @@ class RTAFineImport implements ToCollection
     private function createSuccessEntry($id, $ticket, $plate, $amount, $detail)
     {
         return [
-            'id' => $id, 
+            'id' => $id,
             'ticket_number' => $ticket,
             'plate_number' => $plate,
             'amount' => $amount,
@@ -288,6 +293,7 @@ class RTAFineImport implements ToCollection
             'rider_id' => $fine->rider_id,
             'trans_date' => $fine->trans_date,
             'trans_code' => $fine->trans_code,
+            'reference_number' => $fine->reference_number,
             'trip_date' => $fine->trip_date,
             'billing_month' => $fine->billing_month,
             'payment_type' => 1,
@@ -347,5 +353,4 @@ class RTAFineImport implements ToCollection
         $account = \App\Models\Accounts::where('ref_id', $riderId)->first();
         return $account ? $account->id : null;
     }
-
 }

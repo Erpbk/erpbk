@@ -256,10 +256,31 @@ class TrashController extends Controller
         });
 
         // Paginate manually
-        $perPage = 20;
+        $perPageRequest = $request->get('per_page', 20);
+        $perPageDisplay = $perPageRequest; // Keep original for display
+
+        // Handle 'all' option
+        $isShowingAll = false;
+        if ($perPageRequest === 'all' || $perPageRequest === -1 || $perPageRequest === '-1') {
+            $isShowingAll = true;
+            $perPageDisplay = 'all';
+            $perPageNumeric = $totalCount; // Show all records
+        } else {
+            $perPageNumeric = is_numeric($perPageRequest) ? (int) $perPageRequest : 20;
+            $perPageNumeric = $perPageNumeric > 0 ? $perPageNumeric : 20;
+            // Set reasonable limits
+            $perPageNumeric = min($perPageNumeric, 1000); // Maximum 1000 records per page
+            $perPageDisplay = $perPageNumeric; // Use numeric value for display
+        }
+
         $currentPage = $request->get('page', 1);
-        $offset = ($currentPage - 1) * $perPage;
-        $paginatedRecords = array_slice($trashedRecords, $offset, $perPage);
+
+        if ($isShowingAll) {
+            $paginatedRecords = $trashedRecords;
+        } else {
+            $offset = ($currentPage - 1) * $perPageNumeric;
+            $paginatedRecords = array_slice($trashedRecords, $offset, $perPageNumeric);
+        }
 
         // Fetch cascade history directly from database
         $cascadeHistory = DB::table('deletion_cascades')
@@ -274,8 +295,8 @@ class TrashController extends Controller
             'searchQuery' => $searchQuery,
             'totalCount' => $totalCount,
             'currentPage' => $currentPage,
-            'perPage' => $perPage,
-            'totalPages' => ceil($totalCount / $perPage),
+            'perPage' => $perPageDisplay,
+            'totalPages' => $isShowingAll ? 1 : ceil($totalCount / $perPageNumeric),
             'cascadeHistory' => $cascadeHistory,
         ]);
     }
@@ -566,6 +587,90 @@ class TrashController extends Controller
                 ], 422);
             }
             Flash::error('Failed to permanently delete record: ' . $e->getMessage());
+        }
+
+        return redirect()->route('trash.index');
+    }
+
+    /**
+     * Show a deleted record in modal (for vouchers and other modules)
+     */
+    public function show(Request $request, $module, $id)
+    {
+        if (!isset($this->softDeleteModels[$module])) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['error' => 'Invalid module specified.'], 404);
+            }
+            Flash::error('Invalid module specified.');
+            return redirect()->route('trash.index');
+        }
+
+        $config = $this->softDeleteModels[$module];
+        $model = $config['model'];
+
+        // Check permission
+        if (!auth()->user()->can('trash_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Find the trashed record
+        $record = $model::onlyTrashed()->find($id);
+
+        if (!$record) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['error' => 'Record not found in trash.'], 404);
+            }
+            Flash::error('Record not found in trash.');
+            return redirect()->route('trash.index');
+        }
+
+        // For vouchers, load transactions separately since the relationship might not work with soft-deleted parent
+        if ($module === 'vouchers') {
+            // Load transactions using trans_code
+            // Try normal query first, if no results, try withTrashed (in case transactions were also deleted)
+            $transactionsQuery = Transactions::where('trans_code', $record->trans_code);
+            $transactions = $transactionsQuery->get();
+
+            // If no transactions found, try with trashed records
+            if ($transactions->isEmpty()) {
+                $transactions = Transactions::withTrashed()
+                    ->where('trans_code', $record->trans_code)
+                    ->get();
+            }
+
+            // Load accounts for each transaction (accounts might also be soft-deleted)
+            $transactionsWithAccounts = $transactions->map(function ($transaction) {
+                if ($transaction->account_id) {
+                    // Try normal query first
+                    $account = Accounts::find($transaction->account_id);
+                    // If not found, try with trashed
+                    if (!$account) {
+                        $account = Accounts::withTrashed()->find($transaction->account_id);
+                    }
+                    if ($account) {
+                        $transaction->setRelation('account', $account);
+                    }
+                }
+                return $transaction;
+            });
+
+            // Manually set the transactions relationship on the voucher
+            $record->setRelation('transactions', $transactionsWithAccounts);
+
+            return view('trash.voucher_show_modal', [
+                'voucher' => $record,
+                'isDeleted' => true
+            ]);
+        }
+
+        // For other modules, you can add specific views here
+        // For now, return a generic view
+        if ($request->ajax() || $request->wantsJson()) {
+            return view('trash.show_modal', [
+                'record' => $record,
+                'module' => $module,
+                'config' => $config
+            ]);
         }
 
         return redirect()->route('trash.index');

@@ -724,15 +724,19 @@ class RtaFinesController extends AppBaseController
             /*
         |--------------------------------------------------------------------------
         | Voucher (update instead of insert)
+        | Update all vouchers related to this fine (both unpaid RFV and paid RFV/JV)
         |--------------------------------------------------------------------------
         */
-            $voucher = Vouchers::where('ref_id', $rtaFines->id)
+            // Update unpaid voucher (RFV type created during fine creation)
+            // This voucher has the same trans_code as the fine
+            $unpaidVoucher = Vouchers::where('ref_id', $rtaFines->id)
                 ->where('voucher_type', 'RFV')
+                ->where('trans_code', $trans_code)
                 ->first();
 
-            if ($voucher) {
-                $voucher->update([
-                    'rider_id'      => $request->rider_id,
+            if ($unpaidVoucher) {
+                $unpaidVoucher->update([
+                    'rider_id'      => $rtaFines->rider_id,
                     'trans_date'    => $rtaFines->trans_date,
                     'trans_code'    => $trans_code,
                     'trip_date'     => $request->trip_date,
@@ -745,6 +749,87 @@ class RtaFinesController extends AppBaseController
                     'pay_account'   => $rider_account->id,
                     'Updated_By'    => auth()->id(),
                 ]);
+            }
+
+            // Update paid voucher (RFV or JV type created during payment)
+            // Paid voucher has a different trans_code (generated during payment)
+            $paidVouchers = Vouchers::where('ref_id', $rtaFines->id)
+                ->where('trans_code', '!=', $trans_code)
+                ->get();
+
+            // Update all paid vouchers if they exist
+            foreach ($paidVouchers as $paidVoucher) {
+                $paidVoucher->update([
+                    'rider_id'      => $rtaFines->rider_id,
+                    'trans_date'    => $rtaFines->trans_date,
+                    'trip_date'     => $request->trip_date,
+                    'billing_month' => $billingMonth,
+                    'reference_number' => $rtaFines->reference_number,
+                    'amount'        => $rtaFines->total_amount,
+                    'attach_file'   => $path,
+                    'Updated_By'    => auth()->id(),
+                    // Preserve payment-specific fields: pay_account, payment_type, voucher_type, trans_code
+                ]);
+
+                // Update transactions for this paid voucher
+                $paidTransCode = $paidVoucher->trans_code;
+                $paidPaymentAccount = $paidVoucher->pay_account;
+
+                // Get service accounts (same as in payfine method)
+                $paidServiceAccounts = DB::table('accounts')->where('name', 'Service Charges (RTA Fine)')->where('account_type', 'Expense')->first();
+
+                // Get all transactions for this paid voucher
+                $paidTransactions = DB::table('transactions')
+                    ->where('trans_code', $paidTransCode)
+                    ->where('reference_id', $rtaFines->id)
+                    ->where('reference_type', 'RTA')
+                    ->get();
+
+                // Update each transaction based on its account type
+                foreach ($paidTransactions as $transaction) {
+                    $updateData = [
+                        'trans_date'    => $rtaFines->trans_date,
+                        'billing_month'  => $billingMonth,
+                        'updated_at'     => now(),
+                    ];
+
+                    // Check if this is the service charges transaction
+                    $serviceChargesAccountId = $paidServiceAccounts ? $paidServiceAccounts->id : null;
+                    $isServiceCharges = $serviceChargesAccountId && $transaction->account_id == $serviceChargesAccountId && $transaction->debit > 0;
+
+                    // Check if this is the RTA account transaction (debit, not service charges, not payment account)
+                    $isRtaAccount = $transaction->debit > 0 &&
+                        !$isServiceCharges &&
+                        $transaction->account_id != $paidPaymentAccount;
+
+                    // Check if this is the payment account transaction (credit)
+                    $isPaymentAccount = $transaction->account_id == $paidPaymentAccount && $transaction->credit > 0;
+
+                    if ($isRtaAccount) {
+                        // Update RTA account transaction
+                        $updateData['account_id'] = $rtaFines->rta_account_id;
+                        $updateData['narration'] = $rtaFines->detail ?? 'RTA Fine Payment';
+                        $updateData['debit'] = $rtaFines->amount;
+                        $updateData['credit'] = 0;
+                    } elseif ($isServiceCharges && $rtaFines->service_charges > 0) {
+                        // Update service charges transaction
+                        $updateData['narration'] = $paidServiceAccounts->name . 'RTA Fine';
+                        $updateData['debit'] = $rtaFines->service_charges;
+                        $updateData['credit'] = 0;
+                    } elseif ($isPaymentAccount && $rtaFines->amount > 0) {
+                        // Update payment account transaction
+                        $updateData['narration'] = $rtaFines->detail ?? 'RTA Fine Payment';
+                        $updateData['debit'] = 0;
+                        $updateData['credit'] = $rtaFines->amount + $rtaFines->service_charges;
+                    } else {
+                        // Skip transactions that don't match our expected patterns
+                        continue;
+                    }
+
+                    DB::table('transactions')
+                        ->where('id', $transaction->id)
+                        ->update($updateData);
+                }
             }
 
             /*

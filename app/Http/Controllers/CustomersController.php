@@ -91,11 +91,10 @@ class CustomersController extends AppBaseController
     $customers = $this->customersRepository->create($input);
 
 
-    $parentAccount = Accounts::firstOrCreate(
-      ['name' => 'Receivable', 'account_type' => 'Asset', 'parent_id' => null],
-      ['name' => 'Receivable', 'account_type' => 'Asset', 'account_code' => Account::code()]
-    );
-
+    $parentAccount = Accounts::where('name', 'Receivable')->where('account_type', 'Asset')->where('parent_id', null)->first();
+    if (!$parentAccount) {
+      Flash::error('Parent account "Receivable" not found.');
+    }
     $account = new Accounts();
     $account->account_code = 'CS' . str_pad($customers->id, 4, '0', STR_PAD_LEFT);
     $account->account_type = 'Asset';

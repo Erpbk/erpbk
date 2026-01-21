@@ -50,28 +50,28 @@
             </span>
         </h4>
 
-        <table class="voucher-info-table">
+        <table class="voucher-info-table text-right">
             <tr>
-                <td style="width: 30%;"><strong>Voucher No:</strong></td>
-                <td>{{ $voucher->voucher_type . '-' . str_pad($voucher->id, '4', '0', STR_PAD_LEFT) }}</td>
-                <td style="width: 20%;"><strong>Voucher Date:</strong></td>
-                <td>{{ $voucher->trans_date }}</td>
+                <td style="width: 30%; text-align: right;"><strong>Voucher No:</strong></td>
+                <td style="text-align: left;">{{ $voucher->voucher_type . '-' . str_pad($voucher->id, '4', '0', STR_PAD_LEFT) }}</td>
+                <td style="width: 20%; text-align: right;"><strong>Voucher Date:</strong></td>
+                <td style="text-align: left;">{{ $voucher->trans_date }}</td>
             </tr>
             <tr>
-                <td><strong>Voucher Type:</strong></td>
-                <td>{{$voucher_type}}</td>
+                <td style="text-align: right;"><strong>Voucher Type:</strong></td>
+                <td style="text-align: left;">{{$voucher_type}}</td>
                 @isset($voucher->billing_month)
-                <td><strong>Billing Month:</strong></td>
-                <td>{{date('M-Y',strtotime($voucher->billing_month))}}</td>
+                <td style="text-align: right;"><strong>Billing Month:</strong></td>
+                <td style="text-align: left;">{{date('M-Y',strtotime($voucher->billing_month))}}</td>
                 @else
-                <td></td>
-                <td></td>
+                <td style="text-align: right;"></td>
+                <td style="text-align: left;"></td>
                 @endisset
             </tr>
             <tr>
-                <td><strong>Created By:</strong></td>
+                <td style="text-align: right;"><strong>Created By:</strong></td>
                 <td>{{ Auth::user()->where('id', $voucher->Created_By)->first()->name ?? 'N/A' }}</td>
-                <td><strong>Creation Date:</strong></td>
+                <td style="text-align: right;"><strong>Creation Date:</strong></td>
                 <td>{{ Illuminate\Support\Carbon::parse($voucher->created_at)->format('d-M-Y') }}</td>
             </tr>
             <tr>
@@ -80,9 +80,9 @@
                 <td><strong>Deleted By:</strong></td>
                 <td>
                     @if(isset($voucher->deleted_by) && $voucher->deleted_by)
-                        {{ Auth::user()->where('id', $voucher->deleted_by)->first()->name ?? 'System' }}
+                    {{ Auth::user()->where('id', $voucher->deleted_by)->first()->name ?? 'System' }}
                     @else
-                        System
+                    System
                     @endif
                 </td>
             </tr>
@@ -175,4 +175,3 @@
     <div class="alert alert-danger">No Voucher found</div>
     @endisset
 </div>
-

@@ -26,6 +26,7 @@ use Laracasts\Flash\Flash;
 use App\Models\RtaFines;
 use App\Models\Vouchers;
 use App\Models\Transactions;
+use App\Services\ActivityLogger;
 
 class TrashController extends Controller
 {
@@ -139,12 +140,6 @@ class TrashController extends Controller
         'vouchers' => [
             'model' => Vouchers::class,
             'name' => 'Vouchers',
-            'icon' => 'fa-file-invoice',
-            'display_columns' => ['id', 'trans_code', 'trans_date', 'billing_month', 'amount', 'status'],
-        ],
-        'transactions' => [
-            'model' => Transactions::class,
-            'name' => 'Transactions',
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'trans_code', 'trans_date', 'billing_month', 'amount', 'status'],
         ],
@@ -359,16 +354,18 @@ class TrashController extends Controller
                             $restoredItems[] = class_basename($relatedModelClass) . ": {$cascade->related_name}";
 
                             // Log the restoration
-                            activity()
-                                ->causedBy(auth()->user())
-                                ->withProperties([
+                            ActivityLogger::custom(
+                                'restored (cascaded from primary record)',
+                                'Trash',
+                                null,
+                                [
                                     'restored_with' => $config['model'],
                                     'primary_id' => $id,
                                     'cascade_type' => 'automatic',
                                     'model' => $relatedModelClass,
                                     'record_id' => $cascade->related_id,
-                                ])
-                                ->log('restored (cascaded from primary record)');
+                                ]
+                            );
                         }
                     } catch (\Exception $e) {
                         Log::error("Error restoring cascaded record: " . $e->getMessage());
@@ -529,17 +526,19 @@ class TrashController extends Controller
                             $deletedItems[] = class_basename($relatedModelClass) . ": {$cascade->related_name}";
 
                             // Log the permanent deletion
-                            activity()
-                                ->causedBy(auth()->user())
-                                ->withProperties([
+                            ActivityLogger::custom(
+                                'force deleted (cascaded from primary record)',
+                                'Trash',
+                                null,
+                                [
                                     'deleted_with' => $config['model'],
                                     'primary_id' => $id,
                                     'cascade_type' => 'automatic',
                                     'model' => $relatedModelClass,
                                     'record_id' => $cascade->related_id,
                                     'record_name' => $cascade->related_name,
-                                ])
-                                ->log('force deleted (cascaded from primary record)');
+                                ]
+                            );
                         }
                     } catch (\Exception $e) {
                         Log::error("Error deleting cascaded record: " . $e->getMessage());

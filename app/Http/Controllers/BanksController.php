@@ -101,11 +101,10 @@ class BanksController extends AppBaseController
 
     //Adding Account and setting reference
 
-    $parentAccount = Accounts::firstOrCreate(
-      ['name' => 'Bank', 'account_type' => 'Asset', 'parent_id' => 1639],
-      ['name' => 'Bank', 'account_type' => 'Asset', 'account_code' => Account::code()]
-    );
-
+    $parentAccount = Accounts::where('name', 'Bank')->where('account_type', 'Asset')->where('parent_id', 1639)->first();
+    if (!$parentAccount) {
+      Flash::error('Parent account "Asset" not found.');
+    }
     $account = new Accounts();
     $account->account_code = 'BK' . str_pad($banks->id, 4, "0", STR_PAD_LEFT);
     $account->account_type = 'Asset';
@@ -356,9 +355,9 @@ class BanksController extends AppBaseController
 
   public function files($id, FilesDataTable $filesDataTable)
   {
-    $files = DB::table('files')->where('type','bank')->where('type_id', $id)->latest('id')->get();
-    $banks = Banks::find( $id );
-    
+    $files = DB::table('files')->where('type', 'bank')->where('type_id', $id)->latest('id')->get();
+    $banks = Banks::find($id);
+
     return view('banks.document', compact('files'));
   }
 
@@ -368,10 +367,10 @@ class BanksController extends AppBaseController
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Receipt::query()->latest('id');
     $query->where('bank_id', $banks->id);
-    
+
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
-    return view('banks.receipts', compact('data','banks'));
+    return view('banks.receipts', compact('data', 'banks'));
   }
 
   public function payments(Request $request, $id)
@@ -380,9 +379,9 @@ class BanksController extends AppBaseController
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Payment::query()->latest('id');
     $query->where('bank_id', $id);
-    
+
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
-    return view('banks.payments', compact('data','banks'));
+    return view('banks.payments', compact('data', 'banks'));
   }
 }

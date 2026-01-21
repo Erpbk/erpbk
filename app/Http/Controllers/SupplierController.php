@@ -99,10 +99,10 @@ class SupplierController extends AppBaseController
     $supplier = Supplier::create($validated);
 
     // Create or get parent "Supplier" account
-    $parentAccount = Accounts::firstOrCreate(
-      ['name' => 'Supplier', 'account_type' => 'Liability', 'parent_id' => null],
-      ['name' => 'Supplier', 'account_type' => 'Liability', 'account_code' => Account::code()]
-    );
+    $parentAccount = Accounts::where('name', 'Supplier')->where('account_type', 'Liability')->where('parent_id', null)->first();
+    if (!$parentAccount) {
+      Flash::error('Parent account "Supplier" not found.');
+    }
 
     // Create linked account in chart of accounts
     $account = new Accounts();
@@ -168,10 +168,11 @@ class SupplierController extends AppBaseController
     Flash::success('Supplier updated successfully.');
     return redirect(route('suppliers.index'));
 
-    $parentAccount = Accounts::updateOrCreate(
-      ['name' => 'Supplier', 'account_type' => 'Liability', 'parent_id' => null],
-      ['name' => 'Supplier', 'account_type' => 'Liability', 'account_code' => Account::code()]
-    );
+    $parentAccount = Accounts::where('name', 'Supplier')->where('account_type', 'Liability')->where('parent_id', null)->first();
+    if (!$parentAccount) {
+      Flash::error('Parent account "Supplier" not found.');
+    }
+
 
     foreach ($supplier as $supplier) {
       $account = new Accounts();

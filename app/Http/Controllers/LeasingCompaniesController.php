@@ -87,10 +87,10 @@ class LeasingCompaniesController extends AppBaseController
 
     //Adding Account and setting reference
 
-    $parentAccount = Accounts::firstOrCreate(
-      ['name' => 'Leasing Companies', 'account_type' => 'Liability', 'parent_id' => null],
-      ['name' => 'Leasing Companies', 'account_type' => 'Liability', 'account_code' => Account::code()]
-    );
+    $parentAccount = Accounts::where('name', 'Leasing Companies')->where('account_type', 'Liability')->where('parent_id', null)->first();
+    if (!$parentAccount) {
+      Flash::error('Parent account "Leasing Companies" not found.');
+    }
 
     $account = new Accounts();
     $account->account_code = 'LC' . str_pad($leasingCompanies->id, 4, "0", STR_PAD_LEFT);

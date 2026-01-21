@@ -84,10 +84,10 @@ class VendorsController extends AppBaseController
 
     //Adding Account and setting reference
 
-    $parentAccount = Accounts::firstOrCreate(
-      ['name' => 'Vendor', 'account_type' => 'Liability', 'parent_id' => null],
-      ['name' => 'Vendor', 'account_type' => 'Liability', 'account_code' => Account::code()]
-    );
+    $parentAccount = Accounts::where('name', 'Vendor')->where('account_type', 'Liability')->where('parent_id', null)->first();
+    if (!$parentAccount) {
+      Flash::error('Parent account "Vendor" not found.');
+    }
 
     $account = new Accounts();
     $account->account_code = 'VD' . str_pad($vendor->id, 4, "0", STR_PAD_LEFT);

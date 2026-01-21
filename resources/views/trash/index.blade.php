@@ -238,7 +238,9 @@
                                 $value = $hasColumn && isset($item['record']->$column) ? $item['record']->$column : null;
                                 @endphp
                                 @if($value)
-                                @if(is_numeric($value) && (strpos($column, 'amount') !== false || strpos($column, 'price') !== false || strpos($column, 'balance') !== false || strpos($column, 'cost') !== false))
+                                @if($column == 'billing_month')
+                                {{ strtoupper(date('M-y', strtotime($value))) }}
+                                @elseif(is_numeric($value) && (strpos($column, 'amount') !== false || strpos($column, 'price') !== false || strpos($column, 'balance') !== false || strpos($column, 'cost') !== false))
                                 <span class="text-end">{{ number_format($value, 2) }}</span>
                                 @elseif(strpos($column, 'status') !== false || strpos($column, 'type') !== false)
                                 @if($value == 1 || $value == '1' || strtolower($value) == 'active')
@@ -564,7 +566,7 @@ $moduleTableViewExists = $moduleTableView && view()->exists($moduleTableView);
 </div>
 @endsection
 
-@push('scripts')
+@section('page-script')
 <script>
     (function() {
         // Wait for DOM to be ready
@@ -675,6 +677,7 @@ $moduleTableViewExists = $moduleTableView && view()->exists($moduleTableView);
                 trigger.innerHTML = originalText;
                 trigger.disabled = false;
             }
+
         }
 
         // Handle restore and delete clicks
@@ -688,4 +691,4 @@ $moduleTableViewExists = $moduleTableView && view()->exists($moduleTableView);
         });
     })();
 </script>
-@endpush
+@endsection

@@ -25,7 +25,7 @@
                 <a href="javascript:void(0);" data-action="{{ route('trash.show', ['vouchers', $voucher->id]) }}" class="text-primary show-modal" data-title="Voucher Details - {{ $voucherId }} (Deleted)" data-size="xl">{{ $voucherId }}</a>
             </td>
             <td>{{ $voucher->trans_code }}</td>
-            <td>{{ \App\Helpers\Common::MonthFormat($voucher->billing_month) }}</td>
+            <td>{{ strtoupper(date('M-y', strtotime($voucher->billing_month))) }}</td>
             <td>
                 @php
                 $voucherTypes = \App\Helpers\General::VoucherType();

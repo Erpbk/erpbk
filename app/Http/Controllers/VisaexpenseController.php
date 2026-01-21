@@ -245,6 +245,13 @@ class VisaexpenseController extends AppBaseController
         }
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
+
+        $installmentQuery = visa_installment_plan::query()
+            ->with('vouchers')
+            ->where('rider_id', $id)
+            ->orderBy('date', 'asc');
+        $installmentData = $this->applyPagination($installmentQuery, $paginationParams);
+
         $account = Accounts::where('id', $id)->first();
         if ($request->ajax()) {
             $tableData = view('visa_expenses.table', [
@@ -261,10 +268,12 @@ class VisaexpenseController extends AppBaseController
 
         return view('visa_expenses.index', [
             'data' => $data,
+            'installmentData' => $installmentData,
             'account' => $account,
             'visaStatuses' => $visaStatuses,
         ]);
     }
+    
     /**
      * Show the form for creating a new resource.
      */

@@ -9,10 +9,7 @@
          <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Amount</th>
          <th title="Visa Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Visa Status: activate to sort column ascending" aria-sort="descending">Visa Status</th>
          <th title="Payment Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Payment Status: activate to sort column ascending" aria-sort="descending">Payment Status</th>
-         <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action"><a data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a></th>
-         <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-            <a data-bs-toggle="modal" data-bs-target="#customoizecolmn" href="javascript:void(0);"> <i class="fa fa-filter"></i></a>
-         </th>
+         <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
       </tr>
    </thead>
    <tbody>
@@ -67,11 +64,15 @@
                </div>
             </div>
          </td>
-         <td></td>
       </tr>
       @endforeach
    </tbody>
 </table>
+@if($data->isEmpty())
+   <div class="text-center mt-5">
+      <h4 class="text-muted">No Visa Expenses found</h4> 
+   </div>
+@endif
 @if(method_exists($data, 'links'))
 {!! $data->links('components.global-pagination') !!}
 @endif

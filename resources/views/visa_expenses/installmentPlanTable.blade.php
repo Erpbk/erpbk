@@ -10,9 +10,7 @@
             <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
             <th title="Created By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>
             <th title="Updated By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>
-            <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">
-                Action
-            </th>
+            <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
         </tr>
     </thead>
     <tbody>
@@ -118,7 +116,7 @@
         </tr>
         @empty
         <tr>
-            <td colspan="7" class="text-center text-muted py-4">
+            <td colspan="8" class="text-center text-muted py-4">
                 <i class="fa fa-info-circle me-2"></i>
                 No installment plans found. <br>
                 <small>Click "Create Installment Plan" to get started.</small>

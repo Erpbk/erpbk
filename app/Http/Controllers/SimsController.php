@@ -105,7 +105,7 @@ class SimsController extends AppBaseController
         $filteredColumns = \Illuminate\Support\Facades\Schema::getColumnListing('sims');
 
         // Columns to exclude
-        $exclude = ['id', 'created_at', 'updated_at', 'deleted_at', 'fleet_supervisor', 'created_by', 'updated_by'];
+        $exclude = ['id', 'created_at', 'updated_at', 'deleted_by', 'deleted_at', 'fleet_supervisor', 'created_by', 'updated_by'];
 
         // Final filtered columns
         $dbColumns = array_diff($filteredColumns, $exclude);
@@ -153,8 +153,6 @@ class SimsController extends AppBaseController
         // Append fixed utility columns (must match frontend expectations)
         $columns = array_merge($columns, [
             ['data' => 'action', 'title' => 'Actions'],
-            ['data' => 'search', 'title' => 'Search'],
-            ['data' => 'control', 'title' => 'Control'],
         ]);
 
         return $columns;
@@ -356,8 +354,12 @@ class SimsController extends AppBaseController
                     function ($attribute, $value, $fail) use ($sims) {
                         // Check if assign date is after last return date
                         $lastHistory = $sims->histories()->orderBy('created_at', 'desc')->first();
-                        if ($lastHistory && $value < $lastHistory->return_date) {
-                            $fail('Assign date cannot be before the last return date: ' . $lastHistory->return_date);
+                        if ($lastHistory && $lastHistory->return_date) {
+                            $assignDate = \Carbon\Carbon::parse($value)->startOfDay();
+                            $returnDate = \Carbon\Carbon::parse($lastHistory->return_date)->startOfDay();
+                            if ($assignDate->lt($returnDate)) { // Changed to lt() (less than, not equal)
+                                $fail('Assign date cannot be before the last return date: ' . $lastHistory->return_date);
+                            }
                         }
                     }
                 ]

@@ -245,6 +245,13 @@ class VisaexpenseController extends AppBaseController
         }
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
+
+        $installmentQuery = visa_installment_plan::query()
+            ->with('vouchers')
+            ->where('rider_id', $id)
+            ->orderBy('date', 'asc');
+        $installmentData = $this->applyPagination($installmentQuery, $paginationParams);
+
         $account = Accounts::where('id', $id)->first();
         if ($request->ajax()) {
             $tableData = view('visa_expenses.table', [
@@ -261,10 +268,12 @@ class VisaexpenseController extends AppBaseController
 
         return view('visa_expenses.index', [
             'data' => $data,
+            'installmentData' => $installmentData,
             'account' => $account,
             'visaStatuses' => $visaStatuses,
         ]);
     }
+    
     /**
      * Show the form for creating a new resource.
      */
@@ -1353,11 +1362,6 @@ class VisaexpenseController extends AppBaseController
             DB::beginTransaction();
 
             $installment = visa_installment_plan::findOrFail($id);
-
-            if ($installment->status === visa_installment_plan::STATUS_PAID) {
-                Flash::error('Cannot delete a paid installment.');
-                return redirect()->back();
-            }
 
             $installmentIdentifier = "Installment Plan #{$id} - Billing Month: {$installment->billing_month} (Amount: " . number_format($installment->amount, 2) . ")";
 

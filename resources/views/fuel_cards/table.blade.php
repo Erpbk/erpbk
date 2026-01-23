@@ -19,7 +19,7 @@
       @foreach($data as $r)
       <tr class="text-center">
          <td>
-            <a href="javascript:void(0);" class='show-modal' data-size="lg" data-title="" data-action="{{ route('fuelCards.show' , $r->id)}}">
+            <a href="{{ route('fuelCards.show' , $r->id)}}" >
                {{$r->card_number}}
             </a>
          </td>
@@ -38,6 +38,17 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
+                  @can('fuel_assign')
+                     @if(!$r->assigned_to)
+                        <a href="javascript:void(0);" data-size="lg" data-title="Assign Fuel Card" data-action="{{ route('fuelCards.assign', $r->id) }}" class='show-modal dropdown-item waves-effect'>
+                           <i class="ti ti-gas-station my-1"></i>Assign
+                        </a>
+                     @else
+                        <a href="javascript:void(0);" data-size="lg" data-title="Return Fuel Card" data-action="{{ route('fuelCards.return', $r->id) }}" class='dropdown-item waves-effect show-modal'>
+                           <i class="fa fa-undo my-1"></i>Return
+                        </a>
+                     @endif
+                  @endcan
                   @can('fuel_edit')
                      <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Update Card Details" data-action="{{ route('fuelCards.edit', $r->id) }}">
                         <i class="fa fa-edit my-1"></i> Edit

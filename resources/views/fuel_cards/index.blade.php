@@ -84,9 +84,23 @@
             <div class="card-header text-end">
             <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Cards</button>
         </div>
-            <div class="card-body table-responsive px-2 py-0" id="table-data">
-                @include('fuel_cards.table', ['data' => $data,])
+        <div class="totals-cards">
+            <div class="total-card total-blue">
+                <div class="label"><i class="fa fa-motorcycle"></i>Total Cards</div>
+                <div class="value" id="total_orders">{{ $stats['total'] ?? 0 }}</div>
             </div>
+            <div class="total-card total-green">
+                <div class="label"><i class="fa fa-check-circle"></i>Active</div>
+                <div class="value" id="avg_ontime">{{ $stats['active'] ?? 0 }}</div>
+            </div>
+            <div class="total-card total-red">
+                <div class="label"><i class="fa fa-times-circle"></i>Inactive</div>
+                <div class="value" id="total_rejected">{{ $stats['inactive'] ?? 0 }}</div>
+            </div>
+        </div>
+        <div class="card-body table-responsive px-2 py-0" id="table-data">
+            @include('fuel_cards.table', ['data' => $data,])
+        </div>
         </div>
     </div>
 

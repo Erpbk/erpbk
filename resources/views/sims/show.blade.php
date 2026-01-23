@@ -259,57 +259,73 @@
 @section('page-script')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Bootstrap tooltips
+        $('[data-toggle="tooltip"]').tooltip();
+
+        // Track the currently opened notes element
+        let currentOpenNotes = null;
+
         // Show full notes on click
         document.querySelectorAll('.notes-preview').forEach(function(preview) {
-            const container = preview.closest('.notes-container');
-            const fullNotes = container.querySelector('.notes-full');
-
             preview.addEventListener('click', function(e) {
                 e.stopPropagation();
-
-                // Hide any other open notes
-                document.querySelectorAll('.notes-full').forEach(function(notes) {
-                    if (notes !== fullNotes) {
-                        notes.style.display = 'none';
-                    }
-                });
-
-                // Toggle current notes
-                if (fullNotes.style.display === 'block') {
+                
+                const container = preview.closest('.notes-container');
+                const fullNotes = container.querySelector('.notes-full');
+                
+                // If clicking the same note, close it
+                if (currentOpenNotes === fullNotes && fullNotes.style.display === 'block') {
                     fullNotes.style.display = 'none';
-                } else {
-                    fullNotes.style.display = 'block';
-
-                    // Position the notes box
-                    const rect = preview.getBoundingClientRect();
-                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                    fullNotes.style.top = (rect.bottom + scrollTop + 5) + 'px';
-                    fullNotes.style.left = (rect.left - 100) + 'px';
+                    currentOpenNotes = null;
+                    return;
                 }
-            });
-
-            // Toggle current notes
-            if (fullNotes.style.display === 'block') {
-                fullNotes.style.display = 'none';
-            } else {
+                
+                // Close any previously opened notes
+                if (currentOpenNotes) {
+                    currentOpenNotes.style.display = 'none';
+                }
+                
+                // Open the clicked notes
                 fullNotes.style.display = 'block';
-
-                // Get the click position
-                const x = e.clientX;
-                const y = e.clientY;
-
-                // Position relative to viewport
-                fullNotes.style.position = 'fixed';
-                fullNotes.style.top = (y + 10) + 'px';
-                fullNotes.style.left = (x - 150) + 'px';
-            }
+                currentOpenNotes = fullNotes;
+                
+                // Position the notes box relative to the preview
+                const rect = preview.getBoundingClientRect();
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                
+                // Calculate position - try to keep within viewport
+                let left = rect.left + scrollLeft;
+                let top = rect.bottom + scrollTop + 5;
+                
+                // Adjust if too far right
+                const maxWidth = 300; // Same as CSS max-width
+                if (left + maxWidth > window.innerWidth + scrollLeft) {
+                    left = window.innerWidth + scrollLeft - maxWidth - 10;
+                }
+                
+                // Adjust if too far bottom
+                const notesHeight = fullNotes.offsetHeight;
+                if (top + notesHeight > window.innerHeight + scrollTop) {
+                    top = rect.top + scrollTop - notesHeight - 5;
+                }
+                
+                fullNotes.style.top = top + 'px';
+                fullNotes.style.left = left + 'px';
+            });
         });
 
-        // Close notes when clicking elsewhere
-        document.addEventListener('click', function() {
-            document.querySelectorAll('.notes-full').forEach(function(notes) {
-                notes.style.display = 'none';
-            });
+        // Close notes when clicking anywhere else in the document
+        document.addEventListener('click', function(e) {
+            // Check if click is inside a notes container
+            const isClickInsideNotes = e.target.closest('.notes-container') || 
+                                      e.target.closest('.notes-full');
+            
+            // If click is outside notes and there's an open note, close it
+            if (!isClickInsideNotes && currentOpenNotes) {
+                currentOpenNotes.style.display = 'none';
+                currentOpenNotes = null;
+            }
         });
 
         // Prevent notes from closing when clicking inside them
@@ -318,9 +334,6 @@
                 e.stopPropagation();
             });
         });
-
-        // Initialize Bootstrap tooltips
-        $('[data-toggle="tooltip"]').tooltip();
     });
 </script>
 @endsection

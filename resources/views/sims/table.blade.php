@@ -53,9 +53,6 @@
          @php $title = $col['title'] ?? ($col['name'] ?? ($col['data'] ?? '')); @endphp
          <th title="{{ $title }}" class="sorting" tabindex="0" rowspan="1" colspan="1">{{ $title }}</th>
          @endforeach
-         <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-            &nbsp;
-         </th>
       </tr>
     </thead>
     <tbody>
@@ -131,7 +128,6 @@
                </div>
             </div>
         </td>
-        <td> &nbsp;</td>
       </tr>
       @endforeach
     </tbody>

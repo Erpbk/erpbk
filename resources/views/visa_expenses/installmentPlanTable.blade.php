@@ -26,7 +26,6 @@
                 <input type="date"
                     id="date_input_{{ $installment->id }}"
                     value="{{ \Carbon\Carbon::parse($installment->date)->format('Y-m-d') }}"
-                    min="{{ \Carbon\Carbon::today()->format('Y-m-d') }}"
                     class="form-control form-control-sm d-none"
                     onblur="saveDate({{ $installment->id }})"
                     onkeypress="if(event.keyCode==13) saveDate({{ $installment->id }})">
@@ -52,7 +51,6 @@
                 <input type="month"
                     id="billing_input_{{ $installment->id }}"
                     value="{{ \Carbon\Carbon::parse($installment->billing_month)->format('Y-m') }}"
-                    min="{{ \Carbon\Carbon::today()->format('Y-m') }}"
                     class="form-control form-control-sm d-none"
                     onblur="saveBillingMonth({{ $installment->id }})"
                     onkeypress="if(event.keyCode==13) saveBillingMonth({{ $installment->id }})">
@@ -103,6 +101,12 @@
                             onclick="markAsPending({{ $installment->id }})"
                             class='dropdown-item waves-effect'>
                             <i class="fa fa-undo me-2"></i> Mark as Pending
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="javascript:void(0);"
+                            onclick='confirmDeleteProtected("{{ route('VisaExpense.deleteInstallment', $installment->id) }}")'
+                            class='dropdown-item waves-effect text-danger'>
+                            <i class="fa fa-trash me-2"></i> Delete
                         </a>
                         @endif
                         @else

@@ -1363,11 +1363,6 @@ class VisaexpenseController extends AppBaseController
 
             $installment = visa_installment_plan::findOrFail($id);
 
-            if ($installment->status === visa_installment_plan::STATUS_PAID) {
-                Flash::error('Cannot delete a paid installment.');
-                return redirect()->back();
-            }
-
             $installmentIdentifier = "Installment Plan #{$id} - Billing Month: {$installment->billing_month} (Amount: " . number_format($installment->amount, 2) . ")";
 
             // Get related vouchers before deletion (only non-deleted vouchers)

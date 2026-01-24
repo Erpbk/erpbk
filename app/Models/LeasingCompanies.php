@@ -8,7 +8,7 @@ use App\Traits\LogsActivity;
 
 class LeasingCompanies extends Model
 {
-    use LogsActivity, SoftDeletes;
+  use LogsActivity, SoftDeletes;
 
   public $table = 'leasing_companies';
 
@@ -16,6 +16,7 @@ class LeasingCompanies extends Model
     'name',
     'contact_person',
     'contact_number',
+    'rental_amount',
     'detail',
     'account_id',
     'status'
@@ -25,6 +26,7 @@ class LeasingCompanies extends Model
     'name' => 'string',
     'contact_person' => 'string',
     'contact_number' => 'string',
+    'rental_amount' => 'decimal:2',
     'detail' => 'string'
 
   ];
@@ -35,6 +37,7 @@ class LeasingCompanies extends Model
     'name' => 'nullable|string|max:255',
     'contact_person' => 'nullable|string|max:255',
     'contact_number' => 'nullable|string|max:100',
+    'rental_amount' => 'nullable|numeric|min:0',
     'detail' => 'nullable|string|max:65535',
 
     'created_at' => 'nullable',

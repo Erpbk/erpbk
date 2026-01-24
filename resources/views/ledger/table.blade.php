@@ -4,6 +4,7 @@
             <th title="Date" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
             <th title="Account" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Account: activate to sort column ascending">Account</th>
             <th title="Month" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Month: activate to sort column ascending">Month</th>
+            <th reference="reference" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Reference: activate to sort column ascending">Reference</th>
             <th title="Voucher" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher</th>
             <th title="Narration" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Narration: activate to sort column ascending">Narration</th>
             <th title="Debit" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Debit: activate to sort column ascending">Debit</th>
@@ -18,6 +19,7 @@
             <td>{!! $entry->date ?? '' !!}</td>
             <td>{{ $entry->account_name ?? '' }}</td>
             <td>{!! $entry->billing_month ?? '' !!}</td>
+            <td>{!! $entry->reference ?? 'N/A' !!}</td>
             <td>{!! $entry->voucher ?? '' !!}</td>
             <td class="text-start">{!! $entry->narration ?? '' !!}</td>
             <td class="text-end">{!! $entry->debit ?? '' !!}</td>

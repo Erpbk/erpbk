@@ -23,7 +23,7 @@
 </div>
 <div class="form-group col-sm-6">
     {!! Form::label('amount', 'Amount:', ['class' => 'required']) !!}
-    {!! Form::number('amount', $visaExpenses->amount ?? '', ['id' => 'amount', 'class' => 'form-control', 'required' , 'readonly']) !!}
+    {!! Form::number('amount', $visaExpenses->amount ?? '', ['id' => 'amount', 'class' => 'form-control', 'required']) !!}
 </div>
 <div class="form-group col-sm-6">
     {!! Form::label('billing_month', 'Billing Month:', ['class' => 'required']) !!}

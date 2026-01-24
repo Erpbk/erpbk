@@ -8,8 +8,11 @@ use App\Http\Requests\CreateLeasingCompaniesRequest;
 use App\Http\Requests\UpdateLeasingCompaniesRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Accounts;
+use App\Models\Bikes;
 use App\Models\LeasingCompanies;
+use App\Models\LeasingCompanyInvoice;
 use App\Repositories\LeasingCompaniesRepository;
+use App\Repositories\LeasingCompanyInvoicesRepository;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
@@ -21,10 +24,13 @@ class LeasingCompaniesController extends AppBaseController
   use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
   /** @var LeasingCompaniesRepository $leasingCompaniesRepository*/
   private $leasingCompaniesRepository;
+  /** @var LeasingCompanyInvoicesRepository $leasingCompanyInvoicesRepository*/
+  private $leasingCompanyInvoicesRepository;
 
-  public function __construct(LeasingCompaniesRepository $leasingCompaniesRepo)
+  public function __construct(LeasingCompaniesRepository $leasingCompaniesRepo, LeasingCompanyInvoicesRepository $leasingCompanyInvoicesRepo)
   {
     $this->leasingCompaniesRepository = $leasingCompaniesRepo;
+    $this->leasingCompanyInvoicesRepository = $leasingCompanyInvoicesRepo;
   }
 
   /**
@@ -263,5 +269,80 @@ class LeasingCompaniesController extends AppBaseController
       'trash_view' => 'leasing_companies.trash',
       'index_route' => 'leasingCompanies.index',
     ];
+  }
+
+  /**
+   * Show the form for creating a new invoice for a leasing company.
+   */
+  public function createInvoice($id)
+  {
+    $leasingCompany = $this->leasingCompaniesRepository->find($id);
+
+    if (empty($leasingCompany)) {
+      Flash::error('Leasing Company not found');
+      return redirect(route('leasingCompanies.index'));
+    }
+
+    // Get bikes for this leasing company
+    $bikes = Bikes::where('company', $id)
+      ->where('status', 1)
+      ->get();
+
+    return view('leasing_companies.create_invoice', compact('leasingCompany', 'bikes'));
+  }
+
+  /**
+   * Store a newly created invoice in storage.
+   */
+  public function storeInvoice(Request $request, $id)
+  {
+    try {
+      $leasingCompany = $this->leasingCompaniesRepository->find($id);
+
+      if (empty($leasingCompany)) {
+        return response()->json(['errors' => ['error' => 'Leasing Company not found!']], 422);
+      }
+
+      // Validate request
+      $request->validate([
+        'inv_date' => 'required|date',
+        'billing_month' => 'required|date',
+        'bike_id' => 'required|array|min:1',
+        'bike_id.*' => 'exists:bikes,id',
+        'rental_amount' => 'required|array|min:1',
+        'rental_amount.*' => 'numeric|min:0',
+        'descriptions' => 'nullable|string',
+        'notes' => 'nullable|string',
+      ]);
+
+      // Add leasing_company_id to request
+      $request->merge(['leasing_company_id' => $id]);
+
+      $invoice = $this->leasingCompanyInvoicesRepository->record($request);
+
+      Flash::success('Invoice created successfully.');
+
+      return response()->json([
+        'message' => 'Invoice created successfully.',
+        'redirect' => route('leasingCompanies.showInvoice', $invoice->id)
+      ]);
+    } catch (\Exception $e) {
+      return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
+    }
+  }
+
+  /**
+   * Display the specified invoice.
+   */
+  public function showInvoice($id)
+  {
+    $invoice = $this->leasingCompanyInvoicesRepository->find($id);
+
+    if (empty($invoice)) {
+      Flash::error('Invoice not found');
+      return redirect(route('leasingCompanies.index'));
+    }
+
+    return view('leasing_companies.show_invoice')->with('invoice', $invoice);
   }
 }

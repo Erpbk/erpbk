@@ -5,6 +5,7 @@
             <th title="Date" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
             <th title="Trans Code" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Trans Code: activate to sort column ascending">Trans Code</th>
             <th title="Billing Month" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
+            <th title="Reference Number" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Reference Number: activate to sort column ascending">Reference Number</th>
             <th title="Type" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>
             <th title="Amount" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
             <th title="Created By" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>
@@ -32,6 +33,7 @@
             <td>{{ \App\Helpers\Common::DateFormat($voucher->trans_date) }}</td>
             <td>{{ $voucher->trans_code }}</td>
             <td>{{ \App\Helpers\Common::MonthFormat($voucher->billing_month) }}</td>
+            <td>{{ $voucher->reference_number ?? 'N/A' }}</td>
             <td>
                 @php
                 $voucherTypes = \App\Helpers\General::VoucherType();

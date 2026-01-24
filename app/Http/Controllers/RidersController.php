@@ -650,7 +650,7 @@ class RidersController extends AppBaseController
   /**
    * Update the specified Riders in storage.
    */
-  public function update($id,Request $request)
+  public function update($id, Request $request)
   {
     $riders = Riders::find($id);
     // $items = $riders->items;
@@ -2032,6 +2032,7 @@ class RidersController extends AppBaseController
         'amount' => $riderAmount,
         'remarks' => 'Advance Loan to Rider',
         'ref_id' => $riderAccount->ref_id, // Rider ID
+        'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1
@@ -2171,6 +2172,7 @@ class RidersController extends AppBaseController
         'amount' => $riderAmount,
         'remarks' => 'COD Amount to Rider',
         'ref_id' => $riderAccount->ref_id, // Rider ID
+        'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1
@@ -2292,6 +2294,7 @@ class RidersController extends AppBaseController
         'amount' => $riderAmount,
         'remarks' => 'Penalty Amount to Rider',
         'ref_id' => $riderAccount->ref_id, // Rider ID
+        'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1
@@ -2431,6 +2434,7 @@ class RidersController extends AppBaseController
         'amount' => $riderAmount,
         'remarks' => 'Payment Amount to Rider',
         'ref_id' => $riderAccount->ref_id, // Rider ID
+        'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1
@@ -2703,6 +2707,7 @@ class RidersController extends AppBaseController
         'amount' => $riderAmount,
         'remarks' => 'Vendor Charges to Rider ' . $riderAccount->name,
         'ref_id' => $riderAccount->ref_id, // Rider ID
+        'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1

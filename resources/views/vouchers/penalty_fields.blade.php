@@ -9,6 +9,10 @@
         <label for="exampleInputEmail1">Billing Month</label>
         <input type="month" name="billing_month" class="form-control " value="{{ date('Y-m-01') }}" required>
     </div>
+    <div class="form-group col-md-2">
+        <label for="reference_number">Reference Number</label>
+        <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($voucher->reference_number){{$voucher->reference_number}}@endisset" placeholder="Reference Number">
+    </div>
 </div>
 <div class="scrollbar">
     <h5>Penalty Voucher</h5>

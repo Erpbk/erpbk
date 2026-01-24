@@ -58,26 +58,20 @@
     <select class="form select select2" id="account_id" name="account" required>
         <option value=""></option>
         @php
-        $leasing_companies = DB::table('leasing_companies')->where('status','1')->get();
-        // $bank = DB::table('accounts')->where('id', 994)->first();
-        // $cash = DB::table('accounts')->where('id', 1643)->first();
+        $bank = DB::table('accounts')->where('name', 'Bank')->first();
+        $cash = DB::table('accounts')->where('name', 'Cash in Hand')->first();
+        $leasing = DB::table('accounts')->where('name', 'Bike Leasing Companies')->first();
         @endphp
 
-        @foreach ($leasing_companies as $company)
-        <option value="{{ $company->account_id ?? '' }}">
-            {{ $company->name ?? ''}}
-        </option>
-        @endforeach
-
-        {{-- @foreach(DB::table('accounts')
+        @foreach(DB::table('accounts')
         ->where('status', 1)
-        ->whereIn('parent_id', [$bank->id, $cash->id])
+        ->whereIn('parent_id', [$bank->id, $cash->id, $leasing->id])
         ->orderBy('id', 'asc')
         ->get() as $acc)
         <option value="{{ $acc->id }}">
             {{ $acc->name }}
         </option>
-        @endforeach --}}
+        @endforeach
     </select>
 </div>
 <div class="form-group col-sm-6">

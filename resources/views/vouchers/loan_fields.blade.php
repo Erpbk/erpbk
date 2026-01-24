@@ -1,5 +1,20 @@
 <input type="hidden" name="payment_from" value="{{\App\Helpers\HeadAccount::ADVANCE_LOAN}}" />
 
+<div class="row mt-0 mb-2">
+    <div class="form-group col-md-3">
+        <label for="exampleInputEmail1">Date</label>
+        <input type="date" name="trans_date" class="form-control " placeholder="Transaction Date" value="{{ date('Y-m-d') }}">
+    </div>
+    <div class="form-group col-md-2">
+        <label for="exampleInputEmail1">Billing Month</label>
+        <input type="month" name="billing_month" class="form-control " value="{{ date('Y-m-01') }}" required>
+    </div>
+    <div class="form-group col-md-2">
+        <label for="reference_number">Reference Number</label>
+        <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($voucher->reference_number){{$voucher->reference_number}}@endisset" placeholder="Reference Number">
+    </div>
+</div>
+
 @php
 $rider_account = \App\Models\Accounts::where('ref_id', $rider->id)->where('account_type', 'Liability')->first();
 if (!$rider_account) {

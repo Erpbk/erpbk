@@ -59,6 +59,7 @@ class LedgerController extends Controller
           stripos(strip_tags($entry->date ?? ''), $search) !== false ||
           stripos(strip_tags($entry->account_name ?? ''), $search) !== false ||
           stripos(strip_tags($entry->billing_month ?? ''), $search) !== false ||
+          stripos(strip_tags($entry->reference ?? ''), $search) !== false ||
           stripos(strip_tags($entry->voucher ?? ''), $search) !== false ||
           stripos(strip_tags($entry->narration ?? ''), $search) !== false ||
           stripos(strip_tags($entry->debit ?? ''), $search) !== false ||
@@ -121,6 +122,7 @@ class LedgerController extends Controller
       'date' => '',
       'account_name' => '',
       'billing_month' => '',
+      'reference' => '',
       'voucher' => '',
       'narration' => '<b>Balance Forward</b>',
       'debit' => '',
@@ -159,6 +161,7 @@ class LedgerController extends Controller
         'date' => "<span style='white-space: nowrap;'>" . Common::DateFormat($row->trans_date) . "</span>",
         'account_name' => ($row->account->account_code ?? 'N/A') . '-' . ($row->account->name ?? 'N/A'),
         'billing_month' => $month,
+        'reference' => ($row->voucher && isset($row->voucher->reference_number)) ? $row->voucher->reference_number : '',
         'voucher' => $voucher_text,
         'narration' => $naration,
         'debit' => number_format($row->debit, 2),
@@ -174,6 +177,7 @@ class LedgerController extends Controller
       'date' => '',
       'account_name' => '',
       'billing_month' => '',
+      'reference' => '',
       'voucher' => '',
       'narration' => '<b>Total</b>',
       'debit' => '<b>' . number_format($totalDebit, 2) . '</b>',

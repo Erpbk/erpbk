@@ -423,6 +423,7 @@ class RtaFinesController extends AppBaseController
         try {
             $admin_accounts = DB::Table('accounts')->where('id', 1004)->first();
             $service_accounts = DB::table('accounts')->where('id', 1368)->first();
+            $vat_accounts = DB::table('accounts')->where('id', 1023)->first();
             $input = $request->all();
             $bike = Bikes::findOrFail($input['bike_id']);
             $trans_code = Account::trans_code();
@@ -438,7 +439,10 @@ class RtaFinesController extends AppBaseController
             $input['plate_no']        = $bike->plate;
             $input['trans_date']      = Carbon::today();
             $input['trans_code']      = $trans_code;
-            $input['total_amount']    = $request->amount + $request->service_charges + $request->admin_fee;
+            // amount column: admin_fee + service_charges + amount (fine amount)
+            $input['amount']          = ($request->admin_fee ?? 0) + ($request->service_charges ?? 0) + ($request->amount ?? 0);
+            // total_amount column: service_charges + admin_fee + amount + vat
+            $input['total_amount']    = ($request->service_charges ?? 0) + ($request->admin_fee ?? 0) + ($request->amount ?? 0) + ($request->vat ?? 0);
             $input['status']          = 'unpaid';
             $input['reference_number']        = $input['reference_number'];
 
@@ -453,7 +457,7 @@ class RtaFinesController extends AppBaseController
             $billingMonth = $rtaFines->billing_month;
 
             $rider_account = DB::table('accounts')->where('ref_id', $rtaFines->rider_id)->first();
-            // --- 1. Main Fine ---
+            // --- 1. Main Fine (Rider Debit - only amount, not including VAT) ---
             $TransactionService->recordTransaction([
                 'account_id'     => $rider_account->id,
                 'reference_id'   => $rtaFines->id,
@@ -461,7 +465,7 @@ class RtaFinesController extends AppBaseController
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
                 'narration'      => $rtaFines->detail ?? 'RTA Fine',
-                'debit'          => $rtaFines->total_amount,
+                'debit'          => $rtaFines->amount, // Only amount (admin + service + fine), not including VAT
                 'billing_month'  => $billingMonth,
             ]);
 
@@ -494,16 +498,30 @@ class RtaFinesController extends AppBaseController
                     'billing_month'  => $billingMonth,
                 ]);
             }
-            $TransactionService->recordTransaction([
-                'account_id'     => $rtaFines->rta_account_id,
-                'reference_id'   => $rtaFines->id,
-                'reference_type' => 'RTA',
-                'trans_code'     => $trans_code,
-                'trans_date'     => $rtaFines->trans_date,
-                'narration'      => $rtaFines->detail ?? 'RTA Fine Received',
-                'credit'         => $request->amount,
-                'billing_month'  => $billingMonth,
-            ]);
+            if ($request->vat > 0) {
+                $TransactionService->recordTransaction([
+                    'account_id'     => $vat_accounts->id,
+                    'reference_id'   => $rtaFines->id,
+                    'reference_type' => 'RTA',
+                    'trans_code'     => $trans_code,
+                    'trans_date'     => $rtaFines->trans_date,
+                    'narration'      => 'VAT on RTA Fine',
+                    'debit'         => $request->vat,
+                    'billing_month'  => $billingMonth,
+                ]);
+            }
+            if ($request->amount > 0) {
+                $TransactionService->recordTransaction([
+                    'account_id'     => $rtaFines->rta_account_id,
+                    'reference_id'   => $rtaFines->id,
+                    'reference_type' => 'RTA',
+                    'trans_code'     => $trans_code,
+                    'trans_date'     => $rtaFines->trans_date,
+                    'narration'      => $rtaFines->detail ?? 'RTA Fine Received',
+                    'credit'         => $rtaFines->total_amount, // Total amount including VAT
+                    'billing_month'  => $billingMonth,
+                ]);
+            }
             // --- Voucher ---
             Vouchers::create([
                 'rider_id'      => $rtaFines->rider_id,
@@ -522,14 +540,14 @@ class RtaFinesController extends AppBaseController
                 'ref_id'        => $rtaFines->id,
             ]);
 
-            // --- Ledger Entry ---
+            // --- Ledger Entry (Rider - only amount, not including VAT) ---
             $lastLedger = DB::table('ledger_entries')
                 ->where('account_id', $rider_account->id)
                 ->orderBy('billing_month', 'desc')
                 ->first();
 
             $opening_balance = $lastLedger ? $lastLedger->closing_balance : 0.00;
-            $debit_amount = $rtaFines->total_amount;
+            $debit_amount = $rtaFines->amount; // Only amount (admin + service + fine), not including VAT
             $closing_balance = $opening_balance + $debit_amount;
 
             DB::table('ledger_entries')->insert([
@@ -652,7 +670,7 @@ class RtaFinesController extends AppBaseController
             $input['rider_id']        = $input['debit_account'];
             $input['plate_no']        = $bike->plate;
             $input['trans_date']      = Carbon::today()->format('Y-m-d');
-            $input['total_amount']    = $request->amount + $request->service_charges + $request->admin_fee;
+            $input['total_amount']    = ($request->amount ?? 0) + ($request->service_charges ?? 0) + ($request->admin_fee ?? 0) + ($request->vat ?? 0);
             $input['rta_account_id']  = $request->rta_account_id;
 
             $rtaFines->update($input);

@@ -11,12 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('rta_fines', function (Blueprint $table) {
-            $table->decimal('vat', 10, 2)
-                  ->nullable()
-                  ->after('admin_fee')
-                  ->comment('Value Added Tax amount');
-        });
+        if (!Schema::hasColumn('rta_fines', 'vat')) {
+            Schema::table('rta_fines', function (Blueprint $table) {
+                $table->decimal('vat', 10, 2)
+                    ->nullable()
+                    ->after('admin_fee')
+                    ->comment('Value Added Tax amount');
+            });
+        }
     }
 
     /**
@@ -24,8 +26,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('rta_fines', function (Blueprint $table) {
-            $table->dropColumn('vat');
-        });
+        if (Schema::hasColumn('rta_fines', 'vat')) {
+            Schema::table('rta_fines', function (Blueprint $table) {
+                $table->dropColumn('vat');
+            });
+        }
     }
 };

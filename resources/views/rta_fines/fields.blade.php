@@ -71,16 +71,13 @@
         </option>
         @endif
         @endforeach
-
         @endif
-
-
     </select>
 </div>
 <div class="form-group col-sm-6">
     {!! Form::label('credit_account', 'Credit Account:') !!}
     <input type="hidden" name="rta_account_id" value="{{ $data->id }}">
-    {!! Form::text('credit_account',  $data->id.'-'.$data->name, ['class' => 'form-control','step'=>'any', 'readonly'=>true]) !!}
+    {!! Form::text('credit_account', $data->id.'-'.$data->name, ['class' => 'form-control','step'=>'any', 'readonly'=>true]) !!}
 </div>
 
 <div class="form-group col-sm-6">
@@ -105,7 +102,7 @@
 <!-- Amount Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('vat', 'VAT:') !!}
-    {!! Form::number('vat', $rtaFines->vat ?? '', ['class' => 'form-control','step'=>'any', 'readonly'=>true]) !!}
+    {!! Form::number('vat', $rtaFines->vat ?? '', ['class' => 'form-control','step'=>'any']) !!}
 </div>
 
 <!-- Detail Field -->

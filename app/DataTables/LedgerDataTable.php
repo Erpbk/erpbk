@@ -31,6 +31,7 @@ class LedgerDataTable extends DataTable
     $data[] = [
       'date' => '',
       'account_name' => '',
+      'reference_number' => '',
       'billing_month' => '',
       'voucher' => '',
       'narration' => '<b>Balance Forward</b>',
@@ -191,9 +192,14 @@ class LedgerDataTable extends DataTable
       } else {
         $naration = $row->narration . ', ' . $view_file;
       }
+      $reference = '-';
+      if($row->voucher){
+        $reference = $row->voucher->reference_number ?? '-';
+      }
       $data[] = [
         'date' => "<span style='white-space: nowrap;'>" . Common::DateFormat($row->trans_date) . "</span>",
         'account_name' => ($row->account->account_code ?? 'N/A') . '-' . ($row->account->name ?? 'N/A'),
+        'reference_number' => $reference,
         'billing_month' => $month,
         'voucher' => $voucher_text,
         'narration' => $naration,
@@ -205,6 +211,7 @@ class LedgerDataTable extends DataTable
     $data[] = [
       'date' => '',
       'account_name' => '',
+      'reference_number' => '',
       'billing_month' => '',
       'voucher' => '',
       'narration' => '<b>Total</b>',
@@ -272,6 +279,12 @@ class LedgerDataTable extends DataTable
         'pageLength' => 50,
         'stateSave' => true, // Ensures balance maintains on pagination
         'responsive' => true,
+        'initComplete' => "function(settings, json) {
+                // Jump to last page after initialization
+                var api = this.api();
+                var lastPage = api.page.info().pages - 1;
+                api.page(lastPage).draw('page');
+            }",
         'footerCallback' => "function(row, data, start, end, display) {
                     var api = this.api();
                     var intVal = function(i) {
@@ -315,6 +328,7 @@ class LedgerDataTable extends DataTable
     return [
       'date',
       'account_name' => ['title' => 'Account'],
+      'reference_number' => ['title' => 'Reference'],
       'billing_month' => ['title' => 'Month'],
       'voucher',
       'narration',

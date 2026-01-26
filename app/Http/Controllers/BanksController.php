@@ -45,6 +45,14 @@ class BanksController extends AppBaseController
     if (!auth()->user()->hasPermissionTo('bank_view')) {
       abort(403, 'Unauthorized action.');
     }
+
+    $banks = Banks::all();
+    foreach($banks as $bank){
+      $credit = Transactions::where('account_id',$bank->account_id)->sum('credit');
+      $debit  = Transactions::where('account_id',$bank->account_id)->sum('debit');
+      $balance = $debit - $credit;
+      $bank->update(['balance' => $balance]);
+    }
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Banks::query()

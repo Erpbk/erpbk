@@ -529,7 +529,7 @@ class VisaexpenseController extends AppBaseController
                     'billing_month' => $billingMonth,
                     'payment_type' => 1, // Liability payment
                     'voucher_type' => 'VL', // Visa Loan
-                    'remarks' => 'Loan Voucher -' . '<b>' . 'Installment ' . ($i + 1) . '</b>' . ' of '
+                    'remarks' => 'Loan Voucher - Installment ' . ($i + 1) . ' of '
                         . $validated['number_of_installments']
                         . ' (Amount: ' . number_format($installmentAmount, 2) . ')',
                     'amount' => $installmentAmount,
@@ -545,7 +545,7 @@ class VisaexpenseController extends AppBaseController
                     'reference_type' => 'VL',
                     'trans_code' => $trans_code,
                     'trans_date' => $trans_date,
-                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting ' . '<b>' . ' installment ' . ($i + 1) . '</b>' . ' - ' . $billingMonthFormatted . ' (Amount: ' . number_format($installmentAmount, 2) . ')',
+                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting installment ' . ($i + 1) . ' - ' . $billingMonthFormatted . ' (Amount: ' . number_format($installmentAmount, 2) . ')',
                     'debit' => $installmentAmount,
                     'billing_month' => $billingMonth,
                     'created_by' => auth()->user()->id,
@@ -558,7 +558,7 @@ class VisaexpenseController extends AppBaseController
                     'reference_type' => 'VL',
                     'trans_code' => $trans_code,
                     'trans_date' => $trans_date,
-                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting ' . '<b>' . ' installment ' . ($i + 1) . '</b>' . ' - ' . $billingMonthFormatted . ' (Amount: ' . number_format($installmentAmount, 2) . ')',
+                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting ' . ' installment ' . ($i + 1) . ' - ' . $billingMonthFormatted . ' (Amount: ' . number_format($installmentAmount, 2) . ')',
                     'credit' => $installmentAmount,
                     'billing_month' => $billingMonth,
                 ]);
@@ -590,7 +590,7 @@ class VisaexpenseController extends AppBaseController
 
             $installmentDetails = '';
             foreach ($installmentAmounts as $index => $amount) {
-                $installmentDetails .= '<b>' . 'Installment ' . ($index + 1) . '</b>' . ': ' . number_format($amount, 2) . ', ';
+                $installmentDetails .= 'Installment ' . ($index + 1) . ': ' . number_format($amount, 2) . ', ';
             }
             $installmentDetails = rtrim($installmentDetails, ', ');
 

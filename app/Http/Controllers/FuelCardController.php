@@ -24,7 +24,7 @@ class FuelCardController extends Controller
         $query = FuelCards::query()
             ->orderBy('id', 'asc');
         if ($request->has('card_number') && !empty($request->card_number)) {
-            $query->where('card_number', 'like', '%' . $request->card_numbernumber . '%');
+            $query->where('card_number', 'like', '%' . $request->card_number . '%');
         }
         if ($request->has('status') && !empty($request->status)) {
             $query->where('status',  $request->status );

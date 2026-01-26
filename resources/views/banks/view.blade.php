@@ -14,15 +14,6 @@
   $currentMonthStart = Carbon::now()->startOfMonth()->format('Y-m-d');
   $currentMonthEnd = Carbon::now()->endOfMonth()->format('Y-m-d');
   
-  // Calculate current balance
-  $totalCredit = Transactions::where('account_id', $banks->account_id)
-                ->sum('credit');
-  
-  $totalDebit = Transactions::where('account_id', $banks->account_id)
-                ->sum('debit');
-  
-  $currentBalance = $totalDebit - $totalCredit;
-  
   // Calculate current month transactions
   $currentMonthCredit = Transactions::where('account_id', $banks->account_id)
                       ->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])
@@ -34,10 +25,59 @@
   
   $netFlow = $currentMonthDebit - $currentMonthCredit;
 @endphp
+    <!-- Tabs Navigation -->
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-body p-3">
+        <ul class="nav nav-pills nav-justified nav-pills-custom gap-2" role="tablist">
+          <li class="nav-item" role="presentation">
+            <a class="nav-link d-flex align-items-center justify-content-center py-3 info-link" 
+               href="javascript:void(0);">
+              <i class="fas fa-university fa-lg me-2"></i>
+              <span class="fw-semibold">Bank Info</span>
+            </a>
+          </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link @if(request()->segment(2) == 'files') active @endif d-flex align-items-center justify-content-center py-3" 
+               href="{{ route('bank.files', $banks->id) }}">
+              <i class="fas fa-file-upload fa-lg me-2"></i>
+              <span class="fw-semibold">Documents</span>
+            </a>
+          </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link @if(request()->segment(2) == 'ledger') active @endif d-flex align-items-center justify-content-center py-3" 
+               href="{{ route('bank.ledger', $banks->id) }}">
+              <i class="fas fa-file-invoice-dollar fa-lg me-2"></i>
+              <span class="fw-semibold">Ledger</span>
+            </a>
+          </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link @if(request()->segment(2) == 'receipts') active @endif d-flex align-items-center justify-content-center py-3" 
+               href="{{ route('banks.receipts', $banks->id) }}">
+              <i class="fa fa-receipt fa-lg me-2"></i>
+              <span class="fw-semibold">Receipts</span>
+            </a>
+          </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link @if(request()->segment(2) == 'payments') active @endif d-flex align-items-center justify-content-center py-3" 
+               href="{{ route('banks.payments', $banks->id) }}">
+              <i class="fas fa-dollar-sign fa-lg me-2"></i>
+              <span class="fw-semibold">Payments</span>
+            </a>
+          </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link @if(request()->segment(2) == 'cheques') active @endif d-flex align-items-center justify-content-center py-3" 
+               href="javascript:void(0);">
+              <i class="fas fa-money-check fa-lg me-2"></i>
+              <span class="fw-semibold">Cheques</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
 
 <div class="row">
   <!-- Left Column - Bank Information -->
-  <div class="col-xl-4 col-lg-4 col-md-4 order-1 order-lg-0">
+  <div class="col-md-4 d-none" id="bank-info">
     <!-- Bank Profile Card -->
     <div class="card mb-4 shadow-sm border-0">
       <div class="card-header bg-gradient-primary text-white py-3">
@@ -68,10 +108,10 @@
         
         <!-- Current Balance (Prominent Display) -->
         <div class="text-center mb-4">
-          <div class="p-4 rounded @if($currentBalance >= 0) bg-opacity-10 border border-success border-opacity-25 @else border border-danger border-opacity-25 @endif">
+          <div class="p-4 rounded @if($banks->balance >= 0) bg-opacity-10 border border-success border-opacity-25 @else border border-danger border-opacity-25 @endif">
             <p class="mb-1 text-muted small">Current Balance</p>
-            <p class="mb-0 fw-bold @if($currentBalance >= 0) text-success @else text-danger @endif" style="font-size: 1.5rem">
-              {{ number_format($currentBalance, 2) }}
+            <p class="mb-0 fw-bold @if($banks->balance >= 0) text-success @else text-danger @endif" style="font-size: 1.5rem">
+              {{ number_format($banks->balance, 2) }}
             </p>
             <small class="text-muted">As of {{ date('M d, Y') }}</small>
           </div>
@@ -217,42 +257,7 @@
   </div>
 
   <!-- Right Column - Tabs Content -->
-  <div class="col-xl-8 col-lg-8 col-md-8 order-0 order-lg-1 h-100">
-    <!-- Tabs Navigation -->
-    <div class="card shadow-sm border-0 mb-4">
-      <div class="card-body p-3">
-        <ul class="nav nav-pills nav-justified nav-pills-custom gap-2" role="tablist">
-          <li class="nav-item" role="presentation">
-            <a class="nav-link @if(request()->segment(2) == 'files') active @endif d-flex align-items-center justify-content-center py-3" 
-               href="{{ route('bank.files', $banks->id) }}">
-              <i class="fas fa-file-upload fa-lg me-2"></i>
-              <span class="fw-semibold">Documents</span>
-            </a>
-          </li>
-          <li class="nav-item" role="presentation">
-            <a class="nav-link @if(request()->segment(2) == 'ledger') active @endif d-flex align-items-center justify-content-center py-3" 
-               href="{{ route('bank.ledger', $banks->id) }}">
-              <i class="fas fa-file-invoice-dollar fa-lg me-2"></i>
-              <span class="fw-semibold">Ledger</span>
-            </a>
-          </li>
-          <li class="nav-item" role="presentation">
-            <a class="nav-link @if(request()->segment(2) == 'receipts') active @endif d-flex align-items-center justify-content-center py-3" 
-               href="{{ route('banks.receipts', $banks->id) }}">
-              <i class="fa fa-receipt fa-lg me-2"></i>
-              <span class="fw-semibold">Receipts</span>
-            </a>
-          </li>
-          <li class="nav-item" role="presentation">
-            <a class="nav-link @if(request()->segment(2) == 'payments') active @endif d-flex align-items-center justify-content-center py-3" 
-               href="{{ route('banks.payments', $banks->id) }}">
-              <i class="fas fa-dollar-sign fa-lg me-2"></i>
-              <span class="fw-semibold">Payments</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </div>
+  <div class="col-md-12 h-100" id="bank-files">
 
     <!-- Tab Content Area -->
     <div id="cardBody">
@@ -277,7 +282,7 @@
   .nav-pills-custom .nav-link {
     border-radius: 8px;
     margin: 0 5px;
-    color: #6c757d;
+    color: black;
     border: 1px solid #e9ecef;
     transition: all 0.3s ease;
   }
@@ -341,3 +346,31 @@
 </style>
 
 @endsection
+
+@push('third_party_scripts')
+<script>
+$(document).ready(function () {
+    $('.info-link').on('click', function (e) {
+        e.preventDefault();
+
+        const $bankInfo  = $('#bank-info');
+        const $bankFiles = $('#bank-files');
+        const $icon      = $(this).find('i');
+
+        // Toggle visibility
+        $bankInfo.toggleClass('d-none');
+
+        // Adjust layout
+        if ($bankInfo.hasClass('d-none')) {
+            // Hidden
+            $bankFiles.removeClass('col-md-8').addClass('col-md-12');
+            $icon.removeClass('fa-times').addClass('fa-university');
+        } else {
+            // Visible
+            $bankFiles.removeClass('col-md-12').addClass('col-md-8');
+            $icon.removeClass('fa-university').addClass('fa-times');
+        }
+    });
+});
+</script>
+@endpush

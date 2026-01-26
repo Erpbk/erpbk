@@ -56,11 +56,18 @@
                 <div class="row">
                     <div class="form-group col-md-12 col-sm-12">
                             <label for="number">Card Number</label>
-                            <input type="text" name="card_number" class="form-control" placeholder="Filter By Card Number" value="{{ request('card_number') }}">
+                            <input type="text" name="card_number" class="form-control" placeholder="Filter By Card Number" >
                         </div>
                     <div class="form-group col-md-12">
                         <label for="assigned_to">User</label>
-                        <input type="text" name="assigned_to" class="form-control" placeholder="Filter By User" value="{{ request('assigned_to') }}">
+                        <select name="assigned_to" class="form-control" id="user">
+                            <option value="">Select</option>
+                            @foreach(\App\Models\Riders::where('status', 1)->get() as $user)
+                            <option value="{{ $user->id }}">
+                                {{ $user->rider_id.'-'.$user->name }}
+                            </option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="form-group col-md-12">
                         <label for="status">Status</label>
@@ -111,9 +118,9 @@
 <script type="text/javascript">
 
 $(document).ready(function () {
-    $('#company').select2({
+    $('#user').select2({
         dropdownParent: $('#searchTopbody'),
-        placeholder: "Filter By Company",
+        placeholder: "Filter By Assigned User",
         allowClear: true
     });
     $('#status').select2({

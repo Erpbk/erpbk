@@ -84,12 +84,12 @@
     {!! Form::label('attachment', 'Attachment:', ['class' => '']) !!}
     {!! Form::file('attachment', ['class' => 'form-control', '']) !!}
 </div>
-<!-- Amount Field -->
+<!-- Admin Charges Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('admin_fee', 'Admin Charges:', ['class' => '']) !!}
-    {!! Form::number('admin_fee', $rtaFines->admin_fee ?? '', ['class' => 'form-control','step'=>'any', 'readonly']) !!}
+    {!! Form::number('admin_fee', $rtaFines->admin_fee ?? '', ['class' => 'form-control','step'=>'any']) !!}
 </div>
-<!-- Amount Field -->
+<!-- Service Charges Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('service_charges', 'Service Charges:', ['class' => '']) !!}
     {!! Form::number('service_charges', $rtaFines->service_charges ?? '', ['class' => 'form-control','step'=>'any']) !!}
@@ -99,7 +99,7 @@
     {!! Form::label('amount', 'Amount:', ['class' => 'required']) !!}
     {!! Form::number('amount', $rtaFines->amount ?? '', ['class' => 'form-control','step'=>'any', 'required']) !!}
 </div>
-<!-- Amount Field -->
+<!-- Vat Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('vat', 'VAT:') !!}
     {!! Form::number('vat', $rtaFines->vat ?? '', ['class' => 'form-control','step'=>'any']) !!}

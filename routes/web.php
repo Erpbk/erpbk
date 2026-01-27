@@ -119,8 +119,8 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('rtaFines/getrider/{id}', [\App\Http\Controllers\RtaFinesController::class, 'getrider']);
 
 
-
-
+    Route::put('/cheques/{cheque}/status', [App\Http\Controllers\ChequesController::class, 'updateStatus'])->name('cheques.update-status');
+    Route::resource('cheques', App\Http\Controllers\ChequesController::class);
 
 
     Route::resource('VisaExpense', App\Http\Controllers\VisaexpenseController::class);
@@ -349,6 +349,8 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('bank/delete/{id}', [\App\Http\Controllers\BanksController::class, 'destroy'])->name('bank.delete');
     Route::get('banks/receipts/{id}', [\App\Http\Controllers\BanksController::class, 'receipts'])->name('banks.receipts');
     Route::get('banks/payments/{id}', [\App\Http\Controllers\BanksController::class, 'payments'])->name('banks.payments');
+    Route::get('bank/cheques/{id}', [\App\Http\Controllers\BanksController::class, 'cheques'])->name('banks.cheques');
+    
 
     // Soft Delete Routes for Banks - DEPRECATED: Use centralized trash module (/trash)
     // Route::get('banks/trashed/list', [\App\Http\Controllers\BanksController::class, 'trashed'])->name('banks.trashed');

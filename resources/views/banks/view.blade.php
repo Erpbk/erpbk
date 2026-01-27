@@ -66,7 +66,7 @@
           </li>
           <li class="nav-item" role="presentation">
             <a class="nav-link @if(request()->segment(2) == 'cheques') active @endif d-flex align-items-center justify-content-center py-3" 
-               href="javascript:void(0);">
+               href="{{ route('banks.cheques', $banks->id) }}">
               <i class="fas fa-money-check fa-lg me-2"></i>
               <span class="fw-semibold">Cheques</span>
             </a>

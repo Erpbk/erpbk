@@ -272,32 +272,91 @@ class LeasingCompaniesController extends AppBaseController
   }
 
   /**
-   * Show the form for creating a new invoice for a leasing company.
+   * Display a listing of Leasing Company Invoices.
    */
-  public function createInvoice($id)
+  public function indexInvoices(Request $request)
   {
-    $leasingCompany = $this->leasingCompaniesRepository->find($id);
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    
+    $query = LeasingCompanyInvoice::with('leasingCompany')
+      ->orderBy('billing_month', 'desc')
+      ->orderBy('id', 'desc');
 
-    if (empty($leasingCompany)) {
-      Flash::error('Leasing Company not found');
-      return redirect(route('leasingCompanies.index'));
+    // Filters
+    if ($request->has('leasing_company_id') && !empty($request->leasing_company_id)) {
+      $query->where('leasing_company_id', $request->leasing_company_id);
+    }
+    if ($request->has('billing_month') && !empty($request->billing_month)) {
+      $billingMonth = \Carbon\Carbon::parse($request->billing_month);
+      $query->whereYear('billing_month', $billingMonth->year)
+        ->whereMonth('billing_month', $billingMonth->month);
+    }
+    if ($request->has('status') && !empty($request->status)) {
+      $query->where('status', $request->status);
     }
 
-    // Get bikes for this leasing company
-    $bikes = Bikes::where('company', $id)
-      ->where('status', 1)
-      ->get();
+    $data = $this->applyPagination($query, $paginationParams);
+    $leasingCompanies = LeasingCompanies::where('status', 1)->orderBy('name')->get();
 
-    return view('leasing_companies.create_invoice', compact('leasingCompany', 'bikes'));
+    if ($request->ajax()) {
+      $tableData = view('leasing_company_invoices.table', [
+        'data' => $data,
+      ])->render();
+      $paginationLinks = $data->links('components.global-pagination')->render();
+      return response()->json([
+        'tableData' => $tableData,
+        'paginationLinks' => $paginationLinks,
+      ]);
+    }
+
+    return view('leasing_company_invoices.index', [
+      'data' => $data,
+      'leasingCompanies' => $leasingCompanies,
+    ]);
+  }
+
+  /**
+   * Show the form for creating a new invoice for a leasing company.
+   */
+  public function createInvoice($id = null)
+  {
+    // If ID is provided, use it; otherwise get from request
+    $leasingCompanyId = $id ?? request('leasing_company_id');
+    
+    if ($leasingCompanyId) {
+      $leasingCompany = $this->leasingCompaniesRepository->find($leasingCompanyId);
+      if (empty($leasingCompany)) {
+        Flash::error('Leasing Company not found');
+        return redirect(route('leasingCompanyInvoices.index'));
+      }
+    } else {
+      $leasingCompany = null;
+    }
+
+    // Get all active leasing companies for dropdown
+    $leasingCompanies = LeasingCompanies::where('status', 1)->orderBy('name')->get();
+
+    // Get bikes for selected leasing company (only active bikes)
+    $bikes = collect();
+    if ($leasingCompany) {
+      $bikes = Bikes::where('company', $leasingCompany->id)
+        ->where('status', 1)
+        ->orderBy('plate')
+        ->get();
+    }
+
+    return view('leasing_company_invoices.create', compact('leasingCompany', 'bikes', 'leasingCompanies'));
   }
 
   /**
    * Store a newly created invoice in storage.
    */
-  public function storeInvoice(Request $request, $id)
+  public function storeInvoice(Request $request, $id = null)
   {
     try {
-      $leasingCompany = $this->leasingCompaniesRepository->find($id);
+      $leasingCompanyId = $id ?? $request->leasing_company_id;
+      
+      $leasingCompany = $this->leasingCompaniesRepository->find($leasingCompanyId);
 
       if (empty($leasingCompany)) {
         return response()->json(['errors' => ['error' => 'Leasing Company not found!']], 422);
@@ -306,7 +365,7 @@ class LeasingCompaniesController extends AppBaseController
       // Validate request
       $request->validate([
         'inv_date' => 'required|date',
-        'billing_month' => 'required|date',
+        'billing_month' => 'required',
         'bike_id' => 'required|array|min:1',
         'bike_id.*' => 'exists:bikes,id',
         'rental_amount' => 'required|array|min:1',
@@ -316,18 +375,26 @@ class LeasingCompaniesController extends AppBaseController
       ]);
 
       // Add leasing_company_id to request
-      $request->merge(['leasing_company_id' => $id]);
+      $request->merge(['leasing_company_id' => $leasingCompanyId]);
 
       $invoice = $this->leasingCompanyInvoicesRepository->record($request);
 
       Flash::success('Invoice created successfully.');
 
-      return response()->json([
-        'message' => 'Invoice created successfully.',
-        'redirect' => route('leasingCompanies.showInvoice', $invoice->id)
-      ]);
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Invoice created successfully.',
+          'redirect' => route('leasingCompanyInvoices.show', $invoice->id)
+        ]);
+      }
+
+      return redirect(route('leasingCompanyInvoices.show', $invoice->id));
     } catch (\Exception $e) {
-      return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
+      if ($request->ajax()) {
+        return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
+      }
+      Flash::error($e->getMessage());
+      return redirect()->back()->withInput();
     }
   }
 
@@ -340,9 +407,237 @@ class LeasingCompaniesController extends AppBaseController
 
     if (empty($invoice)) {
       Flash::error('Invoice not found');
-      return redirect(route('leasingCompanies.index'));
+      return redirect(route('leasingCompanyInvoices.index'));
     }
 
-    return view('leasing_companies.show_invoice')->with('invoice', $invoice);
+    return view('leasing_company_invoices.show')->with('invoice', $invoice);
+  }
+
+  /**
+   * Show the form for editing the specified invoice.
+   */
+  public function editInvoice($id)
+  {
+    $invoice = $this->leasingCompanyInvoicesRepository->find($id);
+
+    if (empty($invoice)) {
+      Flash::error('Invoice not found');
+      return redirect(route('leasingCompanyInvoices.index'));
+    }
+
+    $leasingCompany = $invoice->leasingCompany;
+    
+    // Get active bikes for this leasing company
+    $bikes = Bikes::where('company', $leasingCompany->id)
+      ->where('status', 1)
+      ->orderBy('plate')
+      ->get();
+
+    return view('leasing_company_invoices.edit', compact('invoice', 'leasingCompany', 'bikes'));
+  }
+
+  /**
+   * Update the specified invoice in storage.
+   */
+  public function updateInvoice(Request $request, $id)
+  {
+    try {
+      $invoice = $this->leasingCompanyInvoicesRepository->find($id);
+
+      if (empty($invoice)) {
+        Flash::error('Invoice not found');
+        return redirect(route('leasingCompanyInvoices.index'));
+      }
+
+      // Validate request
+      $request->validate([
+        'inv_date' => 'required|date',
+        'billing_month' => 'required',
+        'bike_id' => 'required|array|min:1',
+        'bike_id.*' => 'exists:bikes,id',
+        'rental_amount' => 'required|array|min:1',
+        'rental_amount.*' => 'numeric|min:0',
+        'descriptions' => 'nullable|string',
+        'notes' => 'nullable|string',
+      ]);
+
+      $invoice = $this->leasingCompanyInvoicesRepository->record($request, $id);
+
+      Flash::success('Invoice updated successfully.');
+
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Invoice updated successfully.',
+          'redirect' => route('leasingCompanyInvoices.show', $invoice->id)
+        ]);
+      }
+
+      return redirect(route('leasingCompanyInvoices.show', $invoice->id));
+    } catch (\Exception $e) {
+      if ($request->ajax()) {
+        return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
+      }
+      Flash::error($e->getMessage());
+      return redirect()->back()->withInput();
+    }
+  }
+
+  /**
+   * Remove the specified invoice from storage.
+   */
+  public function destroyInvoice($id)
+  {
+    $invoice = $this->leasingCompanyInvoicesRepository->find($id);
+
+    if (empty($invoice)) {
+      Flash::error('Invoice not found');
+      return redirect(route('leasingCompanyInvoices.index'));
+    }
+
+    // Check if invoice is paid - prevent deletion of paid invoices
+    if ($invoice->status == 1) {
+      Flash::error('Cannot delete paid invoice. Only unpaid invoices can be deleted.');
+      return redirect(route('leasingCompanyInvoices.index'));
+    }
+
+    try {
+      // Delete related transactions
+      \DB::table('transactions')
+        ->where('reference_type', 'LeasingCompanyInvoice')
+        ->where('reference_id', $id)
+        ->delete();
+
+      // Delete invoice items
+      \DB::table('leasing_company_invoice_items')
+        ->where('inv_id', $id)
+        ->delete();
+
+      // Soft delete the invoice
+      $invoice->delete();
+
+      Flash::success('Invoice deleted successfully.');
+    } catch (\Exception $e) {
+      Flash::error('Error deleting invoice: ' . $e->getMessage());
+    }
+
+    return redirect(route('leasingCompanyInvoices.index'));
+  }
+
+  /**
+   * Clone invoice to next month.
+   */
+  public function cloneInvoice(Request $request, $id)
+  {
+    try {
+      $sourceInvoice = $this->leasingCompanyInvoicesRepository->find($id);
+
+      if (empty($sourceInvoice)) {
+        return response()->json(['errors' => ['error' => 'Source invoice not found!']], 422);
+      }
+
+      // Calculate next month
+      $nextMonth = \Carbon\Carbon::parse($sourceInvoice->billing_month)->addMonth();
+      $nextMonthString = $nextMonth->format('Y-m');
+
+      // Check if invoice already exists for next month
+      $existingInvoice = LeasingCompanyInvoice::where('leasing_company_id', $sourceInvoice->leasing_company_id)
+        ->whereYear('billing_month', $nextMonth->year)
+        ->whereMonth('billing_month', $nextMonth->month)
+        ->first();
+
+      if ($existingInvoice) {
+        return response()->json(['errors' => ['error' => 'An invoice for this leasing company already exists for ' . $nextMonthString . '.']], 422);
+      }
+
+      // Create new invoice data
+      $newInvoiceData = $sourceInvoice->toArray();
+      unset($newInvoiceData['id']);
+      unset($newInvoiceData['invoice_number']);
+      unset($newInvoiceData['created_at']);
+      unset($newInvoiceData['updated_at']);
+      unset($newInvoiceData['deleted_at']);
+      
+      $newInvoiceData['billing_month'] = $nextMonthString . '-01';
+      $newInvoiceData['inv_date'] = now()->format('Y-m-d');
+      $newInvoiceData['status'] = 0; // Unpaid
+
+      // Create new invoice
+      $newInvoice = LeasingCompanyInvoice::create($newInvoiceData);
+
+      // Generate invoice number
+      if (empty($newInvoice->invoice_number)) {
+        $newInvoice->invoice_number = 'LCI' . str_pad($newInvoice->id, 8, '0', STR_PAD_LEFT);
+        $newInvoice->save();
+      }
+
+      // Clone invoice items (only for active bikes)
+      foreach ($sourceInvoice->items as $item) {
+        // Check if bike is still active
+        $bike = Bikes::find($item->bike_id);
+        if ($bike && $bike->status == 1) {
+          $newItemData = $item->toArray();
+          unset($newItemData['id']);
+          unset($newItemData['created_at']);
+          unset($newItemData['updated_at']);
+          $newItemData['inv_id'] = $newInvoice->id;
+          
+          \DB::table('leasing_company_invoice_items')->insert($newItemData);
+        }
+      }
+
+      // Recalculate totals
+      $items = \DB::table('leasing_company_invoice_items')
+        ->where('inv_id', $newInvoice->id)
+        ->get();
+
+      $subtotal = $items->sum('rental_amount');
+      $vat = $items->sum('tax_amount');
+      $totalAmount = $items->sum('total_amount');
+
+      $newInvoice->subtotal = $subtotal;
+      $newInvoice->vat = $vat;
+      $newInvoice->total_amount = $totalAmount;
+      $newInvoice->save();
+
+      Flash::success('Invoice cloned successfully for ' . $nextMonthString . '.');
+
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Invoice cloned successfully for ' . $nextMonthString . '.',
+          'redirect' => route('leasingCompanyInvoices.show', $newInvoice->id)
+        ]);
+      }
+
+      return redirect(route('leasingCompanyInvoices.show', $newInvoice->id));
+    } catch (\Exception $e) {
+      if ($request->ajax()) {
+        return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
+      }
+      Flash::error('Error cloning invoice: ' . $e->getMessage());
+      return redirect()->back();
+    }
+  }
+
+  /**
+   * Get active bikes for a leasing company (AJAX endpoint).
+   */
+  public function getBikes($id)
+  {
+    $leasingCompany = $this->leasingCompaniesRepository->find($id);
+
+    if (empty($leasingCompany)) {
+      return response()->json(['error' => 'Leasing Company not found'], 404);
+    }
+
+    // Get only active bikes for this leasing company
+    $bikes = Bikes::where('company', $id)
+      ->where('status', 1)
+      ->orderBy('plate')
+      ->get(['id', 'plate', 'model']);
+
+    return response()->json([
+      'bikes' => $bikes,
+      'rental_amount' => $leasingCompany->rental_amount ?? 0
+    ]);
   }
 }

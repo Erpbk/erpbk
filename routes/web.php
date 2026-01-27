@@ -341,6 +341,19 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('leasingCompanies/trash', [\App\Http\Controllers\LeasingCompaniesController::class, 'trash'])->name('leasingCompanies.trash');
     Route::post('leasingCompanies/trash/{id}/restore', [\App\Http\Controllers\LeasingCompaniesController::class, 'restoreTrash'])->name('leasingCompanies.restore');
     Route::delete('leasingCompanies/trash/{id}/force-destroy', [\App\Http\Controllers\LeasingCompaniesController::class, 'forceDestroyTrash'])->name('leasingCompanies.force-destroy');
+    
+    // Leasing Company Invoice Routes
+    Route::get('leasingCompanyInvoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'indexInvoices'])->name('leasingCompanyInvoices.index');
+    Route::get('leasingCompanyInvoices/create/{leasingCompanyId?}', [\App\Http\Controllers\LeasingCompaniesController::class, 'createInvoice'])->name('leasingCompanyInvoices.create');
+    Route::post('leasingCompanyInvoices/store', [\App\Http\Controllers\LeasingCompaniesController::class, 'storeInvoice'])->name('leasingCompanyInvoices.store');
+    Route::get('leasingCompanyInvoices/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'showInvoice'])->name('leasingCompanyInvoices.show');
+    Route::get('leasingCompanyInvoices/{id}/edit', [\App\Http\Controllers\LeasingCompaniesController::class, 'editInvoice'])->name('leasingCompanyInvoices.edit');
+    Route::put('leasingCompanyInvoices/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'updateInvoice'])->name('leasingCompanyInvoices.update');
+    Route::delete('leasingCompanyInvoices/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroyInvoice'])->name('leasingCompanyInvoices.destroy');
+    Route::post('leasingCompanyInvoices/{id}/clone', [\App\Http\Controllers\LeasingCompaniesController::class, 'cloneInvoice'])->name('leasingCompanyInvoices.clone');
+    Route::get('leasingCompanies/{id}/invoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'createInvoice'])->name('leasingCompanies.createInvoice');
+    Route::post('leasingCompanies/{id}/invoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'storeInvoice'])->name('leasingCompanies.storeInvoice');
+    Route::get('leasingCompanies/{id}/bikes', [\App\Http\Controllers\LeasingCompaniesController::class, 'getBikes'])->name('leasingCompanies.getBikes');
     Route::resource('garages', App\Http\Controllers\GaragesController::class);
     Route::get('garages/delete/{id}', [\App\Http\Controllers\GaragesController::class, 'destroy'])->name('garages.delete');
     Route::resource('banks', App\Http\Controllers\BanksController::class);

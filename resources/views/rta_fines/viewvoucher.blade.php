@@ -131,7 +131,7 @@
                                 </tr>
                                 <tr>
                                     <th>Total Amount</th>
-                                    <td class="text-end">AED {{ number_format($accounts->account_tax + $data->amount, 2)  }}</td>
+                                    <td class="text-end">AED {{ number_format($data->total_amount, 2)  }}</td>
                                 </tr>
                                 <tr>
                                     <th>View Files</th>

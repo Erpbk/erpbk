@@ -296,7 +296,7 @@ class RtaFinesController extends AppBaseController
                         'trans_code'     => $trans_code,
                         'trans_date'     => $transDate,
                         'narration'      => $fine->detail ?? 'RTA Fine Payment',
-                        'debit'          => $fine->amount,
+                        'debit'          => $fine->total_amount,
                         'billing_month'  => $billingMonth,
                     ]);
                 }
@@ -315,7 +315,7 @@ class RtaFinesController extends AppBaseController
                     ]);
                 }
 
-                if ($fine->amount > 0) {
+                if ($fine->total_amount > 0) {
 
                     // Credit Selected Payment Account
                     $TransactionService->recordTransaction([
@@ -325,7 +325,7 @@ class RtaFinesController extends AppBaseController
                         'trans_code'     => $trans_code,
                         'trans_date'     => $transDate,
                         'narration'      => $fine->detail ?? 'RTA Fine Payment',
-                        'credit'         => $fine->amount + $fine->service_charges,
+                        'credit'         => $fine->total_amount,
                         'billing_month'  => $billingMonth,
                     ]);
                 }

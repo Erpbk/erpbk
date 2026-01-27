@@ -204,11 +204,25 @@
 </li>
 @endcan
 @can('leasing_view')
-<li class="menu-item {{ Request::is('leasingCompanies*') ? 'active' : '' }}">
-  <a href="{{ route('leasingCompanies.index') }}" class="menu-link">
+<li class="menu-item {{ Request::is('leasingCompanies*') ? 'open' : '' }} {{ Request::is('leasingCompanyInvoices*') ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-building"></i>
-    <div>Leasing Companies</div>
+    <div data-i18n="Front Pages">Leasing Companies</div>
   </a>
+  <ul class="menu-sub">
+    <li class="menu-item {{ Request::is('leasingCompanies*') && !Request::is('leasingCompanyInvoices*') ? 'active' : '' }}">
+      <a href="{{ route('leasingCompanies.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-building"></i>
+        <div>Leasing Companies List</div>
+      </a>
+    </li>
+    <li class="menu-item {{ Request::is('leasingCompanyInvoices*') ? 'active' : '' }}">
+      <a href="{{ route('leasingCompanyInvoices.index') }}" class="menu-link ">
+        <i class="menu-icon tf-icons ti ti-file-invoice"></i>
+        <div>Invoices</div>
+      </a>
+    </li>
+  </ul>
 </li>
 @endcan
 

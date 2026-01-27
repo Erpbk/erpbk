@@ -616,80 +616,134 @@
       });
     }); // End $(document).ready
 
-    // Print Ledger Table Function (DataTables style) - Make it globally accessible
+    // Print Ledger Table Function - Fetches all data for printing
     window.printLedgerTable = function() {
+      // Show loading indicator
+      $('#loading-overlay').show();
+
       // Get account and month info for title
       var accountSelect = $('#account');
       var accountText = accountSelect.find('option:selected').text();
       var monthInput = $('input[name="month"]');
       var monthText = monthInput.val() || 'All Months';
 
-      // Clone the table
-      var table = $('#dataTableBuilder').clone();
+      // Get all current filter parameters
+      var filterParams = {
+        account: $('select[name="account"]').val() || '',
+        month: $('input[name="month"]').val() || '',
+        quick_search: $('#quickSearch').val() || '',
+        per_page: 'all' // Request all records
+      };
 
-      // Remove filter and column control columns
-      table.find('th:last-child, th:nth-last-child(2)').remove();
-      table.find('td:last-child, td:nth-last-child(2)').remove();
+      // Fetch all ledger data via AJAX
+      $.ajax({
+        url: "{{ route('accounts.ledger') }}",
+        type: "GET",
+        data: filterParams,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+          $('#loading-overlay').hide();
 
-      // Remove no-print elements (View File links)
-      table.find('.no-print').remove();
+          var $table;
+          var totalRows = 0;
 
-      // Create print window
-      var printWindow = window.open('', '_blank', 'width=800,height=600');
+          // Handle JSON response (AJAX)
+          if (typeof response === 'object' && response.tableData) {
+            // Create a temporary container to parse the HTML response
+            var $temp = $('<div>').html(response.tableData);
+            $table = $temp.find('#dataTableBuilder').first();
+            
+            // Get total from response if available
+            totalRows = response.total || $table.find('tbody tr').length;
+          } 
+          // Handle HTML response (non-AJAX fallback)
+          else if (typeof response === 'string') {
+            var $temp = $('<div>').html(response);
+            $table = $temp.find('#dataTableBuilder').first();
+            totalRows = $table.find('tbody tr').length;
+          }
 
-      // Get current date
-      var currentDate = new Date().toLocaleDateString();
+          // If still no table found, use current page table as fallback
+          if (!$table || $table.length === 0) {
+            $table = $('#dataTableBuilder').clone();
+            totalRows = $table.find('tbody tr').length;
+            console.warn('Using current page table as fallback for printing');
+          } else {
+            // Clone the fetched table
+            $table = $table.clone();
+            if (totalRows === 0) {
+              totalRows = $table.find('tbody tr').length;
+            }
+          }
 
-      // Build print HTML
-      var printContent = '<!DOCTYPE html>' +
-        '<html>' +
-        '<head>' +
-        '<title>Ledger Report</title>' +
-        '<style>' +
-        '@page { margin: 1cm; }' +
-        'body { font-family: Arial, sans-serif; font-size: 12px; margin: 0; padding: 20px; }' +
-        '.print-header { margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }' +
-        '.print-header h2 { margin: 0 0 5px 0; font-size: 18px; }' +
-        '.print-header .info { font-size: 11px; color: #666; }' +
-        'table { width: 100%; border-collapse: collapse; font-size: 11px; }' +
-        'table th, table td { border: 1px solid #000; padding: 6px; text-align: left; }' +
-        'table th { background-color: #f0f0f0; font-weight: bold; text-align: center; }' +
-        'table tbody tr.table-info { background-color: #d1ecf1; }' +
-        'table tbody tr.table-warning { background-color: #fff3cd; }' +
-        'table tbody td.text-end { text-align: right; }' +
-        'table tbody td.text-start { text-align: left; }' +
-        'table tbody td.text-center { text-align: center; }' +
-        '.print-footer { margin-top: 20px; font-size: 10px; color: #666; text-align: center; }' +
-        '@media print { ' +
-        'body { padding: 0; }' +
-        '.print-header { page-break-after: avoid; }' +
-        'table { page-break-inside: auto; }' +
-        'table tr { page-break-inside: avoid; page-break-after: auto; }' +
-        'table thead { display: table-header-group; }' +
-        'table tfoot { display: table-footer-group; }' +
-        '}' +
-        '</style>' +
-        '</head>' +
-        '<body>' +
-        '<div class="print-header">' +
-        '<h2>Ledger Report</h2>' +
-        '<div class="info">' +
-        '<strong>Account:</strong> ' + (accountText || 'All Accounts') + ' | ' +
-        '<strong>Month:</strong> ' + monthText + ' | ' +
-        '<strong>Date:</strong> ' + currentDate +
-        '</div>' +
-        '</div>' +
-        table[0].outerHTML +
-        '<div class="print-footer">Generated on ' + currentDate + '</div>' +
-        '<scr' + 'ipt>' +
-        'window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };' +
-        '</scr' + 'ipt>' +
-        '</body>' +
-        '</html>';
+          // Remove no-print elements (View File links, modal links)
+          $table.find('.no-print').remove();
 
-      // Write content to print window
-      printWindow.document.write(printContent);
-      printWindow.document.close();
+          // Get current date
+          var currentDate = new Date().toLocaleDateString();
+
+          // Build print HTML
+          var printContent = '<!DOCTYPE html>' +
+            '<html>' +
+            '<head>' +
+            '<title>Ledger Report - Complete</title>' +
+            '<style>' +
+            '@page { margin: 1cm; }' +
+            'body { font-family: Arial, sans-serif; font-size: 11px; margin: 0; padding: 20px; }' +
+            '.print-header { margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }' +
+            '.print-header h2 { margin: 0 0 5px 0; font-size: 18px; }' +
+            '.print-header .info { font-size: 11px; color: #666; }' +
+            'table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 10px; }' +
+            'table th, table td { border: 1px solid #000; padding: 5px; text-align: left; }' +
+            'table th { background-color: #f0f0f0; font-weight: bold; text-align: center; }' +
+            'table tbody tr.table-info { background-color: #d1ecf1; }' +
+            'table tbody tr.table-warning { background-color: #fff3cd; }' +
+            'table tbody td.text-end { text-align: right; }' +
+            'table tbody td.text-start { text-align: left; }' +
+            'table tbody td.text-center { text-align: center; }' +
+            '.print-footer { margin-top: 20px; font-size: 10px; color: #666; text-align: center; }' +
+            '@media print { ' +
+            'body { padding: 0; }' +
+            '.print-header { page-break-after: avoid; }' +
+            'table { page-break-inside: auto; }' +
+            'table tr { page-break-inside: avoid; page-break-after: auto; }' +
+            'table thead { display: table-header-group; }' +
+            'table tfoot { display: table-footer-group; }' +
+            '}' +
+            '</style>' +
+            '</head>' +
+            '<body>' +
+            '<div class="print-header">' +
+            '<h2>Ledger Report - Complete</h2>' +
+            '<div class="info">' +
+            '<strong>Account:</strong> ' + (accountText || 'All Accounts') + ' | ' +
+            '<strong>Month:</strong> ' + monthText + ' | ' +
+            '<strong>Total Records:</strong> ' + totalRows + ' | ' +
+            '<strong>Date:</strong> ' + currentDate +
+            '</div>' +
+            '</div>' +
+            $table[0].outerHTML +
+            '<div class="print-footer">Generated on ' + currentDate + ' | Total Records: ' + totalRows + '</div>' +
+            '<scr' + 'ipt>' +
+            'window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };' +
+            '</scr' + 'ipt>' +
+            '</body>' +
+            '</html>';
+
+          // Create print window
+          var printWindow = window.open('', '_blank', 'width=1200,height=800');
+          printWindow.document.write(printContent);
+          printWindow.document.close();
+        },
+        error: function(xhr, status, error) {
+          $('#loading-overlay').hide();
+          console.error('Error fetching ledger data:', error);
+          console.error('Response:', xhr.responseText);
+          alert('Error loading ledger data for printing. Please try again.');
+        }
+      });
     }
 
   })(); // End jQuery availability check

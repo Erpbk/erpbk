@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Helpers\Account;
 use App\Helpers\Common;
 use App\Helpers\HeadAccount;
+use App\Models\Bikes;
 use App\Models\LeasingCompanyInvoice;
 use App\Models\LeasingCompanyInvoiceItem;
 use App\Models\Transactions;
@@ -76,12 +77,26 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
         $vatPercentage = Common::getSetting('vat_percentage') ?? 5;
         $subtotal = 0;
 
-        // Process bike items
+        // Process bike items - validate bikes belong to leasing company and are active
         if (isset($request['bike_id']) && is_array($request['bike_id'])) {
             foreach ($request['bike_id'] as $key => $bikeId) {
                 if (!empty($bikeId) && isset($request['rental_amount'][$key]) && $request['rental_amount'][$key] > 0) {
+                    // Validate bike belongs to leasing company and is active
+                    $bike = Bikes::where('id', $bikeId)
+                        ->where('company', $input['leasing_company_id'])
+                        ->where('status', 1)
+                        ->first();
+
+                    if (!$bike) {
+                        throw new \Exception('Bike ID ' . $bikeId . ' is not active or does not belong to this leasing company.');
+                    }
+
                     $rentalAmount = (float)$request['rental_amount'][$key];
-                    $taxAmount = $rentalAmount * ($vatPercentage / 100);
+                    // Use per-item tax rate if provided, otherwise use global VAT percentage
+                    $itemTaxRate = isset($request['tax_rate'][$key]) && $request['tax_rate'][$key] > 0 
+                        ? (float)$request['tax_rate'][$key] 
+                        : $vatPercentage;
+                    $taxAmount = $rentalAmount * ($itemTaxRate / 100);
                     $totalAmount = $rentalAmount + $taxAmount;
                     $subtotal += $rentalAmount;
 
@@ -89,7 +104,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                         'inv_id' => $invoice->id,
                         'bike_id' => $bikeId,
                         'rental_amount' => $rentalAmount,
-                        'tax_rate' => $vatPercentage,
+                        'tax_rate' => $itemTaxRate,
                         'tax_amount' => $taxAmount,
                         'total_amount' => $totalAmount
                     ];

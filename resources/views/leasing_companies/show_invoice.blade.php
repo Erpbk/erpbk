@@ -102,6 +102,7 @@
         }
 
         @media print {
+
             body,
             *,
             .primary-header,
@@ -122,7 +123,12 @@
 </head>
 
 <body>
-    <button type="button" class="print-btn" onclick="window.print()">Print</button>
+    <div style="position: fixed; top: 10px; right: 10px; z-index: 9999; display: flex; gap: 10px;">
+        <button type="button" class="print-btn" onclick="window.print()">Print</button>
+        <a href="{{ route('leasingCompanyInvoices.edit', $invoice->id) }}" class="print-btn" style="text-decoration: none; display: inline-block; padding: 8px 12px;">Edit</a>
+        <button type="button" class="print-btn" onclick="cloneInvoice({{ $invoice->id }})">Clone (Next Month)</button>
+        <a href="{{ route('leasingCompanyInvoices.index') }}" class="print-btn" style="text-decoration: none; display: inline-block; padding: 8px 12px;">Back to List</a>
+    </div>
 
     <div class="invoice-box">
         <!-- Header Table -->
@@ -202,33 +208,24 @@
         <table>
             <tr>
                 <th class="secondary-header">Charge</th>
-                <th class="secondary-header">AGR #</th>
-                <th class="secondary-header">Fleet #</th>
-                <th class="secondary-header">From</th>
-                <th class="secondary-header">To</th>
-                <th class="secondary-header">Units</th>
+                <th class="secondary-header">Bike Number #</th>
                 <th class="secondary-header">Rate</th>
-                <th class="secondary-header">Price</th>
                 <th class="secondary-header">Tax Rate</th>
+                <th class="secondary-header">Price</th>
                 <th class="secondary-header">Tax</th>
                 <th class="accent-total">Amt(AED)</th>
             </tr>
             @php
             $periodStart = date('01/m/Y', strtotime($invoice->billing_month));
             $periodEnd = date('t/m/Y', strtotime($invoice->billing_month));
-            $vatRate = $invoice->items->first()->tax_rate ?? 5;
             @endphp
             @foreach($invoice->items as $index => $item)
             <tr>
                 <td>Rental</td>
-                <td>{{ 'LA' . str_pad($item->bike_id, 8, '0', STR_PAD_LEFT) }}</td>
                 <td>{{ $item->bike->plate ?? 'N/A' }}</td>
-                <td>{{ $periodStart }}</td>
-                <td>{{ $periodEnd }}</td>
-                <td class="num">1.00 M</td>
                 <td class="num">{{ number_format($item->rental_amount, 2) }}</td>
+                <td class="num">{{ number_format($item->tax_rate, 0) }}%</td>
                 <td class="num">{{ number_format($item->rental_amount, 2) }}</td>
-                <td class="num">{{ number_format($vatRate, 0) }}%</td>
                 <td class="num">{{ number_format($item->tax_amount, 2) }}</td>
                 <td class="num">{{ number_format($item->total_amount, 2) }}</td>
             </tr>
@@ -250,7 +247,49 @@
             <p>Thank you for your business!</p>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function cloneInvoice(id) {
+            Swal.fire({
+                title: 'Clone Invoice',
+                text: 'This will create a new invoice for the next month with the same bikes and rental amounts. Continue?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, clone it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch('{{ route("leasingCompanyInvoices.clone", ":id") }}'.replace(':id', id), {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.redirect) {
+                                Swal.fire({
+                                    title: 'Success!',
+                                    text: data.message || 'Invoice cloned successfully.',
+                                    icon: 'success',
+                                    confirmButtonText: 'OK'
+                                }).then(() => {
+                                    window.location.href = data.redirect;
+                                });
+                            } else {
+                                Swal.fire('Success!', data.message || 'Invoice cloned successfully.', 'success');
+                            }
+                        })
+                        .catch(error => {
+                            Swal.fire('Error!', 'An error occurred while cloning the invoice.', 'error');
+                        });
+                }
+            });
+        }
+    </script>
 </body>
 
 </html>
-

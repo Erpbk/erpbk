@@ -22,15 +22,15 @@
                 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
                     <thead class="text-center">
                         <tr role="row">
-                            <th title="Bank" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Bank: activate to sort column ascending">Reference</th>
-                            <th title="Date of Payment" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date of Payment: activate to sort column ascending">Cheque No.</th>
-                            <th title="Account" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Account: activate to sort column ascending">Reciever</th>
-                            <th title="Account" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Account: activate to sort column ascending">Sender</th>
+                            <th title="Reference" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Reference: activate to sort column ascending">Reference</th>
+                            <th title="Cheque No." class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cheque No.: activate to sort column ascending">Cheque No.</th>
+                            <th title="Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>
+                            <th title="Sender/Receiver" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Sender/Receiver: activate to sort column ascending">Sender/Reciever</th>
                             <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
                             <th title="Voucher No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher</th>
                             <th title="Attachmnet" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachment: activate to sort column ascending">Attachment</th>
                             <th title="Description" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Description: activate to sort column ascending">Description</th>
-                            <th title="Voucher Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher Type: activate to sort column ascending">Status</th>
+                            <th title="Voucher Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
                             <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
                         </tr>
                     </thead>
@@ -45,13 +45,29 @@
                                     {{ $cheque->cheque_number }}
                                 </a>
                             </td>
-                            <td>{{ $cheque->payee->name ?? $cheque->payee_name ?? '-' }}</td>
-                            <td>{{ $cheque->payer->name ?? $cheque->payer_name ?? '-' }}</td>
+                            <td>
+                                @if($cheque->type == 'payable')
+                                    <span class="badge border border-danger text-black">Payable</span>
+                                @else
+                                    <span class="badge border border-success text-black">Receivable</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($cheque->type == 'payable')
+                                    {{ $cheque->payee->name ?? $cheque->payee_name ?? '-' }}
+                                @else
+                                    {{ $cheque->payer->name ?? $cheque->payer_name ?? '-' }}
+                                @endif
+                            </td>
                             <td>AED {{ number_format($cheque->amount, 2) }}</td>
                             <td>
-                                <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $cheque->voucher_id) }}" class="text-primary show-modal" data-title="Cheque Voucher" data-size="xl">
-                                    {{ $cheque->voucher->voucher_type . '-'. $cheque->voucher_id }}
-                                </a>
+                                @if($cheque->voucher_id)
+                                    <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $cheque->voucher_id) }}" class="text-primary show-modal" data-title="Voucher Against Cheque#{{ $cheque->cheque_number }}" data-size="xl">
+                                        {{ $cheque->voucher->voucher_type . '-'. $cheque->voucher_id }}
+                                    </a>
+                                @else
+                                    -
+                                @endif
                             </td>
                             <td>
                                 @if($cheque->attachment)
@@ -82,9 +98,14 @@
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $cheque->id }}" style="z-index: 1050;">
                                     @can('payments_edit')
-                                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Payment Details" data-action="{{ route('cheques.edit', $cheque->id) }}">
+                                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit {{ ucwords($cheque->type) }} Cheque" data-action="{{ route('cheques.edit', $cheque->id) }}">
                                             <i class="fa fa-edit my-1"></i> Edit
                                         </a>
+                                        @if($cheque->status == 'Issued')
+                                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Change Status" data-action="{{ route('cheques.status-form', $cheque->id) }}">
+                                            <i class="fa fa-exchange-alt my-1"></i> Change Status
+                                        </a>
+                                        @endif
                                     @endcan
                                     @can('payments_delete')
                                     <a href="javascript:void(0);" class='dropdown-item waves-effect delete-cheque' 

@@ -472,6 +472,13 @@ class PaymentController extends Controller
         } else {
             Transactions::where('trans_code', $payment->voucher->trans_code)->delete();
             Vouchers::where('id', $payment->voucher_id)->delete();
+            if($payment->amount_type == 'Cheque'){
+                // Also delete associated cheque record if payment was by cheque
+                $cheque = \App\Models\Cheques::where('voucher_id', $payment->voucher_id)->first();
+                if($cheque){
+                    $cheque->delete();
+                }
+            }
             $payment->delete();
             if($request->ajax()){
                 return response()->json(['message' => 'Payment Deleted successfully']);

@@ -119,7 +119,8 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('rtaFines/getrider/{id}', [\App\Http\Controllers\RtaFinesController::class, 'getrider']);
 
 
-    Route::put('/cheques/{cheque}/status', [App\Http\Controllers\ChequesController::class, 'updateStatus'])->name('cheques.update-status');
+    Route::post('/cheques/status/{id}', [App\Http\Controllers\ChequesController::class, 'updateStatus'])->name('cheques.update-status');
+    Route::get('cheques/change_status/{id}', [\App\Http\Controllers\ChequesController::class, 'statusForm'])->name('cheques.status-form');
     Route::resource('cheques', App\Http\Controllers\ChequesController::class);
 
 

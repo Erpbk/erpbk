@@ -1,4 +1,4 @@
-<form action="{{ route('cheques.store') }}" method="POST" enctype="multipart/form-data" id="chequeForm">
+<form action="{{ route('cheques.store') }}" method="POST" enctype="multipart/form-data" id="formajax">
     @csrf
     <input type="hidden" name="bank_id" value="{{ $bank->id }}">
     
@@ -74,6 +74,32 @@
         <div id="partiesSection">
             <!-- Payee fields will be shown for payable, Payer fields for receiveable -->
         </div>
+
+        <!-- Reference & Issued By -->
+        <div class="row">
+            <div class="col-md-6">
+                    {!! Form::label('reference', 'Reference Number', ['class' => 'form-label']) !!}
+                    {!! Form::text('reference', old('reference'), [
+                        'class' => 'form-control' . ($errors->has('reference') ? ' is-invalid' : ''),
+                        'placeholder' => 'Enter reference number'
+                    ]) !!}
+                    @error('reference')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+            </div>
+            
+            <div class="col-6">
+                    {!! Form::label('issued_by', 'Issued By', ['class' => ['form-label','required']]) !!}
+                    {!! Form::text('issued_by', old('issued_by'), [
+                        'class' => 'form-control' . ($errors->has('issued_by') ? ' is-invalid' : ''),
+                        'placeholder' => 'Enter issuer name',
+                        'required' => true
+                    ]) !!}
+                    @error('issued_by')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+            </div>
+        </div>
         
         <!-- Dates Section -->
         <div class="row">
@@ -98,59 +124,33 @@
                     @enderror
             </div>
         </div>
-        
-        <!-- Reference & Status -->
-        <div class="row">
-            <div class="col-md-6">
-                    {!! Form::label('reference', 'Reference Number', ['class' => 'form-label']) !!}
-                    {!! Form::text('reference', old('reference'), [
-                        'class' => 'form-control' . ($errors->has('reference') ? ' is-invalid' : ''),
-                        'placeholder' => 'Enter reference number'
-                    ]) !!}
-                    @error('reference')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-            </div>
-            
-            <div class="col-md-6">
-                    {!! Form::label('voucher_id', 'Voucher ID', ['class' => 'form-label']) !!}
-                    {!! Form::number('voucher_id', old('voucher_id'), [
-                        'class' => 'form-control' . ($errors->has('voucher_id') ? ' is-invalid' : ''),
-                        'placeholder' => 'Enter voucher ID'
-                    ]) !!}
-                    @error('voucher_id')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-            </div>
+
+        <!-- Attachment -->
+        <div class="col-6">
+            {!! Form::label('attachment', 'Attachment', ['class' => ['form-label','required']]) !!}
+            {!! Form::file('attachment', [
+                'class' => 'form-control' . ($errors->has('attachment') ? ' is-invalid' : ''),
+                'accept' => '.pdf,.jpg,.jpeg,.png',
+                'required' => true
+            ]) !!}
+            <div class="form-text">Accepted: PDF, JPG, JPEG, PNG - Max(2MB)</div>
+            @error('attachment')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
         </div>
         
         <!-- Additional Information -->
         <div class="row">
             <div class="col-12">
-                    {!! Form::label('description', 'Description', ['class' => 'form-label']) !!}
-                    {!! Form::textarea('description', old('description'), [
-                        'class' => 'form-control' . ($errors->has('description') ? ' is-invalid' : ''),
-                        'rows' => 2,
-                        'placeholder' => 'Enter cheque description'
-                    ]) !!}
-                    @error('description')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-            </div>
-        </div>
-        
-        <!-- Attachment -->
-        <div class="row">
-            <div class="col-6">
-                    {!! Form::label('attachment', 'Attachment', ['class' => 'form-label']) !!}
-                    {!! Form::file('attachment', [
-                        'class' => 'form-control' . ($errors->has('attachment') ? ' is-invalid' : ''),
-                        'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx'
-                    ]) !!}
-                    <div class="form-text">Accepted: PDF, JPG, PNG, DOC (Max: 5MB)</div>
-                    @error('attachment')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+                {!! Form::label('description', 'Description', ['class' => 'form-label']) !!}
+                {!! Form::textarea('description', old('description'), [
+                    'class' => 'form-control' . ($errors->has('description') ? ' is-invalid' : ''),
+                    'rows' => 2,
+                    'placeholder' => 'Enter cheque description'
+                ]) !!}
+                @error('description')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
             </div>
         </div>
         
@@ -168,6 +168,7 @@
 
 <script>
 $(document).ready(function() {
+    
     // Handle type selection click
     $('input[name="type"]').on('change', function() {
         const type = $(this).val();
@@ -185,11 +186,20 @@ $(document).ready(function() {
                         <input type="text" name="payee_name" class="form-control" placeholder="Enter payee name">
                     </div>
                     <div class="col-md-6">
-                        <label for="payee_account" class="form-label">Payee Account</label>
-                        <input type="text" name="payee_account" class="form-control" placeholder="Enter account number">
+                        <label for="payee_account" class="form-label required">Payee Account</label>
+                        <select name="payee_account" class="form-control select2" required>
+                            <option value="">Select</option>
+                            @foreach(\App\Models\Accounts::where('status', 1)->get() as $payee)
+                            <option value="{{ $payee->id }}">{{ $payee->account_code.'-'.$payee->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
             `);
+            $('.select2').select2({
+                dropdownParent: $('#formajax'),
+                allowClear: true
+            });
         } else if (type === 'receiveable') {
             $('#partiesSection').html(`
                 <div class="row">
@@ -198,16 +208,25 @@ $(document).ready(function() {
                         <input type="text" name="payer_name" class="form-control" placeholder="Enter payer name">
                     </div>
                     <div class="col-md-6">
-                        <label for="payer_account" class="form-label">Payer Account</label>
-                        <input type="text" name="payer_account" class="form-control" placeholder="Enter account number">
+                        <label for="payer_account" class="form-label required">Payer Account</label>
+                        <select name="payer_account" class="form-control select2" required>
+                            <option value="">Select</option>
+                            @foreach(\App\Models\Accounts::where('status', 1)->get() as $payer)
+                            <option value="{{ $payer->id }}">{{ $payer->account_code.'-'.$payer->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
             `);
+            $('.select2').select2({
+                dropdownParent: $('#formajax'),
+                allowClear: true
+            });
         }
         
         // Highlight selected card
-        $('.form-check .card').removeClass('border-primary bg-light');
-        $(this).closest('.card').addClass('border-primary bg-light');
+        $('.card').removeClass('border-primary');
+        $(this).closest('.card').addClass('border-primary');
     });
     
     // Back button handler

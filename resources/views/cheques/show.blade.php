@@ -1,59 +1,4 @@
 <div class="container-fluid px-0">
-    <!-- Status Update Section (Only show if not cleared) -->
-    @if($cheque->status !== 'Cleared')
-    <div class="border rounded mb-3 p-3 bg-light">
-        <div class="d-flex align-items-center mb-2">
-            <i class="fas fa-exchange-alt text-primary me-2"></i>
-            <h6 class="mb-0 fw-semibold">Update Status</h6>
-        </div>
-        <form id="updateStatusForm" action="{{ route('cheques.update-status', $cheque->id) }}" method="POST" class="row g-2 align-items-end">
-            @csrf
-            @method('PUT')
-            
-            <div class="col-md-3">
-                <label class="form-label mb-1 small fw-medium">Status</label>
-                <select name="status" class="form-select form-select-sm status-select" required>
-                    <option value="">Select Status</option>
-                    <option value="Issued" {{ $cheque->status == 'Issued' ? 'selected' : '' }}>Issued</option>
-                    <option value="Cleared" {{ $cheque->status == 'Cleared' ? 'selected' : '' }}>Cleared</option>
-                    <option value="Returned" {{ $cheque->status == 'Returned' ? 'selected' : '' }}>Returned</option>
-                    <option value="Stop Payment" {{ $cheque->status == 'Stop Payment' ? 'selected' : '' }}>Stop Payment</option>
-                    <option value="Lost" {{ $cheque->status == 'Lost' ? 'selected' : '' }}>Lost</option>
-                </select>
-            </div>
-            
-            <div class="col-md-2 date-field cleared-date" style="{{ $cheque->status != 'Cleared' ? 'display: none;' : '' }}">
-                <label class="form-label mb-1 small fw-medium">Cleared Date</label>
-                <input type="date" name="cleared_date" class="form-control form-control-sm" 
-                       value="{{ $cheque->cleared_date ? \Carbon\Carbon::parse($cheque->cleared_date)->format('Y-m-d') : '' }}">
-            </div>
-            
-            <div class="col-md-2 date-field returned-date" style="{{ $cheque->status != 'Returned' ? 'display: none;' : '' }}">
-                <label class="form-label mb-1 small fw-medium">Returned Date</label>
-                <input type="date" name="returned_date" class="form-control form-control-sm" 
-                       value="{{ $cheque->returned_date ? \Carbon\Carbon::parse($cheque->returned_date)->format('Y-m-d') : '' }}">
-            </div>
-            
-            <div class="col-md-2 date-field stop-date" style="{{ $cheque->status != 'Stop Payment' ? 'display: none;' : '' }}">
-                <label class="form-label mb-1 small fw-medium">Stop Date</label>
-                <input type="date" name="stop_payment_date" class="form-control form-control-sm" 
-                       value="{{ $cheque->stop_payment_date ? \Carbon\Carbon::parse($cheque->stop_payment_date)->format('Y-m-d') : '' }}">
-            </div>
-            
-            <div class="col-md-3 return-reason-field" style="{{ $cheque->status != 'Returned' ? 'display: none;' : '' }}">
-                <label class="form-label mb-1 small fw-medium">Return Reason</label>
-                <input type="text" name="return_reason" class="form-control form-control-sm" 
-                       value="{{ $cheque->return_reason ?? '' }}" placeholder="Enter reason">
-            </div>
-            
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary btn-sm w-100">
-                    <i class="fas fa-save me-1"></i> Update
-                </button>
-            </div>
-        </form>
-    </div>
-    @endif
 
     <!-- Cheque Information Header -->
     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
@@ -74,13 +19,18 @@
             @endphp
             <div class="d-flex align-items-center gap-2">
                 <span class="badge {{ $badgeClasses[$cheque->status] ?? 'bg-secondary' }}">{{ $cheque->status }}</span>
-                <span class="badge {{ $cheque->type == 'payable' ? 'bg-info' : 'bg-primary' }}">
+                <span class="badge border {{ $cheque->type == 'payable' ? 'border-danger' : 'border-success' }} text-black">
                     {{ ucfirst($cheque->type) }}
                 </span>
             </div>
         </div>
     </div>
-
+    <!-- Issued By -->
+    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-4">
+        <div class="text-muted small">Issued By:</div>
+        <div class="fw-medium">{{ $cheque->issued_by ?? '-' }}</div>
+    </div>
+    
     <!-- Main Content Row -->
     <div class="row">
         <!-- Left Column - Primary Information -->
@@ -123,7 +73,7 @@
                     <div class="col-md-4">
                         <div class="border rounded p-2">
                             <div class="text-muted small mb-1">Issue Date</div>
-                            <div class="fw-medium">{{ \App\Helpers\Common::DateFormat($cheque->issue_date) ?? '-' }}</div>
+                            <div class="fw-medium">{{ $cheque->issue_date ? \App\Helpers\Common::DateFormat($cheque->issue_date) : '------' }}</div>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -154,11 +104,6 @@
             </div>
             @endif
 
-            <!-- Issued By -->
-            <div class="d-flex justify-content-between align-items-center border-top pt-3">
-                <div class="text-muted small">Issued By:</div>
-                <div class="fw-medium">{{ $cheque->issued_by ?? '-' }}</div>
-            </div>
         </div>
 
         <!-- Right Column - Status & Actions -->
@@ -275,8 +220,16 @@
                         <span>{{ $cheque->created_at->format('d M Y') }}</span>
                     </div>
                     <div class="d-flex justify-content-between mb-1">
+                        <span>Created By:</span>
+                        <span>{{ $cheque->Created_by->name ?? '' }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
                         <span>Last Updated:</span>
                         <span>{{ $cheque->updated_at->format('d M Y') }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Updated By:</span>
+                        <span>{{ $cheque->Updated_by->name ?? '' }}</span>
                     </div>
                     @if($cheque->deleted_at)
                     <div class="d-flex justify-content-between text-danger">
@@ -334,47 +287,3 @@
         }
     }
 </style>
-
-<script>
-$(document).ready(function() {
-    // Status change handler
-    $('.status-select').on('change', function() {
-        const status = $(this).val();
-        
-        $('.date-field, .return-reason-field').hide();
-        
-        if (status === 'Cleared') {
-            $('.cleared-date').show();
-        } else if (status === 'Returned') {
-            $('.returned-date').show();
-            $('.return-reason-field').show();
-        } else if (status === 'Stop Payment') {
-            $('.stop-date').show();
-        }
-    });
-    
-    // Form submission
-    $('#updateStatusForm').on('submit', function(e) {
-        e.preventDefault();
-        const form = $(this);
-        const btn = form.find('button[type="submit"]');
-        const original = btn.html();
-        
-        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Saving');
-        
-        $.ajax({
-            url: form.attr('action'),
-            method: 'POST',
-            data: form.serialize(),
-            success: function() {
-                $('#chequeDetailModal').modal('hide');
-                location.reload();
-            },
-            error: function(xhr) {
-                btn.prop('disabled', false).html(original);
-                alert('Error: ' + (xhr.responseJSON?.message || 'Failed to update'));
-            }
-        });
-    });
-});
-</script>

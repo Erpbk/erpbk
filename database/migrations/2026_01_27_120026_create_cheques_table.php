@@ -45,8 +45,10 @@ return new class extends Migration
             $table->string('return_reason')->nullable();
             $table->string('stop_payment_reason')->nullable();
             $table->enum('type', ['payable', 'receiveable']);
-            $table->unsignedBigInteger('voucher_id')->nullable();
-            
+            $table->foreignId('voucher_id')
+                    ->nullable()
+                    ->constrained('vouchers')
+                    ->onDelete('cascade');            
             // Audit trail
             $table->string('issued_by')->nullable();
             $table->unsignedBigInteger('created_by');

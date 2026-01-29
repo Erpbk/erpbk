@@ -478,6 +478,13 @@ class ReceiptController extends Controller
         } else {
             Transactions::where('trans_code', $receipt->voucher->trans_code)->delete();
             Vouchers::where('id', $receipt->voucher_id)->delete();
+            if($receipt->amount_type == 'Cheque'){
+                // Also delete associated cheque record if receipt was by cheque
+                $cheque = \App\Models\Cheques::where('voucher_id', $receipt->voucher_id)->first();
+                if($cheque){
+                    $cheque->delete();
+                }
+            }
             $receipt->delete();
             if($request->ajax()){
                 return response()->json(['success'=> true,'message'=> 'Receipt Deleted Successfuly']);

@@ -68,10 +68,18 @@ class Cheques extends Model
 
     public function payer()
     {
-        return $this->belongsTo(Accounts::class, 'payer_id');
+        return $this->belongsTo(Accounts::class, 'payer_account');
     }
 
     public function payee(){
-        return $this->belongsTo(Accounts::class, 'payee_id');
+        return $this->belongsTo(Accounts::class, 'payee_account');
+    }
+
+    public function Created_by(){
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function Updated_by(){
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

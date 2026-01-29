@@ -282,8 +282,21 @@ class LedgerDataTable extends DataTable
         'initComplete' => "function(settings, json) {
                 // Jump to last page after initialization
                 var api = this.api();
-                var lastPage = api.page.info().pages - 1;
-                api.page(lastPage).draw('page');
+                api.on('xhr.dt', function(e, settings, json) {
+                  if (json && json.data && json.data.length > 0) {
+                    setTimeout(function() {
+                        var lastPage = api.page.info().pages - 1;
+                        if (lastPage >= 0) {
+                          api.page(lastPage).draw('page');
+                        }
+                    }, 100);
+                  }
+                });
+                var urlParams = new URLSearchParams(window.location.search);
+                var month = urlParams.get('month');
+                if (month) {
+                    api.state.clear();
+                }
             }",
         'footerCallback' => "function(row, data, start, end, display) {
                     var api = this.api();

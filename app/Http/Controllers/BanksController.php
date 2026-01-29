@@ -12,6 +12,7 @@ use App\Http\Requests\UpdateBanksRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Accounts;
 use App\Models\Banks;
+use App\Models\Cheques;
 use App\Models\Files;
 use App\Models\Transactions;
 use App\Repositories\BanksRepository;
@@ -391,5 +392,17 @@ class BanksController extends AppBaseController
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
     return view('banks.payments', compact('data', 'banks'));
+  }
+
+  public function cheques(Request $request, $id)
+  {
+    $banks = Banks::find($id);
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Cheques::query()->latest('id');
+    $query->where('bank_id', $id);
+
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    return view('banks.cheques', compact('data', 'banks'));
   }
 }

@@ -22,9 +22,9 @@
         {!! Form::file('attachment', ['class' => 'form-control']) !!}
     </div>
 
-    <!-- Date of Receipt Field -->
+    <!-- Date of Payment Field -->
     <div class="form-group col-md-2">
-        {!! Form::label('date_of_payment', 'Date of Receipt:') !!}
+        {!! Form::label('date_of_payment', 'Date of Payment:') !!}
         {!! Form::date('date_of_payment', null, ['class' => 'form-control']) !!}
     </div>
 

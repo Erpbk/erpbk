@@ -8,13 +8,13 @@
     <div class="content">
         @include('flash::message')
         <div class="clearfix"></div>
-        @can('payments_view')
+        @can('cheques_view')
         <div class="card">
             <div class="card-header d-flex justify-content-between">
                 <div class="card-search">
                     <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
                 </div>
-                @can('payments_create')
+                @can('cheques_create')
                     <button class="btn btn-primary btn-sm show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Cheque" data-action="{{ route('cheques.create') }}?id={{ request()->segment(3) }}">Add New</button>
                 @endcan
             </div>
@@ -97,7 +97,7 @@
                                     <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $cheque->id }}" style="z-index: 1050;">
-                                    @can('payments_edit')
+                                    @can('cheques_edit')
                                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit {{ ucwords($cheque->type) }} Cheque" data-action="{{ route('cheques.edit', $cheque->id) }}">
                                             <i class="fa fa-edit my-1"></i> Edit
                                         </a>
@@ -107,7 +107,7 @@
                                         </a>
                                         @endif
                                     @endcan
-                                    @can('payments_delete')
+                                    @can('cheques_delete')
                                     <a href="javascript:void(0);" class='dropdown-item waves-effect delete-cheque' 
                                         data-url="{{ route('cheques.destroy', $cheque->id) }}">
                                         <i class="fa fa-trash my-1"></i> Delete
@@ -131,9 +131,9 @@
             </div>
         </div>
         @endcan
-        @cannot('payments_view')
+        @cannot('cheques_view')
             <div class="text-center mt-5">
-                <h3>You do not have permission to view Payments.</h3> 
+                <h3>You do not have permission to view Cheques.</h3> 
             </div>
         @endcannot
     </div>

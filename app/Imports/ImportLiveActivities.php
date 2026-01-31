@@ -299,7 +299,6 @@ class ImportLiveActivities implements ToCollection
     $result = liveactivities::updateOrCreate(
       [
         'rider_id' => $rider->id,
-        'date'     => $date
       ],
       $data
     );

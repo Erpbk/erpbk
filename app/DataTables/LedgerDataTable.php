@@ -266,6 +266,13 @@ class LedgerDataTable extends DataTable
    */
   public function html()
   {
+    $accountid = '';
+    $accountName = "All Accounts";
+    if ($this->account_id) {
+        $account = \App\Models\Accounts::find($this->account_id);
+        $accountid = $account->id;
+        $accountName = $account ? $account->account_code . '-' . $account->name : "All Accounts";
+    }
     return $this->builder()
       ->columns($this->getColumns())
       ->minifiedAjax()
@@ -273,31 +280,37 @@ class LedgerDataTable extends DataTable
         'dom' => "<'row'<'col-md-6'><'col-md-6 d-flex justify-content-end'B>>" . // Export buttons fully right-aligned
           "<'row'<'col-md-6'><'col-md-6'f>>" . // Search box on the right
           "<'row'<'col-md-12'tr>>" .
-          "<'row'<'col-md-5'i><'col-md-7'p>>", // Info (left) and Pagination (right)
+          "<'row'<'col-md-5'i l><'col-md-7'p>>", // Info (left) and Pagination (right)
         'order' => [[0, 'asc']], // Order by date ascending
         'ordering' => false,
         'pageLength' => 50,
+        'lengthMenu' => [
+                [50, 100, 150, 200, -1], // Values to display in the dropdown
+                [50, 100, 150, 200, 'All'] // Labels for the dropdown
+            ],
         'stateSave' => true, // Ensures balance maintains on pagination
         'responsive' => true,
         'initComplete' => "function(settings, json) {
-                // Jump to last page after initialization
-                var api = this.api();
-                api.on('xhr.dt', function(e, settings, json) {
-                  if (json && json.data && json.data.length > 0) {
-                    setTimeout(function() {
-                        var lastPage = api.page.info().pages - 1;
-                        if (lastPage >= 0) {
-                          api.page(lastPage).draw('page');
-                        }
-                    }, 100);
-                  }
-                });
-                var urlParams = new URLSearchParams(window.location.search);
-                var month = urlParams.get('month');
-                if (month) {
-                    api.state.clear();
-                }
-            }",
+                      var api = this.api();
+                      
+                      // Function to go to last page
+                      function goToLastPage() {
+                          var lastPage = api.page.info().pages - 1;
+                          if (lastPage >= 0) {
+                              api.page(lastPage).draw('page');
+                          }
+                      }
+                      
+                      // If we have a month filter in URL
+                      var urlParams = new URLSearchParams(window.location.search);
+                      if (urlParams.get('month')) {
+                          // Wait a bit for any filters to apply, then go to last page
+                          setTimeout(goToLastPage, 200);
+                      } else {
+                          // No filter, go immediately
+                          goToLastPage();
+                      }
+                  }",
         'footerCallback' => "function(row, data, start, end, display) {
                     var api = this.api();
                     var intVal = function(i) {
@@ -318,6 +331,9 @@ class LedgerDataTable extends DataTable
             'className' => 'btn btn-success btn-sm no-corner',
             'action' => 'function(e, dt, button, config) {
               var account = new URLSearchParams(window.location.search).get("account");
+              if(!account){
+                account = "' . $accountid . '";
+              }
               var month = new URLSearchParams(window.location.search).get("month");
               var url = "' . route('ledger.export') . '?";
               if (account) url += "account=" + account + "&";
@@ -325,7 +341,127 @@ class LedgerDataTable extends DataTable
               window.location.href = url;
             }'
           ],
-          ['extend' => 'print', 'className' => 'btn btn-primary btn-sm no-corner', 'text' => '<i class="fa fa-print"></i>&nbsp;Print'],
+          [
+            'extend' => 'print',
+            'className' => 'btn btn-primary btn-sm no-corner',
+            'text' => '<i class="fa fa-print"></i>&nbsp;Print',
+            'title' => '',
+            'autoPrint' => false,
+            'exportOptions' => [
+                'columns' => ':visible',
+            ],
+            'customize' => 'function(win) {
+                // COMPLETELY override the print functionality
+                // Don\'t let DataTables do its default print
+                
+                // Get the table
+                var $table = $(win.document.body).find("table.dataTable");
+                if ($table.length === 0) {
+                    // If no table found, just do default behavior
+                    return;
+                }
+                
+                var totalRows = $table.find("tbody tr").length;
+                var accountText = "' . $accountName . '";
+
+                var searchValue = $(".dataTable").DataTable().search();
+                var searchText = searchValue ? \'<strong>Search:</strong> \' + searchValue + \' | \' : \'\';
+                
+                // Get filter values from the page
+                var accountText = $("select[name=\'account\'] option:selected").text() || accountText;
+                var monthValue = $("input[name=\'month\']").val();
+                var monthText = formatMonthText(monthValue);
+                
+                // Format month function
+                function formatMonthText(monthValue) {
+                    if (!monthValue) return "All Months";
+                    var parts = monthValue.split("-");
+                    var year = parts[0];
+                    var month = parseInt(parts[1]);
+                    var monthNames = ["January", "February", "March", "April", "May", "June",
+                                      "July", "August", "September", "October", "November", "December"];
+                    return monthNames[month - 1] + " " + year;
+                }
+                
+                // Get current date
+                var currentDate = new Date().toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                });
+                
+                // Remove DataTables classes for clean print
+                $table.removeClass("dataTable display");
+                $table.find(".sorting, .sorting_asc, .sorting_desc").removeClass("sorting sorting_asc sorting_desc");
+                $table.find("th").removeAttr("tabindex");
+                
+                // Create custom print layout
+                var printContent = \'<!DOCTYPE html>\' +
+                    \'<html>\' +
+                    \'<head>\' +
+                    \'<title>Ledger Report</title>\' +
+                    \'<meta charset="UTF-8">\' +
+                    \'<style>\' +
+                    \'@page { margin: 1cm; }\' +
+                    \'body { font-family: Arial, sans-serif; font-size: 12px; margin: 0; padding: 20px; }\' +
+                    \'.print-header { margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }\' +
+                    \'.print-header h2 { margin: 0 0 5px 0; font-size: 18px; }\' +
+                    \'.print-header .info { font-size: 11px; color: #666; }\' +
+                    \'table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }\' +
+                    \'table th, table td { border: 1px solid #000; padding: 6px; text-align: left; }\' +
+                    \'table th { background-color: #f0f0f0; font-weight: bold; text-align: center; }\' +
+                    \'.print-footer { margin-top: 20px; font-size: 10px; color: #666; text-align: center; }\' +
+                    \'.no-print { display: none !important; }\' +
+                    \'@media print { \' +
+                    \'body { padding: 0; }\' +
+                    \'.print-header { page-break-after: avoid; }\' +
+                    \'table { page-break-inside: auto; }\' +
+                    \'table tr { page-break-inside: avoid; page-break-after: auto; }\' +
+                    \'}\' +
+                    \'</style>\' +
+                    \'</head>\' +
+                    \'<body>\' +
+                    \'<div class="print-header">\' +
+                    \'<h2>Account Statement</h2>\' +
+                    \'<div class="info">\' +
+                    \'<strong>Account:</strong> \' + accountText + \' | \' +
+                    \'<strong>Month:</strong> \' + monthText + \' | \' +
+                    searchText +
+                    \'<strong>Total Transactions:</strong> \' + totalRows + \' | \' +
+                    \'<strong>Generated:</strong> \' + currentDate +
+                    \'</div>\' +
+                    \'</div>\' +
+                    $table[0].outerHTML +
+                    \'<div class="print-footer">Generated on \' + currentDate + 
+                    \'</body>\' +
+                    \'</html>\';
+                
+                // Close the DataTables print window immediately
+                win.close();
+                
+                // Open our custom print window
+                var customPrintWindow = window.open(\'\', \'_blank\', \'width=1200,height=800\');
+                customPrintWindow.document.write(printContent);
+                customPrintWindow.document.close();
+                
+                // Auto-print after content loads
+                setTimeout(function() {
+                    customPrintWindow.focus();
+                    customPrintWindow.print();
+                    
+                    // Optionally close after printing
+                    customPrintWindow.onafterprint = function() {
+                        setTimeout(function() {
+                            customPrintWindow.close();
+                        }, 500);
+                    };
+                }, 500);
+                
+                return false;
+            }'
+          ],
         ],
         /* 'language' => [
           'processing' => '<div class="loading-overlay"><div class="spinner-border text-primary" role="status"></div></div>'

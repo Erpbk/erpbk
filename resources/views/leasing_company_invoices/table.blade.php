@@ -53,20 +53,30 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown">
+                  @can('leasing_company_invoice_view')
                   <a href="{{ route('leasingCompanyInvoices.show', $invoice->id) }}" class='dropdown-item waves-effect' target="_blank">
                      <i class="fa fa-eye mx-1"></i> View
                   </a>
+                  @endcan
+                  @can('leasing_company_invoice_edit')
                   <a href="javascript:void(0);" data-action="{{ route('leasingCompanyInvoices.edit', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Invoice">
                      <i class="fa fa-edit mx-1"></i> Edit
                   </a>
+                  @endcan
+                  @can('leasing_company_invoice_create')
                   <a href="javascript:void(0);" onclick="cloneInvoice({{ $invoice->id }})" class='dropdown-item waves-effect'>
                      <i class="fa fa-copy mx-1 text-primary"></i> Clone (Next Month)
                   </a>
-                  @if($invoice->status == 0)
-                  <a href="javascript:void(0);" onclick="confirmDelete('{{ route('leasingCompanyInvoices.destroy', $invoice->id) }}')" class='dropdown-item waves-effect'>
-                     <i class="fa fa-trash mx-1"></i> Delete
-                  </a>
-                  @endif
+                  @endcan
+                  @can('leasing_company_invoice_delete')
+                  {!! Form::open(['route' => ['leasingCompanyInvoices.destroy', $invoice->id], 'method' => 'DELETE', 'style' => 'display:inline;']) !!}
+                  {!! Form::button('<i class="fa fa-trash mx-1"></i> Delete', [
+                      'type' => 'submit',
+                      'class' => 'dropdown-item waves-effect border-0 bg-transparent w-100 text-start',
+                      'onclick' => "return confirm('Are you sure you want to delete this invoice?');"
+                  ]) !!}
+                  {!! Form::close() !!}
+                  @endcan
                </div>
             </div>
          </td>
@@ -83,51 +93,51 @@
 @endif
 
 <script>
-function cloneInvoice(id) {
-    Swal.fire({
-        title: 'Clone Invoice',
-        text: 'This will create a new invoice for the next month with the same bikes and rental amounts. Continue?',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, clone it!'
-    }).then((result) => {
-        if (result.isConfirmed) {
+   function cloneInvoice(id) {
+      Swal.fire({
+         title: 'Clone Invoice',
+         text: 'This will create a new invoice for the next month with the same bikes and rental amounts. Continue?',
+         icon: 'question',
+         showCancelButton: true,
+         confirmButtonColor: '#3085d6',
+         cancelButtonColor: '#d33',
+         confirmButtonText: 'Yes, clone it!'
+      }).then((result) => {
+         if (result.isConfirmed) {
             $.ajax({
-                url: '{{ route("leasingCompanyInvoices.clone", ":id") }}'.replace(':id', id),
-                type: 'POST',
-                data: {
-                    _token: '{{ csrf_token() }}'
-                },
-                success: function(response) {
-                    Swal.fire({
-                        title: 'Success!',
-                        text: response.message || 'Invoice cloned successfully.',
-                        icon: 'success',
-                        confirmButtonText: 'OK'
-                    }).then(() => {
-                        if (response.redirect) {
-                            window.location.href = response.redirect;
-                        } else {
-                            location.reload();
-                        }
-                    });
-                },
-                error: function(xhr) {
-                    let errorMessage = 'An error occurred while cloning the invoice.';
-                    if (xhr.responseJSON && xhr.responseJSON.errors) {
-                        errorMessage = xhr.responseJSON.errors.error || errorMessage;
-                    }
-                    Swal.fire({
-                        title: 'Error!',
-                        text: errorMessage,
-                        icon: 'error',
-                        confirmButtonText: 'OK'
-                    });
-                }
+               url: '{{ route("leasingCompanyInvoices.clone", ":id") }}'.replace(':id', id),
+               type: 'POST',
+               data: {
+                  _token: '{{ csrf_token() }}'
+               },
+               success: function(response) {
+                  Swal.fire({
+                     title: 'Success!',
+                     text: response.message || 'Invoice cloned successfully.',
+                     icon: 'success',
+                     confirmButtonText: 'OK'
+                  }).then(() => {
+                     if (response.redirect) {
+                        window.location.href = response.redirect;
+                     } else {
+                        location.reload();
+                     }
+                  });
+               },
+               error: function(xhr) {
+                  let errorMessage = 'An error occurred while cloning the invoice.';
+                  if (xhr.responseJSON && xhr.responseJSON.errors) {
+                     errorMessage = xhr.responseJSON.errors.error || errorMessage;
+                  }
+                  Swal.fire({
+                     title: 'Error!',
+                     text: errorMessage,
+                     icon: 'error',
+                     confirmButtonText: 'OK'
+                  });
+               }
             });
-        }
-    });
-}
+         }
+      });
+   }
 </script>

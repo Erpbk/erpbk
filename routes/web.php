@@ -90,10 +90,9 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
 
 
-    Route::resource('customers', App\Http\Controllers\CustomersController::class);
+    Route::resource('customers', App\Http\Controllers\CustomersController::class)->parameters(['customers' => 'id']);
     Route::get('customer/ledger/{id}', [\App\Http\Controllers\CustomersController::class, 'ledger'])->name('customer.ledger');
     Route::get('customer/files/{id}', [\App\Http\Controllers\CustomersController::class, 'files'])->name('customer.files');
-    Route::get('customers/delete/{id}', [\App\Http\Controllers\CustomersController::class, 'destroy'])->name('customers.delete');
     // Customers Trash Routes
     Route::get('customers/trash', [\App\Http\Controllers\CustomersController::class, 'trash'])->name('customers.trash');
     Route::post('customers/trash/{id}/restore', [\App\Http\Controllers\CustomersController::class, 'restoreTrash'])->name('customers.restore');
@@ -119,9 +118,8 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('rtaFines/getrider/{id}', [\App\Http\Controllers\RtaFinesController::class, 'getrider']);
 
 
-    Route::post('/cheques/status/{id}', [App\Http\Controllers\ChequesController::class, 'updateStatus'])->name('cheques.update-status');
-    Route::get('cheques/change_status/{id}', [\App\Http\Controllers\ChequesController::class, 'statusForm'])->name('cheques.status-form');
-    Route::resource('cheques', App\Http\Controllers\ChequesController::class);
+
+
 
 
     Route::resource('VisaExpense', App\Http\Controllers\VisaexpenseController::class);
@@ -332,7 +330,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::resource('fuelCards', App\Http\Controllers\FuelCardController::class);
     Route::any('fuelcards/import', [\App\Http\Controllers\FuelCardController::class, 'import'])->name('fuelCards.import');
     Route::get('fuelcards/export', [\App\Http\Controllers\FuelCardController::class, 'export'])->name('fuelCards.export');
-    
+
     Route::any('fuelcards/assign/{id}', [\App\Http\Controllers\FuelCardHistoryController::class, 'assign'])->name('fuelCards.assign');
     Route::any('fuelcards/return/{id}', [\App\Http\Controllers\FuelCardHistoryController::class, 'return'])->name('fuelCards.return');
 
@@ -342,7 +340,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('leasingCompanies/trash', [\App\Http\Controllers\LeasingCompaniesController::class, 'trash'])->name('leasingCompanies.trash');
     Route::post('leasingCompanies/trash/{id}/restore', [\App\Http\Controllers\LeasingCompaniesController::class, 'restoreTrash'])->name('leasingCompanies.restore');
     Route::delete('leasingCompanies/trash/{id}/force-destroy', [\App\Http\Controllers\LeasingCompaniesController::class, 'forceDestroyTrash'])->name('leasingCompanies.force-destroy');
-    
+
     // Leasing Company Invoice Routes
     Route::get('leasingCompanyInvoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'indexInvoices'])->name('leasingCompanyInvoices.index');
     Route::get('leasingCompanyInvoices/create/{leasingCompanyId?}', [\App\Http\Controllers\LeasingCompaniesController::class, 'createInvoice'])->name('leasingCompanyInvoices.create');
@@ -363,8 +361,6 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('bank/delete/{id}', [\App\Http\Controllers\BanksController::class, 'destroy'])->name('bank.delete');
     Route::get('banks/receipts/{id}', [\App\Http\Controllers\BanksController::class, 'receipts'])->name('banks.receipts');
     Route::get('banks/payments/{id}', [\App\Http\Controllers\BanksController::class, 'payments'])->name('banks.payments');
-    Route::get('bank/cheques/{id}', [\App\Http\Controllers\BanksController::class, 'cheques'])->name('banks.cheques');
-    
 
     // Soft Delete Routes for Banks - DEPRECATED: Use centralized trash module (/trash)
     // Route::get('banks/trashed/list', [\App\Http\Controllers\BanksController::class, 'trashed'])->name('banks.trashed');

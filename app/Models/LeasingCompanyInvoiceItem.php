@@ -14,6 +14,7 @@ class LeasingCompanyInvoiceItem extends Model
     protected $fillable = [
         'inv_id',
         'bike_id',
+        'days',
         'rental_amount',
         'tax_rate',
         'tax_amount',
@@ -21,6 +22,7 @@ class LeasingCompanyInvoiceItem extends Model
     ];
 
     protected $casts = [
+        'days' => 'integer',
         'rental_amount' => 'decimal:2',
         'tax_rate' => 'decimal:2',
         'tax_amount' => 'decimal:2',

@@ -1,4 +1,4 @@
-{!! Form::open(['route' => ['customers.destroy', $id], 'method' => 'delete','id'=>'formjax']) !!}
+{!! Form::open(['route' => ['customers.destroy', ['id' => $id]], 'method' => 'delete','id'=>'formjax']) !!}
 <div class='btn-group'>
     {{-- <a href="javascript:void(0);" data-size="lg" data-title="Update Bike" data-action="{{ route('customers.show', $id) }}" class='btn btn-default btn-xs'>
         <i class="fa fa-eye"></i>

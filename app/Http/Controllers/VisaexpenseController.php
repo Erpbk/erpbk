@@ -273,7 +273,7 @@ class VisaexpenseController extends AppBaseController
             'visaStatuses' => $visaStatuses,
         ]);
     }
-    
+
     /**
      * Show the form for creating a new resource.
      */
@@ -1715,23 +1715,60 @@ class VisaexpenseController extends AppBaseController
      */
     public function update(Request $request)
     {
-        $visaExpenses = visa_expenses::findOrFail($request->id);
-        $oldAmount = $visaExpenses->amount;
-        $trans_code = $visaExpenses->trans_code;
-        $billingMonth = $request->billing_month . "-01";
-        $trans_date = $visaExpenses->trans_date ?? Carbon::today();
-        $request->validate([
-            'reference_number' => 'required|string|max:255',
-        ]);
+        DB::beginTransaction();
 
-        $visaExpenses->visa_status = $request->visa_status;
-        $visaExpenses->billing_month = $billingMonth;
-        $visaExpenses->date = $request->date;
-        $visaExpenses->amount = $request->amount;
-        $visaExpenses->detail = $request->detail;
-        $visaExpenses->reference_number = $request->reference_number;
-        $visaExpenses->save();
-        Flash::success('Visa Expense updated successfully');
+        try {
+            $visaExpenses = visa_expenses::findOrFail($request->id);
+            $oldAmount = $visaExpenses->amount;
+            $billingMonth = $request->billing_month . "-01";
+
+            $request->validate([
+                'reference_number' => 'required|string|max:255',
+            ]);
+
+            $visaExpenses->visa_status = $request->visa_status;
+            $visaExpenses->billing_month = $billingMonth;
+            $visaExpenses->date = $request->date;
+            $visaExpenses->amount = $request->amount;
+            $visaExpenses->detail = $request->detail;
+            $visaExpenses->reference_number = $request->reference_number;
+            $visaExpenses->save();
+
+            // If this visa expense is already paid, update related voucher and transactions amounts
+            if ($visaExpenses->payment_status == 'paid') {
+                // Update voucher amount(s) linked to this visa expense
+                $vouchers = Vouchers::where('ref_id', $visaExpenses->id)
+                    ->where('voucher_type', 'LV')
+                    ->first();
+                if ($vouchers) {
+                    $vouchers->reference_number = $visaExpenses->reference_number;
+                    $vouchers->amount = $visaExpenses->amount;
+                    $vouchers->save();
+                }
+
+                // Update related transactions amounts (both debit and credit sides)
+                $transactions = Transactions::where('reference_id', $visaExpenses->id)
+                    ->where('reference_type', 'LV')
+                    ->get();
+
+                foreach ($transactions as $transaction) {
+                    if ($transaction->debit > 0) {
+                        $transaction->debit = $visaExpenses->amount;
+                    }
+                    if ($transaction->credit > 0) {
+                        $transaction->credit = $visaExpenses->amount;
+                    }
+                    $transaction->save();
+                }
+            }
+
+            DB::commit();
+            Flash::success('Visa Expense updated successfully');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Flash::error('Error updating Visa Expense: ' . $e->getMessage());
+        }
+
         return redirect()->back();
     }
 

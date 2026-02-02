@@ -162,6 +162,10 @@ class LedgerDataTable extends DataTable
           $voucher_text = '<span class="text-danger">No Voucher Found</span>';
         }
       }
+      if ($row->reference_type == 'LeasingCompanyInvoice') {
+        $invoice_ID = $row->reference_id;
+        $voucher_text = '<span class="d-none">LI-' . $invoice_ID . '</span><a href="javascript:void(0);" data-title="Leasing Company Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyInvoices.show', $invoice_ID) . '" class="no-print show-modal">LI-' . $invoice_ID . '</a>';
+      }
       $month = "<span style='white-space: nowrap;'>" . date('M Y', strtotime($row->billing_month)) . "</span>";
       if ($row->reference_type == 'RTA') {
         $vouchers = DB::table('vouchers')->where('trans_code', $row->trans_code)->first();
@@ -193,7 +197,7 @@ class LedgerDataTable extends DataTable
         $naration = $row->narration . ', ' . $view_file;
       }
       $reference = '-';
-      if($row->voucher){
+      if ($row->voucher) {
         $reference = $row->voucher->reference_number ?? '-';
       }
       $data[] = [
@@ -269,9 +273,9 @@ class LedgerDataTable extends DataTable
     $accountid = '';
     $accountName = "All Accounts";
     if ($this->account_id) {
-        $account = \App\Models\Accounts::find($this->account_id);
-        $accountid = $account->id;
-        $accountName = $account ? $account->account_code . '-' . $account->name : "All Accounts";
+      $account = \App\Models\Accounts::find($this->account_id);
+      $accountid = $account->id;
+      $accountName = $account ? $account->account_code . '-' . $account->name : "All Accounts";
     }
     return $this->builder()
       ->columns($this->getColumns())
@@ -285,9 +289,9 @@ class LedgerDataTable extends DataTable
         'ordering' => false,
         'pageLength' => 50,
         'lengthMenu' => [
-                [50, 100, 150, 200, -1], // Values to display in the dropdown
-                [50, 100, 150, 200, 'All'] // Labels for the dropdown
-            ],
+          [50, 100, 150, 200, -1], // Values to display in the dropdown
+          [50, 100, 150, 200, 'All'] // Labels for the dropdown
+        ],
         'stateSave' => true, // Ensures balance maintains on pagination
         'responsive' => true,
         'initComplete' => "function(settings, json) {
@@ -348,7 +352,7 @@ class LedgerDataTable extends DataTable
             'title' => '',
             'autoPrint' => false,
             'exportOptions' => [
-                'columns' => ':visible',
+              'columns' => ':visible',
             ],
             'customize' => 'function(win) {
                 // COMPLETELY override the print functionality

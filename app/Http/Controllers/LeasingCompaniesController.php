@@ -14,6 +14,7 @@ use App\Models\LeasingCompanyInvoice;
 use App\Repositories\LeasingCompaniesRepository;
 use App\Repositories\LeasingCompanyInvoicesRepository;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
@@ -277,7 +278,7 @@ class LeasingCompaniesController extends AppBaseController
   public function indexInvoices(Request $request)
   {
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    
+
     $query = LeasingCompanyInvoice::with('leasingCompany')
       ->orderBy('billing_month', 'desc')
       ->orderBy('id', 'desc');
@@ -322,7 +323,7 @@ class LeasingCompaniesController extends AppBaseController
   {
     // If ID is provided, use it; otherwise get from request
     $leasingCompanyId = $id ?? request('leasing_company_id');
-    
+
     if ($leasingCompanyId) {
       $leasingCompany = $this->leasingCompaniesRepository->find($leasingCompanyId);
       if (empty($leasingCompany)) {
@@ -333,19 +334,25 @@ class LeasingCompaniesController extends AppBaseController
       $leasingCompany = null;
     }
 
-    // Get all active leasing companies for dropdown
-    $leasingCompanies = LeasingCompanies::where('status', 1)->orderBy('name')->get();
+    // Leasing companies dropdown (id => name)
+    $leasingCompanies = LeasingCompanies::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
 
-    // Get bikes for selected leasing company (only active bikes)
-    $bikes = collect();
-    if ($leasingCompany) {
-      $bikes = Bikes::where('company', $leasingCompany->id)
-        ->where('status', 1)
-        ->orderBy('plate')
-        ->get();
-    }
+    // Bikes dropdown for item rows (id => "plate - model")
+    $bikes = Bikes::where('status', 1)
+      ->orderBy('plate')
+      ->get()
+      ->mapWithKeys(function ($b) {
+        return [$b->id => $b->plate . ' - ' . ($b->model ?? '')];
+      })
+      ->prepend('Select', '')
+      ->toArray();
 
-    return view('leasing_company_invoices.create', compact('leasingCompany', 'bikes', 'leasingCompanies'));
+    // Default rental amount per company (for JS when leasing company changes)
+    $rentalAmountByCompany = LeasingCompanies::where('status', 1)->pluck('rental_amount', 'id')->map(function ($v) {
+      return $v ?? 0;
+    })->toArray();
+
+    return view('leasing_company_invoices.create', compact('leasingCompany', 'bikes', 'leasingCompanies', 'rentalAmountByCompany'));
   }
 
   /**
@@ -355,7 +362,7 @@ class LeasingCompaniesController extends AppBaseController
   {
     try {
       $leasingCompanyId = $id ?? $request->leasing_company_id;
-      
+
       $leasingCompany = $this->leasingCompaniesRepository->find($leasingCompanyId);
 
       if (empty($leasingCompany)) {
@@ -366,10 +373,13 @@ class LeasingCompaniesController extends AppBaseController
       $request->validate([
         'inv_date' => 'required|date',
         'billing_month' => 'required',
+        'reference_number' => 'nullable|string|max:255',
         'bike_id' => 'required|array|min:1',
         'bike_id.*' => 'exists:bikes,id',
         'rental_amount' => 'required|array|min:1',
         'rental_amount.*' => 'numeric|min:0',
+        'days' => 'nullable|array',
+        'days.*' => 'nullable|integer|min:1',
         'descriptions' => 'nullable|string',
         'notes' => 'nullable|string',
       ]);
@@ -379,8 +389,6 @@ class LeasingCompaniesController extends AppBaseController
 
       $invoice = $this->leasingCompanyInvoicesRepository->record($request);
 
-      Flash::success('Invoice created successfully.');
-
       if ($request->ajax()) {
         return response()->json([
           'message' => 'Invoice created successfully.',
@@ -388,6 +396,7 @@ class LeasingCompaniesController extends AppBaseController
         ]);
       }
 
+      Flash::success('Invoice created successfully.');
       return redirect(route('leasingCompanyInvoices.show', $invoice->id));
     } catch (\Exception $e) {
       if ($request->ajax()) {
@@ -425,15 +434,26 @@ class LeasingCompaniesController extends AppBaseController
       return redirect(route('leasingCompanyInvoices.index'));
     }
 
-    $leasingCompany = $invoice->leasingCompany;
-    
-    // Get active bikes for this leasing company
-    $bikes = Bikes::where('company', $leasingCompany->id)
-      ->where('status', 1)
-      ->orderBy('plate')
-      ->get();
+    $invoice->load('items');
 
-    return view('leasing_company_invoices.edit', compact('invoice', 'leasingCompany', 'bikes'));
+    // Leasing companies dropdown (id => name)
+    $leasingCompanies = LeasingCompanies::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
+
+    // Bikes dropdown for item rows (id => "plate - model") - all active bikes
+    $bikes = Bikes::where('status', 1)
+      ->orderBy('plate')
+      ->get()
+      ->mapWithKeys(function ($b) {
+        return [$b->id => $b->plate . ' - ' . ($b->model ?? '')];
+      })
+      ->prepend('Select', '')
+      ->toArray();
+
+    $rentalAmountByCompany = LeasingCompanies::where('status', 1)->pluck('rental_amount', 'id')->map(function ($v) {
+      return $v ?? 0;
+    })->toArray();
+
+    return view('leasing_company_invoices.edit', compact('invoice', 'leasingCompanies', 'bikes', 'rentalAmountByCompany'));
   }
 
   /**
@@ -453,10 +473,13 @@ class LeasingCompaniesController extends AppBaseController
       $request->validate([
         'inv_date' => 'required|date',
         'billing_month' => 'required',
+        'reference_number' => 'nullable|string|max:255',
         'bike_id' => 'required|array|min:1',
         'bike_id.*' => 'exists:bikes,id',
         'rental_amount' => 'required|array|min:1',
         'rental_amount.*' => 'numeric|min:0',
+        'days' => 'nullable|array',
+        'days.*' => 'nullable|integer|min:1',
         'descriptions' => 'nullable|string',
         'notes' => 'nullable|string',
       ]);
@@ -487,6 +510,9 @@ class LeasingCompaniesController extends AppBaseController
    */
   public function destroyInvoice($id)
   {
+    if (!auth()->user()->hasPermissionTo('leasing_company_invoice_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
     $invoice = $this->leasingCompanyInvoicesRepository->find($id);
 
     if (empty($invoice)) {
@@ -549,6 +575,8 @@ class LeasingCompaniesController extends AppBaseController
         return response()->json(['errors' => ['error' => 'An invoice for this leasing company already exists for ' . $nextMonthString . '.']], 422);
       }
 
+      DB::beginTransaction();
+
       // Create new invoice data
       $newInvoiceData = $sourceInvoice->toArray();
       unset($newInvoiceData['id']);
@@ -556,7 +584,7 @@ class LeasingCompaniesController extends AppBaseController
       unset($newInvoiceData['created_at']);
       unset($newInvoiceData['updated_at']);
       unset($newInvoiceData['deleted_at']);
-      
+
       $newInvoiceData['billing_month'] = $nextMonthString . '-01';
       $newInvoiceData['inv_date'] = now()->format('Y-m-d');
       $newInvoiceData['status'] = 0; // Unpaid
@@ -580,13 +608,13 @@ class LeasingCompaniesController extends AppBaseController
           unset($newItemData['created_at']);
           unset($newItemData['updated_at']);
           $newItemData['inv_id'] = $newInvoice->id;
-          
-          \DB::table('leasing_company_invoice_items')->insert($newItemData);
+
+          DB::table('leasing_company_invoice_items')->insert($newItemData);
         }
       }
 
       // Recalculate totals
-      $items = \DB::table('leasing_company_invoice_items')
+      $items = DB::table('leasing_company_invoice_items')
         ->where('inv_id', $newInvoice->id)
         ->get();
 
@@ -599,6 +627,11 @@ class LeasingCompaniesController extends AppBaseController
       $newInvoice->total_amount = $totalAmount;
       $newInvoice->save();
 
+      // Create ledger entries (same as creation)
+      $this->leasingCompanyInvoicesRepository->recordTransactionsForInvoice($newInvoice);
+
+      DB::commit();
+
       Flash::success('Invoice cloned successfully for ' . $nextMonthString . '.');
 
       if ($request->ajax()) {
@@ -610,6 +643,7 @@ class LeasingCompaniesController extends AppBaseController
 
       return redirect(route('leasingCompanyInvoices.show', $newInvoice->id));
     } catch (\Exception $e) {
+      DB::rollBack();
       if ($request->ajax()) {
         return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
       }

@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Schema;
 use App\Models\GarageItem;
 use App\Models\Supplier;
 
@@ -14,16 +15,16 @@ class TransactionService
    * Record a transaction in the transactions table
    *
    * @param array $data Transaction data
+   * @param bool $throwOnError If true, rethrow exception on failure so caller can show the real error
    * @return int|bool ID of created transaction or false on failure
    */
-  public function recordTransaction(array $data)
+  public function recordTransaction(array $data, $throwOnError = false)
   {
     try {
-      $id = DB::table('transactions')->insertGetId([
+      $row = [
         'account_id' => $data['account_id'],
         'reference_id' => $data['reference_id'] ?? null,
         'reference_type' => $data['reference_type'] ?? null,
-        // Store trans_code as-is to support both numeric and alphanumeric codes
         'trans_code' => $data['trans_code'],
         'trans_date' => $data['trans_date'],
         'narration' => $data['narration'] ?? '',
@@ -32,12 +33,19 @@ class TransactionService
         'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
         'created_at' => now(),
         'updated_at' => now(),
-      ]);
+      ];
+      if (Schema::hasColumn('transactions', 'deleted_at')) {
+        $row['deleted_at'] = null;
+      }
+      $id = DB::table('transactions')->insertGetId($row);
 
       Log::info('Transaction recorded successfully: ' . $id);
       return $id;
     } catch (\Exception $e) {
       Log::error('Error recording transaction: ' . $e->getMessage());
+      if ($throwOnError) {
+        throw $e;
+      }
       return false;
     }
   }

@@ -52,9 +52,13 @@
                </a>
                @endcan
                @can('customer_delete')
-               <a href="javascript:void(0);"  onclick='confirmDelete("{{route('customers.destroy', $r->id) }}")' class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Customer">
-               <i class="fa fa-trash"></i>
-               </a>
+               {!! Form::open(['route' => ['customers.destroy', ['id' => $r->id]], 'method' => 'DELETE', 'style' => 'display:inline;']) !!}
+               {!! Form::button('<i class="fa fa-trash"></i>', [
+                   'type' => 'submit',
+                   'class' => 'btn btn-danger btn-sm',
+                   'onclick' => 'return confirm("Are you sure you want to delete this customer? This will move it to the Recycle Bin.")'
+               ]) !!}
+               {!! Form::close() !!}
                @endcan
             </div>
          </td>

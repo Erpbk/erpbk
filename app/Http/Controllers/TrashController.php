@@ -27,6 +27,7 @@ use App\Models\RtaFines;
 use App\Models\Vouchers;
 use App\Models\Transactions;
 use App\Services\ActivityLogger;
+use App\Models\LeasingCompanyInvoice;
 
 class TrashController extends Controller
 {
@@ -142,6 +143,12 @@ class TrashController extends Controller
             'name' => 'Vouchers',
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'trans_code', 'trans_date', 'billing_month', 'amount', 'status'],
+        ],
+        'leasing_company_invoices' => [
+            'model' => LeasingCompanyInvoice::class,
+            'name' => 'Leasing Company Invoices',
+            'icon' => 'fa-file-invoice',
+            'display_columns' => ['id', 'invoice_number', 'billing_month', 'total_amount', 'status'],
         ],
     ];
 

@@ -12,6 +12,7 @@ use App\Models\Transactions;
 use App\Repositories\BaseRepository;
 use App\Services\TransactionService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class LeasingCompanyInvoicesRepository extends BaseRepository
 {
@@ -20,7 +21,10 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
         'leasing_company_id',
         'billing_month',
         'invoice_number',
+        'reference_number',
+        'leasing_company_invoice_number',
         'total_amount',
+        'attachment',
         'status'
     ];
 
@@ -43,6 +47,13 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 
             $input['billing_month'] = $request->billing_month . "-01";
 
+            // Handle file upload
+            if ($request->hasFile('attachment')) {
+                $file = $request->file('attachment');
+                $path = $file->store('invoice', 'public');
+                $input['attachment'] = $path;
+            }
+
             if ($id) {
                 $invoice = LeasingCompanyInvoice::where('id', $id)->first();
 
@@ -54,6 +65,11 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 
                 if ($existingInvoice) {
                     throw new \Exception('An invoice for this leasing company has already been generated for the selected billing month.');
+                }
+
+                // Delete old attachment if new one is uploaded
+                if (isset($input['attachment']) && $invoice->attachment) {
+                    Storage::disk('public')->delete($invoice->attachment);
                 }
 
                 $invoice->update($input);
@@ -81,10 +97,12 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
             // Get VAT percentage
             $vatPercentage = Common::getSetting('vat_percentage') ?? 5;
             $subtotal = 0;
+            $totalVat = 0;
 
             // Process bike items - validate bikes belong to leasing company and are active
             $billingMonthDate = \Carbon\Carbon::parse($input['billing_month']);
-            $daysInMonth = (int) $billingMonthDate->daysInMonth;
+            // Always use 30 days for calculation regardless of actual month days
+            $daysInMonth = 30;
 
             if (isset($request['bike_id']) && is_array($request['bike_id'])) {
                 foreach ($request['bike_id'] as $key => $bikeId) {
@@ -102,18 +120,22 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                         $monthlyRate = (float) $request['rental_amount'][$key];
                         $days = isset($request['days'][$key]) && (int) $request['days'][$key] > 0
                             ? (int) $request['days'][$key]
-                            : $daysInMonth;
-                        $days = min($days, $daysInMonth);
+                            : 30;
+                        $days = min($days, 30);
 
-                        // Prorated amount = monthly rate * (days / days in month)
-                        $proratedAmount = $monthlyRate * ($days / $daysInMonth);
+                        // Prorated amount = monthly rate * (days / 30)
+                        // Always use 30 days for consistency with frontend calculation
+                        $proratedAmount = $monthlyRate * ($days / 30);
 
                         $itemTaxRate = isset($request['tax_rate'][$key]) && $request['tax_rate'][$key] > 0
                             ? (float) $request['tax_rate'][$key]
                             : $vatPercentage;
                         $taxAmount = $proratedAmount * ($itemTaxRate / 100);
                         $totalAmount = $proratedAmount + $taxAmount;
+
+                        // Sum up subtotal and VAT from each item
                         $subtotal += $proratedAmount;
+                        $totalVat += $taxAmount;
 
                         $itemData = [
                             'inv_id' => $invoice->id,
@@ -130,8 +152,8 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                 }
             }
 
-            // Calculate totals
-            $vat = $subtotal * ($vatPercentage / 100);
+            // Use summed totals from actual items (not recalculated)
+            $vat = $totalVat;
             $totalAmount = $subtotal + $vat;
 
             // Update invoice totals
@@ -162,8 +184,10 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
     }
 
     /**
-     * Create ledger entries (debit leasing expense, credit leasing company) for an invoice.
-     * Used by record() and by cloneInvoice() so creation and clone behave the same.
+     * Create ledger entries for an invoice.
+     * Debit: VAT Account (1023) with VAT amount
+     * Debit: Leasing Expense Account (1129) with subtotal (excluding VAT)
+     * Credit: Leasing Company Account with total amount (including VAT)
      *
      * @param LeasingCompanyInvoice $invoice
      * @param int|null $transCode If null, a new trans_code is generated.
@@ -178,15 +202,28 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
         }
 
         $trans_code = $transCode !== null ? $transCode : Account::trans_code();
+        $subtotal = (float) $invoice->subtotal;
+        $vatAmount = (float) $invoice->vat;
         $totalAmount = (float) $invoice->total_amount;
         $narration = "Leasing Company Invoice #" . ($invoice->invoice_number ?? $invoice->id) . ' - ' . ($invoice->descriptions ?? 'Rental Invoice');
 
-        $debitAccountId = HeadAccount::LEASING_EXPENSE_ACCOUNT;
-        $debitAccountExists = DB::table('accounts')->where('id', $debitAccountId)->whereNull('deleted_at')->exists();
-        if (!$debitAccountExists) {
+        // Validate required accounts exist
+        $expenseAccountId = HeadAccount::LEASING_EXPENSE_ACCOUNT;
+        $vatAccountId = HeadAccount::TAX_ACCOUNT;
+
+        $expenseAccountExists = DB::table('accounts')->where('id', $expenseAccountId)->whereNull('deleted_at')->exists();
+        if (!$expenseAccountExists) {
             throw new \Exception(
-                'Leasing expense account (ID ' . $debitAccountId . ') not found in Chart of Accounts. ' .
-                'Please run: php artisan migrate (to create it) or add this account manually in Chart of Accounts.'
+                'Leasing expense account (ID ' . $expenseAccountId . ') not found in Chart of Accounts. ' .
+                    'Please run: php artisan migrate (to create it) or add this account manually in Chart of Accounts.'
+            );
+        }
+
+        $vatAccountExists = DB::table('accounts')->where('id', $vatAccountId)->whereNull('deleted_at')->exists();
+        if (!$vatAccountExists) {
+            throw new \Exception(
+                'VAT account (ID ' . $vatAccountId . ') not found in Chart of Accounts. ' .
+                    'Please add this account in Chart of Accounts.'
             );
         }
 
@@ -195,17 +232,33 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 
         $transactionService = new TransactionService();
         try {
+            // 1. Debit Leasing Expense Account with subtotal (excluding VAT)
             $transactionService->recordTransaction([
-                'account_id' => $debitAccountId,
+                'account_id' => $expenseAccountId,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'LeasingCompanyInvoice',
                 'trans_code' => $trans_code,
                 'trans_date' => $transDate,
                 'narration' => $narration,
-                'debit' => $totalAmount,
+                'debit' => $subtotal,
                 'billing_month' => $billingMonthStr,
             ], true);
 
+            // 2. Debit VAT Account with VAT amount only
+            if ($vatAmount > 0) {
+                $transactionService->recordTransaction([
+                    'account_id' => $vatAccountId,
+                    'reference_id' => $invoice->id,
+                    'reference_type' => 'LeasingCompanyInvoice',
+                    'trans_code' => $trans_code,
+                    'trans_date' => $transDate,
+                    'narration' => $narration . ' - VAT',
+                    'debit' => $vatAmount,
+                    'billing_month' => $billingMonthStr,
+                ], true);
+            }
+
+            // 3. Credit Leasing Company Account with total amount (including VAT)
             $transactionService->recordTransaction([
                 'account_id' => $leasingCompany->account_id,
                 'reference_id' => $invoice->id,

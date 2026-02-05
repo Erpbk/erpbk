@@ -6,7 +6,7 @@
          <th title="Name" class="sorting_desc" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>
          <th title="Contact Person" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Person: activate to sort column ascending">Contact Person</th>
          <th title="Contact Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Number: activate to sort column ascending">Contact Number</th>
-         <th title="Rental Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rental Amount: activate to sort column ascending">Rental Amount</th>
+         <th title="TRN Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="TRN Number: activate to sort column ascending">TRN Number</th>
          <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action"><a data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a></th>
          <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
             <a data-bs-toggle="modal" data-bs-target="#customoizecolmn" href="javascript:void(0);"> <i class="fa fa-filter"></i></a>
@@ -19,7 +19,7 @@
          <td>{{$r->name}}</td>
          <td>{{$r->contact_person}}</td>
          <td>{{$r->contact_number}}</td>
-         <td>{{$r->rental_amount}}</td>
+         <td>{{$r->trn_number}}</td>
          <td>
             <div class='btn-group'>
                <!-- <a href="javascript:void(0);" data-size="md" data-title="New Item" data-action=="{{ route('leasingCompanies.show', $r->id) }}" class='btn btn-default btn-xs'>
@@ -28,11 +28,6 @@
                @can('leasing_edit')
                <a href="javascript:void(0);" data-size="lg" data-title="Update Leasing Company" data-action="{{ route('leasingCompanies.edit', $r->id) }}" class='btn btn-info btn-sm show-modal'>
                   <i class="fa fa-edit"></i>
-               </a>
-               @endcan
-               @can('leasing_view')
-               <a href="{{ route('leasingCompanies.createInvoice', $r->id) }}" class='btn btn-success btn-sm' title="Create Invoice">
-                  <i class="fa fa-file-invoice"></i>
                </a>
                @endcan
                @can('leasing_delete')

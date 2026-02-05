@@ -15,6 +15,66 @@ class Helpers
     return json_decode($dropdown->values);
   }
 
+  /**
+   * Convert a number to words (English)
+   * @param float $number The number to convert
+   * @return string The number in words
+   */
+  public static function numberToWords($number)
+  {
+    $number = number_format($number, 2, '.', '');
+    list($integer, $decimal) = explode('.', $number);
+
+    $integer = (int) $integer;
+    $decimal = (int) $decimal;
+
+    $words = '';
+
+    if ($integer == 0) {
+      $words = 'Zero';
+    } else {
+      $words = self::convertIntegerToWords($integer);
+    }
+
+    if ($decimal > 0) {
+      $words .= ' and ' . str_pad($decimal, 2, '0', STR_PAD_LEFT) . '/100';
+    } else {
+      $words .= ' and 00/100';
+    }
+
+    return $words;
+  }
+
+  /**
+   * Helper method to convert integer part to words
+   * @param int $number
+   * @return string
+   */
+  private static function convertIntegerToWords($number)
+  {
+    $ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+    $tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    $teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+
+    if ($number < 10) {
+      return $ones[$number];
+    } elseif ($number >= 10 && $number < 20) {
+      return $teens[$number - 10];
+    } elseif ($number >= 20 && $number < 100) {
+      return $tens[(int)($number / 10)] . ($number % 10 != 0 ? ' ' . $ones[$number % 10] : '');
+    } elseif ($number >= 100 && $number < 1000) {
+      return $ones[(int)($number / 100)] . ' Hundred' . ($number % 100 != 0 ? ' ' . self::convertIntegerToWords($number % 100) : '');
+    } elseif ($number >= 1000 && $number < 1000000) {
+      return self::convertIntegerToWords((int)($number / 1000)) . ' Thousand' . ($number % 1000 != 0 ? ' ' . self::convertIntegerToWords($number % 1000) : '');
+    } elseif ($number >= 1000000 && $number < 1000000000) {
+      return self::convertIntegerToWords((int)($number / 1000000)) . ' Million' . ($number % 1000000 != 0 ? ' ' . self::convertIntegerToWords($number % 1000000) : '');
+    } elseif ($number >= 1000000000) {
+      return self::convertIntegerToWords((int)($number / 1000000000)) . ' Billion' . ($number % 1000000000 != 0 ? ' ' . self::convertIntegerToWords($number % 1000000000) : '');
+    }
+
+    return '';
+  }
+
 
 
 

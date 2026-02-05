@@ -15,6 +15,7 @@ use App\Repositories\LeasingCompaniesRepository;
 use App\Repositories\LeasingCompanyInvoicesRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
@@ -347,12 +348,107 @@ class LeasingCompaniesController extends AppBaseController
       ->prepend('Select', '')
       ->toArray();
 
-    // Default rental amount per company (for JS when leasing company changes)
-    $rentalAmountByCompany = LeasingCompanies::where('status', 1)->pluck('rental_amount', 'id')->map(function ($v) {
-      return $v ?? 0;
-    })->toArray();
+    // Default rental amount per company (no longer used - removed rental_amount column)
+    $rentalAmountByCompany = [];
 
     return view('leasing_company_invoices.create', compact('leasingCompany', 'bikes', 'leasingCompanies', 'rentalAmountByCompany'));
+  }
+
+  /**
+   * Show the create form pre-filled from a source invoice (clone to next month).
+   * Opens the same modal as Create; bikes from previous month are pre-selected.
+   * Inactive/returned bikes are highlighted in red and must be removed before saving.
+   */
+  public function createFromClone($id)
+  {
+    $sourceInvoice = $this->leasingCompanyInvoicesRepository->find($id);
+    if (empty($sourceInvoice)) {
+      Flash::error('Source invoice not found');
+      return redirect(route('leasingCompanyInvoices.index'));
+    }
+
+    $sourceInvoice->load('items');
+    $nextMonth = \Carbon\Carbon::parse($sourceInvoice->billing_month)->addMonth();
+    $nextMonthString = $nextMonth->format('Y-m');
+
+    $existingInvoice = LeasingCompanyInvoice::where('leasing_company_id', $sourceInvoice->leasing_company_id)
+      ->whereYear('billing_month', $nextMonth->year)
+      ->whereMonth('billing_month', $nextMonth->month)
+      ->first();
+
+    if ($existingInvoice) {
+      Flash::error('An invoice for this leasing company already exists for ' . $nextMonthString . '.');
+      return redirect(route('leasingCompanyInvoices.index'));
+    }
+
+    $leasingCompany = $this->leasingCompaniesRepository->find($sourceInvoice->leasing_company_id);
+    $leasingCompanies = LeasingCompanies::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
+
+    // Default rental amount per company (no longer used - removed rental_amount column)
+    $rentalAmountByCompany = [];
+
+    // Always use 30 days for calculation regardless of actual month days
+    $daysInNextMonth = 30;
+
+    // Build cloneItems first and collect bike IDs
+    $cloneItems = [];
+    $cloneBikeIds = [];
+    foreach ($sourceInvoice->items as $item) {
+      $bike = Bikes::withTrashed()->find($item->bike_id);
+      if (!$bike) {
+        continue; // Skip bikes that don't exist at all
+      }
+      $cloneBikeIds[] = $bike->id;
+      $isInactive = (int) $bike->status !== 1 || $bike->trashed() || in_array($bike->warehouse ?? '', ['Return', 'Vacation', 'Express Garage', 'Absconded'], true);
+      $cloneItems[] = [
+        'bike_id' => $item->bike_id,
+        'days' => min((int) ($item->days ?? $daysInNextMonth), $daysInNextMonth) ?: $daysInNextMonth,
+        'rental_amount' => (float) $item->rental_amount,
+        'tax_rate' => (float) ($item->tax_rate ?? \App\Helpers\Common::getSetting('vat_percentage') ?? 5),
+        'total_amount' => (float) $item->total_amount,
+        'is_inactive' => $isInactive,
+      ];
+    }
+
+    // Bikes for dropdown: include company bikes + bikes from clone items (even if reassigned/soft-deleted)
+    $companyBikes = Bikes::withTrashed()
+      ->where(function ($q) use ($sourceInvoice, $cloneBikeIds) {
+        $q->where('company', $sourceInvoice->leasing_company_id)
+          ->orWhereIn('id', $cloneBikeIds);
+      })
+      ->orderBy('plate')
+      ->get();
+
+    $bikes = [];
+    foreach ($companyBikes as $b) {
+      $label = $b->plate . ' - ' . ($b->model ?? '');
+      $isInactive = (int) $b->status !== 1 || $b->trashed() || in_array($b->warehouse, ['Return', 'Vacation', 'Express Garage', 'Absconded'], true);
+      if ($isInactive) {
+        $label .= ' (Inactive/Returned)';
+      }
+      $bikes[$b->id] = $label;
+    }
+    $bikes = ['' => 'Select'] + $bikes;
+
+    $nextBillingMonth = $nextMonthString;
+    $cloneFromInvoice = (object) [
+      'inv_date' => now()->format('Y-m-d'),
+      'billing_month' => $nextMonthString . '-01',
+      'leasing_company_id' => $sourceInvoice->leasing_company_id,
+      'reference_number' => '',
+      'descriptions' => $sourceInvoice->descriptions ?? '',
+      'notes' => $sourceInvoice->notes ?? '',
+    ];
+
+    return view('leasing_company_invoices.create', compact(
+      'cloneFromInvoice',
+      'cloneItems',
+      'nextBillingMonth',
+      'leasingCompany',
+      'bikes',
+      'leasingCompanies',
+      'rentalAmountByCompany'
+    ));
   }
 
   /**
@@ -369,34 +465,123 @@ class LeasingCompaniesController extends AppBaseController
         return response()->json(['errors' => ['error' => 'Leasing Company not found!']], 422);
       }
 
+      // First validate bike existence (including soft-deleted for clone scenario)
+      $invalidBikes = [];
+      foreach ($request->bike_id ?? [] as $key => $bikeId) {
+        if (empty($bikeId)) {
+          continue;
+        }
+        $bike = Bikes::withTrashed()->find($bikeId);
+        if (!$bike) {
+          $invalidBikes[] = "Bike ID {$bikeId} at position " . ($key + 1) . " does not exist.";
+        }
+      }
+      if (!empty($invalidBikes)) {
+        $msg = implode(' ', $invalidBikes);
+        if ($request->ajax()) {
+          return response()->json(['errors' => ['error' => $msg]], 422);
+        }
+        Flash::error($msg);
+        return redirect()->back()->withInput();
+      }
+
       // Validate request
       $request->validate([
         'inv_date' => 'required|date',
         'billing_month' => 'required',
-        'reference_number' => 'nullable|string|max:255',
+        'reference_number' => 'required|string|max:255',
+        'leasing_company_invoice_number' => 'nullable|string|max:255',
         'bike_id' => 'required|array|min:1',
-        'bike_id.*' => 'exists:bikes,id',
+        'bike_id.*' => 'required',
         'rental_amount' => 'required|array|min:1',
         'rental_amount.*' => 'numeric|min:0',
         'days' => 'nullable|array',
         'days.*' => 'nullable|integer|min:1',
         'descriptions' => 'nullable|string',
         'notes' => 'nullable|string',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
       ]);
 
-      // Add leasing_company_id to request
-      $request->merge(['leasing_company_id' => $leasingCompanyId]);
+      // Filter out inactive/returned bikes - only save active ones
+      $inactiveWarehouses = ['Return', 'Vacation', 'Express Garage', 'Absconded'];
+      $filteredBikeIds = [];
+      $filteredRentalAmounts = [];
+      $filteredDays = [];
+      $filteredTaxRates = [];
+      $skippedBikes = [];
+
+      foreach ($request->bike_id as $key => $bikeId) {
+        if (empty($bikeId)) {
+          continue;
+        }
+        $bike = Bikes::withTrashed()->find($bikeId);
+
+        // Check if bike is inactive/returned/soft-deleted
+        if (!$bike || $bike->trashed() || (int) $bike->status !== 1 || in_array($bike->warehouse ?? '', $inactiveWarehouses, true)) {
+          $skippedBikes[] = $bike ? ($bike->plate . ' - ' . ($bike->model ?? '')) : 'ID ' . $bikeId;
+          continue; // Skip this bike
+        }
+
+        // Include only active bikes
+        $filteredBikeIds[] = $bikeId;
+        $filteredRentalAmounts[] = $request->rental_amount[$key] ?? 0;
+        $filteredDays[] = $request->days[$key] ?? null;
+        $filteredTaxRates[] = $request->tax_rate[$key] ?? \App\Helpers\Common::getSetting('vat_percentage') ?? 5;
+      }
+
+      // Check if we have at least one active bike
+      if (empty($filteredBikeIds)) {
+        $msg = 'No active bikes to save. All bikes are inactive or returned.';
+        if ($request->ajax()) {
+          return response()->json(['errors' => ['error' => $msg]], 422);
+        }
+        Flash::error($msg);
+        return redirect()->back()->withInput();
+      }
+
+      // Handle file upload
+      $attachmentPath = null;
+      if ($request->hasFile('attachment')) {
+        $file = $request->file('attachment');
+        $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+        $attachmentPath = $file->storeAs('leasing_invoices', $fileName, 'public');
+      }
+
+      // Replace request data with filtered active bikes only
+      $mergeData = [
+        'leasing_company_id' => $leasingCompanyId,
+        'bike_id' => $filteredBikeIds,
+        'rental_amount' => $filteredRentalAmounts,
+        'days' => $filteredDays,
+        'tax_rate' => $filteredTaxRates,
+      ];
+
+      if ($attachmentPath) {
+        $mergeData['attachment'] = $attachmentPath;
+      }
+
+      $request->merge($mergeData);
 
       $invoice = $this->leasingCompanyInvoicesRepository->record($request);
 
+      // Build success message with skipped bikes info
+      $successMessage = 'Invoice created successfully.';
+      if (!empty($skippedBikes)) {
+        $skippedList = implode(', ', array_slice($skippedBikes, 0, 3));
+        if (count($skippedBikes) > 3) {
+          $skippedList .= ' and ' . (count($skippedBikes) - 3) . ' more';
+        }
+        $successMessage .= ' Note: ' . count($skippedBikes) . ' inactive/returned bike(s) were automatically excluded: ' . $skippedList . '.';
+      }
+
       if ($request->ajax()) {
         return response()->json([
-          'message' => 'Invoice created successfully.',
+          'message' => $successMessage,
           'redirect' => route('leasingCompanyInvoices.show', $invoice->id)
         ]);
       }
 
-      Flash::success('Invoice created successfully.');
+      Flash::success($successMessage);
       return redirect(route('leasingCompanyInvoices.show', $invoice->id));
     } catch (\Exception $e) {
       if ($request->ajax()) {
@@ -449,9 +634,8 @@ class LeasingCompaniesController extends AppBaseController
       ->prepend('Select', '')
       ->toArray();
 
-    $rentalAmountByCompany = LeasingCompanies::where('status', 1)->pluck('rental_amount', 'id')->map(function ($v) {
-      return $v ?? 0;
-    })->toArray();
+    // Default rental amount per company (no longer used - removed rental_amount column)
+    $rentalAmountByCompany = [];
 
     return view('leasing_company_invoices.edit', compact('invoice', 'leasingCompanies', 'bikes', 'rentalAmountByCompany'));
   }
@@ -473,16 +657,31 @@ class LeasingCompaniesController extends AppBaseController
       $request->validate([
         'inv_date' => 'required|date',
         'billing_month' => 'required',
-        'reference_number' => 'nullable|string|max:255',
+        'reference_number' => 'required|string|max:255',
+        'leasing_company_invoice_number' => 'required|string|max:255',
         'bike_id' => 'required|array|min:1',
-        'bike_id.*' => 'exists:bikes,id',
+        'bike_id.*' => 'required|exists:bikes,id',
         'rental_amount' => 'required|array|min:1',
         'rental_amount.*' => 'numeric|min:0',
         'days' => 'nullable|array',
         'days.*' => 'nullable|integer|min:1',
         'descriptions' => 'nullable|string',
         'notes' => 'nullable|string',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
       ]);
+
+      // Handle file upload
+      if ($request->hasFile('attachment')) {
+        $file = $request->file('attachment');
+        $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+        $attachmentPath = $file->storeAs('leasing_invoices', $fileName, 'public');
+        $request->merge(['attachment' => $attachmentPath]);
+
+        // Delete old attachment if exists
+        if ($invoice->attachment && Storage::disk('public')->exists($invoice->attachment)) {
+          Storage::disk('public')->delete($invoice->attachment);
+        }
+      }
 
       $invoice = $this->leasingCompanyInvoicesRepository->record($request, $id);
 
@@ -537,6 +736,11 @@ class LeasingCompaniesController extends AppBaseController
       \DB::table('leasing_company_invoice_items')
         ->where('inv_id', $id)
         ->delete();
+
+      // Delete attachment file if exists
+      if ($invoice->attachment && Storage::disk('public')->exists($invoice->attachment)) {
+        Storage::disk('public')->delete($invoice->attachment);
+      }
 
       // Soft delete the invoice
       $invoice->delete();
@@ -671,7 +875,7 @@ class LeasingCompaniesController extends AppBaseController
 
     return response()->json([
       'bikes' => $bikes,
-      'rental_amount' => $leasingCompany->rental_amount ?? 0
+      'rental_amount' => 0 // Default rental amount removed from leasing_companies table
     ]);
   }
 }

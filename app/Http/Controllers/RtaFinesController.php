@@ -413,11 +413,12 @@ class RtaFinesController extends AppBaseController
      */
     public function store(CreateRtaFinesRequest $request)
     {
-        $exists = DB::table('rta_fines')->where('ticket_no', $request->ticket_no)->exists();
+        $exists = DB::table('rta_fines')->where('ticket_no', $request->ticket_no)->where('deleted_at', null)->exists();
 
         if ($exists) {
             return response()->json(['errors' => ['error' => 'This Ticket Number already exists.']], 422);
         }
+
         DB::beginTransaction();
 
         try {

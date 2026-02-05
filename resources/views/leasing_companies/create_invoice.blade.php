@@ -60,7 +60,7 @@
                     <div class="col-md-3 form-group">
                         <label>Rental Amount (AED) <span class="text-danger">*</span></label>
                         <input type="number" step="0.01" name="rental_amount[]" class="form-control rental-amount"
-                            value="{{ $leasingCompany->rental_amount ?? 0 }}" placeholder="0.00" required>
+                            value="0" placeholder="0.00" required>
                     </div>
                     <div class="col-md-1 form-group d-flex align-items-end">
                         <button type="button" class="btn btn-danger btn-remove-row" style="display:none;"><i class="fa fa-trash"></i></button>
@@ -105,7 +105,7 @@
                 <div class="col-md-3 form-group">
                     <label>Rental Amount (AED) <span class="text-danger">*</span></label>
                     <input type="number" step="0.01" name="rental_amount[]" class="form-control rental-amount" 
-                        value="{{ $leasingCompany->rental_amount ?? 0 }}" placeholder="0.00" required>
+                        value="0" placeholder="0.00" required>
                 </div>
                 <div class="col-md-1 form-group d-flex align-items-end">
                     <button type="button" class="btn btn-danger btn-remove-row"><i class="fa fa-trash"></i></button>

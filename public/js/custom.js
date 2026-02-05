@@ -33,7 +33,6 @@ $(document).on('submit', '#formajax', function (e) {
 
   let formID = 'formajax';
   var action = $(this).attr('action');
-
   var formData = new FormData(this);
 
   // Dynamic fields ki values ko ek array mein store karein

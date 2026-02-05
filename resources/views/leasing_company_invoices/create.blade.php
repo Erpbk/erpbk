@@ -1,4 +1,4 @@
-{!! Form::open(['route' => 'leasingCompanyInvoices.store', 'id' => 'formajax']) !!}
+{!! Form::open(['route' => 'leasingCompanyInvoices.store', 'id' => 'formajax', 'files' => true]) !!}
 <input type="hidden" id="reload_page" value="0">
 <input type="hidden" id="redirect_url" value="">
 

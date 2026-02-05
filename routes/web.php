@@ -344,6 +344,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     // Leasing Company Invoice Routes
     Route::get('leasingCompanyInvoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'indexInvoices'])->name('leasingCompanyInvoices.index');
     Route::get('leasingCompanyInvoices/create/{leasingCompanyId?}', [\App\Http\Controllers\LeasingCompaniesController::class, 'createInvoice'])->name('leasingCompanyInvoices.create');
+    Route::get('leasingCompanyInvoices/create-from-clone/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'createFromClone'])->name('leasingCompanyInvoices.createFromClone');
     Route::post('leasingCompanyInvoices/store', [\App\Http\Controllers\LeasingCompaniesController::class, 'storeInvoice'])->name('leasingCompanyInvoices.store');
     Route::get('leasingCompanyInvoices/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'showInvoice'])->name('leasingCompanyInvoices.show');
     Route::get('leasingCompanyInvoices/{id}/edit', [\App\Http\Controllers\LeasingCompaniesController::class, 'editInvoice'])->name('leasingCompanyInvoices.edit');

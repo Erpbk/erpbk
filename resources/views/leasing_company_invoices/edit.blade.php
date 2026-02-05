@@ -1,4 +1,4 @@
-{!! Form::model($invoice, ['route' => ['leasingCompanyInvoices.update', $invoice->id], 'method' => 'put', 'id' => 'formajax']) !!}
+{!! Form::model($invoice, ['route' => ['leasingCompanyInvoices.update', $invoice->id], 'method' => 'put', 'id' => 'formajax', 'files' => true]) !!}
 
 <div class="card-body">
     <div class="row">

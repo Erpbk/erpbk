@@ -15,19 +15,7 @@ use App\Repositories\LeasingCompaniesRepository;
 use App\Repositories\LeasingCompanyInvoicesRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 use Illuminate\Support\Facades\Storage;
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
@@ -359,10 +347,6 @@ class LeasingCompaniesController extends AppBaseController
       })
       ->prepend('Select', '')
       ->toArray();
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
     // Default rental amount per company (no longer used - removed rental_amount column)
     $rentalAmountByCompany = [];
@@ -465,33 +449,6 @@ class LeasingCompaniesController extends AppBaseController
       'leasingCompanies',
       'rentalAmountByCompany'
     ));
-=======
-
-=======
-
->>>>>>> Stashed changes
-=======
-
->>>>>>> Stashed changes
-=======
-
->>>>>>> Stashed changes
-    // Default rental amount per company (for JS when leasing company changes)
-    $rentalAmountByCompany = LeasingCompanies::where('status', 1)->pluck('rental_amount', 'id')->map(function ($v) {
-      return $v ?? 0;
-    })->toArray();
-
-    return view('leasing_company_invoices.create', compact('leasingCompany', 'bikes', 'leasingCompanies', 'rentalAmountByCompany'));
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
   }
 
   /**
@@ -532,24 +489,8 @@ class LeasingCompaniesController extends AppBaseController
       $request->validate([
         'inv_date' => 'required|date',
         'billing_month' => 'required',
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        'reference_number' => 'required|string|max:255',
+        'reference_number' => 'nullable|string|max:255',
         'leasing_company_invoice_number' => 'nullable|string|max:255',
-=======
-        'reference_number' => 'nullable|string|max:255',
->>>>>>> Stashed changes
-=======
-        'reference_number' => 'nullable|string|max:255',
->>>>>>> Stashed changes
-=======
-        'reference_number' => 'nullable|string|max:255',
->>>>>>> Stashed changes
-=======
-        'reference_number' => 'nullable|string|max:255',
->>>>>>> Stashed changes
         'bike_id' => 'required|array|min:1',
         'bike_id.*' => 'required',
         'rental_amount' => 'required|array|min:1',
@@ -623,10 +564,6 @@ class LeasingCompaniesController extends AppBaseController
 
       $invoice = $this->leasingCompanyInvoicesRepository->record($request);
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
       // Build success message with skipped bikes info
       $successMessage = 'Invoice created successfully.';
       if (!empty($skippedBikes)) {
@@ -637,14 +574,6 @@ class LeasingCompaniesController extends AppBaseController
         $successMessage .= ' Note: ' . count($skippedBikes) . ' inactive/returned bike(s) were automatically excluded: ' . $skippedList . '.';
       }
 
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
       if ($request->ajax()) {
         return response()->json([
           'message' => $successMessage,
@@ -652,23 +581,7 @@ class LeasingCompaniesController extends AppBaseController
         ]);
       }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
       Flash::success($successMessage);
-=======
-      Flash::success('Invoice created successfully.');
->>>>>>> Stashed changes
-=======
-      Flash::success('Invoice created successfully.');
->>>>>>> Stashed changes
-=======
-      Flash::success('Invoice created successfully.');
->>>>>>> Stashed changes
-=======
-      Flash::success('Invoice created successfully.');
->>>>>>> Stashed changes
       return redirect(route('leasingCompanyInvoices.show', $invoice->id));
     } catch (\Exception $e) {
       if ($request->ajax()) {
@@ -721,32 +634,8 @@ class LeasingCompaniesController extends AppBaseController
       ->prepend('Select', '')
       ->toArray();
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     // Default rental amount per company (no longer used - removed rental_amount column)
     $rentalAmountByCompany = [];
-=======
-    $rentalAmountByCompany = LeasingCompanies::where('status', 1)->pluck('rental_amount', 'id')->map(function ($v) {
-      return $v ?? 0;
-    })->toArray();
->>>>>>> Stashed changes
-=======
-    $rentalAmountByCompany = LeasingCompanies::where('status', 1)->pluck('rental_amount', 'id')->map(function ($v) {
-      return $v ?? 0;
-    })->toArray();
->>>>>>> Stashed changes
-=======
-    $rentalAmountByCompany = LeasingCompanies::where('status', 1)->pluck('rental_amount', 'id')->map(function ($v) {
-      return $v ?? 0;
-    })->toArray();
->>>>>>> Stashed changes
-=======
-    $rentalAmountByCompany = LeasingCompanies::where('status', 1)->pluck('rental_amount', 'id')->map(function ($v) {
-      return $v ?? 0;
-    })->toArray();
->>>>>>> Stashed changes
 
     return view('leasing_company_invoices.edit', compact('invoice', 'leasingCompanies', 'bikes', 'rentalAmountByCompany'));
   }
@@ -768,24 +657,8 @@ class LeasingCompaniesController extends AppBaseController
       $request->validate([
         'inv_date' => 'required|date',
         'billing_month' => 'required',
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        'reference_number' => 'required|string|max:255',
-        'leasing_company_invoice_number' => 'required|string|max:255',
-=======
         'reference_number' => 'nullable|string|max:255',
->>>>>>> Stashed changes
-=======
-        'reference_number' => 'nullable|string|max:255',
->>>>>>> Stashed changes
-=======
-        'reference_number' => 'nullable|string|max:255',
->>>>>>> Stashed changes
-=======
-        'reference_number' => 'nullable|string|max:255',
->>>>>>> Stashed changes
+        'leasing_company_invoice_number' => 'nullable|string|max:255',
         'bike_id' => 'required|array|min:1',
         'bike_id.*' => 'required|exists:bikes,id',
         'rental_amount' => 'required|array|min:1',

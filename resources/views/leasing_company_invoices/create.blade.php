@@ -1,20 +1,4 @@
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 {!! Form::open(['route' => 'leasingCompanyInvoices.store', 'id' => 'formajax', 'files' => true]) !!}
-=======
-{!! Form::open(['route' => 'leasingCompanyInvoices.store', 'id' => 'formajax']) !!}
->>>>>>> Stashed changes
-=======
-{!! Form::open(['route' => 'leasingCompanyInvoices.store', 'id' => 'formajax']) !!}
->>>>>>> Stashed changes
-=======
-{!! Form::open(['route' => 'leasingCompanyInvoices.store', 'id' => 'formajax']) !!}
->>>>>>> Stashed changes
-=======
-{!! Form::open(['route' => 'leasingCompanyInvoices.store', 'id' => 'formajax']) !!}
->>>>>>> Stashed changes
 <input type="hidden" id="reload_page" value="0">
 <input type="hidden" id="redirect_url" value="">
 

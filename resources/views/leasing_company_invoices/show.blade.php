@@ -112,6 +112,7 @@
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
             body,
             *,
@@ -135,6 +136,8 @@
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
             body, *, .primary-header, .secondary-header, .accent-total, .light-header, .amount-highlight, .success-highlight, .yellow {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
@@ -142,6 +145,9 @@
             .print-btn, .no-print { display: none !important; }
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -164,7 +170,11 @@
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+=======
+            $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+>>>>>>> Stashed changes
 =======
             $settings = DB::table('settings')->pluck('value', 'name')->toArray();
 >>>>>>> Stashed changes
@@ -200,6 +210,7 @@
             <tr>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Invoice No:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->invoice_number ?? 'LI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT) }}</td>
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
@@ -240,6 +251,8 @@
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Reference Number:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->reference_number ?? '-' }}</td>
             </tr>
@@ -262,6 +275,9 @@
                 <td style="border: 1px solid #000; padding: 4px 6px;"></td>
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -273,6 +289,7 @@
         <!-- Leasing Company Details Section -->
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
             <tr>
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
@@ -290,6 +307,8 @@
             </tr>
             @endif
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -312,6 +331,9 @@
             </tr>
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -339,6 +361,7 @@
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             $running_total = 0;
             @endphp
             @foreach($invoice->items as $key => $item)
@@ -349,6 +372,8 @@
             $proratedAmount = $rowTotal - $vatAmtRow;
             $running_total += $rowTotal;
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -364,6 +389,9 @@
                 $running_total += $rowTotal;
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -386,6 +414,7 @@
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             $items_total = $running_total;
             @endphp
             <tr class="accent-total">
@@ -398,12 +427,17 @@
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
                 $items_total = $running_total;
             @endphp
             <tr class="accent-total">
                 <td colspan="7" style="text-align:right; padding: 8px;">ITEMS TOTAL</td>
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -419,7 +453,11 @@
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                 <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ \App\Helpers\Helpers::numberToWords($invoice->total_amount ?? 0) }} AED Only</td>
+=======
+                <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ number_format($invoice->total_amount ?? 0, 2) }} AED</td>
+>>>>>>> Stashed changes
 =======
                 <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ number_format($invoice->total_amount ?? 0, 2) }} AED</td>
 >>>>>>> Stashed changes
@@ -463,7 +501,11 @@
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 </html>
+=======
+</html>
+>>>>>>> Stashed changes
 =======
 </html>
 >>>>>>> Stashed changes

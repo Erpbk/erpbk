@@ -15,7 +15,10 @@ use Illuminate\Support\Facades\DB;
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 use Illuminate\Support\Facades\Storage;
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -56,6 +59,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 
             $input['billing_month'] = $request->billing_month . "-01";
 
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
@@ -186,6 +190,36 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                 $invoice = LeasingCompanyInvoice::create($input);
 
 >>>>>>> Stashed changes
+=======
+            if ($id) {
+                $invoice = LeasingCompanyInvoice::where('id', $id)->first();
+
+                // Check for duplicate only if leasing_company_id or billing_month is being changed
+                $existingInvoice = LeasingCompanyInvoice::where('leasing_company_id', $input['leasing_company_id'])
+                    ->where('billing_month', $input['billing_month'])
+                    ->where('id', '!=', $id)
+                    ->first();
+
+                if ($existingInvoice) {
+                    throw new \Exception('An invoice for this leasing company has already been generated for the selected billing month.');
+                }
+
+                $invoice->update($input);
+                LeasingCompanyInvoiceItem::where('inv_id', $id)->delete();
+            } else {
+                // Check for duplicate invoice for same leasing company and billing month
+                $existingInvoice = LeasingCompanyInvoice::where('leasing_company_id', $input['leasing_company_id'])
+                    ->where('billing_month', $input['billing_month'])
+                    ->first();
+
+                if ($existingInvoice) {
+                    throw new \Exception('An invoice for this leasing company has already been generated for the selected billing month.');
+                }
+
+                $input['status'] = 0; // Unpaid for new invoices
+                $invoice = LeasingCompanyInvoice::create($input);
+
+>>>>>>> Stashed changes
                 // Generate invoice number if not provided
                 if (empty($invoice->invoice_number)) {
                     $invoice->invoice_number = 'LCI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT);
@@ -196,6 +230,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
             // Get VAT percentage
             $vatPercentage = Common::getSetting('vat_percentage') ?? 5;
             $subtotal = 0;
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
@@ -210,12 +245,17 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 
             // Process bike items - validate bikes belong to leasing company and are active
             $billingMonthDate = \Carbon\Carbon::parse($input['billing_month']);
             $daysInMonth = (int) $billingMonthDate->daysInMonth;
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -241,6 +281,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                             : 30;
                         $days = min($days, 30);
 
@@ -252,6 +293,8 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
                             : $daysInMonth;
                         $days = min($days, $daysInMonth);
 
@@ -259,6 +302,9 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                         $proratedAmount = $monthlyRate * ($days / $daysInMonth);
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -273,10 +319,14 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
                         // Sum up subtotal and VAT from each item
                         $subtotal += $proratedAmount;
                         $totalVat += $taxAmount;
+=======
+                        $subtotal += $proratedAmount;
+>>>>>>> Stashed changes
 =======
                         $subtotal += $proratedAmount;
 >>>>>>> Stashed changes
@@ -305,8 +355,13 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             // Use summed totals from actual items (not recalculated)
             $vat = $totalVat;
+=======
+            // Calculate totals
+            $vat = $subtotal * ($vatPercentage / 100);
+>>>>>>> Stashed changes
 =======
             // Calculate totals
             $vat = $subtotal * ($vatPercentage / 100);
@@ -352,10 +407,15 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
      * Create ledger entries for an invoice.
      * Debit: VAT Account (1023) with VAT amount
      * Debit: Leasing Expense Account (1129) with subtotal (excluding VAT)
      * Credit: Leasing Company Account with total amount (including VAT)
+=======
+     * Create ledger entries (debit leasing expense, credit leasing company) for an invoice.
+     * Used by record() and by cloneInvoice() so creation and clone behave the same.
+>>>>>>> Stashed changes
 =======
      * Create ledger entries (debit leasing expense, credit leasing company) for an invoice.
      * Used by record() and by cloneInvoice() so creation and clone behave the same.
@@ -382,6 +442,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
         }
 
         $trans_code = $transCode !== null ? $transCode : Account::trans_code();
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
@@ -421,6 +482,11 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
         $narration = "Leasing Company Invoice #" . ($invoice->invoice_number ?? $invoice->id) . ' - ' . ($invoice->descriptions ?? 'Rental Invoice');
 
 >>>>>>> Stashed changes
+=======
+        $totalAmount = (float) $invoice->total_amount;
+        $narration = "Leasing Company Invoice #" . ($invoice->invoice_number ?? $invoice->id) . ' - ' . ($invoice->descriptions ?? 'Rental Invoice');
+
+>>>>>>> Stashed changes
         $debitAccountId = HeadAccount::LEASING_EXPENSE_ACCOUNT;
         $debitAccountExists = DB::table('accounts')->where('id', $debitAccountId)->whereNull('deleted_at')->exists();
         if (!$debitAccountExists) {
@@ -429,6 +495,9 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                 'Please run: php artisan migrate (to create it) or add this account manually in Chart of Accounts.'
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -442,6 +511,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 
         $transactionService = new TransactionService();
         try {
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
@@ -460,11 +530,16 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
             $transactionService->recordTransaction([
                 'account_id' => $debitAccountId,
 >>>>>>> Stashed changes
+=======
+            $transactionService->recordTransaction([
+                'account_id' => $debitAccountId,
+>>>>>>> Stashed changes
                 'reference_id' => $invoice->id,
                 'reference_type' => 'LeasingCompanyInvoice',
                 'trans_code' => $trans_code,
                 'trans_date' => $transDate,
                 'narration' => $narration,
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
@@ -492,12 +567,17 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
                 'debit' => $totalAmount,
                 'billing_month' => $billingMonthStr,
             ], true);
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes

@@ -21,7 +21,10 @@ class LeasingCompanyInvoice extends Model
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         'leasing_company_invoice_number',
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -58,8 +61,12 @@ class LeasingCompanyInvoice extends Model
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         'reference_number' => 'required|string|max:255',
         'leasing_company_invoice_number' => 'required|string|max:255',
+=======
+        'reference_number' => 'nullable|string|max:255',
+>>>>>>> Stashed changes
 =======
         'reference_number' => 'nullable|string|max:255',
 >>>>>>> Stashed changes

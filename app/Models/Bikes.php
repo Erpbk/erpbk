@@ -36,7 +36,10 @@ class Bikes extends Model
     'insurance_co',
     'customer_id',
     'contract_number',
-    'policy_no'
+    'policy_no',
+    'current_km',
+    'previous_km',
+    'maintenance_km',
   ];
 
   protected $casts = [
@@ -116,5 +119,36 @@ class Bikes extends Model
   public function customer()
   {
     return $this->belongsTo(Customers::class, 'customer_id');
+  }
+
+  public function maintenanceStatus(): string
+  {
+    if ($this->current_km === null || $this->previous_km === null || $this->maintenance_km === null) {
+        return 'missing_data';
+    }
+
+    $km = max(0, $this->current_km - $this->previous_km);
+    if ($km > $this->maintenance_km) {
+        return 'overdue';
+    }
+    if ($km >= ($this->maintenance_km * 0.8)) {
+        return 'due';
+    }
+    return 'good';
+  }
+
+  public function scopeWithMaintenanceStats($query)
+  {
+    return $query->selectRaw("
+        COUNT(*) as active,
+        SUM(CASE WHEN current_km IS NULL OR previous_km IS NULL OR maintenance_km IS NULL THEN 1 ELSE 0 END) as missingData,
+        SUM(CASE WHEN current_km - previous_km < maintenance_km * 0.8 THEN 1 ELSE 0 END) as good,
+        SUM(CASE WHEN current_km - previous_km BETWEEN maintenance_km * 0.8 AND maintenance_km THEN 1 ELSE 0 END) as due,
+        SUM(CASE WHEN current_km - previous_km > maintenance_km THEN 1 ELSE 0 END) as overdue
+    ");
+  }
+
+  public function maintenanceRecords(){
+    return $this->hasMany(BikeMaintenance::class,'bike_id','id');
   }
 }

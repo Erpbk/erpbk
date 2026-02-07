@@ -774,6 +774,11 @@
                 <a href="{{route('bikes.files',$bikes->id)}}" class="nav-link @if(request()->segment(2) =='files') active @endif"><i class="fa fa-file-lines"></i>&nbsp;Files</a>
             </li>
         @endcan
+        @can('files_view')
+            <li class="nav-item">
+                <a href="{{route('bikes.maintenance',$bikes->id)}}" class="nav-link @if(request()->segment(2) =='maintenance') active @endif"><i class="fa fa-wrench"></i>&nbsp;Maintenance</a>
+            </li>
+        @endcan
       </ul>
     </div>
     <div class="card mb-5" id="cardBody" style="height:660px !important;overflow: auto;">

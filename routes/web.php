@@ -81,13 +81,21 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::any('bikes/contract_upload/{id?}', [\App\Http\Controllers\BikesController::class, 'contract_upload'])->name('bike_contract_upload');
     Route::get('bikes/delete/{id}', [\App\Http\Controllers\BikesController::class, 'destroy'])->name('bikes.delete');
     Route::get('bike/files/{id}', [\App\Http\Controllers\BikesController::class, 'files'])->name('bikes.files');
+    Route::get('bike/maintenance/{id}', [\App\Http\Controllers\BikesController::class, 'maintenance'])->name('bikes.maintenance');
+
 
     Route::resource('bikes', App\Http\Controllers\BikesController::class);
 
-
-
     Route::get('bikes/import-bikes', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.importbikes');
     Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
+
+    Route::resource('bikeMaintenance', \App\Http\Controllers\BikeMaintenanceController::class);
+    Route::get('bike-maintenance/overdue_for_maintenance', [\App\Http\Controllers\BikeMaintenanceController::class, 'overdueForMaintenance'])->name('bike-maintenance.overdue');
+    Route::get('bike-maintenance/due_for_maintenance', [\App\Http\Controllers\BikeMaintenanceController::class, 'dueForMaintenance'])->name('bike-maintenance.due');
+    Route::get('bike-maintenance/missing_data', [\App\Http\Controllers\BikeMaintenanceController::class, 'missingMaintenanceData'])->name('bike-maintenance.missing');
+    Route::any('bike-maintenance/{bike}/edit', [\App\Http\Controllers\BikeMaintenanceController::class, 'edit'])->name('bike-maintenance.editForm');
+    Route::any('bike-maintenance/{bike}/update', [\App\Http\Controllers\BikeMaintenanceController::class, 'update'])->name('bike-maintenance.update');
+    Route::get( 'bike-maintenance/{maintenance}/invoice',[\App\Http\Controllers\BikeMaintenanceController::class, 'Invoice'])->name('bike-maintenance.invoice');
 
 
     Route::resource('customers', App\Http\Controllers\CustomersController::class);

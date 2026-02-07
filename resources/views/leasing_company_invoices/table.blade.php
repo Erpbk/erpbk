@@ -74,8 +74,11 @@
                   @can('leasing_company_invoice_create')
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                   <a href="javascript:void(0);" data-action="{{ route('leasingCompanyInvoices.createFromClone', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Clone Invoice (Next Month)">
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
                   <a href="javascript:void(0);" onclick="cloneInvoice({{ $invoice->id }})" class='dropdown-item waves-effect'>
@@ -88,9 +91,15 @@
                   {!! Form::button('<i class="fa fa-trash mx-1"></i> Delete', [
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                   'type' => 'submit',
                   'class' => 'dropdown-item waves-effect border-0 bg-transparent w-100 text-start',
                   'onclick' => "return confirm('Are you sure you want to delete this invoice?');"
+=======
+                      'type' => 'submit',
+                      'class' => 'dropdown-item waves-effect border-0 bg-transparent w-100 text-start',
+                      'onclick' => "return confirm('Are you sure you want to delete this invoice?');"
+>>>>>>> Stashed changes
 =======
                       'type' => 'submit',
                       'class' => 'dropdown-item waves-effect border-0 bg-transparent w-100 text-start',
@@ -171,6 +180,10 @@
       });
    }
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+</script>
+>>>>>>> Stashed changes
+=======
 </script>
 >>>>>>> Stashed changes
 =======

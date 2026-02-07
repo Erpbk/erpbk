@@ -5,7 +5,11 @@
         <label>Invoice Date</label>
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         <input type="date" class="form-control" value="{{ isset($cloneFromInvoice) ? $cloneFromInvoice->inv_date : (isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d')) }}" name="inv_date" placeholder="Invoice Date">
+=======
+        <input type="date" class="form-control" value="{{ isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d') }}" name="inv_date" placeholder="Invoice Date">
+>>>>>>> Stashed changes
 =======
         <input type="date" class="form-control" value="{{ isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d') }}" name="inv_date" placeholder="Invoice Date">
 >>>>>>> Stashed changes
@@ -17,6 +21,7 @@
     <div class="col-md-4 form-group">
         <label>Leasing Company</label>
         @php
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
         $selectedLeasingCompany = isset($cloneFromInvoice) ? $cloneFromInvoice->leasing_company_id : (isset($invoice) ? $invoice->leasing_company_id : (isset($leasingCompany) && $leasingCompany ? $leasingCompany->id : null));
@@ -37,10 +42,16 @@
         @endphp
         {!! Form::select('leasing_company_id', $leasingCompanies, $selectedLeasingCompany, ['class' => 'form-select form-select-sm select2', 'id' => 'leasing_company_id']) !!}
 >>>>>>> Stashed changes
+=======
+        $selectedLeasingCompany = isset($invoice) ? $invoice->leasing_company_id : (isset($leasingCompany) && $leasingCompany ? $leasingCompany->id : null);
+        @endphp
+        {!! Form::select('leasing_company_id', $leasingCompanies, $selectedLeasingCompany, ['class' => 'form-select form-select-sm select2', 'id' => 'leasing_company_id']) !!}
+>>>>>>> Stashed changes
     </div>
 
     <div class="form-group col-md-2">
         <label>Billing Month</label>
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
         <input type="month" name="billing_month" class="form-control" value="{{ isset($nextBillingMonth) ? $nextBillingMonth : (isset($invoice) && $invoice->billing_month ? date('Y-m', strtotime($invoice->billing_month)) : date('Y-m')) }}" id="billing_month" />
@@ -69,6 +80,8 @@
 =======
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
         <input type="month" name="billing_month" class="form-control" value="@isset($invoice->billing_month){{ date('Y-m', strtotime($invoice->billing_month)) }}@else{{ date('Y-m') }}@endisset" id="billing_month" />
     </div>
 
@@ -81,6 +94,9 @@
         <label>Descriptions</label>
         {!! Form::textarea('descriptions', null, ['class' => 'form-control', 'placeholder' => 'Descriptions', 'rows' => 2]) !!}
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -97,6 +113,7 @@
         @foreach($invoice->items as $item)
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         @php
         // Always use 30 days for calculation regardless of actual month days
         $proratedEdit = $item->rental_amount * (($item->days ?? 1) / 30);
@@ -110,11 +127,16 @@
 =======
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
         <div class="row mb-2 invoice-item-row">
             <div class="col-md-3 form-group">
                 <label>Bike</label>
                 {!! Form::select('bike_id[]', $bikes, $item->bike_id, ['class' => 'form-select form-select-sm select2 bike-select']) !!}
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -129,6 +151,7 @@
             </div>
             <div class="col-md-2 form-group">
                 <label>Monthly Rate (AED)</label>
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
                 <input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
@@ -194,6 +217,8 @@
 =======
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
                 <input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" placeholder="0.00">
             </div>
             <div class="col-md-1 form-group">
@@ -204,6 +229,9 @@
                 <label>Amount</label>
                 <input type="text" class="form-control amount" readonly value="AED {{ number_format($item->total_amount, 2) }}" data-numeric-value="{{ $item->total_amount }}">
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -218,9 +246,15 @@
         <div class="row mb-2 invoice-item-row">
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             <div class="col-md-2 form-group">
                 <label>Bike <span class="text-danger">*</span></label>
                 {!! Form::select('bike_id[]', $bikes ?? [], null, ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+=======
+            <div class="col-md-3 form-group">
+                <label>Bike</label>
+                {!! Form::select('bike_id[]', $bikes ?? [], null, ['class' => 'form-select form-select-sm select2 bike-select']) !!}
+>>>>>>> Stashed changes
 =======
             <div class="col-md-3 form-group">
                 <label>Bike</label>
@@ -244,6 +278,7 @@
                 <label>Rate (AED)</label>
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                 <input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
             </div>
             <div class="col-md-1 form-group">
@@ -260,6 +295,8 @@
 =======
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
                 <input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onkeyup="leasing_calculate_price(this);" placeholder="0.00">
             </div>
             <div class="col-md-1 form-group">
@@ -270,6 +307,9 @@
                 <label>Amount</label>
                 <input type="text" class="form-control amount" readonly value="AED 0.00" data-numeric-value="0">
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -291,7 +331,11 @@
             <label>Notes</label>
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             {!! Form::textarea('notes', isset($cloneFromInvoice) ? ($cloneFromInvoice->notes ?? '') : (isset($invoice) ? $invoice->notes : null), ['class' => 'form-control', 'placeholder' => 'Notes', 'rows' => 2]) !!}
+=======
+            {!! Form::textarea('notes', null, ['class' => 'form-control', 'placeholder' => 'Notes', 'rows' => 2]) !!}
+>>>>>>> Stashed changes
 =======
             {!! Form::textarea('notes', null, ['class' => 'form-control', 'placeholder' => 'Notes', 'rows' => 2]) !!}
 >>>>>>> Stashed changes
@@ -306,6 +350,7 @@
             <label><strong>Sub Total</strong>:</label>
         </div>
         <div class="col-md-2 form-group">
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
             @php
@@ -325,11 +370,15 @@
 =======
             <input type="text" name="total_amount_display" class="form-control" id="sub_total" value="@isset($invoice->total_amount)AED {{ number_format($invoice->total_amount, 2) }}@else AED 0.00 @endisset" readonly>
 >>>>>>> Stashed changes
+=======
+            <input type="text" name="total_amount_display" class="form-control" id="sub_total" value="@isset($invoice->total_amount)AED {{ number_format($invoice->total_amount, 2) }}@else AED 0.00 @endisset" readonly>
+>>>>>>> Stashed changes
         </div>
     </div>
 </div>
 
 <script>
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
     // Define functions globally to ensure they're available for inline event handlers
@@ -340,6 +389,8 @@
 
     window.leasing_calculate_price = function(el) {
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
     function leasing_getDaysInMonth() {
@@ -353,6 +404,9 @@
 
     function leasing_calculate_price(el) {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -366,6 +420,7 @@
         var taxPct = parseFloat(row.find('.tax').val()) || 0;
         var taxAmt = prorated * (taxPct / 100);
         var total = prorated + taxAmt;
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
         row.find('.tax_amount_display').val(taxAmt.toFixed(2)).data('numeric-value', taxAmt);
@@ -386,6 +441,8 @@
     $(document).ready(function() {
         var defaultTax = {{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }};
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
         row.find('.amount').val('AED ' + total.toFixed(2)).data('numeric-value', total);
@@ -409,6 +466,9 @@
             }
         };
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -459,6 +519,7 @@
             var html = '<div class="row mb-2 invoice-item-row">' +
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                 '<div class="col-md-2 form-group"><label>Bike <span class="text-danger">*</span></label><select name="bike_id[]" class="form-select form-select-sm select2 bike-select" required>' + opts + '</select></div>' +
                 '<div class="col-md-1 form-group"><label>Qty</label><input type="number" name="qty[]" value="1" class="form-control qty" min="1" readonly></div>' +
                 '<div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" class="form-control days" min="1" value="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
@@ -469,6 +530,8 @@
 =======
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
                 '<div class="col-md-3 form-group"><label>Bike</label><select name="bike_id[]" class="form-select form-select-sm select2 bike-select">' + opts + '</select></div>' +
                 '<div class="col-md-1 form-group"><label>Qty</label><input type="number" name="qty[]" value="1" class="form-control qty" min="1" readonly></div>' +
                 '<div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" class="form-control days" min="1" value="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
@@ -476,6 +539,9 @@
                 '<div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="' + defaultTax + '" onkeyup="leasing_calculate_price(this);"></div>' +
                 '<div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="AED 0.00" data-numeric-value="0"></div>' +
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes

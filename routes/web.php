@@ -98,7 +98,10 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get( 'bike-maintenance/{maintenance}/invoice',[\App\Http\Controllers\BikeMaintenanceController::class, 'Invoice'])->name('bike-maintenance.invoice');
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
     Route::resource('customers', App\Http\Controllers\CustomersController::class)->parameters(['customers' => 'id']);

@@ -110,6 +110,7 @@
 
         @media print {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
             body,
             *,
@@ -129,11 +130,16 @@
                 display: none !important;
             }
 =======
+=======
+>>>>>>> Stashed changes
             body, *, .primary-header, .secondary-header, .accent-total, .light-header, .amount-highlight, .success-highlight, .yellow {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
             .print-btn, .no-print { display: none !important; }
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         }
     </style>
@@ -150,7 +156,11 @@
     <div class="invoice-box">
         @php
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+=======
+            $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+>>>>>>> Stashed changes
 =======
             $settings = DB::table('settings')->pluck('value', 'name')->toArray();
 >>>>>>> Stashed changes
@@ -180,6 +190,7 @@
             <tr>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Invoice No:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->invoice_number ?? 'LI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT) }}</td>
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Leasing Company Invoice No:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->leasing_company_invoice_number ?? 'N/A' }}</td>
@@ -214,6 +225,8 @@
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Contact Number:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->leasingCompany->contact_number ?? 'N/A' }}</td>
 =======
+=======
+>>>>>>> Stashed changes
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Reference Number:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->reference_number ?? '-' }}</td>
             </tr>
@@ -234,6 +247,9 @@
                 <td style="border: 1px solid #000; padding: 4px 6px;">{{ date('t/m/Y', strtotime($invoice->billing_month)) }}</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;"></td>
                 <td style="border: 1px solid #000; padding: 4px 6px;"></td>
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
             </tr>
         </table>
@@ -241,6 +257,7 @@
         <!-- Leasing Company Details Section -->
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
             <tr>
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Description:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; width: 80%;">{{ $invoice->descriptions ?? 'N/A' }}</td>
@@ -256,6 +273,8 @@
             </tr>
             @endif
 =======
+=======
+>>>>>>> Stashed changes
                 <td colspan="4" class="light-header" style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 14px;">
                     LEASING COMPANY DETAILS
                 </td>
@@ -272,6 +291,9 @@
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Description:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->descriptions ?? '-' }}</td>
             </tr>
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         </table>
 
@@ -293,6 +315,7 @@
             </tr>
             @php
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             $running_total = 0;
             @endphp
             @foreach($invoice->items as $key => $item)
@@ -303,6 +326,8 @@
             $proratedAmount = $rowTotal - $vatAmtRow;
             $running_total += $rowTotal;
 =======
+=======
+>>>>>>> Stashed changes
                 $running_total = 0;
             @endphp
             @foreach($invoice->items as $key => $item)
@@ -312,6 +337,9 @@
                 $rowTotal = $item->total_amount ?? ($item->rental_amount + $vatAmtRow);
                 $proratedAmount = $rowTotal - $vatAmtRow;
                 $running_total += $rowTotal;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
             @endphp
             <tr>
@@ -328,6 +356,7 @@
             @endforeach
             @php
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             $items_total = $running_total;
             @endphp
             <tr class="accent-total">
@@ -336,10 +365,15 @@
                 <td style="border: 1px solid #000; padding: 4px 6px; text-align: right;">{{ $invoice->items->count() ?? 0 }} Bikes</td>
                 <td colspan="5" style="text-align:right; padding: 8px;">ITEMS TOTAL</td>
 =======
+=======
+>>>>>>> Stashed changes
                 $items_total = $running_total;
             @endphp
             <tr class="accent-total">
                 <td colspan="7" style="text-align:right; padding: 8px;">ITEMS TOTAL</td>
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
                 <td colspan="2" class="num" style="padding: 8px; font-size: 14px;">{{ number_format($invoice->total_amount ?? $items_total, 2) }}</td>
             </tr>
@@ -349,7 +383,11 @@
         <table class="no-border">
             <tr>
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                 <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ \App\Helpers\Helpers::numberToWords($invoice->total_amount ?? 0) }} AED Only</td>
+=======
+                <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ number_format($invoice->total_amount ?? 0, 2) }} AED</td>
+>>>>>>> Stashed changes
 =======
                 <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ number_format($invoice->total_amount ?? 0, 2) }} AED</td>
 >>>>>>> Stashed changes
@@ -385,7 +423,11 @@
 </body>
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 </html>
+=======
+</html>
+>>>>>>> Stashed changes
 =======
 </html>
 >>>>>>> Stashed changes

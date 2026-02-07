@@ -97,7 +97,10 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::any('bike-maintenance/{bike}/update', [\App\Http\Controllers\BikeMaintenanceController::class, 'update'])->name('bike-maintenance.update');
     Route::get( 'bike-maintenance/{maintenance}/invoice',[\App\Http\Controllers\BikeMaintenanceController::class, 'Invoice'])->name('bike-maintenance.invoice');
 
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
     Route::resource('customers', App\Http\Controllers\CustomersController::class)->parameters(['customers' => 'id']);
     Route::get('customer/ledger/{id}', [\App\Http\Controllers\CustomersController::class, 'ledger'])->name('customer.ledger');
     Route::get('customer/files/{id}', [\App\Http\Controllers\CustomersController::class, 'files'])->name('customer.files');

@@ -12,7 +12,10 @@ use App\Models\Transactions;
 use App\Repositories\BaseRepository;
 use App\Services\TransactionService;
 use Illuminate\Support\Facades\DB;
+<<<<<<< Updated upstream
 use Illuminate\Support\Facades\Storage;
+=======
+>>>>>>> Stashed changes
 
 class LeasingCompanyInvoicesRepository extends BaseRepository
 {
@@ -47,6 +50,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 
             $input['billing_month'] = $request->billing_month . "-01";
 
+<<<<<<< Updated upstream
             // Handle file upload
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
@@ -61,12 +65,34 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                 $existingInvoice = LeasingCompanyInvoice::where('leasing_company_id', $input['leasing_company_id'])
                     ->where('billing_month', $input['billing_month'])
                     ->where('id', '!=', $id)
+=======
+            if ($id) {
+                $invoice = LeasingCompanyInvoice::where('id', $id)->first();
+
+                // Check for duplicate only if leasing_company_id or billing_month is being changed
+                $existingInvoice = LeasingCompanyInvoice::where('leasing_company_id', $input['leasing_company_id'])
+                    ->where('billing_month', $input['billing_month'])
+                    ->where('id', '!=', $id)
                     ->first();
 
                 if ($existingInvoice) {
                     throw new \Exception('An invoice for this leasing company has already been generated for the selected billing month.');
                 }
 
+                $invoice->update($input);
+                LeasingCompanyInvoiceItem::where('inv_id', $id)->delete();
+            } else {
+                // Check for duplicate invoice for same leasing company and billing month
+                $existingInvoice = LeasingCompanyInvoice::where('leasing_company_id', $input['leasing_company_id'])
+                    ->where('billing_month', $input['billing_month'])
+>>>>>>> Stashed changes
+                    ->first();
+
+                if ($existingInvoice) {
+                    throw new \Exception('An invoice for this leasing company has already been generated for the selected billing month.');
+                }
+
+<<<<<<< Updated upstream
                 // Delete old attachment if new one is uploaded
                 if (isset($input['attachment']) && $invoice->attachment) {
                     Storage::disk('public')->delete($invoice->attachment);
@@ -87,6 +113,11 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                 $input['status'] = 0; // Unpaid for new invoices
                 $invoice = LeasingCompanyInvoice::create($input);
 
+=======
+                $input['status'] = 0; // Unpaid for new invoices
+                $invoice = LeasingCompanyInvoice::create($input);
+
+>>>>>>> Stashed changes
                 // Generate invoice number if not provided
                 if (empty($invoice->invoice_number)) {
                     $invoice->invoice_number = 'LCI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT);
@@ -97,12 +128,19 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
             // Get VAT percentage
             $vatPercentage = Common::getSetting('vat_percentage') ?? 5;
             $subtotal = 0;
+<<<<<<< Updated upstream
             $totalVat = 0;
 
             // Process bike items - validate bikes belong to leasing company and are active
             $billingMonthDate = \Carbon\Carbon::parse($input['billing_month']);
             // Always use 30 days for calculation regardless of actual month days
             $daysInMonth = 30;
+=======
+
+            // Process bike items - validate bikes belong to leasing company and are active
+            $billingMonthDate = \Carbon\Carbon::parse($input['billing_month']);
+            $daysInMonth = (int) $billingMonthDate->daysInMonth;
+>>>>>>> Stashed changes
 
             if (isset($request['bike_id']) && is_array($request['bike_id'])) {
                 foreach ($request['bike_id'] as $key => $bikeId) {
@@ -120,22 +158,34 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                         $monthlyRate = (float) $request['rental_amount'][$key];
                         $days = isset($request['days'][$key]) && (int) $request['days'][$key] > 0
                             ? (int) $request['days'][$key]
+<<<<<<< Updated upstream
                             : 30;
                         $days = min($days, 30);
 
                         // Prorated amount = monthly rate * (days / 30)
                         // Always use 30 days for consistency with frontend calculation
                         $proratedAmount = $monthlyRate * ($days / 30);
+=======
+                            : $daysInMonth;
+                        $days = min($days, $daysInMonth);
+
+                        // Prorated amount = monthly rate * (days / days in month)
+                        $proratedAmount = $monthlyRate * ($days / $daysInMonth);
+>>>>>>> Stashed changes
 
                         $itemTaxRate = isset($request['tax_rate'][$key]) && $request['tax_rate'][$key] > 0
                             ? (float) $request['tax_rate'][$key]
                             : $vatPercentage;
                         $taxAmount = $proratedAmount * ($itemTaxRate / 100);
                         $totalAmount = $proratedAmount + $taxAmount;
+<<<<<<< Updated upstream
 
                         // Sum up subtotal and VAT from each item
                         $subtotal += $proratedAmount;
                         $totalVat += $taxAmount;
+=======
+                        $subtotal += $proratedAmount;
+>>>>>>> Stashed changes
 
                         $itemData = [
                             'inv_id' => $invoice->id,
@@ -152,8 +202,13 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                 }
             }
 
+<<<<<<< Updated upstream
             // Use summed totals from actual items (not recalculated)
             $vat = $totalVat;
+=======
+            // Calculate totals
+            $vat = $subtotal * ($vatPercentage / 100);
+>>>>>>> Stashed changes
             $totalAmount = $subtotal + $vat;
 
             // Update invoice totals
@@ -184,10 +239,15 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
     }
 
     /**
+<<<<<<< Updated upstream
      * Create ledger entries for an invoice.
      * Debit: VAT Account (1023) with VAT amount
      * Debit: Leasing Expense Account (1129) with subtotal (excluding VAT)
      * Credit: Leasing Company Account with total amount (including VAT)
+=======
+     * Create ledger entries (debit leasing expense, credit leasing company) for an invoice.
+     * Used by record() and by cloneInvoice() so creation and clone behave the same.
+>>>>>>> Stashed changes
      *
      * @param LeasingCompanyInvoice $invoice
      * @param int|null $transCode If null, a new trans_code is generated.
@@ -202,6 +262,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
         }
 
         $trans_code = $transCode !== null ? $transCode : Account::trans_code();
+<<<<<<< Updated upstream
         $subtotal = (float) $invoice->subtotal;
         $vatAmount = (float) $invoice->vat;
         $totalAmount = (float) $invoice->total_amount;
@@ -224,6 +285,17 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
             throw new \Exception(
                 'VAT account (ID ' . $vatAccountId . ') not found in Chart of Accounts. ' .
                     'Please add this account in Chart of Accounts.'
+=======
+        $totalAmount = (float) $invoice->total_amount;
+        $narration = "Leasing Company Invoice #" . ($invoice->invoice_number ?? $invoice->id) . ' - ' . ($invoice->descriptions ?? 'Rental Invoice');
+
+        $debitAccountId = HeadAccount::LEASING_EXPENSE_ACCOUNT;
+        $debitAccountExists = DB::table('accounts')->where('id', $debitAccountId)->whereNull('deleted_at')->exists();
+        if (!$debitAccountExists) {
+            throw new \Exception(
+                'Leasing expense account (ID ' . $debitAccountId . ') not found in Chart of Accounts. ' .
+                'Please run: php artisan migrate (to create it) or add this account manually in Chart of Accounts.'
+>>>>>>> Stashed changes
             );
         }
 
@@ -232,14 +304,20 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 
         $transactionService = new TransactionService();
         try {
+<<<<<<< Updated upstream
             // 1. Debit Leasing Expense Account with subtotal (excluding VAT)
             $transactionService->recordTransaction([
                 'account_id' => $expenseAccountId,
+=======
+            $transactionService->recordTransaction([
+                'account_id' => $debitAccountId,
+>>>>>>> Stashed changes
                 'reference_id' => $invoice->id,
                 'reference_type' => 'LeasingCompanyInvoice',
                 'trans_code' => $trans_code,
                 'trans_date' => $transDate,
                 'narration' => $narration,
+<<<<<<< Updated upstream
                 'debit' => $subtotal,
                 'billing_month' => $billingMonthStr,
             ], true);
@@ -259,6 +337,12 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
             }
 
             // 3. Credit Leasing Company Account with total amount (including VAT)
+=======
+                'debit' => $totalAmount,
+                'billing_month' => $billingMonthStr,
+            ], true);
+
+>>>>>>> Stashed changes
             $transactionService->recordTransaction([
                 'account_id' => $leasingCompany->account_id,
                 'reference_id' => $invoice->id,

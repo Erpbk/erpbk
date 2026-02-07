@@ -109,6 +109,7 @@
         }
 
         @media print {
+<<<<<<< Updated upstream
 
             body,
             *,
@@ -127,6 +128,13 @@
             .no-print {
                 display: none !important;
             }
+=======
+            body, *, .primary-header, .secondary-header, .accent-total, .light-header, .amount-highlight, .success-highlight, .yellow {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .print-btn, .no-print { display: none !important; }
+>>>>>>> Stashed changes
         }
     </style>
 </head>
@@ -141,7 +149,11 @@
 
     <div class="invoice-box">
         @php
+<<<<<<< Updated upstream
         $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+=======
+            $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+>>>>>>> Stashed changes
         @endphp
         <table width="100%" style="font-family: sans-serif;">
             <tr>
@@ -168,6 +180,7 @@
             <tr>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Invoice No:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->invoice_number ?? 'LI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT) }}</td>
+<<<<<<< Updated upstream
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Leasing Company Invoice No:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->leasing_company_invoice_number ?? 'N/A' }}</td>
             </tr>
@@ -200,12 +213,35 @@
                 <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->leasingCompany->contact_person ?? 'N/A' }}</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Contact Number:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->leasingCompany->contact_number ?? 'N/A' }}</td>
+=======
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Reference Number:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->reference_number ?? '-' }}</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Leasing Company:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->leasingCompany->name ?? 'N/A' }}</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Invoice Date:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->inv_date ? \Carbon\Carbon::parse($invoice->inv_date)->format('d/m/Y') : '-' }}</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Billing Month:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px;">{{ date('M-Y', strtotime($invoice->billing_month)) }}</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Service Period From:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px;">{{ date('01/m/Y', strtotime($invoice->billing_month)) }}</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Service Period To:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px;">{{ date('t/m/Y', strtotime($invoice->billing_month)) }}</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;"></td>
+                <td style="border: 1px solid #000; padding: 4px 6px;"></td>
+>>>>>>> Stashed changes
             </tr>
         </table>
 
         <!-- Leasing Company Details Section -->
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
             <tr>
+<<<<<<< Updated upstream
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Description:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; width: 80%;">{{ $invoice->descriptions ?? 'N/A' }}</td>
             </tr>
@@ -219,6 +255,24 @@
                 </td>
             </tr>
             @endif
+=======
+                <td colspan="4" class="light-header" style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 14px;">
+                    LEASING COMPANY DETAILS
+                </td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Company Name:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->leasingCompany->name ?? 'N/A' }}</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Contact Person:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->leasingCompany->contact_person ?? '-' }}</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Contact Number:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->leasingCompany->contact_number ?? '-' }}</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Description:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->descriptions ?? '-' }}</td>
+            </tr>
+>>>>>>> Stashed changes
         </table>
 
         <!-- Main Items Table (same structure as rider invoice) -->
@@ -238,6 +292,7 @@
                 <th class="secondary-header">Amount</th>
             </tr>
             @php
+<<<<<<< Updated upstream
             $running_total = 0;
             @endphp
             @foreach($invoice->items as $key => $item)
@@ -247,6 +302,17 @@
             $rowTotal = $item->total_amount ?? ($item->rental_amount + $vatAmtRow);
             $proratedAmount = $rowTotal - $vatAmtRow;
             $running_total += $rowTotal;
+=======
+                $running_total = 0;
+            @endphp
+            @foreach($invoice->items as $key => $item)
+            @php
+                $vatRate = $item->tax_rate ?? 0;
+                $vatAmtRow = $item->tax_amount ?? 0;
+                $rowTotal = $item->total_amount ?? ($item->rental_amount + $vatAmtRow);
+                $proratedAmount = $rowTotal - $vatAmtRow;
+                $running_total += $rowTotal;
+>>>>>>> Stashed changes
             @endphp
             <tr>
                 <td>{{ $key + 1 }}</td>
@@ -261,6 +327,7 @@
             </tr>
             @endforeach
             @php
+<<<<<<< Updated upstream
             $items_total = $running_total;
             @endphp
             <tr class="accent-total">
@@ -268,6 +335,12 @@
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold;">Total Bikes:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; text-align: right;">{{ $invoice->items->count() ?? 0 }} Bikes</td>
                 <td colspan="5" style="text-align:right; padding: 8px;">ITEMS TOTAL</td>
+=======
+                $items_total = $running_total;
+            @endphp
+            <tr class="accent-total">
+                <td colspan="7" style="text-align:right; padding: 8px;">ITEMS TOTAL</td>
+>>>>>>> Stashed changes
                 <td colspan="2" class="num" style="padding: 8px; font-size: 14px;">{{ number_format($invoice->total_amount ?? $items_total, 2) }}</td>
             </tr>
         </table>
@@ -275,7 +348,11 @@
         <!-- Amount in Words -->
         <table class="no-border">
             <tr>
+<<<<<<< Updated upstream
                 <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ \App\Helpers\Helpers::numberToWords($invoice->total_amount ?? 0) }} AED Only</td>
+=======
+                <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ number_format($invoice->total_amount ?? 0, 2) }} AED</td>
+>>>>>>> Stashed changes
             </tr>
         </table>
 
@@ -307,4 +384,8 @@
 
 </body>
 
+<<<<<<< Updated upstream
 </html>
+=======
+</html>
+>>>>>>> Stashed changes

@@ -18,7 +18,10 @@ class LeasingCompanyInvoice extends Model
         'billing_month',
         'invoice_number',
         'reference_number',
+<<<<<<< Updated upstream
         'leasing_company_invoice_number',
+=======
+>>>>>>> Stashed changes
         'descriptions',
         'subtotal',
         'vat',
@@ -46,8 +49,12 @@ class LeasingCompanyInvoice extends Model
         'leasing_company_id' => 'required|exists:leasing_companies,id',
         'billing_month' => 'required|date',
         'invoice_number' => 'nullable|string|max:255',
+<<<<<<< Updated upstream
         'reference_number' => 'required|string|max:255',
         'leasing_company_invoice_number' => 'required|string|max:255',
+=======
+        'reference_number' => 'nullable|string|max:255',
+>>>>>>> Stashed changes
         'descriptions' => 'nullable|string',
         'notes' => 'nullable|string',
         'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',

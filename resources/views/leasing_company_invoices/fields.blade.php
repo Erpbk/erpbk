@@ -3,12 +3,17 @@
 <div class="row">
     <div class="col-md-2 form-group">
         <label>Invoice Date</label>
+<<<<<<< Updated upstream
         <input type="date" class="form-control" value="{{ isset($cloneFromInvoice) ? $cloneFromInvoice->inv_date : (isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d')) }}" name="inv_date" placeholder="Invoice Date">
+=======
+        <input type="date" class="form-control" value="{{ isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d') }}" name="inv_date" placeholder="Invoice Date">
+>>>>>>> Stashed changes
     </div>
 
     <div class="col-md-4 form-group">
         <label>Leasing Company</label>
         @php
+<<<<<<< Updated upstream
         $selectedLeasingCompany = isset($cloneFromInvoice) ? $cloneFromInvoice->leasing_company_id : (isset($invoice) ? $invoice->leasing_company_id : (isset($leasingCompany) && $leasingCompany ? $leasingCompany->id : null));
         $isClone = isset($cloneFromInvoice);
         @endphp
@@ -17,10 +22,16 @@
         <input type="hidden" name="leasing_company_id" value="{{ $selectedLeasingCompany }}">
         <small class="text-muted">Leasing company is locked when cloning an invoice.</small>
         @endif
+=======
+        $selectedLeasingCompany = isset($invoice) ? $invoice->leasing_company_id : (isset($leasingCompany) && $leasingCompany ? $leasingCompany->id : null);
+        @endphp
+        {!! Form::select('leasing_company_id', $leasingCompanies, $selectedLeasingCompany, ['class' => 'form-select form-select-sm select2', 'id' => 'leasing_company_id']) !!}
+>>>>>>> Stashed changes
     </div>
 
     <div class="form-group col-md-2">
         <label>Billing Month</label>
+<<<<<<< Updated upstream
         <input type="month" name="billing_month" class="form-control" value="{{ isset($nextBillingMonth) ? $nextBillingMonth : (isset($invoice) && $invoice->billing_month ? date('Y-m', strtotime($invoice->billing_month)) : date('Y-m')) }}" id="billing_month" />
     </div>
 
@@ -44,6 +55,19 @@
     <div class="col-md-12 form-group">
         <label>Descriptions</label>
         {!! Form::textarea('descriptions', isset($cloneFromInvoice) ? $cloneFromInvoice->descriptions : null, ['class' => 'form-control', 'placeholder' => 'Descriptions', 'rows' => 2]) !!}
+=======
+        <input type="month" name="billing_month" class="form-control" value="@isset($invoice->billing_month){{ date('Y-m', strtotime($invoice->billing_month)) }}@else{{ date('Y-m') }}@endisset" id="billing_month" />
+    </div>
+
+    <div class="col-md-2 form-group">
+        <label>Reference Number</label>
+        <input type="text" name="reference_number" class="form-control" value="{{ isset($invoice) ? $invoice->reference_number : '' }}" placeholder="Reference No.">
+    </div>
+
+    <div class="col-md-12 form-group">
+        <label>Descriptions</label>
+        {!! Form::textarea('descriptions', null, ['class' => 'form-control', 'placeholder' => 'Descriptions', 'rows' => 2]) !!}
+>>>>>>> Stashed changes
     </div>
 </div>
 
@@ -55,6 +79,7 @@
     <div id="rows-container">
         @isset($invoice)
         @foreach($invoice->items as $item)
+<<<<<<< Updated upstream
         @php
         // Always use 30 days for calculation regardless of actual month days
         $proratedEdit = $item->rental_amount * (($item->days ?? 1) / 30);
@@ -65,6 +90,12 @@
             <div class="col-md-2 form-group">
                 <label>Bike <span class="text-danger">*</span></label>
                 {!! Form::select('bike_id[]', $bikes, $item->bike_id, ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+=======
+        <div class="row mb-2 invoice-item-row">
+            <div class="col-md-3 form-group">
+                <label>Bike</label>
+                {!! Form::select('bike_id[]', $bikes, $item->bike_id, ['class' => 'form-select form-select-sm select2 bike-select']) !!}
+>>>>>>> Stashed changes
             </div>
             <div class="col-md-1 form-group">
                 <label>Qty</label>
@@ -76,6 +107,7 @@
             </div>
             <div class="col-md-2 form-group">
                 <label>Monthly Rate (AED)</label>
+<<<<<<< Updated upstream
                 <input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
             </div>
             <div class="col-md-1 form-group">
@@ -136,6 +168,17 @@
             <div class="col-md-2 form-group">
                 <label>Amount</label>
                 <input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalClone, 2) }}" data-numeric-value="{{ $lineTotalClone }}">
+=======
+                <input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" placeholder="0.00">
+            </div>
+            <div class="col-md-1 form-group">
+                <label>Tax %</label>
+                <input type="number" name="tax_rate[]" value="{{ $item->tax_rate }}" class="form-control tax" step="0.01" onkeyup="leasing_calculate_price(this);" placeholder="5">
+            </div>
+            <div class="col-md-2 form-group">
+                <label>Amount</label>
+                <input type="text" class="form-control amount" readonly value="AED {{ number_format($item->total_amount, 2) }}" data-numeric-value="{{ $item->total_amount }}">
+>>>>>>> Stashed changes
             </div>
             <div class="form-group col-md-1 d-flex align-items-end">
                 <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
@@ -145,9 +188,15 @@
         @endisset
 
         <div class="row mb-2 invoice-item-row">
+<<<<<<< Updated upstream
             <div class="col-md-2 form-group">
                 <label>Bike <span class="text-danger">*</span></label>
                 {!! Form::select('bike_id[]', $bikes ?? [], null, ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+=======
+            <div class="col-md-3 form-group">
+                <label>Bike</label>
+                {!! Form::select('bike_id[]', $bikes ?? [], null, ['class' => 'form-select form-select-sm select2 bike-select']) !!}
+>>>>>>> Stashed changes
             </div>
             <div class="col-md-1 form-group">
                 <label>Qty</label>
@@ -159,6 +208,7 @@
             </div>
             <div class="col-md-2 form-group">
                 <label>Rate (AED)</label>
+<<<<<<< Updated upstream
                 <input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
             </div>
             <div class="col-md-1 form-group">
@@ -172,6 +222,17 @@
             <div class="col-md-2 form-group">
                 <label>Amount</label>
                 <input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0">
+=======
+                <input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onkeyup="leasing_calculate_price(this);" placeholder="0.00">
+            </div>
+            <div class="col-md-1 form-group">
+                <label>Tax %</label>
+                <input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="{{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }}" onkeyup="leasing_calculate_price(this);" placeholder="5">
+            </div>
+            <div class="col-md-2 form-group">
+                <label>Amount</label>
+                <input type="text" class="form-control amount" readonly value="AED 0.00" data-numeric-value="0">
+>>>>>>> Stashed changes
             </div>
             <div class="form-group col-md-1 d-flex align-items-end">
                 <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
@@ -188,7 +249,11 @@
     <div class="row mt-2">
         <div class="col-md-12 form-group">
             <label>Notes</label>
+<<<<<<< Updated upstream
             {!! Form::textarea('notes', isset($cloneFromInvoice) ? ($cloneFromInvoice->notes ?? '') : (isset($invoice) ? $invoice->notes : null), ['class' => 'form-control', 'placeholder' => 'Notes', 'rows' => 2]) !!}
+=======
+            {!! Form::textarea('notes', null, ['class' => 'form-control', 'placeholder' => 'Notes', 'rows' => 2]) !!}
+>>>>>>> Stashed changes
         </div>
     </div>
 
@@ -197,6 +262,7 @@
             <label><strong>Sub Total</strong>:</label>
         </div>
         <div class="col-md-2 form-group">
+<<<<<<< Updated upstream
             @php
             $calculatedTotal = 0;
             if(isset($invoice)) {
@@ -208,11 +274,15 @@
             }
             @endphp
             <input type="text" name="total_amount_display" class="form-control" id="sub_total" value="{{ isset($invoice) ? number_format($calculatedTotal, 2) : '0.00' }}" readonly>
+=======
+            <input type="text" name="total_amount_display" class="form-control" id="sub_total" value="@isset($invoice->total_amount)AED {{ number_format($invoice->total_amount, 2) }}@else AED 0.00 @endisset" readonly>
+>>>>>>> Stashed changes
         </div>
     </div>
 </div>
 
 <script>
+<<<<<<< Updated upstream
     // Define functions globally to ensure they're available for inline event handlers
     window.leasing_getDaysInMonth = function() {
         // Always use 30 days for calculation regardless of actual month days
@@ -220,6 +290,18 @@
     };
 
     window.leasing_calculate_price = function(el) {
+=======
+    function leasing_getDaysInMonth() {
+        var billingMonth = $('#billing_month').val();
+        if (!billingMonth) return 30;
+        var parts = billingMonth.split('-');
+        var year = parseInt(parts[0], 10);
+        var month = parseInt(parts[1], 10) - 1;
+        return new Date(year, month + 1, 0).getDate();
+    }
+
+    function leasing_calculate_price(el) {
+>>>>>>> Stashed changes
         var row = $(el).closest('.invoice-item-row');
         var monthlyRate = parseFloat(row.find('.rate').val()) || 0;
         var days = parseInt(row.find('.days').val(), 10) || 1;
@@ -230,6 +312,7 @@
         var taxPct = parseFloat(row.find('.tax').val()) || 0;
         var taxAmt = prorated * (taxPct / 100);
         var total = prorated + taxAmt;
+<<<<<<< Updated upstream
         row.find('.tax_amount_display').val(taxAmt.toFixed(2)).data('numeric-value', taxAmt);
         row.find('.amount').val(total.toFixed(2)).data('numeric-value', total);
         leasing_getTotal();
@@ -247,6 +330,28 @@
 
     $(document).ready(function() {
         var defaultTax = {{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }};
+=======
+        row.find('.amount').val('AED ' + total.toFixed(2)).data('numeric-value', total);
+        leasing_getTotal();
+    }
+
+    function leasing_getTotal() {
+        var total = 0;
+        $('#rows-container .invoice-item-row').each(function() {
+            var v = $(this).find('.amount').data('numeric-value');
+            if (v) total += parseFloat(v);
+        });
+        $('#sub_total').val('AED ' + total.toFixed(2));
+    }
+
+    $(document).ready(function() {
+        var defaultTax = {
+            {
+                \
+                App\ Helpers\ Common::getSetting('vat_percentage') ?? 5
+            }
+        };
+>>>>>>> Stashed changes
         var rentalByCompany = @json($rentalAmountByCompany ?? []);
         var $modalBody = $('#formajax').closest('.modal-body');
         if ($modalBody.length === 0) $modalBody = $('#modalTopbody');
@@ -292,6 +397,7 @@
                 opts += '<option value="' + id + '">' + leasingBikesOptions[id] + '</option>';
             }
             var html = '<div class="row mb-2 invoice-item-row">' +
+<<<<<<< Updated upstream
                 '<div class="col-md-2 form-group"><label>Bike <span class="text-danger">*</span></label><select name="bike_id[]" class="form-select form-select-sm select2 bike-select" required>' + opts + '</select></div>' +
                 '<div class="col-md-1 form-group"><label>Qty</label><input type="number" name="qty[]" value="1" class="form-control qty" min="1" readonly></div>' +
                 '<div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" class="form-control days" min="1" value="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
@@ -299,6 +405,14 @@
                 '<div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="' + defaultTax + '" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
                 '<div class="col-md-2 form-group"><label>Tax Amount (AED)</label><input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0"></div>' +
                 '<div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0"></div>' +
+=======
+                '<div class="col-md-3 form-group"><label>Bike</label><select name="bike_id[]" class="form-select form-select-sm select2 bike-select">' + opts + '</select></div>' +
+                '<div class="col-md-1 form-group"><label>Qty</label><input type="number" name="qty[]" value="1" class="form-control qty" min="1" readonly></div>' +
+                '<div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" class="form-control days" min="1" value="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
+                '<div class="col-md-2 form-group"><label>Monthly Rate (AED)</label><input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onkeyup="leasing_calculate_price(this);"></div>' +
+                '<div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="' + defaultTax + '" onkeyup="leasing_calculate_price(this);"></div>' +
+                '<div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="AED 0.00" data-numeric-value="0"></div>' +
+>>>>>>> Stashed changes
                 '<div class="form-group col-md-1 d-flex align-items-end"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>' +
                 '</div>';
             $('#rows-container').append(html);

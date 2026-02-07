@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 {!! Form::model($invoice, ['route' => ['leasingCompanyInvoices.update', $invoice->id], 'method' => 'put', 'id' => 'formajax', 'files' => true]) !!}
+=======
+{!! Form::model($invoice, ['route' => ['leasingCompanyInvoices.update', $invoice->id], 'method' => 'put', 'id' => 'formajax']) !!}
+>>>>>>> Stashed changes
 
 <div class="card-body">
     <div class="row">

@@ -125,11 +125,25 @@
 </li>
 @endcan
 @can('bike_view')
-<li class="menu-item {{ Request::is('bikes*') ? 'active' : '' }}">
-  <a href="{{ route('bikes.index') }}" class="menu-link">
+<li class="menu-item {{ Request::is('bikes*') ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-motorbike"></i>
-    <div>Bikes</div>
+    <div data-i18n="Front Pages">Bikes</div>
   </a>
+  <ul class="menu-sub">
+    <li class="menu-item {{ Request::is('bikes*') ? 'active' : '' }}">
+      <a href="{{ route('bikes.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-motorbike"></i>
+        <div>Bike List</div>
+      </a>
+    </li>
+    <li class="menu-item {{ Request::is('bikeMaintenance*') ? 'active' : '' }}">
+      <a href="{{ route('bike-maintenance.missing') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-motorbike"></i>
+        <div>Maintenance Overview</div>
+      </a>
+    </li>
+  </ul>
 </li>
 {{-- <li class="menu-item {{ Request::is('bikeHistories*') ? 'active' : '' }}">
 <a href="{{ route('bikeHistories.index') }}" class="menu-link">

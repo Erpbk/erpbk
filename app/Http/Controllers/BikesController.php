@@ -1151,6 +1151,12 @@ class BikesController extends AppBaseController
     return view('bikes.files', compact('missingFiles', 'files', 'bikes'));
   }
 
+  public function maintenance($id){
+    $bikes = Bikes::findOrFail($id);
+    $records = $bikes->maintenanceRecords()->orderBy('maintenance_date', 'desc')->get();
+    return view('bikes.maintenance', compact('bikes','records'));
+  }
+
   /**
    * Standardized response for bike deletion errors (supports both AJAX and regular requests).
    */

@@ -6,7 +6,7 @@
             <!-- Rider ID -->
             <div class="form-group col-sm-4">
                 {!! Form::label('rider_id', 'Rider ID:',['class'=>'required']) !!}
-                {!! Form::number('rider_id', null, ['class' => 'form-control','required', 'id' => 'rider_id_field']) !!}
+                {!! Form::text('rider_id', null, ['class' => 'form-control','required', 'id' => 'rider_id_field']) !!}
                 <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
                 @error('rider_id')
                 <span class="text-danger">{{ $message }}</span>

@@ -246,12 +246,7 @@
     };
 
     $(document).ready(function() {
-        var defaultTax = {
-            {
-                \
-                App\ Helpers\ Common::getSetting('vat_percentage') ?? 5
-            }
-        };
+        var defaultTax = {{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }};
         var rentalByCompany = @json($rentalAmountByCompany ?? []);
         var $modalBody = $('#formajax').closest('.modal-body');
         if ($modalBody.length === 0) $modalBody = $('#modalTopbody');

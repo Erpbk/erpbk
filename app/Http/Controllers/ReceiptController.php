@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Repositories\ReceiptsRepository;
 use App\Models\Receipt;
 use App\Models\Banks;
+use App\Models\LeasingCompanies;
 use App\Models\Transactions;
 use App\Models\Vouchers;
 use Illuminate\Http\Request;
@@ -36,182 +37,206 @@ class ReceiptController extends Controller
     public function create()
     {
         $accountId = request()->input('id') ?? null;
-        if($accountId){
+        $leasingCompanyId = request()->input('leasing_company_id') ?? null;
+
+        if ($accountId) {
             $bank = Banks::find($accountId);
-            return view('receipts.create',compact('bank'));
-        }
-        else
+            return view('receipts.create', compact('bank'));
+        } elseif ($leasingCompanyId) {
+            $leasingCompany = LeasingCompanies::find($leasingCompanyId);
+            return view('receipts.create', compact('leasingCompany'));
+        } else
             return view('receipts.create');
     }
 
     public function store(Request $request)
-{
-    
-    $rules = [
-        'reference' => 'nullable|string|max:255',
-        'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
-        'bank_id' => 'required|numeric|exists:banks,id',
-        'date_of_receipt' => 'required|date',
-        'billing_month' => 'required|date',
-        'description' => 'required|string|max:500',
-        'account_id' => 'required|array',
-        'account_id.*' => 'required|numeric|exists:accounts,id',
-        'narration' => 'required|array',
-        'narration.*' => 'required|string|max:500',
-        'cr_amount' => 'required|array|min:1',
-        'cr_amount.*' => 'required|numeric|min:0.01',
-        'status' => 'nullable|boolean',
-    ];
+    {
 
-    $messages = [
-        'bank_id.required' => 'Receiving Bank Account is Required',
-        'date_of_receipt.required' => 'Receipt date is Required',
-        'billing_month.required' => 'Billing month is Required',
-        'description.required' => 'Narration for Bank debit is Required',
-        'account_id.required' => 'At least one Payer Account is Required',
-        'account_id.*.required' => 'Each row must have an account selected',
-        'narration.*.required'=> 'All Narration Fields are required',
-        'cr_amount.required' => 'Credit amount is required',
-        'cr_amount.*.required' => 'All Credit amounts are required',
-        'cr_amount.*.min' => 'Credit Amount must be greater than 0',
-    ];
-
-    $this->validate($request, $rules, $messages);
-    
-    //Check if total debit equals total credit
-    $totalDebit = floatval($request->input('amount', 0)); 
-    $totalCredit = 0;
-    
-    $crAmounts = $request->input('cr_amount', []);
-    foreach ($crAmounts as $index => $amount) {
-        $totalCredit += floatval($amount);
-    }
-
-    if (abs($totalDebit - $totalCredit) > 0.01) {
-        if($request->ajax()){
-            return response()->json(['message' => 'Total debit ('.$totalDebit.') and credit ('.$totalCredit.') amounts must be equal.'],422);
-        }
-        Flash::error('Total debit ('.$totalDebit.') and credit ('.$totalCredit.') amounts must be equal.');
-        return redirect()->back()->withInput();
-    }
-    
-    $bank = Banks::find($request->input('bank_id'));
-    $input = $request->all();
-    
-    if (!$bank) {
-        if ($request->ajax()) {
-            return response()->json(['message' => 'Selected bank account not found'], 422);
-        }
-        Flash::error('Selected bank account not found.');
-        return redirect()->back()->withInput();
-    }
-
-    // Get the arrays from the form
-    $accountIds = $request->input('account_id', []);
-    $crAmounts = $request->input('cr_amount', []);
-    $narrations = $request->input('narration', []);
-
-    $input['created_by'] = auth()->id();
-    $input['billing_month'] = $input['billing_month'] . '-01';
-    $input['account_id'] = $bank->account_id;
-    $input['amount'] = $totalDebit; 
-    $input['payer_account_id'] = array_unique($accountIds);
-
-    try {
-        DB::beginTransaction();
-
-        $receipt = Receipt::create($input);
-        $transCode = \App\Helpers\Account::trans_code();
-        
-        $date = $input['date_of_receipt'] ?? now();
-        $billingMonth = $input['billing_month'];
-        $desc = $input['description']; 
-        
-        // DEBIT the BANK account
-        if ($totalDebit > 0) {
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $date,
-                'reference_id' => $receipt->id,
-                'reference_type' => 'RV',
-                'account_id' => $bank->account_id,
-                'credit' => 0,
-                'debit' => $totalDebit,
-                'billing_month' => $billingMonth,
-                'narration' => $desc,
-            ]);
-        }
-        
-        // CREDIT each payer account
-        foreach ($accountIds as $index => $accountId) {
-
-            $creditAmount = floatval($crAmounts[$index] ?? 0);
-            $narration = $narrations[$index] ?? ($desc . ' - Payment from Account ID: ' . $accountId);
-            
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $date,
-                'reference_id' => $receipt->id,
-                'reference_type' => 'RV',
-                'account_id' => $accountId,
-                'credit' => $creditAmount,
-                'debit' => 0,
-                'billing_month' => $billingMonth,
-                'narration' => $narration,
-            ]);
-        }
-
-        // voucher
-        $voucherData = [
-            'trans_date' => $date,
-            'trans_code' => $transCode,
-            'billing_month' => $billingMonth,
-            'payment_to' => $bank->account_id,
-            'amount' => $totalDebit,
-            'voucher_type' => 'RV',
-            'remarks' => 'Receipt Voucher',
-            'ref_id' => $receipt->id,
-            'Created_By' => auth()->id(),
-            'status' => 1,
+        $rules = [
+            'reference' => 'nullable|string|max:255',
+            'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
+            'bank_id' => 'required_without:leasing_company_id|nullable|numeric|exists:banks,id',
+            'leasing_company_id' => 'required_without:bank_id|nullable|numeric|exists:leasing_companies,id',
+            'date_of_receipt' => 'required|date',
+            'billing_month' => 'required|date',
+            'description' => 'required|string|max:500',
+            'account_id' => 'required|array',
+            'account_id.*' => 'required|numeric|exists:accounts,id',
+            'narration' => 'required|array',
+            'narration.*' => 'required|string|max:500',
+            'cr_amount' => 'required|array|min:1',
+            'cr_amount.*' => 'required|numeric|min:0.01',
+            'status' => 'nullable|boolean',
         ];
-        
-        if ($request->hasFile('attachment')) {
-            $file = $request->file('attachment');
-            $fileName = time() . '_' . $file->getClientOriginalName();
-            $file->storeAs('public/vouchers', $fileName);
-            $voucherData['attach_file'] = $fileName;
+
+        $messages = [
+            'bank_id.required_without' => 'Either Bank Account or Leasing Company is Required',
+            'leasing_company_id.required_without' => 'Either Bank Account or Leasing Company is Required',
+            'date_of_receipt.required' => 'Receipt date is Required',
+            'billing_month.required' => 'Billing month is Required',
+            'description.required' => 'Narration for Bank debit is Required',
+            'account_id.required' => 'At least one Payer Account is Required',
+            'account_id.*.required' => 'Each row must have an account selected',
+            'narration.*.required' => 'All Narration Fields are required',
+            'cr_amount.required' => 'Credit amount is required',
+            'cr_amount.*.required' => 'All Credit amounts are required',
+            'cr_amount.*.min' => 'Credit Amount must be greater than 0',
+        ];
+
+        $this->validate($request, $rules, $messages);
+
+        //Check if total debit equals total credit
+        $totalDebit = floatval($request->input('amount', 0));
+        $totalCredit = 0;
+
+        $crAmounts = $request->input('cr_amount', []);
+        foreach ($crAmounts as $index => $amount) {
+            $totalCredit += floatval($amount);
         }
 
-        $voucher = Vouchers::create($voucherData);
-        
-        // Update receipt with voucher info and detailed account data
-        $receipt->update([
-            'voucher_id' => $voucher->id,
-            'attachment' => $voucher->attach_file ?? null,
-        ]);
-        
-        DB::commit();
+        if (abs($totalDebit - $totalCredit) > 0.01) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Total debit (' . $totalDebit . ') and credit (' . $totalCredit . ') amounts must be equal.'], 422);
+            }
+            Flash::error('Total debit (' . $totalDebit . ') and credit (' . $totalCredit . ') amounts must be equal.');
+            return redirect()->back()->withInput();
+        }
 
-    } catch (\Exception $e) {
-        DB::rollBack();
-        \Log::error('Receipt creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-        
+        // Get bank or leasing company
+        $bank = null;
+        $leasingCompany = null;
+        $receivingAccountId = null;
+
+        if ($request->input('bank_id')) {
+            $bank = Banks::find($request->input('bank_id'));
+            if (!$bank) {
+                if ($request->ajax()) {
+                    return response()->json(['message' => 'Selected bank account not found'], 422);
+                }
+                Flash::error('Selected bank account not found.');
+                return redirect()->back()->withInput();
+            }
+            $receivingAccountId = $bank->account_id;
+        } elseif ($request->input('leasing_company_id')) {
+            $leasingCompany = LeasingCompanies::find($request->input('leasing_company_id'));
+            if (!$leasingCompany) {
+                if ($request->ajax()) {
+                    return response()->json(['message' => 'Selected leasing company not found'], 422);
+                }
+                Flash::error('Selected leasing company not found.');
+                return redirect()->back()->withInput();
+            }
+            $receivingAccountId = $leasingCompany->account_id;
+        }
+
+        $input = $request->all();
+
+        // Get the arrays from the form
+        $accountIds = $request->input('account_id', []);
+        $crAmounts = $request->input('cr_amount', []);
+        $narrations = $request->input('narration', []);
+
+        $input['created_by'] = auth()->id();
+        $input['billing_month'] = $input['billing_month'] . '-01';
+        $input['account_id'] = $receivingAccountId;
+        $input['amount'] = $totalDebit;
+        $input['payer_account_id'] = array_unique($accountIds);
+
+        try {
+            DB::beginTransaction();
+
+            $receipt = Receipt::create($input);
+            $transCode = \App\Helpers\Account::trans_code();
+
+            $date = $input['date_of_receipt'] ?? now();
+            $billingMonth = $input['billing_month'];
+            $desc = $input['description'];
+
+            // DEBIT the receiving account (BANK or LEASING COMPANY)
+            if ($totalDebit > 0) {
+                Transactions::create([
+                    'trans_code' => $transCode,
+                    'trans_date' => $date,
+                    'reference_id' => $receipt->id,
+                    'reference_type' => 'RV',
+                    'account_id' => $receivingAccountId,
+                    'credit' => 0,
+                    'debit' => $totalDebit,
+                    'billing_month' => $billingMonth,
+                    'narration' => $desc,
+                ]);
+            }
+
+            // CREDIT each payer account
+            foreach ($accountIds as $index => $accountId) {
+
+                $creditAmount = floatval($crAmounts[$index] ?? 0);
+                $narration = $narrations[$index] ?? ($desc . ' - Payment from Account ID: ' . $accountId);
+
+                Transactions::create([
+                    'trans_code' => $transCode,
+                    'trans_date' => $date,
+                    'reference_id' => $receipt->id,
+                    'reference_type' => 'RV',
+                    'account_id' => $accountId,
+                    'credit' => $creditAmount,
+                    'debit' => 0,
+                    'billing_month' => $billingMonth,
+                    'narration' => $narration,
+                ]);
+            }
+
+            // voucher
+            $voucherData = [
+                'trans_date' => $date,
+                'trans_code' => $transCode,
+                'reference_number' => $receipt->reference,
+                'billing_month' => $billingMonth,
+                'payment_to' => $receivingAccountId,
+                'amount' => $totalDebit,
+                'voucher_type' => 'RV',
+                'remarks' => 'Receipt Voucher',
+                'ref_id' => $receipt->id,
+                'Created_By' => auth()->id(),
+                'status' => 1,
+            ];
+
+            if ($request->hasFile('attachment')) {
+                $file = $request->file('attachment');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $file->storeAs('public/vouchers', $fileName);
+                $voucherData['attach_file'] = $fileName;
+            }
+
+            $voucher = Vouchers::create($voucherData);
+
+            // Update receipt with voucher info and detailed account data
+            $receipt->update([
+                'voucher_id' => $voucher->id,
+                'attachment' => $voucher->attach_file ?? null,
+            ]);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Receipt creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+
+            if ($request->ajax()) {
+                return response()->json(['message' => "An Error Occurred: " . $e->getMessage()], 500);
+            }
+
+            Flash::error('Error Occurred: ' . $e->getMessage());
+            return redirect()->back()->withInput();
+        }
+
         if ($request->ajax()) {
-            return response()->json(['message' => "An Error Occurred: " . $e->getMessage()], 500);
+            return response()->json([
+                "message" => "Receipt Added Successfully"
+            ]);
         }
-        
-        Flash::error('Error Occurred: ' . $e->getMessage());
-        return redirect()->back()->withInput();
-    }
 
-    if ($request->ajax()) {
-        return response()->json([
-            "message" => "Receipt Added Successfully"
-        ]);
-    }
-
-    Flash::success('Receipt added successfully.');
-    return redirect()->bacK();
+        Flash::success('Receipt added successfully.');
+        return redirect()->bacK();
     }
 
     public function show($id)
@@ -227,26 +252,35 @@ class ReceiptController extends Controller
     public function edit(Request $request, $id)
     {
         $receipt = Receipt::find($id);
-        $bank = Banks::find($receipt->bank_id);
         if (empty($receipt)) {
-            if($request->ajax()){
-                return response()->json(['message'=> 'Receipt Not found'],404);
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Receipt Not found'], 404);
             }
             Flash::error('Receipt not found');
             return redirect()->back();
         }
+
+        $bank = null;
+        $leasingCompany = null;
+
+        if ($receipt->bank_id) {
+            $bank = Banks::find($receipt->bank_id);
+        } elseif ($receipt->leasing_company_id) {
+            $leasingCompany = LeasingCompanies::find($receipt->leasing_company_id);
+        }
+
         $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
         $transactions = Transactions::where('trans_code', $receipt->voucher->trans_code)->get();
 
-        return view('receipts.edit', compact('receipt','bank','transactions'));
+        return view('receipts.edit', compact('receipt', 'bank', 'leasingCompany', 'transactions'));
     }
 
     public function update(Request $request, $id)
     {
         $receipt = Receipt::find($id);
         if (empty($receipt)) {
-            if($request->ajax()){
-                return response()->json(['message'=> 'Receipt Not Found'],500);
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Receipt Not Found'], 500);
             }
             Flash::error('Receipt not found!');
             return redirect()->back();
@@ -257,7 +291,8 @@ class ReceiptController extends Controller
         $rules = [
             'reference' => 'nullable|string|max:255',
             'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
-            'bank_id' => 'required|numeric|exists:banks,id',
+            'bank_id' => 'required_without:leasing_company_id|nullable|numeric|exists:banks,id',
+            'leasing_company_id' => 'required_without:bank_id|nullable|numeric|exists:leasing_companies,id',
             'date_of_receipt' => 'required|date',
             'billing_month' => 'required|date',
             'description' => 'required|string|max:500',
@@ -273,8 +308,10 @@ class ReceiptController extends Controller
         $messages = [
             'amount_type.required' => 'Amount Type is Required',
             'amount_type.in' => 'Amount Type must be one of: Cash, Online, Cheque, Credit',
-            'bank_id.required' => 'Receiving Bank Account is Required',
+            'bank_id.required_without' => 'Either Bank Account or Leasing Company is Required',
+            'leasing_company_id.required_without' => 'Either Bank Account or Leasing Company is Required',
             'bank_id.exists' => 'Selected bank account does not exist',
+            'leasing_company_id.exists' => 'Selected leasing company does not exist',
             'date_of_receipt.required' => 'Receipt date is Required',
             'billing_month.required' => 'Billing month is Required',
             'description.required' => 'Narration for Bank debit is Required',
@@ -288,10 +325,10 @@ class ReceiptController extends Controller
         ];
 
         $this->validate($request, $rules, $messages);
-        
-        $totalDebit = floatval($request->input('amount', 0)); 
+
+        $totalDebit = floatval($request->input('amount', 0));
         $totalCredit = 0;
-        
+
         $crAmounts = $request->input('cr_amount', []);
         $narrations = $request->input('narration', []);
         foreach ($crAmounts as $amount) {
@@ -299,7 +336,7 @@ class ReceiptController extends Controller
         }
 
         if (abs($totalDebit - $totalCredit) > 0.01) {
-            if($request->ajax()){
+            if ($request->ajax()) {
                 return response()->json([
                     'message' => 'Total debit (' . number_format($totalDebit, 2) . ') and credit (' . number_format($totalCredit, 2) . ') amounts must be equal.'
                 ], 422);
@@ -307,54 +344,74 @@ class ReceiptController extends Controller
             Flash::error('Total debit (' . number_format($totalDebit, 2) . ') and credit (' . number_format($totalCredit, 2) . ') amounts must be equal.');
             return redirect()->back()->withInput();
         }
-        
-        $bank = Banks::find($request->input('bank_id'));
-        if (!$bank) {
-            if ($request->ajax()) {
-                return response()->json(['message' => 'Selected bank account not found'], 422);
+
+        // Get bank or leasing company
+        $bank = null;
+        $leasingCompany = null;
+        $receivingAccountId = null;
+
+        if ($request->input('bank_id')) {
+            $bank = Banks::find($request->input('bank_id'));
+            if (!$bank) {
+                if ($request->ajax()) {
+                    return response()->json(['message' => 'Selected bank account not found'], 422);
+                }
+                Flash::error('Selected bank account not found.');
+                return redirect()->back()->withInput();
             }
-            Flash::error('Selected bank account not found.');
-            return redirect()->back()->withInput();
+            $receivingAccountId = $bank->account_id;
+        } elseif ($request->input('leasing_company_id')) {
+            $leasingCompany = LeasingCompanies::find($request->input('leasing_company_id'));
+            if (!$leasingCompany) {
+                if ($request->ajax()) {
+                    return response()->json(['message' => 'Selected leasing company not found'], 422);
+                }
+                Flash::error('Selected leasing company not found.');
+                return redirect()->back()->withInput();
+            }
+            $receivingAccountId = $leasingCompany->account_id;
         }
 
         try {
             DB::beginTransaction();
-            
+
             $input = $request->all();
             $input['updated_by'] = auth()->id();
-            $input['account_id'] = $bank->account_id; 
+            $input['account_id'] = $receivingAccountId;
             $input['amount'] = $totalDebit;
-            
+
             // Get the first payer account for the receipt record
             $accountIds = $request->input('account_id', []);
-            $input['payer_account_id'] = array_unique($accountIds ) ?? null;
-            
+            $input['payer_account_id'] = array_unique($accountIds) ?? null;
+
             // Check if anything changed before updating
             $hasChanges = false;
             $fieldsToCheck = ['reference', 'amount_type', 'date_of_receipt', 'billing_month', 'description', 'payer_account_id', 'amount'];
-            
+
             foreach ($fieldsToCheck as $field) {
                 if (isset($input[$field]) && $receipt->$field != $input[$field]) {
                     $hasChanges = true;
                     break;
                 }
             }
-            
+
             if (!$hasChanges) {
                 // Also check if transaction details changed
                 $existingTransactions = Transactions::where('trans_code', $receipt->voucher->trans_code)
                     ->orderBy('id')
                     ->get();
-                    
+
                 if (count($existingTransactions) - 1 !== count($accountIds)) {
                     $hasChanges = true;
                 } else {
                     for ($i = 0; $i < count($accountIds); $i++) {
                         $existingIndex = $i + 1; // +1 to skip the first debit transaction
                         if (isset($existingTransactions[$existingIndex])) {
-                            if ($existingTransactions[$existingIndex]->account_id != $accountIds[$i] ||
+                            if (
+                                $existingTransactions[$existingIndex]->account_id != $accountIds[$i] ||
                                 floatval($existingTransactions[$existingIndex]->credit) != floatval($crAmounts[$i]) ||
-                                $existingTransactions[$existingIndex]->narration != ($narrations[$i] ?? '')) {
+                                $existingTransactions[$existingIndex]->narration != ($narrations[$i] ?? '')
+                            ) {
                                 $hasChanges = true;
                                 break;
                             }
@@ -362,45 +419,45 @@ class ReceiptController extends Controller
                     }
                 }
             }
-            
+
             if (!$hasChanges) {
-                if($request->hasFile('attachment')){
+                if ($request->hasFile('attachment')) {
                     $file = $request->file('attachment');
-                    $fileName = time().'_'.$file->getClientOriginalName();
+                    $fileName = time() . '_' . $file->getClientOriginalName();
                     $file->storeAs('public/vouchers', $fileName);
                     $receipt->update(['attachment' => $fileName]);
                     $receipt->voucher->update(['attach_file' => $fileName]);
                     DB::commit();
 
-                    return response()->json(['message'=>'File uploaded Successfully']);
+                    return response()->json(['message' => 'File uploaded Successfully']);
                 }
 
                 return response()->json(['message' => 'Nothing New Entered to Update'], 200);
             }
-            
+
             // Update receipt
             $receipt->update($input);
-            
+
             $transCode = $receipt->voucher->trans_code;
             $date = $input['date_of_receipt'];
             $billingMonth = $input['billing_month'];
             $desc = $input['description'];
-            
+
             // Get arrays from request
             $accountIds = $request->input('account_id', []);
             $crAmounts = $request->input('cr_amount', []);
             $narrations = $request->input('narration', []);
-            
+
             // Delete existing transactions except the first one (debit)
             $existingTransactions = Transactions::where('trans_code', $transCode)->get();
-            
+
             // Keep track of which transactions we're keeping
             foreach ($existingTransactions as $index => $transaction) {
                 if ($index == 0) {
-                    // Update the DEBIT transaction (bank account)
+                    // Update the DEBIT transaction (receiving account)
                     $transaction->update([
                         'trans_date' => $date,
-                        'account_id' => $bank->account_id,
+                        'account_id' => $receivingAccountId,
                         'debit' => $totalDebit,
                         'credit' => 0,
                         'billing_month' => $billingMonth,
@@ -411,12 +468,12 @@ class ReceiptController extends Controller
                     $transaction->delete();
                 }
             }
-            
+
             // Create new CREDIT transactions
             foreach ($accountIds as $index => $accountId) {
                 $creditAmount = floatval($crAmounts[$index] ?? 0);
                 $narration = $narrations[$index] ?? ($desc . ' - Payment from Account ID: ' . $accountId);
-                
+
                 Transactions::create([
                     'trans_code' => $transCode,
                     'trans_date' => $date,
@@ -429,38 +486,38 @@ class ReceiptController extends Controller
                     'narration' => $narration,
                 ]);
             }
-            
+
             // Update voucher
             Vouchers::where('id', $receipt->voucher_id)->update([
                 'trans_date' => $date,
                 'billing_month' => $billingMonth,
-                'payment_to' => $bank->account_id,
+                'reference_number' => $receipt->reference,
+                'payment_to' => $receivingAccountId,
                 'amount' => $totalDebit,
                 'Updated_By' => auth()->id(),
             ]);
-            
+
             // Handle attachment if provided
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $file->storeAs('public/vouchers', $fileName);
-                
+
                 // Update both receipt and voucher with attachment
                 $receipt->update(['attachment' => $fileName]);
                 Vouchers::where('id', $receipt->voucher_id)->update(['attach_file' => $fileName]);
             }
-            
+
             DB::commit();
-            
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Receipt update failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-            
+
             return response()->json([
                 'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
-        
+
         return response()->json([
             'message' => 'Receipt Updated Successfully'
         ], 200);
@@ -470,24 +527,24 @@ class ReceiptController extends Controller
     {
         $receipt = Receipt::find($id);
         if (empty($receipt)) {
-            if($request->ajax()) {
-                return response()->json(['success'=> false,'message'=> 'Receipt Not Found']);
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Receipt Not Found']);
             }
             Flash::error('Receipt not found!');
             return redirect()->back();
         } else {
             Transactions::where('trans_code', $receipt->voucher->trans_code)->delete();
             Vouchers::where('id', $receipt->voucher_id)->delete();
-            if($receipt->amount_type == 'Cheque'){
+            if ($receipt->amount_type == 'Cheque') {
                 // Also delete associated cheque record if receipt was by cheque
                 $cheque = \App\Models\Cheques::where('voucher_id', $receipt->voucher_id)->first();
-                if($cheque){
+                if ($cheque) {
                     $cheque->delete();
                 }
             }
             $receipt->delete();
-            if($request->ajax()){
-                return response()->json(['success'=> true,'message'=> 'Receipt Deleted Successfuly']);
+            if ($request->ajax()) {
+                return response()->json(['success' => true, 'message' => 'Receipt Deleted Successfuly']);
             }
         }
         Flash::success('Receipt deleted successfully.');

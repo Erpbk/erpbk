@@ -173,21 +173,33 @@
             </tr>
             <tr>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Reference Number:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->reference_number ?? '-' }}</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->reference_number ?? 'N/A' }}</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Leasing Company:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->leasingCompany->name ?? 'N/A' }}</td>
             </tr>
             <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Invoice Date:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->inv_date ? \Carbon\Carbon::parse($invoice->inv_date)->format('d/m/Y') : '-' }}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Billing Month:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ date('M-Y', strtotime($invoice->billing_month)) }}</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Billed To:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $settings['company_name'] ?? 'N/A' }}</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Billed To:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $settings['company_name'] ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">TRN Number:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->leasingCompany->trn_number ?? 'N/A' }}</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Billing Month:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px;">{{ date('M-Y', strtotime($invoice->billing_month)) }}</td>
             </tr>
             <tr>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Service Period From:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px;">{{ date('01/m/Y', strtotime($invoice->billing_month)) }}</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Service Period To:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px;">{{ date('t/m/Y', strtotime($invoice->billing_month)) }}</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Contact Person:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->leasingCompany->contact_person ?? 'N/A' }}</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Contact Number:</td>
+                <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->leasingCompany->contact_number ?? 'N/A' }}</td>
             </tr>
         </table>
 
@@ -196,33 +208,6 @@
             <tr>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Description:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; width: 80%;">{{ $invoice->descriptions ?? 'N/A' }}</td>
-            </tr>
-            @if($invoice->attachment)
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Attachment:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">
-                    <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="text-primary">
-                        <i class="fa fa-file"></i> {{ basename($invoice->attachment) }}
-                    </a>
-                </td>
-            </tr>
-            @endif
-            <tr>
-                <td colspan="4" class="light-header" style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 14px;">
-                    LEASING COMPANY DETAILS
-                </td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Company Name:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->leasingCompany->name ?? 'N/A' }}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Contact Person:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->leasingCompany->contact_person ?? '-' }}</td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Contact Number:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->leasingCompany->contact_number ?? '-' }}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Description:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->descriptions ?? '-' }}</td>
             </tr>
         </table>
 
@@ -255,7 +240,7 @@
             @endphp
             <tr>
                 <td>{{ $key + 1 }}</td>
-                <td>Bike # {{ $item->bike->plate ?? 'N/A' }} (Rental)</td>
+                <td>Bike # {{ $item->bike->plate ?? 'N/A' }} ({{ DB::table('bikes')->where('id', $item->bike_id)->first()->emirates ?? 'N/A' }})</td>
                 <td class="num">1</td>
                 <td class="num">{{ $item->days ?? 1 }}</td>
                 <td class="num">{{ number_format($item->rental_amount, 2) }}</td>

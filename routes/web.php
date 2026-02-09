@@ -83,11 +83,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('bike/files/{id}', [\App\Http\Controllers\BikesController::class, 'files'])->name('bikes.files');
     Route::get('bike/maintenance/{id}', [\App\Http\Controllers\BikesController::class, 'maintenance'])->name('bikes.maintenance');
 
-
     Route::resource('bikes', App\Http\Controllers\BikesController::class);
-
-    Route::get('bikes/import-bikes', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.importbikes');
-    Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
 
     Route::resource('bikeMaintenance', \App\Http\Controllers\BikeMaintenanceController::class);
     Route::get('bike-maintenance/overdue_for_maintenance', [\App\Http\Controllers\BikeMaintenanceController::class, 'overdueForMaintenance'])->name('bike-maintenance.overdue');
@@ -96,6 +92,9 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::any('bike-maintenance/{bike}/edit', [\App\Http\Controllers\BikeMaintenanceController::class, 'edit'])->name('bike-maintenance.editForm');
     Route::any('bike-maintenance/{bike}/update', [\App\Http\Controllers\BikeMaintenanceController::class, 'update'])->name('bike-maintenance.update');
     Route::get('bike-maintenance/{maintenance}/invoice', [\App\Http\Controllers\BikeMaintenanceController::class, 'Invoice'])->name('bike-maintenance.invoice');
+
+    Route::get('bikes/import-bikes', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.importbikes');
+    Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
 
 
     Route::resource('customers', App\Http\Controllers\CustomersController::class)->parameters(['customers' => 'id']);
@@ -362,6 +361,10 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('leasingCompanies/{id}/invoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'createInvoice'])->name('leasingCompanies.createInvoice');
     Route::post('leasingCompanies/{id}/invoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'storeInvoice'])->name('leasingCompanies.storeInvoice');
     Route::get('leasingCompanies/{id}/bikes', [\App\Http\Controllers\LeasingCompaniesController::class, 'getBikes'])->name('leasingCompanies.getBikes');
+    Route::get('leasingCompanies/receipts/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'receipts'])->name('leasingCompanies.receipts');
+    Route::get('leasingCompanies/payments/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'payments'])->name('leasingCompanies.payments');
+    Route::get('leasingCompany/files/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'files'])->name('leasingCompany.files');
+    Route::get('leasingCompany/ledger/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'ledger'])->name('leasingCompany.ledger');
     Route::resource('garages', App\Http\Controllers\GaragesController::class);
     Route::get('garages/delete/{id}', [\App\Http\Controllers\GaragesController::class, 'destroy'])->name('garages.delete');
     Route::resource('banks', App\Http\Controllers\BanksController::class);
@@ -370,6 +373,11 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('bank/delete/{id}', [\App\Http\Controllers\BanksController::class, 'destroy'])->name('bank.delete');
     Route::get('banks/receipts/{id}', [\App\Http\Controllers\BanksController::class, 'receipts'])->name('banks.receipts');
     Route::get('banks/payments/{id}', [\App\Http\Controllers\BanksController::class, 'payments'])->name('banks.payments');
+    Route::get('banks/cheques/{id}', [\App\Http\Controllers\BanksController::class, 'cheques'])->name('banks.cheques');
+
+    Route::post('/cheques/status/{id}', [App\Http\Controllers\ChequesController::class, 'updateStatus'])->name('cheques.update-status');
+    Route::get('cheques/change_status/{id}', [\App\Http\Controllers\ChequesController::class, 'statusForm'])->name('cheques.status-form');
+    Route::resource('cheques', App\Http\Controllers\ChequesController::class);
 
     // Soft Delete Routes for Banks - DEPRECATED: Use centralized trash module (/trash)
     // Route::get('banks/trashed/list', [\App\Http\Controllers\BanksController::class, 'trashed'])->name('banks.trashed');

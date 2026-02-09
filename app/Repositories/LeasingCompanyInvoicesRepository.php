@@ -86,9 +86,8 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 
                 $input['status'] = 0; // Unpaid for new invoices
                 $invoice = LeasingCompanyInvoice::create($input);
-            }
 
-            // Generate invoice number if not provided
+                // Generate invoice number if not provided
                 if (empty($invoice->invoice_number)) {
                     $invoice->invoice_number = 'LCI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT);
                     $invoice->save();

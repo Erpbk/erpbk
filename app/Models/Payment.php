@@ -14,6 +14,7 @@ class Payment extends Model
     public $fillable = [
         'reference',
         'bank_id',
+        'leasing_company_id',
         'amount_type',
         'payee_account_id',
         'amount',
@@ -54,6 +55,10 @@ class Payment extends Model
 
     public function bank(){
         return $this->belongsTo(Banks::class,'bank_id','id');
+    }
+
+    public function leasingCompany(){
+        return $this->belongsTo(LeasingCompanies::class,'leasing_company_id','id');
     }
 
     public function payedTo(){

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\DataTables\LeasingCompaniesDataTable;
+use App\DataTables\LedgerDataTable;
 use App\Helpers\Account;
 use App\Http\Requests\CreateLeasingCompaniesRequest;
 use App\Http\Requests\UpdateLeasingCompaniesRequest;
@@ -11,6 +12,9 @@ use App\Models\Accounts;
 use App\Models\Bikes;
 use App\Models\LeasingCompanies;
 use App\Models\LeasingCompanyInvoice;
+use App\Models\Receipt;
+use App\Models\Payment;
+use App\Models\Transactions;
 use App\Repositories\LeasingCompaniesRepository;
 use App\Repositories\LeasingCompanyInvoicesRepository;
 use Illuminate\Http\Request;
@@ -489,7 +493,7 @@ class LeasingCompaniesController extends AppBaseController
       $request->validate([
         'inv_date' => 'required|date',
         'billing_month' => 'required',
-        'reference_number' => 'nullable|string|max:255',
+        'reference_number' => 'required|string|max:255',
         'leasing_company_invoice_number' => 'nullable|string|max:255',
         'bike_id' => 'required|array|min:1',
         'bike_id.*' => 'required',
@@ -657,8 +661,8 @@ class LeasingCompaniesController extends AppBaseController
       $request->validate([
         'inv_date' => 'required|date',
         'billing_month' => 'required',
-        'reference_number' => 'nullable|string|max:255',
-        'leasing_company_invoice_number' => 'nullable|string|max:255',
+        'reference_number' => 'required|string|max:255',
+        'leasing_company_invoice_number' => 'required|string|max:255',
         'bike_id' => 'required|array|min:1',
         'bike_id.*' => 'required|exists:bikes,id',
         'rental_amount' => 'required|array|min:1',
@@ -877,5 +881,82 @@ class LeasingCompaniesController extends AppBaseController
       'bikes' => $bikes,
       'rental_amount' => 0 // Default rental amount removed from leasing_companies table
     ]);
+  }
+
+  /**
+   * Display receipts for a leasing company.
+   */
+  public function receipts(Request $request, $id)
+  {
+    $leasingCompany = $this->leasingCompaniesRepository->find($id);
+
+    if (empty($leasingCompany)) {
+      Flash::error('Leasing Company not found');
+      return redirect(route('leasingCompanies.index'));
+    }
+
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Receipt::query()->latest('id');
+    $query->where('leasing_company_id', $leasingCompany->id);
+
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    return view('leasing_companies.receipts', compact('data', 'leasingCompany'));
+  }
+
+  /**
+   * Display payments for a leasing company.
+   */
+  public function payments(Request $request, $id)
+  {
+    $leasingCompany = $this->leasingCompaniesRepository->find($id);
+
+    if (empty($leasingCompany)) {
+      Flash::error('Leasing Company not found');
+      return redirect(route('leasingCompanies.index'));
+    }
+
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Payment::query()->latest('id');
+    $query->where('leasing_company_id', $id);
+
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    return view('leasing_companies.payments', compact('data', 'leasingCompany'));
+  }
+
+  /**
+   * Display files/documents for a leasing company.
+   */
+  public function files($id)
+  {
+    $leasingCompany = $this->leasingCompaniesRepository->find($id);
+
+    if (empty($leasingCompany)) {
+      Flash::error('Leasing Company not found');
+      return redirect(route('leasingCompanies.index'));
+    }
+
+    $files = DB::table('files')->where('type', 'leasing_company')->where('type_id', $id)->latest('id')->get();
+
+    return view('leasing_companies.document', compact('files', 'leasingCompany'));
+  }
+
+  /**
+   * Display ledger for a leasing company.
+   */
+  public function ledger($id, LedgerDataTable $ledgerDataTable)
+  {
+    $leasingCompany = $this->leasingCompaniesRepository->find($id);
+
+    if (empty($leasingCompany)) {
+      Flash::error('Leasing Company not found');
+      return redirect(route('leasingCompanies.index'));
+    }
+
+    $files = Transactions::where('account_id', $leasingCompany->account_id)->get();
+    $account_id = $leasingCompany->account_id;
+
+    return $ledgerDataTable->with(['account_id' => $account_id])->render('leasing_companies.ledger', compact('files', 'leasingCompany'));
   }
 }

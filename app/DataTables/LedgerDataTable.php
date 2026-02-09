@@ -153,10 +153,6 @@ class LedgerDataTable extends DataTable
         $invoice_ID = $row->reference_id;
         $voucher_text = '<span class="d-none">RD-' . $invoice_ID . '</span><a href="javascript:void(0);" data-title="Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('riderInvoices.show', $invoice_ID) . '" class="no-print show-modal">RD-' . $invoice_ID . '</a>';
       }
-      if ($row->reference_type == 'LeasingCompanyInvoice') {
-        $invoice_ID = $row->reference_id;
-        $voucher_text = '<span class="d-none">LI-' . $invoice_ID . '</span><a href="javascript:void(0);" data-title="Leasing Company Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyInvoices.show', $invoice_ID) . '" class="no-print show-modal">LI-' . $invoice_ID . '</a>';
-      }
       if ($row->reference_type == 'RiderInvoice') {
         $vouchers =  DB::table('vouchers')->where('trans_code', $row->trans_code)->first();
         if ($vouchers) {
@@ -299,7 +295,6 @@ class LedgerDataTable extends DataTable
         'stateSave' => true, // Ensures balance maintains on pagination
         'responsive' => true,
         'initComplete' => "function(settings, json) {
-<<<<<<< Updated upstream
                       var api = this.api();
                       
                       // Function to go to last page
@@ -320,13 +315,6 @@ class LedgerDataTable extends DataTable
                           goToLastPage();
                       }
                   }",
-=======
-                // Jump to last page after initialization
-                var api = this.api();
-                var lastPage = api.page.info().pages - 1;
-                api.page(lastPage).draw('page');
-            }",
->>>>>>> Stashed changes
         'footerCallback' => "function(row, data, start, end, display) {
                     var api = this.api();
                     var intVal = function(i) {

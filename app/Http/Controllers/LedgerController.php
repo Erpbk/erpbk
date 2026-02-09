@@ -197,7 +197,6 @@ class LedgerController extends Controller
   //   return $data;
   // }
 
-<<<<<<< Updated upstream
   // /**
   //  * Get voucher text based on reference type
   //  */
@@ -222,37 +221,6 @@ class LedgerController extends Controller
 
   //   return '';
   // }
-=======
-  /**
-   * Get voucher text based on reference type
-   */
-  private function getVoucherText($row)
-  {
-    // LeasingCompanyInvoice has no voucher – show LI- link to invoice
-    if ($row->reference_type == 'LeasingCompanyInvoice') {
-      $invoice_ID = $row->reference_id;
-      return '<span class="d-none">LI-' . $invoice_ID . '</span><a href="javascript:void(0);" data-title="Leasing Company Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyInvoices.show', $invoice_ID) . '" class="no-print show-modal">LI-' . $invoice_ID . '</a>';
-    }
-
-    if ($row->reference_type == 'Invoice') {
-      $invoice_ID = $row->reference_id;
-      return '<span class="d-none">RD-' . $invoice_ID . '</span><a href="javascript:void(0);" data-title="Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('riderInvoices.show', $invoice_ID) . '" class="no-print show-modal">RD-' . $invoice_ID . '</a>';
-    }
-
-    $voucherTypes = ['Voucher', 'RTA', 'LV', 'VL', 'INC', 'PN', 'PAY', 'COD', 'Salik Voucher', 'VC', 'AL', 'RiderInvoice'];
-    if (in_array($row->reference_type, $voucherTypes)) {
-      $vouchers = DB::table('vouchers')->where('trans_code', $row->trans_code)->first();
-      if ($vouchers) {
-        $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
-        return '<span class="d-none">' . $voucher_ID . '</span><a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
-      } else {
-        return '<span class="text-danger">No Voucher Found</span>';
-      }
-    }
-
-    return '';
-  }
->>>>>>> Stashed changes
 
   // /**
   //  * Get narration text

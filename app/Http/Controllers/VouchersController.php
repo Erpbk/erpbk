@@ -731,7 +731,11 @@ class VouchersController extends Controller
     if ($request->hasFile('attach_file')) {
       $photo = $request->file('attach_file');
       $fileName = $photo->getClientOriginalName();
-      $photo->storeAs('public/vouchers', $fileName);
+      if ($voucher->voucher_type == 'LV') {
+        $fileName = $photo->store('vouchers', 'public');
+      } else {
+        $photo->storeAs('public/vouchers', $fileName);
+      }
       $voucher->attach_file = $fileName;
       $voucher->updated_by = auth()->id();
       $voucher->save();

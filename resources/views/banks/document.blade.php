@@ -71,35 +71,37 @@
                     ];
 
                     // Function to extract month and year from file name
-                    function extractMonthYear($fileName, $monthNames) {
-                    $fileName = strtolower($fileName);
-                    $month = null;
-                    $year = null;
+                    if (!function_exists('extractMonthYear')) {
+                        function extractMonthYear($fileName, $monthNames) {
+                            $fileName = strtolower($fileName);
+                            $month = null;
+                            $year = null;
 
-                    // Try to find month name in the file name
-                    foreach ($monthNames as $monthName => $monthNum) {
-                    if (strpos($fileName, $monthName) !== false) {
-                    $month = $monthNum;
-                    break;
+                            // Try to find month name in the file name
+                            foreach ($monthNames as $monthName => $monthNum) {
+                                if (strpos($fileName, $monthName) !== false) {
+                                    $month = $monthNum;
+                                    break;
+                                }
+                            }
+
+                            // Try to extract year (4 digits or 2 digits)
+                            if (preg_match('/\b(20\d{2})\b/', $fileName, $matches)) {
+                                $year = (int)$matches[1];
+                            } elseif (preg_match('/\b(\d{2})\b/', $fileName, $matches)) {
+                                $twoDigitYear = (int)$matches[1];
+                                // Convert 2-digit year to 4-digit (assuming 2000-2099)
+                                $year = $twoDigitYear < 50 ? 2000 + $twoDigitYear : 1900 + $twoDigitYear;
+                            }
+
+                            // If no year found, use current year
+                            if ($year === null) {
+                                $year = (int)date('Y');
+                            }
+
+                            return ['month' => $month, 'year' => $year];
+                        }
                     }
-                    }
-
-                    // Try to extract year (4 digits or 2 digits)
-                    if (preg_match('/\b(20\d{2})\b/', $fileName, $matches)) {
-                    $year = (int)$matches[1];
-                    } elseif (preg_match('/\b(\d{2})\b/', $fileName, $matches)) {
-                    $twoDigitYear = (int)$matches[1];
-                    // Convert 2-digit year to 4-digit (assuming 2000-2099)
-                    $year = $twoDigitYear < 50 ? 2000 + $twoDigitYear : 1900 + $twoDigitYear;
-                        }
-
-                        // If no year found, use current year
-                        if ($year===null) {
-                        $year=(int)date('Y');
-                        }
-
-                        return ['month'=> $month, 'year' => $year];
-                        }
 
                         // Group files by month and year extracted from name
                         $groupedFiles = [];

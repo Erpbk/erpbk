@@ -19,135 +19,117 @@
             <div class="col-md-3 form-group col-3">
                 <label>Courier ID </label>
                 <p>{{@$result['courier_id']}}</p>
-            </div> --}}
-            <!--col-->
-            <div class="col-md-3 form-group col-3">
-                <label>Rider Name </label>
-                <p>{{@$result['name']}}</p>
-            </div>
-            <!--col-->
-            <div class="col-md-3 form-group col-3">
-                <label>Rider Contact</label>
-                <p>{{@$result['personal_contact']}}</p>
-            </div>
-
-            <!--col-->
-            <div class="col-md-3 form-group col-3">
-                <label>Company Contact</label>
-                <p>{{@$result['company_contact']}}</p>
-            </div>
-            <!--col-->
-            <div class="col-md-3 form-group col-3">
-                <label>Personal Email ID </label>
-                <p>{{@$result['personal_email']}}</p>
-            </div>
-            <!--col-->
-            <div class="col-md-3 form-group col-3">
-                <label>Nationality </label>
-                <p>{{$rider?->country?->name}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Ethnicity</label>
-                <p>{{@$result['ethnicity']}}</p>
-            </div>
-            <!--col-->
-            <div class="col-md-3 form-group col-3">
-                <label>DOB </label>
-                <p>{{@App\Helpers\General::DateFormat($result['dob'])}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Date of Joining </label>
-                <p>{{@App\Helpers\General::DateFormat($result['doj'])}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Passport </label>
-                <p>{{@$result['passport']}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label @if(strtotime($result['passport_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Passport Expiry </label>
-                <p @if(strtotime($result['passport_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['passport_expiry'])}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Other Details</label>
-                <p>{{@$rider->other_details}}</p> 
-            </div>
+        </div> --}}
+        <!--col-->
+        <div class="col-md-3 form-group col-3">
+            <label>Rider Name </label>
+            <p>{{@$result['name']}}</p>
         </div>
-
+        <!--col-->
+        <div class="col-md-3 form-group col-3">
+            <label>Date of Joining </label>
+            <p>{{@App\Helpers\General::DateFormat($result['doj'])}}</p>
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label>Rider Contact</label>
+            <p>{{@$result['personal_contact']}}</p>
+        </div>
+        <!--col-->
+        <div class="col-md-3 form-group col-3">
+            <label>Personal Email ID </label>
+            <p>{{@$result['personal_email']}}</p>
+        </div>
+        <!--col-->
+        <div class="col-md-3 form-group col-3">
+            <label>Nationality </label>
+            <p>{{$rider?->country?->name}}</p>
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label>Passport </label>
+            <p>{{@$result['passport']}}</p>
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label @if(strtotime($result['passport_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Passport Expiry </label>
+            <p @if(strtotime($result['passport_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['passport_expiry'])}}</p>
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label>Ethnicity</label>
+            <p>{{@$result['ethnicity']}}</p>
+        </div>
+        <!--col-->
+        <div class="col-md-3 form-group col-3">
+            <label>DOB </label>
+            <p>{{@App\Helpers\General::DateFormat($result['dob'])}}</p>
+        </div>
     </div>
-    <!-- Edit Form for Personal Information -->
-    <div class="card-body edit-form" id="edit-personal" style="display: none;">
-        <form class="section-form" data-section="personal">
-            @csrf
-            <div class="row">
-                <div class="col-md-3 form-group col-3">
-                    <label class="required">Rider ID</label>
-                    <input type="text" class="form-control form-control-sm" name="rider_id" value="{{$result['rider_id']}}">
-                </div>
-                {{-- <div class="col-md-3 form-group col-3">
+
+</div>
+<!-- Edit Form for Personal Information -->
+<div class="card-body edit-form" id="edit-personal" style="display: none;">
+    <form class="section-form" data-section="personal">
+        @csrf
+        <div class="row">
+            <div class="col-md-3 form-group col-3">
+                <label class="required">Rider ID</label>
+                <input type="text" class="form-control form-control-sm" name="rider_id" value="{{$result['rider_id']}}">
+            </div>
+            {{-- <div class="col-md-3 form-group col-3">
                     <label>Courier ID</label>
                     <input type="text" class="form-control form-control-sm" name="courier_id" value="{{@$result['courier_id']}}">
-                </div> --}}
-                <div class="col-md-3 form-group col-3">
-                    <label>Rider Name</label>
-                    <input type="text" class="form-control form-control-sm" name="name" value="{{@$result['name']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Rider Contact</label>
-                    <input type="text" class="form-control form-control-sm" name="personal_contact" value="{{@$result['personal_contact']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Company Contact</label>
-                    <input type="text" class="form-control form-control-sm" name="company_contact" value="{{@$result['company_contact']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Personal Email ID</label>
-                    <input type="email" class="form-control form-control-sm" name="personal_email" value="{{@$result['personal_email']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Nationality</label>
-                    <select class="form-control form-control-sm select2" name="nationality">
-                        @foreach($countries as $id => $name)
-                        <option value="{{$id}}" {{$result['nationality'] == $id ? 'selected' : ''}}>{{$name}}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Ethnicity</label>
-                    <input type="text" class="form-control form-control-sm" name="ethnicity" value="{{@$result['ethnicity']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>DOB</label>
-                    <input type="date" class="form-control form-control-sm" name="dob" value="{{@$result['dob']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Date of Joining</label>
-                    <input type="date" class="form-control form-control-sm" name="doj" value="{{@$result['doj']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Passport</label>
-                    <input type="text" class="form-control form-control-sm" name="passport" value="{{@$result['passport']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Passport Expiry</label>
-                    <input type="date" class="form-control form-control-sm" name="passport_expiry" value="{{@$result['passport_expiry']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Other Details</label>
-                    <input type="dtext" class="form-control form-control-sm" name="other_details" value="{{@$result['other_details']}}">
-                </div>
-            </div>
-            <div class="row mt-3">
-                <div class="col-12">
-                    <button type="submit" class="btn btn-success btn-sm">
-                        <i class="ti ti-check me-1"></i>Update
-                    </button>
-                    <button type="button" class="btn btn-secondary btn-sm cancel-edit">
-                        <i class="ti ti-x me-1"></i>
-                    </button>
-                </div>
-            </div>
-        </form>
+        </div> --}}
+        <div class="col-md-3 form-group col-3">
+            <label>Rider Name</label>
+            <input type="text" class="form-control form-control-sm" name="name" value="{{@$result['name']}}">
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label>Rider Contact</label>
+            <input type="text" class="form-control form-control-sm" name="personal_contact" value="{{@$result['personal_contact']}}">
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label>Date of Joining</label>
+            <input type="date" class="form-control form-control-sm" name="doj" value="{{@$result['doj']}}">
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label>Personal Email ID</label>
+            <input type="email" class="form-control form-control-sm" name="personal_email" value="{{@$result['personal_email']}}">
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label>Nationality</label>
+            <select class="form-control form-control-sm select2" name="nationality">
+                @foreach($countries as $id => $name)
+                <option value="{{$id}}" {{$result['nationality'] == $id ? 'selected' : ''}}>{{$name}}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label>Passport</label>
+            <input type="text" class="form-control form-control-sm" name="passport" value="{{@$result['passport']}}">
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label>Passport Expiry</label>
+            <input type="date" class="form-control form-control-sm" name="passport_expiry" value="{{@$result['passport_expiry']}}">
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label>Ethnicity</label>
+            <input type="text" class="form-control form-control-sm" name="ethnicity" value="{{@$result['ethnicity']}}">
+        </div>
+        <div class="col-md-3 form-group col-3">
+            <label>DOB</label>
+            <input type="date" class="form-control form-control-sm" name="dob" value="{{@$result['dob']}}">
+        </div>
+</div>
+<div class="row mt-3">
+    <div class="col-12">
+        <button type="submit" class="btn btn-success btn-sm">
+            <i class="ti ti-check me-1"></i>Update
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm cancel-edit">
+            <i class="ti ti-x me-1"></i>
+        </button>
     </div>
+</div>
+</form>
+</div>
 </div>
 
 <div class="card border">
@@ -169,15 +151,6 @@
                 <label @if(strtotime($result['license_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Licence Expiry </label>
                 <p @if(strtotime($result['license_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['license_expiry'])}}</p>
             </div>
-            <!--col-->
-            <div class="col-md-3 form-group col-3">
-                <label>Emirate ID </label>
-                <p>{{@$result['emirate_id']}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label @if(strtotime($result['emirate_exp']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>EID EXP Date </label>
-                <p @if(strtotime($result['emirate_exp']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['emirate_exp'])}}</p>
-            </div>
             <div class="col-md-3 form-group col-3">
                 <label>Road Permit No.</label>
                 <p>{{$result['road_permit'] ?? ''}}</p>
@@ -185,14 +158,6 @@
             <div class="col-md-3 form-group col-3">
                 <label @if(strtotime($result['road_permit_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>ROAD PERMIT EXPIRY </label>
                 <p @if(strtotime($result['road_permit_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['road_permit_expiry'])}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Visa Sponsor</label>
-                <p>{{@$result['visa_sponsor']}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Occupation on Visa </label>
-                <p>{{@$result['visa_occupation']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Visa Status</label>
@@ -219,28 +184,12 @@
                     <input type="date" class="form-control form-control-sm" name="license_expiry" value="{{@$result['license_expiry']}}">
                 </div>
                 <div class="col-md-3 form-group col-3">
-                    <label>Emirate ID</label>
-                    <input type="text" class="form-control form-control-sm" name="emirate_id" value="{{@$result['emirate_id']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>EID EXP Date</label>
-                    <input type="date" class="form-control form-control-sm" name="emirate_exp" value="{{@$result['emirate_exp']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
                     <label>Road Permit</label>
                     <input type="text" class="form-control form-control-sm" name="road_permit" value="{{@$result['road_permit']}}">
                 </div>
                 <div class="col-md-3 form-group col-3">
                     <label>Road Permit Expiry</label>
                     <input type="date" class="form-control form-control-sm" name="road_permit_expiry" value="{{@$result['road_permit_expiry']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Visa Sponsor</label>
-                    <input type="text" class="form-control form-control-sm" name="visa_sponsor" value="{{@$result['visa_sponsor']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Occupation on Visa</label>
-                    <input type="text" class="form-control form-control-sm" name="visa_occupation" value="{{@$result['visa_occupation']}}">
                 </div>
                 <div class="col-md-3 form-group col-3">
                     <label>Visa Status</label>
@@ -277,17 +226,14 @@
     </div>
     <div class="card-body">
         <div class="row">
+            <!--col-->
             <div class="col-md-3 form-group col-3">
-                <label>Project </label>
-                <p>{{@$rider->customer->name}}</p>
+                <label>Emirate ID </label>
+                <p>{{@$result['emirate_id']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label>Designation </label>
-                <p>{{@$result['designation']}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>CDM Deposit ID</label>
-                <p>{{@$result['cdm_deposit_id']}}</p>
+                <label @if(strtotime($result['emirate_exp']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>EID EXP Date </label>
+                <p @if(strtotime($result['emirate_exp']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['emirate_exp'])}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Fleet Supervisor </label>
@@ -295,18 +241,9 @@
 
             </div>
             <div class="col-md-3 form-group col-3">
-                <label>Status </label>
-                <p>{{App\Helpers\General::RiderStatus(@$result['status'])}}</p>
-
-            </div>
-            <div class="col-md-3 form-group col-3">
                 <label>Salary Model </label>
                 <p>{{@$result['salary_model']}}</p>
 
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Rider Reference </label>
-                <p>{{@$result['rider_reference']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Vendor </label>
@@ -317,6 +254,18 @@
                 <label>Recruiter </label>
                 <p>{{@$rider->recruiter->name}}</p>
             </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Visa Sponsor</label>
+                <p>{{@$result['visa_sponsor']}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Occupation on Visa </label>
+                <p>{{@$result['visa_occupation']}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label>VAT</label>
+                <p>{{ $result['vat'] == 1 ? 'Apply on Invoice' : 'No' }}</p>
+            </div>
         </div>
     </div>
     <!-- Edit Form for Job Detail -->
@@ -325,16 +274,12 @@
             @csrf
             <div class="row">
                 <div class="col-md-3 form-group col-3">
-                    <label>Project</label>
-                    <input type="text" class="form-control form-control-sm" name="project" value="{{@$rider->project->name ?? ''}}">
+                    <label>Emirate ID</label>
+                    <input type="text" class="form-control form-control-sm" name="emirate_id" value="{{@$result['emirate_id']}}">
                 </div>
                 <div class="col-md-3 form-group col-3">
-                    <label>Designation</label>
-                    <input type="text" class="form-control form-control-sm" name="designation" value="{{@$result['designation']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>CDM Deposit ID</label>
-                    <input type="text" class="form-control form-control-sm" name="cdm_deposit_id" value="{{@$result['cdm_deposit_id']}}">
+                    <label>EID EXP Date</label>
+                    <input type="date" class="form-control form-control-sm" name="emirate_exp" value="{{@$result['emirate_exp']}}">
                 </div>
                 <div class="col-md-3 form-group col-3">
                     <label>Fleet Supervisor</label>
@@ -356,38 +301,42 @@
                     </select>
                 </div>
                 <div class="col-md-3 form-group col-3">
-                    <label>Status</label>
-                    <select class="form-control form-control-sm select2" name="status">
-                        <option value="1" {{@$result['status'] == 1 ? 'selected' : ''}}>Active</option>
-                        <option value="2" {{@$result['status'] == 2 ? 'selected' : ''}}>Inactive</option>
-                        <option value="3" {{@$result['status'] == 3 ? 'selected' : ''}}>Pending</option>
-                    </select>
-                </div>
-                <div class="col-md-3 form-group col-3">
                     <label>Salary Model</label>
                     <input type="text" class="form-control form-control-sm" name="salary_model" value="{{@$result['salary_model']}}">
                 </div>
                 <div class="col-md-3 form-group col-3">
-                    <label>Rider Reference</label>
-                    <input type="text" class="form-control form-control-sm" name="rider_reference" value="{{@$result['rider_reference']}}">
+                    <label>Vendor</label>
+                    <select class="form-control form-control-sm select2" name="VID">
+                        @foreach($vendors as $id => $name)
+                        <option value="{{$id}}" {{$result['VID'] == $id ? 'selected' : ''}}>{{$name}}</option>
+                        @endforeach
+                    </select>
                 </div>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Vendor</label>
-                <select class="form-control form-control-sm select2" name="VID">
-                    @foreach($vendors as $id => $name)
-                    <option value="{{$id}}" {{$result['VID'] == $id ? 'selected' : ''}}>{{$name}}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Recruiter</label>
-                <select class="form-control form-control-sm select2" name="recruiter_id">
-                    <option value="">Select Recruiter</option>
-                    @foreach(DB::table('recruiters')->where('status', 1)->get() as $key => $value)
-                    <option value="{{$value->id}}" {{$result['recruiter_id'] == $value->id ? 'selected' : ''}}>{{$value->name}}</option>
-                    @endforeach
-                </select>
+                <div class="col-md-3 form-group col-3">
+                    <label>Recruiter</label>
+                    <select class="form-control form-control-sm select2" name="recruiter_id">
+                        <option value="">Select Recruiter</option>
+                        @foreach(DB::table('recruiters')->where('status', 1)->get() as $key => $value)
+                        <option value="{{$value->id}}" {{$result['recruiter_id'] == $value->id ? 'selected' : ''}}>{{$value->name}}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>Visa Sponsor</label>
+                    <input type="text" class="form-control form-control-sm" name="visa_sponsor" value="{{@$result['visa_sponsor']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>Occupation on Visa</label>
+                    <input type="text" class="form-control form-control-sm" name="visa_occupation" value="{{@$result['visa_occupation']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>VAT</label>
+                    <div class="form-check">
+                        <input type="hidden" name="vat" value="2" />
+                        <input type="checkbox" name="vat" id="vat_edit" class="form-check-input" value="1" {{ @$result['vat'] == 1 ? 'checked' : '' }} />
+                        <label for="vat_edit" class="pt-0">Apply on Invoice</label>
+                    </div>
+                </div>
             </div>
             <div class="row mt-3">
                 <div class="col-12">
@@ -416,6 +365,10 @@
     <div class="card-body">
         <div class="row">
             <div class="col-md-3 form-group col-3">
+                <label>Person Code</label>
+                <p>{{@$result['person_code']}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
                 <label>Labor Card Number</label>
                 <p>{{@$result['labor_card_number']}}</p>
             </div>
@@ -424,20 +377,16 @@
                 <p @if(strtotime($result['labor_card_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['labor_card_expiry'])}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label>Person Code</label>
-                <p>{{@$result['person_code']}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
-                <label>Policy No: </label>
-                <p>{{@$result['policy_no']}}</p>
-            </div>
-            <div class="col-md-3 form-group col-3">
                 <label>Insurance</label>
                 <p>{{@$result['insurance']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label @if(strtotime($result['insurance_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Insurance Expiry</label>
                 <p @if(strtotime($result['insurance_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['insurance_expiry'])}}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Policy No: </label>
+                <p>{{@$result['policy_no']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>WPS: </label>
@@ -455,6 +404,10 @@
             @csrf
             <div class="row">
                 <div class="col-md-3 form-group col-3">
+                    <label>Person Code</label>
+                    <input type="text" class="form-control form-control-sm" name="person_code" value="{{@$result['person_code']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
                     <label>Labor Card Number</label>
                     <input type="text" class="form-control form-control-sm" name="labor_card_number" value="{{@$result['labor_card_number']}}">
                 </div>
@@ -463,20 +416,16 @@
                     <input type="date" class="form-control form-control-sm" name="labor_card_expiry" value="{{@$result['labor_card_expiry']}}">
                 </div>
                 <div class="col-md-3 form-group col-3">
-                    <label>Person Code</label>
-                    <input type="text" class="form-control form-control-sm" name="person_code" value="{{@$result['person_code']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Policy No:</label>
-                    <input type="text" class="form-control form-control-sm" name="policy_no" value="{{@$result['policy_no']}}">
-                </div>
-                <div class="col-md-3 form-group col-3">
                     <label>Insurance</label>
                     <input type="text" class="form-control form-control-sm" name="insurance" value="{{@$result['insurance']}}">
                 </div>
                 <div class="col-md-3 form-group col-3">
                     <label>Insurance Expiry</label>
                     <input type="date" class="form-control form-control-sm" name="insurance_expiry" value="{{@$result['insurance_expiry']}}">
+                </div>
+                <div class="col-md-3 form-group col-3">
+                    <label>Policy No:</label>
+                    <input type="text" class="form-control form-control-sm" name="policy_no" value="{{@$result['policy_no']}}">
                 </div>
                 <div class="col-md-3 form-group col-3">
                     <label>WPS:</label>
@@ -506,6 +455,57 @@
         </form>
     </div>
 </div>
+
+<!-- Additional Information Section -->
+<div class="card border">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div><i class="ti ti-info-circle ti-sm me-1_5 me-2" style=" background: #ffc10726;color: #ffc107;"></i><b>Additional Information</b></div>
+            <button type="button" class="btn btn-sm edit-btn" data-section="additional">
+                <i class="ti ti-edit me-1"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3 form-group col-3">
+                <label>Rider Reference</label>
+                <p>{{@$result['rider_reference']}}</p>
+            </div>
+            <div class="col-md-9 form-group col-9">
+                <label>Other Details</label>
+                <p>{{@$result['other_details']}}</p>
+            </div>
+        </div>
+    </div>
+    <!-- Edit Form for Additional Information -->
+    <div class="card-body edit-form" id="edit-additional" style="display: none;">
+        <form class="section-form" data-section="additional">
+            @csrf
+            <div class="row">
+                <div class="col-md-3 form-group col-3">
+                    <label>Rider Reference</label>
+                    <input type="text" class="form-control form-control-sm" name="rider_reference" value="{{@$result['rider_reference']}}">
+                </div>
+                <div class="col-md-9 form-group col-9">
+                    <label>Other Details</label>
+                    <textarea class="form-control form-control-sm" name="other_details" rows="2">{{@$result['other_details']}}</textarea>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <i class="ti ti-check me-1"></i>Update
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm cancel-edit">
+                        <i class="ti ti-x me-1"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 {{-- <div class="row m-1 border">
   <div class="col-md-4 border-right border-bottom" style="height: 45px;">
       <b>Name</b><br/> {{@$rider->name}}

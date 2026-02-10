@@ -90,9 +90,6 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
 
     Route::resource('bikeMaintenance', \App\Http\Controllers\BikeMaintenanceController::class);
-    Route::get('bike-maintenance/overdue_for_maintenance', [\App\Http\Controllers\BikeMaintenanceController::class, 'overdueForMaintenance'])->name('bike-maintenance.overdue');
-    Route::get('bike-maintenance/due_for_maintenance', [\App\Http\Controllers\BikeMaintenanceController::class, 'dueForMaintenance'])->name('bike-maintenance.due');
-    Route::get('bike-maintenance/missing_data', [\App\Http\Controllers\BikeMaintenanceController::class, 'missingMaintenanceData'])->name('bike-maintenance.missing');
     Route::any('bike-maintenance/{bike}/edit', [\App\Http\Controllers\BikeMaintenanceController::class, 'edit'])->name('bike-maintenance.editForm');
     Route::any('bike-maintenance/{bike}/update', [\App\Http\Controllers\BikeMaintenanceController::class, 'update'])->name('bike-maintenance.update');
     Route::get( 'bike-maintenance/{maintenance}/invoice',[\App\Http\Controllers\BikeMaintenanceController::class, 'Invoice'])->name('bike-maintenance.invoice');

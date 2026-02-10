@@ -1,5 +1,6 @@
 @extends('bikes.view')
 @push('third_party_stylesheets')
+
 <style>
     .table-responsive {
         max-height: calc(100vh - 150px);
@@ -25,7 +26,8 @@
     </div>
 
     <div class="card-body table-responsive">
-        @if($records->isEmpty())
+        @include('bike-maintenance.table')
+        {{-- @if($records->isEmpty())
             <div class="text-center py-5 text-muted">  
                 <i class="fas fa-tools fa-3x mb-3"></i>
                 <h6>No Maintenance Records</h6>
@@ -89,7 +91,7 @@
                             </button>
                             <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $record->id }}" style="z-index: 1050;">
                                 @can('bike_edit')
-                                <a href="javascript:void(0);" data-size="md" data-title="Update Bike Reading" data-action="{{ route('bike-maintenance.invoice', $record) }}" class='show-modal dropdown-item waves-effect'>
+                                <a href="{{ route('bike-maintenance.invoice', $record) }}" target="_blank" class='show-modal dropdown-item waves-effect'>
                                     <i class="fa fa-motorcycle my-1"></i>View Invoice
                                 </a>
                                 @endcan
@@ -109,58 +111,7 @@
                     @endforeach
                 </tbody>
             </table>
-        @endif
+        @endif --}}
     </div>
 </div>
-@endsection
-@section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<script type="text/javascript">
-    $(document).ready(function() {
-        // Handle delete record functionality with AJAX
-        $(document).on('click', '.delete-record', function(e) {
-            e.preventDefault();
-            const url = $(this).data('url');
-            
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "You won't be able to revert this!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Send AJAX DELETE request
-                    $.ajax({
-                        url: url,
-                        type: 'DELETE',
-                        data: {
-                            _token: '{{ csrf_token() }}'
-                        },
-                        success: function(response) {
-                            Swal.fire(
-                                'Deleted!',
-                                'Maintenance record has been deleted.',
-                                'success'
-                            ).then(() => {
-                                // Reload the page to update the list
-                                location.reload();
-                            });
-                        },
-                        error: function(xhr) {
-                            Swal.fire(
-                                'Error!',
-                                'Failed to delete file.',
-                                'error'
-                            );
-                        }
-                    });
-                }
-            });
-        });
-    });
-</script>
 @endsection

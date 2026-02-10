@@ -138,7 +138,7 @@
       </a>
     </li>
     <li class="menu-item {{ Request::is('bikeMaintenance*') ? 'active' : '' }}">
-      <a href="{{ route('bike-maintenance.missing') }}" class="menu-link">
+      <a href="{{ route('bikeMaintenance.index') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-motorbike"></i>
         <div>Maintenance Overview</div>
       </a>

@@ -46,7 +46,7 @@ class BikeMaintenance extends Model
     }
 
     public function rider(){
-        return $this->hasOne(Riders::class, 'rider_id', 'id');
+        return $this->belongsTo(Riders::class, 'rider_id', 'id');
     }
 
     public function maintenanceItems(){
@@ -55,5 +55,9 @@ class BikeMaintenance extends Model
 
     public function CreatedBy(){
         return $this->belongsTo(User::class,'created_by','id');
+    }
+
+    public function UpdatedBy(){
+        return $this->belongsTo(User::class,'updated_by','id');
     }
 }

@@ -1153,8 +1153,8 @@ class BikesController extends AppBaseController
 
   public function maintenance($id){
     $bikes = Bikes::findOrFail($id);
-    $records = $bikes->maintenanceRecords()->orderBy('maintenance_date', 'desc')->get();
-    return view('bikes.maintenance', compact('bikes','records'));
+    $maintenances = $bikes->maintenanceRecords()->orderBy('maintenance_date', 'desc')->get();
+    return view('bikes.maintenance', compact('bikes','maintenances'));
   }
 
   /**

@@ -19,6 +19,7 @@ class BikeMaintenanceItem extends Model
         'discount',
         'vat',
         'total_amount',
+        'charge_to',
     ];
 
     protected $casts = [

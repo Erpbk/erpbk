@@ -117,7 +117,7 @@
             <!--col-->
             <div class="col-md-2 form-group">
                 <label>Amount</label>
-                <input type="text" class="form-control form-control amount" readonly name="amount[]" value="AED {{ number_format($item->amount, 2) }}" placeholder="AED 0.00" data-numeric-value="{{ $item->amount }}" onkeyup="getTotal();">
+                <input type="text" class="form-control form-control amount" readonly name="amount[]" value="AED {{ number_format($item->amount, 2) }}" placeholder="AED 0.00" data-numeric-value="{{ number_format(round($item->amount, 2), 2, '.', '') }}" onkeyup="getTotal();">
             </div>
             <!--col-->
             <div class="form-group col-md-1 d-flex align-items-end">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\Account;
 use App\Helpers\CommonHelper;
 use App\Helpers\General;
+use App\Models\Accounts;
 use App\Models\Rider;
 use App\Models\Riders;
 use App\Models\Transactions;
@@ -49,6 +50,8 @@ class ReportController extends Controller
     $b_total = 0;
     $total_debit_sum = 0;
     $total_credit_sum = 0;
+    $sub_total_column_sum = 0;
+    $total_column_sum = 0;
 
     // Handle billing_month - make it optional
     $billing_month = null;
@@ -123,43 +126,50 @@ class ReportController extends Controller
       $balance = 0.00;
       $rider_total_debit = 0.00;
       $rider_total_credit = 0.00;
+      $subtotal_balance = 0.00;
 
-      if (isset($rider->account_id) && $rider->account_id) {
+      // Resolve account_id: use rider's account_id or find rider ledger account by ref_id (rider id)
+      $accountId = $rider->account_id;
+      if (!$accountId) {
+        $account = Accounts::where('ref_id', $rider->id)
+          ->where(function ($q) {
+            $q->where('ref_name', 'Rider')->orWhereNull('ref_name');
+          })
+          ->first();
+        if ($account) {
+          $accountId = $account->id;
+        }
+      }
+
+      if ($accountId) {
         if ($billing_month) {
           // If billing month is provided, get monthly data
-          $opening_balance = Account::Monthly_ob($billing_month, $rider->account_id);
-          $balance = Account::BillingMonth_Balance($billing_month, $rider->account_id);
+          $opening_balance = Account::Monthly_ob($billing_month, $accountId);
+          $balance = Account::BillingMonth_Balance($billing_month, $accountId);
 
           // Calculate total debits and credits for the specific month
-          $rider_total_debit = \App\Models\Transactions::where('account_id', $rider->account_id)
+          $rider_total_debit = Transactions::where('account_id', $accountId)
             ->whereDate('billing_month', $billing_month)->sum('debit');
-          $rider_total_credit = \App\Models\Transactions::where('account_id', $rider->account_id)
+          $rider_total_credit = Transactions::where('account_id', $accountId)
             ->whereDate('billing_month', $billing_month)->sum('credit');
 
-          $subtotal_debit = \App\Models\Transactions::where('account_id', $rider->account_id)
-            ->sum('debit');
-          $subtotal_credit = \App\Models\Transactions::where('account_id', $rider->account_id)
-            ->sum('credit');
+          $subtotal_debit = Transactions::where('account_id', $accountId)->sum('debit');
+          $subtotal_credit = Transactions::where('account_id', $accountId)->sum('credit');
           $subtotal_balance = $subtotal_debit - $subtotal_credit;
         } else {
           // If no billing month, get overall account balance
           $opening_balance = 0.00; // No opening balance for overall report
 
           // Calculate total debits and credits for entire history
-          $rider_total_debit = \App\Models\Transactions::where('account_id', $rider->account_id)->sum('debit');
-
-          $rider_total_credit = \App\Models\Transactions::where('account_id', $rider->account_id)->sum('credit');
+          $rider_total_debit = Transactions::where('account_id', $accountId)->sum('debit');
+          $rider_total_credit = Transactions::where('account_id', $accountId)->sum('credit');
 
           // Calculate balance as debit minus credit
           $balance = $rider_total_debit - $rider_total_credit;
-          $subtotal_debit = \App\Models\Transactions::where('account_id', $rider->account_id)
-            ->sum('debit');
-          $subtotal_credit = \App\Models\Transactions::where('account_id', $rider->account_id)
-            ->sum('credit');
+          $subtotal_debit = Transactions::where('account_id', $accountId)->sum('debit');
+          $subtotal_credit = Transactions::where('account_id', $accountId)->sum('credit');
           $subtotal_balance = $subtotal_debit - $subtotal_credit;
         }
-
-        // No additional calculations - just show raw debit and credit values
       }
       $data .= '<tr>';
       $data .= '<td  >' . @$rider->rider_id . '</td>';
@@ -180,9 +190,12 @@ class ReportController extends Controller
           </td>';
 
 
+      // Balance column = rider ledger balance (full account total: debit - credit)
+      $ledger_balance = $subtotal_balance;
+
       $data .= '<td align="right" >' . number_format($opening_balance, 2) . '</td>';
       $data .= '<td align="right" >' . number_format($balance, 2) . '</td>';
-      $data .= '<td align="right">' . Account::show_bal($opening_balance + $balance) . '</td>';
+      $data .= '<td align="right">' . Account::show_bal($ledger_balance) . '</td>';
       $data .= '<td align="right">' . Account::show_bal($subtotal_balance - ($opening_balance + $balance)) . '</td>';
       $data .= '<td align="right">' . number_format($subtotal_balance, 2) . '</td>';
       $data .= '</tr>';
@@ -193,20 +206,19 @@ class ReportController extends Controller
       $b_total += $opening_balance + $balance;
       $total_debit_sum += $rider_total_debit;
       $total_credit_sum += $rider_total_credit;
+      $sub_total_column_sum += ($subtotal_balance - ($opening_balance + $balance));
+      $total_column_sum += $subtotal_balance;
     }
 
 
-
-
-
-
+    // Footer: Balance column total = sum of rider ledger balances
     $data .= '<tr>';
     $data .= '<td colspan="9"></td>';
     $data .= '<th style="text-align: right">' . number_format($opening_balance_total, 2) . '</th>';
     $data .= '<th style="text-align: right">' . number_format($total, 2) . '</th>';
-    $data .= '<th style="text-align: right">' . Account::show_bal($b_total) . '</th>';
-    $data .= '<th style="text-align: right">' . number_format($total_debit_sum, 2) . '</th>';
-    $data .= '<th style="text-align: right">' . number_format($total_credit_sum, 2) . '</th>';
+    $data .= '<th style="text-align: right">' . Account::show_bal($total_column_sum) . '</th>';
+    $data .= '<th style="text-align: right">' . Account::show_bal($sub_total_column_sum) . '</th>';
+    $data .= '<th style="text-align: right">' . number_format($total_column_sum, 2) . '</th>';
     $data .= '</tr>';
 
     // Render pagination links (global component) for consistency with riders

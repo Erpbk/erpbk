@@ -392,6 +392,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::prefix('settings')->group(function () {
 
         Route::any('/company', [HomeController::class, 'settings'])->name('settings');
+        Route::get('/erp', [App\Http\Controllers\ErpSettingsController::class, 'index'])->name('settings.erp');
         Route::resource('departments', App\Http\Controllers\DepartmentsController::class);
         Route::resource('dropdowns', App\Http\Controllers\DropdownsController::class);
     });

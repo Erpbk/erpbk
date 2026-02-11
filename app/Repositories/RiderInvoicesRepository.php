@@ -91,8 +91,8 @@ class RiderInvoicesRepository extends BaseRepository
           $amountValue = trim($amountValue);
         }
 
-        // Ensure amount is numeric
-        $amountValue = is_numeric($amountValue) ? (float)$amountValue : 0;
+        // Ensure amount is numeric and round to 2 decimals for consistency with display/totals
+        $amountValue = is_numeric($amountValue) ? round((float)$amountValue, 2) : 0;
 
         $dta['item_id'] = $request['item_id'][$key];
         $dta['qty'] = $request['qty'][$key] ?? 0;

@@ -252,6 +252,7 @@ class BikeMaintenanceController extends Controller
                         'discount'           => $request->discount[$index] ?? 0,
                         'vat'                => $request->vat[$index] ?? 0,
                         'total_amount'       => $request->item_total[$index] ?? 0,
+                        'charge_to'          => $request->charge_to[$index],
                         'created_at'         => now(),
                         'updated_at'         => now(),
                     ];

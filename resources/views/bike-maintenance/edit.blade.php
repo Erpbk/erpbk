@@ -122,11 +122,15 @@
 
             {{-- Overdue Paid By --}}
             <div class="form-group col-md-3">
-                {!! Form::label('overdue_paidby', 'Overdue Cost Paid By') !!}
-                {!! Form::select('overdue_paidby', [
-                    'Company' => 'Company',
-                    'Rider' => 'Rider',
-                ], $maintenance->overdue_paidby ?? null, ['class' => 'form-control select2', 'placeholder' => 'Select who paid...']) !!}
+                <div class="form-check mt-5">
+                    {!! Form::checkbox('overdue_paidby', 'Rider', $maintenance->overdue_paidby ?? null, [
+                        'class' => 'form-check-input',
+                        'id' => 'charge_rider'
+                    ]) !!}
+                    {!! Form::label('charge_rider', 'Charge Overdue to Rider', [
+                        'class' => 'fw-bold'
+                    ]) !!}
+                </div>
             </div>
 
             {{-- Description --}}
@@ -167,17 +171,26 @@
                         {!! Form::label('rate', 'Rate') !!}
                         {!! Form::number('rate[]', $item->rate ?? null, ['class' => 'form-control rate', 'step' => 'any']) !!}
                     </div>
-                    <div class="form-group col-md-1">
+                    {{-- <div class="form-group col-md-1">
                         {!! Form::label('discount', 'Discount') !!}
                         {!! Form::number('discount[]', $item->discount ?? null, ['class' => 'form-control discount', 'step' => 'any']) !!}
                     </div>
                     <div class="form-group col-md-1">
                         {!! Form::label('vat', 'VAT') !!}
                         {!! Form::number('vat[]', $item->vat ?? null, ['class' => 'form-control vat', 'step' => 'any']) !!}
-                    </div>
+                    </div> --}}
                     <div class="form-group col-md-2">
                         {!! Form::label('amount', 'Amount') !!}
                         {!! Form::number('item_total[]', $item->total_amount, ['class' => 'form-control item_total', 'step' => 'any', 'readonly' => true]) !!}
+                    </div>
+                    <div class="form-group col-md-2">
+                        {!! Form::label('charge_to', 'Charge To') !!}
+                        
+                        <select name="charge_to[]" class="form-control select2">
+                            <option value="">Select</option>
+                            <option value="Company" {{ $item->charge_to == 'Company' ? 'selected' : '' }}>Company</option>
+                            <option value="Rider" {{ $item->charge_to == 'Rider' ? 'selected' : '' }}>Rider</option>
+                        </select>
                     </div>
                     <div class="form-group col-md-1 d-flex align-items-end">
                         <a href="javascript:void(0);" class="text-danger remove-row"><i class="fa fa-trash"></i></a>

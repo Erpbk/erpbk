@@ -118,12 +118,23 @@
 
             {{-- Overdue Paid By --}}
             <div class="form-group col-md-3">
+                <div class="form-check mt-5">
+                    {!! Form::checkbox('overdue_paidby', 'Rider', null, [
+                        'class' => 'form-check-input',
+                        'id' => 'charge_rider'
+                    ]) !!}
+                    {!! Form::label('charge_rider', 'Charge Overdue to Rider', [
+                        'class' => 'fw-bold'
+                    ]) !!}
+                </div>
+            </div>
+            {{-- <div class="form-group col-md-3">
                 {!! Form::label('overdue_paidby', 'Overdue Cost Paid By') !!}
                 {!! Form::select('overdue_paidby', [
                     'Company' => 'Company',
                     'Rider' => 'Rider',
                 ], null, ['class' => 'form-control select2', 'placeholder' => 'Select who paid...']) !!}
-            </div>
+            </div> --}}
 
             {{-- Description --}}
             <div class="form-group col-md-6">
@@ -237,6 +248,16 @@ $(document).ready(function() {
 });
 
 function addNewRow(){
+
+    
+    // <div class="form-group col-md-1">
+    //     {!! Form::label('discount', 'Discount') !!}
+    //     {!! Form::number('discount[]', 0, ['class' => 'form-control discount', 'step' => 'any']) !!}
+    // </div>
+    // <div class="form-group col-md-1">
+    //     {!! Form::label('vat', 'VAT') !!}
+    //     {!! Form::number('vat[]', 0, ['class' => 'form-control vat', 'step' => 'any']) !!}
+    // </div>
     const newRow = $(`
         <div class="row">
             <div class="form-group col-md-3">
@@ -256,21 +277,22 @@ function addNewRow(){
                 {!! Form::label('rate', 'Rate') !!}
                 {!! Form::number('rate[]', 0, ['class' => 'form-control rate', 'step' => 'any']) !!}
             </div>
-            <div class="form-group col-md-1">
-                {!! Form::label('discount', 'Discount') !!}
-                {!! Form::number('discount[]', 0, ['class' => 'form-control discount', 'step' => 'any']) !!}
-            </div>
-            <div class="form-group col-md-1">
-                {!! Form::label('vat', 'VAT') !!}
-                {!! Form::number('vat[]', 0, ['class' => 'form-control vat', 'step' => 'any']) !!}
-            </div>
             <div class="form-group col-md-2">
                 {!! Form::label('amount', 'Total Amount:') !!}
                 {!! Form::number('item_total[]', null, ['class' => 'form-control item_total', 'step' => 'any']) !!}
             </div>
-                <div class="form-group col-md-1 d-flex align-items-end">
-                    <a href="javascript:void(0);" class="text-danger remove-row"><i class="fa fa-trash"></i></a>
-                </div>
+            <div class="form-group col-md-2">
+                {!! Form::label('charge_to', 'Charge To') !!}
+                
+                <select name="charge_to[]" class="form-control select2">
+                    <option value="">Select</option>
+                    <option value="Company">Company</option>
+                    <option value="Rider">Rider</option>
+                </select>
+            </div>
+            <div class="form-group col-md-1 d-flex align-items-end">
+                <a href="javascript:void(0);" class="text-danger remove-row"><i class="fa fa-trash"></i></a>
+            </div>
             </div>
         </div>
     `);

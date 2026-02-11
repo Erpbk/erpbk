@@ -1,4 +1,5 @@
 <!-- need to remove -->
+@can('dashboard_view')
 <li class="menu-item {{ Request::is('/') ? 'active' : '' }}">
   <a href="{{ route('home') }}" class="menu-link ">
     <i class="menu-icon tf-icons ti ti-layout-dashboard"></i>
@@ -6,7 +7,7 @@
     {{-- <div class="badge bg-white text-dark rounded-pill ms-auto">2</div>  --}}
   </a>
 </li>
-
+@endcan
 {{-- CENTRALIZED RECYCLE BIN --}}
 @can('trash_view')
 <li class="menu-item {{ Request::is('trash*') ? 'active' : '' }}">
@@ -285,7 +286,7 @@
   </a>
 </li>
 @endcan
-@can('files_view')
+@can('company_documents_view')
 <li class="menu-item {{ Request::is('upload_files*') ? 'active' : '' }}">
   <a href="{{ route('upload_files.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-upload"></i>
@@ -417,6 +418,12 @@
       <a href="{{ route('settings') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-settings"></i>
         <div>Settings</div>
+      </a>
+    </li>
+    <li class="menu-item {{ Request::is('settings/erp') ? 'active' : '' }}">
+      <a href="{{ route('settings.erp') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-adjustments"></i>
+        <div>ERP Settings</div>
       </a>
     </li>
     @endcan

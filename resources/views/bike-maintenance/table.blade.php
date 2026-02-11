@@ -31,7 +31,7 @@
                     @endphp
                     <tr class="">
                         <td style=" white-space: nowrap;">
-                            <strong>{{ $maintenance->maintenance_date->format('d-M-Y') }}</strong>
+                            <strong>{{ $maintenance->maintenance_date->format('d M Y') }}</strong>
                             <br>
                             <small class="text-muted">{{ $maintenance->maintenance_date->diffForHumans() }}</small>
                         </td>
@@ -107,9 +107,9 @@
                                         data-action="{{ route('bikeMaintenance.edit', $maintenance) }}">
                                         <i class="fa fa-edit my-1"></i>Edit Record
                                     </a>
-                                    <a href="{{ route('bike-maintenance.invoice', $maintenance) }}" 
-                                    class='dropdown-item waves-effect' target="_blank">
-                                        <i class="fa fa-file-invoice my-1"></i>View Invoice
+                                    <a href="javascript:void(0);" 
+                                    class='dropdown-item waves-effect'>
+                                        <i class="fa fa-file-invoice my-1"></i>Charge Invoice
                                     </a>
                                     @can('bike_delete')
                                     <a href="javascript:void(0);" class='dropdown-item waves-effect delete-record' data-url="{{ route('bikeMaintenance.destroy', $maintenance) }} ">

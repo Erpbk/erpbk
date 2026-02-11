@@ -293,7 +293,10 @@
             @endif
             <div class="detail-item">
                 <span class="detail-label">Maintenance Interval:</span>
-                <span class="detail-value">{{ number_format($maintenance->maintenance_km, 0) }} KM</span>
+                @php
+                    $maintenance_km = max(0,$maintenance->current_km - $maintenance->previous_km - $maintenance->overdue_km);
+                @endphp
+                <span class="detail-value">{{ number_format($maintenance_km, 2) }} KM</span>
             </div>
             @if($maintenance->overdue_km > 0)
                 <div class="detail-item">

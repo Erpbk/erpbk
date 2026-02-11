@@ -320,6 +320,7 @@ function addNewRow(){
             </div>
             <div class="form-group col-md-2">
                 {!! Form::label('charge_to', 'Charge To') !!}
+                
                 <select name="charge_to[]" class="form-control select2">
                     <option value="">Select</option>
                     <option value="Company">Company</option>

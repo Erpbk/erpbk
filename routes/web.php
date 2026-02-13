@@ -83,11 +83,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('bike/files/{id}', [\App\Http\Controllers\BikesController::class, 'files'])->name('bikes.files');
     Route::get('bike/maintenance/{id}', [\App\Http\Controllers\BikesController::class, 'maintenance'])->name('bikes.maintenance');
 
-
     Route::resource('bikes', App\Http\Controllers\BikesController::class);
-
-    Route::get('bikes/import-bikes', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.importbikes');
-    Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
 
     Route::resource('bikeMaintenance', \App\Http\Controllers\BikeMaintenanceController::class);
     Route::any('bike-maintenance/{bike}/edit', [\App\Http\Controllers\BikeMaintenanceController::class, 'edit'])->name('bike-maintenance.editForm');
@@ -96,11 +92,13 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post( 'bike-maintenance/{maintenance}/chargeInvoice',[\App\Http\Controllers\BikeMaintenanceController::class, 'chargeInvoice'])->name('bike-maintenance.chargeInvoice');
     Route::get( 'bike-maintenance/{maintenance}/chargeInvoiceDetails',[\App\Http\Controllers\BikeMaintenanceController::class, 'chargeInvoiceDetails'])->name('bike-maintenance.chargeInvoiceDetails');
 
+    Route::get('bikes/import-bikes', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.importbikes');
+    Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
 
-    Route::resource('customers', App\Http\Controllers\CustomersController::class);
+
+    Route::resource('customers', App\Http\Controllers\CustomersController::class)->parameters(['customers' => 'id']);
     Route::get('customer/ledger/{id}', [\App\Http\Controllers\CustomersController::class, 'ledger'])->name('customer.ledger');
     Route::get('customer/files/{id}', [\App\Http\Controllers\CustomersController::class, 'files'])->name('customer.files');
-    Route::get('customers/delete/{id}', [\App\Http\Controllers\CustomersController::class, 'destroy'])->name('customers.delete');
     // Customers Trash Routes
     Route::get('customers/trash', [\App\Http\Controllers\CustomersController::class, 'trash'])->name('customers.trash');
     Route::post('customers/trash/{id}/restore', [\App\Http\Controllers\CustomersController::class, 'restoreTrash'])->name('customers.restore');
@@ -126,9 +124,8 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('rtaFines/getrider/{id}', [\App\Http\Controllers\RtaFinesController::class, 'getrider']);
 
 
-    Route::post('/cheques/status/{id}', [App\Http\Controllers\ChequesController::class, 'updateStatus'])->name('cheques.update-status');
-    Route::get('cheques/change_status/{id}', [\App\Http\Controllers\ChequesController::class, 'statusForm'])->name('cheques.status-form');
-    Route::resource('cheques', App\Http\Controllers\ChequesController::class);
+
+
 
 
     Route::resource('VisaExpense', App\Http\Controllers\VisaexpenseController::class);
@@ -339,7 +336,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::resource('fuelCards', App\Http\Controllers\FuelCardController::class);
     Route::any('fuelcards/import', [\App\Http\Controllers\FuelCardController::class, 'import'])->name('fuelCards.import');
     Route::get('fuelcards/export', [\App\Http\Controllers\FuelCardController::class, 'export'])->name('fuelCards.export');
-    
+
     Route::any('fuelcards/assign/{id}', [\App\Http\Controllers\FuelCardHistoryController::class, 'assign'])->name('fuelCards.assign');
     Route::any('fuelcards/return/{id}', [\App\Http\Controllers\FuelCardHistoryController::class, 'return'])->name('fuelCards.return');
 
@@ -349,10 +346,11 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('leasingCompanies/trash', [\App\Http\Controllers\LeasingCompaniesController::class, 'trash'])->name('leasingCompanies.trash');
     Route::post('leasingCompanies/trash/{id}/restore', [\App\Http\Controllers\LeasingCompaniesController::class, 'restoreTrash'])->name('leasingCompanies.restore');
     Route::delete('leasingCompanies/trash/{id}/force-destroy', [\App\Http\Controllers\LeasingCompaniesController::class, 'forceDestroyTrash'])->name('leasingCompanies.force-destroy');
-    
+
     // Leasing Company Invoice Routes
     Route::get('leasingCompanyInvoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'indexInvoices'])->name('leasingCompanyInvoices.index');
     Route::get('leasingCompanyInvoices/create/{leasingCompanyId?}', [\App\Http\Controllers\LeasingCompaniesController::class, 'createInvoice'])->name('leasingCompanyInvoices.create');
+    Route::get('leasingCompanyInvoices/create-from-clone/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'createFromClone'])->name('leasingCompanyInvoices.createFromClone');
     Route::post('leasingCompanyInvoices/store', [\App\Http\Controllers\LeasingCompaniesController::class, 'storeInvoice'])->name('leasingCompanyInvoices.store');
     Route::get('leasingCompanyInvoices/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'showInvoice'])->name('leasingCompanyInvoices.show');
     Route::get('leasingCompanyInvoices/{id}/edit', [\App\Http\Controllers\LeasingCompaniesController::class, 'editInvoice'])->name('leasingCompanyInvoices.edit');
@@ -362,6 +360,10 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('leasingCompanies/{id}/invoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'createInvoice'])->name('leasingCompanies.createInvoice');
     Route::post('leasingCompanies/{id}/invoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'storeInvoice'])->name('leasingCompanies.storeInvoice');
     Route::get('leasingCompanies/{id}/bikes', [\App\Http\Controllers\LeasingCompaniesController::class, 'getBikes'])->name('leasingCompanies.getBikes');
+    Route::get('leasingCompanies/receipts/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'receipts'])->name('leasingCompanies.receipts');
+    Route::get('leasingCompanies/payments/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'payments'])->name('leasingCompanies.payments');
+    Route::get('leasingCompany/files/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'files'])->name('leasingCompany.files');
+    Route::get('leasingCompany/ledger/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'ledger'])->name('leasingCompany.ledger');
     Route::resource('garages', App\Http\Controllers\GaragesController::class);
     Route::get('garages/delete/{id}', [\App\Http\Controllers\GaragesController::class, 'destroy'])->name('garages.delete');
     Route::resource('banks', App\Http\Controllers\BanksController::class);
@@ -370,8 +372,11 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('bank/delete/{id}', [\App\Http\Controllers\BanksController::class, 'destroy'])->name('bank.delete');
     Route::get('banks/receipts/{id}', [\App\Http\Controllers\BanksController::class, 'receipts'])->name('banks.receipts');
     Route::get('banks/payments/{id}', [\App\Http\Controllers\BanksController::class, 'payments'])->name('banks.payments');
-    Route::get('bank/cheques/{id}', [\App\Http\Controllers\BanksController::class, 'cheques'])->name('banks.cheques');
-    
+    Route::get('banks/cheques/{id}', [\App\Http\Controllers\BanksController::class, 'cheques'])->name('banks.cheques');
+
+    Route::post('/cheques/status/{id}', [App\Http\Controllers\ChequesController::class, 'updateStatus'])->name('cheques.update-status');
+    Route::get('cheques/change_status/{id}', [\App\Http\Controllers\ChequesController::class, 'statusForm'])->name('cheques.status-form');
+    Route::resource('cheques', App\Http\Controllers\ChequesController::class);
 
     // Soft Delete Routes for Banks - DEPRECATED: Use centralized trash module (/trash)
     // Route::get('banks/trashed/list', [\App\Http\Controllers\BanksController::class, 'trashed'])->name('banks.trashed');
@@ -389,6 +394,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::prefix('settings')->group(function () {
 
         Route::any('/company', [HomeController::class, 'settings'])->name('settings');
+        Route::get('/erp', [App\Http\Controllers\ErpSettingsController::class, 'index'])->name('settings.erp');
         Route::resource('departments', App\Http\Controllers\DepartmentsController::class);
         Route::resource('dropdowns', App\Http\Controllers\DropdownsController::class);
     });

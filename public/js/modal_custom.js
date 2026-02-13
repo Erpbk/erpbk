@@ -1,4 +1,4 @@
-﻿$(document).ready(function () {
+$(document).ready(function () {
   $('.select2').select2({
     dropdownParent: $('#modalTopbody'),
             allowClear: true
@@ -102,6 +102,7 @@ $(document).ready(function () {
 
     // Clear input, textarea, and select values in the cloned row
     newRow.find('input, textarea').val(''); // Clear inputs and textareas
+    newRow.find('.amount').attr('data-numeric-value', '0'); // Reset amount for correct total calculation
     newRow.find('select').val(null).trigger('change'); // Reset the select value and trigger change
 
     // Append the new row to the container

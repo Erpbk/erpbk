@@ -12,6 +12,7 @@ interface HeadAccount
   const RTA_FINE = 1235;
   const SALARIES_PAYABLE = 1200; // Add the correct GL code for Salaries Payable here
   const COD_ACCOUNT = 1219; // COD Account
+  const LEASING_EXPENSE_ACCOUNT = 1129; // Leasing company invoice debit (expense) account – must exist in Chart of Accounts
   const PENALTY_ACCOUNT = 1017; // Penalty Account
   const INCENTIVE_ACCOUNT = 1009; // Incentive Account
   const PAYMENT_ACCOUNT = 994; // Payment Account (Using Bank account for payments)

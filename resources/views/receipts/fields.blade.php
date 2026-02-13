@@ -1,4 +1,4 @@
-﻿<!-- reference Field -->
+<!-- reference Field -->
 <div class="form-group col-sm-6">
   {!! Form::label('reference', 'Reference:') !!}
   {!! Form::text('reference', null, ['class' => 'form-control', 'maxlength' => 255]) !!}
@@ -14,14 +14,32 @@
   ) !!}
 </div>
 
-<!-- Bank ID Field -->
-@if(!isset($bank) && !isset($receipt))
+<!-- Bank ID or Leasing Company ID Field -->
+@if(request()->has('leasing_company_id') || (isset($receipt) && $receipt->leasing_company_id))
+  @php
+    $leasingCompany = \App\Models\LeasingCompanies::find(request('leasing_company_id') ?? $receipt->leasing_company_id);
+  @endphp
+  <div class="form-group col-sm-6">
+    {!! Form::label('leasing_company_id', 'Receiving Leasing Company:') !!}
+    {!! Form::hidden('leasing_company_id', $leasingCompany->id ?? '')!!}
+    {!! Form::text('leasing-company-name', $leasingCompany->name ?? '-', ['class' => 'form-control', 'readonly' => true]) !!}
+  </div>
+@elseif(!isset($bank) && !isset($receipt))
   <div class="form-group col-sm-6">
     {!! Form::label('bank_id', 'Recieving Account:') !!}
     <select name="bank_id" id="bank_id" class="form-control select2">
       <option value="">Select</option>
       @foreach(\App\Models\Banks::where('status', 1)->get() as $bank)
       <option value="{{ $bank->id }}" {{ old('bank_id', isset($receipt) ? $receipt->bank_id : '') == $bank->id ? 'selected' : '' }}>{{ $bank->name }}</option>
+      @endforeach
+    </select>
+  </div>
+  <div class="form-group col-sm-6">
+    {!! Form::label('leasing_company_id', 'OR Leasing Company:') !!}
+    <select name="leasing_company_id" id="leasing_company_id" class="form-control select2">
+      <option value="">Select</option>
+      @foreach(\App\Models\LeasingCompanies::where('status', 1)->get() as $lc)
+      <option value="{{ $lc->id }}" {{ old('leasing_company_id', isset($receipt) ? $receipt->leasing_company_id : '') == $lc->id ? 'selected' : '' }}>{{ $lc->name }}</option>
       @endforeach
     </select>
   </div>

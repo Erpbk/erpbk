@@ -16,7 +16,6 @@ class RidersRepository extends BaseRepository
         'email',
         'nationality',
         'NFDID',
-        'cdm_deposit_id',
         'doj',
         'emirate_hub',
         'emirate_id',

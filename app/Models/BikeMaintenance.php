@@ -13,6 +13,7 @@ class BikeMaintenance extends Model
     public $fillable = [
         'bike_id',
         'rider_id',
+        'garage_id',
         'maintenance_date',
         'description',
         'current_km',
@@ -26,6 +27,7 @@ class BikeMaintenance extends Model
         'billing_month',
         'attachment',
         'created_by',
+        'updated_by',
         'created_at',
         'updated_at',
         'deleted_at',
@@ -35,7 +37,7 @@ class BikeMaintenance extends Model
 
     protected $casts = [
         'maintenance_date' => 'datetime',
-        'billing_month' =>'dateeime',
+        'billing_month' =>'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -47,6 +49,10 @@ class BikeMaintenance extends Model
 
     public function rider(){
         return $this->belongsTo(Riders::class, 'rider_id', 'id');
+    }
+
+    public function garage(){
+        return $this->belongsTo(Garages::class, 'garage_id', 'id');
     }
 
     public function maintenanceItems(){

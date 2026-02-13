@@ -3,6 +3,7 @@
 namespace App\DataTables;
 
 use App\Helpers\Common;
+use App\Models\BikeMaintenance;
 use App\Models\Transactions;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
@@ -162,6 +163,13 @@ class LedgerDataTable extends DataTable
           $voucher_text = '<span class="text-danger">No Voucher Found</span>';
         }
       }
+      if ($row->reference_type == 'Bike Maintenance') {
+        $maintenance = BikeMaintenance::where('id',$row->reference_id)->first();
+        $voucher_ID = 'MAINT-'.str_pad($maintenance->id, 6, '0', STR_PAD_LEFT);
+        $voucher_text = '<span class="d-none">' . $voucher_ID . '</span><a href="' . route('bike-maintenance.invoice', $maintenance) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+        if($maintenance->attachment)
+          $view_file = '  <a href="' . url('storage2/' . $maintenance->attachment) . '" class="no-print"  target="_blank">View File</a>';
+      }
       $month = "<span style='white-space: nowrap;'>" . date('M Y', strtotime($row->billing_month)) . "</span>";
       if ($row->reference_type == 'RTA') {
         $vouchers = DB::table('vouchers')->where('trans_code', $row->trans_code)->first();
@@ -273,6 +281,7 @@ class LedgerDataTable extends DataTable
         $accountid = $account->id;
         $accountName = $account ? $account->account_code . '-' . $account->name : "All Accounts";
     }
+    
     return $this->builder()
       ->columns($this->getColumns())
       ->minifiedAjax()
@@ -288,38 +297,17 @@ class LedgerDataTable extends DataTable
                 [50, 100, 150, 200, -1], // Values to display in the dropdown
                 [50, 100, 150, 200, 'All'] // Labels for the dropdown
             ],
-        'stateSave' => true, // Ensures balance maintains on pagination
+        'stateSave' => false, 
         'responsive' => true,
-        'initComplete' => "function(settings, json) {
-                      var api = this.api();
-                      
-                      // Function to go to last page
-                      function goToLastPage() {
-                          var lastPage = api.page.info().pages - 1;
-                          if (lastPage >= 0) {
-                              api.page(lastPage).draw('page');
-                          }
-                      }
-                      
-                      // If we have a month filter in URL
-                      var urlParams = new URLSearchParams(window.location.search);
-                      if (urlParams.get('month')) {
-                          // Wait a bit for any filters to apply, then go to last page
-                          setTimeout(goToLastPage, 200);
-                      } else {
-                          // No filter, go immediately
-                          goToLastPage();
-                      }
-                  }",
         'footerCallback' => "function(row, data, start, end, display) {
                     var api = this.api();
                     var intVal = function(i) {
                         return typeof i === 'string' ? parseFloat(i.replace(/[\$,]/g, '')) : (typeof i === 'number' ? i : 0);
                     };
 
-                    totalDebit = api.column(5, { page: 'current' }).data().reduce(function(a, b) { return intVal(a) + intVal(b); }, 0);
-                    totalCredit = api.column(6, { page: 'current' }).data().reduce(function(a, b) { return intVal(a) + intVal(b); }, 0);
-                    totalBalance = api.column(7, { page: 'current' }).data().reduce(function(a, b) { return intVal(a) + intVal(b); }, 0);
+                    totalDebit = api.column(6, { page: 'current' }).data().reduce(function(a, b) { return intVal(a) + intVal(b); }, 0);
+                    totalCredit = api.column(7, { page: 'current' }).data().reduce(function(a, b) { return intVal(a) + intVal(b); }, 0);
+                    totalBalance = api.column(8, { page: 'current' }).data().reduce(function(a, b) { return intVal(a) + intVal(b); }, 0);
 
                     $(api.column(5).footer()).html('<b>' + totalDebit.toFixed(2) + '</b>');
                     $(api.column(6).footer()).html('<b>' + totalCredit.toFixed(2) + '</b>');

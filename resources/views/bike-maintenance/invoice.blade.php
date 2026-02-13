@@ -212,7 +212,7 @@
                     <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TRN {{ $settings['vat_number'] ?? 'TRN Number' }}</p>
                 </td>
                 <td width="33.33%" style="text-align: center;  border: none !important;">
-                    <h2 style="margin: 0; font-weight: bold;">Maintenance Invoice</h2>
+                    <h3 style="margin: 0; font-weight: bold;">Maintenance Bill</h3>
                 </td>
             </tr>
         </table>
@@ -227,36 +227,45 @@
                 <div style="display: grid; grid-template-columns: 100px 1fr; gap: 8px; align-items: center;">
                     <div style="font-weight: 600; color: #555;">Bike:</div>
                     <div>{{ $maintenance->bike->emirates }}-{{ $maintenance->bike->plate }}</div>
-                    
+                    <div style="font-weight: 600; color: #555;">Leasing Company:</div>
+                    <div>{{ $maintenance->bike->LeasingCompany->name ?? '' }}</div>
                     <div style="font-weight: 600; color: #555;">Rider:</div>
                     <div>
-                        {{ $maintenance->bike->rider ? $maintenance->bike->rider->rider_id .'-'.$maintenance->bike->rider->name : 'No Rider Assigned' }}
+                        {{ $maintenance->rider ? $maintenance->rider->rider_id .'-'.$maintenance->rider->name : 'No Rider Assigned' }}
                     </div>
-                    
-                    @if($maintenance->bike->rider)
-                    <div style="font-weight: 600; color: #555;">Rider ID:</div>
-                    <div>{{ $maintenance->bike->rider->rider_id }}</div>
-                    @endif
+                    <div style="font-weight: 600; color: #555;">Rider Contact:</div>
+                    <div>{{ $maintenance->bike->rider ? $maintenance->bike->rider->company_contact : '' }}</div>
+                    <div style="font-weight: 600; color: #555;">Garage:</div>
+                    <div>{{ $maintenance->garage ? $maintenance->garage->name : '' }}</div>
                 </div>
             </div>
             
             <!-- Invoice Details Card -->
             <div style="flex: 1; padding: 15px;">
                 <div style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #004aad;">
-                    <strong style="color: #004aad; font-size: 14px;">Invoice Details</strong>
+                    <strong style="color: #004aad; font-size: 14px;">Bill Details</strong>
                 </div>
                 <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center;">
-                    <div style="font-weight: 600; color: #555;">Invoice #:</div>
+                    <div style="font-weight: 600; color: #555;">Bill No:</div>
                     <div>MAINT-{{ str_pad($maintenance->id, 6, '0', STR_PAD_LEFT) }}</div>
                     
-                    <div style="font-weight: 600; color: #555;">Date:</div>
+                    <div style="font-weight: 600; color: #555;">Maintenance Date:</div>
                     <div>{{ $maintenance->maintenance_date->format('d M Y') }}</div>
                     
                     <div style="font-weight: 600; color: #555;">Created By:</div>
                     <div>{{ $maintenance->createdBy->name ?? 'System' }}</div>
                     
-                    <div style="font-weight: 600; color: #555;">Created At:</div>
-                    <div>{{ $maintenance->created_at->format('d/m/Y H:i') }}</div>
+                    <div class="no-print" style="font-weight: 600; color: #555;">Created At:</div>
+                    <div class="no-print">{{ $maintenance->created_at->format('d M Y H:i') }}</div>
+
+                    @if($maintenance->updated_by)
+                        <div class="no-print" style="font-weight: 600; color: #555;">Updated By:</div>
+                        <div class="no-print">{{ $maintenance->UpdatedBy->name }}</div>
+
+                        <div class="no-print" style="font-weight: 600; color: #555;">Updated At:</div>
+                        <div class="no-print">{{ $maintenance->updated_at->format('d M Y H:i') }}</div>
+
+                    @endif
                 </div>
             </div>
         </div>
@@ -312,6 +321,7 @@
         </div>
         @php
             $overdue_cost = $maintenance->overdue_km??0*$maintenance->overdue_cost_per_km??0;
+            $overdue = ($maintenance->overdue_paidby == 'Rider');
         @endphp
 
         <!-- Maintenance Items Table -->
@@ -330,10 +340,19 @@
                 $riderItems = $maintenance->maintenanceItems->where('charge_to','Rider');
                 $companyItems = $maintenance->maintenanceItems->where('charge_to','Company');
             @endphp
+            <tr>
+                <td colspan="7" style="text-align: center; font-weight: bold;">Rider Items</td>
+            </tr>
+            <tr>
+                <td>Overdue cost {{ $overdue? '' : '(Not Charged)' }}</td>
+                <td>Rider late for maintenance</td>
+                <td style="text-align: right;">{{ number_format($maintenance->overdue_km, 2) }} KM</td>
+                <td class="num">{{ number_format($maintenance->overdue_cost_per_km, 2) }}</td>
+                <td class="num">0</td>
+                <td class="num">0</td>
+                <td class="num">{{ number_format($overdue_cost, 2) }}</td>
+            </tr>
             @if($riderItems->count() > 0)
-                <tr>
-                    <td colspan="7" style="text-align: center; font-weight: bold;">Rider Items</td>
-                </tr>
                 @foreach($riderItems as $item)
                 <tr>
                     <td>{{ $item->item_name }}</td>
@@ -345,27 +364,13 @@
                     <td class="num">{{ number_format($item->total_amount, 2) }}</td>
                 </tr>
                 @endforeach
-                @php
-                    $overdue = ($maintenance->overdue_paidby == 'Rider');
-                @endphp
-                @if($overdue)
-                    <tr>
-                        <td>Overdue cost</td>
-                        <td>Rider late for maintenance</td>
-                        <td class="num">{{ number_format($maintenance->overdue_km, 2) }}</td>
-                        <td class="num">{{ number_format($maintenance->overdue_cost_per_km, 2) }}</td>
-                        <td class="num">0</td>
-                        <td class="num">0</td>
-                        <td class="num">{{ number_format($overdue_cost, 2) }}</td>
-                    </tr>
-                @endif
-                <tr>
-                    <td colspan="6" style="text-align: right; padding: 8px;"><strong>SUBTOTAL</strong></td>
-                    <td class="num" style="padding: 8px; font-size: 14px;">
-                        <strong>{{ number_format($riderItems->sum('total_amount') + $overdue_cost, 2) }}</strong>
-                    </td>
-                </tr>
             @endif
+            <tr>
+                <td colspan="6" style="text-align: right; padding: 8px;"><strong>SUBTOTAL</strong></td>
+                <td class="num" style="padding: 8px; font-size: 14px;">
+                    <strong>{{ number_format($riderItems->sum('total_amount') + ($overdue? $overdue_cost : 0), 2) }}</strong>
+                </td>
+            </tr>
             @if($companyItems->count() > 0)
                 <tr>
                     <td colspan="7" style="text-align: center; font-weight: bold;">Company Items</td>
@@ -399,7 +404,7 @@
         <div style="margin-top: 20px; text-align: right;">
             <div style="display: inline-block; padding: 15px; background: #004aad; color: white; border-radius: 5px;">
                 <div style="font-size: 16px; margin-bottom: 5px; text-align: center;">Grand Total</div>
-                <div style="font-size: 24px; font-weight: bold;">AED {{ number_format($maintenance->total_cost + $overdue_cost, 2) }}</div>
+                <div style="font-size: 24px; font-weight: bold;">AED {{ number_format($maintenance->total_cost + ($overdue ? $overdue_cost:0), 2) }}</div>
             </div>
         </div>
 

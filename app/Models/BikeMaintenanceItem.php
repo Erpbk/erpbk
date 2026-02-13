@@ -18,6 +18,7 @@ class BikeMaintenanceItem extends Model
         'rate',
         'discount',
         'vat',
+        'vat_amount',
         'total_amount',
         'charge_to',
     ];
@@ -27,6 +28,7 @@ class BikeMaintenanceItem extends Model
         'rate' => 'decimal:2',
         'discount' => 'decimal:2',
         'vat' => 'decimal:2',
+        'vat_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'price' => 'decimal:2',
         'created_at' => 'datetime',

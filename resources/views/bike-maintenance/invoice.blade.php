@@ -247,10 +247,13 @@
                 </div>
                 <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center;">
                     <div style="font-weight: 600; color: #555;">Bill No:</div>
-                    <div>MAINT-{{ str_pad($maintenance->id, 6, '0', STR_PAD_LEFT) }}</div>
+                    <div>MA-{{ $maintenance->id }}</div>
                     
                     <div style="font-weight: 600; color: #555;">Maintenance Date:</div>
                     <div>{{ $maintenance->maintenance_date->format('d M Y') }}</div>
+
+                    <div style="font-weight: 600; color: #555;">Billing Month:</div>
+                    <div>{{ $maintenance->billing_month->format('M Y') }}</div>
                     
                     <div style="font-weight: 600; color: #555;">Created By:</div>
                     <div>{{ $maintenance->createdBy->name ?? 'System' }}</div>
@@ -303,7 +306,7 @@
             <div class="detail-item">
                 <span class="detail-label">Maintenance Interval:</span>
                 @php
-                    $maintenance_km = max(0,$maintenance->current_km - $maintenance->previous_km - $maintenance->overdue_km);
+                    $maintenance_km = max(0,$maintenance->bike->maintenance_km);
                 @endphp
                 <span class="detail-value">{{ number_format($maintenance_km, 2) }} KM</span>
             </div>
@@ -333,7 +336,7 @@
                 <th class="secondary-header">Quantity</th>
                 <th class="secondary-header">Rate (AED)</th>
                 <th class="secondary-header">Discount</th>
-                <th class="secondary-header">VAT</th>
+                <th class="secondary-header">VAT(%)</th>
                 <th class="secondary-header">Total (AED)</th>
             </tr>
             @php

@@ -26,6 +26,7 @@ class BikeMaintenance extends Model
         'paidby',
         'billing_month',
         'attachment',
+        'status',
         'created_by',
         'updated_by',
         'created_at',

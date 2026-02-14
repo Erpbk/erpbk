@@ -16,8 +16,8 @@
 
             {{-- Maintenance Date --}}
             <div class="form-group col-md-3">
-                {!! Form::label('maintenance_date', 'Maintenance Date', ['class' => 'required']) !!}
-                {!! Form::date('maintenance_date', null, ['class' => 'form-control', 'required' => true]) !!}
+                {!! Form::label('maintenance_date', 'Maintenance Date') !!}
+                {!! Form::date('maintenance_date', now(), ['class' => 'form-control', 'required' => true]) !!}
             </div>
 
             {{-- Attachment --}}
@@ -31,7 +31,7 @@
 
             {{-- Previous KM --}}
             <div class="form-group col-md-3">
-                {!! Form::label('previous_km', 'Previous Reading', ['class' => 'required']) !!}
+                {!! Form::label('previous_km', 'Previous Reading') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
                     {!! Form::number('previous_km', $bike->previous_km ?? null, [
@@ -46,13 +46,14 @@
 
             {{-- Current KM --}}
             <div class="form-group col-md-3">
-                {!! Form::label('current_km', 'Current Reading', ['class' => 'required']) !!}
+                {!! Form::label('current_km', 'Current Reading') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
                     {!! Form::number('current_km', null, [
                         'class' => 'form-control', 
                         'step' => 'any', 
                         'min' => '0',
+                        'required' => true,
                         'id' => 'current_km',
                     ]) !!}
                 </div>
@@ -60,7 +61,7 @@
 
             {{-- Maintenance KM (interval for maintenance) --}}
             <div class="form-group col-md-3">
-                {!! Form::label('maintenance_km', 'Maintenance Interval', ['class' => 'required']) !!}
+                {!! Form::label('maintenance_km', 'Maintenance Interval') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
                     {!! Form::number('maintenance_km', $bike->maintenance_km ?? null, [
@@ -89,7 +90,7 @@
 
             {{-- Overdue Cost Per KM --}}
             <div class="form-group col-md-3">
-                {!! Form::label('overdue_cost_per_km', 'Cost Per Overdue KM', ['class' => 'required']) !!}
+                {!! Form::label('overdue_cost_per_km', 'Cost Per Overdue KM') !!}
                 <div class="input-group">
                     <span class="input-group-text">AED</span>
                     {!! Form::number('overdue_cost_per_km', 1, [
@@ -139,13 +140,6 @@
                     @endforeach
                 </select>
             </div>
-            {{-- <div class="form-group col-md-3">
-                {!! Form::label('overdue_paidby', 'Overdue Cost Paid By') !!}
-                {!! Form::select('overdue_paidby', [
-                    'Company' => 'Company',
-                    'Rider' => 'Rider',
-                ], null, ['class' => 'form-control select2', 'placeholder' => 'Select who paid...']) !!}
-            </div> --}}
 
             {{-- Description --}}
             <div class="form-group col-md-6">
@@ -156,12 +150,56 @@
                     'placeholder' => 'Notes about maintenance performed...'
                 ]) !!}
             </div>
+            <div class="col-md-3"></div>
+
+            {{-- Billing Month --}}
+            <div class="form-group col-md-3">
+                {!! Form::label('billing_month', 'Billing Month',) !!}
+                {!! Form::month('billing_month', now(), ['class' => 'form-control', 'required' => true]) !!}
+            </div>
         </div>
     </div>
     
     <h5 class="my-3">Maintenance Items</h5>
     <div class="scrollbar p-2">
         <div id="row-container">
+            <div class="row">
+                <div class="form-group col-md-2">
+                    {!! Form::label('item', 'Item') !!}
+                    <select name="item_id[]" class="form-control select2 item">
+                        <option value="">Select</option>
+                        @foreach(\App\Models\Items::where('status', 1)->get() as $item)
+                        <option value="{{ $item->id }}">{{ $item->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group col-md-2">
+                    {!! Form::label('qty', 'Qty') !!}
+                    {!! Form::number('quantity[]', 1, ['class' => 'form-control qty']) !!}
+                </div>
+                <div class="form-group col-md-2">
+                    {!! Form::label('rate', 'Rate') !!}
+                    {!! Form::number('rate[]', 0, ['class' => 'form-control rate', 'step' => 'any']) !!}
+                </div>
+                <div class="form-group col-md-1">
+                    {!! Form::label('vat', 'VAT(%)') !!}
+                    {!! Form::number('vat[]', 0, ['class' => 'form-control vat', 'step' => 'any']) !!}
+                </div>
+                <input type="hidden" name="vat_amount[]" value="0" class="vat_amount">
+                <div class="form-group col-md-2">
+                    {!! Form::label('amount', 'Total Amount:') !!}
+                    {!! Form::number('item_total[]', null, ['class' => 'form-control item_total', 'step' => 'any']) !!}
+                </div>
+                <div class="form-group col-md-2">
+                    {!! Form::label('charge_to', 'Charge To') !!}
+                    
+                    <select name="charge_to[]" class="form-control select2">
+                        <option value="">Select</option>
+                        <option value="Company">Company</option>
+                        <option value="Rider">Rider</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -256,6 +294,8 @@ $(document).ready(function() {
 
     // Add row button click
     $('#add-row').click(addNewRow);
+
+    toggleRiderChargeOption()
 });
 
 function addNewRow(){
@@ -305,7 +345,6 @@ function addNewRow(){
             <div class="form-group col-md-1 d-flex align-items-end">
                 <a href="javascript:void(0);" class="text-danger remove-row"><i class="fa fa-trash"></i></a>
             </div>
-            </div>
         </div>
     `);
     
@@ -321,6 +360,7 @@ function addNewRow(){
     // Calculate total
     setItemTotal(newRow);
     setTotal();
+    toggleRiderChargeOption();
 }
 
 function setItemTotal(row) {
@@ -353,5 +393,24 @@ function setTotal() {
         total += itemTotal;
     });
     $('#total_cost').val(total.toFixed(2));
+}
+function toggleRiderChargeOption() {
+    const riderText = $('#rider_info').val().trim();
+    const noRider = riderText === 'No Rider Assigned';
+
+    $('select[name="charge_to[]"]').each(function () {
+        const riderOption = $(this).find('option[value="Rider"]');
+
+        if (noRider) {
+            riderOption.prop('disabled', true);
+
+            // If currently selected, reset it
+            if ($(this).val() === 'Rider') {
+                $(this).val('').trigger('change');
+            }
+        } else {
+            riderOption.prop('disabled', false);
+        }
+    });
 }
 </script>

@@ -75,15 +75,10 @@
                         <td>
                             <strong>AED {{ number_format($maintenance->total_cost ?? 0, 2) }}</strong>
                         </td>
-                        <td>
+                        <td style="white-space: nowrap">
                             <a href="{{ route('bike-maintenance.invoice', $maintenance) }}" 
                             class='' target="_blank">
-                                <i class="fa fa-file-invoice my-1"></i>
-                                @if($maintenance->status)
-                                <small class="text-success">Charged</small>
-                                @else
-                                    <small class="text-danger no-wrap">Not Charged</small>
-                                @endif
+                                MA-{{ $maintenance->id }}
                             </a>
                         </td>
                         <td style="position: relative;">
@@ -107,15 +102,6 @@
                                         data-action="{{ route('bikeMaintenance.edit', $maintenance) }}">
                                         <i class="fa fa-edit my-1"></i>Edit Record
                                     </a>
-                                    @if(!$maintenance->status)
-                                    <a  href="javascript:void(0);" 
-                                        class='dropdown-item waves-effect show-modal'
-                                        data-size="xl"
-                                        data-title="Bill Transaction Details"
-                                        data-action="{{ route('bike-maintenance.chargeInvoiceDetails', $maintenance) }}">
-                                        <i class="fa fa-file-invoice my-1"></i>Charge Bill
-                                    </a>
-                                    @endif
                                     @can('bike_delete')
                                     <a href="javascript:void(0);" class='dropdown-item waves-effect delete-record' data-url="{{ route('bikeMaintenance.destroy', $maintenance) }} ">
                                         <i class="fa fa-trash my-1 text-danger"></i>Delete Record

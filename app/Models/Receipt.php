@@ -15,6 +15,7 @@ class Receipt extends Model
         'reference',
         'account_id',
         'bank_id',
+        'leasing_company_id',
         'payer_account_id',
         'amount',
         'amount_type',
@@ -54,6 +55,10 @@ class Receipt extends Model
 
     public function bank(){
         return $this->belongsTo(Banks::class,'bank_id','id');
+    }
+
+    public function leasingCompany(){
+        return $this->belongsTo(LeasingCompanies::class,'leasing_company_id','id');
     }
 
     public function receivedFrom(){

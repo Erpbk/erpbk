@@ -60,15 +60,16 @@ function getTotal() {
       }
     }
     
-    // Add to subtotal if valid
+    // Add to subtotal if valid - round each amount to 2 decimals to avoid floating-point accumulation
     if (!isNaN(amountValue) && amountValue > 0) {
-      amount_sum += amountValue;
+      amount_sum += Math.round(parseFloat(amountValue) * 100) / 100;
     }
   });
   
   // Use amount_sum for subtotal if we're in a rider invoice form (has #sub_total)
+  // Round final sum to ensure displayed total matches sum of displayed amounts
   if ($('#sub_total').length > 0) {
-    $('#sub_total').val(amount_sum.toFixed(2));
+    $('#sub_total').val((Math.round(amount_sum * 100) / 100).toFixed(2));
   }
   
   //.toFixed() method will roundoff the final sum to 2 decimal places
@@ -105,11 +106,13 @@ function rider_price(g) {
       if (tax == '') tax = 0;
       
       // Calculate amount: (qty * rate) - discount + tax (consistent with calculate_price)
-      let amount = (Number(qty) * Number(rate)) - Number(discount) + Number(tax);
+      // Round to 2 decimals to avoid floating-point precision issues
+      let amount = Math.round(((Number(qty) * Number(rate)) - Number(discount) + Number(tax)) * 100) / 100;
+      let amountStr = amount.toFixed(2);
       
-      $(g).closest('.row').find('.amount').val('AED ' + amount.toFixed(2));
+      $(g).closest('.row').find('.amount').val('AED ' + amountStr);
       // Store the numeric value in a data attribute for proper calculation
-      $(g).closest('.row').find('.amount').attr('data-numeric-value', amount.toFixed(2));
+      $(g).closest('.row').find('.amount').attr('data-numeric-value', amountStr);
       getTotal();
     }
   });
@@ -127,10 +130,12 @@ function calculate_price(g) {
   if (tax == '') tax = 0;
 
   // Calculate amount: (qty * rate) - discount + tax
-  let amount = (Number(qty) * Number(rate)) - Number(discount) + Number(tax);
+  // Round to 2 decimals to avoid floating-point precision issues
+  let amount = Math.round(((Number(qty) * Number(rate)) - Number(discount) + Number(tax)) * 100) / 100;
+  let amountStr = amount.toFixed(2);
 
-  $(g).closest('.row').find('.amount').val('AED ' + amount.toFixed(2));
+  $(g).closest('.row').find('.amount').val('AED ' + amountStr);
   // Store the numeric value in a data attribute for proper calculation
-  $(g).closest('.row').find('.amount').attr('data-numeric-value', amount.toFixed(2));
+  $(g).closest('.row').find('.amount').attr('data-numeric-value', amountStr);
   getTotal();
 }

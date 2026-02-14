@@ -6,7 +6,7 @@
             <!-- Rider ID -->
             <div class="form-group col-sm-4">
                 {!! Form::label('rider_id', 'Rider ID:',['class'=>'required']) !!}
-                {!! Form::text('rider_id', null, ['class' => 'form-control','required', 'id' => 'rider_id_field']) !!}
+                {!! Form::number('rider_id', null, ['class' => 'form-control','required', 'id' => 'rider_id_field']) !!}
                 <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
                 @error('rider_id')
                 <span class="text-danger">{{ $message }}</span>
@@ -20,76 +20,76 @@
                 <div class="invalid-feedback" id="courier_id_error" style="display: none;"></div>
                 @error('courier_id')
                 <span class="text-danger">{{ $message }}</span>
-                @enderror
-            </div> --}}
+            @enderror
+        </div> --}}
 
-            <!-- Name -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('name', 'Name:',['class'=>'required']) !!}
-                {!! Form::text('name', null, ['class' => 'form-control', 'maxlength' => 191, 'required']) !!}
-            </div>
+        <!-- Name -->
+        <div class="form-group col-sm-4">
+            {!! Form::label('name', 'Name:',['class'=>'required']) !!}
+            {!! Form::text('name', null, ['class' => 'form-control', 'maxlength' => 191, 'required']) !!}
+        </div>
 
-            <!-- Date of Joining -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('doj', 'Date Of Joining:',['class'=>'required']) !!}
-                {!! Form::date('doj', null, ['class' => 'form-control','id'=>'doj','required']) !!}
-            </div>
+        <!-- Date of Joining -->
+        <div class="form-group col-sm-4">
+            {!! Form::label('doj', 'Date Of Joining:',['class'=>'required']) !!}
+            {!! Form::date('doj', null, ['class' => 'form-control','id'=>'doj','required']) !!}
+        </div>
 
-            <!-- Rider Contact -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('personal_contact', 'Rider Contact:') !!}
-                {!! Form::tel('personal_contact', null, ['class' => 'form-control', 'placeholder' => '05XXXXXXXX', 'maxlength' => 10]) !!}
-            </div>
+        <!-- Rider Contact -->
+        <div class="form-group col-sm-4">
+            {!! Form::label('personal_contact', 'Rider Contact:') !!}
+            {!! Form::tel('personal_contact', null, ['class' => 'form-control', 'placeholder' => '05XXXXXXXX', 'maxlength' => 10]) !!}
+        </div>
 
-            <!-- Personal Email -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('personal_email', 'Personal Email:',['class'=>'required']) !!}
-                {!! Form::email('personal_email', null, ['class' => 'form-control', 'placeholder' => 'Enter Email ID','maxlength' => 191, 'required']) !!}
-            </div>
+        <!-- Personal Email -->
+        <div class="form-group col-sm-4">
+            {!! Form::label('personal_email', 'Personal Email:',['class'=>'required']) !!}
+            {!! Form::email('personal_email', null, ['class' => 'form-control', 'placeholder' => 'Enter Email ID','maxlength' => 191, 'required']) !!}
+        </div>
 
-            <!-- Nationality -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('nationality', 'Nationality:',['class'=>'required']) !!}
-                {!! Form::select('nationality',
-                App\Models\Countries::list()->toArray(),
-                null,
-                [
-                'class' => 'form-control form-select select2',
-                'required',
-                'placeholder' => 'Select Nationality'
-                ]) !!}
-            </div>
+        <!-- Nationality -->
+        <div class="form-group col-sm-4">
+            {!! Form::label('nationality', 'Nationality:',['class'=>'required']) !!}
+            {!! Form::select('nationality',
+            App\Models\Countries::list()->toArray(),
+            null,
+            [
+            'class' => 'form-control form-select select2',
+            'required',
+            'placeholder' => 'Select Nationality'
+            ]) !!}
+        </div>
 
-            <!-- Passport -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('passport', 'Passport:',['class'=>'required']) !!}
-                {!! Form::text('passport', null, ['class' => 'form-control', 'maxlength' => 50]) !!}
-            </div>
+        <!-- Passport -->
+        <div class="form-group col-sm-4">
+            {!! Form::label('passport', 'Passport:',['class'=>'required']) !!}
+            {!! Form::text('passport', null, ['class' => 'form-control', 'maxlength' => 50]) !!}
+        </div>
 
-            <!-- Passport Expiry -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('passport_expiry', 'Passport Expiry:',['class'=>'required']) !!}
-                {!! Form::date('passport_expiry', null, ['class' => 'form-control','id'=>'passport_expiry']) !!}
-            </div>
+        <!-- Passport Expiry -->
+        <div class="form-group col-sm-4">
+            {!! Form::label('passport_expiry', 'Passport Expiry:',['class'=>'required']) !!}
+            {!! Form::date('passport_expiry', null, ['class' => 'form-control','id'=>'passport_expiry']) !!}
+        </div>
 
-            <!-- Ethnicity -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('ethnicity', 'Ethnicity:') !!}
-                {!! Form::select('ethnicity',
-                Common::Dropdowns('ethnicity'),
-                null,
-                [
-                'class' => 'form-select',
-                'placeholder' => 'Select Ethnicity'
-                ]) !!}
-            </div>
-            <!-- Date of Birth -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('dob', 'Date Of Birth:') !!}
-                {!! Form::date('dob', null, ['class' => 'form-control','id'=>'dob']) !!}
-            </div>
+        <!-- Ethnicity -->
+        <div class="form-group col-sm-4">
+            {!! Form::label('ethnicity', 'Ethnicity:') !!}
+            {!! Form::select('ethnicity',
+            Common::Dropdowns('ethnicity'),
+            null,
+            [
+            'class' => 'form-select',
+            'placeholder' => 'Select Ethnicity'
+            ]) !!}
+        </div>
+        <!-- Date of Birth -->
+        <div class="form-group col-sm-4">
+            {!! Form::label('dob', 'Date Of Birth:') !!}
+            {!! Form::date('dob', null, ['class' => 'form-control','id'=>'dob']) !!}
         </div>
     </div>
+</div>
 </div>
 
 <!-- Visa Info Section -->
@@ -108,28 +108,16 @@
                 {!! Form::date('license_expiry', null, ['class' => 'form-control','id'=>'license_expiry']) !!}
             </div>
 
-            <!-- Visa Sponsor -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('visa_sponsor', 'Visa Sponsor:') !!}
-                {!! Form::text('visa_sponsor', null, ['class' => 'form-control', 'placeholder' => 'Enter Visa Sponsor', 'maxlength' => 50]) !!}
-            </div>
-
             <!-- Road Permit -->
             <div class="form-group col-sm-4">
                 {!! Form::label('road_permit', 'Road Permit:') !!}
                 {!! Form::text('road_permit', null, ['class' => 'form-control', 'placeholder' => 'Enter Road Permit No.','maxlength' => 50 ]) !!}
             </div>
-        
+
             <!-- Road Permit Expiry -->
             <div class="form-group col-sm-4">
                 {!! Form::label('road_permit_expiry', 'Road Permit Expiry:') !!}
                 {!! Form::date('road_permit_expiry', null, ['class' => 'form-control','id'=>'road_permit_expiry']) !!}
-            </div>
-
-            <!-- Visa Occupation -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('visa_occupation', 'Visa Occupation:',['class'=>'required']) !!}
-                {!! Form::text('visa_occupation', null, ['class' => 'form-control', 'placeholder' => 'Enter Visa Occupation','maxlength' => 50, 'required' ]) !!}
             </div>
 
             <!-- Visa Status -->
@@ -143,7 +131,7 @@
                 'placeholder' => 'Select Visa Status'
                 ]) !!}
             </div>
-            
+
             <!-- Passport Handover -->
             <div class="form-group col-sm-4">
                 {!! Form::label('passport_handover', 'Passport Handover:',['class'=>'required']) !!}
@@ -189,12 +177,6 @@
             <div class="form-group col-sm-4">
                 {!! Form::label('emirate_exp', 'Emirate Expiry:',['class'=>'required']) !!}
                 {!! Form::date('emirate_exp', null, ['class' => 'form-control','id'=>'emirate_exp','required']) !!}
-            </div>
-
-            <!-- CDM Deposit ID -->
-            <div class="form-group col-sm-4">
-                {!! Form::label('cdm_deposit_id', 'CDM Deposit ID:') !!}
-                {!! Form::text('cdm_deposit_id', null, ['class' => 'form-control', 'maxlength' => 191]) !!}
             </div>
 
             {{-- <!-- Branded Plate No -->
@@ -244,7 +226,16 @@
                     @endforeach
                 </select>
             </div>
-
+            <!-- Visa Sponsor -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('visa_sponsor', 'Visa Sponsor:') !!}
+                {!! Form::text('visa_sponsor', null, ['class' => 'form-control', 'placeholder' => 'Enter Visa Sponsor', 'maxlength' => 50]) !!}
+            </div>
+            <!-- Visa Occupation -->
+            <div class="form-group col-sm-4">
+                {!! Form::label('visa_occupation', 'Visa Occupation:',['class'=>'required']) !!}
+                {!! Form::text('visa_occupation', null, ['class' => 'form-control', 'placeholder' => 'Enter Visa Occupation','maxlength' => 50, 'required' ]) !!}
+            </div>
             <!-- VAT -->
             <div class="form-group col-sm-4">
                 <label>VAT</label>
@@ -356,4 +347,3 @@
         </div>
     </div>
 </div>
-

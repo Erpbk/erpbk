@@ -17,17 +17,22 @@ class LeasingCompanyInvoice extends Model
         'leasing_company_id',
         'billing_month',
         'invoice_number',
+        'reference_number',
+        'leasing_company_invoice_number',
         'descriptions',
         'subtotal',
         'vat',
         'total_amount',
         'notes',
+        'attachment',
         'status'
     ];
 
     protected $casts = [
         'inv_date' => 'date',
         'billing_month' => 'date',
+        'leasing_company_invoice_number' => 'string',
+        'attachment' => 'string',
         'subtotal' => 'decimal:2',
         'vat' => 'decimal:2',
         'total_amount' => 'decimal:2',
@@ -41,8 +46,11 @@ class LeasingCompanyInvoice extends Model
         'leasing_company_id' => 'required|exists:leasing_companies,id',
         'billing_month' => 'required|date',
         'invoice_number' => 'nullable|string|max:255',
+        'reference_number' => 'required|string|max:255',
+        'leasing_company_invoice_number' => 'required|string|max:255',
         'descriptions' => 'nullable|string',
         'notes' => 'nullable|string',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
         'status' => 'nullable|integer'
     ];
 

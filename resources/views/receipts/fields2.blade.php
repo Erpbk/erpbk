@@ -40,11 +40,19 @@
         <div id="row-container">
             <h5 class="my-1">Receipt Voucher</h5>
             <div class="row">
-                <div class="form-group col-md-3">
-                    {!! Form::label('bank', 'Account:') !!}
-                    {!! Form::hidden('bank_id', $bank->id ?? $receipt->bank_id ?? '')!!}
-                    {!! Form::text('bank-name', $bank->account->account_code.'-'.$bank->account->name, ['class' => 'form-control', 'readonly' => true]) !!}
-                </div>
+                @if(isset($leasingCompany) || (isset($receipt) && $receipt->leasing_company_id))
+                    <div class="form-group col-md-3">
+                        {!! Form::label('leasing_company', 'Leasing Company:') !!}
+                        {!! Form::hidden('leasing_company_id', $leasingCompany->id ?? $receipt->leasing_company_id ?? '')!!}
+                        {!! Form::text('leasing-company-name', $leasingCompany->name ?? $receipt->leasingCompany->name ?? '-', ['class' => 'form-control', 'readonly' => true]) !!}
+                    </div>
+                @else
+                    <div class="form-group col-md-3">
+                        {!! Form::label('bank', 'Account:') !!}
+                        {!! Form::hidden('bank_id', $bank->id ?? $receipt->bank_id ?? '')!!}
+                        {!! Form::text('bank-name', $bank->account->account_code.'-'.$bank->account->name, ['class' => 'form-control', 'readonly' => true]) !!}
+                    </div>
+                @endif
                 <div class="form-group col-md-4">
                     {!! Form::label('description', 'Narration') !!}
                     {!! Form::textarea('description', null, ['class' => 'form-control', 'rows'=>10, 'placeholder' =>'Narration', 'style' => "height: 40px !important;"]) !!}
@@ -84,11 +92,19 @@
             @foreach ($transactions as $index => $transaction)
                 @if($index == 0)
                     <div class="row">
-                        <div class="form-group col-md-3">
-                            {!! Form::label('bank', 'Account:') !!}
-                            {!! Form::hidden('bank_id', $bank->id ?? $receipt->bank_id ?? '')!!}
-                            {!! Form::text('bank-name', $bank->account->account_code.'-'.$bank->account->name, ['class' => 'form-control', 'readonly' => true]) !!}
-                        </div>
+                        @if(isset($leasingCompany) || (isset($receipt) && $receipt->leasing_company_id))
+                            <div class="form-group col-md-3">
+                                {!! Form::label('leasing_company', 'Leasing Company:') !!}
+                                {!! Form::hidden('leasing_company_id', $leasingCompany->id ?? $receipt->leasing_company_id ?? '')!!}
+                                {!! Form::text('leasing-company-name', $leasingCompany->name ?? $receipt->leasingCompany->name ?? '-', ['class' => 'form-control', 'readonly' => true]) !!}
+                            </div>
+                        @else
+                            <div class="form-group col-md-3">
+                                {!! Form::label('bank', 'Account:') !!}
+                                {!! Form::hidden('bank_id', $bank->id ?? $receipt->bank_id ?? '')!!}
+                                {!! Form::text('bank-name', $bank->account->account_code.'-'.$bank->account->name, ['class' => 'form-control', 'readonly' => true]) !!}
+                            </div>
+                        @endif
                         <div class="form-group col-md-4">
                             {!! Form::label('description', 'Narration') !!}
                             {!! Form::textarea('description', null, ['class' => 'form-control', 'rows'=>10, 'placeholder' =>'Narration', 'style' => "height: 40px !important;"]) !!}

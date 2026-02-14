@@ -9,15 +9,17 @@
       <div class="col-sm-6">
         <h3>Uploaded Files</h3>
       </div>
+      @can('company_documents_create')
       <div class="col-sm-6 text-end">
         <a class="btn btn-primary action-btn show-modal"
-           href="javascript:void(0);"
-           data-size="lg"
-           data-title="Upload File"
-           data-action="{{ route('upload_files.create') }}">
+          href="javascript:void(0);"
+          data-size="lg"
+          data-title="Upload File"
+          data-action="{{ route('upload_files.create') }}">
           Upload File
         </a>
       </div>
+      @endcan
     </div>
   </div>
 </section>

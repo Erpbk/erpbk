@@ -296,7 +296,7 @@ class RtaFinesController extends AppBaseController
                         'trans_code'     => $trans_code,
                         'trans_date'     => $transDate,
                         'narration'      => $fine->detail ?? 'RTA Fine Payment',
-                        'debit'          => $fine->total_amount,
+                        'debit'          => $fine->amount,
                         'billing_month'  => $billingMonth,
                     ]);
                 }
@@ -315,7 +315,7 @@ class RtaFinesController extends AppBaseController
                     ]);
                 }
 
-                if ($fine->total_amount > 0) {
+                if ($fine->amount > 0) {
 
                     // Credit Selected Payment Account
                     $TransactionService->recordTransaction([
@@ -325,7 +325,7 @@ class RtaFinesController extends AppBaseController
                         'trans_code'     => $trans_code,
                         'trans_date'     => $transDate,
                         'narration'      => $fine->detail ?? 'RTA Fine Payment',
-                        'credit'         => $fine->total_amount,
+                        'credit'         => $fine->amount + $fine->service_charges,
                         'billing_month'  => $billingMonth,
                     ]);
                 }
@@ -413,11 +413,12 @@ class RtaFinesController extends AppBaseController
      */
     public function store(CreateRtaFinesRequest $request)
     {
-        $exists = DB::table('rta_fines')->where('ticket_no', $request->ticket_no)->exists();
+        $exists = DB::table('rta_fines')->where('ticket_no', $request->ticket_no)->where('deleted_at', null)->exists();
 
         if ($exists) {
             return response()->json(['errors' => ['error' => 'This Ticket Number already exists.']], 422);
         }
+
         DB::beginTransaction();
 
         try {
@@ -440,7 +441,7 @@ class RtaFinesController extends AppBaseController
             $input['trans_date']      = Carbon::today();
             $input['trans_code']      = $trans_code;
             // amount column: admin_fee + service_charges + amount (fine amount)
-            $input['amount']          = ($request->admin_fee ?? 0) + ($request->service_charges ?? 0) + ($request->amount ?? 0);
+            $input['amount']          = ($request->amount ?? 0);
             // total_amount column: service_charges + admin_fee + amount + vat
             $input['total_amount']    = ($request->service_charges ?? 0) + ($request->admin_fee ?? 0) + ($request->amount ?? 0) + ($request->vat ?? 0);
             $input['status']          = 'unpaid';
@@ -465,7 +466,7 @@ class RtaFinesController extends AppBaseController
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
                 'narration'      => $rtaFines->detail ?? 'RTA Fine',
-                'debit'          => $rtaFines->amount, // Only amount (admin + service + fine), not including VAT
+                'debit'          => $rtaFines->amount + $rtaFines->admin_fee + $rtaFines->service_charges, // Only amount (admin + service + fine), not including VAT
                 'billing_month'  => $billingMonth,
             ]);
 
@@ -518,7 +519,7 @@ class RtaFinesController extends AppBaseController
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
                     'narration'      => $rtaFines->detail ?? 'RTA Fine Received',
-                    'credit'         => $rtaFines->total_amount, // Total amount including VAT
+                    'credit'         => $rtaFines->amount + $request->vat, // Total amount including VAT
                     'billing_month'  => $billingMonth,
                 ]);
             }

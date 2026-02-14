@@ -17,10 +17,9 @@
 </div>
 <!-- Contact Number Field -->
 <div class="form-group col-sm-12">
-    {!! Form::label('rental_amount', 'Rental Amount:',['class'=>'required']) !!}
-    {!! Form::number('rental_amount', null, ['class' => 'form-control', 'step' => '0.01', 'maxlength' => 100, 'maxlength' => 100, 'required' => true]) !!}
+    {!! Form::label('trn_number', 'TRN Number:',['class'=>'required']) !!}
+    {!! Form::text('trn_number', null, ['class' => 'form-control', 'maxlength' => 100, 'maxlength' => 100, 'required' => true]) !!}
 </div>
-
 <!-- Detail Field -->
 <div class="form-group col-sm-12 col-lg-12">
     {!! Form::label('detail', 'Detail:',['class'=>'required']) !!}

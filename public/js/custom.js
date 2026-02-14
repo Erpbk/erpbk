@@ -1,4 +1,4 @@
-﻿$('body').on('click', '.show-modal', function () {
+$('body').on('click', '.show-modal', function () {
   var action = $(this).data('action');
   var title = $(this).data('title');
   var size = $(this).data('size');
@@ -33,7 +33,6 @@ $(document).on('submit', '#formajax', function (e) {
 
   let formID = 'formajax';
   var action = $(this).attr('action');
-
   var formData = new FormData(this);
 
   // Dynamic fields ki values ko ek array mein store karein
@@ -73,10 +72,14 @@ $(document).on('submit', '#formajax', function (e) {
       } else {
         toastr.success('Action performed successfully.');
       }
+      // Check for redirect in response data
+      if (data.redirect) {
+        $('#redirect_url').val(data.redirect);
+      }
       if ($('#reload_page').val() == 1) {
         location.reload();
       }
-      if ($('#redirect_url').length != 0) {
+      if ($('#redirect_url').length != 0 && $('#redirect_url').val()) {
         window.location = $('#redirect_url').val();
       }
       $('#modalTop').modal('hide');

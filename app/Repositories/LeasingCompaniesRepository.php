@@ -11,7 +11,7 @@ class LeasingCompaniesRepository extends BaseRepository
         'name',
         'contact_person',
         'contact_number',
-        'rental_amount',
+        'trn_number',
         'detail',
         'status'
     ];

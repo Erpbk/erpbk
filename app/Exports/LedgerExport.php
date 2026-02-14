@@ -150,7 +150,7 @@ class LedgerExport implements FromArray, WithHeadings, WithStyles, WithColumnWid
         $voucher_text = '';
         $voucher_ID = '';
 
-        if (in_array($row->reference_type, ['Voucher', 'RTA', 'LV', 'VL', 'INC', 'PN', 'PAY', 'COD', 'Salik Voucher', 'VC', 'AL', 'RiderInvoice'])) {
+        if (in_array($row->reference_type, ['Voucher', 'RTA', 'LV', 'VL', 'INC', 'PN', 'PAY', 'COD', 'Salik Voucher', 'VC', 'AL', 'RiderInvoice', 'LeasingCompanyInvoice'])) {
             $vouchers = DB::table('vouchers')->where('trans_code', $row->trans_code)->first();
             if ($vouchers) {
                 $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
@@ -163,6 +163,11 @@ class LedgerExport implements FromArray, WithHeadings, WithStyles, WithColumnWid
         if ($row->reference_type == 'Invoice') {
             $invoice_ID = $row->reference_id;
             $voucher_text = 'RD-' . $invoice_ID;
+        }
+
+        if ($row->reference_type == 'LeasingCompanyInvoice') {
+            $invoice_ID = $row->reference_id;
+            $voucher_text = 'LI-' . $invoice_ID;
         }
 
         return $voucher_text;

@@ -207,13 +207,10 @@
         <!-- Charges Table -->
         <table>
             <tr>
-                <th class="secondary-header">Charge</th>
-                <th class="secondary-header">Bike Number #</th>
+                <th class="secondary-header">Bike Number</th>
                 <th class="secondary-header">Rate</th>
-                <th class="secondary-header">Tax Rate</th>
-                <th class="secondary-header">Price</th>
                 <th class="secondary-header">Tax</th>
-                <th class="accent-total">Amt(AED)</th>
+                <th class="accent-total">Amount (AED)</th>
             </tr>
             @php
             $periodStart = date('01/m/Y', strtotime($invoice->billing_month));
@@ -221,17 +218,14 @@
             @endphp
             @foreach($invoice->items as $index => $item)
             <tr>
-                <td>Rental</td>
                 <td>{{ $item->bike->plate ?? 'N/A' }}</td>
-                <td class="num">{{ number_format($item->rental_amount, 2) }}</td>
-                <td class="num">{{ number_format($item->tax_rate, 0) }}%</td>
                 <td class="num">{{ number_format($item->rental_amount, 2) }}</td>
                 <td class="num">{{ number_format($item->tax_amount, 2) }}</td>
                 <td class="num">{{ number_format($item->total_amount, 2) }}</td>
             </tr>
             @endforeach
             <tr class="accent-total">
-                <td colspan="10" style="text-align: right; padding: 8px;"><strong>TOTAL</strong></td>
+                <td colspan="3" style="text-align: right; padding: 8px;"><strong>TOTAL</strong></td>
                 <td class="num" style="padding: 8px; font-size: 14px;"><strong>{{ number_format($invoice->total_amount, 2) }}</strong></td>
             </tr>
         </table>

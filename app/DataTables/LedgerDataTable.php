@@ -165,7 +165,7 @@ class LedgerDataTable extends DataTable
       }
       if ($row->reference_type == 'Bike Maintenance') {
         $maintenance = BikeMaintenance::where('id',$row->reference_id)->first();
-        $voucher_ID = 'MAINT-'.str_pad($maintenance->id, 6, '0', STR_PAD_LEFT);
+        $voucher_ID = 'MA-'.$maintenance->id;
         $voucher_text = '<span class="d-none">' . $voucher_ID . '</span><a href="' . route('bike-maintenance.invoice', $maintenance) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
         if($maintenance->attachment)
           $view_file = '  <a href="' . url('storage2/' . $maintenance->attachment) . '" class="no-print"  target="_blank">View File</a>';

@@ -12,6 +12,7 @@ use App\Models\Accounts;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use Flash;
+use Illuminate\Support\Facades\DB;
 
 class GaragesController extends AppBaseController
 {
@@ -78,25 +79,29 @@ class GaragesController extends AppBaseController
   public function store(CreateGaragesRequest $request)
   {
     $input = $request->all();
-
-    // Create Garage
-    $garages = $this->garagesRepository->create($input);
-
-    $account = new Accounts();
-    $account->name = $garages->name;
-    $account->account_type = 'Liability';
-    $account->parent_id = 1664; // fixed parent
-    $account->ref_name = 'Garage';
-    $account->ref_id = $garages->id;
-    $account->status = 1;
-    $account->save();
-
-    $account->account_code = 'GAR-' . str_pad($garages->id, 5, '0', STR_PAD_LEFT);
-    $account->save();
-
-    $garages->save();
-
-    return response()->json(['message' => 'Garage and account added successfully.']);
+    DB::beginTransaction();
+    try{
+      // Create Garage
+      $garages = $this->garagesRepository->create($input);
+      $account = new Accounts();
+      $account->name = $garages->name;
+      $account->account_type = 'Liability';
+      $account->parent_id = 1664; // fixed parent
+      $account->ref_name = 'Garage';
+      $account->ref_id = $garages->id;
+      $account->status = 1;
+      $account->account_code = 'GAR-' . str_pad($garages->id, 5, '0', STR_PAD_LEFT);
+      $account->save();
+      $garages->update([
+          'account_id' => $account->id
+      ]);
+      DB::commit();
+      return response()->json(['message' => 'Garage and account added successfully.']);
+    }catch(\Exception $e){
+      DB::rollBack();
+      \Log::error($e);
+      return response()->json(['message' => 'Error: '.$e->getMessage()],500);
+    }
   }
 
 

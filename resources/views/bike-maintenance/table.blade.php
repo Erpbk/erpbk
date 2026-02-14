@@ -11,7 +11,7 @@
                     <th>Current KM</th>
                     <th>Overdue</th>
                     <th>Total Cost</th>
-                    <th>Invoice</th>
+                    <th>Bill</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -107,10 +107,15 @@
                                         data-action="{{ route('bikeMaintenance.edit', $maintenance) }}">
                                         <i class="fa fa-edit my-1"></i>Edit Record
                                     </a>
-                                    <a href="javascript:void(0);" 
-                                    class='dropdown-item waves-effect'>
-                                        <i class="fa fa-file-invoice my-1"></i>Charge Invoice
+                                    @if(!$maintenance->status)
+                                    <a  href="javascript:void(0);" 
+                                        class='dropdown-item waves-effect show-modal'
+                                        data-size="xl"
+                                        data-title="Bill Transaction Details"
+                                        data-action="{{ route('bike-maintenance.chargeInvoiceDetails', $maintenance) }}">
+                                        <i class="fa fa-file-invoice my-1"></i>Charge Bill
                                     </a>
+                                    @endif
                                     @can('bike_delete')
                                     <a href="javascript:void(0);" class='dropdown-item waves-effect delete-record' data-url="{{ route('bikeMaintenance.destroy', $maintenance) }} ">
                                         <i class="fa fa-trash my-1 text-danger"></i>Delete Record

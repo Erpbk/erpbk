@@ -18,8 +18,7 @@ class Garages extends Model
     'contact_number',
     'detail',
     'status',
-    'parent_id',
-    'account_id'
+    'account_id',
   ];
 
   protected $casts = [

@@ -128,6 +128,17 @@
                     ]) !!}
                 </div>
             </div>
+
+            {{-- Garage --}}
+            <div class="form-group col-md-3">
+                {!! Form::label('garage', 'Garage:') !!}
+                <select name="garage_id" class="form-control select2" required>
+                    <option value="">Select</option>
+                    @foreach (App\Models\Garages::where('status',1)->get() as $garage)
+                        <option value="{{ $garage->id }}">{{ $garage->name }}</option>
+                    @endforeach
+                </select>
+            </div>
             {{-- <div class="form-group col-md-3">
                 {!! Form::label('overdue_paidby', 'Overdue Cost Paid By') !!}
                 {!! Form::select('overdue_paidby', [
@@ -254,13 +265,9 @@ function addNewRow(){
     //     {!! Form::label('discount', 'Discount') !!}
     //     {!! Form::number('discount[]', 0, ['class' => 'form-control discount', 'step' => 'any']) !!}
     // </div>
-    // <div class="form-group col-md-1">
-    //     {!! Form::label('vat', 'VAT') !!}
-    //     {!! Form::number('vat[]', 0, ['class' => 'form-control vat', 'step' => 'any']) !!}
-    // </div>
     const newRow = $(`
         <div class="row">
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-2">
                 {!! Form::label('item', 'Item') !!}
                 <select name="item_id[]" class="form-control select2 item">
                     <option value="">Select</option>
@@ -277,6 +284,11 @@ function addNewRow(){
                 {!! Form::label('rate', 'Rate') !!}
                 {!! Form::number('rate[]', 0, ['class' => 'form-control rate', 'step' => 'any']) !!}
             </div>
+            <div class="form-group col-md-1">
+                {!! Form::label('vat', 'VAT(%)') !!}
+                {!! Form::number('vat[]', 0, ['class' => 'form-control vat', 'step' => 'any']) !!}
+            </div>
+            <input type="hidden" name="vat_amount[]" value="0" class="vat_amount">
             <div class="form-group col-md-2">
                 {!! Form::label('amount', 'Total Amount:') !!}
                 {!! Form::number('item_total[]', null, ['class' => 'form-control item_total', 'step' => 'any']) !!}
@@ -316,13 +328,17 @@ function setItemTotal(row) {
     const rate = parseFloat(row.find('.rate').val()) || 0;
     const discount = parseFloat(row.find('.discount').val()) || 0;
     const vat = parseFloat(row.find('.vat').val()) || 0;
+    const vatAmount = row.find('.vat_amount');
     
     let subtotal = qty * rate;
     if (discount > 0) {
         subtotal -= discount;
     }
+    let amount = 0;
     if (vat > 0) {
-        subtotal += vat;
+        amount= subtotal * (vat / 100);
+        subtotal += amount;
+        vatAmount.val(amount);
     }
     
     row.find('.item_total').val(subtotal.toFixed(2));

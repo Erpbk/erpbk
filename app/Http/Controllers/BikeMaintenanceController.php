@@ -7,6 +7,8 @@ use App\Models\BikeMaintenanceItem;
 use Illuminate\Http\Request;
 use App\Models\Bikes;
 use App\Models\Items;
+use App\Models\Accounts;
+use App\Models\Transactions;
 use App\Traits\GlobalPagination;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -151,6 +153,7 @@ class BikeMaintenanceController extends Controller
                         'rate'               => $request->rate[$index] ?? 0,
                         'discount'           => $request->discount[$index] ?? 0,
                         'vat'                => $request->vat[$index] ?? 0,
+                        'vat_amount'         => $request->vat_amount[$index] ?? 0,
                         'total_amount'       => $request->item_total[$index] ?? 0,
                         'charge_to'          => $request->charge_to[$index],
                         'created_at'         => now(),
@@ -181,8 +184,10 @@ class BikeMaintenanceController extends Controller
     {
         $maintenance->load([
             'bike.rider',
+            'garage',
             'maintenanceItems',
-            'createdBy'
+            'createdBy',
+            'UpdatedBy'
         ]);
 
         return view('bike-maintenance.invoice', compact('maintenance'));
@@ -251,9 +256,9 @@ class BikeMaintenanceController extends Controller
                         'rate'               => $request->rate[$index] ?? 0,
                         'discount'           => $request->discount[$index] ?? 0,
                         'vat'                => $request->vat[$index] ?? 0,
+                        'vat_amount'         => $request->vat_amount[$index] ?? 0,
                         'total_amount'       => $request->item_total[$index] ?? 0,
                         'charge_to'          => $request->charge_to[$index],
-                        'created_at'         => now(),
                         'updated_at'         => now(),
                     ];
                 }
@@ -279,6 +284,178 @@ class BikeMaintenanceController extends Controller
         }
 
     }
+
+    public function chargeInvoiceDetails(BikeMaintenance $maintenance)
+    {
+        $data = $this->billData($maintenance);
+        return view('bike-maintenance.chargeDetails', compact('data', 'maintenance'));
+    }
+
+    private function billData(BikeMaintenance $maintenance){
+        // Eager load everything including nested accounts
+        $maintenance->load([
+            'bike',
+            'rider.account',
+            'garage.account',
+            'maintenanceItems',
+        ]);
+
+        $missing = null;
+
+        $items = $maintenance->maintenanceItems;
+        $riderItems   = $items->where('charge_to', 'Rider');
+        $companyItems = $items->where('charge_to', 'Company');
+        
+        if($items->isEmpty())
+            $missing[] = 'No items Added in the Bill';
+        // Overdue calculation
+        $overdueCost = ($maintenance->overdue_paidby === 'Rider')
+            ? $maintenance->overdue_cost_per_km * $maintenance->overdue_km
+            : 0;
+
+        $total = $maintenance->total_cost + $overdueCost;
+
+        $riderTotal   = null;
+        $riderAccount = null;
+
+        if ($riderItems->isNotEmpty() || $overdueCost > 0) {
+
+            if (!$maintenance->rider_id) {
+                $missing[] = 'No rider found for this maintenance but maintenance items charged to rider';
+            }
+
+            $riderTotal = $riderItems->sum('total_amount') + $overdueCost;
+
+            if ($maintenance->rider && $maintenance->rider->account) {
+                $account = $maintenance->rider->account;
+                $riderAccount = "{$account->account_code}-{$account->name}";
+            } else {
+                $riderAccount = 'No Rider Assigned to bike';
+            }
+        }
+
+        $companyTotal   = null;
+        $companyAccount = null;
+
+        if ($companyItems->isNotEmpty()) {
+
+            $companyTotal = $companyItems->sum('total_amount');
+            $companyAcc = Accounts::select('account_code', 'name')
+                ->find(1213); // bike maintenance account
+
+            $companyAccount = $companyAcc
+                ? "{$companyAcc->account_code}-{$companyAcc->name}"
+                : 'Company Account Not Found';
+        }
+
+        $vat = $items->sum('vat_amount');
+        $vatAccount = null;
+
+        if ($vat > 0) {
+            $vatAcc = Accounts::select('account_code', 'name')
+                ->find(1023); // VAT on purchase
+
+            $vatAccount = $vatAcc
+                ? "{$vatAcc->account_code}-{$vatAcc->name}"
+                : 'VAT Account Not Found';
+        }
+
+        if (!$maintenance->garage || !$maintenance->garage->account) {
+            $missing[] = 'No Associated Garage or Garage Account found';
+            $garageAccount = 'Garage Not Found';
+        } else {
+            $garageAcc = $maintenance->garage->account;
+            $garageAccount = "{$garageAcc->account_code}-{$garageAcc->name}";
+        }
+
+        $data = [
+            'total'            => $total,
+            'rider_amount'     => $riderTotal,
+            'rider_account'    => $riderAccount,
+            'company_amount'   => $companyTotal,
+            'company_account'  => $companyAccount,
+            'vat_amount'       => $vat,
+            'vat_account'      => $vatAccount,
+            'garage_account'   => $garageAccount,
+            'description'      => "Maintenance Performed on bike: {$maintenance->bike->emirates}-{$maintenance->bike->plate}",
+            'missing'          => $missing,
+        ];
+
+        return $data;
+    }
+
+    public function chargeInvoice(Request $request, BikeMaintenance $maintenance){
+
+        $data = $this->billData($maintenance);
+        $billingMonth = $request['billing_month'].'-01';
+        $transCode = \App\Helpers\Account::trans_code();
+        DB::beginTransaction();
+        try{
+            if( $data['rider_amount'] && $data['rider_amount'] > 0){
+                Transactions::create([
+                    'trans_code' => $transCode,
+                    'trans_date' => $maintenance->maintenance_date,
+                    'reference_id' => $maintenance->id,
+                    'reference_type' => 'Bike Maintenance',
+                    'account_id' => $maintenance->rider->account_id,
+                    'credit' => 0,
+                    'debit' => $data['rider_amount'],
+                    'billing_month' => $billingMonth,
+                    'narration' => $data['description'],
+                ]);
+            }
+            if($data['company_amount'] > 0){
+                $companyAcc = Accounts::select('id')
+                    ->find(1213); // bike maintenance account
+                Transactions::create([
+                    'trans_code' => $transCode,
+                    'trans_date' => $maintenance->maintenance_date,
+                    'reference_id' => $maintenance->id,
+                    'reference_type' => 'Bike Maintenance',
+                    'account_id' => $companyAcc->id,
+                    'credit' => 0,
+                    'debit' => $data['company_amount'],
+                    'billing_month' => $billingMonth,
+                    'narration' => $data['description'],
+                ]);
+            }
+            Transactions::create([
+                'trans_code' => $transCode,
+                'trans_date' => $maintenance->maintenance_date,
+                'reference_id' => $maintenance->id,
+                'reference_type' => 'Bike Maintenance',
+                'account_id' => $maintenance->garage->account_id,
+                'credit' => $data['total'],
+                'debit' => 0,
+                'billing_month' => $billingMonth,
+                'narration' => $data['description'],
+            ]);
+            if($data['vat_amount'] > 0){
+                $vatAcc = Accounts::select('id') ->find(1023); // VAT on purchase
+                Transactions::create([
+                    'trans_code' => $transCode,
+                    'trans_date' => $maintenance->maintenance_date,
+                    'reference_id' => $maintenance->id,
+                    'reference_type' => 'Bike Maintenance',
+                    'account_id' => $vatAcc->id,
+                    'credit' => 0,
+                    'debit' => $data['vat_amount'],
+                    'billing_month' => $billingMonth,
+                    'narration' => $data['description'],
+                ]);
+            }
+            $maintenance->update(['billing_month' => $billingMonth, 'updated_by' => auth()->id(), 'status' => 1]);
+            DB::commit();
+            return response()->json(['message' => 'Bill Charged Successfully.'],200);
+        }catch(\Exception $e){
+            DB::rollBack();
+            \Log::error($e);
+            return response()->json(['message' => 'Error: '.$e->getMessage()],500);
+        }
+        
+
+    }
+
 
     /**
      * Remove the specified resource from storage.
@@ -319,9 +496,11 @@ class BikeMaintenanceController extends Controller
     }
 
     private function validateRequest(Request $request){
+
         return $request->validate([
             'bike_id' => 'required|exists:bikes,id',
             'rider_id' => 'nullable|exists:riders,id',
+            'garage_id' => 'required|exists:garages,id',
             'maintenance_date' => 'required|date|before:tomorrow',
             'previous_km' => 'nullable|numeric|min:1',
             'current_km' => 'required|numeric|min:0',

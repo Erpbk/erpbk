@@ -99,10 +99,11 @@
 
         @isset($cloneItems)
         @foreach($cloneItems as $item)
-        <div class="row mb-2 invoice-item-row {{ $item['is_inactive'] ? 'border border-danger rounded row-inactive-bike' : '' }}" {{ $item['is_inactive'] ? 'data-inactive="1"' : '' }}>
-            @if($item['is_inactive'])
+        {{-- Inactive bike styling and auto-exclude disabled: allow inactive bikes to be added; user will remove manually if needed --}}
+        <div class="row mb-2 invoice-item-row">
+            {{-- @if($item['is_inactive'])
             <div class="col-12 small text-danger mb-1"><i class="fa fa-exclamation-triangle"></i> Inactive/Returned — this bike will be automatically excluded when saving.</div>
-            @endif
+            @endif --}}
             <div class="col-md-2 form-group">
                 <label>Bike <span class="text-danger">*</span></label>
                 {!! Form::select('bike_id[]', $bikes ?? [], $item['bike_id'], ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
@@ -238,7 +239,7 @@
     window.leasing_getTotal = function() {
         var total = 0;
         $('#rows-container .invoice-item-row').each(function() {
-            if ($(this).data('inactive') === 1) return;
+            // if ($(this).data('inactive') === 1) return; // commented out: include inactive bikes in total
             var v = $(this).find('.amount').data('numeric-value');
             if (v) total += parseFloat(v);
         });

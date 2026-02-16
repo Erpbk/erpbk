@@ -1,6 +1,7 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 
 @section('content')
+@php $visaRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.visa-statuses' : 'visa-statuses'; @endphp
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
@@ -17,7 +18,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form method="POST" action="{{ route('visa-statuses.store') }}">
+            <form method="POST" action="{{ route($visaRoute . '.store') }}">
                 @csrf
                 <div class="row">
                     @include('visa_statuses.fields')

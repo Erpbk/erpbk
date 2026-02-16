@@ -1,0 +1,60 @@
+<?php
+
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Default ERP menu labels (sidebar / menu bar)
+    |--------------------------------------------------------------------------
+    | Keys must match the identifiers used in layouts.menu. Editable from Settings.
+    */
+    'defaults' => [
+        'dashboard'            => 'Dashboard',
+        'recycle_bin'         => 'Recycle Bin',
+        'cash_banks'           => 'Cash & Banks',
+        'items'                => 'Items',
+        'items_list'           => 'Items List',
+        'garage_items'         => 'Garage Items',
+        'leads'                => 'Leads',
+        'customers'            => 'Customers',
+        'vendors'              => 'Vendors',
+        'recruiters'           => 'Recruiters',
+        'riders'               => 'Riders',
+        'riders_list'          => 'Riders List',
+        'invoices'             => 'Invoices',
+        'activities'           => 'Activities',
+        'live_activities'      => 'Live Activities',
+        'rider_report'         => 'Rider Report',
+        'bikes'                => 'Bikes',
+        'bike_list'             => 'Bike List',
+        'maintenance_overview' => 'Maintenance Overview',
+        'sims'                 => 'Sims',
+        'fuel_cards'           => 'Fuel Cards',
+        'rta_fines'            => 'RTA Fines',
+        'rta_saliks'           => 'RTA Saliks',
+        'inventory'            => 'Inventory',
+        'visa_expense'         => 'Visa Expense',
+        'visa_status_types'    => 'Visa Status Types',
+        'expenses'             => 'Expenses',
+        'leasing_companies'    => 'Leasing Companies',
+        'leasing_companies_list' => 'Leasing Companies List',
+        'leasing_invoices'     => 'Invoices',
+        'garages'              => 'Garages',
+        'supplier'             => 'Supplier',
+        'suppliers'            => 'Suppliers',
+        'supplier_invoices'    => 'Supplier Invoices',
+        'assets'               => 'Assets',
+        'documents'            => 'Documents',
+        'vouchers'             => 'Vouchers',
+        'accounts'             => 'Accounts',
+        'chart_of_accounts'    => 'Chart Of Accounts',
+        'ledger'               => 'Ledger',
+        'user_management'      => 'User Management',
+        'users'                => 'Users',
+        'roles'                => 'Roles',
+        'permissions'          => 'Permissions',
+        'activity_logs'       => 'Activity Logs',
+        'company_settings'   => 'Company Settings',
+        'settings'           => 'Settings',
+        'erp_settings'       => 'ERP Settings',
+    ],
+];

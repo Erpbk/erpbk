@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 @section('title','Settings')
 
 @section('content')
@@ -10,7 +10,8 @@
     </div>
     <div class="card-body">
 
-            {!! Form::open(['route'=>'settings','method'=>'post']) !!}
+            @php $settingsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.company' : 'settings'; @endphp
+            {!! Form::open(['route' => $settingsRoute, 'method' => 'post']) !!}
             @csrf
             <div class="row">
 

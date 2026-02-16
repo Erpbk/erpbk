@@ -1,6 +1,7 @@
 
 
-            {!! Form::model($departments, ['route' => ['departments.update', $departments->id], 'method' => 'patch','id'=>'formajax']) !!}
+            @php $deptRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.departments' : 'departments'; @endphp
+            {!! Form::model($departments, ['route' => [$deptRoute . '.update', $departments->id], 'method' => 'patch','id'=>'formajax']) !!}
 
                 <div class="row">
                     @include('departments.fields')

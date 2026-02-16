@@ -54,7 +54,7 @@ class DropdownsController extends AppBaseController
 
     Flash::success('Dropdowns saved successfully.');
 
-    return redirect(route('dropdowns.index'));
+    return redirect(route($this->dropdownsIndexRoute()));
   }
 
   /**
@@ -67,7 +67,7 @@ class DropdownsController extends AppBaseController
     if (empty($dropdowns)) {
       Flash::error('Dropdowns not found');
 
-      return redirect(route('dropdowns.index'));
+      return redirect(route($this->dropdownsIndexRoute()));
     }
 
     return view('dropdowns.show')->with('dropdowns', $dropdowns);
@@ -83,7 +83,7 @@ class DropdownsController extends AppBaseController
     if (empty($dropdowns)) {
       Flash::error('Dropdowns not found');
 
-      return redirect(route('dropdowns.index'));
+      return redirect(route($this->dropdownsIndexRoute()));
     }
 
     return view('dropdowns.edit')->with('dropdowns', $dropdowns);
@@ -99,14 +99,14 @@ class DropdownsController extends AppBaseController
     if (empty($dropdowns)) {
       Flash::error('Dropdowns not found');
 
-      return redirect(route('dropdowns.index'));
+      return redirect(route($this->dropdownsIndexRoute()));
     }
 
     $dropdowns = $this->dropdownsRepository->save($request, $id);
 
     Flash::success('Dropdowns updated successfully.');
 
-    return redirect(route('dropdowns.index'));
+    return redirect(route($this->dropdownsIndexRoute()));
   }
 
   /**
@@ -121,13 +121,20 @@ class DropdownsController extends AppBaseController
     if (empty($dropdowns)) {
       Flash::error('Dropdowns not found');
 
-      return redirect(route('dropdowns.index'));
+      return redirect(route($this->dropdownsIndexRoute()));
     }
 
     $this->dropdownsRepository->delete($id);
 
     Flash::success('Dropdowns deleted successfully.');
 
-    return redirect(route('dropdowns.index'));
+    return redirect(route($this->dropdownsIndexRoute()));
+  }
+
+  /** Index route name (main app or settings panel). */
+  private function dropdownsIndexRoute(): string
+  {
+    $name = request()->route()?->getName() ?? '';
+    return str_starts_with($name, 'settings-panel.') ? 'settings-panel.dropdowns.index' : 'dropdowns.index';
   }
 }

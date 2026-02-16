@@ -1,12 +1,13 @@
-{!! Form::open(['route' => ['departments.destroy', $id], 'method' => 'delete','id'=>'formajax']) !!}
+@php $deptRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.departments' : 'departments'; @endphp
+{!! Form::open(['route' => [$deptRoute . '.destroy', $id], 'method' => 'delete','id'=>'formajax']) !!}
 <div class='btn-group'>
     {{-- @can('department_view')
-    <a href="javascript:void(0);" data-title="View" data-size="sm" data-action="{{ route('departments.show', $id) }}" class='btn btn-default btn-sm show-modal'>
+    <a href="javascript:void(0);" data-title="View" data-size="sm" data-action="{{ route($deptRoute . '.show', $id) }}" class='btn btn-default btn-sm show-modal'>
         <i class="fa fa-eye"></i>
     </a>
     @endcan --}}
     @can('department_edit')
-    <a href="javascript:void(0);" data-title="Edit" data-size="sm" data-action="{{ route('departments.edit', $id) }}" class='btn btn-info btn-sm show-modal'>
+    <a href="javascript:void(0);" data-title="Edit" data-size="sm" data-action="{{ route($deptRoute . '.edit', $id) }}" class='btn btn-info btn-sm show-modal'>
         <i class="fa fa-edit"></i>
     </a>
     @endcan

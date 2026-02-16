@@ -1,5 +1,6 @@
 
-            {!! Form::open(['route' => 'dropdowns.store','id'=>'formajax']) !!}
+            @php $dropdownRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.dropdowns' : 'dropdowns'; @endphp
+            {!! Form::open(['route' => $dropdownRoute . '.store','id'=>'formajax']) !!}
 
             <div class="card-body">
 

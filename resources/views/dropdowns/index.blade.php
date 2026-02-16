@@ -1,7 +1,8 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 
 @section('title','Dropdowns')
 @section('content')
+    @php $dropdownRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.dropdowns' : 'dropdowns'; @endphp
     <section class="content-header">
         <div class="container-fluid">
             <div class="row mb-2">
@@ -11,7 +12,7 @@
                 <div class="col-sm-6">
                   @can('dropdown_create')
                     <a class="btn btn-primary action-btn show-modal"
-                    href="javascript:void(0);" data-size="lg" data-title="New Dropdown" data-action="{{ route('dropdowns.create') }}">
+                    href="javascript:void(0);" data-size="lg" data-title="New Dropdown" data-action="{{ route($dropdownRoute . '.create') }}">
                         Add New
                     </a>
                     @endcan

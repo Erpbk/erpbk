@@ -79,6 +79,11 @@
                             <a href="{{ route('bike-maintenance.invoice', $maintenance) }}" 
                             class='' target="_blank">
                                 MA-{{ $maintenance->id }}
+                            </a><br>
+                            <a target="_blank"
+                                class="text-warning"
+                               href="{{ route('bike-maintenance.sticker', $maintenance) }}">
+                                Sticker
                             </a>
                         </td>
                         <td style="position: relative;">
@@ -95,6 +100,7 @@
                                 <div class="dropdown-menu dropdown-menu-end" 
                                     aria-labelledby="actiondropdown_{{ $maintenance->id }}" 
                                     style="z-index: 1050;">
+                                    @can('maintenance_edit')
                                     <a class="dropdown-item waves-effect show-modal"
                                         href="javascript:void(0);"
                                         data-size="xl"
@@ -102,10 +108,13 @@
                                         data-action="{{ route('bikeMaintenance.edit', $maintenance) }}">
                                         <i class="fa fa-edit my-1"></i>Edit Record
                                     </a>
+                                    @endcan
+                                    @can('maintenance_delete')
                                     @can('bike_delete')
                                     <a href="javascript:void(0);" class='dropdown-item waves-effect delete-record' data-url="{{ route('bikeMaintenance.destroy', $maintenance) }} ">
                                         <i class="fa fa-trash my-1 text-danger"></i>Delete Record
                                     </a>
+                                    @endcan
                                     @endcan
                                 </div>
                             </div>

@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
-use Illuminate\Auth\Events\Failed;
 
 class BikeMaintenanceController extends Controller
 {
@@ -561,20 +560,6 @@ class BikeMaintenanceController extends Controller
             throw new \Exception("Overdue cost calculation mismatch.");
         }
 
-    }
-
-    public function sticker(BikeMaintenance $maintenance){
-
-        $maintenance->load('bike');
-
-        $sticker = [
-            'date' => $maintenance->maintenance_date,
-            'bike' => $maintenance->bike->emirates . '-' . $maintenance->bike->plate,
-            'current_reading' => $maintenance->current_km,
-            'next_reading' => $maintenance->current_km + $maintenance->bike->maintenance_km, 
-        ];
-
-        return view('bike-maintenance.sticker',compact('sticker'));
     }
 
 }

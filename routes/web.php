@@ -89,6 +89,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::any('bike-maintenance/{bike}/edit', [\App\Http\Controllers\BikeMaintenanceController::class, 'edit'])->name('bike-maintenance.editForm');
     Route::any('bike-maintenance/{bike}/update', [\App\Http\Controllers\BikeMaintenanceController::class, 'update'])->name('bike-maintenance.update');
     Route::get( 'bike-maintenance/{maintenance}/invoice',[\App\Http\Controllers\BikeMaintenanceController::class, 'Invoice'])->name('bike-maintenance.invoice');
+    Route::get( 'bike-maintenance/{maintenance}/sticker',[\App\Http\Controllers\BikeMaintenanceController::class, 'sticker'])->name('bike-maintenance.sticker');
 
     Route::get('bikes/import-bikes', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.importbikes');
     Route::post('bikes/process-import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');

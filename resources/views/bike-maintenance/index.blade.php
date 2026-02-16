@@ -14,13 +14,12 @@
 @section('content')
     @include('flash::message')
     <div class="clearfix"></div>
-    @can('maintenance_view')
+    
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h4 class="mb-0">
                 <i class="fa fa-bicycle me-2"></i>Bike Maintenance Records
             </h4>
-            @can('maintenance_create')
             <a class="btn btn-primary action-btn show-modal"
                 href="javascript:void(0);"
                 data-size="xl"
@@ -28,7 +27,6 @@
                 data-action="{{ route('bikeMaintenance.create') }}">
                 Add Maintenance Record
             </a>
-            @endcan
         </div>
         
         <!-- Stats Cards -->
@@ -94,10 +92,4 @@
             @include('bike-maintenance.table')
         </div>
     </div>
-        
-    @endcan
-    @cannot('maintenance_view')
-        <h3 class="text-center mt-5 pt-5">Permission Denied</h3>
-    @endcannot
-
 @endsection

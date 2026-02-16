@@ -125,7 +125,7 @@
 </li>
 @endcan
 @can('bike_view')
-<li class="menu-item {{ Request::is('bikes*') ? 'open' : '' }}">
+<li class="menu-item {{ Request::is('bikes*') || Request::is('bikeMaintenance*')? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-motorbike"></i>
     <div>{{ $menuLabels['bikes'] ?? 'Bikes' }}</div>

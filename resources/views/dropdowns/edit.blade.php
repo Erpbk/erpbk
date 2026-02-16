@@ -1,6 +1,7 @@
 
 
-            {!! Form::model($dropdowns, ['route' => ['dropdowns.update', $dropdowns->id], 'method' => 'patch','id'=>'formajax']) !!}
+            @php $dropdownRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.dropdowns' : 'dropdowns'; @endphp
+            {!! Form::model($dropdowns, ['route' => [$dropdownRoute . '.update', $dropdowns->id], 'method' => 'patch','id'=>'formajax']) !!}
 
             <div class="card-body">
                 <div class="row">

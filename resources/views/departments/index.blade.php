@@ -1,6 +1,7 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 @section('title','Departments')
 @section('content')
+    @php $deptRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.departments' : 'departments'; @endphp
     <section class="content-header">
         <div class="container-fluid">
             <div class="row mb-2">
@@ -10,7 +11,7 @@
                 <div class="col-sm-6">
                     @can('department_create')
                     <a class="btn btn-primary float-right show-modal" style="float:right;"
-                    href="javascript:void(0);" data-title="Add New" data-size="sm" data-action="{{ route('departments.create') }}">
+                    href="javascript:void(0);" data-title="Add New" data-size="sm" data-action="{{ route($deptRoute . '.create') }}">
                         Add New
                     </a>
                     @endcan

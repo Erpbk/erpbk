@@ -131,7 +131,7 @@
     @if($data->count() > 0)
     <tfoot>
         <tr class="bg-light">
-            <td colspan="2" class="text-end"><strong>Total Amount Reference:</strong></td>
+            <td colspan="3" class="text-end"><strong>Total Amount Reference:</strong></td>
             <td class="text-center">
                 <strong>
                     @php
@@ -353,52 +353,32 @@
                 }
             }
 
-            if (isPaid) {
-                // For paid installments, update display and track change for finalization
-                const formattedDate = new Date(newValue + '-01').toLocaleDateString('en-GB', {
-                    month: 'short',
-                    year: 'numeric'
-                });
-                billingDisplay.textContent = formattedDate;
-                billingInput.classList.add('d-none');
-                billingDisplay.classList.remove('d-none');
-
-                // Track the change for finalization
-                if (!window.BILLING_CHANGES) window.BILLING_CHANGES = {};
-                BILLING_CHANGES[installmentId] = newValue;
-
-                // Mark row as modified
-                row.classList.add('bg-warning-subtle');
-                row.setAttribute('data-modified', '1');
-                return;
-            } else {
-                // For pending installments, confirm and submit directly
-                Swal.fire({
-                    title: 'Update Billing Month?',
-                    text: 'Are you sure you want to update the billing month? This will also update subsequent installments, voucher and transactions.',
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Yes, update it',
-                    cancelButtonText: 'Cancel',
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#6c757d'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
-                            'installment_id': installmentId,
-                            'field': 'billing_month',
-                            'value': newValue,
-                            'update_subsequent': true
-                        });
-                    } else {
-                        // User cancelled, revert to original value
-                        billingInput.value = originalValue;
-                        billingInput.classList.add('d-none');
-                        billingDisplay.classList.remove('d-none');
-                    }
-                });
-                return;
-            }
+            // Same flow for both paid and pending: confirm and submit directly
+            Swal.fire({
+                title: 'Update Billing Month?',
+                text: 'Are you sure you want to update the billing month? This will also update subsequent installments, voucher and transactions.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, update it',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#6c757d'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
+                        'installment_id': installmentId,
+                        'field': 'billing_month',
+                        'value': newValue,
+                        'update_subsequent': true
+                    });
+                } else {
+                    // User cancelled, revert to original value
+                    billingInput.value = originalValue;
+                    billingInput.classList.add('d-none');
+                    billingDisplay.classList.remove('d-none');
+                }
+            });
+            return;
         }
 
         // Cancel edit

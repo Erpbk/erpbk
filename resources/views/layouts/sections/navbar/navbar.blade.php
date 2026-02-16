@@ -66,6 +66,15 @@ $navbarDetached = ($navbarDetached ?? '');
 
         <ul class="navbar-nav flex-row align-items-center ms-auto">
 
+          <!-- Settings (opens in new window) -->
+          @canany(['gn_settings','department_view','dropdown_view'])
+          <li class="nav-item me-2 me-lg-3">
+            <a class="nav-link" href="{{ route('settings-panel.index') }}" target="_blank" rel="noopener" title="Settings">
+              <i class="ti ti-settings ti-md"></i>
+            </a>
+          </li>
+          @endcanany
+
           <!-- User -->
           <li class="nav-item navbar-dropdown dropdown-user dropdown">
             <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown">

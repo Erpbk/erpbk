@@ -164,11 +164,13 @@ class LedgerDataTable extends DataTable
         }
       }
       if ($row->reference_type == 'Bike Maintenance') {
-        $maintenance = BikeMaintenance::where('id',$row->reference_id)->first();
-        $voucher_ID = 'MA-'.$maintenance->id;
+        $maintenance = BikeMaintenance::where('id', $row->reference_id)->first();
+        $voucher_ID = 'MA-' . $maintenance->id;
         $voucher_text = '<span class="d-none">' . $voucher_ID . '</span><a href="' . route('bike-maintenance.invoice', $maintenance) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
-        if($maintenance->attachment)
+        if ($maintenance->attachment) {
           $view_file = '  <a href="' . url('storage2/' . $maintenance->attachment) . '" class="no-print"  target="_blank">View File</a>';
+        }
+      }
       if ($row->reference_type == 'LeasingCompanyInvoice') {
         $invoice_ID = $row->reference_id;
         $voucher_text = '<span class="d-none">LI-' . $invoice_ID . '</span><a href="javascript:void(0);" data-title="Leasing Company Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyInvoices.show', $invoice_ID) . '" class="no-print show-modal">LI-' . $invoice_ID . '</a>';
@@ -284,7 +286,7 @@ class LedgerDataTable extends DataTable
       $accountid = $account->id;
       $accountName = $account ? $account->account_code . '-' . $account->name : "All Accounts";
     }
-    
+
     return $this->builder()
       ->columns($this->getColumns())
       ->minifiedAjax()
@@ -297,10 +299,10 @@ class LedgerDataTable extends DataTable
         'ordering' => false,
         'pageLength' => 50,
         'lengthMenu' => [
-                [50, 100, 150, 200, -1], // Values to display in the dropdown
-                [50, 100, 150, 200, 'All'] // Labels for the dropdown
-            ],
-        'stateSave' => false, 
+          [50, 100, 150, 200, -1], // Values to display in the dropdown
+          [50, 100, 150, 200, 'All'] // Labels for the dropdown
+        ],
+        'stateSave' => false,
         'responsive' => true,
         'footerCallback' => "function(row, data, start, end, display) {
                     var api = this.api();

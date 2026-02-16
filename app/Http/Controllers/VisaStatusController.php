@@ -98,7 +98,7 @@ class VisaStatusController extends Controller
             DB::commit();
 
             Flash::success('Visa Status added successfully.');
-            return redirect()->route('visa-statuses.index');
+            return redirect()->route($this->visaStatusesIndexRoute());
         } catch (\Exception $e) {
             DB::rollBack();
             Flash::error('Error: ' . $e->getMessage());
@@ -167,7 +167,7 @@ class VisaStatusController extends Controller
             DB::commit();
 
             Flash::success('Visa Status updated successfully.');
-            return redirect()->route('visa-statuses.index');
+            return redirect()->route($this->visaStatusesIndexRoute());
         } catch (\Exception $e) {
             DB::rollBack();
             Flash::error('Error: ' . $e->getMessage());
@@ -201,7 +201,7 @@ class VisaStatusController extends Controller
 
             $visaStatus->delete();
             Flash::success('Visa Status deleted successfully.');
-            return redirect()->route('visa-statuses.index');
+            return redirect()->route($this->visaStatusesIndexRoute());
         } catch (\Exception $e) {
             Flash::error('Error: ' . $e->getMessage());
             return redirect()->back();
@@ -228,10 +228,37 @@ class VisaStatusController extends Controller
 
             $status = $visaStatus->is_active ? 'activated' : 'deactivated';
             Flash::success("Visa Status {$status} successfully.");
-            return redirect()->route('visa-statuses.index');
+            return redirect()->route($this->visaStatusesIndexRoute());
         } catch (\Exception $e) {
             Flash::error('Error: ' . $e->getMessage());
             return redirect()->back();
         }
+    }
+
+    /**
+     * Reorder visa statuses (drag-and-drop). Expects order[] with ids in new order.
+     */
+    public function reorder(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $order = $request->input('order', []);
+        if (!is_array($order) || empty($order)) {
+            return response()->json(['success' => false, 'message' => 'Invalid order.'], 422);
+        }
+
+        foreach ($order as $position => $id) {
+            VisaStatus::where('id', (int) $id)->update(['display_order' => $position + 1]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    private function visaStatusesIndexRoute(): string
+    {
+        $name = request()->route()?->getName() ?? '';
+        return str_starts_with($name, 'settings-panel.') ? 'settings-panel.visa-statuses.index' : 'visa-statuses.index';
     }
 }

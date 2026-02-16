@@ -1,6 +1,7 @@
 
 
-            {!! Form::open(['route' => 'departments.store','id'=>'formajax']) !!}
+            @php $deptRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.departments' : 'departments'; @endphp
+            {!! Form::open(['route' => $deptRoute . '.store','id'=>'formajax']) !!}
 
 
 

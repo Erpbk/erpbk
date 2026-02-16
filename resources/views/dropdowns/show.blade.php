@@ -1,6 +1,7 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 
 @section('content')
+    @php $dropdownRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.dropdowns' : 'dropdowns'; @endphp
     <section class="content-header">
         <div class="container-fluid">
             <div class="row mb-2">
@@ -11,7 +12,7 @@ Dropdowns Details
                 </div>
                 <div class="col-sm-6">
                     <a class="btn btn-default float-right"
-                       href="{{ route('dropdowns.index') }}">
+                       href="{{ route($dropdownRoute . '.index') }}">
                                                     Back
                                             </a>
                 </div>

@@ -1,7 +1,8 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 @section('title', 'ERP Settings')
 
 @section('content')
+@include('flash::message')
 <div class="row">
   <div class="col-12">
     <div class="card mb-4">
@@ -12,7 +13,7 @@
       <div class="card-body">
         <p class="text-muted mb-0">
           Configure general ERP options and customize sidebar (menu bar) labels from this page.
-          Changes can be saved once the save functionality is implemented.
+          Changes are applied to the main ERP menu immediately after saving.
         </p>
       </div>
     </div>
@@ -49,7 +50,8 @@
         <p class="text-muted small mb-0 mt-1">Change the display names of sidebar menu items. These names appear in the left navigation.</p>
       </div>
       <div class="card-body">
-        <form action="#" method="post" id="erp-settings-form">
+        @php $erpFormAction = (View::shared('settings_panel') ?? false) ? route('settings-panel.erp.store') : route('settings.erp.store'); @endphp
+        <form action="{{ $erpFormAction }}" method="post" id="erp-settings-form">
           @csrf
           <div class="row">
             @foreach($menuLabels as $key => $label)
@@ -61,7 +63,7 @@
           </div>
           <hr />
           <div class="d-flex justify-content-end">
-            <button type="submit" class="btn btn-primary" disabled title="Save functionality to be implemented">Save changes</button>
+            <button type="submit" class="btn btn-primary">Save changes</button>
           </div>
         </form>
       </div>

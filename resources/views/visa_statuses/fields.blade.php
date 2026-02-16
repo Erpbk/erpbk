@@ -81,7 +81,8 @@
     </div>
 </div>
 
+@php $visaRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.visa-statuses' : 'visa-statuses'; @endphp
 <div class="form-group col-sm-12">
     <button type="submit" class="btn btn-primary">Save</button>
-    <a href="{{ route('visa-statuses.index') }}" class="btn btn-default">Cancel</a>
+    <a href="{{ route($visaRoute . '.index') }}" class="btn btn-default">Cancel</a>
 </div>

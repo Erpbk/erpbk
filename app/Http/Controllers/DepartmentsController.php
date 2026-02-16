@@ -54,7 +54,7 @@ class DepartmentsController extends AppBaseController
 
     Flash::success('Departments saved successfully.');
 
-    return redirect(route('departments.index'));
+    return redirect(route($this->departmentsIndexRoute()));
   }
 
   /**
@@ -67,7 +67,7 @@ class DepartmentsController extends AppBaseController
     if (empty($departments)) {
       Flash::error('Departments not found');
 
-      return redirect(route('departments.index'));
+      return redirect(route($this->departmentsIndexRoute()));
     }
 
     return view('departments.show')->with('departments', $departments);
@@ -83,7 +83,7 @@ class DepartmentsController extends AppBaseController
     if (empty($departments)) {
       Flash::error('Departments not found');
 
-      return redirect(route('departments.index'));
+      return redirect(route($this->departmentsIndexRoute()));
     }
 
     return view('departments.edit')->with('departments', $departments);
@@ -99,14 +99,14 @@ class DepartmentsController extends AppBaseController
     if (empty($departments)) {
       Flash::error('Departments not found');
 
-      return redirect(route('departments.index'));
+      return redirect(route($this->departmentsIndexRoute()));
     }
 
     $departments = $this->departmentsRepository->update($request->all(), $id);
 
     Flash::success('Departments updated successfully.');
 
-    return redirect(route('departments.index'));
+    return redirect(route($this->departmentsIndexRoute()));
   }
 
   /**
@@ -121,13 +121,20 @@ class DepartmentsController extends AppBaseController
     if (empty($departments)) {
       Flash::error('Departments not found');
 
-      return redirect(route('departments.index'));
+      return redirect(route($this->departmentsIndexRoute()));
     }
 
     $this->departmentsRepository->delete($id);
 
     Flash::success('Departments deleted successfully.');
 
-    return redirect(route('departments.index'));
+    return redirect(route($this->departmentsIndexRoute()));
+  }
+
+  /** Index route name (main app or settings panel). */
+  private function departmentsIndexRoute(): string
+  {
+    $name = request()->route()?->getName() ?? '';
+    return str_starts_with($name, 'settings-panel.') ? 'settings-panel.departments.index' : 'departments.index';
   }
 }

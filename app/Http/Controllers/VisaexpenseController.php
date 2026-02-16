@@ -695,8 +695,8 @@ class VisaexpenseController extends AppBaseController
                 $installment->updated_by = auth()->user()->id;
                 $installment->save();
 
-                // Update subsequent installments if requested and this is not a paid installment
-                if ($validated['update_subsequent'] && !$isPaid) {
+                // Update subsequent installments if requested
+                if ($validated['update_subsequent']) {
                     $this->updateSubsequentInstallments($installment, 'billing_month', $validated['value'], $rider);
                 }
             } elseif ($validated['field'] === 'date') {
@@ -710,8 +710,8 @@ class VisaexpenseController extends AppBaseController
                     $billingMonth = $billingMonth . "-01";
                 }
 
-                // Update subsequent installments if requested and this is not a paid installment
-                if ($validated['update_subsequent'] && !$isPaid) {
+                // Update subsequent installments if requested
+                if ($validated['update_subsequent']) {
                     $this->updateSubsequentInstallments($installment, 'date', $validated['value'], $rider);
                 }
             } elseif ($validated['field'] === 'amount') {
@@ -799,7 +799,7 @@ class VisaexpenseController extends AppBaseController
             DB::commit();
 
             $message = ucfirst($validated['field']) . ' updated successfully with voucher and transactions.';
-            if ($validated['update_subsequent'] && !$isPaid) {
+            if ($validated['update_subsequent']) {
                 $message .= ' Subsequent installments were also updated accordingly.';
             }
             if ($markAsPaid && !$isPaid) {
@@ -2009,19 +2009,13 @@ class VisaexpenseController extends AppBaseController
      */
     private function updateSubsequentInstallments($currentInstallment, $field, $newValue, $rider)
     {
-        // Get all installments for the same rider, ordered by ID (creation order)
-        $allInstallments = visa_installment_plan::where('rider_id', $currentInstallment->rider_id)
+        // Get subsequent pending installments (id > current, same rider), ordered by ID
+        // Works for both paid and pending current installment
+        $subsequentInstallments = visa_installment_plan::where('rider_id', $currentInstallment->rider_id)
+            ->where('id', '>', $currentInstallment->id)
             ->where('status', visa_installment_plan::STATUS_PENDING)
             ->orderBy('id', 'asc')
             ->get();
-
-        // Find the current installment's position
-        $currentIndex = $allInstallments->search(function ($item) use ($currentInstallment) {
-            return $item->id === $currentInstallment->id;
-        });
-
-        // Get subsequent installments (after current one)
-        $subsequentInstallments = $allInstallments->slice($currentIndex + 1);
 
         if ($subsequentInstallments->isEmpty()) {
             return;

@@ -1,10 +1,11 @@
-{!! Form::open(['route' => ['dropdowns.destroy', $id], 'method' => 'delete']) !!}
+@php $dropdownRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.dropdowns' : 'dropdowns'; @endphp
+{!! Form::open(['route' => [$dropdownRoute . '.destroy', $id], 'method' => 'delete']) !!}
 <div class='btn-group'>
-    {{-- <a href="{{ route('dropdowns.show', $id) }}" class='btn btn-default btn-xs'>
+    {{-- <a href="{{ route($dropdownRoute . '.show', $id) }}" class='btn btn-default btn-xs'>
         <i class="fa fa-eye"></i>
     </a> --}}
     @can('dropdown_view')
-    <a href="javascript:void(0);" data-size="lg" data-title="Edit Dropdown" data-action="{{ route('dropdowns.edit', $id) }}" class='show-modal btn btn-info btn-sm'>
+    <a href="javascript:void(0);" data-size="lg" data-title="Edit Dropdown" data-action="{{ route($dropdownRoute . '.edit', $id) }}" class='show-modal btn btn-info btn-sm'>
         <i class="fa fa-edit"></i>
     </a>
     @endcan

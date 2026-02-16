@@ -367,7 +367,11 @@ class LeasingCompaniesController extends AppBaseController
   {
     $sourceInvoice = $this->leasingCompanyInvoicesRepository->find($id);
     if (empty($sourceInvoice)) {
-      Flash::error('Source invoice not found');
+      $message = 'Source invoice not found.';
+      if (request()->ajax()) {
+        return response()->view('leasing_company_invoices.modal_error', compact('message'), 200);
+      }
+      Flash::error($message);
       return redirect(route('leasingCompanyInvoices.index'));
     }
 
@@ -381,7 +385,11 @@ class LeasingCompaniesController extends AppBaseController
       ->first();
 
     if ($existingInvoice) {
-      Flash::error('An invoice for this leasing company already exists for ' . $nextMonthString . '.');
+      $message = 'An invoice for this leasing company already exists for ' . $nextMonthString . '.';
+      if (request()->ajax()) {
+        return response()->view('leasing_company_invoices.modal_error', compact('message'), 200);
+      }
+      Flash::error($message);
       return redirect(route('leasingCompanyInvoices.index'));
     }
 
@@ -506,36 +514,33 @@ class LeasingCompaniesController extends AppBaseController
         'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
       ]);
 
-      // Filter out inactive/returned bikes - only save active ones
-      $inactiveWarehouses = ['Return', 'Vacation', 'Express Garage', 'Absconded'];
+      // Inactive bike filter commented out: allow inactive bikes to be added; user will remove manually if needed
+      // $inactiveWarehouses = ['Return', 'Vacation', 'Express Garage', 'Absconded'];
       $filteredBikeIds = [];
       $filteredRentalAmounts = [];
       $filteredDays = [];
       $filteredTaxRates = [];
-      $skippedBikes = [];
+      // $skippedBikes = [];
 
       foreach ($request->bike_id as $key => $bikeId) {
         if (empty($bikeId)) {
           continue;
         }
-        $bike = Bikes::withTrashed()->find($bikeId);
-
-        // Check if bike is inactive/returned/soft-deleted
-        if (!$bike || $bike->trashed() || (int) $bike->status !== 1 || in_array($bike->warehouse ?? '', $inactiveWarehouses, true)) {
-          $skippedBikes[] = $bike ? ($bike->plate . ' - ' . ($bike->model ?? '')) : 'ID ' . $bikeId;
-          continue; // Skip this bike
-        }
-
-        // Include only active bikes
+        // Pass through all bikes (no inactive check)
         $filteredBikeIds[] = $bikeId;
         $filteredRentalAmounts[] = $request->rental_amount[$key] ?? 0;
         $filteredDays[] = $request->days[$key] ?? null;
         $filteredTaxRates[] = $request->tax_rate[$key] ?? \App\Helpers\Common::getSetting('vat_percentage') ?? 5;
+
+        // $bike = Bikes::withTrashed()->find($bikeId);
+        // if (!$bike || $bike->trashed() || (int) $bike->status !== 1 || in_array($bike->warehouse ?? '', $inactiveWarehouses, true)) {
+        //   $skippedBikes[] = $bike ? ($bike->plate . ' - ' . ($bike->model ?? '')) : 'ID ' . $bikeId;
+        //   continue;
+        // }
       }
 
-      // Check if we have at least one active bike
       if (empty($filteredBikeIds)) {
-        $msg = 'No active bikes to save. All bikes are inactive or returned.';
+        $msg = 'Please add at least one bike.';
         if ($request->ajax()) {
           return response()->json(['errors' => ['error' => $msg]], 422);
         }
@@ -568,15 +573,15 @@ class LeasingCompaniesController extends AppBaseController
 
       $invoice = $this->leasingCompanyInvoicesRepository->record($request);
 
-      // Build success message with skipped bikes info
       $successMessage = 'Invoice created successfully.';
-      if (!empty($skippedBikes)) {
-        $skippedList = implode(', ', array_slice($skippedBikes, 0, 3));
-        if (count($skippedBikes) > 3) {
-          $skippedList .= ' and ' . (count($skippedBikes) - 3) . ' more';
-        }
-        $successMessage .= ' Note: ' . count($skippedBikes) . ' inactive/returned bike(s) were automatically excluded: ' . $skippedList . '.';
-      }
+      // Skipped bikes message commented out (inactive filter disabled)
+      // if (!empty($skippedBikes)) {
+      //   $skippedList = implode(', ', array_slice($skippedBikes, 0, 3));
+      //   if (count($skippedBikes) > 3) {
+      //     $skippedList .= ' and ' . (count($skippedBikes) - 3) . ' more';
+      //   }
+      //   $successMessage .= ' Note: ' . count($skippedBikes) . ' inactive/returned bike(s) were automatically excluded: ' . $skippedList . '.';
+      // }
 
       if ($request->ajax()) {
         return response()->json([

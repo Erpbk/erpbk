@@ -40,7 +40,7 @@
         <!-- Basic Information -->
         <div class="row">
             <div class="col-md-12">
-                {!! Form::checkbox('is_security', 'Rider', null, [
+                {!! Form::checkbox('is_security', true, false, [
                     'class' => 'form-check-input'
                 ]) !!}
                 {!! Form::label('is_security', 'Security Cheque', [

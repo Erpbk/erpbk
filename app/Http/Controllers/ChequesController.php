@@ -21,7 +21,10 @@ class ChequesController extends Controller
      */
     public function index()
     {
-        //
+        $query = Cheques::query()->latest('issue_date');
+        $data = $query->get();
+        return view('cheques.index', compact('data'));
+
     }
 
     /**

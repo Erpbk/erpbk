@@ -44,10 +44,15 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
+        .value {
+            text-align: right;
+        }
         
         .content {
             flex: 1;
             font-size: 10pt;
+            padding: 0 3mm;
         }
         
         .content table {

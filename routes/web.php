@@ -382,10 +382,11 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('leasingCompany/ledger/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'ledger'])->name('leasingCompany.ledger');
     Route::resource('garages', App\Http\Controllers\GaragesController::class);
     Route::get('garages/delete/{id}', [\App\Http\Controllers\GaragesController::class, 'destroy'])->name('garages.delete');
+
     Route::resource('banks', App\Http\Controllers\BanksController::class);
-    Route::get('bank/ledger/{id}', [\App\Http\Controllers\BanksController::class, 'ledger'])->name('bank.ledger');
-    Route::get('bank/files/{id}', [\App\Http\Controllers\BanksController::class, 'files'])->name('bank.files');
-    Route::get('bank/delete/{id}', [\App\Http\Controllers\BanksController::class, 'destroy'])->name('bank.delete');
+    Route::get('banks/ledger/{id}', [\App\Http\Controllers\BanksController::class, 'ledger'])->name('bank.ledger');
+    Route::get('banks/files/{id}', [\App\Http\Controllers\BanksController::class, 'files'])->name('bank.files');
+    Route::get('banks/delete/{id}', [\App\Http\Controllers\BanksController::class, 'destroy'])->name('bank.delete');
     Route::get('banks/receipts/{id}', [\App\Http\Controllers\BanksController::class, 'receipts'])->name('banks.receipts');
     Route::get('banks/payments/{id}', [\App\Http\Controllers\BanksController::class, 'payments'])->name('banks.payments');
     Route::get('banks/cheques/{id}', [\App\Http\Controllers\BanksController::class, 'cheques'])->name('banks.cheques');

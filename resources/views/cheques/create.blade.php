@@ -1,6 +1,5 @@
 <form action="{{ route('cheques.store') }}" method="POST" enctype="multipart/form-data" id="formajax">
     @csrf
-    <input type="hidden" name="bank_id" value="{{ $bank->id }}">
     
     <!-- Step 1: Type Selection -->
     <div id="typeSelectionStep" class="mb-4">
@@ -40,6 +39,30 @@
     <div id="chequeFormStep" style="display: none;">
         <!-- Basic Information -->
         <div class="row">
+        
+            <!-- Dynamic Parties Section -->
+            <div id="partiesSection">
+                <!-- Payee fields will be shown for payable, Payer fields for receiveable -->
+            </div>
+
+
+            @if(isset($bank) )
+                <input type="hidden" name="bank_id" value="{{ $bank->id }}">
+            @else
+            <div class="col-md-6">
+                    {!! Form::label('bank', 'Bank', ['class' => ['form-label', 'required']]) !!}
+                    <select name="payee_account" class="form-control select2 {{ ($errors->has('bank_id') ? ' is-invalid' : '') }}" required>
+                        <option value="">Select</option>
+                        @foreach(\App\Models\Banks::where('status', 1)->get() as $bank)
+                        <option value="{{ $bank->id }}">{{ $bank->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('bank_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+            </div>
+            @endif
+
             <div class="col-md-6">
                     {!! Form::label('cheque_number', 'Cheque Number', ['class' => ['form-label', 'required']]) !!}
                     {!! Form::text('cheque_number', old('cheque_number'), [
@@ -68,15 +91,8 @@
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
             </div>
-        </div>
-        
-        <!-- Dynamic Parties Section -->
-        <div id="partiesSection">
-            <!-- Payee fields will be shown for payable, Payer fields for receiveable -->
-        </div>
 
-        <!-- Reference & Issued By -->
-        <div class="row">
+            <!-- Reference & Issued By -->
             <div class="col-md-6">
                     {!! Form::label('reference', 'Reference Number', ['class' => 'form-label']) !!}
                     {!! Form::text('reference', old('reference'), [
@@ -99,10 +115,8 @@
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
             </div>
-        </div>
         
-        <!-- Dates Section -->
-        <div class="row">
+            <!-- Dates Section -->
             <div class="col-md-6">
                     {!! Form::label('issue_date', 'Issue Date', ['class' => ['form-label', 'required']]) !!}
                     {!! Form::date('issue_date', old('issue_date'), [
@@ -123,20 +137,20 @@
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
             </div>
-        </div>
 
-        <!-- Attachment -->
-        <div class="col-6">
-            {!! Form::label('attachment', 'Attachment', ['class' => ['form-label','required']]) !!}
-            {!! Form::file('attachment', [
-                'class' => 'form-control' . ($errors->has('attachment') ? ' is-invalid' : ''),
-                'accept' => '.pdf,.jpg,.jpeg,.png',
-                'required' => true
-            ]) !!}
-            <div class="form-text">Accepted: PDF, JPG, JPEG, PNG - Max(2MB)</div>
-            @error('attachment')
-                <div class="invalid-feedback">{{ $message }}</div>
-            @enderror
+            <!-- Attachment -->
+            <div class="col-md-6">
+                {!! Form::label('attachment', 'Attachment', ['class' => ['form-label','required']]) !!}
+                {!! Form::file('attachment', [
+                    'class' => 'form-control' . ($errors->has('attachment') ? ' is-invalid' : ''),
+                    'accept' => '.pdf,.jpg,.jpeg,.png',
+                    'required' => true
+                ]) !!}
+                <div class="form-text">Accepted: PDF, JPG, JPEG, PNG - Max(2MB)</div>
+                @error('attachment')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
         </div>
         
         <!-- Additional Information -->

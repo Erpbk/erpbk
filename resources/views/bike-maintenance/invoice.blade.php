@@ -299,8 +299,6 @@
                 </div>
             @else
                 <div class="detail-item">
-                    <span class="detail-label"></span>
-                    <span class="detail-value"></span>
                 </div>
             @endif
             <div class="detail-item">
@@ -317,10 +315,12 @@
                 </div>
             @else
                 <div class="detail-item">
-                    <span class="detail-label"></span>
-                    <span class="detail-value"></span>
                 </div>
             @endif
+            <div class="detail-item">
+                <span class="detail-label">Next Service:</span>
+                <span class="detail-value">{{ number_format($maintenance_km + $maintenance->current_km, 2) }} KM</span>
+            </div>
         </div>
         @php
             $overdue_cost = $maintenance->overdue_km??0*$maintenance->overdue_cost_per_km??0;

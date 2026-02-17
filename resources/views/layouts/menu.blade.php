@@ -17,11 +17,23 @@
 </li>
 @endcan
 @can('bank_view')
-<li class="menu-item {{ Request::is('banks') ? 'active' : '' }} {{ Request::is('bank*') ? 'active' : '' }}">
-  <a href="{{ route('banks.index') }}" class="menu-link">
+<li class="menu-item {{ Request::is('banks') ? 'open' : '' }} {{ Request::is('bank*') ? 'open' : '' }} {{ Request::is('cheques') ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle">
     <i class="menu-icon tf-icons ti ti-building-bank"></i>
     <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
   </a>
+  <ul class="menu-sub">
+    <li class="menu-item {{ Request::is('cheques') ? 'active' : '' }}">
+      <a href="{{ route('cheques.index') }}" class="menu-link">
+        <div>{{ $menuLabels['cheques'] ?? 'Cheques' }}</div>
+      </a>
+    </li>
+    <li class="menu-item {{ Request::is('banks') ? 'active' : '' }} {{ Request::is('bank*') ? 'active' : '' }}">
+      <a href="{{ route('banks.index') }}" class="menu-link">
+        <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
+      </a>
+    </li>
+  </ul>
 </li>
 @endcan
 @can('item_view')
@@ -140,7 +152,7 @@
     <li class="menu-item {{ Request::is('bikeMaintenance*') ? 'active' : '' }}">
       <a href="{{ route('bikeMaintenance.index') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-motorbike"></i>
-        <div>{{ $menuLabels['maintenance_overview'] ?? 'Maintenance Overview' }}</div>
+        <div>{{ $menuLabels['maintenance_overview'] ?? 'Maintenance' }}</div>
       </a>
     </li>
   </ul>

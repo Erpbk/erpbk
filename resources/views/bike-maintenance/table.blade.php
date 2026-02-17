@@ -38,9 +38,11 @@
                     <strong>{{ $maintenance->bike->emirates ?? '' }}-{{ $maintenance->bike->plate ?? 'N/A' }}</strong>
                 </a>
             </td>
-            <td>
+            <td> 
                 @if($maintenance->rider)
-                {{ $maintenance->rider? $maintenance->rider->rider_id .'-'. $maintenance->rider->name : '-' }}
+                <a href="{{ route('riders.show', $maintenance->rider_id) }}" target="_blank">
+                    {{ $maintenance->rider? $maintenance->rider->rider_id .'-'. $maintenance->rider->name : '-' }}
+                </a>
                 @else
                 <span class="text-muted">No Rider</span>
                 @endif

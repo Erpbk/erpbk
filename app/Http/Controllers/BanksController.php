@@ -397,12 +397,11 @@ class BanksController extends AppBaseController
   public function cheques(Request $request, $id)
   {
     $banks = Banks::find($id);
-    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Cheques::query()->latest('id');
+    $query = Cheques::query()->latest('issue_date');
     $query->where('bank_id', $id);
 
     // Apply pagination using the trait
-    $data = $this->applyPagination($query, $paginationParams);
+    $data = $query->get();
     return view('banks.cheques', compact('data', 'banks'));
   }
 }

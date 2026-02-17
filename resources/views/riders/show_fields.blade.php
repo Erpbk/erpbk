@@ -34,6 +34,10 @@
             <label>Rider Contact</label>
             <p>{{@$result['personal_contact']}}</p>
         </div>
+        <div class="col-md-3 form-group col-3">
+            <label>Company Contact</label>
+            <p>{{@$result['company_contact']}}</p>
+        </div>
         <!--col-->
         <div class="col-md-3 form-group col-3">
             <label>Personal Email ID </label>

@@ -200,7 +200,7 @@
                         </table>
                 
                 <div class="next-service">
-                    Next Service At: {{ number_format($sticker['next_reading']) }} km
+                    Next Service: {{ number_format($sticker['next_reading']) }} km
                 </div>
             </div>
         </div>

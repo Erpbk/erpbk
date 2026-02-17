@@ -50,9 +50,11 @@ class ChequesController extends Controller
         $validated = $request->validate([
             'bank_id' => 'required|exists:banks,id',
             'type' => 'required|in:payable,receiveable',
+            'is_security' => 'nullable|boolean',
             'cheque_number' => 'required|string|unique:cheques,cheque_number',
             'amount' => 'required|numeric|min:0.01',
             'issue_date' => 'required|date',
+            'cheque_date' => 'nullable|date',
             'billing_month' => 'nullable|date_format:Y-m',
             'reference' => 'nullable|string|max:100',
             'description' => 'nullable|string',
@@ -78,13 +80,14 @@ class ChequesController extends Controller
             $chequeData = [
                 'bank_id' => $validated['bank_id'],
                 'type' => $validated['type'],
+                'is_security' => $validated['is_security'],
                 'cheque_number' => $validated['cheque_number'],
                 'amount' => $validated['amount'],
                 'issue_date' => $validated['issue_date'],
+                'cheque_date' => $validated['cheque_date'],
                 'billing_month' => $validated['billing_month'],
                 'reference' => $validated['reference'],
                 'description' => $validated['description'],
-                'issued_by' => $validated['issued_by'],
                 'status' => 'Issued',
                 'created_by' => Auth::id(),
             ];
@@ -172,10 +175,11 @@ class ChequesController extends Controller
             'cheque_number' => 'required|string|unique:cheques,cheque_number,' . $cheque->id,
             'amount' => 'required|numeric|min:0.01',
             'issue_date' => 'required|date',
+            'is_security' => 'nullable|boolean',
             'billing_month' => 'nullable|date_format:Y-m',
             'reference' => 'nullable|string|max:100',
             'description' => 'nullable|string',
-            'issued_by' => 'required|string|max:100',
+            'cheque_date' => 'nullable|date',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
         ];
 
@@ -199,10 +203,11 @@ class ChequesController extends Controller
                 'cheque_number' => $validated['cheque_number'],
                 'amount' => $validated['amount'],
                 'issue_date' => $validated['issue_date'],
+                'cheque_date' => $validated['cheque_date'],
+                'is_security' => $validated['is_security'],
                 'billing_month' => $validated['billing_month'],
                 'reference' => $validated['reference'],
                 'description' => $validated['description'],
-                'issued_by' => $validated['issued_by'],
                 'updated_by' => Auth::id(),
             ];
 

@@ -7,7 +7,19 @@
     <div id="chequeFormStep">
         <!-- Basic Information -->
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-12">
+                {!! Form::checkbox('is_security', true, null, [
+                    'class' => 'form-check-input'
+                ]) !!}
+                {!! Form::label('is_security', 'Security Cheque', [
+                    'class' => 'fw-bold'
+                ]) !!}
+            </div>
+        
+            <!-- Parties Section -->
+            <div id="partiesSection">
+                <div class="row">
+                <div class="col-md-6">
                     {!! Form::label('cheque_number', 'Cheque Number', ['class' => ['form-label', 'required']]) !!}
                     {!! Form::text('cheque_number', old('cheque_number', $cheque->cheque_number), [
                         'class' => 'form-control' . ($errors->has('cheque_number') ? ' is-invalid' : ''),
@@ -17,118 +29,110 @@
                     @error('cheque_number')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
+                </div>
+                @if($cheque->type == 'payable')
+                    <div class="col-md-6">
+                        <label for="payee_account" class="form-label required">Payee Account</label>
+                        <select name="payee_account" class="form-control select2" required>
+                            <option value="">Select</option>
+                            @foreach(\App\Models\Accounts::where('status', 1)->get() as $payee)
+                            <option value="{{ $payee->id }}" 
+                                {{ $cheque->payee_account == $payee->id ? 'selected' : '' }}>
+                                {{ $payee->account_code.'-'.$payee->name }}
+                            </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @else
+                    <div class="col-md-6">
+                        <label for="payer_account" class="form-label required">Payer Account</label>
+                        <select name="payer_account" class="form-control select2" required>
+                            <option value="">Select</option>
+                            @foreach(\App\Models\Accounts::where('status', 1)->get() as $payer)
+                            <option value="{{ $payer->id }}" 
+                                {{ $cheque->payer_account == $payer->id || old('payer_account') == $payer->id ? 'selected' : '' }}>
+                                {{ $payer->account_code.'-'.$payer->name }}
+                            </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+                </div>
+            </div>
+            <div class="col-md-6">
+                {!! Form::label('bank_id', 'Bank', ['class' => 'form-label']) !!}
+                <select name="bank_id" id="bank_id" class="form-control select2" required>
+                    <option value="">Select Bank</option>
+                    @foreach(App\Models\Banks::where('status', 1)->get() as $bank)
+                        <option value="{{ $bank->id }}" 
+                            {{ $cheque->bank_id == $bank->id ? 'selected' : '' }}>{{ $bank->name }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('bank_id')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                @enderror
             </div>
             
             <div class="col-md-6">
-                    {!! Form::label('amount', 'Amount', ['class' => ['form-label', 'required']]) !!}
-                    <div class="input-group">
-                        <span class="input-group-text">AED</span>
-                        {!! Form::number('amount', old('amount', $cheque->amount), [
-                            'class' => 'form-control' . ($errors->has('amount') ? ' is-invalid' : ''),
-                            'required' => true,
-                            'step' => '0.01',
-                            'min' => '0.01',
-                            'placeholder' => '0.00'
-                        ]) !!}
-                    </div>
-                    @error('amount')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-            </div>
-        </div>
-        
-        <!-- Parties Section -->
-        <div id="partiesSection">
-            @if($cheque->type == 'payable')
-            <div class="row">
-                <div class="col-md-6">
-                    <label for="payee_name" class="form-label">Payee Name</label>
-                    <input type="text" name="payee_name" class="form-control" 
-                           placeholder="Enter payee name" value="{{ old('payee_name', $cheque->payee_name) }}">
-                </div>
-                <div class="col-md-6">
-                    <label for="payee_account" class="form-label required">Payee Account</label>
-                    <select name="payee_account" class="form-control select2" required>
-                        <option value="">Select</option>
-                        @foreach(\App\Models\Accounts::where('status', 1)->get() as $payee)
-                        <option value="{{ $payee->id }}" 
-                            {{ $cheque->payee_account == $payee->account_code || old('payee_account') == $payee->id ? 'selected' : '' }}>
-                            {{ $payee->account_code.'-'.$payee->name }}
-                        </option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
-            @else
-            <div class="row">
-                <div class="col-md-6">
-                    <label for="payer_name" class="form-label">Payer Name</label>
-                    <input type="text" name="payer_name" class="form-control" 
-                           placeholder="Enter payer name" value="{{ old('payer_name', $cheque->payer_name) }}">
-                </div>
-                <div class="col-md-6">
-                    <label for="payer_account" class="form-label required">Payer Account</label>
-                    <select name="payer_account" class="form-control select2" required>
-                        <option value="">Select</option>
-                        @foreach(\App\Models\Accounts::where('status', 1)->get() as $payer)
-                        <option value="{{ $payer->id }}" 
-                            {{ $cheque->payer_account == $payer->id || old('payer_account') == $payer->id ? 'selected' : '' }}>
-                            {{ $payer->account_code.'-'.$payer->name }}
-                        </option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
-            @endif
-        </div>
-
-        <!-- Reference & Issued By -->
-        <div class="row">
-            <div class="col-md-6">
-                    {!! Form::label('reference', 'Reference Number', ['class' => 'form-label']) !!}
-                    {!! Form::text('reference', old('reference', $cheque->reference), [
-                        'class' => 'form-control' . ($errors->has('reference') ? ' is-invalid' : ''),
-                        'placeholder' => 'Enter reference number'
+                {!! Form::label('amount', 'Amount', ['class' => ['form-label', 'required']]) !!}
+                <div class="input-group">
+                    <span class="input-group-text">AED</span>
+                    {!! Form::number('amount', old('amount', $cheque->amount), [
+                        'class' => 'form-control' . ($errors->has('amount') ? ' is-invalid' : ''),
+                        'required' => true,
+                        'step' => '0.01',
+                        'min' => '0.01',
+                        'placeholder' => '0.00'
                     ]) !!}
-                    @error('reference')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+                </div>
+                @error('amount')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <!-- Reference & Issued By -->
+            <div class="col-md-6">
+                {!! Form::label('reference', 'Reference Number', ['class' => 'form-label']) !!}
+                {!! Form::text('reference', old('reference', $cheque->reference), [
+                    'class' => 'form-control' . ($errors->has('reference') ? ' is-invalid' : ''),
+                    'placeholder' => 'Enter reference number'
+                ]) !!}
+                @error('reference')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
             </div>
             
             <div class="col-6">
-                    {!! Form::label('issued_by', 'Issued By', ['class' => ['form-label','required']]) !!}
-                    {!! Form::text('issued_by', old('issued_by', $cheque->issued_by), [
-                        'class' => 'form-control' . ($errors->has('issued_by') ? ' is-invalid' : ''),
-                        'placeholder' => 'Enter issuer name',
-                        'required' => true
+                    {!! Form::label('cheque_date', 'Cheque Date', ['class' => ['form-label']]) !!}
+                    {!! Form::date('cheque_date', old('cheque_date', $cheque->cheque_date ?? null), [
+                        'class' => 'form-control' . ($errors->has('cheque_date') ? ' is-invalid' : ''),
                     ]) !!}
                     @error('issued_by')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
             </div>
-        </div>
         
-        <!-- Dates Section -->
-        <div class="row">
+            <!-- Dates Section -->
             <div class="col-md-6">
-                    {!! Form::label('issue_date', 'Issue Date', ['class' => ['form-label', 'required']]) !!}
-                    {!! Form::date('issue_date', old('issue_date', $cheque->issue_date), [
-                        'class' => 'form-control' . ($errors->has('issue_date') ? ' is-invalid' : ''),
-                        'required' => true
-                    ]) !!}
-                    @error('issue_date')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+                {!! Form::label('issue_date', 'Issue Date', ['class' => ['form-label', 'required']]) !!}
+                {!! Form::date('issue_date', old('issue_date', $cheque->issue_date), [
+                    'class' => 'form-control' . ($errors->has('issue_date') ? ' is-invalid' : ''),
+                    'required' => true
+                ]) !!}
+                @error('issue_date')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
             </div>
-            
+        
             <div class="col-md-6">
-                    {!! Form::label('billing_month', 'Billing Month', ['class' => 'form-label']) !!}
-                    {!! Form::month('billing_month', old('billing_month', $cheque->billing_month), [
-                        'class' => 'form-control' . ($errors->has('billing_month') ? ' is-invalid' : '')
-                    ]) !!}
-                    @error('billing_month')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+                {!! Form::label('billing_month', 'Billing Month', ['class' => 'form-label']) !!}
+                {!! Form::month('billing_month', old('billing_month', $cheque->billing_month), [
+                    'class' => 'form-control' . ($errors->has('billing_month') ? ' is-invalid' : '')
+                ]) !!}
+                @error('billing_month')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
             </div>
         </div>
 
@@ -145,25 +149,6 @@
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
-            @if($cheque->type == 'receiveable')
-            <div class="col-md-6">
-                {!! Form::label('bank_id', 'Bank', ['class' => 'form-label']) !!}
-                <select name="bank_id" id="bank_id" class="form-control select2" required>
-                    <option value="">Select Bank</option>
-                    @foreach(App\Models\Banks::where('status', 1)->get() as $bank)
-                        <option value="{{ $bank->id }}" 
-                            {{ $cheque->bank_id == $bank->id ? 'selected' : '' }}>{{ $bank->name }}
-                        </option>
-                    @endforeach
-                </select>
-                <div class="form-text"><span class="text-warning">Optional:</span> Change If cheque Deposited Into Another Account</div>
-                @error('bank_id')
-                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                @enderror
-            </div>
-            @else
-                <input type="hidden" name="bank_id" value="{{ $cheque->bank_id }}">
-            @endif
 
         </div>
         

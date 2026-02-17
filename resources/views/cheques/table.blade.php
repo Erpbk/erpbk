@@ -4,6 +4,7 @@
         <tr role="row">
             <th title="Reference" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Reference: activate to sort column ascending">Reference</th>
             <th title="Cheque No." class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cheque No.: activate to sort column ascending">Cheque No.</th>
+            <th title="Cheque date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cheque date: activate to sort column ascending">Cheque date</th>
             <th title="Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>
             <th title="Sender/Receiver" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Sender/Receiver: activate to sort column ascending">Sender/Reciever</th>
             <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
@@ -25,18 +26,26 @@
                     {{ $cheque->cheque_number }}
                 </a>
             </td>
+            <td>{{ $cheque->cheque_date?->format('d M Y') ?? '-' }}</td>
             <td>
                 @if($cheque->type == 'payable')
                     <span class="badge border border-danger text-black">Payable</span>
                 @else
                     <span class="badge border border-success text-black">Receivable</span>
                 @endif
+                @if($cheque->is_security)
+                    <small class=" badge border border-danger text-warning mt-2" style="white-space: nowrap">Security Cheque</small>
+                @endif
             </td>
             <td>
                 @if($cheque->type == 'payable')
-                    {{ $cheque->payee->name ?? $cheque->payee_name ?? '-' }}
+                    <a href="{{ route('accounts.ledger', ['account' => $cheque->payee_account])}}" target="_blank">
+                        {{ $cheque->payee_name ?? '-' }}
+                    </a>
                 @else
-                    {{ $cheque->payer->name ?? $cheque->payer_name ?? '-' }}
+                    <a href="{{ route('accounts.ledger', ['account' => $cheque->payer_account])}}" target="_blank">
+                        {{ $cheque->payer_name ?? '-' }}
+                    </a>
                 @endif
             </td>
             <td>AED {{ number_format($cheque->amount, 2) }}</td>

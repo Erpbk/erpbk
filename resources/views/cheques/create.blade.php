@@ -39,19 +39,26 @@
     <div id="chequeFormStep" style="display: none;">
         <!-- Basic Information -->
         <div class="row">
+            <div class="col-md-12">
+                {!! Form::checkbox('is_security', 'Rider', null, [
+                    'class' => 'form-check-input'
+                ]) !!}
+                {!! Form::label('is_security', 'Security Cheque', [
+                    'class' => 'fw-bold'
+                ]) !!}
+            </div>
         
             <!-- Dynamic Parties Section -->
             <div id="partiesSection">
                 <!-- Payee fields will be shown for payable, Payer fields for receiveable -->
             </div>
 
-
             @if(isset($bank) )
                 <input type="hidden" name="bank_id" value="{{ $bank->id }}">
             @else
             <div class="col-md-6">
                     {!! Form::label('bank', 'Bank', ['class' => ['form-label', 'required']]) !!}
-                    <select name="payee_account" class="form-control select2 {{ ($errors->has('bank_id') ? ' is-invalid' : '') }}" required>
+                    <select name="bank_id" class="form-control select2 {{ ($errors->has('bank_id') ? ' is-invalid' : '') }}" required>
                         <option value="">Select</option>
                         @foreach(\App\Models\Banks::where('status', 1)->get() as $bank)
                         <option value="{{ $bank->id }}">{{ $bank->name }}</option>
@@ -62,18 +69,6 @@
                     @enderror
             </div>
             @endif
-
-            <div class="col-md-6">
-                    {!! Form::label('cheque_number', 'Cheque Number', ['class' => ['form-label', 'required']]) !!}
-                    {!! Form::text('cheque_number', old('cheque_number'), [
-                        'class' => 'form-control' . ($errors->has('cheque_number') ? ' is-invalid' : ''),
-                        'required' => true,
-                        'placeholder' => 'Enter cheque number'
-                    ]) !!}
-                    @error('cheque_number')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-            </div>
             
             <div class="col-md-6">
                     {!! Form::label('amount', 'Amount', ['class' => ['form-label', 'required']]) !!}
@@ -105,11 +100,9 @@
             </div>
             
             <div class="col-6">
-                    {!! Form::label('issued_by', 'Issued By', ['class' => ['form-label','required']]) !!}
-                    {!! Form::text('issued_by', old('issued_by'), [
-                        'class' => 'form-control' . ($errors->has('issued_by') ? ' is-invalid' : ''),
-                        'placeholder' => 'Enter issuer name',
-                        'required' => true
+                    {!! Form::label('cheque_date', 'Cheque Date', ['class' => ['form-label']]) !!}
+                    {!! Form::date('cheque_date', old('cheque_date'), [
+                        'class' => 'form-control' . ($errors->has('cheque_date') ? ' is-invalid' : ''),
                     ]) !!}
                     @error('issued_by')
                         <div class="invalid-feedback">{{ $message }}</div>
@@ -159,7 +152,7 @@
                 {!! Form::label('description', 'Description', ['class' => 'form-label']) !!}
                 {!! Form::textarea('description', old('description'), [
                     'class' => 'form-control' . ($errors->has('description') ? ' is-invalid' : ''),
-                    'rows' => 2,
+                    'rows' => 3,
                     'placeholder' => 'Enter cheque description'
                 ]) !!}
                 @error('description')
@@ -196,8 +189,15 @@ $(document).ready(function() {
             $('#partiesSection').html(`
                 <div class="row">
                     <div class="col-md-6">
-                        <label for="payee_name" class="form-label">Payee Name</label>
-                        <input type="text" name="payee_name" class="form-control" placeholder="Enter payee name">
+                        {!! Form::label('cheque_number', 'Cheque Number', ['class' => ['form-label', 'required']]) !!}
+                        {!! Form::text('cheque_number', old('cheque_number'), [
+                            'class' => 'form-control' . ($errors->has('cheque_number') ? ' is-invalid' : ''),
+                            'required' => true,
+                            'placeholder' => 'Enter cheque number'
+                        ]) !!}
+                        @error('cheque_number')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                     </div>
                     <div class="col-md-6">
                         <label for="payee_account" class="form-label required">Payee Account</label>
@@ -218,8 +218,15 @@ $(document).ready(function() {
             $('#partiesSection').html(`
                 <div class="row">
                     <div class="col-md-6">
-                        <label for="payer_name" class="form-label">Payer Name</label>
-                        <input type="text" name="payer_name" class="form-control" placeholder="Enter payer name">
+                        {!! Form::label('cheque_number', 'Cheque Number', ['class' => ['form-label', 'required']]) !!}
+                        {!! Form::text('cheque_number', old('cheque_number'), [
+                            'class' => 'form-control' . ($errors->has('cheque_number') ? ' is-invalid' : ''),
+                            'required' => true,
+                            'placeholder' => 'Enter cheque number'
+                        ]) !!}
+                        @error('cheque_number')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                     </div>
                     <div class="col-md-6">
                         <label for="payer_account" class="form-label required">Payer Account</label>

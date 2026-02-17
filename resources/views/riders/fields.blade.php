@@ -37,7 +37,7 @@
 
         <!-- Rider Contact -->
         <div class="form-group col-sm-4">
-            {!! Form::label('personal_contact', 'Rider Contact:') !!}
+            {!! Form::label('personal_contact', 'Personal Contact:') !!}
             {!! Form::tel('personal_contact', null, ['class' => 'form-control', 'placeholder' => '05XXXXXXXX', 'maxlength' => 10]) !!}
         </div>
 

@@ -22,6 +22,7 @@ class Cheques extends Model
         'attachment',
         'description',
         'issue_date',
+        'cheque_date',
         'cleared_date',
         'returned_date',
         'stop_payment_date',
@@ -29,18 +30,21 @@ class Cheques extends Model
         'status',
         'return_reason',
         'type',
+        'is_security',
         'voucher_id',
         'issued_by',
         'created_by',
         'updated_by',
     ];
     protected $casts = [
-        'issue_date' => 'date',
-        'cleared_date' => 'date',
-        'returned_date' => 'date',
-        'stop_payment_date' => 'date',
-        'billing_month'=> 'date',
+        'issue_date' => 'datetime',
+        'cheque_date' => 'datetime',
+        'cleared_date' => 'datetime',
+        'returned_date' => 'datetime',
+        'stop_payment_date' => 'datetime',
+        'billing_month'=> 'datetime',
         'amount' => 'decimal:2',
+        'is_security' => 'boolean',
     ];
     protected $dates = ['deleted_at'];
 

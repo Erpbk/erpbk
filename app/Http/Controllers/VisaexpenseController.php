@@ -491,6 +491,8 @@ class VisaexpenseController extends AppBaseController
             }
             $rider = Riders::findOrFail($riderAccount->ref_id);
 
+            $existingInstallmentCount  = visa_installment_plan::where('rider_id', $validated['rider_id'])->count();
+
             // Create multiple installment entries for consecutive months
             for ($i = 0; $i < $validated['number_of_installments']; $i++) {
                 // Calculate billing month for this installment (consecutive months)
@@ -529,8 +531,8 @@ class VisaexpenseController extends AppBaseController
                     'billing_month' => $billingMonth,
                     'payment_type' => 1, // Liability payment
                     'voucher_type' => 'VL', // Visa Loan
-                    'remarks' => 'Loan Voucher - Installment ' . ($i + 1) . ' of '
-                        . $validated['number_of_installments']
+                    'remarks' => 'Loan Voucher - Installment ' . ($i + 1 + $existingInstallmentCount) . ' of '
+                        . ($validated['number_of_installments'] + $existingInstallmentCount)
                         . ' (Amount: ' . number_format($installmentAmount, 2) . ')',
                     'amount' => $installmentAmount,
                     'reference_number' => $validated['reference_number'],
@@ -545,7 +547,7 @@ class VisaexpenseController extends AppBaseController
                     'reference_type' => 'VL',
                     'trans_code' => $trans_code,
                     'trans_date' => $trans_date,
-                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting installment ' . ($i + 1) . ' - ' . $billingMonthFormatted . ' (Amount: ' . number_format($installmentAmount, 2) . ')',
+                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment ' . ($i + 1 + $existingInstallmentCount) ,
                     'debit' => $installmentAmount,
                     'billing_month' => $billingMonth,
                     'created_by' => auth()->user()->id,
@@ -558,7 +560,7 @@ class VisaexpenseController extends AppBaseController
                     'reference_type' => 'VL',
                     'trans_code' => $trans_code,
                     'trans_date' => $trans_date,
-                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting ' . ' installment ' . ($i + 1) . ' - ' . $billingMonthFormatted . ' (Amount: ' . number_format($installmentAmount, 2) . ')',
+                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment ' . ($i + 1 + $existingInstallmentCount) ,
                     'credit' => $installmentAmount,
                     'billing_month' => $billingMonth,
                 ]);
@@ -590,12 +592,12 @@ class VisaexpenseController extends AppBaseController
 
             $installmentDetails = '';
             foreach ($installmentAmounts as $index => $amount) {
-                $installmentDetails .= 'Installment ' . ($index + 1) . ': ' . number_format($amount, 2) . ', ';
+                $installmentDetails .= 'Installment ' . ($index + 1 + $existingInstallmentCount) . ': ' . number_format($amount, 2) . ', ';
             }
             $installmentDetails = rtrim($installmentDetails, ', ');
 
             Flash::success($validated['number_of_installments'] . ' installment entries created successfully with individual amounts: ' . $installmentDetails . '. Total amount: ' . number_format($validated['total_amount'], 2));
-            return redirect()->route('VisaExpense.installmentPlan', $validated['rider_id']);
+            return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
             Flash::error('Error creating installment plan: ' . $e->getMessage());

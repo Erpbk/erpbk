@@ -78,8 +78,8 @@
                     </div>
                     <div class="col-md-4">
                         <div class="border rounded p-2">
-                            <div class="text-muted small mb-1">Cleared Date</div>
-                            <div class="fw-medium">{{ $cheque->cleared_date ? \App\Helpers\Common::DateFormat($cheque->cleared_date) : '------' }}</div>
+                            <div class="text-muted small mb-1">Cheque Date</div>
+                            <div class="fw-medium">{{ $cheque->cheque_date ? \App\Helpers\Common::DateFormat($cheque->cheque_date) : '------' }}</div>
                         </div>
                     </div>
                     <div class="col-md-4">

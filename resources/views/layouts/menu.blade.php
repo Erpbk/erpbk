@@ -17,7 +17,7 @@
 </li>
 @endcan
 @can('bank_view')
-<li class="menu-item {{ Request::is('banks') ? 'open' : '' }} {{ Request::is('bank*') ? 'open' : '' }} {{ Request::is('cheques') ? 'open' : '' }}">
+<li class="menu-item {{ Request::is('banks*') ? 'open' : '' }} {{ Request::is('bank*') ? 'open' : '' }} {{ Request::is('cheques') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
     <i class="menu-icon tf-icons ti ti-building-bank"></i>
     <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>

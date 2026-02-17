@@ -50,7 +50,7 @@ class ChequesController extends Controller
         $validated = $request->validate([
             'bank_id' => 'required|exists:banks,id',
             'type' => 'required|in:payable,receiveable',
-            'is_security' => 'nullable|boolean',
+            'is_security' => 'sometimes|boolean',
             'cheque_number' => 'required|string|unique:cheques,cheque_number',
             'amount' => 'required|numeric|min:0.01',
             'issue_date' => 'required|date',
@@ -58,7 +58,6 @@ class ChequesController extends Controller
             'billing_month' => 'nullable|date_format:Y-m',
             'reference' => 'nullable|string|max:100',
             'description' => 'nullable|string',
-            'issued_by' => 'required|string|max:100',
             'attachment' => 'required|file|mimes:pdf,jpg,jpeg,png|max:2048', // 2MB
         ]);
 
@@ -80,7 +79,7 @@ class ChequesController extends Controller
             $chequeData = [
                 'bank_id' => $validated['bank_id'],
                 'type' => $validated['type'],
-                'is_security' => $validated['is_security'],
+                'is_security' => $request->has('is_security'),
                 'cheque_number' => $validated['cheque_number'],
                 'amount' => $validated['amount'],
                 'issue_date' => $validated['issue_date'],
@@ -139,7 +138,7 @@ class ChequesController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Cheque creation failed: ' . $e->getMessage());
+            \Log::error('Cheque creation failed: ' . $e);
             
             return response()->json([
                 'success' => false,

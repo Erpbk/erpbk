@@ -87,9 +87,11 @@
                 </button>
                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $cheque->id }}" style="z-index: 1050;">
                     @can('cheques_edit')
+                        @if($cheque->status != 'Cleared')
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit {{ ucwords($cheque->type) }} Cheque" data-action="{{ route('cheques.edit', $cheque->id) }}">
                             <i class="fa fa-edit my-1"></i> Edit
                         </a>
+                        @endif
                         @if($cheque->status == 'Issued')
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Change Status" data-action="{{ route('cheques.status-form', $cheque->id) }}">
                             <i class="fa fa-exchange-alt my-1"></i> Change Status
@@ -120,6 +122,7 @@
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    $.fn.dataTable.ext.errMode = 'none';
     $('#dataTableBuilder').DataTable({
         "paging": true, // Enable DataTables pagination
         "pageLength": 50, // Items per page

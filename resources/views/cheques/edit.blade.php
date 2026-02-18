@@ -8,7 +8,7 @@
         <!-- Basic Information -->
         <div class="row">
             <div class="col-md-12">
-                {!! Form::checkbox('is_security', true, null, [
+                {!! Form::checkbox('is_security', true, $cheque->is_security, [
                     'class' => 'form-check-input'
                 ]) !!}
                 {!! Form::label('is_security', 'Security Cheque', [

@@ -203,7 +203,7 @@ class ChequesController extends Controller
                 'amount' => $validated['amount'],
                 'issue_date' => $validated['issue_date'],
                 'cheque_date' => $validated['cheque_date'],
-                'is_security' => $validated['is_security'],
+                'is_security' => $request->has('is_security'),
                 'billing_month' => $validated['billing_month'],
                 'reference' => $validated['reference'],
                 'description' => $validated['description'],
@@ -345,6 +345,7 @@ class ChequesController extends Controller
         if ($request->status === 'Cleared') {
             $rules['cleared_date'] = 'required|date';
             $rules['billing_month'] = 'required|date_format:Y-m';
+            $rules['bank_id'] = 'required|exists:banks,id';
         } elseif ($request->status === 'Returned') {
             $rules['returned_date'] = 'required|date';
             $rules['return_reason'] = 'required|string|max:255';
@@ -372,14 +373,15 @@ class ChequesController extends Controller
             }elseif($validated['status']==='Cleared'){
                 $updateData['cleared_date'] = $validated['cleared_date'];
                 $updateData['billing_month'] = $validated['billing_month'].'-01';
-
+                $updateData['bank_id'] = $validated['bank_id'];
+                $bank = Banks::findOrFail($updateData['bank_id']);
                 if($cheque->type==='payable'){
                     $paymentData = [
                         'payee_account_id' => (array)$cheque->payee_account,
                         'amount' => $cheque->amount,
                         'date_of_payment' => $validated['cleared_date'],
                         'reference' => 'Cheque Cleared: '.$cheque->cheque_number,
-                        'bank_id' => $cheque->bank_id,
+                        'bank_id' => $bank->id,
                         'amount_type' => 'Cheque',
                         'billing_month' => $validated['billing_month'].'-01',
                         'description' => $cheque->description,
@@ -396,7 +398,7 @@ class ChequesController extends Controller
                         'trans_date' => $payment->date_of_payment,
                         'reference_id' => $payment->id,
                         'reference_type' => 'PV',
-                        'account_id' => $cheque->payer_account,
+                        'account_id' => $bank->account_id,
                         'credit' => $cheque->amount,
                         'debit' => 0,
                         'billing_month' => $payment->billing_month,
@@ -421,7 +423,7 @@ class ChequesController extends Controller
                         'trans_date' => $payment->date_of_payment,
                         'trans_code' => $transCode,
                         'billing_month' => $payment->billing_month,
-                        'payment_from' => $cheque->payer_account,
+                        'payment_from' => $bank->account_id,
                         'payment_to' => $cheque->payee_account,
                         'amount' => $cheque->amount,
                         'voucher_type' => 'PV',
@@ -445,8 +447,8 @@ class ChequesController extends Controller
                         'amount' => $cheque->amount,
                         'date_of_receipt' => $validated['cleared_date'],
                         'reference' => 'Cheque Cleared: '.$cheque->cheque_number,
-                        'account_id' => $cheque->payee_account,
-                        'bank_id'=> $cheque->bank_id,
+                        'account_id' => $bank->account_id,
+                        'bank_id'=> $bank->id,
                         'amount_type' => 'Cheque',
                         'billing_month' => $validated['billing_month'].'-01',
                         'description' => $cheque->description,
@@ -462,7 +464,7 @@ class ChequesController extends Controller
                         'trans_date' => $receipt->date_of_receipt,
                         'reference_id' => $receipt->id,
                         'reference_type' => 'RV',
-                        'account_id' => $cheque->payee_account,
+                        'account_id' => $bank->account_id,
                         'credit' => 0,
                         'debit' => $cheque->amount,
                         'billing_month' => $receipt->billing_month,
@@ -488,7 +490,7 @@ class ChequesController extends Controller
                         'trans_code' => $transCode,
                         'billing_month' => $receipt->billing_month,
                         'payment_from' => $cheque->payer_account,
-                        'payment_to' => $cheque->payee_account,
+                        'payment_to' => $bank->account_id,
                         'amount' => $cheque->amount,
                         'voucher_type' => 'RV',
                         'remarks' => 'Receipt Voucher',

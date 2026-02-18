@@ -124,8 +124,7 @@
          @case('warehouse')
          <td tabindex="0">
             @php
-            $bike_warehouse = DB::table('bike_histories')->where('bike_id', $r->id)->first();
-            $badgeClass = match($bike_warehouse->warehouse ?? 'Inactive') {
+            $badgeClass = match($r->warehouse ?? 'Inactive') {
             'Active' => 'bg-label-success',
             'Return' => 'bg-label-warning',
             'Vacation' => 'bg-label-info',
@@ -133,7 +132,7 @@
             'Inactive' => 'bg-label-danger',
             };
             @endphp
-            <span class="badge {{ $badgeClass }}">{{ $bike_warehouse->warehouse ?? 'Inactive' }}</span>
+            <span class="badge {{ $badgeClass }}">{{ $r->warehouse }}</span>
          </td>
          @break
          @case('status')

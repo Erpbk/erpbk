@@ -43,7 +43,7 @@
     <div class="row">
         <div class="col-md-6">
             <label class="form-label fw-medium required">New Status</label>
-            <select name="status" class="form-select status-select" required>
+            <select name="status" class="form-select status-select select2" required>
                 <option value="">Select Status</option>
                 <option value="Cleared" {{ $cheque->status == 'Cleared' ? 'selected' : '' }}>Cleared</option>
                 <option value="Returned" {{ $cheque->status == 'Returned' ? 'selected' : '' }}>Returned</option>
@@ -58,6 +58,16 @@
         <label class="form-label fw-medium required">Cleared Date</label>
         <input type="date" name="cleared_date" class="form-control" 
                value="{{ $cheque->cleared_date ? \Carbon\Carbon::parse($cheque->cleared_date)->format('Y-m-d') : '' }}">
+    </div>
+
+    <div class="col-md-6 bank" style="{{ $cheque->status != 'Cleared' ? 'display: none;' : '' }}">
+        {!! Form::label('bank', 'Bank', ['class' => ['form-label', 'fw-medium', 'required']]) !!}
+        <select name="bank_id" class="form-control select2" required>
+            <option value="">Select</option>
+            @foreach(\App\Models\Banks::where('status', 1)->get() as $bank)
+            <option value="{{ $bank->id }}" @if($cheque->bank_id == $bank->id) selected @endif>{{ $bank->name }}</option>
+            @endforeach
+        </select>
     </div>
     
     <!-- Returned Date Field -->
@@ -113,12 +123,17 @@
 
 <script>
 $(document).ready(function() {
+    $('.select2').select2({
+        dropdownParent: $('#formajax'),
+        allowClear: true
+    });
+
     // Status change handler
     $('.status-select').on('change', function() {
         const status = $(this).val();
         
         // Hide all fields first
-        $('.date-field, .return-reason-field, .stop-payment-reason-field, .billing-month-field, .clear-alert, .description-field').hide();
+        $('.bank, .date-field, .return-reason-field, .stop-payment-reason-field, .billing-month-field, .clear-alert, .description-field').hide();
         
         // Show relevant fields based on status
         if (status === 'Cleared') {
@@ -126,6 +141,7 @@ $(document).ready(function() {
             $('.billing-month-field').show();
             $('.clear-alert').show();
             $('.description-field').show();
+            $('.bank').show();
         } else if (status === 'Returned') {
             $('.returned-date').show();
             $('.return-reason-field').show();

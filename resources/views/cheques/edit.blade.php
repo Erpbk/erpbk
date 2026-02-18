@@ -61,7 +61,7 @@
             </div>
             <div class="col-md-6">
                 {!! Form::label('bank_id', 'Bank', ['class' => 'form-label']) !!}
-                <select name="bank_id" id="bank_id" class="form-control select2" required>
+                <select name="bank_id" id="bank_id" class="form-control select2">
                     <option value="">Select Bank</option>
                     @foreach(App\Models\Banks::where('status', 1)->get() as $bank)
                         <option value="{{ $bank->id }}" 

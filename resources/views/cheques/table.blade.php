@@ -39,13 +39,20 @@
             </td>
             <td>
                 @if($cheque->type == 'payable')
+
                     <a href="{{ route('accounts.ledger', ['account' => $cheque->payee_account])}}" target="_blank">
                         {{ $cheque->payee_name ?? '-' }}
                     </a>
                 @else
-                    <a href="{{ route('accounts.ledger', ['account' => $cheque->payer_account])}}" target="_blank">
-                        {{ $cheque->payer_name ?? '-' }}
-                    </a>
+                    @if($cheque->payer?->ref_name == 'Rider')
+                        <a href="{{ route('rider.ledger',  $cheque->payer->ref_id)}}" target="_blank">
+                            {{ $cheque->payer_name ?? '-' }}
+                        </a>
+                    @else
+                        <a href="{{ route('accounts.ledger', ['account' => $cheque->payer_account])}}" target="_blank">
+                            {{ $cheque->payer_name ?? '-' }}
+                        </a>
+                    @endif
                 @endif
             </td>
             <td>AED {{ number_format($cheque->amount, 2) }}</td>

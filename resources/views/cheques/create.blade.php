@@ -57,8 +57,8 @@
                 <input type="hidden" name="bank_id" value="{{ $bank->id }}">
             @else
             <div class="col-md-6">
-                    {!! Form::label('bank', 'Bank', ['class' => ['form-label', 'required']]) !!}
-                    <select name="bank_id" class="form-control select2 {{ ($errors->has('bank_id') ? ' is-invalid' : '') }}" required>
+                    {!! Form::label('bank', 'Bank', ['class' => ['form-label']]) !!}
+                    <select name="bank_id" class="form-control select2 {{ ($errors->has('bank_id') ? ' is-invalid' : '') }}">
                         <option value="">Select</option>
                         @foreach(\App\Models\Banks::where('status', 1)->get() as $bank)
                         <option value="{{ $bank->id }}">{{ $bank->name }}</option>

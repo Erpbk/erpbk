@@ -50,8 +50,12 @@ $selectedDesignation = 'Cyclist';
             <input type="text" name="customer_id" class="form-control" readonly value="{{ App\Models\Customers::find($bike->customer_id)->name ?? 'N/A' }}">
         </div>
         <div class="form-group col-md-3" id="return_date">
-            <label for="exampleInputEmail1">Return Date</label>
+            <label for="exampleInputEmail1">Date</label>
             <input type="date" name="return_date" class="form-control" placeholder="Return Date">
+        </div>
+        <div class="form-group col-md-5" id="return_date">
+            <label for="exampleInputEmail1">Visa Sponsor</label>
+            <input type="text" name="visa_sponsor" class="form-control" readonly value="{{ $rider->visa_sponsor ?? 'N/A' }}">
         </div>
     </div>
     <!--col-->

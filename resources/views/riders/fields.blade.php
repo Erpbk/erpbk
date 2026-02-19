@@ -228,8 +228,11 @@
             </div>
             <!-- Visa Sponsor -->
             <div class="form-group col-sm-4">
+                <datalist id="sponsorOptions">
+                    <option value="Express Fast Delivery Service">
+                </datalist>
                 {!! Form::label('visa_sponsor', 'Visa Sponsor:') !!}
-                {!! Form::text('visa_sponsor', null, ['class' => 'form-control', 'placeholder' => 'Enter Visa Sponsor', 'maxlength' => 50]) !!}
+                {!! Form::text('visa_sponsor', null, ['class' => 'form-control', 'placeholder' => 'Enter Visa Sponsor', 'maxlength' => 50, 'list' => 'sponsorOptions']) !!}
             </div>
             <!-- Visa Occupation -->
             <div class="form-group col-sm-4">

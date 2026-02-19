@@ -130,6 +130,7 @@
             'Vacation' => 'bg-label-info',
             'Absconded' => 'bg-label-danger',
             'Inactive' => 'bg-label-danger',
+            default => 'bg-secondary',
             };
             @endphp
             <span class="badge {{ $badgeClass }}">{{ $r->warehouse }}</span>

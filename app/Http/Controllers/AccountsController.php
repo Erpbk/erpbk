@@ -33,16 +33,56 @@ class AccountsController extends AppBaseController
   }
 
   /**
-   * Display a listing of the Accounts.
+   * Display a listing of the Accounts (Chart of Accounts view).
    */
-
-  public function index(AccountsDataTable $accountsDataTable)
+  public function index(Request $request)
   {
-
     if (!auth()->user()->hasPermissionTo('account_view')) {
       abort(403, 'Unauthorized action.');
     }
-    return $accountsDataTable->render('accounts.index');
+    $search = $request->get('search');
+    $all = Accounts::orderBy('account_code')->get()->keyBy('id');
+    $roots = $all->whereNull('parent_id')->sortBy('account_code')->values();
+    foreach ($roots as $r) {
+      $r->setRelation('children', $this->buildChildren($r->id, $all));
+    }
+    $accounts = $this->flattenAccountTree($roots, $search);
+    return view('accounts.index', compact('accounts'));
+  }
+
+  /**
+   * Build children collection for a parent from a keyed collection of all accounts.
+   */
+  private function buildChildren($parentId, $all)
+  {
+    return $all->where('parent_id', $parentId)->sortBy('account_code')->values()->map(function ($child) use ($all) {
+      $child->setRelation('children', $this->buildChildren($child->id, $all));
+      return $child;
+    });
+  }
+
+  /**
+   * Flatten account tree into a list with depth for hierarchical display.
+   *
+   * @param \Illuminate\Support\Collection $nodes
+   * @param string|null $search
+   * @param int $depth
+   * @return \Illuminate\Support\Collection
+   */
+  private function flattenAccountTree($nodes, $search = null, $depth = 0)
+  {
+    $result = collect();
+    foreach ($nodes as $account) {
+      $match = !$search || stripos($account->name, $search) !== false
+        || stripos((string)($account->account_code ?? ''), $search) !== false
+        || stripos((string)($account->account_type ?? ''), $search) !== false;
+      if ($match) {
+        $result->push((object)['account' => $account, 'depth' => $depth]);
+      }
+      $children = $account->relationLoaded('children') ? $account->children : collect();
+      $result = $result->merge($this->flattenAccountTree($children, $search, $depth + 1));
+    }
+    return $result;
   }
   public function tree(AccountsDataTable $accountsDataTable)
   {

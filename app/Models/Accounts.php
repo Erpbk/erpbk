@@ -23,7 +23,8 @@ class Accounts extends Model
     'status',
     'notes',
     'opening_balance',
-    'is_locked'
+    'is_locked',
+    'custom_field_values'
   ];
 
   protected $casts = [
@@ -32,6 +33,7 @@ class Accounts extends Model
     'account_type' => 'string',
     'opening_balance' => 'decimal:2',
     'is_locked' => 'boolean',
+    'custom_field_values' => 'array',
   ];
 
   protected $dates = ['deleted_at']; // Added for SoftDeletes

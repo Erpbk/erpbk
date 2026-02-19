@@ -48,7 +48,6 @@ class ChequesController extends Controller
     {
         // Validate the request
         $validated = $request->validate([
-            'bank_id' => 'required|exists:banks,id',
             'type' => 'required|in:payable,receiveable',
             'is_security' => 'sometimes|boolean',
             'cheque_number' => 'required|string|unique:cheques,cheque_number',
@@ -66,18 +65,20 @@ class ChequesController extends Controller
             $request->validate([
                 'payee_account' => 'required|exists:accounts,id',
                 'payee_name' => 'nullable|string|max:255',
+                'bank_id' => 'required|exists:banks,id',
             ]);
         } else {
             $request->validate([
                 'payer_account' => 'required|exists:accounts,id',
                 'payer_name' => 'nullable|string|max:255',
+                'bank_id' => 'nullable|exists:banks,id',
             ]);
         }
         DB::beginTransaction();
         try {
             
             $chequeData = [
-                'bank_id' => $validated['bank_id'],
+                'bank_id' => $validated['bank_id'] ?? null,
                 'type' => $validated['type'],
                 'is_security' => $request->has('is_security'),
                 'cheque_number' => $validated['cheque_number'],
@@ -111,9 +112,11 @@ class ChequesController extends Controller
                 $chequeData['payer_name'] = $request->payer_name ?? $payerAccount->name;
                 
                 // Payee is the bank account
-                $bank = Banks::find($request->bank_id);
-                $chequeData['payee_account'] = $bank->account_id;
-                $chequeData['payee_name'] = $bank->name;
+                if($request->bank_id){
+                    $bank = Banks::find($request->bank_id);
+                    $chequeData['payee_account'] = $bank->account_id;
+                    $chequeData['payee_name'] = $bank->name;
+                }
             }
 
             // Handle file upload
@@ -186,10 +189,11 @@ class ChequesController extends Controller
         if ($cheque->type === 'payable') {
             $rules['payee_account'] = 'required|exists:accounts,id';
             $rules['payee_name'] = 'nullable|string|max:255';
+            $rules['bank_id'] = 'required|exists:banks,id';
         } else {
             $rules['payer_account'] = 'required|exists:accounts,id';
             $rules['payer_name'] = 'nullable|string|max:255';
-            $rules['bank_id'] = 'required|exists:banks,id';
+            $rules['bank_id'] = 'nullable|exists:banks,id';
         }
 
         // Validate the request
@@ -199,6 +203,7 @@ class ChequesController extends Controller
         try {
             
             $updateData = [
+                'bank_id' => $validated['bank_id'] ?? null,
                 'cheque_number' => $validated['cheque_number'],
                 'amount' => $validated['amount'],
                 'issue_date' => $validated['issue_date'],
@@ -209,11 +214,6 @@ class ChequesController extends Controller
                 'description' => $validated['description'],
                 'updated_by' => Auth::id(),
             ];
-
-            // Update bank if receiveable
-            if ($cheque->type == 'receiveable') {
-                $updateData['bank_id'] = $validated['bank_id'];
-            }
 
             // Handle account and name fields based on type
             if ($cheque->type === 'payable') {
@@ -231,9 +231,11 @@ class ChequesController extends Controller
                 $updateData['payer_name'] = $request->payer_name ?? $payerAccount->name;
                 
                 // Update payee from bank
-                $bank = Banks::find($validated['bank_id']);
-                $updateData['payee_account'] = $bank->account_id;
-                $updateData['payee_name'] = $bank->name;
+                if($validated['bank_id']){
+                    $bank = Banks::find($validated['bank_id']);
+                    $updateData['payee_account'] = $bank->account_id;
+                    $updateData['payee_name'] = $bank->name;
+                }
             }
 
             if ($request->hasFile('attachment')) {

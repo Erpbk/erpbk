@@ -28,3 +28,19 @@
     <p>{{ $accounts->opening_balance }}</p>
 </div>
 
+@isset($customFields)
+@foreach($customFields as $field)
+@php
+  $value = data_get($accounts->custom_field_values, $field->id);
+  if ($field->data_type === 'checkbox') {
+    $value = ($value === '1' || $value === true || $value === 'on') ? 'Yes' : 'No';
+  } else {
+    $value = $value ?? '—';
+  }
+@endphp
+<div class="col-sm-12">
+    <label class="text-muted">{{ $field->label }}</label>
+    <p>{{ is_scalar($value) ? $value : '—' }}</p>
+</div>
+@endforeach
+@endisset

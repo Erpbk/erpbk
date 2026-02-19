@@ -7,6 +7,7 @@ use App\Helpers\IConstants;
 use App\Http\Requests\CreateAccountsRequest;
 use App\Http\Requests\UpdateAccountsRequest;
 use App\Http\Controllers\AppBaseController;
+use App\Models\AccountCustomField;
 use App\Models\Accounts;
 use App\Models\Banks;
 use App\Models\Customers;
@@ -100,8 +101,9 @@ class AccountsController extends AppBaseController
     //$parents = Accounts::whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
     //$parents = Accounts::with('children')->whereNull('parent_account_id')->get();
     $parents = Accounts::all(['id', 'name', 'parent_id'])->groupBy('parent_id');
+    $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
 
-    return view('accounts.create', compact('parents'));
+    return view('accounts.create', compact('parents', 'customFields'));
   }
 
   /**
@@ -109,14 +111,15 @@ class AccountsController extends AppBaseController
    */
   public function store(CreateAccountsRequest $request)
   {
-    $input = $request->all();
+    $input = $request->except(['custom_field_values']);
     // Set is_locked=1 if parent_id is not set (root account)
-
 
     $accounts = $this->accountsRepository->create($input);
     $accounts->account_code = str_pad($accounts->id, 4, "0", STR_PAD_LEFT);
     $accounts->is_locked = 0;
     $accounts->save();
+
+    $this->saveCustomFieldValues($accounts, $request->input('custom_field_values', []));
 
     return response()->json(['message' => 'Account added successfully.']);
   }
@@ -134,7 +137,9 @@ class AccountsController extends AppBaseController
       return redirect(route('accounts.index'));
     }
 
-    return view('accounts.show')->with('accounts', $accounts);
+    $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
+
+    return view('accounts.show', compact('accounts', 'customFields'));
   }
 
   /**
@@ -151,7 +156,9 @@ class AccountsController extends AppBaseController
     }
     //$parents = Accounts::whereNot('id', $id)->whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
     $parents = Accounts::all(['id', 'name', 'parent_id'])->groupBy('parent_id');
-    return view('accounts.edit', compact('accounts', 'parents'));
+    $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
+
+    return view('accounts.edit', compact('accounts', 'parents', 'customFields'));
   }
 
   /**
@@ -167,9 +174,11 @@ class AccountsController extends AppBaseController
       return redirect(route('accounts.index'));
     }
 
-    $accounts = $this->accountsRepository->update($request->all(), $id);
+    $input = $request->except(['custom_field_values']);
+    $accounts = $this->accountsRepository->update($input, $id);
 
     if ($accounts) {
+      $this->saveCustomFieldValues($accounts, $request->input('custom_field_values', []));
       $row = \App\Helpers\Accounts::getRef(['ref_name' => $accounts->ref_name, 'ref_id' => $accounts->ref_id]);
       if (isset($row)) {
         $row->name = $accounts->name;
@@ -179,9 +188,23 @@ class AccountsController extends AppBaseController
       }
     }
 
-
-
     return response()->json(['message' => 'Account updated successfully.']);
+  }
+
+  /**
+   * Save custom field values for an account (only valid field IDs from settings).
+   */
+  private function saveCustomFieldValues(Accounts $account, array $values): void
+  {
+    $validIds = AccountCustomField::pluck('id')->flip()->all();
+    $filtered = [];
+    foreach ($values as $fieldId => $value) {
+      if (isset($validIds[$fieldId])) {
+        $filtered[(string) $fieldId] = $value;
+      }
+    }
+    $account->custom_field_values = $filtered;
+    $account->save();
   }
 
   /**

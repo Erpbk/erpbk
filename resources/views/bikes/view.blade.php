@@ -688,7 +688,7 @@
                     <div class="info-content">
                         <span class="info-label">Bike Expiry</span>
                         @php
-                            $expiryDate = $bikes->expiry_date ?? null;
+                            $expiryDate = $bikes->expiry_date? \Carbon\Carbon::parse($bikes->expiry_date)->format('d M Y') : null;
                             $isExpiring = false;
                             $isExpired = false;
                             
@@ -699,7 +699,7 @@
                                 if ($expiry->isPast()) {
                                     $isExpired = true;
                                 } elseif ($expiry->diffInDays($now) <= 30) {
-                                    $isExpired = true;
+                                    $isExpiring = true;
                                 }
                             }
                         @endphp

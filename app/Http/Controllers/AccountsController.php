@@ -87,8 +87,7 @@ class AccountsController extends AppBaseController
   }
   public function tree(AccountsDataTable $accountsDataTable)
   {
-    //return $accountsDataTable->render('accounts.index');
-    $accounts = Accounts::whereNull('parent_id')->get();
+    $accounts = Accounts::with('children')->whereNull('parent_id')->orderBy('account_code')->get();
     return view('accounts.tree', compact('accounts'));
   }
 
@@ -247,7 +246,7 @@ class AccountsController extends AppBaseController
     // Get the referenced record (e.g., Bank, Customer, Vendor) if it exists
     if ($accounts->ref_name && $accounts->ref_id) {
       $referencedRecord = \App\Helpers\Accounts::getRef(['ref_name' => $accounts->ref_name, 'ref_id' => $accounts->ref_id]);
-      
+
       if ($referencedRecord) {
         // Store info before deletion
         $cascadedItems[] = [
@@ -307,6 +306,83 @@ class AccountsController extends AppBaseController
       'icon' => $account->is_locked ? 'fa-lock' : 'fa-unlock',
       'icon_class' => $account->is_locked ? 'text-secondary' : 'text-success',
       'title' => $account->is_locked ? 'Parent account is locked' : 'Unlocked'
+    ]);
+  }
+
+  /**
+   * Account detail panel (AJAX): ledger summary, closing balance, full ledger (paginated).
+   */
+  public function accountDetail(Request $request, $id)
+  {
+    $account = Accounts::findOrFail($id);
+    $currency = $request->get('currency', 'bcy');
+
+    $closingBalance = (float) Transactions::where('account_id', $account->id)->sum(DB::raw('debit - credit'));
+
+    $perPage = (int) $request->get('per_page', 25);
+    $perPage = max(10, min(100, $perPage));
+
+    $ledgerPaginator = Transactions::where('account_id', $account->id)
+      ->with(['voucher'])
+      ->orderBy('trans_date', 'desc')
+      ->orderBy('id', 'desc')
+      ->paginate($perPage, ['*'], 'page', 1);
+
+    $ledgerUrl = route('accounts.ledger') . '?account=' . $account->id;
+
+    $html = view('accounts.detail_panel', compact('account', 'closingBalance', 'ledgerPaginator', 'currency', 'ledgerUrl'))->render();
+
+    if ($request->wantsJson() || $request->ajax()) {
+      return response()->json(['html' => $html, 'account_id' => $account->id]);
+    }
+    return $html;
+  }
+
+  /**
+   * Ledger entries for an account (AJAX pagination): returns table rows + pagination meta.
+   */
+  public function ledgerEntries(Request $request, $id)
+  {
+    $account = Accounts::findOrFail($id);
+    $currency = $request->get('currency', 'bcy');
+    $perPage = (int) $request->get('per_page', 25);
+    $perPage = max(10, min(100, $perPage));
+    $page = (int) $request->get('page', 1);
+
+    $paginator = Transactions::where('account_id', $account->id)
+      ->with(['voucher'])
+      ->orderBy('trans_date', 'desc')
+      ->orderBy('id', 'desc')
+      ->paginate($perPage, ['*'], 'page', $page);
+
+    $html = view('accounts._ledger_entries_rows', ['transactions' => $paginator->items()])->render();
+
+    return response()->json([
+      'html' => $html,
+      'pagination' => [
+        'current_page' => $paginator->currentPage(),
+        'last_page' => $paginator->lastPage(),
+        'per_page' => $paginator->perPage(),
+        'total' => $paginator->total(),
+        'from' => $paginator->firstItem(),
+        'to' => $paginator->lastItem(),
+      ],
+    ]);
+  }
+
+  /**
+   * Toggle account active/inactive status (AJAX)
+   */
+  public function toggleStatus(Request $request, $id)
+  {
+    $account = Accounts::findOrFail($id);
+    $account->status = ($account->status == 1) ? 2 : 1;
+    $account->save();
+    return response()->json([
+      'success' => true,
+      'status' => $account->status,
+      'is_active' => $account->status == 1,
+      'message' => $account->status == 1 ? 'Account marked as active.' : 'Account marked as inactive.',
     ]);
   }
 

@@ -438,6 +438,8 @@ Route::middleware(['auth', 'web'])->group(function () {
 
     Route::prefix('accounts')->group(function () {
 
+        Route::get('detail/{id}', [App\Http\Controllers\AccountsController::class, 'accountDetail'])->name('accounts.detail');
+        Route::get('detail/{id}/ledger-entries', [App\Http\Controllers\AccountsController::class, 'ledgerEntries'])->name('accounts.ledgerEntries');
         Route::resource('accounts', App\Http\Controllers\AccountsController::class);
         Route::get('tree', [\App\Http\Controllers\AccountsController::class, 'tree'])->name('accounts.tree');
         // Accounts Trash Routes
@@ -450,6 +452,7 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::get('/ledger/data', [LedgerController::class, 'getLedgerData'])->name('ledger.data');
         Route::get('/ledger/export', [LedgerController::class, 'export'])->name('ledger.export');
         Route::post('accounts/{id}/toggle-lock', [App\Http\Controllers\AccountsController::class, 'toggleLock'])->name('accounts.toggleLock');
+        Route::post('accounts/{id}/toggle-status', [App\Http\Controllers\AccountsController::class, 'toggleStatus'])->name('accounts.toggleStatus');
     });
 
     // Activity Logs Routes

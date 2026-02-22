@@ -296,7 +296,7 @@ class VisaexpenseController extends AppBaseController
                 'string',
                 'max:255',
                 Rule::unique('visa_expenses')->where(function ($query) use ($request) {
-                    return $query->where('rider_id', $request->rider_id);
+                    return $query->where('rider_id', $request->rider_id)->where('deleted_at', null);
                 }),
             ],
             'billing_month'  => 'required|date_format:Y-m',

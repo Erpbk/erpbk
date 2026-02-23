@@ -21,6 +21,7 @@ class User extends Authenticatable
    */
 
   protected $fillable = [
+    'branch_ids',
     'name',
     'first_name',
     'last_name',
@@ -66,6 +67,7 @@ class User extends Authenticatable
   protected $casts = [
     'email_verified_at' => 'datetime',
     'password' => 'hashed',
+    'branch_ids' => 'array',
   ];
 
 

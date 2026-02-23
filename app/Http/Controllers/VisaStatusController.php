@@ -14,7 +14,7 @@ class VisaStatusController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
         // Check if user is authenticated
         if (!auth()->check()) {
@@ -26,9 +26,39 @@ class VisaStatusController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $visaStatuses = VisaStatus::orderBy('display_order')->orderBy('name')->get();
+        $query = VisaStatus::query();
 
-        return view('visa_statuses.index', compact('visaStatuses'));
+        if ($request->filled('code')) {
+            $query->where('code', 'like', '%' . $request->code . '%');
+        }
+        if ($request->filled('name')) {
+            $query->where('name', 'like', '%' . $request->name . '%');
+        }
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+        if ($request->has('status') && $request->status !== '') {
+            $query->where('is_active', (int) $request->status);
+        }
+        if ($request->has('is_required') && $request->is_required !== '') {
+            $query->where('is_required', (int) $request->is_required);
+        }
+
+        $visaStatuses = $query->orderBy('display_order')->orderBy('name')->get();
+
+        $visaRoute = str_replace('.index', '', $request->route()->getName());
+
+        if ($request->ajax()) {
+            $tableData = view('visa_statuses.table', [
+                'visaStatuses' => $visaStatuses,
+                'visaRoute' => $visaRoute,
+            ])->render();
+            return response()->json([
+                'tableData' => $tableData,
+            ]);
+        }
+
+        return view('visa_statuses.index', compact('visaStatuses', 'visaRoute'));
     }
 
     /**

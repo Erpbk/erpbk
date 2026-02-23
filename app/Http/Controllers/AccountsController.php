@@ -7,6 +7,7 @@ use App\Helpers\IConstants;
 use App\Http\Requests\CreateAccountsRequest;
 use App\Http\Requests\UpdateAccountsRequest;
 use App\Http\Controllers\AppBaseController;
+use App\Models\AccountCustomField;
 use App\Models\Accounts;
 use App\Models\Banks;
 use App\Models\Customers;
@@ -33,21 +34,60 @@ class AccountsController extends AppBaseController
   }
 
   /**
-   * Display a listing of the Accounts.
+   * Display a listing of the Accounts (Chart of Accounts view).
    */
-
-  public function index(AccountsDataTable $accountsDataTable)
+  public function index(Request $request)
   {
-
     if (!auth()->user()->hasPermissionTo('account_view')) {
       abort(403, 'Unauthorized action.');
     }
-    return $accountsDataTable->render('accounts.index');
+    $search = $request->get('search');
+    $all = Accounts::orderBy('account_code')->get()->keyBy('id');
+    $roots = $all->whereNull('parent_id')->sortBy('account_code')->values();
+    foreach ($roots as $r) {
+      $r->setRelation('children', $this->buildChildren($r->id, $all));
+    }
+    $accounts = $this->flattenAccountTree($roots, $search);
+    return view('accounts.index', compact('accounts'));
+  }
+
+  /**
+   * Build children collection for a parent from a keyed collection of all accounts.
+   */
+  private function buildChildren($parentId, $all)
+  {
+    return $all->where('parent_id', $parentId)->sortBy('account_code')->values()->map(function ($child) use ($all) {
+      $child->setRelation('children', $this->buildChildren($child->id, $all));
+      return $child;
+    });
+  }
+
+  /**
+   * Flatten account tree into a list with depth for hierarchical display.
+   *
+   * @param \Illuminate\Support\Collection $nodes
+   * @param string|null $search
+   * @param int $depth
+   * @return \Illuminate\Support\Collection
+   */
+  private function flattenAccountTree($nodes, $search = null, $depth = 0)
+  {
+    $result = collect();
+    foreach ($nodes as $account) {
+      $match = !$search || stripos($account->name, $search) !== false
+        || stripos((string)($account->account_code ?? ''), $search) !== false
+        || stripos((string)($account->account_type ?? ''), $search) !== false;
+      if ($match) {
+        $result->push((object)['account' => $account, 'depth' => $depth]);
+      }
+      $children = $account->relationLoaded('children') ? $account->children : collect();
+      $result = $result->merge($this->flattenAccountTree($children, $search, $depth + 1));
+    }
+    return $result;
   }
   public function tree(AccountsDataTable $accountsDataTable)
   {
-    //return $accountsDataTable->render('accounts.index');
-    $accounts = Accounts::whereNull('parent_id')->get();
+    $accounts = Accounts::with('children')->whereNull('parent_id')->orderBy('account_code')->get();
     return view('accounts.tree', compact('accounts'));
   }
 
@@ -60,8 +100,9 @@ class AccountsController extends AppBaseController
     //$parents = Accounts::whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
     //$parents = Accounts::with('children')->whereNull('parent_account_id')->get();
     $parents = Accounts::all(['id', 'name', 'parent_id'])->groupBy('parent_id');
+    $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
 
-    return view('accounts.create', compact('parents'));
+    return view('accounts.create', compact('parents', 'customFields'));
   }
 
   /**
@@ -69,14 +110,15 @@ class AccountsController extends AppBaseController
    */
   public function store(CreateAccountsRequest $request)
   {
-    $input = $request->all();
+    $input = $request->except(['custom_field_values']);
     // Set is_locked=1 if parent_id is not set (root account)
-
 
     $accounts = $this->accountsRepository->create($input);
     $accounts->account_code = str_pad($accounts->id, 4, "0", STR_PAD_LEFT);
     $accounts->is_locked = 0;
     $accounts->save();
+
+    $this->saveCustomFieldValues($accounts, $request->input('custom_field_values', []));
 
     return response()->json(['message' => 'Account added successfully.']);
   }
@@ -94,7 +136,9 @@ class AccountsController extends AppBaseController
       return redirect(route('accounts.index'));
     }
 
-    return view('accounts.show')->with('accounts', $accounts);
+    $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
+
+    return view('accounts.show', compact('accounts', 'customFields'));
   }
 
   /**
@@ -111,7 +155,9 @@ class AccountsController extends AppBaseController
     }
     //$parents = Accounts::whereNot('id', $id)->whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
     $parents = Accounts::all(['id', 'name', 'parent_id'])->groupBy('parent_id');
-    return view('accounts.edit', compact('accounts', 'parents'));
+    $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
+
+    return view('accounts.edit', compact('accounts', 'parents', 'customFields'));
   }
 
   /**
@@ -127,9 +173,11 @@ class AccountsController extends AppBaseController
       return redirect(route('accounts.index'));
     }
 
-    $accounts = $this->accountsRepository->update($request->all(), $id);
+    $input = $request->except(['custom_field_values']);
+    $accounts = $this->accountsRepository->update($input, $id);
 
     if ($accounts) {
+      $this->saveCustomFieldValues($accounts, $request->input('custom_field_values', []));
       $row = \App\Helpers\Accounts::getRef(['ref_name' => $accounts->ref_name, 'ref_id' => $accounts->ref_id]);
       if (isset($row)) {
         $row->name = $accounts->name;
@@ -139,9 +187,23 @@ class AccountsController extends AppBaseController
       }
     }
 
-
-
     return response()->json(['message' => 'Account updated successfully.']);
+  }
+
+  /**
+   * Save custom field values for an account (only valid field IDs from settings).
+   */
+  private function saveCustomFieldValues(Accounts $account, array $values): void
+  {
+    $validIds = AccountCustomField::pluck('id')->flip()->all();
+    $filtered = [];
+    foreach ($values as $fieldId => $value) {
+      if (isset($validIds[$fieldId])) {
+        $filtered[(string) $fieldId] = $value;
+      }
+    }
+    $account->custom_field_values = $filtered;
+    $account->save();
   }
 
   /**
@@ -184,7 +246,7 @@ class AccountsController extends AppBaseController
     // Get the referenced record (e.g., Bank, Customer, Vendor) if it exists
     if ($accounts->ref_name && $accounts->ref_id) {
       $referencedRecord = \App\Helpers\Accounts::getRef(['ref_name' => $accounts->ref_name, 'ref_id' => $accounts->ref_id]);
-      
+
       if ($referencedRecord) {
         // Store info before deletion
         $cascadedItems[] = [
@@ -244,6 +306,83 @@ class AccountsController extends AppBaseController
       'icon' => $account->is_locked ? 'fa-lock' : 'fa-unlock',
       'icon_class' => $account->is_locked ? 'text-secondary' : 'text-success',
       'title' => $account->is_locked ? 'Parent account is locked' : 'Unlocked'
+    ]);
+  }
+
+  /**
+   * Account detail panel (AJAX): ledger summary, closing balance, full ledger (paginated).
+   */
+  public function accountDetail(Request $request, $id)
+  {
+    $account = Accounts::findOrFail($id);
+    $currency = $request->get('currency', 'bcy');
+
+    $closingBalance = (float) Transactions::where('account_id', $account->id)->sum(DB::raw('debit - credit'));
+
+    $perPage = (int) $request->get('per_page', 25);
+    $perPage = max(10, min(100, $perPage));
+
+    $ledgerPaginator = Transactions::where('account_id', $account->id)
+      ->with(['voucher'])
+      ->orderBy('trans_date', 'desc')
+      ->orderBy('id', 'desc')
+      ->paginate($perPage, ['*'], 'page', 1);
+
+    $ledgerUrl = route('accounts.ledger') . '?account=' . $account->id;
+
+    $html = view('accounts.detail_panel', compact('account', 'closingBalance', 'ledgerPaginator', 'currency', 'ledgerUrl'))->render();
+
+    if ($request->wantsJson() || $request->ajax()) {
+      return response()->json(['html' => $html, 'account_id' => $account->id]);
+    }
+    return $html;
+  }
+
+  /**
+   * Ledger entries for an account (AJAX pagination): returns table rows + pagination meta.
+   */
+  public function ledgerEntries(Request $request, $id)
+  {
+    $account = Accounts::findOrFail($id);
+    $currency = $request->get('currency', 'bcy');
+    $perPage = (int) $request->get('per_page', 25);
+    $perPage = max(10, min(100, $perPage));
+    $page = (int) $request->get('page', 1);
+
+    $paginator = Transactions::where('account_id', $account->id)
+      ->with(['voucher'])
+      ->orderBy('trans_date', 'desc')
+      ->orderBy('id', 'desc')
+      ->paginate($perPage, ['*'], 'page', $page);
+
+    $html = view('accounts._ledger_entries_rows', ['transactions' => $paginator->items()])->render();
+
+    return response()->json([
+      'html' => $html,
+      'pagination' => [
+        'current_page' => $paginator->currentPage(),
+        'last_page' => $paginator->lastPage(),
+        'per_page' => $paginator->perPage(),
+        'total' => $paginator->total(),
+        'from' => $paginator->firstItem(),
+        'to' => $paginator->lastItem(),
+      ],
+    ]);
+  }
+
+  /**
+   * Toggle account active/inactive status (AJAX)
+   */
+  public function toggleStatus(Request $request, $id)
+  {
+    $account = Accounts::findOrFail($id);
+    $account->status = ($account->status == 1) ? 2 : 1;
+    $account->save();
+    return response()->json([
+      'success' => true,
+      'status' => $account->status,
+      'is_active' => $account->status == 1,
+      'message' => $account->status == 1 ? 'Account marked as active.' : 'Account marked as inactive.',
     ]);
   }
 

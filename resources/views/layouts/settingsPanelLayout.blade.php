@@ -71,6 +71,14 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
+        @can('gn_settings')
+        <li class="menu-item {{ Request::is('settings-panel/account-fields*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.account-fields.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-wallet"></i>
+            <div>Accounts</div>
+          </a>
+        </li>
+        @endcan
         @endcanany
 
         {{-- ERP Modules list (names only; functionality to be added later) --}}

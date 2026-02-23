@@ -152,6 +152,14 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::resource('visa-statuses', App\Http\Controllers\VisaStatusController::class)->names('settings-panel.visa-statuses');
         Route::post('visa-statuses/reorder', [App\Http\Controllers\VisaStatusController::class, 'reorder'])->name('settings-panel.visa-statuses.reorder');
         Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('settings-panel.visa-statuses.toggle-active');
+        // Account field settings (fixed + custom fields; only custom are editable/deletable)
+        Route::get('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'index'])->name('settings-panel.account-fields.index');
+        Route::get('account-fields/table-body', [App\Http\Controllers\AccountFieldSettingsController::class, 'tableBody'])->name('settings-panel.account-fields.table-body');
+        Route::get('account-fields/config-schema/{dataType}', [App\Http\Controllers\AccountFieldSettingsController::class, 'configSchema'])->name('settings-panel.account-fields.config-schema');
+        Route::post('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'store'])->name('settings-panel.account-fields.store');
+        Route::put('account-fields/{id}', [App\Http\Controllers\AccountFieldSettingsController::class, 'update'])->name('settings-panel.account-fields.update');
+        Route::delete('account-fields/{id}', [App\Http\Controllers\AccountFieldSettingsController::class, 'destroy'])->name('settings-panel.account-fields.destroy');
+        Route::post('account-fields/reorder', [App\Http\Controllers\AccountFieldSettingsController::class, 'reorder'])->name('settings-panel.account-fields.reorder');
     });
 
 
@@ -431,6 +439,8 @@ Route::middleware(['auth', 'web'])->group(function () {
 
     Route::prefix('accounts')->group(function () {
 
+        Route::get('detail/{id}', [App\Http\Controllers\AccountsController::class, 'accountDetail'])->name('accounts.detail');
+        Route::get('detail/{id}/ledger-entries', [App\Http\Controllers\AccountsController::class, 'ledgerEntries'])->name('accounts.ledgerEntries');
         Route::resource('accounts', App\Http\Controllers\AccountsController::class);
         Route::get('tree', [\App\Http\Controllers\AccountsController::class, 'tree'])->name('accounts.tree');
         // Accounts Trash Routes
@@ -443,6 +453,7 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::get('/ledger/data', [LedgerController::class, 'getLedgerData'])->name('ledger.data');
         Route::get('/ledger/export', [LedgerController::class, 'export'])->name('ledger.export');
         Route::post('accounts/{id}/toggle-lock', [App\Http\Controllers\AccountsController::class, 'toggleLock'])->name('accounts.toggleLock');
+        Route::post('accounts/{id}/toggle-status', [App\Http\Controllers\AccountsController::class, 'toggleStatus'])->name('accounts.toggleStatus');
     });
 
     // Activity Logs Routes

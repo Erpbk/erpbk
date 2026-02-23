@@ -1,53 +1,60 @@
-<li style="list-style:none; cursor: pointer;border-bottom:1px solid #efefef;"
-  class="text-primary py-2"
-  data-account-id="{{ $account->id }}">
-
-  <span class="toggle-btn plus-box" style="">+</span>
-  {{ $account->account_code }}-{{ $account->name }}
-  <span class="text-muted"><small>({{ $account->account_type }})</small></span>
-  {!! App\Helpers\Common::status($account->status) !!}
-
-  {{-- ✅ Show lock only if account is root (no parent_id) --}}
-  @if (is_null($account->parent_id))
-  <span class="lock-toggle"
-    style="cursor:pointer;"
-    title="{{ $account->is_locked ? 'Parent account is locked' : 'Unlocked' }}"
-    data-account-id="{{ $account->id }}"
-    data-locked="{{ $account->is_locked ? '1' : '0' }}">
-    <i class="fas {{ $account->is_locked ? 'fa-lock text-secondary' : 'fa-unlock text-success' }}"></i>
-  </span>
-  @endif
-
-  <span class="text-muted">{!! $account->notes !!}</span>
-
-  <span style="float:right;">
-    {!! Form::open(['route' => ['accounts.destroy', $account->id], 'method' => 'delete','id'=>'formajax']) !!}
-
-    <a href="javascript:void(0);"
-      data-size="lg"
-      data-title="Edit Account"
-      data-action="{{ route('accounts.edit', $account->id) }}"
-      class="btn btn-info px-1 py2 edit-btn waves-effect waves-light
-       {{ ($account->is_locked) ? 'locked-btn' : 'show-modal' }}"
-      {{ ($account->is_locked) ? 'disabled' : '' }}>
-      <i class="fa fa-edit fa-xs"></i>
-    </a>
-
-    <input type="hidden" id="reload_page" value="1" />
-    {!! Form::button('<i class="fa fa-trash"></i>', [
-    'type' => 'submit',
-    'class' => 'btn btn-danger btn-xs p-1 delete-btn' . ($account->is_locked ? ' locked-btn' : ''),
-    'onclick' => 'return confirm("Are you sure? You will not be able to revert this!")',
-    ($account->is_locked ? 'disabled' : null)
-    ]) !!}
-    {!! Form::close() !!}
-  </span>
-
-  @if ($account->children->count() > 0)
-  <ul class="nested d-none">
-    @foreach ($account->children as $child)
-    @include('accounts.account-node', ['account' => $child])
-    @endforeach
-  </ul>
+@php
+  $depth = $depth ?? 0;
+  $hasChildren = $account->children && $account->children->count() > 0;
+  $isRoot = is_null($account->parent_id);
+@endphp
+<li class="tree-node" data-account-id="{{ $account->id }}">
+  <div class="tree-row">
+    @if($depth > 0)
+      <span class="tree-indent" style="width: {{ $depth * 20 }}px;"></span>
+      <span class="tree-lines"><span class="tree-joint"></span></span>
+    @else
+      <span class="tree-indent"></span>
+    @endif
+    <span class="tree-check-wrap">
+      @if($hasChildren)
+        <input type="checkbox" class="tree-expand-check" aria-expanded="false" title="Expand/collapse children">
+      @else
+        <span class="tree-check-placeholder"></span>
+      @endif
+    </span>
+    @if($isRoot)
+      <span class="tree-lock" title="{{ $account->is_locked ? 'Locked' : 'Unlocked' }}">
+        <i class="fas {{ $account->is_locked ? 'fa-lock text-secondary' : 'fa-unlock text-success' }}"></i>
+      </span>
+    @else
+      <span class="tree-lock"></span>
+    @endif
+    <span class="tree-name">
+      <a href="javascript:void(0);" class="view-ledger" data-id="{{ $account->id }}">{{ $account->account_code }}{{ $account->account_code ? '-' : '' }}{{ $account->name }}</a>
+      <span class="tree-meta"><small>({{ $account->account_type }})</small></span>
+      {!! App\Helpers\Common::status($account->status) !!}
+    </span>
+    <span class="tree-actions">
+      <button type="button" class="btn-settings" title="Actions"><i class="fa fa-cog"></i></button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        @can('account_edit')
+          @if(!$account->is_locked)
+            <li><a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', $account->id) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-edit me-2"></i> Edit</a></li>
+          @endif
+          <li><a class="dropdown-item lock-toggle" href="javascript:void(0);" data-account-id="{{ $account->id }}"><i class="fa fa-{{ $account->is_locked ? 'unlock' : 'lock' }} me-2"></i> {{ $account->is_locked ? 'Unlock' : 'Lock' }}</a></li>
+          <li><a class="dropdown-item toggle-status" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleStatus', $account->id) }}" data-active="{{ $account->status == 1 ? '1' : '0' }}"><i class="fa fa-{{ $account->status == 1 ? 'pause-circle-o' : 'play-circle-o' }} me-2"></i> {{ $account->status == 1 ? 'Mark as Inactive' : 'Mark as Active' }}</a></li>
+        @endcan
+        <li><a class="dropdown-item view-ledger" href="javascript:void(0);" data-id="{{ $account->id }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
+        @can('account_delete')
+          @if(!$isRoot)
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger delete-account" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.destroy', $account->id) }}"><i class="fa fa-trash me-2"></i> Delete</a></li>
+          @endif
+        @endcan
+      </ul>
+    </span>
+  </div>
+  @if($hasChildren)
+    <ul class="nested d-none">
+      @foreach($account->children as $child)
+        @include('accounts.account-node', ['account' => $child, 'depth' => $depth + 1])
+      @endforeach
+    </ul>
   @endif
 </li>

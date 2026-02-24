@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title','Traffic Fine Details')
 @section('content')
@@ -178,6 +178,9 @@
                     <input type="hidden" name="Created_By" value="{{ Auth::user()->id }}">
                     <div class="row">
                         @include('rta_fines.voucherfield', ['data' => $data])
+                        <div class="col-12 mt-2">
+                            @include('vouchers._custom_fields_section')
+                        </div>
                         <div class="col-md-12 form-group text-center">
                             <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Submit</button>
                         </div>

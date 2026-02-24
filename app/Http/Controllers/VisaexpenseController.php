@@ -538,6 +538,7 @@ class VisaexpenseController extends AppBaseController
                     'reference_number' => $validated['reference_number'],
                     'Created_By' => auth()->user()->id,
                     'ref_id' => $installment->id,
+                    'custom_field_values' => [],
                 ]);
 
                 // Debit the liability account for each installment
@@ -917,6 +918,7 @@ class VisaexpenseController extends AppBaseController
                         'reference_number' => $installment->reference_number ?? null,
                         'Created_By' => auth()->user()->id,
                         'ref_id' => $installment->id,
+                        'custom_field_values' => [],
                     ]);
 
                     // Create transactions for the voucher
@@ -1203,6 +1205,7 @@ class VisaexpenseController extends AppBaseController
                         'reference_number' => $installment->reference_number ?? null,
                         'Created_By' => auth()->user()->id,
                         'ref_id' => $installment->id,
+                        'custom_field_values' => [],
                     ]);
 
                     $TransactionService = new TransactionService();
@@ -1645,6 +1648,7 @@ class VisaexpenseController extends AppBaseController
                     'attach_file'   => $docFile,
                     'pay_account'   => $request->account,
                     'ref_id'        => $fine->id,
+                    'custom_field_values' => $request->input('voucher_custom_fields', []),
                 ]);
 
                 // 5. Ledger Entry (Against Payment Account)

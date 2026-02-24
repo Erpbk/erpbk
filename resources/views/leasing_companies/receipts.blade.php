@@ -52,7 +52,7 @@
                             <td>AED {{ number_format($receipt->amount, 2) }}</td>
                             <td>
                                 @if($receipt->voucher_id)
-                                    <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $receipt->voucher_id) }}" class="text-primary show-modal" data-title="Receipt Voucher" data-size="xl">
+                                    <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $receipt->voucher_id) }}" class="text-primary show-voucher-panel" data-title="Receipt Voucher" data-collapse-sidebar="1">
                                         {{ $receipt->voucher->voucher_type . '-'. $receipt->voucher_id }}
                                     </a>
                                 @else

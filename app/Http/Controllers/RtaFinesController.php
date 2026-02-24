@@ -345,6 +345,7 @@ class RtaFinesController extends AppBaseController
                     'attach_file'   => $docFile,
                     'pay_account'   => $request->account,
                     'ref_id'        => $fine->id,
+                    'custom_field_values' => $request->input('voucher_custom_fields', []),
                 ]);
 
                 // 5. Ledger Entry (Against Payment Account)
@@ -539,6 +540,7 @@ class RtaFinesController extends AppBaseController
                 'attach_file'   => $path,
                 'pay_account'   => $rider_account->id,
                 'ref_id'        => $rtaFines->id,
+                'custom_field_values' => $request->input('voucher_custom_fields', []),
             ]);
 
             // --- Ledger Entry (Rider - only amount, not including VAT) ---

@@ -5,6 +5,9 @@
     <div class="row">
         @include('payments.fields')
     </div>
+    <div class="row mt-2">
+        @include('vouchers._custom_fields_section')
+    </div>
 
 </div>
 

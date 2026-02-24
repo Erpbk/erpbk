@@ -434,6 +434,7 @@ class ChequesController extends Controller
                         'Created_By' => Auth::id(),
                         'status' => 1,
                         'attach_file'=> $cheque->attachment,
+                        'custom_field_values' => [],
                     ];
 
                     $voucher = Vouchers::create($voucherData);
@@ -500,6 +501,7 @@ class ChequesController extends Controller
                         'Created_By' => Auth::id(),
                         'status' => 1,
                         'attach_file'=> $cheque->attachment,
+                        'custom_field_values' => [],
                     ];
                     $voucher = Vouchers::create($voucherData);
                     $receipt->update([

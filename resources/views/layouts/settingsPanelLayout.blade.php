@@ -78,6 +78,12 @@ $containerNav = 'container-fluid';
             <div>Accounts</div>
           </a>
         </li>
+        <li class="menu-item {{ Request::is('settings-panel/voucher-settings*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.voucher-settings.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-file-invoice"></i>
+            <div>Voucher Settings</div>
+          </a>
+        </li>
         @endcan
         @endcanany
 

@@ -103,6 +103,7 @@ class ImportVoucher implements ToCollection
             $data['payment_from'] = $request['payment_from'];
             $data['Created_By'] = \Auth::user()->id;
             $data['trans_code'] = $trans_code;
+            $data['custom_field_values'] = [];
 
             $ret = Vouchers::create($data);
 

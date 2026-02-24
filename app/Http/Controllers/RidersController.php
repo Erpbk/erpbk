@@ -2035,7 +2035,8 @@ class RidersController extends AppBaseController
         'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
-        'status' => 1
+        'status' => 1,
+        'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -2175,7 +2176,8 @@ class RidersController extends AppBaseController
         'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
-        'status' => 1
+        'status' => 1,
+        'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -2297,7 +2299,8 @@ class RidersController extends AppBaseController
         'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
-        'status' => 1
+        'status' => 1,
+        'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -2437,7 +2440,8 @@ class RidersController extends AppBaseController
         'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
-        'status' => 1
+        'status' => 1,
+        'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -2558,7 +2562,8 @@ class RidersController extends AppBaseController
         'ref_id' => $riderAccount->ref_id, // Rider ID
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
-        'status' => 1
+        'status' => 1,
+        'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -2710,7 +2715,8 @@ class RidersController extends AppBaseController
         'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
-        'status' => 1
+        'status' => 1,
+        'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
       $voucher = Vouchers::create($voucherData);

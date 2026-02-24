@@ -183,6 +183,9 @@
 
 
     </div>
+    @if(request()->get('print'))
+    <script>window.onload = function() { window.print(); };</script>
+    @endif
 </body>
 
 </html>

@@ -375,6 +375,7 @@ class Account
     $vdata['amount'] = $data['amount'];
     $vdata['trans_code'] = $trans_code;
     $vdata['Created_By'] = \Auth::user()->id;
+    $vdata['custom_field_values'] = $data['custom_field_values'] ?? [];
 
     Vouchers::create($vdata);
 

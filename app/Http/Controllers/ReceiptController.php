@@ -199,6 +199,7 @@ class ReceiptController extends Controller
                 'ref_id' => $receipt->id,
                 'Created_By' => auth()->id(),
                 'status' => 1,
+                'custom_field_values' => $request->input('voucher_custom_fields', []),
             ];
 
             if ($request->hasFile('attachment')) {

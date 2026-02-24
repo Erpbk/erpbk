@@ -317,6 +317,7 @@ class PenaltiesRepository extends BaseRepository
             'payment_to'    => $penaltyAccountId,
             'payment_from'  => $riderAccount->id,
             'Created_By'    => Auth::user()->id,
+            'custom_field_values' => [],
         ]);
     }
 
@@ -397,6 +398,7 @@ class PenaltiesRepository extends BaseRepository
             'payment_to'    => $paymentAccountId,
             'payment_from'  => $riderAccount->id,
             'Created_By'    => Auth::user()->id,
+            'custom_field_values' => [],
         ]);
     }
 }

@@ -41,7 +41,7 @@
                             <td> {!! nl2br($payment->payedTo()) !!} </td>
                             <td>AED {{ number_format($payment->amount, 2) }}</td>
                             <td>
-                                <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $payment->voucher_id) }}" class="text-primary show-modal" data-title="Payment Voucher" data-size="xl">
+                                <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $payment->voucher_id) }}" class="text-primary show-voucher-panel" data-title="Payment Voucher" data-collapse-sidebar="1">
                                     {{ $payment->voucher->voucher_type . '-'. $payment->voucher_id }}
                                 </a>
                             </td>

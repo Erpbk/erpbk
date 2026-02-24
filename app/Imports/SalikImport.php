@@ -465,6 +465,7 @@ class SalikImport implements ToCollection
                 'payment_to'    => $this->salikAccountId,
                 'payment_from'  => $riderAccountId,
                 'Created_By'    => Auth::user()->id,
+                'custom_field_values' => [],
             ]);
         }
     }

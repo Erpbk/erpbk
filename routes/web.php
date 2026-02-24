@@ -160,6 +160,19 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::put('account-fields/{id}', [App\Http\Controllers\AccountFieldSettingsController::class, 'update'])->name('settings-panel.account-fields.update');
         Route::delete('account-fields/{id}', [App\Http\Controllers\AccountFieldSettingsController::class, 'destroy'])->name('settings-panel.account-fields.destroy');
         Route::post('account-fields/reorder', [App\Http\Controllers\AccountFieldSettingsController::class, 'reorder'])->name('settings-panel.account-fields.reorder');
+        // Voucher Settings (voucher types + voucher custom fields)
+        Route::get('voucher-settings', [App\Http\Controllers\VoucherSettingsController::class, 'index'])->name('settings-panel.voucher-settings.index');
+        Route::get('voucher-settings/types/table-body', [App\Http\Controllers\VoucherSettingsController::class, 'typesTableBody'])->name('settings-panel.voucher-settings.types-table-body');
+        Route::post('voucher-settings/types', [App\Http\Controllers\VoucherSettingsController::class, 'storeType'])->name('settings-panel.voucher-settings.store-type');
+        Route::put('voucher-settings/types/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateType'])->name('settings-panel.voucher-settings.update-type');
+        Route::delete('voucher-settings/types/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'destroyType'])->name('settings-panel.voucher-settings.destroy-type');
+        Route::post('voucher-settings/types/reorder', [App\Http\Controllers\VoucherSettingsController::class, 'reorderTypes'])->name('settings-panel.voucher-settings.reorder-types');
+        Route::get('voucher-settings/fields/table-body', [App\Http\Controllers\VoucherSettingsController::class, 'fieldsTableBody'])->name('settings-panel.voucher-settings.fields-table-body');
+        Route::get('voucher-settings/fields/config-schema/{dataType}', [App\Http\Controllers\VoucherSettingsController::class, 'fieldConfigSchema'])->name('settings-panel.voucher-settings.field-config-schema');
+        Route::post('voucher-settings/fields', [App\Http\Controllers\VoucherSettingsController::class, 'storeField'])->name('settings-panel.voucher-settings.store-field');
+        Route::put('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateField'])->name('settings-panel.voucher-settings.update-field');
+        Route::delete('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'destroyField'])->name('settings-panel.voucher-settings.destroy-field');
+        Route::post('voucher-settings/fields/reorder', [App\Http\Controllers\VoucherSettingsController::class, 'reorderFields'])->name('settings-panel.voucher-settings.reorder-fields');
     });
 
 
@@ -408,6 +421,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     // Route::post('banks/{id}/restore', [\App\Http\Controllers\BanksController::class, 'restore'])->name('banks.restore');
     // Route::delete('banks/{id}/force-delete', [\App\Http\Controllers\BanksController::class, 'forceDestroy'])->name('banks.force-destroy');
 
+    Route::get('vouchers/list-sidebar', [\App\Http\Controllers\VouchersController::class, 'listSidebar'])->name('vouchers.list-sidebar');
     Route::resource('vouchers', \App\Http\Controllers\VouchersController::class);
     Route::any('voucher/import', [\App\Http\Controllers\VouchersController::class, 'import'])->name('voucher.import');
     Route::get('get_invoice_balance', [\App\Http\Controllers\VouchersController::class, 'GetInvoiceBalance'])->name('get_invoice_balance');

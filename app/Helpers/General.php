@@ -759,7 +759,7 @@ class General
 
   public static function VoucherType($type = null)
   {
-    $result = [
+    $fallback = [
       'JV' => 'Journal',
       'LV' => 'Visa Expense',
       'RFV' => 'RTA Fine Voucher',
@@ -775,22 +775,44 @@ class General
       'GV' => 'Garage Voucher',
       'RV' => 'Receipt Voucher',
       'PV' => 'Payments Voucher',
-      /* 9 => 'Vendor Voucher',
-      10 => 'Bike Rent Voucher',
-      11 => 'Fuel Voucher',
-      8 => 'RTA Fine Voucher',
-      12 => 'Advance/Loan Voucher',
-      //13 => 'Advance Repay Voucher',*/
-      //14 => 'Expense Voucher',
-      /*15 => 'Maintenance Voucher',
-      16 => 'COD Voucher', */
     ];
 
-    if ($type) {
-      return $result[$type];
-    } else {
-      return $result;
+    try {
+      if (\Illuminate\Support\Facades\Schema::hasTable('voucher_types')) {
+        $fromDb = \App\Models\VoucherType::codeLabelMap();
+        if (!empty($fromDb)) {
+          if ($type) {
+            return $fromDb[$type] ?? $fallback[$type] ?? $type;
+          }
+          return $fromDb;
+        }
+      }
+    } catch (\Throwable $e) {
+      // use fallback if table missing or query fails
     }
+
+    $result = $fallback;
+    if ($type) {
+      return $result[$type] ?? null;
+    }
+    return $result;
+  }
+
+  /**
+   * Active voucher types only (for create voucher UI). Uses DB when available.
+   */
+  public static function ActiveVoucherTypesForCreate()
+  {
+    try {
+      if (\Illuminate\Support\Facades\Schema::hasTable('voucher_types')) {
+        $active = \App\Models\VoucherType::activeCodeLabelMap();
+        if (!empty($active)) {
+          return $active;
+        }
+      }
+    } catch (\Throwable $e) {
+    }
+    return self::VoucherType();
   }
   public static function ImportVoucherType($type = null)
   {

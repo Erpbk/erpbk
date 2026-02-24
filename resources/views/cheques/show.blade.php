@@ -186,9 +186,9 @@
                     @if($cheque->voucher_id)
                     <a href="javascript:void(0);" 
                        data-action="{{ route('vouchers.show', $cheque->voucher_id) }}" 
-                       class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-between show-modal" 
+                       class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-between show-voucher-panel" 
                        data-title="Cheque Voucher" 
-                       data-size="xl">
+                       data-collapse-sidebar="1">
                         <span class="d-flex align-items-center">
                             <i class="fas fa-file-invoice me-2"></i>
                             <span>View Voucher</span>

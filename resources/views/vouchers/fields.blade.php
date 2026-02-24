@@ -133,6 +133,7 @@ $voucherType = request("vt");
             @include("vouchers.default_fields")
             @endif --}}
 
+@include('vouchers._custom_fields_section')
 
 <div class="row">
     <div class="col-md-5"></div>

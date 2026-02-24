@@ -269,6 +269,7 @@ class CodRepository extends BaseRepository
             'payment_to'    => $codAccountId,
             'payment_from'  => $riderAccount->id,
             'Created_By'    => Auth::user()->id,
+            'custom_field_values' => [],
         ]);
     }
 
@@ -349,6 +350,7 @@ class CodRepository extends BaseRepository
             'payment_to'    => $paymentAccountId,
             'payment_from'  => $riderAccount->id,
             'Created_By'    => Auth::user()->id,
+            'custom_field_values' => [],
         ]);
     }
 }

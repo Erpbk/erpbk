@@ -303,6 +303,7 @@ class RTAFineImport implements ToCollection
             'Created_By' => auth()->id(),
             'pay_account' => $riderAccountId,
             'ref_id' => $fine->id,
+            'custom_field_values' => [],
         ]);
     }
 

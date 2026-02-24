@@ -66,6 +66,7 @@ class Vouchers extends Model
     'attach_file',
     'Updated_By',
     'status',
+    'custom_field_values',
     'deleted_by'
   ];
 
@@ -75,7 +76,8 @@ class Vouchers extends Model
    * @var array
    */
   protected $casts = [
-    'deleted_at' => 'datetime'
+    'deleted_at' => 'datetime',
+    'custom_field_values' => 'array',
   ];
 
   protected $dates = ['deleted_at'];

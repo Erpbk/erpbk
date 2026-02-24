@@ -303,6 +303,7 @@ class VoucherService
 
     //creating/updating voucher
     $data['amount'] = $total_amount;
+    $data['custom_field_values'] = $request->input('custom_field_values', []);
     if ($id) {
       $data['Updated_By'] = \Auth::user()->id;
 
@@ -389,6 +390,7 @@ class VoucherService
 
     //creating/updating voucher
     $data['amount'] = $total_amount;
+    $data['custom_field_values'] = $request->input('custom_field_values', []);
     if ($id) {
       $data['Updated_By'] = \Auth::user()->id;
 
@@ -481,6 +483,7 @@ class VoucherService
 
     //creating/updating voucher
     $data['amount'] = $total_amount;
+    $data['custom_field_values'] = $request->input('custom_field_values', []);
     if ($id) {
       $data['Updated_By'] = \Auth::user()->id;
 
@@ -591,6 +594,7 @@ class VoucherService
     //creating/updating voucher
     $data['amount'] = $total_amount;
     $data['reference_number'] = $request->reference_number;
+    $data['custom_field_values'] = $request->input('custom_field_values', []);
     if ($id) {
       $data['Updated_By'] = \Auth::user()->id;
 
@@ -642,6 +646,7 @@ class VoucherService
 
     $data['remarks'] = General::VoucherType($request->voucher_type) . ' Month of ' . date('M-Y', strtotime($data['billing_month']));
     $data['amount'] = array_sum($request->dr_amount);
+    $data['custom_field_values'] = $request->input('custom_field_values', []);
     $id = $request->v_trans_code;
 
     // ALLOW duplicate debit/credit for these voucher types:

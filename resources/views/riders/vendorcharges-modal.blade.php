@@ -6,6 +6,7 @@
 <div class="row">
     @include('vouchers.vendorcharges_fields', ['bank_accounts' => $bank_accounts])
 </div>
+@include('vouchers._custom_fields_section')
 
 <div class="card-footer">
     {!! Form::submit('Save', ['class' => 'btn btn-primary','onclick'=>'getTotal();']) !!}

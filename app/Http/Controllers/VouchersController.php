@@ -16,6 +16,7 @@ use App\Models\RiderInvoice;
 use App\Models\Transactions;
 use App\Models\User;
 use App\Models\Vouchers;
+use App\Models\VoucherCustomField;
 use App\Services\TransactionService;
 use App\Services\VoucherService;
 use Illuminate\Http\Request;
@@ -126,13 +127,42 @@ class VouchersController extends Controller
   }
 
   /**
+   * Return voucher list fragment for the left sidebar (when voucher detail panel is open).
+   */
+  public function listSidebar(Request $request)
+  {
+    if (!auth()->user()->hasPermissionTo('voucher_view')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $query = Vouchers::query()->orderBy('id', 'desc');
+
+    if ($request->filled('voucher_type')) {
+      $query->where('voucher_type', $request->voucher_type);
+    }
+    if ($request->filled('quick_search')) {
+      $search = $request->input('quick_search');
+      $query->where(function ($q) use ($search) {
+        $q->whereRaw("CONCAT(voucher_type, '-', LPAD(id, 4, '0')) LIKE ?", ["%{$search}%"])
+          ->orWhere('id', 'like', "%{$search}%")
+          ->orWhere('amount', 'like', "%{$search}%");
+      });
+    }
+
+    $data = $query->paginate(20)->appends($request->query());
+
+    return view('vouchers.list_sidebar', compact('data'));
+  }
+
+  /**
    * Show the form for creating a new Vouchers.
    *
    * @return Response
    */
   public function create()
   {
-    return view('vouchers.create');
+    $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
+    return view('vouchers.create', compact('voucherCustomFields'));
   }
 
   /**
@@ -145,9 +175,8 @@ class VouchersController extends Controller
   public function store(Request $request, VoucherService $voucherService)
   {
     try {
-      //dd($request->all());
-
       $request->billing_month = $request->billing_month . "-01";
+      $request->merge(['custom_field_values' => $request->input('voucher_custom_fields', [])]);
 
 
 
@@ -225,19 +254,15 @@ class VouchersController extends Controller
   public function show($id)
   {
     /** @var Vouchers $vouchers */
-    /*  $result = Vouchers::where('trans_code', $id)->first();
-
-     if ($result->voucher_type == 2 || $result->voucher_type == 3) {
-       $data = Transactions::where('trans_code', $id)->get();
-     } else {
-       $data = Transactions::where('trans_code', $id)->get();
-
-     } */
-    $voucher = Vouchers::find($id);
+    $voucher = Vouchers::with(['transactions.account'])->find($id);
     if (empty($voucher)) {
       Flash::error('Vouchers not found');
 
       return redirect(route('vouchers.index'));
+    }
+
+    if (request()->ajax() || request()->wantsJson()) {
+      return view('vouchers.show_modal', compact('voucher'));
     }
 
     return view('vouchers.show', compact('voucher'));
@@ -280,7 +305,8 @@ class VouchersController extends Controller
       return redirect(route('vouchers.index'));
     }
 
-    return view('vouchers.edit', compact('vouchers', 'data'));
+    $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
+    return view('vouchers.edit', compact('vouchers', 'data', 'voucherCustomFields'));
   }
 
   /**
@@ -297,6 +323,7 @@ class VouchersController extends Controller
     $vouchers = Vouchers::find($id);
 
     $request->billing_month = $request->billing_month . "-01";
+    $request->merge(['custom_field_values' => $request->input('voucher_custom_fields', [])]);
 
     /* if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
 
@@ -355,6 +382,7 @@ class VouchersController extends Controller
         if ($request->has('reference_number')) {
           $vouchers->reference_number = $request->reference_number;
         }
+        $vouchers->custom_field_values = $request->input('custom_field_values', []);
         $vouchers->save();
 
         // Only update rider_id in rta_fines if this is the FIRST voucher with this ref_id

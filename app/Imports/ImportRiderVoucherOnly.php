@@ -98,6 +98,7 @@ class ImportRiderVoucherOnly implements ToCollection
                     'trans_code' => $transCode,
                     'Created_By' => auth()->id(),
                     'status' => 1,
+                    'custom_field_values' => [],
                 ];
 
                 $voucher = Vouchers::create($voucherData);

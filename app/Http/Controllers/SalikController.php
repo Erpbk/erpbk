@@ -379,6 +379,7 @@ class SalikController extends AppBaseController
                 'payment_to'    => $salikAccountId,
                 'payment_from'  => $riderAccountId,
                 'Created_By'    => auth()->id(),
+                'custom_field_values' => [],
             ]);
             \DB::commit();
             return redirect()->route('salik.index')->with('success', 'Salik entry created successfully.');
@@ -682,6 +683,7 @@ class SalikController extends AppBaseController
             'payment_to'    => $salikAccountId,
             'payment_from'  => $riderAccountId,
             'Created_By'    => auth()->id(),
+            'custom_field_values' => [],
         ]);
     }
 

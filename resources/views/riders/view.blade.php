@@ -657,10 +657,10 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                 @endcan
 
                 @can('visaexpense_view')
-                @if($account)
+                @if(!empty($account))
                 <li class="nav-item nav-priority-5">
                   <a class="nav-link @if(request()->segment(2) == 'generatentries' || request()->segment(2) == 'installmentPlan') active @endif"
-                    href="{{ route('VisaExpense.generatentries', $account->id) }}">
+                    href="{{ route('VisaExpense.generatentries', optional($account)->id) }}">
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Visa Expense
                   </a>
                 </li>

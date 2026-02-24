@@ -13,6 +13,7 @@ class Bikes extends Model
   public $table = 'bikes';
 
   public $fillable = [
+    'branch_id',
     'plate',
     'vehicle_type',
     'chassis_number',

@@ -58,6 +58,7 @@ class BranchController extends Controller
         try {
             DB::beginTransaction();
             $data['is_active'] = $request->has('is_active') ? true : false;
+            $data['created_by'] = auth()->id();
             
             // Ensure only one headquarters
             if ($request->branch_type === 'headquarters') {
@@ -110,7 +111,6 @@ class BranchController extends Controller
         // Get recent related records
         $recentUsers = $branch->users()->latest()->take(5)->get();
         $recentEmployees = $branch->employees()->latest()->take(5)->get();
-        $recentCustomers = $branch->customers()->latest()->take(5)->get();
         
         return view('branches.show', compact(
             'branch', 

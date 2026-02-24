@@ -102,7 +102,16 @@ $(document).on('click', '#voucherListSidebarBackdrop', function () {
 
 function reloadDataTable() {
   if ($.fn.DataTable.isDataTable('#dataTableBuilder')) {
-    $('#dataTableBuilder').DataTable().ajax.reload(null, false);
+    var table = $('#dataTableBuilder').DataTable();
+    
+    // Check if table is in server-side mode
+    if (table.page.info().serverSide) {
+      // Server-side: use ajax.reload
+      table.ajax.reload(null, false);
+    } else {
+      // Client-side: just redraw
+      table.draw();
+    }
   }
 }
 
@@ -154,6 +163,11 @@ $(document).on('submit', '#formajax', function (e) {
       // Check for redirect in response data
       if (data.redirect) {
         $('#redirect_url').val(data.redirect);
+      }
+      if (data.reload === true || data.reload_page == 1) {
+        setTimeout(function() {
+            location.reload();
+        }, 2000); // 2000ms = 2 seconds
       }
       if ($('#reload_page').val() == 1) {
         location.reload();

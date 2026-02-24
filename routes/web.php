@@ -124,7 +124,7 @@ Route::middleware(['auth', 'web'])->group(function () {
 
 
 
-
+    Route::resource('branches', App\Http\Controllers\BranchController::class);
 
 
     Route::resource('VisaExpense', App\Http\Controllers\VisaexpenseController::class);

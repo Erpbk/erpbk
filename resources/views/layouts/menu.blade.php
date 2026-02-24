@@ -36,6 +36,14 @@
   </ul>
 </li>
 @endcan
+@can('branches_view')
+<li class="menu-item {{ Request::is('branches*') ? 'active' : '' }}">
+  <a href="{{ route('branches.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-building"></i>
+    <div>{{ $menuLabels['branches'] ?? 'Branches' }}</div>
+  </a>
+</li>
+@endcan
 @can('item_view')
 <li class="menu-item {{ Request::is('items*') ? 'open' : '' }} {{ Request::is('garage-items*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">

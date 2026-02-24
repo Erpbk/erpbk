@@ -11,6 +11,7 @@ class Transactions extends Model
   use SoftDeletes, LogsActivity;
 
   protected $fillable = [
+    'branch_id',
     'trans_code',
     'trans_date',
     'reference_id',

@@ -42,6 +42,7 @@ class Vouchers extends Model
 
 
   public $fillable = [
+    'branch_id',
     'trans_date',
     'trans_code',
     'posting_date',

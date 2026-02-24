@@ -14,6 +14,7 @@ class Riders extends Model
   public $table = 'riders';
 
   public $fillable = [
+    'branch_id',
     'name',
     'rider_id',
     'courier_id',

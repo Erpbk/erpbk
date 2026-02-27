@@ -49,25 +49,12 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home-dashboard');
 
-    // ============================================================
-    // CENTRALIZED TRASH/RECYCLE BIN MODULE
-    // ============================================================
-    Route::get('/trash', [App\Http\Controllers\TrashController::class, 'index'])->name('trash.index');
-    Route::get('/trash/{module}/{id}/show', [App\Http\Controllers\TrashController::class, 'show'])->name('trash.show');
-    Route::post('/trash/{module}/{id}/restore', [App\Http\Controllers\TrashController::class, 'restore'])->name('trash.restore');
-    Route::delete('/trash/{module}/{id}/force-destroy', [App\Http\Controllers\TrashController::class, 'forceDestroy'])->name('trash.force-destroy');
-    Route::get('/trash/stats', [App\Http\Controllers\TrashController::class, 'stats'])->name('trash.stats');
-
     Route::resource('items', App\Http\Controllers\ItemsController::class);
     Route::resource('garage-items', App\Http\Controllers\GarageItemsController::class);
     Route::get('garage-items/{id}/vouchers', [App\Http\Controllers\GarageItemsController::class, 'vouchers'])->name('garage-items.vouchers');
 
-    Route::resource('users', App\Http\Controllers\UserController::class);
     Route::any('/user/profile', [App\Http\Controllers\UserController::class, 'profile'])->name('profile');
     Route::any('/user/services/{id}', [App\Http\Controllers\UserController::class, 'services'])->name('user_services');
-    Route::resource('permissions', App\Http\Controllers\PermissionsController::class);
-    Route::resource('roles', App\Http\Controllers\RolesController::class);
-
 
     Route::get('bikes/import', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.import');
     Route::post('bikes/import', [\App\Http\Controllers\BikesController::class, 'processImport'])->name('bikes.processImport');
@@ -124,7 +111,6 @@ Route::middleware(['auth', 'web'])->group(function () {
 
 
 
-    Route::resource('branches', App\Http\Controllers\BranchController::class);
     Route::resource('employees', App\Http\Controllers\EmployeeController::class);
     Route::get('/employees/{id}/ledger', [App\Http\Controllers\EmployeeController::class, 'ledger'])->name('employee.ledger');
     Route::post('/employees/update-status', [App\Http\Controllers\EmployeeController::class, 'updateStatus'])->name('employee.update-status');
@@ -156,6 +142,7 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::resource('visa-statuses', App\Http\Controllers\VisaStatusController::class)->names('settings-panel.visa-statuses');
         Route::post('visa-statuses/reorder', [App\Http\Controllers\VisaStatusController::class, 'reorder'])->name('settings-panel.visa-statuses.reorder');
         Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('settings-panel.visa-statuses.toggle-active');
+        Route::resource('branches', App\Http\Controllers\BranchController::class)->names('settings-panel.branches');
         // Account field settings (fixed + custom fields; only custom are editable/deletable)
         Route::get('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'index'])->name('settings-panel.account-fields.index');
         Route::get('account-fields/table-body', [App\Http\Controllers\AccountFieldSettingsController::class, 'tableBody'])->name('settings-panel.account-fields.table-body');
@@ -177,6 +164,22 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::put('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateField'])->name('settings-panel.voucher-settings.update-field');
         Route::delete('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'destroyField'])->name('settings-panel.voucher-settings.destroy-field');
         Route::post('voucher-settings/fields/reorder', [App\Http\Controllers\VoucherSettingsController::class, 'reorderFields'])->name('settings-panel.voucher-settings.reorder-fields');
+        // User Management, Activity Logs, Recycle Bin (moved into Settings)
+        Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');
+        Route::resource('permissions', App\Http\Controllers\PermissionsController::class)->names('settings-panel.permissions');
+        Route::resource('roles', App\Http\Controllers\RolesController::class)->names('settings-panel.roles');
+        Route::prefix('activity-logs')->name('settings-panel.activity-logs.')->group(function () {
+            Route::get('/', [ActivityLogController::class, 'index'])->name('index');
+            Route::get('/api/statistics', [ActivityLogController::class, 'statistics'])->name('statistics');
+            Route::get('/{activityLog}', [ActivityLogController::class, 'show'])->name('show');
+        });
+        Route::prefix('trash')->name('settings-panel.trash.')->group(function () {
+            Route::get('/', [App\Http\Controllers\TrashController::class, 'index'])->name('index');
+            Route::get('/stats', [App\Http\Controllers\TrashController::class, 'stats'])->name('stats');
+            Route::get('/{module}/{id}/show', [App\Http\Controllers\TrashController::class, 'show'])->name('show');
+            Route::post('/{module}/{id}/restore', [App\Http\Controllers\TrashController::class, 'restore'])->name('restore');
+            Route::delete('/{module}/{id}/force-destroy', [App\Http\Controllers\TrashController::class, 'forceDestroy'])->name('force-destroy');
+        });
     });
 
 
@@ -474,12 +477,6 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::post('accounts/{id}/toggle-status', [App\Http\Controllers\AccountsController::class, 'toggleStatus'])->name('accounts.toggleStatus');
     });
 
-    // Activity Logs Routes
-    Route::prefix('activity-logs')->group(function () {
-        Route::get('/', [ActivityLogController::class, 'index'])->name('activity-logs.index');
-        Route::get('/{activityLog}', [ActivityLogController::class, 'show'])->name('activity-logs.show');
-        Route::get('/api/statistics', [ActivityLogController::class, 'statistics'])->name('activity-logs.statistics');
-    });
 });
 Route::group(['prefix' => 'laravel-filemanager', 'middleware' => ['web', 'auth']], function () {
     \UniSharp\LaravelFilemanager\Lfm::routes();

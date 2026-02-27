@@ -8,14 +8,6 @@
   </a>
 </li>
 @endcan
-@can('trash_view')
-<li class="menu-item {{ Request::is('trash*') ? 'active' : '' }}">
-  <a href="{{ route('trash.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-trash text-warning"></i>
-    <div>{{ $menuLabels['recycle_bin'] ?? 'Recycle Bin' }}</div>
-  </a>
-</li>
-@endcan
 @can('bank_view')
 <li class="menu-item {{ Request::is('banks*') ? 'open' : '' }} {{ Request::is('bank*') ? 'open' : '' }} {{ Request::is('cheques') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
@@ -34,14 +26,6 @@
       </a>
     </li>
   </ul>
-</li>
-@endcan
-@can('branches_view')
-<li class="menu-item {{ Request::is('branches*') ? 'active' : '' }}">
-  <a href="{{ route('branches.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-building"></i>
-    <div>{{ $menuLabels['branches'] ?? 'Branches' }}</div>
-  </a>
 </li>
 @endcan
 @can('employees_view')
@@ -372,50 +356,6 @@
 </ul>
 </li> --}}
 
-@can('user_view')
-<li class="menu-item {{ Request::is('users*') ? 'open' : '' }} {{ Request::is('roles*') ? 'open' : '' }}">
-  <a href="javascript:void(0);" class="menu-link menu-toggle ">
-    <i class="menu-icon tf-icons ti ti-users-group"></i>
-    <div>{{ $menuLabels['user_management'] ?? 'User Management' }}</div>
-  </a>
-  <ul class="menu-sub">
-
-    <li class="menu-item {{ Request::is('users*') ? 'active' : '' }}">
-      <a href="{{ route('users.index') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-users-group"></i>
-        {{ $menuLabels['users'] ?? 'Users' }}
-      </a>
-    </li>
-
-
-    @can('role_view')
-    <li class="menu-item {{ Request::is('roles*') ? 'active' : '' }}">
-      <a href="{{ route('roles.index') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-user-check"></i>
-        {{ $menuLabels['roles'] ?? 'Roles' }}
-      </a>
-    </li>
-
-
-    <li class="menu-item {{ Request::is('permissions*') ? 'active' : '' }}">
-      <a href="{{ route('permissions.index') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-user-check"></i>
-        {{ $menuLabels['permissions'] ?? 'Permissions' }}
-      </a>
-    </li>
-    @endcan
-
-    @can('activity_logs_view')
-    <li class="menu-item {{ Request::is('activity-logs*') ? 'active' : '' }}">
-      <a href="{{ route('activity-logs.index') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-history"></i>
-        {{ $menuLabels['activity_logs'] ?? 'Activity Logs' }}
-      </a>
-    </li>
-    @endcan
-  </ul>
-</li>
-@endcan
 
 {{-- <li class="nav-item">
     <a href="{{ route('riderAttendances.index') }}" class="nav-link {{ Request::is('riderAttendances*') ? 'active' : '' }}">

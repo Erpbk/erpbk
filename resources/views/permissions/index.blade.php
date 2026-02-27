@@ -1,6 +1,7 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 
 @section('content')
+@php $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.permissions' : 'permissions'; @endphp
     <section class="content-header">
         <div class="container-fluid">
             <div class="row mb-2">
@@ -9,7 +10,7 @@
                 </div>
                 <div class="col-sm-6">
                     <a class="btn btn-primary float-right show-modal" style="float:right;"
-                       href="javascript:void(0);" data-action="{{ route('permissions.create') }}" data-title="Create New">
+                       href="javascript:void(0);" data-action="{{ route($permissionsRoute . '.create') }}" data-title="Create New">
                         Add New
                     </a>
                 </div>

@@ -1,5 +1,5 @@
-
-            {!! Form::model($roles, ['route' => ['roles.update', $roles->id], 'method' => 'patch','id'=>'formajax']) !!}
+@php $rolesRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.roles' : 'roles'; @endphp
+            {!! Form::model($roles, ['route' => [$rolesRoute . '.update', $roles->id], 'method' => 'patch','id'=>'formajax']) !!}
 
          
                     @include('roles.fields')

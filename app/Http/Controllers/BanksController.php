@@ -249,7 +249,7 @@ class BanksController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
-    Flash::success('Bank moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=banks" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
+    Flash::success('Bank moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=banks" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
     return redirect(route('banks.index'));
   }
 

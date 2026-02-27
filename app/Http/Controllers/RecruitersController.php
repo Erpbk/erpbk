@@ -238,7 +238,7 @@ class RecruitersController extends AppBaseController
         }
 
         return response()->json([
-            'message' => 'Recruiter moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=recruiters" class="alert-link">View Recycle Bin</a> to restore if needed.'
+            'message' => 'Recruiter moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=recruiters" class="alert-link">View Recycle Bin</a> to restore if needed.'
         ]);
     }
 

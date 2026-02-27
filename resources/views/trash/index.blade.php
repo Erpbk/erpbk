@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 @section('title', 'Recycle Bin')
 
 @push('styles')
@@ -87,6 +87,7 @@
 @endpush
 
 @section('content')
+@php $trashRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.trash' : 'trash'; @endphp
 <div class="container-fluid">
     <!-- Header -->
     <div class="card mb-3">
@@ -112,7 +113,7 @@
     <!-- Filters -->
     <div class="card mb-3">
         <div class="card-body">
-            <form method="GET" action="{{ route('trash.index') }}" class="row g-3">
+            <form method="GET" action="{{ route($trashRoute . '.index') }}" class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Filter by Module</label>
                     <select name="module" class="form-select" onchange="this.form.submit()">
@@ -224,7 +225,7 @@
 
                             <!-- Record ID (clickable like Voucher ID) -->
                             <td>
-                                <a href="javascript:void(0);" @if($item['module']=='vouchers' ) data-action="{{ route('trash.show', ['vouchers', $item['id']]) }}" data-title="Voucher Details - {{ $item['id'] }} (Deleted)" data-size="xl" @endif class="text-primary show-modal">{{ $item['module_name'] }} #{{ $item['id'] }}</a>
+                                <a href="javascript:void(0);" @if($item['module']=='vouchers' ) data-action="{{ route($trashRoute . '.show', ['vouchers', $item['id']]) }}" data-title="Voucher Details - {{ $item['id'] }} (Deleted)" data-size="xl" @endif class="text-primary show-modal">{{ $item['module_name'] }} #{{ $item['id'] }}</a>
                             </td>
 
                             <!-- Display Columns -->
@@ -289,7 +290,7 @@
                                             <a href="javascript:void(0);" class="dropdown-item waves-effect restore-item" data-form-id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}">
                                                 <i class="fa fa-undo text-success my-1"></i> Restore
                                             </a>
-                                            <form id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route('trash.restore', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
+                                            <form id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route($trashRoute . '.restore', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
                                                 @csrf
                                             </form>
                                             @endif
@@ -298,7 +299,7 @@
                                             <a href="javascript:void(0);" class="dropdown-item waves-effect delete-item" data-form-id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}">
                                                 <i class="fa fa-trash-o text-danger my-1"></i> Delete Forever
                                             </a>
-                                            <form id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route('trash.force-destroy', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
+                                            <form id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route($trashRoute . '.force-destroy', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
                                                 @csrf
                                                 @method('DELETE')
                                             </form>
@@ -411,21 +412,21 @@ $moduleTableViewExists = $moduleTableView && view()->exists($moduleTableView);
             <nav>
                 <ul class="pagination justify-content-center mb-0">
                     <li class="page-item {{ $currentPage == 1 ? 'disabled' : '' }}">
-                        <a class="page-link" href="{{ route('trash.index', array_merge(request()->except('page'), ['page' => $currentPage - 1])) }}">
+                        <a class="page-link" href="{{ route($trashRoute . '.index', array_merge(request()->except('page'), ['page' => $currentPage - 1])) }}">
                             Previous
                         </a>
                     </li>
 
                     @for($i = 1; $i <= $totalPages; $i++)
                         <li class="page-item {{ $currentPage == $i ? 'active' : '' }}">
-                        <a class="page-link" href="{{ route('trash.index', array_merge(request()->except('page'), ['page' => $i])) }}">
+                        <a class="page-link" href="{{ route($trashRoute . '.index', array_merge(request()->except('page'), ['page' => $i])) }}">
                             {{ $i }}
                         </a>
                         </li>
                         @endfor
 
                         <li class="page-item {{ $currentPage == $totalPages ? 'disabled' : '' }}">
-                            <a class="page-link" href="{{ route('trash.index', array_merge(request()->except('page'), ['page' => $currentPage + 1])) }}">
+                            <a class="page-link" href="{{ route($trashRoute . '.index', array_merge(request()->except('page'), ['page' => $currentPage + 1])) }}">
                                 Next
                             </a>
                         </li>
@@ -501,7 +502,7 @@ $moduleTableViewExists = $moduleTableView && view()->exists($moduleTableView);
 
         @if($currentModule != 'all' || $searchQuery)
         <div class="mt-4">
-            <a href="{{ route('trash.index') }}" class="btn btn-primary btn-lg px-5 py-3" style="border-radius: 50px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+            <a href="{{ route($trashRoute . '.index') }}" class="btn btn-primary btn-lg px-5 py-3" style="border-radius: 50px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
                 <i class="fa fa-refresh me-2"></i> View All Deleted Records
             </a>
         </div>

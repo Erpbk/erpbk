@@ -230,7 +230,7 @@ class CustomersController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
-    Flash::success('Customer moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=customers" class="alert-link">View Recycle Bin</a> to restore if needed.');
+    Flash::success('Customer moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=customers" class="alert-link">View Recycle Bin</a> to restore if needed.');
     return redirect(route('customers.index'));
   }
 

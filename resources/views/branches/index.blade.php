@@ -1,11 +1,12 @@
 {{-- resources/views/branches/index.blade.php --}}
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 
 @section('title', 'Branch Management')
 
 @section('content')
+    @php $branchRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.branches' : 'branches'; @endphp
     @include('flash::message')
-    
+
     <h3 class="px-3 mb-3">Company Branches</h3>
     <!-- Branches Table Card -->
     <div class="card">
@@ -14,7 +15,7 @@
                 <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
             </div>
             @can('branches_create')
-                <a href="javascript:void(0)" class="btn btn-primary btn-sm show-modal" data-action="{{ route('branches.create') }}" data-size="lg" data-title="Add new branch">
+                <a href="javascript:void(0)" class="btn btn-primary btn-sm show-modal" data-action="{{ route($branchRoute . '.create') }}" data-size="lg" data-title="Add new branch">
                     <i class="icon-base ti ti-plus me-1"></i> Add New Branch
                 </a>
             @endcan

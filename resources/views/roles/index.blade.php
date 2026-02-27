@@ -1,7 +1,8 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 
 @section('title','Roles')
 @section('content')
+@php $rolesRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.roles' : 'roles'; @endphp
     <section class="content-header">
         <div class="container-fluid">
             <div class="row mb-2">
@@ -10,7 +11,7 @@
                 </div>
                 <div class="col-sm-6">
                     <a class="btn btn-primary float-right show-modal" style="float:right;" href="javascript:void(0);"
-                       data-action="{{ route('roles.create') }}" data-title="Create New Role" data-size="lg">
+                       data-action="{{ route($rolesRoute . '.create') }}" data-title="Create New Role" data-size="lg">
                         Add New
                     </a>
                 </div>

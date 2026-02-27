@@ -869,7 +869,7 @@ class RidersController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
-    Flash::success('Rider moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=riders" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
+    Flash::success('Rider moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=riders" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
     return redirect(route('riders.index'));
   }
 

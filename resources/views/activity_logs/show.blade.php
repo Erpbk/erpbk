@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 @section('title', 'Activity Log Details')
 
 @section('page-style')
@@ -6,6 +6,7 @@
 @endsection
 
 @section('content')
+@php $activityLogsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.activity-logs' : 'activity-logs'; @endphp
 
 <div class="container-fluid">
     <div class="row">
@@ -13,7 +14,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="card-title mb-0">Activity Log Details</h4>
-                    <a href="{{ route('activity-logs.index') }}" class="btn btn-outline-secondary">
+                    <a href="{{ route($activityLogsRoute . '.index') }}" class="btn btn-outline-secondary">
                         <i class="ti ti-arrow-left"></i> Back to Logs
                     </a>
                 </div>

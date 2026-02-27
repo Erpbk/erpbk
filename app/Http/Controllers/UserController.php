@@ -87,7 +87,7 @@ class UserController extends AppBaseController
 
     Flash::success('User saved successfully.');
 
-    return redirect(route('users.index'));
+    return redirect(route('settings-panel.users.index'));
   }
 
   /**
@@ -100,7 +100,7 @@ class UserController extends AppBaseController
     if (empty($user)) {
       Flash::error('User not found');
 
-      return redirect(route('users.index'));
+      return redirect(route('settings-panel.users.index'));
     }
 
     return view('users.show', compact('user', 'activities'));
@@ -120,7 +120,7 @@ class UserController extends AppBaseController
     if (empty($user)) {
       Flash::error('User not found');
 
-      return redirect(route('users.index'));
+      return redirect(route('settings-panel.users.index'));
     }
 
     return view('users.edit', compact('user', 'roles', 'countries', 'userRole', 'departments'));
@@ -137,7 +137,7 @@ class UserController extends AppBaseController
     if (empty($user)) {
       Flash::error('User not found');
 
-      return redirect(route('users.index'));
+      return redirect(route('settings-panel.users.index'));
     }
 
     // Store old data for activity logging
@@ -163,7 +163,7 @@ class UserController extends AppBaseController
 
     Flash::success('User updated successfully.');
 
-    return redirect(route('users.index'));
+    return redirect(route('settings-panel.users.index'));
   }
 
   /**
@@ -178,7 +178,7 @@ class UserController extends AppBaseController
     if (empty($user)) {
       Flash::error('User not found');
 
-      return redirect(route('users.index'));
+      return redirect(route('settings-panel.users.index'));
     }
 
     // Log the user deletion activity before deleting
@@ -188,7 +188,7 @@ class UserController extends AppBaseController
 
     Flash::success('User deleted successfully.');
 
-    return redirect(route('users.index'));
+    return redirect(route('settings-panel.users.index'));
   }
 
   public function profile()

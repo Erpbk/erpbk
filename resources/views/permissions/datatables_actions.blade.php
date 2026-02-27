@@ -1,9 +1,10 @@
-{!! Form::open(['route' => ['permissions.destroy', $id], 'method' => 'delete']) !!}
+@php $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.permissions' : 'permissions'; @endphp
+{!! Form::open(['route' => [$permissionsRoute . '.destroy', $id], 'method' => 'delete']) !!}
 <div class='btn-group'>
-   {{--  <a href="{{ route('permissions.show', $id) }}" class='btn btn-default btn-xs'>
+   {{--  <a href="{{ route($permissionsRoute . '.show', $id) }}" class='btn btn-default btn-xs'>
         <i class="fa fa-eye"></i>
     </a>
-    <a href="{{ route('permissions.edit', $id) }}" class='btn btn-default btn-xs'>
+    <a href="{{ route($permissionsRoute . '.edit', $id) }}" class='btn btn-default btn-xs'>
         <i class="fa fa-edit"></i>
     </a> --}}
     {!! Form::button('<i class="fa fa-trash"></i>', [

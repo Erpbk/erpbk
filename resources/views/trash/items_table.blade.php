@@ -49,7 +49,7 @@
                   <a href="javascript:void(0);" class="dropdown-item waves-effect restore-item" data-form-id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}">
                      <i class="fa fa-undo text-success my-1"></i> Restore
                   </a>
-                  <form id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route('trash.restore', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
+                  <form id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route(($trashRoute ?? 'trash') . '.restore', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
                      @csrf
                   </form>
                   @endif
@@ -58,7 +58,7 @@
                   <a href="javascript:void(0);" class="dropdown-item waves-effect delete-item" data-form-id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}">
                      <i class="fa fa-trash-o text-danger my-1"></i> Delete Forever
                   </a>
-                  <form id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route('trash.force-destroy', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
+                  <form id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route(($trashRoute ?? 'trash') . '.force-destroy', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
                      @csrf
                      @method('DELETE')
                   </form>
@@ -86,21 +86,21 @@
    <nav>
       <ul class="pagination justify-content-center mb-0">
          <li class="page-item {{ $currentPage == 1 ? 'disabled' : '' }}">
-            <a class="page-link" href="{{ route('trash.index', array_merge(request()->all(), ['page' => $currentPage - 1])) }}">
+            <a class="page-link" href="{{ route(($trashRoute ?? 'trash') . '.index', array_merge(request()->all(), ['page' => $currentPage - 1])) }}">
                Previous
             </a>
          </li>
 
          @for($i = 1; $i <= $totalPages; $i++)
             <li class="page-item {{ $currentPage == $i ? 'active' : '' }}">
-            <a class="page-link" href="{{ route('trash.index', array_merge(request()->all(), ['page' => $i])) }}">
+            <a class="page-link" href="{{ route(($trashRoute ?? 'trash') . '.index', array_merge(request()->all(), ['page' => $i])) }}">
                {{ $i }}
             </a>
             </li>
             @endfor
 
             <li class="page-item {{ $currentPage == $totalPages ? 'disabled' : '' }}">
-               <a class="page-link" href="{{ route('trash.index', array_merge(request()->all(), ['page' => $currentPage + 1])) }}">
+               <a class="page-link" href="{{ route(($trashRoute ?? 'trash') . '.index', array_merge(request()->all(), ['page' => $currentPage + 1])) }}">
                   Next
                </a>
             </li>

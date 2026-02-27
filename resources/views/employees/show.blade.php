@@ -311,10 +311,6 @@
                     <label>Company Email</label>
                     <input type="email" class="form-control form-control-sm" name="company_email" value="{{ $employee->company_email }}">
                 </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Company Contact</label>
-                    <input type="text" class="form-control form-control-sm" name="company_contact" value="{{ $employee->company_contact }}">
-                </div>
             </div>
             <div class="row mt-3">
                 <div class="col-12">
@@ -567,6 +563,10 @@
             <div class="col-md-3 form-group col-3">
                 <label>Last Updated</label>
                 <p>{{ $employee->updated_at ? $employee->updated_at->format('d M Y H:i') : '-' }}</p>
+            </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Updated By</label>
+                <p>{{ $employee->updater->name ?? 'System' }}</p>
             </div>
             @if($employee->deleted_at)
             <div class="col-md-3 form-group col-3">

@@ -217,7 +217,7 @@ class EmployeeController extends Controller
             $imagePath = $request->file('profile_image')->store('employees/profile', 'public');
             $validated['profile_image'] = $imagePath;
         }
-
+        $validated['updated_by'] = auth()->id();
         $employee->update($validated);
         if(request()->ajax()){
             return response()->json([

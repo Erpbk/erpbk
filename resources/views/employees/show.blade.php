@@ -564,6 +564,10 @@
                 <label>Last Updated</label>
                 <p>{{ $employee->updated_at ? $employee->updated_at->format('d M Y H:i') : '-' }}</p>
             </div>
+            <div class="col-md-3 form-group col-3">
+                <label>Updated By</label>
+                <p>{{ $employee->updater->name ?? 'System' }}</p>
+            </div>
             @if($employee->deleted_at)
             <div class="col-md-3 form-group col-3">
                 <label>Deleted At</label>

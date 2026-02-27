@@ -1,3 +1,4 @@
+@php $branchRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.branches' : 'branches'; @endphp
 <table class="table" id="dataTableBuilder">
     <thead>
         <tr>
@@ -36,13 +37,13 @@
                 </button>
                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $branch->id }}" style="z-index: 1050;">
                     @can('branches_edit')
-                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit {{ ucwords($branch->name) }} Branch" data-action="{{ route('branches.edit', $branch->id) }}">
+                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit {{ ucwords($branch->name) }} Branch" data-action="{{ route($branchRoute . '.edit', $branch->id) }}">
                             <i class="fa fa-edit my-1"></i> Edit
                         </a>
                     @endcan
                     @can('branches_delete')
                     <a href="javascript:void(0);" class='dropdown-item waves-effect delete-branch' 
-                        data-url="{{ route('branches.destroy', $branch) }}">
+                        data-url="{{ route($branchRoute . '.destroy', $branch) }}">
                         <i class="fa fa-trash my-1"></i> Delete
                     </a>
                     @endcan

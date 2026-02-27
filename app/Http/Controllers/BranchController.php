@@ -77,7 +77,7 @@ class BranchController extends Controller
                 ]);
             }
             Flash::success('Branch created successfully.');
-            return redirect()->route('branches.index');
+            return redirect()->route('settings-panel.branches.index');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -188,7 +188,7 @@ class BranchController extends Controller
                 ]);
             }
             Flash::success('Branch updated successfully.');
-            return redirect()->route('branches.index');
+            return redirect()->route('settings-panel.branches.index');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -249,7 +249,7 @@ class BranchController extends Controller
                 ]);
             }
 
-            return redirect()->route('branches.index')
+            return redirect()->route('settings-panel.branches.index')
                 ->with('success', $message);
 
         } catch (\Exception $e) {

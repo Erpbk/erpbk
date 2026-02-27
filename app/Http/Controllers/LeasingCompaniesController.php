@@ -252,7 +252,7 @@ class LeasingCompaniesController extends AppBaseController
     }
 
     return response()->json([
-      'message' => 'Leasing company moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=leasing_companies" class="alert-link">View Recycle Bin</a> to restore if needed.'
+      'message' => 'Leasing company moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=leasing_companies" class="alert-link">View Recycle Bin</a> to restore if needed.'
     ]);
   }
 

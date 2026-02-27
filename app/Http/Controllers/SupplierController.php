@@ -262,7 +262,7 @@ class SupplierController extends AppBaseController
     }
 
     return response()->json([
-      'message' => 'Supplier moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=suppliers" class="alert-link">View Recycle Bin</a> to restore if needed.'
+      'message' => 'Supplier moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=suppliers" class="alert-link">View Recycle Bin</a> to restore if needed.'
     ]);
   }
 

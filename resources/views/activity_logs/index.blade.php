@@ -1,6 +1,7 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 @section('title', 'Activity Logs')
 @section('content')
+@php $activityLogsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.activity-logs' : 'activity-logs'; @endphp
 
 <div class="container-fluid">
     <div class="row">
@@ -27,7 +28,7 @@
                                     <h5 class="modal-title" id="filterModalLabel">Filter Activity Logs</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
-                                <form method="GET" action="{{ route('activity-logs.index') }}">
+                                <form method="GET" action="{{ route($activityLogsRoute . '.index') }}">
                                     <div class="modal-body">
                                         <div class="row">
                                             <div class="col-md-6 mb-3">
@@ -75,7 +76,7 @@
                                     </div>
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                        <a href="{{ route('activity-logs.index') }}" class="btn btn-outline-warning">Clear Filters</a>
+                                        <a href="{{ route($activityLogsRoute . '.index') }}" class="btn btn-outline-warning">Clear Filters</a>
                                         <button type="submit" class="btn btn-primary">Apply Filters</button>
                                     </div>
                                 </form>
@@ -168,7 +169,7 @@
                                         <small class="text-muted">{{ $log->created_at->timezone('Asia/Dubai')->format('M d, Y H:i:s') }}</small>
                                     </td>
                                     <td>
-                                        <a href="{{ route('activity-logs.show', $log) }}" class="btn btn-sm btn-outline-primary">
+                                        <a href="{{ route($activityLogsRoute . '.show', $log) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="ti ti-eye"></i>
                                         </a>
                                     </td>
@@ -234,7 +235,7 @@
         new bootstrap.Modal(document.getElementById('statisticsModal')).show();
 
         // Load statistics via AJAX
-        fetch('{{ route("activity-logs.statistics") }}')
+        fetch('{{ route($activityLogsRoute . ".statistics") }}')
             .then(response => response.json())
             .then(data => {
                 document.getElementById('statisticsContent').innerHTML = `

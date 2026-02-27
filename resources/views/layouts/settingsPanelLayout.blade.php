@@ -32,7 +32,7 @@ $containerNav = 'container-fluid';
           <span class="menu-header-text">Administration</span>
         </li>
 
-        @canany(['gn_settings','department_view','dropdown_view','visaexpense_view'])
+        @canany(['gn_settings','department_view','dropdown_view','visaexpense_view','branches_view'])
         <li class="menu-item {{ Request::is('settings-panel/company') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.company') }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-building-community"></i>
@@ -52,6 +52,14 @@ $containerNav = 'container-fluid';
           <a href="{{ route('settings-panel.departments.index') }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-sitemap"></i>
             <div>Departments</div>
+          </a>
+        </li>
+        @endcan
+        @can('branches_view')
+        <li class="menu-item {{ Request::is('settings-panel/branches*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.branches.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-building"></i>
+            <div>Branches</div>
           </a>
         </li>
         @endcan
@@ -82,6 +90,51 @@ $containerNav = 'container-fluid';
           <a href="{{ route('settings-panel.voucher-settings.index') }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-file-invoice"></i>
             <div>Voucher Settings</div>
+          </a>
+        </li>
+        @endcan
+        @endcanany
+
+        {{-- User Management, Activity Logs, Recycle Bin --}}
+        <li class="menu-header small text-uppercase mt-3">
+          <span class="menu-header-text">User & System</span>
+        </li>
+        @canany(['user_view','role_view','activity_logs_view','trash_view'])
+        @can('user_view')
+        <li class="menu-item {{ Request::is('settings-panel/users*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.users.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-users-group"></i>
+            <div>Users</div>
+          </a>
+        </li>
+        @endcan
+        @can('role_view')
+        <li class="menu-item {{ Request::is('settings-panel/roles*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.roles.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-user-check"></i>
+            <div>Roles</div>
+          </a>
+        </li>
+        <li class="menu-item {{ Request::is('settings-panel/permissions*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.permissions.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-lock"></i>
+            <div>Permissions</div>
+          </a>
+        </li>
+        @endcan
+        @can('activity_logs_view')
+        <li class="menu-item {{ Request::is('settings-panel/activity-logs*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.activity-logs.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-history"></i>
+            <div>Activity Logs</div>
+          </a>
+        </li>
+        @endcan
+        @can('trash_view')
+        <li class="menu-item {{ Request::is('settings-panel/trash*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.trash.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-trash text-warning"></i>
+            <div>Recycle Bin</div>
           </a>
         </li>
         @endcan

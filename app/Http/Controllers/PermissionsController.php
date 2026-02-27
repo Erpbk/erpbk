@@ -75,7 +75,7 @@ class PermissionsController extends AppBaseController
 
         Flash::success('Permissions saved successfully.');
 
-        return redirect(route('permissions.index'));
+        return redirect(route('settings-panel.permissions.index'));
     }
 
     /**
@@ -88,7 +88,7 @@ class PermissionsController extends AppBaseController
         if (empty($permissions)) {
             Flash::error('Permissions not found');
 
-            return redirect(route('permissions.index'));
+            return redirect(route('settings-panel.permissions.index'));
         }
 
         return view('permissions.show')->with('permissions', $permissions);
@@ -104,7 +104,7 @@ class PermissionsController extends AppBaseController
         if (empty($permissions)) {
             Flash::error('Permissions not found');
 
-            return redirect(route('permissions.index'));
+            return redirect(route('settings-panel.permissions.index'));
         }
 
         return view('permissions.edit')->with('permissions', $permissions);
@@ -120,14 +120,14 @@ class PermissionsController extends AppBaseController
         if (empty($permissions)) {
             Flash::error('Permissions not found');
 
-            return redirect(route('permissions.index'));
+            return redirect(route('settings-panel.permissions.index'));
         }
 
         $permissions = $this->permissionsRepository->update($request->all(), $id);
 
         Flash::success('Permissions updated successfully.');
 
-        return redirect(route('permissions.index'));
+        return redirect(route('settings-panel.permissions.index'));
     }
 
     /**
@@ -141,7 +141,7 @@ class PermissionsController extends AppBaseController
 
         if (empty($permissions)) {
             Flash::error('Permissions not found');
-            return redirect(route('permissions.index'));
+            return redirect(route('settings-panel.permissions.index'));
         }
 
         DB::beginTransaction();
@@ -167,6 +167,6 @@ class PermissionsController extends AppBaseController
             Flash::error('Error deleting Permission: ' . $e->getMessage());
         }
 
-        return redirect(route('permissions.index'));
+        return redirect(route('settings-panel.permissions.index'));
     }
 }

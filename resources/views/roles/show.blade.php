@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 
 @section('content')
     <section class="content-header">
@@ -11,7 +11,7 @@ Roles Details
                 </div>
                 <div class="col-sm-6">
                     <a class="btn btn-default float-right"
-                       href="{{ route('roles.index') }}">
+                       href="{{ route((View::shared('settings_panel') ?? false) ? 'settings-panel.roles.index' : 'roles.index') }}">
                                                     Back
                                             </a>
                 </div>

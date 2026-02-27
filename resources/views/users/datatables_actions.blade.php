@@ -1,13 +1,14 @@
-{!! Form::open(['route' => ['users.destroy', $id], 'method' => 'delete','id'=> 'formajax']) !!}
+@php $usersRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.users' : 'users'; @endphp
+{!! Form::open(['route' => [$usersRoute . '.destroy', $id], 'method' => 'delete','id'=> 'formajax']) !!}
 <div class='btn-group' style="float: right;">
 
     @can('user_view')
-   {{--  <a href="{{ route('users.show', $id) }}"  class='btn btn-default btn-sm'>
+   {{--  <a href="{{ route($usersRoute . '.show', $id) }}"  class='btn btn-default btn-sm'>
         <i class="fa fa-eye"></i>
     </a> --}}
     @endcan
     @can('user_edit')
-    <a href="javascript:void(0);" data-action="{{ route('users.edit', $id) }}" data-title="Edit User" data-size="xl" class='btn btn-info btn-sm show-modal'>
+    <a href="javascript:void(0);" data-action="{{ route($usersRoute . '.edit', $id) }}" data-title="Edit User" data-size="xl" class='btn btn-info btn-sm show-modal'>
         <i class="fa fa-edit"></i>
     </a>
     @endcan

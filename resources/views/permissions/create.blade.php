@@ -1,5 +1,5 @@
-
-            {!! Form::open(['route' => 'permissions.store','id' => 'formajax']) !!}
+@php $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.permissions' : 'permissions'; @endphp
+            {!! Form::open(['route' => $permissionsRoute . '.store','id' => 'formajax']) !!}
 
           
                     @include('permissions.fields')

@@ -310,7 +310,7 @@ class TrashController extends Controller
     {
         if (!isset($this->softDeleteModels[$module])) {
             Flash::error('Invalid module specified.');
-            return redirect()->route('trash.index');
+            return redirect()->route('settings-panel.trash.index');
         }
 
         $config = $this->softDeleteModels[$module];
@@ -329,7 +329,7 @@ class TrashController extends Controller
 
         if (!$record) {
             Flash::error('Record not found in trash.');
-            return redirect()->route('trash.index');
+            return redirect()->route('settings-panel.trash.index');
         }
 
         DB::beginTransaction();
@@ -408,7 +408,7 @@ class TrashController extends Controller
             Flash::error('Failed to restore record: ' . $e->getMessage());
         }
 
-        return redirect()->route('trash.index');
+        return redirect()->route('settings-panel.trash.index');
     }
 
     /**
@@ -418,7 +418,7 @@ class TrashController extends Controller
     {
         if (!isset($this->softDeleteModels[$module])) {
             Flash::error('Invalid module specified.');
-            return redirect()->route('trash.index');
+            return redirect()->route('settings-panel.trash.index');
         }
 
         $config = $this->softDeleteModels[$module];
@@ -437,7 +437,7 @@ class TrashController extends Controller
 
         if (!$record) {
             Flash::error('Record not found in trash.');
-            return redirect()->route('trash.index');
+            return redirect()->route('settings-panel.trash.index');
         }
 
         DB::beginTransaction();
@@ -471,7 +471,7 @@ class TrashController extends Controller
                             if ($count > 0) {
                                 DB::rollBack();
                                 Flash::error("Cannot permanently delete {$config['name']}. Record has {$count} related records in {$constraintTable}.");
-                                return redirect()->route('trash.index');
+                                return redirect()->route('settings-panel.trash.index');
                             }
                         }
                     }
@@ -504,7 +504,7 @@ class TrashController extends Controller
                                             Flash::error("Cannot permanently delete {$config['name']}. Related " .
                                                 class_basename($relatedModelClass) .
                                                 " ({$cascade->related_name}) has {$count} related records in {$constraintTable}.");
-                                            return redirect()->route('trash.index');
+                                            return redirect()->route('settings-panel.trash.index');
                                         }
                                     }
                                 } catch (\Exception $e) {
@@ -595,7 +595,7 @@ class TrashController extends Controller
             Flash::error('Failed to permanently delete record: ' . $e->getMessage());
         }
 
-        return redirect()->route('trash.index');
+        return redirect()->route('settings-panel.trash.index');
     }
 
     /**
@@ -608,7 +608,7 @@ class TrashController extends Controller
                 return response()->json(['error' => 'Invalid module specified.'], 404);
             }
             Flash::error('Invalid module specified.');
-            return redirect()->route('trash.index');
+            return redirect()->route('settings-panel.trash.index');
         }
 
         $config = $this->softDeleteModels[$module];
@@ -627,7 +627,7 @@ class TrashController extends Controller
                 return response()->json(['error' => 'Record not found in trash.'], 404);
             }
             Flash::error('Record not found in trash.');
-            return redirect()->route('trash.index');
+            return redirect()->route('settings-panel.trash.index');
         }
 
         // For vouchers, load transactions separately since the relationship might not work with soft-deleted parent
@@ -679,7 +679,7 @@ class TrashController extends Controller
             ]);
         }
 
-        return redirect()->route('trash.index');
+        return redirect()->route('settings-panel.trash.index');
     }
 
     /**

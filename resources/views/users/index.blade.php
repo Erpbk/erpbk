@@ -1,6 +1,10 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 @section('title','Users')
 @section('content')
+@php
+  $usersRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.users' : 'users';
+  $rolesRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.roles' : 'roles';
+@endphp
 <h4 class="mb-4">Top 5 Roles</h4>
 
 <p class="mb-4">A role provided access to predefined menus and features so that depending on <br> assigned role an administrator can have access to what user needs.</p>
@@ -18,7 +22,7 @@
         <div class="d-flex justify-content-between align-items-end mt-1">
           <div class="role-heading">
             <h4 class="mb-1">{{$role->name}}</h4>
-            <a href="javascript:;" class="role-edit-modal show-modal" data-title="Edit Role" data-size="lg" data-action="{{route('roles.edit', $role->id)}}"><span>Edit Permissions</span></a>
+            <a href="javascript:;" class="role-edit-modal show-modal" data-title="Edit Role" data-size="lg" data-action="{{ route($rolesRoute . '.edit', $role->id) }}"><span>Edit Permissions</span></a>
           </div>
           <a href="javascript:void(0);" class="text-muted"><i class="ti ti-user ti-md"></i></a>
         </div>
@@ -38,8 +42,8 @@
         </div>
         <div class="col-sm-7">
           <div class="card-body text-sm-end text-center ps-sm-0">
-            <button data-action="{{ route('roles.create') }}" data-title="Create New Role" data-size="lg" class="btn btn-primary mb-2 text-nowrap add-new-role show-modal">Add New Role</button>
-            <a href="{{ route('roles.index')}}" class="btn btn-light mb-2 text-nowrap add-new-role ">Manage Roles</a>
+            <button data-action="{{ route($rolesRoute . '.create') }}" data-title="Create New Role" data-size="lg" class="btn btn-primary mb-2 text-nowrap add-new-role show-modal">Add New Role</button>
+            <a href="{{ route($rolesRoute . '.index') }}" class="btn btn-light mb-2 text-nowrap add-new-role ">Manage Roles</a>
 
           </div>
         </div>
@@ -54,7 +58,7 @@
         </div>
         <div class="col-sm-6">
           @can('user_create')
-          <a class="btn btn-primary float-right show-modal" style="float:right;" data-action="{{ route('users.create') }}"
+          <a class="btn btn-primary float-right show-modal" style="float:right;" data-action="{{ route($usersRoute . '.create') }}"
             href="javascript:void(0)" data-title="Add User Account" data-size="xl">
             Add User
           </a>

@@ -288,7 +288,7 @@ class AccountsController extends AppBaseController
     }
 
     return response()->json([
-      'message' => 'Account moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=accounts" class="alert-link">View Recycle Bin</a> to restore if needed.'
+      'message' => 'Account moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=accounts" class="alert-link">View Recycle Bin</a> to restore if needed.'
     ]);
   }
 

@@ -69,7 +69,7 @@ class RolesController extends AppBaseController
 
     Flash::success('Roles saved successfully.');
 
-    return redirect(route('roles.index'));
+    return redirect(route('settings-panel.roles.index'));
   }
 
   /**
@@ -82,7 +82,7 @@ class RolesController extends AppBaseController
     if (empty($roles)) {
       Flash::error('Roles not found');
 
-      return redirect(route('roles.index'));
+      return redirect(route('settings-panel.roles.index'));
     }
 
     return view('roles.show')->with('roles', $roles);
@@ -102,7 +102,7 @@ class RolesController extends AppBaseController
     if (empty($roles)) {
       Flash::error('Roles not found');
 
-      return redirect(route('roles.index'));
+      return redirect(route('settings-panel.roles.index'));
     }
 
     return view('roles.edit', compact('roles', 'rolePermissions'));
@@ -125,14 +125,14 @@ class RolesController extends AppBaseController
     if (empty($roles)) {
       Flash::error('Roles not found');
 
-      return redirect(route('roles.index'));
+      return redirect(route('settings-panel.roles.index'));
     }
 
     $roles = $this->rolesRepository->update($request->all(), $id);
 
     Flash::success('Roles updated successfully.');
 
-    return redirect(route('roles.index'));
+    return redirect(route('settings-panel.roles.index'));
   }
 
   /**
@@ -147,14 +147,14 @@ class RolesController extends AppBaseController
     if (empty($roles)) {
       Flash::error('Roles not found');
 
-      return redirect(route('roles.index'));
+      return redirect(route('settings-panel.roles.index'));
     }
 
     $this->rolesRepository->delete($id);
 
     Flash::success('Roles deleted successfully.');
 
-    return redirect(route('roles.index'));
+    return redirect(route('settings-panel.roles.index'));
   }
 
   public function get_permissions()

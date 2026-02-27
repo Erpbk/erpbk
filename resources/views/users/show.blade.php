@@ -1,7 +1,8 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 @section('title', 'Account')
 
 @section('content')
+@php $usersRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.users' : 'users'; @endphp
 <h4 class="py-3 mb-4">
   <span class="text-muted fw-light">User Account
 </h4>
@@ -67,7 +68,7 @@
             </li>
           </ul>
           <div class="d-flex">
-            <a href="javascript:;" class="btn btn-primary me-3 show-modal" style="float: left;" data-action="{{ route('users.edit', $user->id) }}" data-title="Edit User" data-size="lg">Edit</a>
+            <a href="javascript:;" class="btn btn-primary me-3 show-modal" style="float: left;" data-action="{{ route($usersRoute . '.edit', $user->id) }}" data-title="Edit User" data-size="lg">Edit</a>
 {{--             <a href="javascript:;" class="btn btn-label-danger suspend-user">Suspended</a>
  --}}          </div>
         </div>

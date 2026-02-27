@@ -238,11 +238,11 @@ class VendorsController extends AppBaseController
     // Return JSON response for AJAX calls or Flash + redirect for regular requests
     if (request()->expectsJson() || request()->ajax()) {
       return response()->json([
-        'message' => 'Vendor moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=vendors" class="alert-link">View Recycle Bin</a> to restore if needed.'
+        'message' => 'Vendor moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=vendors" class="alert-link">View Recycle Bin</a> to restore if needed.'
       ]);
     }
 
-    Flash::success('Vendor moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=vendors" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
+    Flash::success('Vendor moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=vendors" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
     return redirect(route('vendors.index'));
   }
 

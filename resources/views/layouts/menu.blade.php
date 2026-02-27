@@ -44,6 +44,14 @@
   </a>
 </li>
 @endcan
+@can('employees_view')
+<li class="menu-item {{ Request::is('employees*') ? 'active' : '' }}">
+  <a href="{{ route('employees.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-user"></i>
+    <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
+  </a>
+</li>
+@endcan
 @can('item_view')
 <li class="menu-item {{ Request::is('items*') ? 'open' : '' }} {{ Request::is('garage-items*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">

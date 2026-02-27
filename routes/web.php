@@ -125,6 +125,10 @@ Route::middleware(['auth', 'web'])->group(function () {
 
 
     Route::resource('branches', App\Http\Controllers\BranchController::class);
+    Route::resource('employees', App\Http\Controllers\EmployeeController::class);
+    Route::get('/employees/{id}/ledger', [App\Http\Controllers\EmployeeController::class, 'ledger'])->name('employee.ledger');
+    Route::post('/employees/update-status', [App\Http\Controllers\EmployeeController::class, 'updateStatus'])->name('employee.update-status');
+    Route::post('/employees/{id}/update-section', [App\Http\Controllers\EmployeeController::class, 'updateSection'])->name('employees.updateSection');
 
 
     Route::resource('VisaExpense', App\Http\Controllers\VisaexpenseController::class);

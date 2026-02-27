@@ -83,18 +83,15 @@ $(document).on('submit', '#formajax', function (e) {
       }
       // Check for redirect in response data
       if (data.redirect) {
-        $('#redirect_url').val(data.redirect);
+        window.location = data.redirect;
       }
       if (data.reload === true || data.reload_page == 1) {
         setTimeout(function() {
             location.reload();
-        }, 2000); // 2000ms = 2 seconds
+        }, 1000); // 1000ms = 1 seconds
       }
       if ($('#reload_page').val() == 1) {
         location.reload();
-      }
-      if ($('#redirect_url').length != 0 && $('#redirect_url').val()) {
-        window.location = $('#redirect_url').val();
       }
       $('#modalTop').modal('hide');
       reloadDataTable();

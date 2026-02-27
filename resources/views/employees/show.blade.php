@@ -311,10 +311,6 @@
                     <label>Company Email</label>
                     <input type="email" class="form-control form-control-sm" name="company_email" value="{{ $employee->company_email }}">
                 </div>
-                <div class="col-md-3 form-group col-3">
-                    <label>Company Contact</label>
-                    <input type="text" class="form-control form-control-sm" name="company_contact" value="{{ $employee->company_contact }}">
-                </div>
             </div>
             <div class="row mt-3">
                 <div class="col-12">

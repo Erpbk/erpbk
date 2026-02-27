@@ -222,10 +222,8 @@
 
 @php
 // Get the account ID for the employee
-if(isset($employee)) {
-    $account = App\Models\Accounts::where('ref_id', $employee->id)
-                ->where('account_type', 'expense')
-                ->first();
+if(!request()->routeIs('employees.create')) {
+    $account = App\Models\Accounts::find($employee->account_id);
 }
 @endphp
 
@@ -236,25 +234,29 @@ if(isset($employee)) {
       <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px;height: 291px;position: relative;background-image: url({{ asset('assets/img/user_back.jpg') }});background-size: cover;">
         <div class="profile-img">
           @php
-          $profile = DB::table('files')
-                    ->where('type', 'employee')
-                    ->where('type_id', $employee->id)
-                    ->where(function($query) {
-                        $query->where('name', 'LIKE', '%photo%')
-                              ->orWhere('name', 'LIKE', '%Photo%')
-                              ->orWhere('name', 'LIKE', '%picture%') 
-                              ->orWhere('name', 'LIKE', '%Picture%')
-                              ->orWhere('name', 'LIKE', '%profile%')
-                              ->orWhere('name', 'LIKE', '%Profile%');
-                    })
-                    ->first();
-          
-          if($employee->profile_image)
-            $image_name = asset('storage/' . $employee->profile_image);
-          elseif (isset($profile))
-            $image_name = asset('storage2/'. $profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
-          else
+          if(isset($employee)) {
+            $profile = DB::table('files')
+                      ->where('type', 'employee')
+                      ->where('type_id', $employee->id)
+                      ->where(function($query) {
+                          $query->where('name', 'LIKE', '%photo%')
+                                ->orWhere('name', 'LIKE', '%Photo%')
+                                ->orWhere('name', 'LIKE', '%picture%') 
+                                ->orWhere('name', 'LIKE', '%Picture%')
+                                ->orWhere('name', 'LIKE', '%profile%')
+                                ->orWhere('name', 'LIKE', '%Profile%');
+                      })
+                      ->first();
+            
+            if($employee->profile_image)
+              $image_name = asset('storage/' . $employee->profile_image);
+            elseif (isset($profile))
+              $image_name = asset('storage2/'. $profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
+            else
+              $image_name = asset('uploads/default.png');
+          }else {
             $image_name = asset('uploads/default.png');
+          }
           @endphp
           <img src="{{ $image_name }}" id="output" width="270" class="profile-user-img img-fluid" />
         </div>
@@ -267,7 +269,7 @@ if(isset($employee)) {
                 <div class="user-info" style="width: 100%;">
                   <div class="mt-2" style="width: 100%;display: flex;gap: 10px; margin-bottom: 10px;">
                     <span class="badge bg-label-primary">{{ $employee->designation ?? 'Not Set' }}</span>
-                    <span class="badge @if($employee->status == 'active') bg-label-success @elseif($employee->status == 'inactive') bg-label-danger @else bg-label-info @endif">
+                    <span class="badge  @if(isset($employee)) @if($employee->status == 'active') bg-label-success @elseif($employee->status == 'inactive') bg-label-danger @else bg-label-info @endif @endif">
                       {{ ucfirst($employee->status ?? 'Not Set') }}
                     </span>
                   </div>
@@ -285,6 +287,7 @@ if(isset($employee)) {
                 </div>
               </div>
             </div>
+            @if(isset($employee))
             <div id="photo-upload-form" class="mt-4" style="display: none;">
               <form action="{{ route('employees.updateSection', $employee->id) }}" method="POST" enctype="multipart/form-data" id="formAjax2">
                 @csrf
@@ -299,6 +302,7 @@ if(isset($employee)) {
                 </div>
               </form>
             </div>
+            @endif
           </div>
         </div>
         <div class="info-container mt-3">
@@ -337,7 +341,7 @@ if(isset($employee)) {
                 <div class="user_list_content mt-2">
                   <span>WhatsApp:</span><br>
                   <b class="float-right">
-                    @if($employee->company_contact)
+                    @if(isset($employee->company_contact))
                     @php
                     $phone = preg_replace('/[^0-9]/', '', $employee->company_contact);
                     $whatsappNumber = '+971' . ltrim($phone, '0');
@@ -369,7 +373,7 @@ if(isset($employee)) {
                 <div class="user_list_content">
                   <span>Age:</span><br>
                   <b class="float-right">
-                    @if($employee->dob)
+                    @if(isset($employee->dob))
                     {{ \Carbon\Carbon::parse($employee->dob)->age }}
                     @else
                     not-set
@@ -384,7 +388,7 @@ if(isset($employee)) {
                 <div class="user_list_content">
                   <span>Date Of Joining:</span><br> 
                   <b class="float-right">
-                    @if($employee->doj)
+                    @if(isset($employee->doj))
                     {{ \Carbon\Carbon::parse($employee->doj)->format('d M Y') }}
                     @else
                     not-set
@@ -400,7 +404,7 @@ if(isset($employee)) {
                   <span>Balance:</span><br> 
                   <b class="float-right">
                     @if($account)
-                    {{ App\Helpers\Accounts::getBalance($account->id) }}
+                    {{  App\Helpers\Accounts::getBalance($account->id) }} AED
                     @else
                     0.00
                     @endif
@@ -534,12 +538,12 @@ if(isset($employee)) {
               <ul class="nav nav-pills flex-nowrap mb-0 overflow-hidden" id="mainNavigation" style="gap: 0.25rem;">
                 <!-- Priority navigation items -->
                 <li class="nav-item nav-priority-1">
-                  <a class="nav-link @if(request()->routeIs('employees.show')) active @endif"
-                    href="{{ route('employees.show', $employee->id) }}">
+                  <a class="nav-link @if(request()->routeIs('employees.show') || request()->routeIs('employees.edit') || request()->routeIs('employees.create')) active @endif"
+                    @if(isset($employee)) href="{{ route('employees.show', $employee->id) }}" @else href="javascript:void(0);" @endif>
                     <i class="ti ti-user-check ti-sm me-1_5"></i>Information
                   </a>
                 </li>
-
+                @if(isset($employee))
                 @can('employee_document')
                 <li class="nav-item nav-priority-2">
                   <a class="nav-link @if(request()->segment(2) == 'files') active @endif"
@@ -605,6 +609,7 @@ if(isset($employee)) {
                   </a>
                 </li>
                 @endcanany
+                @endif
               </ul>
             </div>
 
@@ -978,13 +983,13 @@ $(document).ready(function() {
                   // Revert radio button
                   $(this).prop('checked', false);
                   // Set original checked status
-                  const originalStatus = '{{ $employee->status }}';
+                  const originalStatus = '{{ $employee->status ?? 'not-set' }}';
                   $(`.status-radio[data-status="${originalStatus}"]`).prop('checked', true);
               }
           },
           error: function(xhr) {
             // Revert radio button
-            const originalStatus = '{{ $employee->status }}';
+            const originalStatus = '{{ $employee->status ?? 'not-set' }}';
             $(`.status-radio[data-status="${originalStatus}"]`).prop('checked', true);
             if (xhr.status === 422) {
                 const errors = xhr.responseJSON.errors;

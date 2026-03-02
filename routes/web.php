@@ -116,6 +116,12 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('/employees/update-status', [App\Http\Controllers\EmployeeController::class, 'updateStatus'])->name('employee.update-status');
     Route::post('/employees/{id}/update-section', [App\Http\Controllers\EmployeeController::class, 'updateSection'])->name('employees.updateSection');
 
+    
+    Route::get('attendance/export', [\App\Http\Controllers\AttendanceController::class, 'export'])->name('attendance.export');
+    Route::resource('attendance', App\Http\Controllers\AttendanceController::class);
+    Route::get('attendance/monthly-report', [\App\Http\Controllers\AttendanceController::class, 'monthlyReport'])->name('attendance.monthly-report');
+    Route::post('attendance/bulk-mark', [\App\Http\Controllers\AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
+    Route::get('attendance/users/{refType}', [\App\Http\Controllers\AttendanceController::class, 'getUsers'])->name('attendance.users');
 
     Route::resource('VisaExpense', App\Http\Controllers\VisaexpenseController::class);
 

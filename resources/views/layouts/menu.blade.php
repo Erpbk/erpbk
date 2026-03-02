@@ -36,6 +36,14 @@
   </a>
 </li>
 @endcan
+@can('attendance_view')
+<li class="menu-item {{ Request::is('attendance*') ? 'active' : '' }}">
+  <a href="{{ route('attendance.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-calendar-check"></i>
+    <div>{{ $menuLabels['attendance'] ?? 'Attendance' }}</div>
+  </a>
+</li>
+@endcan
 @can('item_view')
 <li class="menu-item {{ Request::is('items*') ? 'open' : '' }} {{ Request::is('garage-items*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">

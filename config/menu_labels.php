@@ -57,5 +57,9 @@ return [
         'company_settings'   => 'Company Settings',
         'settings'           => 'Settings',
         'erp_settings'       => 'ERP Settings',
+        // Settings panel module labels (rename in each module's settings page)
+        'rider_settings'     => 'Rider Settings',
+        'voucher_settings'   => 'Voucher Settings',
+        'account_fields'     => 'Account Fields',
     ],
 ];

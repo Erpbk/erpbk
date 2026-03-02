@@ -254,7 +254,7 @@ class RtaFinesController extends AppBaseController
 
         try {
 
-            $service_accounts = DB::table('accounts')->where('name', 'Service Charges (RTA Fine)')->where('account_type', 'Expense')->first();
+            $service_accounts = DB::table('accounts')->where('id', 1368)->where('account_type', 'Expense')->first();
             $fine = RtaFines::findOrFail($request->id);
             $fine->pay_account = $request->account;
 

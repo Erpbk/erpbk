@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Settings;
 use App\Models\VoucherType;
 use App\Models\VoucherCustomField;
 use Illuminate\Http\Request;
@@ -21,8 +22,23 @@ class VoucherSettingsController extends Controller
         $voucherTypes = VoucherType::orderBy('display_order')->orderBy('id')->get();
         $customFields = VoucherCustomField::orderBy('display_order')->orderBy('id')->get();
         $dataTypes = VoucherCustomField::dataTypes();
+        $moduleLabel = Settings::getMenuLabel('voucher_settings');
 
-        return view('settings.voucher_settings.index', compact('voucherTypes', 'customFields', 'dataTypes'));
+        return view('settings.voucher_settings.index', compact('voucherTypes', 'customFields', 'dataTypes', 'moduleLabel'));
+    }
+
+    /**
+     * Save the display name for this module (shown in settings panel menu).
+     */
+    public function storeModuleLabel(Request $request)
+    {
+        $request->validate(['module_label' => 'required|string|max:100']);
+        Settings::updateOrCreate(
+            ['name' => 'menu_label_voucher_settings'],
+            ['value' => trim($request->input('module_label'))]
+        );
+        Settings::clearMenuLabelsCache();
+        return redirect()->route('settings-panel.voucher-settings.index')->with('success', 'Module name updated.');
     }
 
     // ---------- Voucher Types ----------

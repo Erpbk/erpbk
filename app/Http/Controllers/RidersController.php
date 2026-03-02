@@ -502,7 +502,9 @@ class RidersController extends AppBaseController
    */
   public function create()
   {
-    return view('riders.create');
+    $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+    $fieldsByCategory = \App\Models\RiderCustomField::fieldsByCategoryForForm();
+    return view('riders.create', compact('riderCategories', 'fieldsByCategory'));
   }
   /**
    * Store a newly created Riders in storage.
@@ -644,7 +646,9 @@ class RidersController extends AppBaseController
       return redirect(route('riders.index'));
     }
 
-    return view('riders.edit')->with('riders', $riders);
+    $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+    $fieldsByCategory = \App\Models\RiderCustomField::fieldsByCategoryForForm();
+    return view('riders.edit', compact('riders', 'riderCategories', 'fieldsByCategory'));
   }
 
   /**

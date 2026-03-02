@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AccountCustomField;
+use App\Models\Settings;
 use Illuminate\Http\Request;
 
 class AccountFieldSettingsController extends Controller
@@ -20,8 +21,23 @@ class AccountFieldSettingsController extends Controller
         $fixedFields = AccountCustomField::fixedAccountFields();
         $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
         $dataTypes = AccountCustomField::dataTypes();
+        $moduleLabel = Settings::getMenuLabel('account_fields');
 
-        return view('settings.account_fields.index', compact('fixedFields', 'customFields', 'dataTypes'));
+        return view('settings.account_fields.index', compact('fixedFields', 'customFields', 'dataTypes', 'moduleLabel'));
+    }
+
+    /**
+     * Save the display name for this module (shown in settings panel menu).
+     */
+    public function storeModuleLabel(Request $request)
+    {
+        $request->validate(['module_label' => 'required|string|max:100']);
+        Settings::updateOrCreate(
+            ['name' => 'menu_label_account_fields'],
+            ['value' => trim($request->input('module_label'))]
+        );
+        Settings::clearMenuLabelsCache();
+        return redirect()->route('settings-panel.account-fields.index')->with('success', 'Module name updated.');
     }
 
     /**

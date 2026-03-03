@@ -151,6 +151,7 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::resource('branches', App\Http\Controllers\BranchController::class)->names('settings-panel.branches');
         // Account field settings (fixed + custom fields; only custom are editable/deletable)
         Route::get('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'index'])->name('settings-panel.account-fields.index');
+        Route::post('account-fields/module-label', [App\Http\Controllers\AccountFieldSettingsController::class, 'storeModuleLabel'])->name('settings-panel.account-fields.store-module-label');
         Route::get('account-fields/table-body', [App\Http\Controllers\AccountFieldSettingsController::class, 'tableBody'])->name('settings-panel.account-fields.table-body');
         Route::get('account-fields/config-schema/{dataType}', [App\Http\Controllers\AccountFieldSettingsController::class, 'configSchema'])->name('settings-panel.account-fields.config-schema');
         Route::post('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'store'])->name('settings-panel.account-fields.store');
@@ -159,6 +160,7 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::post('account-fields/reorder', [App\Http\Controllers\AccountFieldSettingsController::class, 'reorder'])->name('settings-panel.account-fields.reorder');
         // Voucher Settings (voucher types + voucher custom fields)
         Route::get('voucher-settings', [App\Http\Controllers\VoucherSettingsController::class, 'index'])->name('settings-panel.voucher-settings.index');
+        Route::post('voucher-settings/module-label', [App\Http\Controllers\VoucherSettingsController::class, 'storeModuleLabel'])->name('settings-panel.voucher-settings.store-module-label');
         Route::get('voucher-settings/types/table-body', [App\Http\Controllers\VoucherSettingsController::class, 'typesTableBody'])->name('settings-panel.voucher-settings.types-table-body');
         Route::post('voucher-settings/types', [App\Http\Controllers\VoucherSettingsController::class, 'storeType'])->name('settings-panel.voucher-settings.store-type');
         Route::put('voucher-settings/types/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateType'])->name('settings-panel.voucher-settings.update-type');
@@ -170,6 +172,25 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::put('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateField'])->name('settings-panel.voucher-settings.update-field');
         Route::delete('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'destroyField'])->name('settings-panel.voucher-settings.destroy-field');
         Route::post('voucher-settings/fields/reorder', [App\Http\Controllers\VoucherSettingsController::class, 'reorderFields'])->name('settings-panel.voucher-settings.reorder-fields');
+        // Rider Settings (categories + fixed rider fields + rider custom fields)
+        Route::get('rider-settings', [App\Http\Controllers\RiderSettingsController::class, 'index'])->name('settings-panel.rider-settings.index');
+        Route::post('rider-settings/module-label', [App\Http\Controllers\RiderSettingsController::class, 'storeModuleLabel'])->name('settings-panel.rider-settings.store-module-label');
+        Route::post('rider-settings/field-assignment', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.rider-settings.update-field-assignment');
+        Route::post('rider-settings/field-assignment/display-label', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignmentLabel'])->name('settings-panel.rider-settings.update-field-assignment-label');
+        Route::post('rider-settings/field-assignment/visibility', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignmentVisibility'])->name('settings-panel.rider-settings.update-field-assignment-visibility');
+        Route::post('rider-settings/field-assignments/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.rider-settings.reorder-field-assignments');
+        Route::get('rider-settings/categories/table-body', [App\Http\Controllers\RiderSettingsController::class, 'categoriesTableBody'])->name('settings-panel.rider-settings.categories-table-body');
+        Route::post('rider-settings/categories', [App\Http\Controllers\RiderSettingsController::class, 'storeCategory'])->name('settings-panel.rider-settings.store-category');
+        Route::put('rider-settings/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateCategory'])->name('settings-panel.rider-settings.update-category');
+        Route::delete('rider-settings/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyCategory'])->name('settings-panel.rider-settings.destroy-category');
+        Route::post('rider-settings/categories/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderCategories'])->name('settings-panel.rider-settings.reorder-categories');
+        Route::get('rider-settings/fields/table-body', [App\Http\Controllers\RiderSettingsController::class, 'tableBody'])->name('settings-panel.rider-settings.table-body');
+        Route::get('rider-settings/fields/table-body/{categoryId}', [App\Http\Controllers\RiderSettingsController::class, 'tableBodyCategory'])->name('settings-panel.rider-settings.table-body-category');
+        Route::get('rider-settings/fields/config-schema/{dataType}', [App\Http\Controllers\RiderSettingsController::class, 'fieldConfigSchema'])->name('settings-panel.rider-settings.field-config-schema');
+        Route::post('rider-settings/fields', [App\Http\Controllers\RiderSettingsController::class, 'storeField'])->name('settings-panel.rider-settings.store-field');
+        Route::put('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateField'])->name('settings-panel.rider-settings.update-field');
+        Route::delete('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyField'])->name('settings-panel.rider-settings.destroy-field');
+        Route::post('rider-settings/fields/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderFields'])->name('settings-panel.rider-settings.reorder-fields');
         // User Management, Activity Logs, Recycle Bin (moved into Settings)
         Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');
         Route::resource('permissions', App\Http\Controllers\PermissionsController::class)->names('settings-panel.permissions');
@@ -482,7 +503,6 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::post('accounts/{id}/toggle-lock', [App\Http\Controllers\AccountsController::class, 'toggleLock'])->name('accounts.toggleLock');
         Route::post('accounts/{id}/toggle-status', [App\Http\Controllers\AccountsController::class, 'toggleStatus'])->name('accounts.toggleStatus');
     });
-
 });
 Route::group(['prefix' => 'laravel-filemanager', 'middleware' => ['web', 'auth']], function () {
     \UniSharp\LaravelFilemanager\Lfm::routes();

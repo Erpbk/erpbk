@@ -3,6 +3,7 @@
 @endisset
 @php
 $configData = Helper::appClasses();
+$settingsPanelLabels = \App\Models\Settings::getMenuLabels();
 @endphp
 @extends('layouts/commonMaster')
 
@@ -83,13 +84,19 @@ $containerNav = 'container-fluid';
         <li class="menu-item {{ Request::is('settings-panel/account-fields*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.account-fields.index') }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-wallet"></i>
-            <div>Accounts</div>
+            <div>{{ $settingsPanelLabels['account_fields'] ?? 'Account Fields' }}</div>
           </a>
         </li>
         <li class="menu-item {{ Request::is('settings-panel/voucher-settings*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.voucher-settings.index') }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-file-invoice"></i>
-            <div>Voucher Settings</div>
+            <div>{{ $settingsPanelLabels['voucher_settings'] ?? 'Voucher Settings' }}</div>
+          </a>
+        </li>
+        <li class="menu-item {{ Request::is('settings-panel/rider-settings*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.rider-settings.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-motorbike"></i>
+            <div>{{ $settingsPanelLabels['rider_settings'] ?? 'Rider Settings' }}</div>
           </a>
         </li>
         @endcan
@@ -115,6 +122,8 @@ $containerNav = 'container-fluid';
             <div>Roles</div>
           </a>
         </li>
+        @endcan
+        @can('permissions_view')
         <li class="menu-item {{ Request::is('settings-panel/permissions*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.permissions.index') }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-lock"></i>
@@ -197,8 +206,9 @@ $containerNav = 'container-fluid';
     background: var(--bs-body-bg);
     border-right: 1px solid var(--bs-border-color);
   }
+
   [data-theme="dark"] .settings-panel-sidebar {
-    border-right-color: rgba(255,255,255,0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
   }
 </style>
 @endsection

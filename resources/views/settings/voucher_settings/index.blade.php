@@ -29,6 +29,30 @@
   </div>
 </div>
 
+{{-- Module display name --}}
+<div class="row">
+  <div class="col-12">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Module display name</h5>
+        <p class="text-muted small mb-0 mt-1">This name appears in the settings panel sidebar.</p>
+      </div>
+      <div class="card-body">
+        <form action="{{ route('settings-panel.voucher-settings.store-module-label') }}" method="POST" class="row g-3 align-items-end">
+          @csrf
+          <div class="col-md-6">
+            <label class="form-label">Name in menu</label>
+            <input type="text" name="module_label" class="form-control" value="{{ old('module_label', $moduleLabel ?? 'Voucher Settings') }}" placeholder="Voucher Settings" maxlength="100" required>
+          </div>
+          <div class="col-md-6">
+            <button type="submit" class="btn btn-primary">Save name</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 {{-- Voucher Types --}}
 <div class="row">
   <div class="col-12">

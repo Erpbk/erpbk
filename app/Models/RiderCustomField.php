@@ -269,22 +269,23 @@ class RiderCustomField extends Model
     public static function fieldsByCategoryForForm(): array
     {
         $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
-        $assignments = RiderFieldCategoryAssignment::with('category')
+        $assignmentsAll = RiderFieldCategoryAssignment::with('category')
+            ->where(function ($q) {
+                $q->where('is_visible', '=', 1)->orWhereNull('is_visible');
+            })
             ->orderBy('display_order')
             ->orderBy('id')
-            ->get()
-            ->groupBy('category_id');
-        $customFields = self::with('category')
+            ->get();
+        $customFieldsAll = self::with('category')
             ->orderBy('display_order')
             ->orderBy('id')
-            ->get()
-            ->groupBy('category_id');
+            ->get();
         $specs = self::fixedFieldInputSpecs();
 
         $result = [];
         foreach ($categories as $cat) {
             $fields = [];
-            foreach ($assignments->get($cat->id, collect()) as $a) {
+            foreach ($assignmentsAll->where('category_id', $cat->id)->values() as $a) {
                 $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
                     ? trim($a->display_label)
                     : self::humanizeFieldKey($a->field_key);
@@ -296,7 +297,7 @@ class RiderCustomField extends Model
                     'spec' => $spec,
                 ];
             }
-            foreach ($customFields->get($cat->id, collect()) as $cf) {
+            foreach ($customFieldsAll->where('category_id', $cat->id)->values() as $cf) {
                 $fields[] = (object) [
                     'kind' => 'custom',
                     'field' => $cf,

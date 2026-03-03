@@ -13,6 +13,11 @@ class RiderFieldCategoryAssignment extends Model
         'display_label',
         'category_id',
         'display_order',
+        'is_visible',
+    ];
+
+    protected $casts = [
+        'is_visible' => 'boolean',
     ];
 
     public function category()

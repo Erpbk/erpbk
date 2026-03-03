@@ -7,6 +7,9 @@ use App\Models\RiderCustomField;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\Settings;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class RiderSettingsController extends Controller
 {
@@ -55,12 +58,15 @@ class RiderSettingsController extends Controller
         $result = [];
         foreach ($categories as $cat) {
             $items = $grouped->get($cat->id, collect())->map(function ($a) {
+                $rawVisible = $a->getRawOriginal('is_visible');
+                $isVisible = $rawVisible === null ? true : (bool) (int) $rawVisible;
                 return (object) [
                     'field_key' => $a->field_key,
                     'label' => $a->display_label !== null && trim((string) $a->display_label) !== ''
                         ? trim($a->display_label)
                         : RiderCustomField::humanizeFieldKey($a->field_key),
                     'display_order' => $a->display_order,
+                    'is_visible' => $isVisible,
                 ];
             })->values()->all();
             $result[] = (object) [
@@ -155,6 +161,69 @@ class RiderSettingsController extends Controller
     }
 
     /**
+     * Toggle visibility of a fixed field in the Rider module (Add/Edit/View).
+     */
+    public function updateFieldAssignmentVisibility(Request $request)
+    {
+        try {
+            $payload = $request->isJson() ? $request->json()->all() : $request->all();
+            
+            $validated = validator($payload, [
+                'field_key' => 'required|string|max:80',
+                'is_visible' => 'required',
+            ], [
+                'is_visible.required' => 'The visible flag is required.',
+            ])->validate();
+            
+            $isVisible = filter_var($validated['is_visible'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($isVisible === null) {
+                $isVisible = !empty($validated['is_visible']) && $validated['is_visible'] !== 'false' && $validated['is_visible'] !== '0';
+            }
+            $isVisible = (bool) $isVisible;
+            
+            $keys = RiderCustomField::allFixedFieldKeys();
+            if (!in_array($validated['field_key'], $keys, true)) {
+                return response()->json(['success' => false, 'message' => 'Invalid field key: ' . $validated['field_key']], 422);
+            }
+            
+            $table = (new RiderFieldCategoryAssignment)->getTable();
+            if (!Schema::hasColumn($table, 'is_visible')) {
+                return response()->json(['success' => false, 'message' => 'Database migration required. Run: php artisan migrate'], 500);
+            }
+            
+            $assignment = RiderFieldCategoryAssignment::where('field_key', $validated['field_key'])->first();
+            if (!$assignment) {
+                return response()->json(['success' => false, 'message' => 'Assignment not found for field: ' . $validated['field_key']], 404);
+            }
+            
+            $value = $isVisible ? 1 : 0;
+            $assignment->is_visible = $value;
+            $assignment->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => $isVisible ? 'Field will show in Rider module.' : 'Field hidden from Rider module.',
+                'is_visible' => $isVisible,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error: ' . $e->getMessage(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error updating field visibility: ' . $e->getMessage(), [
+                'field_key' => $validated['field_key'] ?? 'unknown',
+                'exception' => $e,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Reorder fields within a category (drag-and-drop).
      */
     public function reorderFieldAssignments(Request $request)
@@ -190,11 +259,24 @@ class RiderSettingsController extends Controller
 
     public function storeCategory(Request $request)
     {
-        $validated = $request->validate([
-            'label' => 'required|string|max:255',
-        ]);
+        try {
+            $validated = $request->validate([
+                'label' => 'required|string|max:255',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->validator->errors()->first() ?: 'Validation failed.',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+            throw $e;
+        }
+
         $validated['display_order'] = (int) RiderCategory::max('display_order') + 1;
         $validated['is_system'] = false;
+        $validated['slug'] = null; // User-created categories have no slug
 
         RiderCategory::create($validated);
 

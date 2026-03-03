@@ -161,17 +161,24 @@
                         <th style="width: 36px;"></th>
                         <th>#</th>
                         <th>Field</th>
+                        <th class="text-center">Show in rider form</th>
                         <th>Move to category</th>
                       </tr>
                     </thead>
                     <tbody id="rider-fields-tbody-{{ $group->category->id }}" class="rider-fields-sortable-tbody">
                       @forelse($group->fields as $rowIndex => $row)
-                      <tr data-field-key="{{ $row->field_key }}">
+                      <tr data-field-key="{{ $row->field_key }}" class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle rider-field-index">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
                           <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
+                        </td>
+                        <td class="align-middle text-center">
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox" class="form-check-input rider-field-visibility-toggle" id="vis-{{ $group->category->id }}-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_visible ?? true) ? 'checked' : '' }} title="Hide from Rider Add/Edit/View when unchecked">
+                            <label class="form-check-label visually-hidden" for="vis-{{ $group->category->id }}-{{ $row->field_key }}">Show in rider form</label>
+                          </div>
                         </td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.rider-settings.update-field-assignment') }}" method="POST" class="d-flex justify-content-center rider-field-assignment-form">
@@ -188,7 +195,7 @@
                       </tr>
                       @empty
                       <tr>
-                        <td colspan="4" class="text-center text-muted py-3">No fields in this category. Assign fields from another category or add new assignments.</td>
+                        <td colspan="5" class="text-center text-muted py-3">No fields in this category. Assign fields from another category or add new assignments.</td>
                       </tr>
                       @endforelse
                     </tbody>
@@ -351,7 +358,7 @@
         <h5 class="modal-title">Add Category</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form id="formAddRiderCategory">
+      <form id="formAddRiderCategory" action="{{ route('settings-panel.rider-settings.store-category') }}" method="POST">
         @csrf
         <div class="modal-body pt-0">
           <div class="mb-3">
@@ -495,14 +502,14 @@
 </div>
 
 <input type="hidden" id="editRiderFieldConfigJson" value="{}">
-
-@push('page_scripts')
+@endsection
+@section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
   (function() {
     'use strict';
 
-    const dataTypesMeta = JSON.parse('@json($dataTypes)');
+    const dataTypesMeta = {!! json_encode($dataTypes, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!};
 
     function buildConfigFields(container, typeKey, existingConfig) {
       container.innerHTML = '';
@@ -661,54 +668,81 @@
     var baseUrl = "{{ url('') }}";
     var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content') || document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value;
 
-    document.getElementById('formAddRiderCategory').addEventListener('submit', function(e) {
-      e.preventDefault();
-      var form = this;
-      var btn = document.getElementById('addRiderCategorySubmitBtn');
-      var fd = new FormData(form);
-      if (btn) btn.disabled = true;
-      fetch("{{ route('settings-panel.rider-settings.store-category') }}", {
-          method: 'POST',
-          body: fd,
-          headers: {
-            'X-CSRF-TOKEN': csrf,
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-        .then(function(r) {
-          return r.json();
-        })
-        .then(function(data) {
-          if (btn) btn.disabled = false;
-          if (data.success) {
-            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-              var modal = bootstrap.Modal.getInstance(document.getElementById('addRiderCategoryModal'));
-              if (modal) modal.hide();
+    var formAddCat = document.getElementById('formAddRiderCategory');
+    if (formAddCat) {
+      formAddCat.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        var btn = document.getElementById('addRiderCategorySubmitBtn');
+        var fd = new FormData(form);
+        if (btn) btn.disabled = true;
+        fetch(form.action || "{{ route('settings-panel.rider-settings.store-category') }}", {
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
             }
-            window.refreshRiderCategoriesTable();
-            if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'success',
-              title: 'Saved',
-              text: data.message || 'Category added.'
-            });
-          } else {
+          })
+          .then(function(r) {
+            if (!r.ok) {
+              return r.json().then(function(d) {
+                return {
+                  _httpError: true,
+                  status: r.status,
+                  data: d
+                };
+              }).catch(function() {
+                return {
+                  _httpError: true,
+                  status: r.status
+                };
+              });
+            }
+            return r.json();
+          })
+          .then(function(data) {
+            if (btn) btn.disabled = false;
+            if (data._httpError) {
+              var msg = (data.data && data.data.message) || 'Server error ('.concat(data.status, ').');
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: msg
+              });
+              return;
+            }
+            if (data.success) {
+              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var modal = bootstrap.Modal.getInstance(document.getElementById('addRiderCategoryModal'));
+                if (modal) modal.hide();
+              }
+              form.reset();
+              if (typeof window.refreshRiderCategoriesTable === 'function') window.refreshRiderCategoriesTable();
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'success',
+                title: 'Saved',
+                text: data.message || 'Category added.'
+              });
+            } else {
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Could not save.'
+              });
+            }
+          })
+          .catch(function(err) {
+            if (btn) btn.disabled = false;
             if (typeof Swal !== 'undefined') Swal.fire({
               icon: 'error',
               title: 'Error',
-              text: data.message || 'Could not save.'
+              text: 'Could not save. Check your connection or try again.'
             });
-          }
-        })
-        .catch(function() {
-          if (btn) btn.disabled = false;
-          if (typeof Swal !== 'undefined') Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Could not save.'
           });
-        });
-    });
+      });
+    }
 
     document.getElementById('formEditRiderCategory').addEventListener('submit', function(e) {
       e.preventDefault();
@@ -959,25 +993,50 @@
         if (newLabel === currentText) return;
         labelEl.dataset.pendingLabel = newLabel;
         fetch("{{ route('settings-panel.rider-settings.update-field-assignment-label') }}", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-          body: JSON.stringify({ field_key: fieldKey, display_label: newLabel })
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.success && data.label !== undefined) {
-            labelEl.textContent = data.label;
-            delete labelEl.dataset.pendingLabel;
-            if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Name updated.', showConfirmButton: false, timer: 1500 });
-          }
-        })
-        .catch(function() { if (labelEl.dataset.pendingLabel) labelEl.textContent = labelEl.dataset.pendingLabel; });
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+              field_key: fieldKey,
+              display_label: newLabel
+            })
+          })
+          .then(function(r) {
+            return r.json();
+          })
+          .then(function(data) {
+            if (data.success && data.label !== undefined) {
+              labelEl.textContent = data.label;
+              delete labelEl.dataset.pendingLabel;
+              if (typeof Swal !== 'undefined') Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'Name updated.',
+                showConfirmButton: false,
+                timer: 1500
+              });
+            }
+          })
+          .catch(function() {
+            if (labelEl.dataset.pendingLabel) labelEl.textContent = labelEl.dataset.pendingLabel;
+          });
       }
 
       input.addEventListener('blur', saveAndRevert);
       input.addEventListener('keydown', function(ev) {
-        if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
-        if (ev.key === 'Escape') { input.value = currentText; input.blur(); }
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          input.blur();
+        }
+        if (ev.key === 'Escape') {
+          input.value = currentText;
+          input.blur();
+        }
       });
     });
 
@@ -1015,17 +1074,44 @@
                   order: order
                 })
               })
-              .then(function(r) { return r.json().catch(function() { return { success: false }; }); })
+              .then(function(r) {
+                return r.json().catch(function() {
+                  return {
+                    success: false
+                  };
+                });
+              })
               .then(function(data) {
                 if (data.success) {
                   tbody.querySelectorAll('tr[data-id] .rider-custom-field-index').forEach(function(td, i) {
                     td.textContent = i + 1;
                   });
-                  if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Order saved.', showConfirmButton: false, timer: 2000 });
-                } else if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: data.message || 'Could not save order.', showConfirmButton: false, timer: 3000 });
+                  if (typeof Swal !== 'undefined') Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Order saved.',
+                    showConfirmButton: false,
+                    timer: 2000
+                  });
+                } else if (typeof Swal !== 'undefined') Swal.fire({
+                  toast: true,
+                  position: 'top-end',
+                  icon: 'error',
+                  title: data.message || 'Could not save order.',
+                  showConfirmButton: false,
+                  timer: 3000
+                });
               })
               .catch(function() {
-                if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Could not save order.', showConfirmButton: false, timer: 3000 });
+                if (typeof Swal !== 'undefined') Swal.fire({
+                  toast: true,
+                  position: 'top-end',
+                  icon: 'error',
+                  title: 'Could not save order.',
+                  showConfirmButton: false,
+                  timer: 3000
+                });
               });
           }
         });
@@ -1069,24 +1155,136 @@
                   order: order
                 })
               })
-              .then(function(r) { return r.json().catch(function() { return { success: false }; }); })
+              .then(function(r) {
+                return r.json().catch(function() {
+                  return {
+                    success: false
+                  };
+                });
+              })
               .then(function(data) {
                 if (data.success) {
                   var idx = 1;
                   tbody.querySelectorAll('tr[data-field-key] .rider-field-index').forEach(function(td) {
                     td.textContent = idx++;
                   });
-                  if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Order saved.', showConfirmButton: false, timer: 2000 });
-                } else if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: (data && data.message) || 'Could not save order.', showConfirmButton: false, timer: 3000 });
+                  if (typeof Swal !== 'undefined') Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Order saved.',
+                    showConfirmButton: false,
+                    timer: 2000
+                  });
+                } else if (typeof Swal !== 'undefined') Swal.fire({
+                  toast: true,
+                  position: 'top-end',
+                  icon: 'error',
+                  title: (data && data.message) || 'Could not save order.',
+                  showConfirmButton: false,
+                  timer: 3000
+                });
               })
               .catch(function() {
-                if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Could not save order.', showConfirmButton: false, timer: 3000 });
+                if (typeof Swal !== 'undefined') Swal.fire({
+                  toast: true,
+                  position: 'top-end',
+                  icon: 'error',
+                  title: 'Could not save order.',
+                  showConfirmButton: false,
+                  timer: 3000
+                });
               });
           }
         });
         riderFieldSortables.push(sortable);
       });
     }
+    document.addEventListener('change', function(e) {
+      var toggle = e.target.closest('.rider-field-visibility-toggle');
+      if (!toggle) return;
+
+      var fieldKey = toggle.getAttribute('data-field-key');
+      var isVisible = toggle.checked ? 1 : 0;
+      var row = toggle.closest('tr');
+
+      console.log('Toggle clicked for field:', fieldKey, 'New visibility:', isVisible);
+
+      var csrf = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) || (document.querySelector('.rider-field-assignment-form input[name="_token"]') && document.querySelector('.rider-field-assignment-form input[name="_token"]').value);
+
+      if (!csrf) {
+        console.error('CSRF token not found');
+        if (typeof Swal !== 'undefined') Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'error',
+          title: 'CSRF token missing.',
+          showConfirmButton: false,
+          timer: 3000
+        });
+        toggle.checked = !toggle.checked;
+        return;
+      }
+
+      console.log('CSRF token found, sending request...');
+
+      var formBody = new URLSearchParams();
+      formBody.append('_token', csrf);
+      formBody.append('field_key', fieldKey);
+      formBody.append('is_visible', String(isVisible));
+
+      fetch('{{ route("settings-panel.rider-settings.update-field-assignment-visibility") }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: formBody.toString()
+        })
+        .then(function(r) {
+          console.log('Response status:', r.status, r.statusText);
+          return r.json().then(function(data) {
+            console.log('Response data:', data);
+            return r.ok ? data : Promise.reject(data);
+          });
+        })
+        .then(function(data) {
+          console.log('Success:', data);
+          if (row) row.classList.toggle('table-secondary', !data.is_visible);
+          if (typeof Swal !== 'undefined') Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: data.message || 'Saved.',
+            showConfirmButton: false,
+            timer: 2000
+          });
+        })
+        .catch(function(err) {
+          console.error('Error:', err);
+          toggle.checked = !toggle.checked;
+          if (row) row.classList.toggle('table-secondary', !toggle.checked);
+
+          var errorMsg = 'Could not update.';
+          if (err && err.message) {
+            errorMsg = err.message;
+          } else if (err && typeof err === 'object') {
+            errorMsg = JSON.stringify(err);
+          }
+
+          if (typeof Swal !== 'undefined') Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: errorMsg,
+            showConfirmButton: false,
+            timer: 5000
+          });
+        });
+    });
+
     document.getElementById('tab-rider-fields-btn') && document.getElementById('tab-rider-fields-btn').addEventListener('shown.bs.tab', function() {
       setTimeout(initRiderFieldSortables, 50);
       setTimeout(initRiderCustomFieldsSortables, 80);
@@ -1097,6 +1295,5 @@
     }
   })();
 </script>
-@endpush
 
 @endsection

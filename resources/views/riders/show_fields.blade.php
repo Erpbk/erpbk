@@ -1,5 +1,8 @@
 @extends('riders.view')
 @section('page_content')
+@if(isset($fieldsByCategory) && count($fieldsByCategory) > 0)
+  @include('riders.show_fields_by_category')
+@else
 <div class="card border">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
@@ -509,6 +512,7 @@
         </form>
     </div>
 </div>
+@endif
 
 {{-- <div class="row m-1 border">
   <div class="col-md-4 border-right border-bottom" style="height: 45px;">

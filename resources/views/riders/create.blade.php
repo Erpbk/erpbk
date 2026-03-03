@@ -5,11 +5,7 @@
 {!! Form::open(['route' => 'riders.store','id'=>'formajax', 'class' => 'form-with-fixed-footer']) !!}
 <input type="hidden" id="redirect_url" value="{{route('riders.index')}}" />
 <div class="card-body card-body-with-footer">
-
-    <div class="row">
-        @include('riders.fields')
-    </div>
-
+    @include('riders.fields')
 </div>
 <div class="card-footer bg-light border-top fixed-footer">
     <div class="d-flex justify-content-end gap-3">

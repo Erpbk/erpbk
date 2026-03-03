@@ -122,6 +122,8 @@ $containerNav = 'container-fluid';
             <div>Roles</div>
           </a>
         </li>
+        @endcan
+        @can('permissions_view')
         <li class="menu-item {{ Request::is('settings-panel/permissions*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.permissions.index') }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-lock"></i>
@@ -204,8 +206,9 @@ $containerNav = 'container-fluid';
     background: var(--bs-body-bg);
     border-right: 1px solid var(--bs-border-color);
   }
+
   [data-theme="dark"] .settings-panel-sidebar {
-    border-right-color: rgba(255,255,255,0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
   }
 </style>
 @endsection

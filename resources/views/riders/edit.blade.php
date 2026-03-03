@@ -82,9 +82,7 @@
 {!! Form::model($riders, ['route' => ['riders.update', $riders->id], 'method' => 'patch','id'=>'formajax', 'class' => 'form-with-fixed-footer']) !!}
 <input type="hidden" id="redirect_url" value="{{route('riders.index')}}" />
 <div class="card-body card-body-with-footer">
-    <div class="row">
-        @include('riders.fields')
-    </div>
+    @include('riders.fields')
 </div>
 
 <div class="card-footer fixed-footer">

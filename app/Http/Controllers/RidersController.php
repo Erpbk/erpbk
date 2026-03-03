@@ -623,13 +623,14 @@ class RidersController extends AppBaseController
     // $rider_items = $rider->items;
     $result = $rider->toArray();
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
+    $fieldsByCategory = \App\Models\RiderCustomField::fieldsByCategoryForForm();
 
     // Get dropdown data for edit forms
     $countries = \App\Models\Countries::pluck('name', 'id')->prepend('Select', '');
     $vendors = \App\Models\Vendors::pluck('name', 'id')->prepend('Select', '');
     $customers = \App\Models\Customers::pluck('name', 'id')->prepend('Select', '');
 
-    return view('riders.show_fields', compact('result', 'rider', 'job_status', 'countries', 'vendors', 'customers'));
+    return view('riders.show_fields', compact('result', 'rider', 'job_status', 'countries', 'vendors', 'customers', 'fieldsByCategory'));
   }
 
   /**

@@ -11,6 +11,8 @@ return [
         'dashboard'            => 'Dashboard',
         'recycle_bin'         => 'Recycle Bin',
         'cash_banks'           => 'Cash & Banks',
+        'employees'            => 'Employees',
+        'attendance'           => 'Attendance',
         'items'                => 'Items',
         'items_list'           => 'Items List',
         'garage_items'         => 'Garage Items',

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\RiderCategory;
 use App\Models\RiderCustomField;
+use App\Models\RiderDocumentType;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\Settings;
 use Illuminate\Http\Request;
@@ -31,6 +32,7 @@ class RiderSettingsController extends Controller
         $moduleLabel = Settings::getMenuLabel('rider_settings');
         $fieldAssignments = $this->buildFieldAssignmentsList($categories);
         $fieldsByCategory = $this->buildFieldsByCategory($categories);
+        $documentTypes = RiderDocumentType::orderedForAdmin()->get();
 
         return view('settings.rider_settings.index', compact(
             'categories',
@@ -40,7 +42,8 @@ class RiderSettingsController extends Controller
             'dataTypes',
             'moduleLabel',
             'fieldAssignments',
-            'fieldsByCategory'
+            'fieldsByCategory',
+            'documentTypes'
         ));
     }
 
@@ -242,15 +245,14 @@ class RiderSettingsController extends Controller
     }
 
     /**
-     * Save the display name for this module (shown in settings panel menu).
+     * Save the display name for this module (settings panel + main app menu use key 'riders').
      */
     public function storeModuleLabel(Request $request)
     {
         $request->validate(['module_label' => 'required|string|max:100']);
-        Settings::updateOrCreate(
-            ['name' => 'menu_label_rider_settings'],
-            ['value' => trim($request->input('module_label'))]
-        );
+        $value = trim($request->input('module_label'));
+        Settings::updateOrCreate(['name' => 'menu_label_rider_settings'], ['value' => $value]);
+        Settings::updateOrCreate(['name' => 'menu_label_riders'], ['value' => $value]);
         Settings::clearMenuLabelsCache();
         return redirect()->route('settings-panel.rider-settings.index')->with('success', 'Module name updated.');
     }
@@ -513,5 +515,88 @@ class RiderSettingsController extends Controller
         $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
 
         return view('settings.rider_settings._custom_fields_rows_category', compact('customFields', 'dataTypes', 'categories'));
+    }
+
+    // ---------- Rider Documents ----------
+
+    /**
+     * Return document types table body (for AJAX refresh).
+     */
+    public function documentTypesTableBody()
+    {
+        $documentTypes = RiderDocumentType::orderedForAdmin()->get();
+        return view('settings.rider_settings._document_types_tbody', compact('documentTypes'));
+    }
+
+    public function storeDocumentType(Request $request)
+    {
+        $validated = $request->validate([
+            'key' => 'required|string|max:80|regex:/^[a-z0-9_]+$/|unique:rider_document_types,key',
+            'type' => 'required|in:single,dual',
+            'label' => 'nullable|string|max:255',
+            'front_label' => 'nullable|string|max:255',
+            'back_label' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
+        ]);
+        if ($validated['type'] === 'single' && empty(trim($validated['label'] ?? ''))) {
+            return response()->json(['message' => 'Label is required for single document type.'], 422);
+        }
+        if ($validated['type'] === 'dual' && (empty(trim($validated['front_label'] ?? '')) || empty(trim($validated['back_label'] ?? '')))) {
+            return response()->json(['message' => 'Front and back labels are required for dual document type.'], 422);
+        }
+        $maxOrder = (int) RiderDocumentType::max('display_order');
+        RiderDocumentType::create([
+            'key' => $validated['key'],
+            'type' => $validated['type'],
+            'label' => $validated['type'] === 'single' ? trim($validated['label']) : null,
+            'front_label' => $validated['type'] === 'dual' ? trim($validated['front_label']) : null,
+            'back_label' => $validated['type'] === 'dual' ? trim($validated['back_label']) : null,
+            'display_order' => $maxOrder + 1,
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+        return response()->json(['success' => true, 'message' => 'Document type added.']);
+    }
+
+    public function updateDocumentType(Request $request, $id)
+    {
+        $docType = RiderDocumentType::findOrFail($id);
+        $validated = $request->validate([
+            'key' => 'required|string|max:80|regex:/^[a-z0-9_]+$/|unique:rider_document_types,key,' . $id,
+            'type' => 'required|in:single,dual',
+            'label' => 'nullable|string|max:255',
+            'front_label' => 'nullable|string|max:255',
+            'back_label' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
+        ]);
+        if ($validated['type'] === 'single' && empty(trim($validated['label'] ?? ''))) {
+            return response()->json(['message' => 'Label is required for single document type.'], 422);
+        }
+        if ($validated['type'] === 'dual' && (empty(trim($validated['front_label'] ?? '')) || empty(trim($validated['back_label'] ?? '')))) {
+            return response()->json(['message' => 'Front and back labels are required for dual document type.'], 422);
+        }
+        $docType->update([
+            'key' => $validated['key'],
+            'type' => $validated['type'],
+            'label' => $validated['type'] === 'single' ? trim($validated['label']) : null,
+            'front_label' => $validated['type'] === 'dual' ? trim($validated['front_label']) : null,
+            'back_label' => $validated['type'] === 'dual' ? trim($validated['back_label']) : null,
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+        return response()->json(['success' => true, 'message' => 'Document type updated.']);
+    }
+
+    public function destroyDocumentType($id)
+    {
+        RiderDocumentType::findOrFail($id)->delete();
+        return response()->json(['success' => true, 'message' => 'Document type deleted.']);
+    }
+
+    public function reorderDocumentTypes(Request $request)
+    {
+        $request->validate(['order' => 'required|array', 'order.*' => 'integer|exists:rider_document_types,id']);
+        foreach ($request->input('order') as $position => $id) {
+            RiderDocumentType::where('id', $id)->update(['display_order' => $position]);
+        }
+        return response()->json(['success' => true]);
     }
 }

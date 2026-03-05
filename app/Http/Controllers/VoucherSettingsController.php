@@ -28,15 +28,14 @@ class VoucherSettingsController extends Controller
     }
 
     /**
-     * Save the display name for this module (shown in settings panel menu).
+     * Save the display name for this module (settings panel + main app menu use key 'vouchers').
      */
     public function storeModuleLabel(Request $request)
     {
         $request->validate(['module_label' => 'required|string|max:100']);
-        Settings::updateOrCreate(
-            ['name' => 'menu_label_voucher_settings'],
-            ['value' => trim($request->input('module_label'))]
-        );
+        $value = trim($request->input('module_label'));
+        Settings::updateOrCreate(['name' => 'menu_label_voucher_settings'], ['value' => $value]);
+        Settings::updateOrCreate(['name' => 'menu_label_vouchers'], ['value' => $value]);
         Settings::clearMenuLabelsCache();
         return redirect()->route('settings-panel.voucher-settings.index')->with('success', 'Module name updated.');
     }

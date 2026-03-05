@@ -27,15 +27,14 @@ class AccountFieldSettingsController extends Controller
     }
 
     /**
-     * Save the display name for this module (shown in settings panel menu).
+     * Save the display name for this module (settings panel + main app menu use key 'accounts').
      */
     public function storeModuleLabel(Request $request)
     {
         $request->validate(['module_label' => 'required|string|max:100']);
-        Settings::updateOrCreate(
-            ['name' => 'menu_label_account_fields'],
-            ['value' => trim($request->input('module_label'))]
-        );
+        $value = trim($request->input('module_label'));
+        Settings::updateOrCreate(['name' => 'menu_label_account_fields'], ['value' => $value]);
+        Settings::updateOrCreate(['name' => 'menu_label_accounts'], ['value' => $value]);
         Settings::clearMenuLabelsCache();
         return redirect()->route('settings-panel.account-fields.index')->with('success', 'Module name updated.');
     }

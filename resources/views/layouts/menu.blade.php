@@ -1,4 +1,7 @@
-@php $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels(); @endphp
+@php
+// Labels are editable in Settings > ERP Module Settings > [Module] > General; same source as ModuleSettingsController
+$menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
+@endphp
 @can('dashboard_view')
 <li class="menu-item {{ Request::is('/') ? 'active' : '' }}">
   <a href="{{ route('home') }}" class="menu-link ">

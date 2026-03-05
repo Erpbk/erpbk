@@ -4,6 +4,31 @@
 @php
 $configData = Helper::appClasses();
 $settingsPanelLabels = \App\Models\Settings::getMenuLabels();
+$moduleIcons = [
+    'dashboard'         => 'ti-layout-dashboard',
+    'recycle_bin'       => 'ti-trash',
+    'cash_banks'        => 'ti-building-bank',
+    'employees'         => 'ti-user',
+    'attendance'        => 'ti-calendar-check',
+    'items'             => 'ti-notes',
+    'leads'             => 'ti-user-plus',
+    'customers'         => 'ti-user-star',
+    'vendors'           => 'ti-user-star',
+    'recruiters'        => 'ti-user-star',
+    'bikes'             => 'ti-motorbike',
+    'sims'              => 'ti-device-sim',
+    'fuel_cards'        => 'ti-gas-station',
+    'rta_fines'         => 'ti-file-alert',
+    'rta_saliks'        => 'ti-cash',
+    'inventory'         => 'ti-package',
+    'visa_expense'      => 'ti-credit-card',
+    'expenses'          => 'ti-receipt',
+    'leasing_companies' => 'ti-building',
+    'garages'           => 'ti-parking',
+    'supplier'          => 'ti-truck',
+    'assets'            => 'ti-box',
+    'documents'         => 'ti-upload',
+];
 @endphp
 @extends('layouts/commonMaster')
 
@@ -72,34 +97,6 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
-        @can('visaexpense_view')
-        <li class="menu-item {{ Request::is('settings-panel/visa-statuses*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.visa-statuses.index') }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-list-check"></i>
-            <div>Visa Status Types</div>
-          </a>
-        </li>
-        @endcan
-        @can('gn_settings')
-        <li class="menu-item {{ Request::is('settings-panel/account-fields*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.account-fields.index') }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-wallet"></i>
-            <div>{{ $settingsPanelLabels['account_fields'] ?? 'Account Fields' }}</div>
-          </a>
-        </li>
-        <li class="menu-item {{ Request::is('settings-panel/voucher-settings*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.voucher-settings.index') }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-file-invoice"></i>
-            <div>{{ $settingsPanelLabels['voucher_settings'] ?? 'Voucher Settings' }}</div>
-          </a>
-        </li>
-        <li class="menu-item {{ Request::is('settings-panel/rider-settings*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.rider-settings.index') }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-motorbike"></i>
-            <div>{{ $settingsPanelLabels['rider_settings'] ?? 'Rider Settings' }}</div>
-          </a>
-        </li>
-        @endcan
         @endcanany
 
         {{-- User Management, Activity Logs, Recycle Bin --}}
@@ -149,16 +146,45 @@ $containerNav = 'container-fluid';
         @endcan
         @endcanany
 
-        {{-- ERP Modules list (names only; functionality to be added later) --}}
+        {{-- ERP Module Settings (General tab: change module name in menu) --}}
         <li class="menu-header small text-uppercase mt-3">
-          <span class="menu-header-text">ERP Modules</span>
+          <span class="menu-header-text">ERP Module Settings</span>
         </li>
-        @foreach(config('erp_modules.modules', []) as $moduleName)
-        <li class="menu-item">
-          <span class="menu-link text-muted" style="cursor: default; pointer-events: none;">
-            <span class="menu-icon tf-icons ti ti-circle-dotted ti-sm opacity-50"></span>
-            <div>{{ $moduleName }}</div>
-          </span>
+        {{-- Specific module settings (Account Fields, Voucher, Rider, Visa Status Types) --}}
+        @can('gn_settings')
+        <li class="menu-item {{ Request::is('settings-panel/account-fields*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.account-fields.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-wallet"></i>
+            <div>{{ $settingsPanelLabels['accounts'] ?? 'Accounts' }}</div>
+          </a>
+        </li>
+        <li class="menu-item {{ Request::is('settings-panel/voucher-settings*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.voucher-settings.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-file-invoice"></i>
+            <div>{{ $settingsPanelLabels['vouchers'] ?? 'Vouchers' }}</div>
+          </a>
+        </li>
+        <li class="menu-item {{ Request::is('settings-panel/rider-settings*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.rider-settings.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-motorbike"></i>
+            <div>{{ $settingsPanelLabels['riders'] ?? 'Riders' }}</div>
+          </a>
+        </li>
+        @endcan
+        @can('visaexpense_view')
+        <li class="menu-item {{ Request::is('settings-panel/visa-statuses*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.visa-statuses.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-list-check"></i>
+            <div>{{ $settingsPanelLabels['visa_status_types'] ?? 'Visa Status Types' }}</div>
+          </a>
+        </li>
+        @endcan
+        @foreach(config('erp_modules.modules', []) as $moduleKey => $defaultLabel)
+        <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $moduleKey) ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.module-settings.index', ['module' => $moduleKey]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti {{ $moduleIcons[$moduleKey] ?? 'ti-adjustments-alt' }}"></i>
+            <div>{{ $settingsPanelLabels[$moduleKey] ?? $defaultLabel }}</div>
+          </a>
         </li>
         @endforeach
       </ul>

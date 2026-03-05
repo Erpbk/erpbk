@@ -70,47 +70,44 @@
   </div>
 </div>
 
-{{-- Module display name (rename this module in the settings panel menu) --}}
-<div class="row">
-  <div class="col-12">
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5 class="card-title mb-0">Module display name</h5>
-        <p class="text-muted small mb-0 mt-1">This name appears in the settings panel sidebar. Change it to match your terminology.</p>
-      </div>
-      <div class="card-body">
-        <form action="{{ route('settings-panel.rider-settings.store-module-label') }}" method="POST" class="row g-3 align-items-end">
-          @csrf
-          <div class="col-md-6">
-            <label class="form-label">Name in menu</label>
-            <input type="text" name="module_label" class="form-control" value="{{ old('module_label', $moduleLabel ?? 'Rider Settings') }}" placeholder="Rider Settings" maxlength="100" required>
-          </div>
-          <div class="col-md-6">
-            <button type="submit" class="btn btn-primary">Save name</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-
-{{-- Main content: 3 tabs (Categories | Rider Fields | Custom Fields) --}}
+{{-- Main content: tabs General | Categories | Rider Fields --}}
 <div class="row">
   <div class="col-12">
     <div class="card">
       <div class="card-body">
         <ul class="nav nav-tabs nav-tabs-rider-settings mb-3" id="riderSettingsMainTabs" role="tablist">
           <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="tab-categories-btn" data-bs-toggle="tab" data-bs-target="#tab-categories" type="button" role="tab">Categories</button>
+            <button class="nav-link active" id="tab-general-btn" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">General</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-categories-btn" data-bs-toggle="tab" data-bs-target="#tab-categories" type="button" role="tab">Categories</button>
           </li>
           <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-rider-fields-btn" data-bs-toggle="tab" data-bs-target="#tab-rider-fields" type="button" role="tab">Rider Fields</button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-rider-documents-btn" data-bs-toggle="tab" data-bs-target="#tab-rider-documents" type="button" role="tab">Rider Documents</button>
+          </li>
         </ul>
 
         <div class="tab-content" id="riderSettingsTabContent">
-          {{-- Tab 1: Categories --}}
-          <div class="tab-pane fade show active" id="tab-categories" role="tabpanel">
+          {{-- Tab 1: General (module name in menu) --}}
+          <div class="tab-pane fade show active" id="tab-general" role="tabpanel">
+            <p class="text-muted small mb-3">This name appears in the settings panel sidebar. Change it to match your terminology.</p>
+            <form action="{{ route('settings-panel.rider-settings.store-module-label') }}" method="POST" class="row g-3 align-items-end">
+              @csrf
+              <div class="col-md-6">
+                <label class="form-label">Name in menu</label>
+                <input type="text" name="module_label" class="form-control" value="{{ old('module_label', $moduleLabel ?? 'Rider Settings') }}" placeholder="Rider Settings" maxlength="100" required>
+              </div>
+              <div class="col-md-6">
+                <button type="submit" class="btn btn-primary">Save name</button>
+              </div>
+            </form>
+          </div>
+
+          {{-- Tab 2: Categories --}}
+          <div class="tab-pane fade" id="tab-categories" role="tabpanel">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
               <p class="text-muted small mb-0">Add, edit, reorder rider categories. Custom categories can be deleted if they have no custom fields.</p>
               <button type="button" class="btn btn-primary btn-sm" id="btnAddRiderCategory" data-bs-toggle="modal" data-bs-target="#addRiderCategoryModal">
@@ -136,7 +133,35 @@
             </div>
           </div>
 
-          {{-- Tab 2: Rider Fields (sub-tabs per category, drag-and-drop order) --}}
+          {{-- Tab 3: Rider Documents (dynamic document types for rider files page) --}}
+          <div class="tab-pane fade" id="tab-rider-documents" role="tabpanel">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+              <p class="text-muted small mb-0">Define document types required for riders. Single = one file per type (e.g. Profile Photo). Dual = front and back page (e.g. Passport first/second). Key is used to match uploaded file names.</p>
+              <button type="button" class="btn btn-primary btn-sm" id="btnAddRiderDocumentType" data-bs-toggle="modal" data-bs-target="#addRiderDocumentTypeModal">
+                <i class="ti ti-plus me-1"></i> Add Document Type
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover rider-settings-table mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width: 36px;"></th>
+                    <th>#</th>
+                    <th>Key</th>
+                    <th>Type</th>
+                    <th>Label(s)</th>
+                    <th>Status</th>
+                    <th class="text-end" style="width: 140px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="riderDocumentTypesTbody" class="rider-document-types-sortable-tbody">
+                  @include('settings.rider_settings._document_types_tbody', ['documentTypes' => $documentTypes])
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {{-- Tab 4: Rider Fields (sub-tabs per category, drag-and-drop order) --}}
           <div class="tab-pane fade" id="tab-rider-fields" role="tabpanel">
             <p class="text-muted small mb-3">Fields are grouped by category. Drag rows to reorder within each category. Use "Move to category" to assign a field to another category.</p>
 
@@ -393,6 +418,113 @@
           </div>
         </div>
         <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- Add Rider Document Type modal --}}
+<div class="modal fade" id="addRiderDocumentTypeModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title">Add Document Type</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="formAddRiderDocumentType">
+        @csrf
+        <div class="modal-body pt-0">
+          <div class="mb-3">
+            <label class="form-label">Key <span class="text-danger">*</span></label>
+            <input type="text" name="key" id="addDocTypeKey" class="form-control" placeholder="e.g. photo, passport" pattern="[a-z0-9_]+" maxlength="80" required>
+            <div class="form-text">Lowercase letters, numbers, underscores. Used to match uploaded file names.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Type <span class="text-danger">*</span></label>
+            <select name="type" id="addDocTypeType" class="form-select" required>
+              <option value="single">Single (one file)</option>
+              <option value="dual">Dual (front + back page)</option>
+            </select>
+          </div>
+          <div class="mb-3" id="addDocTypeSingleWrap">
+            <label class="form-label">Label <span class="text-danger">*</span></label>
+            <input type="text" name="label" id="addDocTypeLabel" class="form-control" placeholder="e.g. Profile Photo" maxlength="255">
+          </div>
+          <div id="addDocTypeDualWrap" style="display: none;">
+            <div class="mb-3">
+              <label class="form-label">Front / First page label <span class="text-danger">*</span></label>
+              <input type="text" name="front_label" id="addDocTypeFrontLabel" class="form-control" placeholder="e.g. Passport ( First Page )" maxlength="255">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Back / Second page label <span class="text-danger">*</span></label>
+              <input type="text" name="back_label" id="addDocTypeBackLabel" class="form-control" placeholder="e.g. Passport ( Second Page )" maxlength="255">
+            </div>
+          </div>
+          <div class="mb-0">
+            <div class="form-check">
+              <input type="checkbox" name="is_active" id="addDocTypeActive" class="form-check-input" value="1" checked>
+              <label class="form-check-label" for="addDocTypeActive">Active</label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="addRiderDocumentTypeSubmitBtn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- Edit Rider Document Type modal --}}
+<div class="modal fade" id="editRiderDocumentTypeModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title">Edit Document Type</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="formEditRiderDocumentType">
+        <input type="hidden" name="id" id="editDocTypeId">
+        @csrf
+        @method('PUT')
+        <div class="modal-body pt-0">
+          <div class="mb-3">
+            <label class="form-label">Key <span class="text-danger">*</span></label>
+            <input type="text" name="key" id="editDocTypeKey" class="form-control" pattern="[a-z0-9_]+" maxlength="80" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Type <span class="text-danger">*</span></label>
+            <select name="type" id="editDocTypeType" class="form-select" required>
+              <option value="single">Single (one file)</option>
+              <option value="dual">Dual (front + back page)</option>
+            </select>
+          </div>
+          <div class="mb-3" id="editDocTypeSingleWrap">
+            <label class="form-label">Label <span class="text-danger">*</span></label>
+            <input type="text" name="label" id="editDocTypeLabel" class="form-control" maxlength="255">
+          </div>
+          <div id="editDocTypeDualWrap" style="display: none;">
+            <div class="mb-3">
+              <label class="form-label">Front / First page label <span class="text-danger">*</span></label>
+              <input type="text" name="front_label" id="editDocTypeFrontLabel" class="form-control" maxlength="255">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Back / Second page label <span class="text-danger">*</span></label>
+              <input type="text" name="back_label" id="editDocTypeBackLabel" class="form-control" maxlength="255">
+            </div>
+          </div>
+          <div class="mb-0">
+            <div class="form-check">
+              <input type="checkbox" name="is_active" id="editDocTypeActive" class="form-check-input" value="1">
+              <label class="form-check-label" for="editDocTypeActive">Active</label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary">Update</button>
         </div>
@@ -801,7 +933,207 @@
           new bootstrap.Modal(document.getElementById('editRiderCategoryModal')).show();
         }
       }
+
+      var editDocBtn = e.target.closest('.btn-edit-document-type');
+      if (editDocBtn) {
+        e.preventDefault();
+        var singleWrap = document.getElementById('editDocTypeSingleWrap');
+        var dualWrap = document.getElementById('editDocTypeDualWrap');
+        document.getElementById('editDocTypeId').value = editDocBtn.dataset.id || '';
+        document.getElementById('editDocTypeKey').value = editDocBtn.dataset.key || '';
+        document.getElementById('editDocTypeType').value = editDocBtn.dataset.type || 'single';
+        document.getElementById('editDocTypeLabel').value = editDocBtn.dataset.label || '';
+        document.getElementById('editDocTypeFrontLabel').value = editDocBtn.dataset.frontLabel || '';
+        document.getElementById('editDocTypeBackLabel').value = editDocBtn.dataset.backLabel || '';
+        document.getElementById('editDocTypeActive').checked = editDocBtn.dataset.active === '1';
+        if (singleWrap) singleWrap.style.display = (editDocBtn.dataset.type === 'dual') ? 'none' : 'block';
+        if (dualWrap) dualWrap.style.display = (editDocBtn.dataset.type === 'dual') ? 'block' : 'none';
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          new bootstrap.Modal(document.getElementById('editRiderDocumentTypeModal')).show();
+        }
+      }
     });
+
+    // Rider Documents: refresh table body
+    window.refreshRiderDocumentTypesTable = function() {
+      fetch("{{ route('settings-panel.rider-settings.document-types-table-body') }}", {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var tbody = document.getElementById('riderDocumentTypesTbody');
+        if (tbody) tbody.innerHTML = html;
+        if (typeof initRiderDocumentTypesSortable === 'function') initRiderDocumentTypesSortable();
+      });
+    };
+
+    // Add document type: type toggle
+    var addDocTypeType = document.getElementById('addDocTypeType');
+    if (addDocTypeType) {
+      addDocTypeType.addEventListener('change', function() {
+        var isDual = this.value === 'dual';
+        document.getElementById('addDocTypeSingleWrap').style.display = isDual ? 'none' : 'block';
+        document.getElementById('addDocTypeDualWrap').style.display = isDual ? 'block' : 'none';
+      });
+    }
+    var editDocTypeType = document.getElementById('editDocTypeType');
+    if (editDocTypeType) {
+      editDocTypeType.addEventListener('change', function() {
+        var isDual = this.value === 'dual';
+        document.getElementById('editDocTypeSingleWrap').style.display = isDual ? 'none' : 'block';
+        document.getElementById('editDocTypeDualWrap').style.display = isDual ? 'block' : 'none';
+      });
+    }
+
+    // Add document type form
+    var formAddRiderDocumentType = document.getElementById('formAddRiderDocumentType');
+    if (formAddRiderDocumentType) {
+      formAddRiderDocumentType.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        var fd = new FormData(form);
+        fd.set('is_active', form.querySelector('#addDocTypeActive').checked ? '1' : '0');
+        var btn = document.getElementById('addRiderDocumentTypeSubmitBtn');
+        if (btn) btn.disabled = true;
+        fetch("{{ route('settings-panel.rider-settings.store-document-type') }}", {
+          method: 'POST',
+          body: fd,
+          headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          if (!r.ok) return r.json().then(function(d) { return { _httpError: true, status: r.status, data: d }; }).catch(function() { return { _httpError: true, status: r.status }; });
+          return r.json();
+        })
+        .then(function(data) {
+          if (btn) btn.disabled = false;
+          if (data._httpError) {
+            var msg = (data.data && data.data.message) || 'Server error.';
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: msg });
+            return;
+          }
+          if (data.success) {
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+              var m = bootstrap.Modal.getInstance(document.getElementById('addRiderDocumentTypeModal'));
+              if (m) m.hide();
+            }
+            form.reset();
+            document.getElementById('addDocTypeSingleWrap').style.display = 'block';
+            document.getElementById('addDocTypeDualWrap').style.display = 'none';
+            document.getElementById('addDocTypeActive').checked = true;
+            window.refreshRiderDocumentTypesTable();
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Saved', text: data.message || 'Document type added.' });
+          } else {
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not save.' });
+          }
+        })
+        .catch(function() {
+          if (btn) btn.disabled = false;
+          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Could not save.' });
+        });
+      });
+    }
+
+    // Edit document type form
+    var formEditRiderDocumentType = document.getElementById('formEditRiderDocumentType');
+    if (formEditRiderDocumentType) {
+      formEditRiderDocumentType.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        var id = document.getElementById('editDocTypeId').value;
+        var fd = new FormData(form);
+        fd.set('_method', 'PUT');
+        fd.set('is_active', form.querySelector('#editDocTypeActive').checked ? '1' : '0');
+        fetch(baseUrl + '/settings-panel/rider-settings/documents/' + id, {
+          method: 'POST',
+          body: fd,
+          headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+              var m = bootstrap.Modal.getInstance(document.getElementById('editRiderDocumentTypeModal'));
+              if (m) m.hide();
+            }
+            window.refreshRiderDocumentTypesTable();
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Updated', text: data.message || 'Document type updated.' });
+          } else {
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not update.' });
+          }
+        })
+        .catch(function() {
+          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Could not update.' });
+        });
+      });
+    }
+
+    // Delete document type
+    document.addEventListener('submit', function(e) {
+      var form = e.target.closest('.btn-delete-document-type');
+      if (!form || form.tagName !== 'FORM') return;
+      e.preventDefault();
+      var msg = form.getAttribute('data-confirm') || 'Delete this document type?';
+      if (!confirm(msg)) return;
+      var action = form.getAttribute('action');
+      var fd = new FormData(form);
+      fetch(action, {
+        method: 'POST',
+        body: fd,
+        headers: {
+          'X-CSRF-TOKEN': csrf,
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          window.refreshRiderDocumentTypesTable();
+          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Deleted', text: data.message || 'Document type deleted.' });
+        } else {
+          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not delete.' });
+        }
+      })
+      .catch(function() {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Could not delete.' });
+      });
+    });
+
+    // Sortable for rider document types
+    function initRiderDocumentTypesSortable() {
+      var tbody = document.getElementById('riderDocumentTypesTbody');
+      if (!tbody || !window.Sortable) return;
+      if (tbody._sortable) return;
+      tbody._sortable = window.Sortable.create(tbody, {
+        handle: '.drag-handle',
+        animation: 150,
+        onEnd: function() {
+          var order = [];
+          tbody.querySelectorAll('tr[data-id]').forEach(function(tr) { order.push(parseInt(tr.getAttribute('data-id'), 10)); });
+          var fd = new FormData();
+          fd.append('_token', csrf);
+          order.forEach(function(id) { fd.append('order[]', id); });
+          fetch("{{ route('settings-panel.rider-settings.reorder-document-types') }}", {
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          }).then(function() {});
+        }
+      });
+    }
+    if (document.getElementById('riderDocumentTypesTbody')) initRiderDocumentTypesSortable();
 
     // Open tab from URL ?tab=rider-fields
     (function() {

@@ -1512,41 +1512,7 @@ class RidersController extends AppBaseController
 
   public function files($rider_id)
   {
-    // Define documents in a more structured way
-    $expectedFiles = [
-      'single' => [
-        'photo' => 'Profile Photo',
-        'offer' => 'Job Offer Letter ( MOL )',
-        'entry' => 'Entry Permit',
-        'residency' => 'Residency',
-        'health' => 'Health insurance',
-        'workers' => 'Workers Compensation Insurance',
-        'road' => 'Road Permit',
-        'contract' => 'Agreement/Contract'
-      ],
-      'dual' => [
-        'passport' => [
-          'front' => 'Passport ( First Page )',
-          'back' => 'Passport ( Second Page )'
-        ],
-        'nic' => [
-          'front' => 'Home Country NIC ( Front )',
-          'back' => 'Home Country NIC ( Back )'
-        ],
-        'labor' => [
-          'front' => 'Labor Card ( Front )',
-          'back' => 'Labor Card ( Back )'
-        ],
-        'emirates' => [
-          'front' => 'Emirates ID ( Front )',
-          'back' => 'Emirates ID ( Back )'
-        ],
-        'license' => [
-          'front' => 'Bike License ( Front )',
-          'back' => 'Bike License ( Back )'
-        ]
-      ]
-    ];
+    $expectedFiles = \App\Models\RiderDocumentType::expectedFilesStructure();
 
     $files = DB::table('files')
       ->where('type', 'rider')
@@ -1571,30 +1537,24 @@ class RidersController extends AppBaseController
       }
     }
 
-    // Check dual documents
+    // Check dual documents (match file name containing key + front/first or back/second)
     foreach ($expectedFiles['dual'] as $key => $sides) {
       $foundFront = false;
       $foundBack = false;
-
       foreach ($files as $riderFile) {
-        if (str_contains(strtolower($riderFile->name), $key)) {
-          if (
-            str_contains(strtolower($riderFile->name), 'back') ||
-            ($key == 'passport' && str_contains(strtolower($riderFile->name), 'second'))
-          ) {
-            $foundBack = true;
-          } elseif (
-            str_contains(strtolower($riderFile->name), 'front') ||
-            ($key == 'passport' && str_contains(strtolower($riderFile->name), 'first'))
-          ) {
-            $foundFront = true;
-          } else {
-            $foundBack = true;
-            $foundFront = true;
-          }
+        $name = strtolower($riderFile->name);
+        if (!str_contains($name, $key)) {
+          continue;
+        }
+        if (str_contains($name, 'back') || str_contains($name, 'second')) {
+          $foundBack = true;
+        } elseif (str_contains($name, 'front') || str_contains($name, 'first')) {
+          $foundFront = true;
+        } else {
+          $foundBack = true;
+          $foundFront = true;
         }
       }
-
       if (!$foundFront) {
         $missingFiles[$key . '_front'] = $sides['front'];
       }

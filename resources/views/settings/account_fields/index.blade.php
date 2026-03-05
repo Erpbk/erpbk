@@ -56,95 +56,94 @@
   </div>
 </div>
 
-{{-- Module display name --}}
-<div class="row">
-  <div class="col-12">
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5 class="card-title mb-0">Module display name</h5>
-        <p class="text-muted small mb-0 mt-1">This name appears in the settings panel sidebar.</p>
-      </div>
-      <div class="card-body">
-        <form action="{{ route('settings-panel.account-fields.store-module-label') }}" method="POST" class="row g-3 align-items-end">
-          @csrf
-          <div class="col-md-6">
-            <label class="form-label">Name in menu</label>
-            <input type="text" name="module_label" class="form-control" value="{{ old('module_label', $moduleLabel ?? 'Account Fields') }}" placeholder="Account Fields" maxlength="100" required>
-          </div>
-          <div class="col-md-6">
-            <button type="submit" class="btn btn-primary">Save name</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-
-{{-- Fixed fields (read-only) --}}
-<div class="row">
-  <div class="col-12">
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5 class="card-title mb-0">Fixed Fields (from database)</h5>
-        <p class="text-muted small mb-0 mt-1">These columns exist in the accounts table and cannot be deleted.</p>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover account-fields-table mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>#</th>
-                <th>Label</th>
-                <th>Data type</th>
-                <th>Mandatory</th>
-                <th class="text-end" style="width: 100px;">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach($fixedFields as $idx => $f)
-              <tr class="badge-soft-primary">
-                <td>{{ $idx + 1 }}</td>
-                <td>{{ $f['label'] }}</td>
-                <td><span class="badge bg-label-secondary">{{ $f['data_type'] }}</span></td>
-                <td>{{ $f['is_mandatory'] ? 'Yes' : 'No' }}</td>
-                <td class="text-end"><span class="text-muted small">—</span></td>
-              </tr>
-              @endforeach
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-{{-- Custom fields (add / edit / delete / reorder) --}}
+{{-- Tabs: General | Fixed Fields | Custom Fields --}}
 <div class="row">
   <div class="col-12">
     <div class="card">
-      <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <h5 class="card-title mb-0">Custom Fields</h5>
-        <button type="button" class="btn btn-primary btn-sm" id="btnAddNewField" data-bs-toggle="modal" data-bs-target="#addNewFieldModal">
-          <i class="ti ti-plus me-1"></i> Add New Field
-        </button>
-      </div>
       <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-hover account-fields-table mb-0">
-            <thead class="table-light">
-              <tr>
-                <th style="width: 36px;"></th>
-                <th>#</th>
-                <th>Label</th>
-                <th>Data type</th>
-                <th>Mandatory</th>
-                <th class="text-end" style="width: 120px;">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="customFieldsTbody">
-              @include('settings.account_fields._custom_fields_tbody', ['customFields' => $customFields, 'dataTypes' => $dataTypes])
-            </tbody>
-          </table>
+        <ul class="nav nav-tabs mb-3" id="accountFieldsMainTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-general-btn" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">General</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-fixed-fields-btn" data-bs-toggle="tab" data-bs-target="#tab-fixed-fields" type="button" role="tab">Fixed Fields</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-custom-fields-btn" data-bs-toggle="tab" data-bs-target="#tab-custom-fields" type="button" role="tab">Custom Fields</button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="accountFieldsTabContent">
+          {{-- Tab 1: General (module name in menu) --}}
+          <div class="tab-pane fade show active" id="tab-general" role="tabpanel">
+            <p class="text-muted small mb-3">This name appears in the settings panel sidebar.</p>
+            <form action="{{ route('settings-panel.account-fields.store-module-label') }}" method="POST" class="row g-3 align-items-end">
+              @csrf
+              <div class="col-md-6">
+                <label class="form-label">Name in menu</label>
+                <input type="text" name="module_label" class="form-control" value="{{ old('module_label', $moduleLabel ?? 'Account Fields') }}" placeholder="Account Fields" maxlength="100" required>
+              </div>
+              <div class="col-md-6">
+                <button type="submit" class="btn btn-primary">Save name</button>
+              </div>
+            </form>
+          </div>
+
+          {{-- Tab 2: Fixed fields (read-only) --}}
+          <div class="tab-pane fade" id="tab-fixed-fields" role="tabpanel">
+            <p class="text-muted small mb-3">These columns exist in the accounts table and cannot be deleted.</p>
+            <div class="table-responsive">
+              <table class="table table-hover account-fields-table mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>#</th>
+                    <th>Label</th>
+                    <th>Data type</th>
+                    <th>Mandatory</th>
+                    <th class="text-end" style="width: 100px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @foreach($fixedFields as $idx => $f)
+                  <tr class="badge-soft-primary">
+                    <td>{{ $idx + 1 }}</td>
+                    <td>{{ $f['label'] }}</td>
+                    <td><span class="badge bg-label-secondary">{{ $f['data_type'] }}</span></td>
+                    <td>{{ $f['is_mandatory'] ? 'Yes' : 'No' }}</td>
+                    <td class="text-end"><span class="text-muted small">—</span></td>
+                  </tr>
+                  @endforeach
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {{-- Tab 3: Custom fields (add / edit / delete / reorder) --}}
+          <div class="tab-pane fade" id="tab-custom-fields" role="tabpanel">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+              <p class="text-muted small mb-0">Add, edit, reorder custom account fields.</p>
+              <button type="button" class="btn btn-primary btn-sm" id="btnAddNewField" data-bs-toggle="modal" data-bs-target="#addNewFieldModal">
+                <i class="ti ti-plus me-1"></i> Add New Field
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover account-fields-table mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width: 36px;"></th>
+                    <th>#</th>
+                    <th>Label</th>
+                    <th>Data type</th>
+                    <th>Mandatory</th>
+                    <th class="text-end" style="width: 120px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="customFieldsTbody">
+                  @include('settings.account_fields._custom_fields_tbody', ['customFields' => $customFields, 'dataTypes' => $dataTypes])
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -116,8 +116,10 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('/employees/update-status', [App\Http\Controllers\EmployeeController::class, 'updateStatus'])->name('employee.update-status');
     Route::post('/employees/{id}/update-section', [App\Http\Controllers\EmployeeController::class, 'updateSection'])->name('employees.updateSection');
 
-    
+    Route::get('attendance/summary', [\App\Http\Controllers\AttendanceController::class, 'summary'])->name('attendance.summary');    
     Route::get('attendance/export', [\App\Http\Controllers\AttendanceController::class, 'export'])->name('attendance.export');
+    Route::get('attendance/user/{userId}/history', [\App\Http\Controllers\AttendanceController::class, 'userHistory'])->name('attendance.user.history');
+    Route::get('attendance/summary/export', [\App\Http\Controllers\AttendanceController::class, 'exportSummary'])->name('attendance.summary.export');
     Route::resource('attendance', App\Http\Controllers\AttendanceController::class);
     Route::get('attendance/monthly-report', [\App\Http\Controllers\AttendanceController::class, 'monthlyReport'])->name('attendance.monthly-report');
     Route::post('attendance/bulk-mark', [\App\Http\Controllers\AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');

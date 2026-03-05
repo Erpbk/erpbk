@@ -78,9 +78,7 @@
                 <option value="on leave" {{ old('status', $attendance->status) == 'on leave' ? 'selected' : '' }}>On Leave</option>
                 <option value="holiday" {{ old('status', $attendance->status) == 'holiday' ? 'selected' : '' }}>Holiday</option>
             </select>
-            @error('status')
-                <div class="invalid-feedback">{{ $message }}</div>
-            @enderror
+            <div class="invalid-feedback"></div>
         </div>
     </div>
 
@@ -155,9 +153,6 @@
     <!-- Form Actions -->
     <div class="d-flex justify-content-end gap-2">
         <div>
-            <a href="{{ route('attendance.index') }}" class="btn btn-secondary" id="cancelBtn">
-                <i class="fas fa-times"></i> Cancel
-            </a>
             <button type="submit" class="btn btn-primary" id="submitBtn">
                 <i class="fas fa-save"></i> Update
             </button>
@@ -326,7 +321,7 @@ $(document).ready(function() {
                 toastr.success('Attendance record updated successfully!');
                 $('#submitBtn').html('<i class="fas fa-check"></i> Updated').addClass('btn-success-pulse');
                 setTimeout(function() {
-                    window.location.href = '{{ route("attendance.index") }}';
+                    location.reload();
                 }, 1500);
             },
             error: function(xhr) {

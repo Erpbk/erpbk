@@ -1,4 +1,10 @@
-
+@push('third_party_stylesheets')
+<style>
+   .table-responsive {
+      max-height: calc(100vh - 280px);
+   }
+</style>
+@endpush
 <table class="table dataTableBuilder" id="dataTableBuilder">
     <thead class="table-light">
         <tr>
@@ -46,14 +52,7 @@
                         {{ ucfirst($attendance->ref_type) }}
                     </span>
                 </td>
-                <td>
-                    <div class="d-flex align-items-center">
-                        <div>
-                            <strong>{{ $user->name ?? 'N/A' }}</strong><br>
-                            {{-- <small class="text-muted" style="white-space: nowrap;">{{ $attendance->ref_type == 'employee' ? $user->employee_id : $user->rider_id  }}</small> --}}
-                        </div>
-                    </div>
-                </td>
+                <td style="text-align: left;">{{ $user->name ?? 'N/A' }}</td>
                 <td style="white-space: nowrap">{{ $attendance->date->format('d M Y') }}</td>
                 <td>
                     @if($checkInTime)

@@ -61,10 +61,13 @@ class AttendanceController extends Controller
      */
     public function create()
     {
-        $employees = Employee::all();
-        $riders = Riders::all();
-        
-        return view('attendance.create', compact('employees', 'riders'));
+        if(request()->has('ref_type')){
+            $refType = request()->get('ref_type');
+            $refId = request()->get('ref_id');
+            $date = request()->get('date', date('Y-m-d'));
+            return view('attendance.create', compact('refType', 'refId', 'date'));
+        }
+        return view('attendance.create');
     }
 
     /**
@@ -78,7 +81,7 @@ class AttendanceController extends Controller
             'date' => 'required|date',
             'check_in' => 'nullable',
             'check_out' => 'nullable|after:check_in',
-            'status' => 'required|in:present,absent,late,half day,holiday',
+            'status' => 'required|in:present,absent,late,half day,holiday,on leave',
             'notes' => 'nullable|string|max:500'
         ];
         if($request->ref_type === 'employee') {
@@ -115,7 +118,10 @@ class AttendanceController extends Controller
 
         Attendance::create($validated);
 
-        return response()->json(['success' => true, 'message' => 'Attendance record created successfully.']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Attendance record created successfully.',
+        ]);
     }
 
     /**
@@ -148,10 +154,10 @@ class AttendanceController extends Controller
             'ref_id' => 'required|integer',
             'date' => 'required|date',
             'check_out' => 'nullable|after:check_in',
-            'status' => 'required|in:present,absent,late,half-day,holiday',
+            'status' => 'required|in:present,absent,late,half day, holiday, on leave',
             'notes' => 'nullable|string|max:500'
         ];
-        if($request->status === 'present' || $request->status === 'late' || $request->status === 'half-day') {
+        if($request->status === 'present' || $request->status === 'late' || $request->status === 'half day') {
             $rules['check_in'] = 'required';
         }else {
             $rules['check_in'] = 'nullable';
@@ -187,7 +193,10 @@ class AttendanceController extends Controller
 
         $attendance->update($validated);
 
-            return response()->json(['success' => true, 'message' => 'Attendance record updated successfully.']);
+            return response()->json([
+                'success' => true,
+                'message' => 'Attendance record updated successfully.',
+            ]);
     }
 
     /**
@@ -217,89 +226,6 @@ class AttendanceController extends Controller
         }
 
         return response()->json($users);
-    }
-
-    /**
-     * Check-in for today (for authenticated user)
-     */
-    public function checkIn(Request $request)
-    {
-        // Determine user type based on authentication guard
-        if (Auth::guard('employee')->check()) {
-            $refType = 'employee';
-            $refId = Auth::guard('employee')->id();
-            $user = Auth::guard('employee')->user();
-        } elseif (Auth::guard('rider')->check()) {
-            $refType = 'rider';
-            $refId = Auth::guard('rider')->id();
-            $user = Auth::guard('rider')->user();
-        } else {
-            return redirect()->back()->with('error', 'Unauthenticated.');
-        }
-
-        $today = Carbon::today();
-        
-        $attendance = Attendance::firstOrCreate(
-            [
-                'ref_id' => $refId,
-                'ref_type' => $refType,
-                'date' => $today
-            ],
-            [
-                'check_in' => Carbon::now()->format('H:i:s'),
-                'status' => 'present'
-            ]
-        );
-
-        if (!$attendance->wasRecentlyCreated && !$attendance->check_in) {
-            $attendance->update([
-                'check_in' => Carbon::now()->format('H:i:s'),
-                'status' => 'present'
-            ]);
-            $message = 'Checked in successfully.';
-        } elseif ($attendance->wasRecentlyCreated) {
-            $message = 'Checked in successfully.';
-        } else {
-            return redirect()->back()->with('error', 'Already checked in today.');
-        }
-
-        return redirect()->back()->with('success', $message);
-    }
-
-    /**
-     * Check-out for today (for authenticated user)
-     */
-    public function checkOut()
-    {
-        // Determine user type based on authentication guard
-        if (Auth::guard('employee')->check()) {
-            $refType = 'employee';
-            $refId = Auth::guard('employee')->id();
-        } elseif (Auth::guard('rider')->check()) {
-            $refType = 'rider';
-            $refId = Auth::guard('rider')->id();
-        } else {
-            return redirect()->back()->with('error', 'Unauthenticated.');
-        }
-
-        $attendance = Attendance::where('ref_id', $refId)
-            ->where('ref_type', $refType)
-            ->whereDate('date', Carbon::today())
-            ->first();
-
-        if (!$attendance) {
-            return redirect()->back()->with('error', 'No check-in record found for today.');
-        }
-
-        if ($attendance->check_out) {
-            return redirect()->back()->with('error', 'Already checked out today.');
-        }
-
-        $attendance->update([
-            'check_out' => Carbon::now()->format('H:i:s')
-        ]);
-
-        return redirect()->back()->with('success', 'Checked out successfully.');
     }
 
     /**
@@ -500,5 +426,332 @@ class AttendanceController extends Controller
             fclose($handle);
             exit;
         }
+    }
+
+    public function summary(Request $request)
+{
+    $selectedDate = $request->get('date', now()->format('Y-m-d'));
+    $userType = $request->get('user_type', 'employee');
+    
+    $date = Carbon::parse($selectedDate);
+    $startOfMonth = $date->copy()->startOfMonth();
+    $endOfMonth = $date->copy()->endOfMonth();
+    $daysInMonth = $date->daysInMonth;
+    
+    // Get all users based on type
+    $users = $this->getUsersForSummary($userType);
+    
+    // Get attendance for the month
+    $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
+        ->get();
+    
+    // Group attendances by ref_id for easier access
+    $attendancesByUser = [];
+    foreach ($attendances as $attendance) {
+        $userId = $attendance->ref_id;
+        if (!isset($attendancesByUser[$userId])) {
+            $attendancesByUser[$userId] = [];
+        }
+        // Use date as key for easy lookup
+        $dateKey = $attendance->date instanceof Carbon 
+            ? $attendance->date->format('Y-m-d') 
+            : Carbon::parse($attendance->date)->format('Y-m-d');
+        
+        $attendancesByUser[$userId][$dateKey] = $attendance;
+    }
+    
+    // Prepare days array
+    $days = [];
+    $dates = [];
+    for ($day = 1; $day <= $daysInMonth; $day++) {
+        $currentDate = $startOfMonth->copy()->addDays($day - 1);
+        $dateString = $currentDate->format('Y-m-d');
+        $dates[] = $dateString;
+        $days[] = [
+            'number' => $day,
+            'date' => $dateString,
+            'day_name' => $currentDate->format('D'),
+            'is_weekend' => $currentDate->isWeekend(),
+            'is_today' => $currentDate->isToday(),
+        ];
+    }
+    
+    // Prepare user attendance data
+    foreach ($users as $user) {
+        $attendance_data = [];
+        $user->total_present = 0;
+        $user->total_absent = 0;
+        $user->total_late = 0;
+        $user->total_halfday = 0;
+        $user->total_holiday = 0;
+        $user->total_leave = 0;
+        $user->total_unmarked = 0;
+        
+        // Get attendances for this user
+        $userAttendances = $attendancesByUser[$user->id] ?? [];
+        
+        foreach ($dates as $dateString) {
+            if (isset($userAttendances[$dateString])) {
+                $attendance = $userAttendances[$dateString];
+                
+                $attendance_data[$dateString] = [
+                    'exists' => true,
+                    'id' => $attendance->id,
+                    'status' => $attendance->status,
+                    'check_in' => $attendance->check_in ? Carbon::parse($attendance->check_in)->format('H:i') : null,
+                    'check_out' => $attendance->check_out ? Carbon::parse($attendance->check_out)->format('H:i') : null,
+                    'notes' => $attendance->notes
+                ];
+                
+                // Count totals
+                switch($attendance->status) {
+                    case 'present':
+                        $user->total_present++;
+                        break;
+                    case 'absent':
+                        $user->total_absent++;
+                        break;
+                    case 'late':
+                        $user->total_late++;
+                        $user->total_present++;
+                        break;
+                    case 'half day':
+                        $user->total_halfday++;
+                        $user->total_present++;
+                        break;
+                    case 'holiday':
+                        $user->total_holiday++;
+                        break;
+                    case 'on leave':
+                        $user->total_leave++;
+                        break;
+                }
+            } else {
+                $attendance_data[$dateString] = [
+                    'exists' => false,
+                    'status' => null
+                ];
+                $user->total_unmarked++;
+            }
+        }
+        $user->attendance_data = $attendance_data;
+    }
+    
+    // Calculate summary statistics
+    $summary = [
+        'total_present' => $users->sum('total_present'),
+        'total_absent' => $users->sum('total_absent'),
+        'total_late' => $users->sum('total_late'),
+        'total_halfday' => $users->sum('total_halfday'),
+        'total_holiday' => $users->sum('total_holiday'),
+        'total_leave' => $users->sum('total_leave'),
+        'total_unmarked' => $users->sum('total_unmarked')
+    ];
+
+    $totalUsers = $users->count();
+    $totalDays = $daysInMonth;
+    $totalAttendances = $totalUsers * $totalDays;
+    $presentRate = 0;
+    $absentRate = 0;
+    $unmarkRate = 0;
+
+    if($totalAttendances > 0){
+        $presentRate = round(($summary['total_present'] / $totalAttendances) * 100) ;
+        $absentRate = round(($summary['total_absent'] / $totalAttendances) * 100) ;
+        $unmarkRate = round(($summary['total_unmarked'] / $totalAttendances) * 100);
+    }
+    $prevMonth = $date->copy()->subMonth()->format('Y-m-d');
+    $nextMonth = $date->copy()->addMonth()->format('Y-m-d');
+    
+    return view('attendance.summary', compact(
+        'users', 
+        'days', 
+        'date', 
+        'userType',
+        'summary',
+        'presentRate',
+        'absentRate',
+        'unmarkRate',
+        'totalAttendances',
+        'totalUsers',
+        'totalDays',
+        'prevMonth',
+        'nextMonth'
+    ));
+}
+    
+    /**
+     * Get users for summary based on type
+     */
+    private function getUsersForSummary($userType)
+{
+    $users = collect();
+    
+    if ($userType === 'all' || $userType === 'employee') {
+        $employees = Employee::active()->select('id', 'name', 'employee_id')
+            ->get()
+            ->map(function($item) {
+                $item->type = 'employee';
+                $item->type_label = 'Employee';
+                $item->type_badge_class = 'bg-primary';
+                return $item;
+            });
+        $users = $users->merge($employees);
+    }
+    
+    if ($userType === 'all' || $userType === 'rider') {
+        $riders = Riders::active()->select('id', 'name', 'rider_id')
+            ->get()
+            ->map(function($item) {
+                $item->type = 'rider';
+                $item->type_label = 'Rider';
+                $item->type_badge_class = 'bg-success';
+                return $item;
+            });
+        $users = $users->merge($riders);
+    }
+    
+    // Sort by name and reset keys
+    return $users->sortBy('name')->values();
+}
+    
+    /**
+     * Get user attendance history (AJAX endpoint for modal)
+     */
+    public function userHistory(Request $request, $userId)
+    {
+        $userType = $request->get('type');
+        $months = $request->get('months', 3); // Last 3 months by default
+        
+        $startDate = Carbon::now()->subMonths($months)->startOfMonth();
+        $endDate = Carbon::now()->endOfMonth();
+        
+        $attendances = Attendance::where('ref_id', $userId)
+            ->where('ref_type', $userType)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->orderBy('date', 'desc')
+            ->get();
+        
+        // Get user details
+        if ($userType === 'employee') {
+            $user = Employee::find($userId);
+        } else {
+            $user = Riders::find($userId);
+        }
+        
+        if ($request->ajax()) {
+            return view('attendance.partials.user_history', compact('attendances', 'user', 'userType', 'months'));
+        }
+        
+        return response()->json(['attendances' => $attendances, 'user' => $user]);
+    }
+    
+    /**
+     * Export summary to Excel/CSV
+     */
+    public function exportSummary(Request $request)
+    {
+        $selectedDate = $request->get('date', now()->format('Y-m-d'));
+        $userType = $request->get('user_type', 'all');
+        
+        $date = Carbon::parse($selectedDate);
+        $startOfMonth = $date->copy()->startOfMonth();
+        $endOfMonth = $date->copy()->endOfMonth();
+        $daysInMonth = $date->daysInMonth;
+        
+        // Get users and attendance data (similar to summary method)
+        $users = $this->getUsersForSummary($userType);
+        
+        $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
+            ->get()
+            ->groupBy(function($item) {
+                return $item->ref_type . '_' . $item->ref_id;
+            });
+        
+        // Prepare days array
+        $days = [];
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $days[] = $startOfMonth->copy()->addDays($day - 1)->format('Y-m-d');
+        }
+        
+        // Set headers for CSV download
+        $filename = 'attendance_summary_' . $date->format('Y_m') . '.csv';
+        $handle = fopen('php://output', 'w');
+        
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        // Add UTF-8 BOM for Excel
+        fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        // Create header row
+        $header = ['ID', 'Name', 'Type', 'Email'];
+        foreach ($days as $day) {
+            $header[] = Carbon::parse($day)->format('d D');
+        }
+        $header[] = 'Total Present';
+        $header[] = 'Total Late';
+        $header[] = 'Total Half-Day';
+        
+        fputcsv($handle, $header);
+        
+        // Add data rows
+        foreach ($users as $user) {
+            $key = $user->type . '_' . $user->id;
+            $userAttendances = $attendances->get($key, collect());
+            
+            $row = [
+                $user->id,
+                $user->name,
+                $user->type_label,
+                $user->email ?? ''
+            ];
+            
+            $totalPresent = 0;
+            $totalLate = 0;
+            $totalHalfday = 0;
+            
+            foreach ($days as $day) {
+                $attendance = $userAttendances->firstWhere('date', $day);
+                
+                if ($attendance) {
+                    $statusCode = '';
+                    switch($attendance->status) {
+                        case 'present':
+                            $statusCode = 'P';
+                            $totalPresent++;
+                            break;
+                        case 'absent':
+                            $statusCode = 'A';
+                            break;
+                        case 'late':
+                            $statusCode = 'L';
+                            $totalPresent++;
+                            $totalLate++;
+                            break;
+                        case 'half-day':
+                            $statusCode = 'HD';
+                            $totalPresent++;
+                            $totalHalfday++;
+                            break;
+                        case 'holiday':
+                            $statusCode = 'H';
+                            break;
+                    }
+                    $row[] = $statusCode;
+                } else {
+                    $row[] = '-';
+                }
+            }
+            
+            $row[] = $totalPresent;
+            $row[] = $totalLate;
+            $row[] = $totalHalfday;
+            
+            fputcsv($handle, $row);
+        }
+        
+        fclose($handle);
+        exit;
     }
 }

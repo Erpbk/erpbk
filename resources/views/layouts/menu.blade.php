@@ -37,11 +37,25 @@
 </li>
 @endcan
 @can('attendance_view')
-<li class="menu-item {{ Request::is('attendance*') ? 'active' : '' }}">
-  <a href="{{ route('attendance.index') }}" class="menu-link">
+<li class="menu-item {{ Request::is('attendance*') ? 'open' : '' }}">
+  <a href="javascript:void(0)" class="menu-link menu-toggle">
     <i class="menu-icon tf-icons ti ti-calendar-check"></i>
     <div>{{ $menuLabels['attendance'] ?? 'Attendance' }}</div>
   </a>
+  <ul class="menu-sub">
+    <li class="menu-item {{ Request::routeIs('attendance.index') ? 'active' : '' }}" >
+      <a href="{{ route('attendance.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
+        {{ $menuLabels['attendance_records'] ?? 'Attendance Records' }}
+      </a>
+    </li>
+    <li class="menu-item {{ Request::routeIs('attendance.summary') ? 'active' : '' }}" >
+      <a href="{{ route('attendance.summary') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
+        {{ $menuLabels['attendance_summary'] ?? 'Attendance Summary' }}
+      </a>
+    </li>
+  </ul>
 </li>
 @endcan
 @can('item_view')

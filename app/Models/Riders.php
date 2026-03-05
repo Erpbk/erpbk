@@ -205,6 +205,11 @@ class Riders extends Model
     'recruiter_id' => 'nullable|integer|exists:recruiters,id'
   ];
 
+  public function scopeActive($query)
+  {
+    return $query->where('status', 1);
+  }
+
   public function items()
   {
     return $this->hasMany(RiderItemPrice::class, 'RID', 'id');

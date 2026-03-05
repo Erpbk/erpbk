@@ -4,6 +4,7 @@
 
 @section('content')
 <div class="">
+    @can('attendance_view')
     <!-- Header Section -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -26,8 +27,6 @@
                             <i class="ti ti-plus"></i>
                             <span>Add Bulk Attendance</span>
                         </a>
-                        @endcan
-                        @can('bike_create')
                         <a class="action-dropdown-item" href="#">
                             <i class="ti ti-file-upload"></i>
                             <span>Import Attendance</span>
@@ -40,6 +39,10 @@
                                 <div class="action-dropdown-item-text">Export Attendance</div>
                                 <div class="action-dropdown-item-desc">Last Three Months</div>
                             </div>
+                        </a>
+                        <a class="action-dropdown-item" href="{{ route('attendance.summary') }}">
+                            <i class="ti ti-file"></i>
+                            <span>View Summary</span>
                         </a>
                         @endcan
                     </div>
@@ -134,7 +137,7 @@
                 <div class="value" id="total_hours">{{ $attendances->where('status', 'holiday')->count() ?? 0 }}</div>
             </div>
         </div>
-        <div class="card-body table-responsive" id="table-data">
+        <div class="card-body table-responsive py-0 px-2" id="table-data">
             @include('attendance.table')
         </div>
     </div>
@@ -259,6 +262,12 @@
             </form>
         </div>
     </div>
+    @endcan
+    @cannot('attendance_view')
+        <div class="alert alert-danger" role="alert">
+            You do not have permission to view attendance records.
+        </div>
+    @endcannot
 </div>
 
 @endsection

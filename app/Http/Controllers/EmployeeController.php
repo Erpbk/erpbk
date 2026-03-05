@@ -32,7 +32,7 @@ class EmployeeController extends Controller
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
         $accounts = \App\Models\Accounts::where('ref_name','Rider')->get();
-        $empId = 'EMP-'.( Employee::latest()->first()->id + 1001);
+        $empId = 'EMP-'.( (Employee::latest()->first()->id ?? 0) + 1001);
         return view('employees.create', compact('nationalities', 'branches', 'departments', 'accounts', 'empId'));
     }
 

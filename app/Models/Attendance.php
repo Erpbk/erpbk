@@ -30,11 +30,7 @@ class Attendance extends Model
     // Relationships
     public function user()
     {
-        if ($this->ref_type === 'rider') {
-            return $this->belongsTo(Riders::class, 'ref_id');
-        } else {
-            return $this->belongsTo(Employee::class, 'ref_id');
-        }
+        return $this->morphTo(null, 'ref_type', 'ref_id');
     }
 
     // Scopes

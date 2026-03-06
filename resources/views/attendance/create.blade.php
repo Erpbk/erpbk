@@ -257,13 +257,14 @@
 
 <script>
 $(document).ready(function() {
-    var initialRefType = '{{ $refType ?? '' }}';
+    console.log('create for script loaded');
+    var initialRefType = @json($refType ?? null);
+    var initialRefId = @json($refId ?? null);
     if (initialRefType) {
         // Find and check the correct radio button
         $('input[name="ref_type"][value="' + initialRefType + '"]').prop('checked', true);
         // Manually trigger the change event to load users
         loadUsers(initialRefType);
-        var initialRefId = '{{ $refId ?? '' }}';
         if (initialRefId) {
             // We need to wait for users to load then set the value
             var checkInterval = setInterval(function() {
@@ -287,12 +288,12 @@ $(document).ready(function() {
     });
 
     // If old value exists, trigger change
-    var oldRefType = '{{ old('ref_type') }}';
+    var oldRefType = @json(old('ref_type'));
+    var oldRefId = @json(old('ref_id'));
     if (oldRefType) {
         $('input[name="ref_type"][value="' + oldRefType + '"]').prop('checked', true).trigger('change');
         
         // Set old ref_id value after users are loaded
-        var oldRefId = '{{ old('ref_id') }}';
         if (oldRefId) {
             setTimeout(function() {
                 $('#ref_id').val(oldRefId);
@@ -345,6 +346,7 @@ $(document).ready(function() {
 // Function to load users based on type
 function loadUsers(refType) {
     var select = $('#form_ref_id');
+    var refId = @json($refId ?? 0);
     select.html('<option value="">Loading users...</option>').prop('disabled', true);
     
     if (refType) {
@@ -355,7 +357,7 @@ function loadUsers(refType) {
             success: function(data) {
                 select.html('<option value="">-- Select User --</option>');
                 $.each(data, function(index, user) {
-                    var selected = {{ isset($refId) ? 'selected' : '' }};
+                    var selected = (refId == user.id) ? 'selected' : '';
                     select.append('<option value="' + user.id + '"' + selected + '>' + user.name + '</option>');
                 });
                 select.prop('disabled', false);
@@ -404,6 +406,7 @@ function setWorkingHours() {
 function validateTimes() {
     var checkIn = $('#check_in').val();
     var checkOut = $('#check_out').val();
+    var status = $('#status').val();
     
     if (checkIn && checkOut && checkOut <= checkIn) {
         $('#check_out').addClass('is-invalid');

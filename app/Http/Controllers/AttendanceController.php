@@ -625,9 +625,9 @@ class AttendanceController extends Controller
             $users = Riders::where('id',$userId)
                 ->get()
                 ->map(function($item){
-                    $item->type = 'employee';
-                    $item->type_label = 'Employee';
-                    $item->type_badge_class = 'bg-primary';
+                    $item->type = 'rider';
+                    $item->type_label = 'Rider';
+                    $item->type_badge_class = 'bg-success';
                     return $item;
                 });
         }

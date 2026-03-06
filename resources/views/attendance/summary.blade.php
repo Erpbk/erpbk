@@ -17,7 +17,7 @@
     <div class="card shadow-sm border-0">
         
         <div class="card-body">
-            <form method="GET" action="{{ route('attendance.summary') }}" class="row g-3">
+            <form method="GET" action="{{ route('attendance.summary') }}" class="row g-3" id="summaryFilter">
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">
                         <i class="fas fa-calendar me-1"></i>Month
@@ -31,7 +31,7 @@
                     <label class="form-label fw-semibold">
                         <i class="fas fa-users me-1"></i>User Type
                     </label>
-                    <select name="user_type" class="form-select" onchange="loadUsers(this.value)">
+                    <select name="user_type" class="form-select summarySelect" onchange="loadUsers(this.value)">
                         <option value="employee" {{ $userType == 'employee' ? 'selected' : '' }}>Employees Only</option>
                         <option value="rider" {{ $userType == 'rider' ? 'selected' : '' }}>Riders Only</option>
                     </select>
@@ -41,7 +41,7 @@
                     <label for="ref_id" class="form-label fw-semibold required">
                         <i class="fas fa-user me-1"></i>Select User
                     </label>
-                    <select class="form-select select2" onchange="this.form.submit()"
+                    <select class="form-select summarySelect" onchange="this.form.submit()"
                             id="user_id" name="user_id" required>
                     </select>
                 </div>
@@ -317,7 +317,21 @@ $(document).ready(function() {
     var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+    
+    initSelect2();
+    $(document).on('hidden.bs.modal', '.modal', function() {
+        $(this).find('.modal-select2').select2('destroy');
+        initSelect2();
 });
+});
+
+function initSelect2(){
+    $('.summarySelect').select2('destroy');
+    $('.summarySelect').select2({
+        dropDownParen: $('#summaryFilter'),
+        allowClear: true
+    });
+}
 
 // Show user history
 function showUserHistory(userId, userType) {

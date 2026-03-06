@@ -218,7 +218,7 @@ class AttendanceController extends Controller
      */
     public function getUsers($refType)
     {
-
+        $users = null;
         if ($refType === 'employee') {
             $users = Employee::active()->select('id', 'name')->get();
         } else {
@@ -432,6 +432,7 @@ class AttendanceController extends Controller
 {
     $selectedDate = $request->get('date', now()->format('Y-m-d'));
     $userType = $request->get('user_type', 'employee');
+    $usersId = $request->get('user_id','all');
     
     $date = Carbon::parse($selectedDate);
     $startOfMonth = $date->copy()->startOfMonth();
@@ -439,7 +440,7 @@ class AttendanceController extends Controller
     $daysInMonth = $date->daysInMonth;
     
     // Get all users based on type
-    $users = $this->getUsersForSummary($userType);
+    $users = $this->getUsersForSummary($userType, $usersId);
     
     // Get attendance for the month
     $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
@@ -568,6 +569,7 @@ class AttendanceController extends Controller
         'days', 
         'date', 
         'userType',
+        'usersId',
         'summary',
         'presentRate',
         'absentRate',
@@ -583,32 +585,52 @@ class AttendanceController extends Controller
     /**
      * Get users for summary based on type
      */
-    private function getUsersForSummary($userType)
+    private function getUsersForSummary($userType, $userId)
 {
-    $users = collect();
+    $users = null;
     
-    if ($userType === 'all' || $userType === 'employee') {
-        $employees = Employee::active()->select('id', 'name', 'employee_id')
-            ->get()
-            ->map(function($item) {
-                $item->type = 'employee';
-                $item->type_label = 'Employee';
-                $item->type_badge_class = 'bg-primary';
-                return $item;
-            });
-        $users = $users->merge($employees);
+    if ($userType === 'employee') {
+        if($userId === 'all') {
+            $users = Employee::active()->select('id', 'name', 'employee_id')
+                ->get()
+                ->map(function($item) {
+                    $item->type = 'employee';
+                    $item->type_label = 'Employee';
+                    $item->type_badge_class = 'bg-primary';
+                    return $item;
+                });
+        } else {
+            $users = Employee::where('id',$userId)
+                ->get()
+                ->map(function($item){
+                    $item->type = 'employee';
+                    $item->type_label = 'Employee';
+                    $item->type_badge_class = 'bg-primary';
+                    return $item;
+                });
+        }
     }
     
-    if ($userType === 'all' || $userType === 'rider') {
-        $riders = Riders::active()->select('id', 'name', 'rider_id')
-            ->get()
-            ->map(function($item) {
-                $item->type = 'rider';
-                $item->type_label = 'Rider';
-                $item->type_badge_class = 'bg-success';
-                return $item;
-            });
-        $users = $users->merge($riders);
+    if ($userType === 'rider') {
+        if($userId === 'all') {
+            $users = Riders::active()->select('id', 'name', 'rider_id')
+                ->get()
+                ->map(function($item) {
+                    $item->type = 'rider';
+                    $item->type_label = 'Rider';
+                    $item->type_badge_class = 'bg-success';
+                    return $item;
+                });
+        } else {
+            $users = Riders::where('id',$userId)
+                ->get()
+                ->map(function($item){
+                    $item->type = 'rider';
+                    $item->type_label = 'Rider';
+                    $item->type_badge_class = 'bg-success';
+                    return $item;
+                });
+        }
     }
     
     // Sort by name and reset keys

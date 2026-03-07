@@ -109,7 +109,10 @@
     <div class="card shadow mb-4">
         <div class="card-header d-flex justify-content-between">
             <h4>Attendance Records</h4>
-            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Data</button>
+            <div>
+                <a href="{{ route('attendance.export', request()->all()) }}" class="btn btn-success btn-sm"><i class="fa fa-file-csv"></i>  Export</a>
+                <button class="btn btn-primary btn-sm openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
+            </div>
         </div>
         <div class="totals-cards">
             <div class="total-card total-blue">
@@ -275,7 +278,7 @@
 @push('third_party_stylesheets')
 <style>
     .total-card {
-        flex: 1 1 calc(30% - 8px);
+        flex: 1 1 calc(15% - 8px);
     }
 </style>
 @endpush

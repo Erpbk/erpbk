@@ -57,7 +57,7 @@
                 </div>
             </form>
         </div>
-        <div class="totals-cards mt-3">
+        {{-- <div class="totals-cards mt-3">
             <div class="total-card total-green">
                 <div class="label"><i class="fa fa-check-circle"></i>Present Rate</div>
                 <div class="value">{{ $presentRate }}%</div>
@@ -115,11 +115,8 @@
                         </a>
                     </div>
                 </div>
-                <span class="badge bg-primary rounded-pill px-3 py-2">
-                    {{ $users->count() }} Users • {{ $totalDays }} Days
-                </span>
             </div>
-        </div>
+        </div> --}}
 
         <!-- Legend -->
         <div class="d-flex flex-wrap gap-2 m-3 p-2">
@@ -144,6 +141,9 @@
             <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">
                 <i class="fas fa-minus-circle me-1"></i>- No Record
             </span>
+            <span class="badge bg-primary rounded-pill px-3 py-2 ms-auto">
+                {{ $users->count() }} Users • {{ $totalDays }} Days
+            </span>
         </div>
         <div class="card-body p-2">
             <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
@@ -154,15 +154,15 @@
                             <th style="min-width: 200px; color: black !important;">Name</th>
                             <th style="width: 80px; color: black !important;" class="text-center">Type</th>
                             
+                            <th class="text-center" style=" color: black !important;">Total Present</th>
+                            
                             @foreach($days as $day)
                                 <th class="text-center  {{ $day['is_today'] ? 'bg-info' : '' }}" style="min-width: 50px; color: black !important;">
                                     <div class="fw-bold">{{ $day['number'] }}</div>
                                     <small class="  {{ $day['is_weekend'] ? 'text-danger' : 'text-primary' }}">{{ $day['day_name'] }}</small>
                                 </th>
                             @endforeach
-                            
-                            <th class="text-center" style=" color: black !important;">Total Present</th>
-                            <th class="text-center" style="min-width: 80px; color: black !important;">History</th>
+                            {{-- <th class="text-center" style="min-width: 80px; color: black !important;">History</th> --}}
                         </tr>
                     </thead>
                     <tbody>
@@ -172,12 +172,17 @@
                                 <td class="text-start">
                                     <div>
                                         <span class="fw-semibold">{{ $user->name }}</span>
+                                        <br><span class="text-muted" style="white-space: nowrap;">{{ ($user->designation ?? '') . '-' . $user->branch?->name}}</span>
                                     </div>
                                 </td>
                                 <td class="align-middle text-center">
                                     <span class="badge {{ $user->type == 'employee' ? 'bg-primary' : 'bg-success' }} rounded-pill">
                                         {{ $user->type_label }}
                                     </span>
+                                </td>
+                                
+                                <td class="text-center align-middle">
+                                    <strong>{{ $user->total_present }}</strong>
                                 </td>
                                 
                                 @foreach($days as $day)
@@ -190,27 +195,27 @@
                                             switch($attendance['status']) {
                                                 case 'present':
                                                     $badgeClass = 'bg-success';
-                                                    $statusText = 'P';
+                                                    $statusText = "Present";
                                                     break;
                                                 case 'absent':
                                                     $badgeClass = 'bg-danger';
-                                                    $statusText = 'A';
+                                                    $statusText = 'Absent';
                                                     break;
                                                 case 'late':
                                                     $badgeClass = 'bg-warning text-dark';
-                                                    $statusText = 'L';
+                                                    $statusText = 'Late';
                                                     break;
                                                 case 'half day':
                                                     $badgeClass = 'bg-info';
-                                                    $statusText = 'HD';
+                                                    $statusText = 'Half Day';
                                                     break;
                                                 case 'holiday':
                                                     $badgeClass = 'bg-secondary';
-                                                    $statusText = 'H';
+                                                    $statusText = 'Holiday';
                                                     break;
                                                 case 'on leave':
                                                     $badgeClass = 'bg-dark';
-                                                    $statusText = 'OL';
+                                                    $statusText = 'On Leave';
                                                     break;
                                             }
                                         } else {
@@ -236,22 +241,21 @@
                                                         ) 
                                                     : 'Click to mark attendance' }}">
                                                 {{ $statusText }}
+                                                @if ($attendance['exists'] && !($statusText === 'Absent') && !($statusText === 'On Leave') && !($statusText === 'Holiday') )
+                                                    <br>{{ 'In: '.($attendance['check_in'] ?? '') }}<br>{{ 'Out: '.($attendance['check_out'] ?? '') }}
+                                                @endif
                                             </span>
                                         </a>
                                     </td>
                                 @endforeach
                                 
-                                <td class="text-center align-middle">
-                                    <strong>{{ $user->total_present }}</strong>
-                                </td>
-                                
-                                <td class="text-center align-middle">
+                                {{-- <td class="text-center align-middle">
                                     <button type="button" class="btn btn-sm btn-outline-primary" 
                                             onclick="showUserHistory({{ $user->id }}, '{{ $user->type }}')"
                                             data-bs-toggle="tooltip" title="View History">
                                         <i class="fas fa-history"></i>
                                     </button>
-                                </td>
+                                </td> --}}
                             </tr>
                         @empty
                             <tr>
@@ -320,38 +324,69 @@ $(document).ready(function() {
     
     initSelect2();
     $(document).on('hidden.bs.modal', '.modal', function() {
-        $(this).find('.modal-select2').select2('destroy');
+        
         initSelect2();
-});
+    });
 });
 
 function initSelect2(){
-    $('.summarySelect').select2('destroy');
+    destroyAllSelect2();
     $('.summarySelect').select2({
         dropDownParen: $('#summaryFilter'),
         allowClear: true
     });
 }
 
-// Show user history
-function showUserHistory(userId, userType) {
-    const modal = new bootstrap.Modal(document.getElementById('userHistoryModal'));
-    
-    $.get(`/attendance/user/${userId}/history`, {
-        type: userType
-    }, function(data) {
-        $('#userHistoryBody').html(data);
-    }).fail(function() {
-        $('#userHistoryBody').html(`
-            <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                No history found for this user.
-            </div>
-        `);
+function destroyAllSelect2() {
+    // Method 1: By data attribute
+    $('[data-select2-id]').each(function() {
+        if ($(this).data('select2')) {
+            try {
+                $(this).select2('destroy');
+            } catch(e) {}
+        }
     });
     
-    modal.show();
+    // Method 2: By class
+    $('.select2-hidden-accessible').each(function() {
+        if ($(this).data('select2')) {
+            try {
+                $(this).select2('destroy');
+            } catch(e) {}
+        }
+    });
+    
+    // Method 3: Remove Select2 generated elements
+    $('.select2-container').remove();
+    $('.select2-dropdown').remove();
+    
+    // Method 4: Show all hidden selects
+    $('select').each(function() {
+        if ($(this).css('display') === 'none' && !$(this).data('select2')) {
+            $(this).show();
+        }
+    });
 }
+
+// // Show user history
+// function showUserHistory(userId, userType) {
+//     const modal = new bootstrap.Modal(document.getElementById('userHistoryModal'));
+    
+//     $.get(`/attendance/user/${userId}/history`, {
+//         type: userType
+//     }, function(data) {
+//         $('#userHistoryBody').html(data);
+//     }).fail(function() {
+//         $('#userHistoryBody').html(`
+//             <div class="alert alert-warning">
+//                 <i class="fas fa-exclamation-triangle me-2"></i>
+//                 No history found for this user.
+//             </div>
+//         `);
+//     });
+    
+//     modal.show();
+// }
 
 function loadUsers(refType) {
     var select = $('#user_id');

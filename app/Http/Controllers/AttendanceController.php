@@ -16,7 +16,7 @@ class AttendanceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Attendance::query();
+        $query = Attendance::with('user');
 
         // Filter by date
         if ($request->has('date') && $request->date) {
@@ -330,342 +330,291 @@ class AttendanceController extends Controller
         }
     }
 
-    /**
-     * Show monthly attendance report
-     */
-    public function monthlyReport(Request $request)
-    {
-        $month = $request->month ?? Carbon::now()->month;
-        $year = $request->year ?? Carbon::now()->year;
-        $refType = $request->ref_type ?? 'employee';
-
-        if ($refType === 'employee') {
-            $users = Employee::with(['attendance' => function($query) use ($month, $year) {
-                $query->whereMonth('date', $month)
-                      ->whereYear('date', $year);
-            }])->get();
-        } else {
-            $users = Riders::with(['attendance' => function($query) use ($month, $year) {
-                $query->whereMonth('date', $month)
-                      ->whereYear('date', $year);
-            }])->get();
-        }
-
-        // Calculate summary
-        $totalDays = Carbon::createFromDate($year, $month, 1)->daysInMonth;
-        $summary = [];
-
-        foreach ($users as $user) {
-            $attendances = $user->attendance;
-            $summary[$user->id] = [
-                'present' => $attendances->where('status', 'present')->count(),
-                'absent' => $attendances->where('status', 'absent')->count(),
-                'late' => $attendances->where('status', 'late')->count(),
-                'half_day' => $attendances->where('status', 'half-day')->count(),
-                'holiday' => $attendances->where('status', 'holiday')->count(),
-            ];
-        }
-
-        return view('attendance.monthly-report', compact('users', 'summary', 'month', 'year', 'refType', 'totalDays'));
-    }
 
     /**
      * Export attendance to CSV
-     */
-    public function export(Request $request)
+     */public function export(Request $request)
     {
         $query = Attendance::with('user');
+        if($request->date){
+            $query->where('date', $request->date);
+        } else {
+            if ($request->from_date) {
+                $query->whereDate('date', '>=', $request->from_date);
+            }
 
-        if ($request->has('from_date') && $request->from_date) {
-            $query->whereDate('date', '>=', $request->from_date);
+            if ($request->to_date) {
+                $query->whereDate('date', '<=', $request->to_date);
+            }
         }
-
-        if ($request->has('to_date') && $request->to_date) {
-            $query->whereDate('date', '<=', $request->to_date);
-        }
-
-        if ($request->has('ref_type') && $request->ref_type) {
+        if ($request->ref_type) {
             $query->where('ref_type', $request->ref_type);
+        }
+        if($request->ref_id){
+            $query->where('ref_id', $request->ref_id);
+        }
+        if($request->status) {
+            $query->where('status', $request->status);
         }
 
         $attendances = $query->orderBy('date', 'desc')->get();
-        
-        $filename = 'attendance_export_' . Carbon::now()->format('Y_m_d_His') . '.csv';
-        $handle = fopen('php://output', 'w');
-         if($attendances->isEmpty()) {
-            fputcsv($handle, ['No records found for the selected criteria.']);
-        } else {
 
+        $filename = 'attendance_export_' . now()->format('Y_m_d_His') . '.csv';
 
-            header('Content-Type: text/csv');
-            header('Content-Disposition: attachment; filename="' . $filename . '"');
+        return response()->streamDownload(function () use ($attendances) {
 
-            // Add CSV headers
-            fputcsv($handle, ['Type','ID', 'Name', 'Date', 'Check In', 'Check Out', 'Status', 'Notes', 'Created At']);
-            // Add data rows
-            foreach ($attendances as $attendance) {
-                $id = '';
-                if( $attendance->ref_type === 'employee') {
-                    $id = $attendance->user->employee_id . ' ';
-                } else {
-                    $id = $attendance->user->rider_id . ' ';
+            $handle = fopen('php://output', 'w');
+
+            if ($attendances->isEmpty()) {
+
+                fputcsv($handle, ['No records found for the selected criteria.']);
+
+            } else {
+
+                fputcsv($handle, ['Type','ID','Name','Date','Check In','Check Out','Status','Notes','Created At']);
+
+                foreach ($attendances as $attendance) {
+
+                    $id = '';
+
+                    if ($attendance->ref_type === 'employee') {
+                        $id = $attendance->user->employee_id ?? '';
+                    } else {
+                        $id = $attendance->user->rider_id ?? '';
+                    }
+
+                    fputcsv($handle, [
+                        ucfirst($attendance->ref_type),
+                        $id,
+                        $attendance->user->name ?? 'N/A',
+                        $attendance->date->format('Y-m-d'),
+                        $attendance->check_in ? \Carbon\Carbon::parse($attendance->check_in)->format('h:i:s A') : '-',
+                        $attendance->check_out ? \Carbon\Carbon::parse($attendance->check_out)->format('h:i:s A') : '-',
+                        ucfirst($attendance->status),
+                        $attendance->notes,
+                        $attendance->created_at->format('Y-m-d H:i:s')
+                    ]);
                 }
-                fputcsv($handle, [
-                    ucfirst($attendance->ref_type),
-                    $id,
-                    $attendance->user->name ?? 'N/A',
-                    $attendance->date->format('Y-m-d'),
-                    $attendance->check_in ? Carbon::parse($attendance->check_in)->format('H:i:s') : '-',
-                    $attendance->check_out ? Carbon::parse($attendance->check_out)->format('H:i:s') : '-',
-                    ucfirst($attendance->status),
-                    $attendance->notes,
-                    $attendance->created_at->format('Y-m-d H:i:s')
-                ]);
             }
 
             fclose($handle);
-            exit;
-        }
+
+        }, $filename);
     }
 
     public function summary(Request $request)
-{
-    $selectedDate = $request->get('date', now()->format('Y-m-d'));
-    $userType = $request->get('user_type', 'employee');
-    $usersId = $request->get('user_id','all');
-    
-    $date = Carbon::parse($selectedDate);
-    $startOfMonth = $date->copy()->startOfMonth();
-    $endOfMonth = $date->copy()->endOfMonth();
-    $daysInMonth = $date->daysInMonth;
-    
-    // Get all users based on type
-    $users = $this->getUsersForSummary($userType, $usersId);
-    
-    // Get attendance for the month
-    $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
-        ->get();
-    
-    // Group attendances by ref_id for easier access
-    $attendancesByUser = [];
-    foreach ($attendances as $attendance) {
-        $userId = $attendance->ref_id;
-        if (!isset($attendancesByUser[$userId])) {
-            $attendancesByUser[$userId] = [];
-        }
-        // Use date as key for easy lookup
-        $dateKey = $attendance->date instanceof Carbon 
-            ? $attendance->date->format('Y-m-d') 
-            : Carbon::parse($attendance->date)->format('Y-m-d');
-        
-        $attendancesByUser[$userId][$dateKey] = $attendance;
-    }
-    
-    // Prepare days array
-    $days = [];
-    $dates = [];
-    for ($day = 1; $day <= $daysInMonth; $day++) {
-        $currentDate = $startOfMonth->copy()->addDays($day - 1);
-        $dateString = $currentDate->format('Y-m-d');
-        $dates[] = $dateString;
-        $days[] = [
-            'number' => $day,
-            'date' => $dateString,
-            'day_name' => $currentDate->format('D'),
-            'is_weekend' => $currentDate->isWeekend(),
-            'is_today' => $currentDate->isToday(),
-        ];
-    }
-    
-    // Prepare user attendance data
-    foreach ($users as $user) {
-        $attendance_data = [];
-        $user->total_present = 0;
-        $user->total_absent = 0;
-        $user->total_late = 0;
-        $user->total_halfday = 0;
-        $user->total_holiday = 0;
-        $user->total_leave = 0;
-        $user->total_unmarked = 0;
-        
-        // Get attendances for this user
-        $userAttendances = $attendancesByUser[$user->id] ?? [];
-        
-        foreach ($dates as $dateString) {
-            if (isset($userAttendances[$dateString])) {
-                $attendance = $userAttendances[$dateString];
-                
-                $attendance_data[$dateString] = [
-                    'exists' => true,
-                    'id' => $attendance->id,
-                    'status' => $attendance->status,
-                    'check_in' => $attendance->check_in ? Carbon::parse($attendance->check_in)->format('H:i') : null,
-                    'check_out' => $attendance->check_out ? Carbon::parse($attendance->check_out)->format('H:i') : null,
-                    'notes' => $attendance->notes
-                ];
-                
-                // Count totals
-                switch($attendance->status) {
-                    case 'present':
-                        $user->total_present++;
-                        break;
-                    case 'absent':
-                        $user->total_absent++;
-                        break;
-                    case 'late':
-                        $user->total_late++;
-                        $user->total_present++;
-                        break;
-                    case 'half day':
-                        $user->total_halfday++;
-                        $user->total_present++;
-                        break;
-                    case 'holiday':
-                        $user->total_holiday++;
-                        break;
-                    case 'on leave':
-                        $user->total_leave++;
-                        break;
-                }
-            } else {
-                $attendance_data[$dateString] = [
-                    'exists' => false,
-                    'status' => null
-                ];
-                $user->total_unmarked++;
-            }
-        }
-        $user->attendance_data = $attendance_data;
-    }
-    
-    // Calculate summary statistics
-    $summary = [
-        'total_present' => $users->sum('total_present'),
-        'total_absent' => $users->sum('total_absent'),
-        'total_late' => $users->sum('total_late'),
-        'total_halfday' => $users->sum('total_halfday'),
-        'total_holiday' => $users->sum('total_holiday'),
-        'total_leave' => $users->sum('total_leave'),
-        'total_unmarked' => $users->sum('total_unmarked')
-    ];
-
-    $totalUsers = $users->count();
-    $totalDays = $daysInMonth;
-    $totalAttendances = $totalUsers * $totalDays;
-    $presentRate = 0;
-    $absentRate = 0;
-    $unmarkRate = 0;
-
-    if($totalAttendances > 0){
-        $presentRate = round(($summary['total_present'] / $totalAttendances) * 100) ;
-        $absentRate = round(($summary['total_absent'] / $totalAttendances) * 100) ;
-        $unmarkRate = round(($summary['total_unmarked'] / $totalAttendances) * 100);
-    }
-    $prevMonth = $date->copy()->subMonth()->format('Y-m-d');
-    $nextMonth = $date->copy()->addMonth()->format('Y-m-d');
-    
-    return view('attendance.summary', compact(
-        'users', 
-        'days', 
-        'date', 
-        'userType',
-        'usersId',
-        'summary',
-        'presentRate',
-        'absentRate',
-        'unmarkRate',
-        'totalAttendances',
-        'totalUsers',
-        'totalDays',
-        'prevMonth',
-        'nextMonth'
-    ));
-}
-    
-    /**
-     * Get users for summary based on type
-     */
-    private function getUsersForSummary($userType, $userId)
-{
-    $users = null;
-    
-    if ($userType === 'employee') {
-        if($userId === 'all') {
-            $users = Employee::active()->select('id', 'name', 'employee_id')
-                ->get()
-                ->map(function($item) {
-                    $item->type = 'employee';
-                    $item->type_label = 'Employee';
-                    $item->type_badge_class = 'bg-primary';
-                    return $item;
-                });
-        } else {
-            $users = Employee::where('id',$userId)
-                ->get()
-                ->map(function($item){
-                    $item->type = 'employee';
-                    $item->type_label = 'Employee';
-                    $item->type_badge_class = 'bg-primary';
-                    return $item;
-                });
-        }
-    }
-    
-    if ($userType === 'rider') {
-        if($userId === 'all') {
-            $users = Riders::active()->select('id', 'name', 'rider_id')
-                ->get()
-                ->map(function($item) {
-                    $item->type = 'rider';
-                    $item->type_label = 'Rider';
-                    $item->type_badge_class = 'bg-success';
-                    return $item;
-                });
-        } else {
-            $users = Riders::where('id',$userId)
-                ->get()
-                ->map(function($item){
-                    $item->type = 'rider';
-                    $item->type_label = 'Rider';
-                    $item->type_badge_class = 'bg-success';
-                    return $item;
-                });
-        }
-    }
-    
-    // Sort by name and reset keys
-    return $users->sortBy('name')->values();
-}
-    
-    /**
-     * Get user attendance history (AJAX endpoint for modal)
-     */
-    public function userHistory(Request $request, $userId)
     {
-        $userType = $request->get('type');
-        $months = $request->get('months', 3); // Last 3 months by default
+        $selectedDate = $request->get('date', now()->format('Y-m-d'));
+        $userType = $request->get('user_type', 'employee');
+        $usersId = $request->get('user_id','all');
         
-        $startDate = Carbon::now()->subMonths($months)->startOfMonth();
-        $endDate = Carbon::now()->endOfMonth();
+        $date = Carbon::parse($selectedDate);
+        $startOfMonth = $date->copy()->startOfMonth();
+        $endOfMonth = $date->copy()->endOfMonth();
+        $daysInMonth = $date->daysInMonth;
         
-        $attendances = Attendance::where('ref_id', $userId)
-            ->where('ref_type', $userType)
-            ->whereBetween('date', [$startDate, $endDate])
-            ->orderBy('date', 'desc')
+        // Get all users based on type
+        $users = $this->getUsersForSummary($userType, $usersId);
+        
+        // Get attendance for the month
+        $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
             ->get();
         
-        // Get user details
+        // Group attendances by ref_id for easier access
+        $attendancesByUser = [];
+        foreach ($attendances as $attendance) {
+            $userId = $attendance->ref_id;
+            if (!isset($attendancesByUser[$userId])) {
+                $attendancesByUser[$userId] = [];
+            }
+            // Use date as key for easy lookup
+            $dateKey = $attendance->date instanceof Carbon 
+                ? $attendance->date->format('Y-m-d') 
+                : Carbon::parse($attendance->date)->format('Y-m-d');
+            
+            $attendancesByUser[$userId][$dateKey] = $attendance;
+        }
+        
+        // Prepare days array
+        $days = [];
+        $dates = [];
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $currentDate = $startOfMonth->copy()->addDays($day - 1);
+            $dateString = $currentDate->format('Y-m-d');
+            $dates[] = $dateString;
+            $days[] = [
+                'number' => $day,
+                'date' => $dateString,
+                'day_name' => $currentDate->format('D'),
+                'is_weekend' => $currentDate->isWeekend(),
+                'is_today' => $currentDate->isToday(),
+            ];
+        }
+        
+        // Prepare user attendance data
+        foreach ($users as $user) {
+            $attendance_data = [];
+            $user->total_present = 0;
+            $user->total_absent = 0;
+            $user->total_late = 0;
+            $user->total_halfday = 0;
+            $user->total_holiday = 0;
+            $user->total_leave = 0;
+            $user->total_unmarked = 0;
+            
+            // Get attendances for this user
+            $userAttendances = $attendancesByUser[$user->id] ?? [];
+            
+            foreach ($dates as $dateString) {
+                if (isset($userAttendances[$dateString])) {
+                    $attendance = $userAttendances[$dateString];
+                    
+                    $attendance_data[$dateString] = [
+                        'exists' => true,
+                        'id' => $attendance->id,
+                        'status' => $attendance->status,
+                        'check_in' => $attendance->check_in ? Carbon::parse($attendance->check_in)->format('h:i A') : null,
+                        'check_out' => $attendance->check_out ? Carbon::parse($attendance->check_out)->format('h:i A') : null,
+                        'notes' => $attendance->notes
+                    ];
+                    
+                    // Count totals
+                    switch($attendance->status) {
+                        case 'present':
+                            $user->total_present++;
+                            break;
+                        case 'absent':
+                            $user->total_absent++;
+                            break;
+                        case 'late':
+                            $user->total_late++;
+                            $user->total_present++;
+                            break;
+                        case 'half day':
+                            $user->total_halfday++;
+                            $user->total_present++;
+                            break;
+                        case 'holiday':
+                            $user->total_holiday++;
+                            break;
+                        case 'on leave':
+                            $user->total_leave++;
+                            break;
+                    }
+                } else {
+                    $attendance_data[$dateString] = [
+                        'exists' => false,
+                        'status' => null
+                    ];
+                    $user->total_unmarked++;
+                }
+            }
+            $user->attendance_data = $attendance_data;
+        }
+        
+        // Calculate summary statistics
+        $summary = [
+            'total_present' => $users->sum('total_present'),
+            'total_absent' => $users->sum('total_absent'),
+            'total_late' => $users->sum('total_late'),
+            'total_halfday' => $users->sum('total_halfday'),
+            'total_holiday' => $users->sum('total_holiday'),
+            'total_leave' => $users->sum('total_leave'),
+            'total_unmarked' => $users->sum('total_unmarked')
+        ];
+
+        $totalUsers = $users->count();
+        $totalDays = $daysInMonth;
+        $totalAttendances = $totalUsers * $totalDays;
+        $presentRate = 0;
+        $absentRate = 0;
+        $unmarkRate = 0;
+
+        if($totalAttendances > 0){
+            $presentRate = round(($summary['total_present'] / $totalAttendances) * 100) ;
+            $absentRate = round(($summary['total_absent'] / $totalAttendances) * 100) ;
+            $unmarkRate = round(($summary['total_unmarked'] / $totalAttendances) * 100);
+        }
+        $prevMonth = $date->copy()->subMonth()->format('Y-m-d');
+        $nextMonth = $date->copy()->addMonth()->format('Y-m-d');
+        
+        return view('attendance.summary', compact(
+            'users', 
+            'days', 
+            'date', 
+            'userType',
+            'usersId',
+            'summary',
+            'presentRate',
+            'absentRate',
+            'unmarkRate',
+            'totalAttendances',
+            'totalUsers',
+            'totalDays',
+            'prevMonth',
+            'nextMonth'
+        ));
+    }
+        
+        /**
+         * Get users for summary based on type
+         */
+        private function getUsersForSummary($userType, $userId)
+    {
+        $users = null;
+        
         if ($userType === 'employee') {
-            $user = Employee::find($userId);
-        } else {
-            $user = Riders::find($userId);
+            if($userId === 'all') {
+                $users = Employee::active()->with('branch')->select('id', 'name', 'employee_id', 'branch_id', 'designation')
+                    ->get()
+                    ->map(function($item) {
+                        $item->type = 'employee';
+                        $item->type_label = 'Employee';
+                        $item->type_badge_class = 'bg-primary';
+                        return $item;
+                    });
+                // Debug - see what's loaded
+        \Log::info('All users - first user branch:', [
+            'has_branch' => isset($users->first()->branch),
+            'branch_data' => $users->first()->branch ? $users->first()->branch->toArray() : null,
+            'branch_relation_loaded' => $users->first()->relationLoaded('branch')
+        ]);
+            } else {
+                $users = Employee::with('branch')->where('id',$userId)
+                    ->get()
+                    ->map(function($item){
+                        $item->type = 'employee';
+                        $item->type_label = 'Employee';
+                        $item->type_badge_class = 'bg-primary';
+                        return $item;
+                    });
+            }
         }
         
-        if ($request->ajax()) {
-            return view('attendance.partials.user_history', compact('attendances', 'user', 'userType', 'months'));
+        if ($userType === 'rider') {
+            if($userId === 'all') {
+                $users = Riders::active()->select('id', 'name', 'rider_id')
+                    ->get()
+                    ->map(function($item) {
+                        $item->type = 'rider';
+                        $item->type_label = 'Rider';
+                        $item->type_badge_class = 'bg-success';
+                        return $item;
+                    });
+            } else {
+                $users = Riders::with('branch')->where('id',$userId)
+                    ->get()
+                    ->map(function($item){
+                        $item->type = 'rider';
+                        $item->type_label = 'Rider';
+                        $item->type_badge_class = 'bg-success';
+                        return $item;
+                    });
+            }
         }
         
-        return response()->json(['attendances' => $attendances, 'user' => $user]);
+        // Sort by name and reset keys
+        return $users->sortBy('name')->values();
     }
     
     /**
@@ -675,105 +624,124 @@ class AttendanceController extends Controller
     {
         $selectedDate = $request->get('date', now()->format('Y-m-d'));
         $userType = $request->get('user_type', 'all');
-        
+        $usersId = $request->get('user_id', 'all');
+
         $date = Carbon::parse($selectedDate);
         $startOfMonth = $date->copy()->startOfMonth();
         $endOfMonth = $date->copy()->endOfMonth();
         $daysInMonth = $date->daysInMonth;
-        
-        // Get users and attendance data (similar to summary method)
-        $users = $this->getUsersForSummary($userType);
-        
+
+        $users = $this->getUsersForSummary($userType, $usersId);
+
+        $userIds = $users->pluck('id');
+
+        // Only fetch relevant attendance records
         $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
-            ->get()
-            ->groupBy(function($item) {
-                return $item->ref_type . '_' . $item->ref_id;
-            });
-        
-        // Prepare days array
+            ->where('ref_type', $userType)
+            ->whereIn('ref_id', $userIds)
+            ->get();
+
+        // Build fast lookup array
+        $attendanceMap = [];
+        foreach ($attendances as $att) {
+            $key = $att->ref_type . '_' . $att->ref_id . '_' . $att->date->format('Y-m-d');
+            $attendanceMap[$key] = $att->status;
+        }
+
+        // Build days list once
         $days = [];
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $days[] = $startOfMonth->copy()->addDays($day - 1)->format('Y-m-d');
         }
-        
-        // Set headers for CSV download
+
         $filename = 'attendance_summary_' . $date->format('Y_m') . '.csv';
-        $handle = fopen('php://output', 'w');
-        
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        
-        // Add UTF-8 BOM for Excel
-        fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
-        
-        // Create header row
-        $header = ['ID', 'Name', 'Type', 'Email'];
-        foreach ($days as $day) {
-            $header[] = Carbon::parse($day)->format('d D');
-        }
-        $header[] = 'Total Present';
-        $header[] = 'Total Late';
-        $header[] = 'Total Half-Day';
-        
-        fputcsv($handle, $header);
-        
-        // Add data rows
-        foreach ($users as $user) {
-            $key = $user->type . '_' . $user->id;
-            $userAttendances = $attendances->get($key, collect());
-            
-            $row = [
-                $user->id,
-                $user->name,
-                $user->type_label,
-                $user->email ?? ''
-            ];
-            
-            $totalPresent = 0;
-            $totalLate = 0;
-            $totalHalfday = 0;
-            
+
+        return response()->streamDownload(function () use ($users, $days, $attendanceMap) {
+
+            $handle = fopen('php://output', 'w');
+
+            // Excel UTF-8 support
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            $header = ['ID', 'Name', 'Type'];
+
             foreach ($days as $day) {
-                $attendance = $userAttendances->firstWhere('date', $day);
-                
-                if ($attendance) {
-                    $statusCode = '';
-                    switch($attendance->status) {
-                        case 'present':
-                            $statusCode = 'P';
-                            $totalPresent++;
-                            break;
-                        case 'absent':
-                            $statusCode = 'A';
-                            break;
-                        case 'late':
-                            $statusCode = 'L';
-                            $totalPresent++;
-                            $totalLate++;
-                            break;
-                        case 'half-day':
-                            $statusCode = 'HD';
-                            $totalPresent++;
-                            $totalHalfday++;
-                            break;
-                        case 'holiday':
-                            $statusCode = 'H';
-                            break;
-                    }
-                    $row[] = $statusCode;
-                } else {
-                    $row[] = '-';
-                }
+                $header[] = Carbon::parse($day)->format('d D');
             }
-            
-            $row[] = $totalPresent;
-            $row[] = $totalLate;
-            $row[] = $totalHalfday;
-            
-            fputcsv($handle, $row);
-        }
-        
-        fclose($handle);
-        exit;
+
+            $header[] = 'Total Present';
+            $header[] = 'Total Late';
+            $header[] = 'Total Half-Day';
+
+            fputcsv($handle, $header);
+
+            foreach ($users as $user) {
+
+                $row = [
+                    $user->id,
+                    $user->name,
+                    $user->type_label
+                ];
+
+                $totalPresent = 0;
+                $totalLate = 0;
+                $totalHalfday = 0;
+
+                foreach ($days as $day) {
+
+                    $key = $user->type . '_' . $user->id . '_' . $day;
+
+                    if (isset($attendanceMap[$key])) {
+
+                        switch ($attendanceMap[$key]) {
+
+                            case 'present':
+                                $row[] = "Present";
+                                $totalPresent++;
+                                break;
+
+                            case 'absent':
+                                $row[] = 'Absent';
+                                break;
+
+                            case 'late':
+                                $row[] = 'Late';
+                                $totalPresent++;
+                                $totalLate++;
+                                break;
+
+                            case 'half day':
+                                $row[] = 'Half Day';
+                                $totalPresent++;
+                                $totalHalfday++;
+                                break;
+
+                            case 'holiday':
+                                $row[] = 'Holiday';
+                                break;
+
+                            case 'on leave':
+                                $row[] = 'On Leave';
+                                break;
+
+                            default:
+                                $row[] = '-';
+                        }
+
+                    } else {
+                        $row[] = '-';
+                    }
+                }
+
+                $row[] = $totalPresent;
+                $row[] = $totalLate;
+                $row[] = $totalHalfday;
+
+                fputcsv($handle, $row);
+            }
+
+            fclose($handle);
+
+        }, $filename);
     }
 }

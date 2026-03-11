@@ -46,13 +46,13 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
     <div>{{ $menuLabels['attendance'] ?? 'Attendance' }}</div>
   </a>
   <ul class="menu-sub">
-    <li class="menu-item {{ Request::routeIs('attendance.index') ? 'active' : '' }}" >
+    <li class="menu-item {{ Request::routeIs('attendance.index') ? 'active' : '' }}">
       <a href="{{ route('attendance.index') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-calendar-check"></i>
         {{ $menuLabels['attendance_records'] ?? 'Attendance Records' }}
       </a>
     </li>
-    <li class="menu-item {{ Request::routeIs('attendance.summary') ? 'active' : '' }}" >
+    <li class="menu-item {{ Request::routeIs('attendance.summary') ? 'active' : '' }}">
       <a href="{{ route('attendance.summary') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-calendar-check"></i>
         {{ $menuLabels['attendance_summary'] ?? 'Attendance Summary' }}
@@ -240,10 +240,10 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
-@can('expense_view')
-<li class="menu-item ">
-  <a href="#" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-device-sim"></i>
+@can('expenses_view')
+<li class="menu-item {{ Request::is('expenses*') ? 'active' : '' }}">
+  <a href="{{ route('expenses.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-cash"></i>
     <div>{{ $menuLabels['expenses'] ?? 'Expenses' }}</div>
   </a>
 </li>

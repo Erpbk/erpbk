@@ -191,7 +191,7 @@
             @endphp
             <tr class="{{ $depth > 0 ? 'child-row' : '' }}" data-account-id="{{ $account->id }}" data-parent-id="{{ $account->parent_id ?? '' }}" data-depth="{{ $depth }}" data-has-children="{{ $hasChildren ? '1' : '0' }}">
               <td class="ps-3 align-middle">
-                <input type="checkbox" class="form-check-input account-row-checkbox" value="{{ $account->id }}" aria-label="Select" onclick="event.stopPropagation();">
+                <input type="checkbox" class="form-check-input account-row-checkbox" value="{{ $account->id }}" aria-label="Select">
               </td>
               <td class="account-name-cell align-middle">
                 <div class="account-name-wrap" style="padding-left: {{ $depth * 24 }}px;">
@@ -429,6 +429,25 @@
     if (tbody) {
       tbody.addEventListener('click', function(e) {
         var target = e.target;
+        if (target.closest('.account-row-checkbox')) {
+          var tr = target.closest('tr');
+          var accountId = tr.getAttribute('data-account-id');
+          var hasChildren = tr.getAttribute('data-has-children') === '1';
+          if (hasChildren) {
+            var btn = tr.querySelector('.expand-btn');
+            if (btn) {
+              var isExpanded = btn.textContent === '-';
+              if (isExpanded) {
+                toggleChildren(accountId, false);
+                btn.textContent = '+';
+              } else {
+                toggleChildren(accountId, true);
+                btn.textContent = '-';
+              }
+            }
+          }
+          return;
+        }
         if (target.closest('.expand-btn')) {
           e.preventDefault();
           var btn = target.closest('.expand-btn');
@@ -450,20 +469,6 @@
           var id = link.getAttribute('data-id');
           if (!id) return;
           var tr = link.closest('tr');
-          var hasChildren = tr.getAttribute('data-has-children') === '1';
-          if (hasChildren) {
-            var btn = tr.querySelector('.expand-btn');
-            var isExpanded = btn && btn.textContent === '-';
-            if (btn) {
-              if (isExpanded) {
-                toggleChildren(id, false);
-                btn.textContent = '+';
-              } else {
-                toggleChildren(id, true);
-                btn.textContent = '-';
-              }
-            }
-          }
           document.querySelectorAll('#chartAccountsTbody tr.selected').forEach(function(r) {
             r.classList.remove('selected');
           });

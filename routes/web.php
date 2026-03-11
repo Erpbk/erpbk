@@ -116,7 +116,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('/employees/update-status', [App\Http\Controllers\EmployeeController::class, 'updateStatus'])->name('employee.update-status');
     Route::post('/employees/{id}/update-section', [App\Http\Controllers\EmployeeController::class, 'updateSection'])->name('employees.updateSection');
 
-    Route::get('attendance/summary', [\App\Http\Controllers\AttendanceController::class, 'summary'])->name('attendance.summary');    
+    Route::get('attendance/summary', [\App\Http\Controllers\AttendanceController::class, 'summary'])->name('attendance.summary');
     Route::get('attendance/export', [\App\Http\Controllers\AttendanceController::class, 'export'])->name('attendance.export');
     Route::get('attendance/user/{userId}/history', [\App\Http\Controllers\AttendanceController::class, 'userHistory'])->name('attendance.user.history');
     Route::get('attendance/summary/export', [\App\Http\Controllers\AttendanceController::class, 'exportSummary'])->name('attendance.summary.export');
@@ -513,6 +513,20 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::post('accounts/{id}/toggle-lock', [App\Http\Controllers\AccountsController::class, 'toggleLock'])->name('accounts.toggleLock');
         Route::post('accounts/{id}/toggle-status', [App\Http\Controllers\AccountsController::class, 'toggleStatus'])->name('accounts.toggleStatus');
     });
+
+    // Expense module: expense accounts from Chart of Accounts
+    Route::get('expenses/detail/{id}', [App\Http\Controllers\ExpenseController::class, 'accountDetail'])->name('expenses.detail');
+    Route::get('expenses/detail/{id}/ledger-entries', [App\Http\Controllers\ExpenseController::class, 'ledgerEntries'])->name('expenses.ledgerEntries');
+    Route::post('expenses/{expense}/toggle-lock', [App\Http\Controllers\ExpenseController::class, 'toggleLock'])->name('expenses.toggleLock');
+    Route::post('expenses/{expense}/toggle-status', [App\Http\Controllers\ExpenseController::class, 'toggleStatus'])->name('expenses.toggleStatus');
+    Route::get('expenses/voucher/create', [App\Http\Controllers\ExpenseController::class, 'createVoucher'])->name('expenses.voucher.create');
+    Route::post('expenses/voucher/store', [App\Http\Controllers\ExpenseController::class, 'storeVoucher'])->name('expenses.voucher.store');
+    Route::get('expenses/voucher/{id}/edit', [App\Http\Controllers\ExpenseController::class, 'editVoucher'])->name('expenses.voucher.edit');
+    Route::put('expenses/voucher/{id}', [App\Http\Controllers\ExpenseController::class, 'updateVoucher'])->name('expenses.voucher.update');
+    Route::delete('expenses/voucher/{id}', [App\Http\Controllers\ExpenseController::class, 'destroyVoucher'])->name('expenses.voucher.destroy');
+    Route::get('expenses/list-sidebar', [App\Http\Controllers\ExpenseController::class, 'listSidebar'])->name('expenses.list-sidebar');
+    Route::get('expenses/voucher/{id}', [App\Http\Controllers\ExpenseController::class, 'showVoucher'])->name('expenses.voucher.show');
+    Route::resource('expenses', App\Http\Controllers\ExpenseController::class)->only(['index', 'create', 'store']);
 });
 Route::group(['prefix' => 'laravel-filemanager', 'middleware' => ['web', 'auth']], function () {
     \UniSharp\LaravelFilemanager\Lfm::routes();

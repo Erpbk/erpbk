@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use App\Models\Settings;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Auth;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -37,5 +38,9 @@ class AppServiceProvider extends ServiceProvider
         'employee' => \App\Models\Employee::class,
         'rider' => \App\Models\Riders::class,
     ]);
+
+    app()->singleton('user_branches', function () {
+        return json_decode(Auth::user()?->branch_ids) ?? [];
+    });
   }
 }

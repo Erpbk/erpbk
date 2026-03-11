@@ -6,10 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
-
+use App\Traits\BranchScope;
 class Riders extends Model
 {
-  use SoftDeletes, LogsActivity, HasActiveStatus;
+  use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope;
 
   public $table = 'riders';
 

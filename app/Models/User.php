@@ -22,6 +22,7 @@ class User extends Authenticatable
 
   protected $fillable = [
     'branch_ids',
+    'employee_id',
     'name',
     'first_name',
     'last_name',
@@ -41,6 +42,8 @@ class User extends Authenticatable
 
   public static array $rules = [
     'first_name' => 'required|string|max:255',
+    'branch_ids' => 'required|array',
+    'branch_ids.*' => 'required',
     'last_name' => 'nullable|string|max:255',
     'email' => 'nullable|string|max:255|email|unique:users',
     'username' => 'nullable|string|max:255|unique:users',
@@ -50,6 +53,7 @@ class User extends Authenticatable
     'image_name' => 'nullable|string|max:100',
     'phone' => 'nullable|string|max:50',
     'roles' => 'required',
+    'employee_id' => 'nullable|exists:employees,id'
   ];
 
   /**
@@ -74,5 +78,17 @@ class User extends Authenticatable
   public function department()
   {
     return $this->belongsTo(Departments::class, 'department_id', 'id');
+  }
+
+  public function employee()
+  {
+    return $this->belongsTo(Employee::class,'employee_id','id');
+  }
+
+  public function getBranchesAttribute()
+  {
+      $branchIds = json_decode($this->branch_ids) ?? [];
+      
+      return Branch::whereIn('id', $branchIds)->get();
   }
 }

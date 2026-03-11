@@ -1,10 +1,10 @@
-
+ @php $usersRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.users' : 'users'; @endphp   
 
         @include('adminlte-templates::common.errors')
 
 
 
-            {!! Form::model($user, ['route' => ['users.update', $user->id], 'method' => 'patch','id'=>'formajax']) !!}
+            {!! Form::model($user, ['route' => [$usersRoute.'.update', $user->id], 'method' => 'patch','id'=>'formajax']) !!}
 
                 <div class="row">
                     @include('users.fields')

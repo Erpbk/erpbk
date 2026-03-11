@@ -118,10 +118,8 @@ Route::middleware(['auth', 'web'])->group(function () {
 
     Route::get('attendance/summary', [\App\Http\Controllers\AttendanceController::class, 'summary'])->name('attendance.summary');    
     Route::get('attendance/export', [\App\Http\Controllers\AttendanceController::class, 'export'])->name('attendance.export');
-    Route::get('attendance/user/{userId}/history', [\App\Http\Controllers\AttendanceController::class, 'userHistory'])->name('attendance.user.history');
     Route::get('attendance/summary/export', [\App\Http\Controllers\AttendanceController::class, 'exportSummary'])->name('attendance.summary.export');
     Route::resource('attendance', App\Http\Controllers\AttendanceController::class);
-    Route::get('attendance/monthly-report', [\App\Http\Controllers\AttendanceController::class, 'monthlyReport'])->name('attendance.monthly-report');
     Route::post('attendance/bulk-mark', [\App\Http\Controllers\AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
     Route::get('attendance/users/{refType}', [\App\Http\Controllers\AttendanceController::class, 'getUsers'])->name('attendance.users');
 
@@ -202,7 +200,9 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[a-z_]+');
         Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[a-z_]+');
         // User Management, Activity Logs, Recycle Bin (moved into Settings)
+        
         Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');
+        Route::patch('users/{id}/password',[App\Http\Controllers\UserController::class, 'changePassword'])->name('users.password');
         Route::resource('permissions', App\Http\Controllers\PermissionsController::class)->names('settings-panel.permissions');
         Route::resource('roles', App\Http\Controllers\RolesController::class)->names('settings-panel.roles');
         Route::prefix('activity-logs')->name('settings-panel.activity-logs.')->group(function () {

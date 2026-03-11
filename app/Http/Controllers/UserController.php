@@ -8,6 +8,8 @@ use App\Http\Requests\UpdateUserRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Country;
 use App\Models\Departments;
+use App\Models\Branch;
+use App\Models\Employee;
 use App\Repositories\UserRepository;
 use App\Services\ImageService;
 use App\Services\ActivityLogger;
@@ -19,6 +21,7 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use App\Helpers\IConstants;
 use App\Models\Activity;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends AppBaseController
 {
@@ -64,7 +67,9 @@ class UserController extends AppBaseController
     $roles = Role::where('name', '!=', IConstants::ROLE_SUPER_ADMIN)->pluck('name', 'name')->all();
     $countries = Country::countries();
     $departments = Departments::all()->pluck('name', 'id');
-    return view('users.create', compact('roles', 'countries', 'departments'));
+    $branches = Branch::active()->pluck('name', 'id');
+    $employees = Employee::active()->get(['id','employee_id','name']);
+    return view('users.create', compact('roles', 'countries', 'departments', 'branches','employees'));
   }
 
   /**
@@ -78,6 +83,12 @@ class UserController extends AppBaseController
     $input['password'] = Hash::make($input['password']);
     if (!isset($input['status'])) {
       $input['status'] = null;
+    }
+    if(in_array('all', $input['branch_ids'])){
+      $branches = Branch::active()->pluck('id');
+      $input['branch_ids'] = json_encode($branches);
+    }else {
+      $input['branch_ids'] = json_encode($input['branch_ids']);
     }
     $user = $this->userRepository->create($input);
     $user->assignRole($request->input('roles'));
@@ -103,7 +114,7 @@ class UserController extends AppBaseController
       return redirect(route('settings-panel.users.index'));
     }
 
-    return view('users.show', compact('user', 'activities'));
+    return view('users.show', compact('user'));
   }
 
   /**
@@ -112,10 +123,13 @@ class UserController extends AppBaseController
   public function edit($id)
   {
     $user = $this->userRepository->find($id);
+    $user->load('employee');
     $roles = Role::where('name', '!=', IConstants::ROLE_SUPER_ADMIN)->pluck('name', 'name')->all();
     $userRole = $user->roles->pluck('name', 'name')->first();
     $departments = Departments::all()->pluck('name', 'id');
     $countries = Country::countries();
+    $branches = Branch::active()->pluck('name','id');
+    $employees = Employee::active()->get(['id','employee_id','name']);
 
     if (empty($user)) {
       Flash::error('User not found');
@@ -123,7 +137,7 @@ class UserController extends AppBaseController
       return redirect(route('settings-panel.users.index'));
     }
 
-    return view('users.edit', compact('user', 'roles', 'countries', 'userRole', 'departments'));
+    return view('users.edit', compact('user', 'roles', 'countries', 'userRole', 'departments', 'branches','employees'));
   }
 
   /**
@@ -152,6 +166,12 @@ class UserController extends AppBaseController
       $input['password'] = Hash::make($input['password']);
     } else {
       unset($input['password']);
+    }
+    if(in_array('all', $input['branch_ids'])){
+      $branches = Branch::active()->pluck('id');
+      $input['branch_ids'] = json_encode($branches);
+    }else {
+      $input['branch_ids'] = json_encode($input['branch_ids']);
     }
 
     $user = $this->userRepository->update($input, $id);
@@ -247,7 +267,68 @@ class UserController extends AppBaseController
 
     //$roles = Role::pluck('name','name')->all();
     $countries = Country::countries();
+    $branches = Branch::active()->pluck('name','id');
+    $employees = Employee::active()->get(['id','employee_id','name']);
 
-    return view('users.profile', compact('user', 'countries'));
+    return view('users.profile', compact('user', 'countries','branches','employees'));
+  }
+
+  public function changePassword(Request $request, $id)
+  {
+      $user = $this->userRepository->find($id);
+      if (auth()->id() != $id) {
+          abort(403, 'Unauthorized action.');
+      }
+      $rules = [];
+      if ($request->filled('current_password') || $request->filled('new_password')) {
+          $rules = array_merge($rules, [
+              'current_password' => 'required',
+              'new_password' => 'required|min:8|confirmed',
+          ]);
+      }
+      if ($request->hasFile('image_name')) {
+          $rules = array_merge($rules, [
+              'image_name' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+          ]);
+      }
+      $validated = $request->validate($rules);
+      if ($request->filled('new_password')) {
+          if (!Hash::check($request->current_password, $user->password)) {
+              return response()->json(['message' => 'Incorrect password entered'],500);
+          }
+          
+          // Update password
+          $user->password = Hash::make($request->new_password);
+      }
+      
+      // Update image if provided
+      if ($request->hasFile('image_name')) {
+          // Delete old image if exists and not default
+          if ($user->image_name && $user->image_name != 'default.png') {
+              $oldImagePath = public_path('uploads/' . $user->image_name);
+              if (file_exists($oldImagePath)) {
+                  unlink($oldImagePath);
+              }
+          }
+          $imageService = new ImageService();
+          $file_name = $imageService->uploadImage($request);
+          $user->image_name = $file_name;
+      }
+      
+      // Save changes
+      $user->save();
+      
+      // Prepare response message
+      $message = [];
+      if ($request->filled('new_password')) {
+          $message[] = 'Password updated successfully';
+      }
+      if ($request->hasFile('image_name')) {
+          $message[] = 'Profile image updated successfully';
+      }
+      
+      $successMessage = implode(' and ', $message) ?: 'No changes were made.';
+      
+      return response()->json(['message' => $successMessage, 'reload' => true],200);
   }
 }

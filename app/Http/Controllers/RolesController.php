@@ -43,6 +43,7 @@ class RolesController extends AppBaseController
         abort(404);
       }
     } */
+   return redirect()->back();
     return $rolesDataTable->render('roles.index');
   }
 
@@ -98,14 +99,14 @@ class RolesController extends AppBaseController
       ->where('role_has_permissions.role_id', $id)
       ->pluck('role_has_permissions.permission_id', 'role_has_permissions.permission_id')
       ->all();
-
+    $modules = Permission::where(['parent_id'=>0])->orWhere('parent_id',NULL)->get();
     if (empty($roles)) {
       Flash::error('Roles not found');
 
       return redirect(route('settings-panel.roles.index'));
     }
 
-    return view('roles.edit', compact('roles', 'rolePermissions'));
+    return view('roles.edit', compact('roles', 'rolePermissions','modules'));
   }
 
   /**
@@ -140,21 +141,39 @@ class RolesController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy(Request $request, $id)
   {
-    $roles = $this->rolesRepository->find($id);
-
-    if (empty($roles)) {
+    $role = Role::find($id);
+    if (empty($role)) {
       Flash::error('Roles not found');
 
       return redirect(route('settings-panel.roles.index'));
     }
+    if($role->users()->count() > 0){
+      if($request->ajax()){
+        return response()->json([
+          'message' => 'Role is assigned to user(s), cannot delete. Assign user(s) to other role then delete this role.',
+          'reload' => true
+          ],500);
+      }
+
+      Flash::success('Role is assigned to user(s), cannot delete. Assign user(s) to other role then delete this role.');
+
+      return redirect()->back();
+    }
 
     $this->rolesRepository->delete($id);
 
+    if($request->ajax()){
+      return response()->json([
+        'message' => 'Role Deleted Successfully',
+        'reload' => true
+        ],200);
+    }
+
     Flash::success('Roles deleted successfully.');
 
-    return redirect(route('settings-panel.roles.index'));
+    return redirect()->back();
   }
 
   public function get_permissions()

@@ -93,29 +93,6 @@
                 <div class="value"><i class="fas fa-umbrella-beach " style="color: #17a2b8;"></i></div>
                 <div class="value"><small>{{ $summary['total_holiday'] .'/'. $totalAttendances }}</small></div>
             </div>
-        </div>
-        <div class="card-header bg-white py-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex justify-content-between gap-2">
-                    <h5 class="mb-0">
-                        {{ $date->format('F Y') }}
-                    </h5>
-                    <div class="btn-group btn-group-sm shadow-sm">
-                        <a href="{{ route('attendance.summary', ['date' => $prevMonth, 'user_type' => $userType]) }}" 
-                        class="btn btn-outline-primary" title="Previous Month">
-                            <i class="fas fa-chevron-left"></i>
-                        </a>
-                        <a href="{{ route('attendance.summary', ['date' => now()->format('Y-m-d'), 'user_type' => $userType]) }}" 
-                        class="btn btn-primary">
-                            <i class="fas fa-calendar-alt me-1"></i>Current
-                        </a>
-                        <a href="{{ route('attendance.summary', ['date' => $nextMonth, 'user_type' => $userType]) }}" 
-                        class="btn btn-outline-primary" title="Next Month">
-                            <i class="fas fa-chevron-right"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
         </div> --}}
 
         <!-- Legend -->
@@ -162,7 +139,6 @@
                                     <small class="  {{ $day['is_weekend'] ? 'text-danger' : 'text-primary' }}">{{ $day['day_name'] }}</small>
                                 </th>
                             @endforeach
-                            {{-- <th class="text-center" style="min-width: 80px; color: black !important;">History</th> --}}
                         </tr>
                     </thead>
                     <tbody>
@@ -248,14 +224,6 @@
                                         </a>
                                     </td>
                                 @endforeach
-                                
-                                {{-- <td class="text-center align-middle">
-                                    <button type="button" class="btn btn-sm btn-outline-primary" 
-                                            onclick="showUserHistory({{ $user->id }}, '{{ $user->type }}')"
-                                            data-bs-toggle="tooltip" title="View History">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                </td> --}}
                             </tr>
                         @empty
                             <tr>
@@ -276,28 +244,6 @@
                     <i class="fas fa-info-circle me-1"></i>
                     Click on any day cell to mark or edit attendance
                 </small>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- User History Modal -->
-<div class="modal fade" id="userHistoryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header bg-primary">
-                <h5 class="modal-title text-white">
-                    <i class="fas fa-history me-2"></i>Attendance History
-                </h5>
-                <button type="button" class="btn-close btn-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="userHistoryBody">
-                <div class="text-center py-4">
-                    <div class="spinner-border text-info" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2 text-muted">Loading history...</p>
-                </div>
             </div>
         </div>
     </div>
@@ -367,26 +313,6 @@ function destroyAllSelect2() {
         }
     });
 }
-
-// // Show user history
-// function showUserHistory(userId, userType) {
-//     const modal = new bootstrap.Modal(document.getElementById('userHistoryModal'));
-    
-//     $.get(`/attendance/user/${userId}/history`, {
-//         type: userType
-//     }, function(data) {
-//         $('#userHistoryBody').html(data);
-//     }).fail(function() {
-//         $('#userHistoryBody').html(`
-//             <div class="alert alert-warning">
-//                 <i class="fas fa-exclamation-triangle me-2"></i>
-//                 No history found for this user.
-//             </div>
-//         `);
-//     });
-    
-//     modal.show();
-// }
 
 function loadUsers(refType) {
     var select = $('#user_id');

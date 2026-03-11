@@ -29,7 +29,12 @@ class PermissionsController extends AppBaseController
      */
     public function index(PermissionsDataTable $permissionsDataTable)
     {
-        return $permissionsDataTable->render('permissions.index');
+        if(auth()->user()->hasAnyRole('Administrator','Super Admin')){
+            return $permissionsDataTable->render('permissions.index');
+            }
+
+        abort(403,'You dont have access to permissions resource');
+        
     }
 
 
@@ -46,34 +51,58 @@ class PermissionsController extends AppBaseController
      */
     public function store(Request $request)
     {
-
         $rules = [
             'name' => 'required',
+            'extra' => 'nullable|array',
+            'extra.*' => 'string|distinct'
         ];
+        
         $message = [
             'name.required' => 'Name Required',
+            'extra.*.distinct' => 'Duplicate custom permissions are not allowed'
         ];
+        
         $this->validate($request, $rules, $message);
+        
+        // Create base permission name (module name)
         $fixstr = str_replace(' ', '_', strtolower($request->name));
-        $data = request()->except(['_token']);
-        $id = $request->id;
-        if ($id == '' || $id == 0) {
-            $ret = Permission::create($data);
-            Permission::create(['name' => $fixstr . '_view', 'parent_id' => $ret->id]);
-            Permission::create(['name' => $fixstr . '_create', 'parent_id' => $ret->id]);
-            Permission::create(['name' => $fixstr . '_edit', 'parent_id' => $ret->id]);
-            Permission::create(['name' => $fixstr . '_delete', 'parent_id' => $ret->id]);
-        } else {
-            Permission::where('parent_id', $id)->delete();
-            $ret = Permission::where('id', $id)->update($data);
-            Permission::create(['name' => $fixstr . '_view', 'parent_id' => $id]);
-            Permission::create(['name' => $fixstr . '_create', 'parent_id' => $id]);
-            Permission::create(['name' => $fixstr . '_edit', 'parent_id' => $id]);
-            Permission::create(['name' => $fixstr . '_delete', 'parent_id' => $id]);
+        $data = request()->except(['_token', 'extra']);
+        
+        // Create parent permission
+        $parent = Permission::create($data);
+        
+        // Create standard CRUD permissions
+        $standardPermissions = ['view', 'create', 'edit', 'delete'];
+        foreach($standardPermissions as $perm) {
+            Permission::create([
+                'name' => $fixstr . '_' . $perm,
+                'parent_id' => $parent->id
+            ]);
         }
-
-
-        Flash::success('Permissions saved successfully.');
+        
+        // Create extra custom permissions if provided
+        if($request->has('extra') && !empty($request->extra)) {
+            // Filter out empty values
+            $extraPermissions = array_filter($request->extra, function($value) {
+                return !empty(trim($value));
+            });
+            
+            foreach($extraPermissions as $customPerm) {
+                // Clean the custom permission name
+                $customPerm = str_replace(' ', '_', strtolower(trim($customPerm)));
+                
+                // Check if it's not empty after cleaning
+                if(!empty($customPerm)) {
+                    Permission::create([
+                        'name' => $fixstr . '_' . $customPerm,
+                        'parent_id' => $parent->id
+                    ]);
+                }
+            }
+        }
+        
+        // Optional: Show count of permissions created
+        Flash::success(' permissions saved successfully.');
 
         return redirect(route('settings-panel.permissions.index'));
     }
@@ -99,33 +128,91 @@ class PermissionsController extends AppBaseController
      */
     public function edit($id)
     {
-        $permissions = $this->permissionsRepository->find($id);
+        $permission = $this->permissionsRepository->find($id);
 
-        if (empty($permissions)) {
+        if (empty($permission)) {
             Flash::error('Permissions not found');
 
             return redirect(route('settings-panel.permissions.index'));
         }
-
-        return view('permissions.edit')->with('permissions', $permissions);
+        $fixstr = str_replace(' ', '_', strtolower($permission->name));
+        $custom = Permission::where('parent_id', $permission->id)
+            ->whereNotIn('name', [
+                $fixstr . '_view',
+                $fixstr . '_create', 
+                $fixstr . '_edit',
+                $fixstr . '_delete'
+            ])->get();
+        $customPermissions = [];
+        foreach($custom as $perm){
+            $perm = str_replace($fixstr.'_','',$perm->name);
+            $customPermissions[] = str_replace('_',' ',$perm);
+        }
+        return view('permissions.edit', compact('permission','customPermissions','fixstr'));
     }
 
     /**
      * Update the specified Permissions in storage.
      */
-    public function update($id, Request $request)
+    public function update(Request $request, $id)
     {
-        $permissions = $this->permissionsRepository->find($id);
-
-        if (empty($permissions)) {
-            Flash::error('Permissions not found');
-
-            return redirect(route('settings-panel.permissions.index'));
+        $rules = [
+            'name' => 'required',
+            'extra' => 'nullable|array',
+            'extra.*' => 'string|distinct'
+        ];
+        
+        $message = [
+            'name.required' => 'Name Required',
+            'extra.*.distinct' => 'Duplicate custom permissions are not allowed'
+        ];
+        
+        $this->validate($request, $rules, $message);
+        
+        // Create base permission name (module name)
+        $fixstr = str_replace(' ', '_', strtolower($request->name));
+        
+        // Find the parent permission
+        $parent = Permission::findOrFail($id);
+        
+        // Update parent permission name
+        $parent->update(['name' => $request->name]);
+        
+        // Delete all existing child permissions
+        Permission::where('parent_id', $id)->delete();
+        
+        // Recreate standard CRUD permissions
+        $standardPermissions = ['view', 'create', 'edit', 'delete'];
+        foreach($standardPermissions as $perm) {
+            Permission::create([
+                'name' => $fixstr . '_' . $perm,
+                'parent_id' => $id
+            ]);
         }
-
-        $permissions = $this->permissionsRepository->update($request->all(), $id);
-
-        Flash::success('Permissions updated successfully.');
+        
+        // Recreate extra custom permissions if provided
+        if($request->has('extra') && !empty($request->extra)) {
+            // Filter out empty values
+            $extraPermissions = array_filter($request->extra, function($value) {
+                return !empty(trim($value));
+            });
+            
+            foreach($extraPermissions as $customPerm) {
+                // Clean the custom permission name
+                $customPerm = str_replace(' ', '_', strtolower(trim($customPerm)));
+                
+                // Check if it's not empty after cleaning
+                if(!empty($customPerm)) {
+                    Permission::create([
+                        'name' => $fixstr . '_' . $customPerm,
+                        'parent_id' => $id
+                    ]);
+                }
+            }
+        }
+        
+        $totalPermissions = 4 + (isset($extraPermissions) ? count($extraPermissions) : 0);
+        Flash::success('Permissions updated successfully. ' . $totalPermissions . ' permissions active.');
 
         return redirect(route('settings-panel.permissions.index'));
     }

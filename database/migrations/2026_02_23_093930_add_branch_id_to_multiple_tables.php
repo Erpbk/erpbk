@@ -55,28 +55,23 @@ return new class extends Migration
     {
         // Drop foreign keys first, then columns
         Schema::table('riders', function (Blueprint $table) {
-            $table->dropForeign(['branch_id']);
             $table->dropColumn('branch_id');
         });
 
         Schema::table('bikes', function (Blueprint $table) {
-            $table->dropForeign(['branch_id']);
             $table->dropColumn('branch_id');
         });
 
         Schema::table('transactions', function (Blueprint $table) {
-            $table->dropForeign(['branch_id']);
             $table->dropColumn('branch_id');
         });
 
         Schema::table('vouchers', function (Blueprint $table) {
-            $table->dropForeign(['branch_id']);
             $table->dropColumn('branch_id');
         });
 
         Schema::table('users', function (Blueprint $table) {
-            $table->dropForeign(['default_branch_id']);
-            $table->dropColumn(['branch_ids', 'default_branch_id']);
+            $table->dropColumn('branch_ids');
         });
     }
 };

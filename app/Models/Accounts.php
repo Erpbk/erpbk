@@ -76,6 +76,11 @@ class Accounts extends Model
     return $this->hasMany(\App\Models\salik::class, 'account_id', 'id');
   }
 
+  public function expenseAccount()
+  {
+    return $this->hasOne(ExpenseAccount::class, 'account_id', 'id');
+  }
+
   /**
    * Dropdown of accounts for selects (e.g. vouchers, ledger).
    * When $parent_id is null, returns all accounts (same set as Chart of Accounts), ordered by account_code.
@@ -105,6 +110,20 @@ class Accounts extends Model
     return self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))
       ->where('account_type', 'Asset')
       ->whereIn('parent_id', [994, 1643])
+      ->pluck('full_name', 'id')
+      ->prepend('Select', '');
+  }
+
+  /**
+   * Dropdown for Bank and Cash accounts (for voucher credit field).
+   * Returns accounts under Bank (994) and Cash (1643) parent accounts.
+   */
+  public static function bankAndCashDropdown()
+  {
+    return self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))
+      ->where('account_type', 'Asset')
+      ->whereIn('parent_id', [994, 1643])
+      ->orderBy('account_code')
       ->pluck('full_name', 'id')
       ->prepend('Select', '');
   }

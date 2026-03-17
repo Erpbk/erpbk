@@ -28,7 +28,7 @@ class PaymentController extends Controller
     {
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = Payment::query()->orderBy('id', 'asc');
+        $query = Payment::query()->with('payeeAccount')->orderBy('date_of_payment', 'desc');
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
         return view('payments.index', ['data' => $data]);
@@ -44,68 +44,52 @@ class PaymentController extends Controller
             return view('payments.create', compact('bank'));
         } elseif ($leasingCompanyId) {
             $leasingCompany = LeasingCompanies::find($leasingCompanyId);
-            return view('payments.create', compact('leasingCompany'));
-        } else
-            return view('payments.create');
+            $banks = Banks::with('account')->active()->get();
+            return view('payments.create', compact('leasingCompany','banks'));
+        } else{
+            $banks = Banks::with('account')->active()->get();
+            return view('payments.create', compact('banks'));
+        }
     }
 
     public function store(Request $request)
     {
-
         $rules = [
             'reference' => 'nullable|string|max:255',
             'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
-            'bank_id' => 'required_without:leasing_company_id|nullable|numeric|exists:banks,id',
-            'leasing_company_id' => 'required_without:bank_id|nullable|numeric|exists:leasing_companies,id',
+            'bank_id' => 'required|numeric|exists:banks,id',
+            'payee_account_id' => 'required|numeric|exists:accounts,id',
             'date_of_payment' => 'required|date',
             'date_of_invoice' => 'nullable|date',
-            'billing_month' => 'required|date',
+            'billing_month' => 'required|date_format:Y-m',
+            'amount' => 'required|numeric|min:0.01',
+            'bank_charges' => 'nullable|numeric|min:0',
+            'bank_charges_account' => 'required_if:bank_charges,>0|nullable|numeric|exists:accounts,id',
             'description' => 'required|string|max:500',
-            'account_id' => 'required|array',
-            'account_id.*' => 'required|numeric|exists:accounts,id',
-            'narration' => 'required|array',
-            'narration.*' => 'required|string|max:500',
-            'dr_amount' => 'required|array|min:1',
-            'dr_amount.*' => 'required|numeric|min:0.01',
-            'status' => 'nullable|boolean',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
         ];
 
         $messages = [
-            'bank_id.required_without' => 'Either Bank Account or Leasing Company is Required',
-            'leasing_company_id.required_without' => 'Either Bank Account or Leasing Company is Required',
-            'date_of_payment.required' => 'Payment date is Required',
-            'billing_month.required' => 'Billing month is Required',
-            'description.required' => 'Narration for Bank credit is Required',
-            'account_id.required' => 'At least one Payer Account is Required',
-            'account_id.*.required' => 'Each row must have an account selected',
-            'narration.*.required' => 'All Narration Fields are required',
-            'dr_amount.required' => 'Debit amount is required',
-            'dr_amount.*.required' => 'All Debit amounts are required',
-            'dr_amount.*.min' => 'Debit Amount must be greater than 0',
+            'amount_type.required' => 'Payment mode is required',
+            'bank_id.required' => 'Sending account is required',
+            'payee_account_id.required' => 'Receiving account is required',
+            'amount.required' => 'Payment amount is required',
+            'amount.min' => 'Payment amount must be greater than 0',
+            'date_of_payment.required' => 'Payment date is required',
+            'billing_month.required' => 'Billing month is required',
+            'description.required' => 'Main narration is required',
+            'bank_charges_account.required_if' => 'Please select a bank charges account when bank charges are entered',
         ];
 
         $this->validate($request, $rules, $messages);
 
-        //Check if total debit equals total credit
-        $totalCredit = floatval($request->input('amount', 0));
-        $totalDebit = 0;
+        // Calculate total debit (payment amount + bank charges)
+        $paymentAmount = floatval($request->input('amount', 0));
+        $bankCharges = floatval($request->input('bank_charges', 0));
+        $totalAmount = $paymentAmount + $bankCharges;
 
-        $drAmounts = $request->input('dr_amount', []);
-        foreach ($drAmounts as $index => $amount) {
-            $totalDebit += floatval($amount);
-        }
-
-        if (abs($totalDebit - $totalCredit) > 0.01) {
-            if ($request->ajax()) {
-                return response()->json(['message' => 'Total debit (' . $totalDebit . ') and credit (' . $totalCredit . ') amounts must be equal.'], 422);
-            }
-            Flash::error('Total debit (' . $totalDebit . ') and credit (' . $totalCredit . ') amounts must be equal.');
-            return redirect()->back()->withInput();
-        }
-
-        // Get bank or leasing company
+        // Get the paying account (bank account)
         $bank = null;
-        $leasingCompany = null;
         $payingAccountId = null;
 
         if ($request->input('bank_id')) {
@@ -118,33 +102,17 @@ class PaymentController extends Controller
                 return redirect()->back()->withInput();
             }
             $payingAccountId = $bank->account_id;
-        } elseif ($request->input('leasing_company_id')) {
-            $leasingCompany = LeasingCompanies::find($request->input('leasing_company_id'));
-            if (!$leasingCompany) {
-                if ($request->ajax()) {
-                    return response()->json(['message' => 'Selected leasing company not found'], 422);
-                }
-                Flash::error('Selected leasing company not found.');
-                return redirect()->back()->withInput();
-            }
-            $payingAccountId = $leasingCompany->account_id;
         }
 
         $input = $request->all();
-
-        // Get the arrays from the form
-        $accountIds = $request->input('account_id', []);
-        $drAmounts = $request->input('dr_amount', []);
-        $narrations = $request->input('narration', []);
-
         $input['created_by'] = auth()->id();
         $input['billing_month'] = $input['billing_month'] . '-01';
-        $input['amount'] = $totalCredit;
-        $input['payee_account_id'] = array_unique($accountIds);
+        $input['amount'] = $totalAmount;
 
         try {
             DB::beginTransaction();
 
+            // Create the payment record
             $payment = Payment::create($input);
             $transCode = \App\Helpers\Account::trans_code();
 
@@ -152,56 +120,72 @@ class PaymentController extends Controller
             $billingMonth = $input['billing_month'];
             $desc = $input['description'];
 
-            // Credit the paying account (BANK or LEASING COMPANY)
-            if ($totalDebit > 0) {
-                Transactions::create([
-                    'trans_code' => $transCode,
-                    'trans_date' => $date,
-                    'reference_id' => $payment->id,
-                    'reference_type' => 'PV',
-                    'account_id' => $payingAccountId,
-                    'credit' => $totalDebit,
-                    'debit' => 0,
-                    'billing_month' => $billingMonth,
-                    'narration' => $desc,
-                ]);
+            // 1. Credit the paying account (BANK) - CREDIT entry
+            Transactions::create([
+                'trans_code' => $transCode,
+                'trans_date' => $date,
+                'reference_id' => $payment->id,
+                'reference_type' => 'PV',
+                'account_id' => $payingAccountId, // Bank account (credit)
+                'credit' => $totalAmount, // Money going out of bank
+                'debit' => 0,
+                'billing_month' => $billingMonth,
+                'narration' => $desc,
+            ]);
+
+            // 2. Debit the payee account (receiving account) - DEBIT entry
+            Transactions::create([
+                'trans_code' => $transCode,
+                'trans_date' => $date,
+                'reference_id' => $payment->id,
+                'reference_type' => 'PV',
+                'account_id' => $request->input('payee_account_id'), // Receiving account (debit)
+                'credit' => 0,
+                'debit' => $paymentAmount, // Money coming to this account
+                'billing_month' => $billingMonth,
+                'narration' => $desc,
+            ]);
+
+            // 3. Handle bank charges if any
+            if ($bankCharges > 0 ) {
+                // Debit the bank charges expense account
+                if($request->input('bank_charges_account')) {
+                    Transactions::create([
+                        'trans_code' => $transCode,
+                        'trans_date' => $date,
+                        'reference_id' => $payment->id,
+                        'reference_type' => 'PV',
+                        'account_id' => $request->input('bank_charges_account'), // Expense account (debit)
+                        'credit' => 0,
+                        'debit' => $bankCharges,
+                        'billing_month' => $billingMonth,
+                        'narration' => 'Bank charges for ( ' . $payment->description .' )',
+                    ]);
+                }else {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'No Account Selected for Bank Charges',
+                    ],500);
+                }
             }
 
-            // Debit each payee account
-            foreach ($accountIds as $index => $accountId) {
-
-                $debitAmount = floatval($drAmounts[$index] ?? 0);
-                $narration = $narrations[$index] ?? ($desc . ' - Payment from Account ID: ' . $accountId);
-
-                Transactions::create([
-                    'trans_code' => $transCode,
-                    'trans_date' => $date,
-                    'reference_id' => $payment->id,
-                    'reference_type' => 'PV',
-                    'account_id' => $accountId,
-                    'credit' => 0,
-                    'debit' => $debitAmount,
-                    'billing_month' => $billingMonth,
-                    'narration' => $narration,
-                ]);
-            }
-
-            // voucher
+            // Create voucher
             $voucherData = [
                 'trans_date' => $date,
                 'trans_code' => $transCode,
                 'reference_number' => $payment->reference,
                 'billing_month' => $billingMonth,
                 'payment_from' => $payingAccountId,
-                'amount' => $totalCredit,
+                'amount' => $totalAmount,
                 'voucher_type' => 'PV',
                 'remarks' => 'Payment Voucher',
                 'ref_id' => $payment->id,
-                'Created_By' => auth()->id(),
+                'Created_by' => auth()->id(),
                 'status' => 1,
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
             ];
 
+            // Handle attachment
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
                 $fileName = time() . '_' . $file->getClientOriginalName();
@@ -211,33 +195,35 @@ class PaymentController extends Controller
 
             $voucher = Vouchers::create($voucherData);
 
-            // Update payment with voucher info and detailed account data
+            // Update payment with voucher info
             $payment->update([
                 'voucher_id' => $voucher->id,
                 'attachment' => $voucher->attach_file ?? null,
             ]);
 
             DB::commit();
+
+            if ($request->ajax()) {
+                return response()->json([
+                    "message" => "Payment added successfully",
+                    'reload' => true
+                ]);
+            }
+
+            Flash::success('Payment added successfully.');
+            return redirect()->back();
+
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Payment creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
 
             if ($request->ajax()) {
-                return response()->json(['message' => "An Error Occurred: " . $e->getMessage()], 500);
+                return response()->json(['message' => "An error occurred: " . $e->getMessage()], 500);
             }
 
-            Flash::error('Error Occurred: ' . $e->getMessage());
+            Flash::error('Error occurred: ' . $e->getMessage());
             return redirect()->back()->withInput();
         }
-
-        if ($request->ajax()) {
-            return response()->json([
-                "message" => "Payment Added Successfully"
-            ]);
-        }
-
-        Flash::success('Payment added successfully.');
-        return redirect()->bacK();
     }
 
     public function show($id)
@@ -261,237 +247,112 @@ class PaymentController extends Controller
             return redirect()->back();
         }
 
-        $bank = null;
-        $leasingCompany = null;
-
-        if ($payment->bank_id) {
-            $bank = Banks::find($payment->bank_id);
-        } elseif ($payment->leasing_company_id) {
-            $leasingCompany = LeasingCompanies::find($payment->leasing_company_id);
-        }
-
+        $banks = Banks::active()->get();
         $payment->billing_month = \Carbon\Carbon::parse($payment->billing_month)->format('Y-m');
-        $transactions = $payment->voucher->transactions;
 
-        return view('payments.edit', compact('payment', 'bank', 'leasingCompany', 'transactions'));
+        return view('payments.edit', compact('payment', 'banks'));
     }
 
     public function update(Request $request, $id)
     {
         $payment = Payment::find($id);
-        if (empty($payment)) {
-            if ($request->ajax()) {
-                return response()->json(['message' => 'Payment Not Found'], 500);
-            }
-            Flash::error('Payment not found!');
-            return redirect()->back();
-        }
 
-        $request['billing_month'] = $request['billing_month'] . "-01";
+        if (!$payment) {
+            return response()->json(['message' => 'Payment not found'], 404);
+        }
 
         $rules = [
             'reference' => 'nullable|string|max:255',
             'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
-            'bank_id' => 'required_without:leasing_company_id|nullable|numeric|exists:banks,id',
-            'leasing_company_id' => 'required_without:bank_id|nullable|numeric|exists:leasing_companies,id',
+            'bank_id' => 'required|numeric|exists:banks,id',
+            'payee_account_id' => 'required|numeric|exists:accounts,id',
             'date_of_payment' => 'required|date',
-            'billing_month' => 'required|date',
+            'date_of_invoice' => 'nullable|date',
+            'billing_month' => 'required|date_format:Y-m',
+            'amount' => 'required|numeric|min:0.01',
+            'bank_charges' => 'nullable|numeric|min:0',
+            'bank_charges_account' => 'required_if:bank_charges,>0|nullable|numeric|exists:accounts,id',
             'description' => 'required|string|max:500',
-            'account_id' => 'required|array|min:1',
-            'account_id.*' => 'required|numeric|exists:accounts,id',
-            'narration' => 'required|array|min:1',
-            'narration.*' => 'required|string|max:500',
-            'dr_amount' => 'required|array|min:1',
-            'dr_amount.*' => 'required|numeric|min:0.01',
-            'status' => 'nullable|boolean',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
         ];
 
-        $messages = [
-            'amount_type.required' => 'Amount Type is Required',
-            'amount_type.in' => 'Amount Type must be one of: Cash, Online, Cheque, Credit',
-            'bank_id.required_without' => 'Either Bank Account or Leasing Company is Required',
-            'leasing_company_id.required_without' => 'Either Bank Account or Leasing Company is Required',
-            'bank_id.exists' => 'Selected bank account does not exist',
-            'leasing_company_id.exists' => 'Selected leasing company does not exist',
-            'date_of_payment.required' => 'Payment date is Required',
-            'billing_month.required' => 'Billing month is Required',
-            'description.required' => 'Narration for Bank Credit is Required',
-            'account_id.required' => 'At least one Payee Account is Required',
-            'account_id.*.required' => 'Each row must have an account selected',
-            'account_id.*.exists' => 'One or more selected accounts do not exist',
-            'narration.*.required' => 'All Narration Fields are required',
-            'dr_amount.required' => 'Debit amount is required',
-            'dr_amount.*.required' => 'All Debit amounts are required',
-            'dr_amount.*.min' => 'Debit Amount must be greater than 0',
-        ];
+        $this->validate($request, $rules);
 
-        $this->validate($request, $rules, $messages);
+        $paymentAmount = floatval($request->input('amount', 0));
+        $bankCharges   = floatval($request->input('bank_charges', 0));
+        $totalAmount   = $paymentAmount + $bankCharges;
 
-        $totalCredit = floatval($request->input('amount', 0));
-        $totalDebit = 0;
-
-        $drAmounts = $request->input('dr_amount', []);
-        $narrations = $request->input('narration', []);
-        foreach ($drAmounts as $amount) {
-            $totalDebit += floatval($amount);
+        // Get bank account
+        $bank = Banks::find($request->bank_id);
+        if (!$bank) {
+            return response()->json(['message' => 'Selected bank not found'], 422);
         }
 
-        if (abs($totalDebit - $totalCredit) > 0.01) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'message' => 'Total debit (' . number_format($totalDebit, 2) . ') and credit (' . number_format($totalCredit, 2) . ') amounts must be equal.'
-                ], 422);
-            }
-            Flash::error('Total debit (' . number_format($totalDebit, 2) . ') and credit (' . number_format($totalCredit, 2) . ') amounts must be equal.');
-            return redirect()->back()->withInput();
-        }
-
-        // Get bank or leasing company
-        $bank = null;
-        $leasingCompany = null;
-        $payingAccountId = null;
-
-        if ($request->input('bank_id')) {
-            $bank = Banks::find($request->input('bank_id'));
-            if (!$bank) {
-                if ($request->ajax()) {
-                    return response()->json(['message' => 'Selected bank not found'], 422);
-                }
-                Flash::error('Selected bank not found.');
-                return redirect()->back()->withInput();
-            }
-            $payingAccountId = $bank->account_id;
-        } elseif ($request->input('leasing_company_id')) {
-            $leasingCompany = LeasingCompanies::find($request->input('leasing_company_id'));
-            if (!$leasingCompany) {
-                if ($request->ajax()) {
-                    return response()->json(['message' => 'Selected leasing company not found'], 422);
-                }
-                Flash::error('Selected leasing company not found.');
-                return redirect()->back()->withInput();
-            }
-            $payingAccountId = $leasingCompany->account_id;
-        }
-
-        // Get the arrays from the form
-        $accountIds = $request->input('account_id', []);
-        $drAmounts = $request->input('dr_amount', []);
-        $narrations = $request->input('narration', []);
+        $payingAccountId = $bank->account_id;
 
         $input = $request->all();
-        $input['created_by'] = auth()->id();
+        $input['updated_by'] = auth()->id();
         $input['billing_month'] = $input['billing_month'] . '-01';
-        $input['amount'] = $totalCredit;
-        $input['payee_account_id'] = array_unique($accountIds);
+        $input['amount'] = $totalAmount;
 
         try {
             DB::beginTransaction();
-
-            $input = $request->all();
-            $input['updated_by'] = auth()->id();
-            $input['amount'] = $totalCredit;
-
-            $accountIds = $request->input('account_id', []);
-            $input['payee_account_id'] = array_unique($accountIds);
-
-            // Check if anything changed before updating
-            $hasChanges = false;
-            $fieldsToCheck = ['reference', 'amount_type', 'date_of_payment', 'date_of_invoice', 'billing_month', 'description', 'payee_account_id', 'amount'];
-
-            foreach ($fieldsToCheck as $field) {
-                if (isset($input[$field]) && $payment->$field != $input[$field]) {
-                    $hasChanges = true;
-                    break;
-                }
-            }
-
-            if (!$hasChanges) {
-                // Also check if transaction details changed
-                $existingTransactions = $payment->voucher->transactions;
-
-                if (count($existingTransactions) - 1 !== count($accountIds)) {
-                    $hasChanges = true;
-                } else {
-                    for ($i = 0; $i < count($accountIds); $i++) {
-                        $Index = $i + 1; // +1 to skip the first credit transaction
-                        if (isset($existingTransactions[$Index])) {
-                            if (
-                                $existingTransactions[$Index]->account_id != $accountIds[$i] ||
-                                floatval($existingTransactions[$Index]->debit) != floatval($drAmounts[$i]) ||
-                                $existingTransactions[$Index]->narration != ($narrations[$i] ?? '')
-                            ) {
-                                $hasChanges = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (!$hasChanges) {
-                if ($request->hasFile('attachment')) {
-                    $file = $request->file('attachment');
-                    $fileName = time() . '_' . $file->getClientOriginalName();
-                    $file->storeAs('public/vouchers', $fileName);
-                    $payment->update(['attachment' => $fileName]);
-                    $payment->voucher->update(['attach_file' => $fileName]);
-                    DB::commit();
-
-                    return response()->json(['message' => 'File uploaded Successfully']);
-                }
-
-                return response()->json(['message' => 'Nothing New Entered to Update'], 200);
-            }
 
             // Update payment
             $payment->update($input);
 
             $transCode = $payment->voucher->trans_code;
+
             $date = $input['date_of_payment'];
             $billingMonth = $input['billing_month'];
             $desc = $input['description'];
 
-            // Get arrays from request
-            $accountIds = $request->input('account_id', []);
-            $drAmounts = $request->input('dr_amount', []);
-            $narrations = $request->input('narration', []);
+            // Delete ALL old transactions
+            Transactions::where('trans_code', $transCode)->delete();
 
-            // Delete existing transactions except the first one (debit)
-            $existingTransactions = Transactions::where('trans_code', $transCode)->get();
+            // 1. CREDIT bank (money going out)
+            Transactions::create([
+                'trans_code' => $transCode,
+                'trans_date' => $date,
+                'reference_id' => $payment->id,
+                'reference_type' => 'PV',
+                'account_id' => $payingAccountId,
+                'credit' => $totalAmount,
+                'debit' => 0,
+                'billing_month' => $billingMonth,
+                'narration' => $desc,
+            ]);
 
-            // Keep track of which transactions we're keeping
-            foreach ($existingTransactions as $index => $transaction) {
-                if ($index == 0) {
-                    // Update the Credit transaction (paying account)
-                    $transaction->update([
-                        'trans_date' => $date,
-                        'account_id' => $payingAccountId,
-                        'credit' => $totalCredit,
-                        'debit' => 0,
-                        'billing_month' => $billingMonth,
-                        'narration' => $desc,
-                    ]);
-                } else {
-                    // Delete old debit transactions
-                    $transaction->delete();
+            // 2. DEBIT payee
+            Transactions::create([
+                'trans_code' => $transCode,
+                'trans_date' => $date,
+                'reference_id' => $payment->id,
+                'reference_type' => 'PV',
+                'account_id' => $request->payee_account_id,
+                'credit' => 0,
+                'debit' => $paymentAmount,
+                'billing_month' => $billingMonth,
+                'narration' => $desc,
+            ]);
+
+            // 3. Bank charges (if any)
+            if ($bankCharges > 0) {
+                if (!$request->bank_charges_account) {
+                    DB::rollBack();
+                    return response()->json(['message' => 'No Account Selected for Bank Charges'], 500);
                 }
-            }
-
-            // Create new DEbit transactions
-            foreach ($accountIds as $index => $accountId) {
-                $debitAmount = floatval($drAmounts[$index] ?? 0);
-                $narration = $narrations[$index] ?? ($desc . ' - Payment from Account ID: ' . $accountId);
 
                 Transactions::create([
                     'trans_code' => $transCode,
                     'trans_date' => $date,
                     'reference_id' => $payment->id,
                     'reference_type' => 'PV',
-                    'account_id' => $accountId,
+                    'account_id' => $request->bank_charges_account,
                     'credit' => 0,
-                    'debit' => $debitAmount,
+                    'debit' => $bankCharges,
                     'billing_month' => $billingMonth,
-                    'narration' => $narration,
+                    'narration' => 'Bank charges for ( ' . $desc . ' )',
                 ]);
             }
 
@@ -501,32 +362,34 @@ class PaymentController extends Controller
                 'billing_month' => $billingMonth,
                 'payment_from' => $payingAccountId,
                 'reference_number' => $payment->reference,
-                'amount' => $totalCredit,
+                'amount' => $totalAmount,
                 'Updated_By' => auth()->id(),
             ]);
 
-            // Handle attachment if provided
+            // Handle attachment
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $file->storeAs('public/vouchers', $fileName);
+
                 $payment->update(['attachment' => $fileName]);
                 $payment->voucher->update(['attach_file' => $fileName]);
             }
 
             DB::commit();
+
+            return response()->json([
+                'message' => 'Payment updated successfully',
+                'reload' => true
+            ]);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Payment update failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
 
             return response()->json([
                 'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
-
-        return response()->json([
-            'message' => 'Payment Updated Successfully'
-        ]);
     }
 
     public function destroy(Request $request, $id)
@@ -545,12 +408,17 @@ class PaymentController extends Controller
                 // Also delete associated cheque record if payment was by cheque
                 $cheque = \App\Models\Cheques::where('voucher_id', $payment->voucher_id)->first();
                 if ($cheque) {
-                    $cheque->delete();
+                    $cheque->update([
+                        'status' => 'Issued',
+                        'cleared_date' => null,
+                        'billing_month' => null,
+                        'voucher_id' => null,
+                    ]);
                 }
             }
             $payment->delete();
             if ($request->ajax()) {
-                return response()->json(['message' => 'Payment Deleted successfully']);
+                return response()->json(['message' => 'Payment Deleted successfully', 'reload' => true]);
             }
             Flash::success('Payment deleted successfully.');
             return redirect()->back();

@@ -901,8 +901,8 @@ class LeasingCompaniesController extends AppBaseController
     }
 
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Receipt::query()->latest('id');
-    $query->where('leasing_company_id', $leasingCompany->id);
+    $query = Receipt::query()->with('payerAccount','payeeAccount')->latest('id');
+    $query->where('payer_account_id', $leasingCompany->account_id);
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
@@ -922,8 +922,8 @@ class LeasingCompaniesController extends AppBaseController
     }
 
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Payment::query()->latest('id');
-    $query->where('leasing_company_id', $id);
+    $query = Payment::query()->latest('date_of_payment');
+    $query->where('payee_account_id', $leasingCompany->account_id);
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);

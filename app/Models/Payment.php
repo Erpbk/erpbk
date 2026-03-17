@@ -13,8 +13,9 @@ class Payment extends Model
 
     public $fillable = [
         'reference',
+        'bank_charges',
+        'bank_charges_account',
         'bank_id',
-        'leasing_company_id',
         'amount_type',
         'payee_account_id',
         'amount',
@@ -27,10 +28,6 @@ class Payment extends Model
         'created_by',
         'updated_by',
         'attachment',
-    ];
-
-    protected $casts = [
-        'payee_account_id' => 'array',
     ];
 
     public static array $rules = [
@@ -57,20 +54,13 @@ class Payment extends Model
         return $this->belongsTo(Banks::class,'bank_id','id');
     }
 
-    public function leasingCompany(){
-        return $this->belongsTo(LeasingCompanies::class,'leasing_company_id','id');
+    public function getPayerAccountAttribute(){
+        $bank = Banks::findOrFail($this->bank_id);
+        $account = Accounts::find($bank->account_id);
+        return $account->account_code .'-'. $account->name;
     }
 
-    public function payedTo(){
-        
-        $accounts = Accounts::whereIn('id', $this->payee_account_id)->get();
-        $payedTo = "";
-        foreach ($accounts as $index => $account){
-            if($index==0)
-                $payedTo .= $account->account_code . '-'. $account->name;
-            else
-                $payedTo .= "\n\n".$account->account_code . '-'. $account->name;
-        }
-        return $payedTo;
+    public function payeeAccount(){
+        return $this->belongsTo(Accounts::class, 'payee_account_id', 'id');
     }
 }

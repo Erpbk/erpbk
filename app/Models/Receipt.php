@@ -15,7 +15,6 @@ class Receipt extends Model
         'reference',
         'account_id',
         'bank_id',
-        'leasing_company_id',
         'payer_account_id',
         'amount',
         'amount_type',
@@ -27,10 +26,6 @@ class Receipt extends Model
         'status',
         'created_by',
         'updated_by',
-    ];
-
-    protected $casts = [
-        'payer_account_id' => 'array',
     ];
 
     public static array $rules = [
@@ -57,20 +52,12 @@ class Receipt extends Model
         return $this->belongsTo(Banks::class,'bank_id','id');
     }
 
-    public function leasingCompany(){
-        return $this->belongsTo(LeasingCompanies::class,'leasing_company_id','id');
+    public function payerAccount(){
+        return $this->belongsTo(Accounts::class, 'payer_account_id', 'id');
     }
 
-    public function receivedFrom(){
-        
-        $accounts = Accounts::whereIn('id', $this->payer_account_id)->get();
-        $receivedFrom = "";
-        foreach ($accounts as $index => $account){
-            if($index==0)
-                $receivedFrom .= $account->account_code . '-'. $account->name;
-            else
-                $receivedFrom .= "\n\n".$account->account_code . '-'. $account->name;
-        }
-        return $receivedFrom;
+    public function payeeAccount(){
+        return $this->belongsTo(Accounts::class, 'account_id', 'id');
     }
 }
+

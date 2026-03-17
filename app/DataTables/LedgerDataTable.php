@@ -165,10 +165,15 @@ class LedgerDataTable extends DataTable
       }
       if ($row->reference_type == 'Bike Maintenance') {
         $maintenance = BikeMaintenance::where('id', $row->reference_id)->first();
-        $voucher_ID = 'MA-' . $maintenance->id;
-        $voucher_text = '<span class="d-none">' . $voucher_ID . '</span><a href="' . route('bike-maintenance.invoice', $maintenance) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
-        if ($maintenance->attachment) {
-          $view_file = '  <a href="' . url('storage2/' . $maintenance->attachment) . '" class="no-print"  target="_blank">View File</a>';
+        if ($maintenance) {
+          $voucher_ID = 'MA-' . $maintenance->id;
+          $voucher_text = '<span class="d-none">' . $voucher_ID . '</span><a href="' . route('bike-maintenance.invoice', $maintenance) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+          if ($maintenance->attachment) {
+            $view_file = '  <a href="' . url('storage2/' . $maintenance->attachment) . '" class="no-print"  target="_blank">View File</a>';
+          }
+        } else {
+          $voucher_ID = 'MA-' . ($row->reference_id ?? '?');
+          $voucher_text = '<span class="text-danger">Maintenance record not found</span>';
         }
       }
       if ($row->reference_type == 'LeasingCompanyInvoice') {
@@ -209,9 +214,11 @@ class LedgerDataTable extends DataTable
       if ($row->voucher) {
         $reference = $row->voucher->reference_number ?? '-';
       }
+      $accountCode = $row->account ? ($row->account->account_code ?? 'N/A') : 'N/A';
+      $accountName = $row->account ? ($row->account->name ?? 'N/A') : 'N/A';
       $data[] = [
         'date' => "<span style='white-space: nowrap;'>" . Common::DateFormat($row->trans_date) . "</span>",
-        'account_name' => ($row->account->account_code ?? 'N/A') . '-' . ($row->account->name ?? 'N/A'),
+        'account_name' => $accountCode . '-' . $accountName,
         'reference_number' => $reference,
         'billing_month' => $month,
         'voucher' => $voucher_text,

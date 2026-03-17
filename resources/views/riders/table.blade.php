@@ -47,6 +47,15 @@
          @case('recruiter_id')
          <td>{{ DB::table('recruiters')->where('id' , $r->recruiter_id)->first()->name ?? '-'}}</td>
          @break
+         @case('nationality')
+         <td>{{ $r->nationality ? (DB::table('countries')->where('id', $r->nationality)->value('name') ?? '-') : '-' }}</td>
+         @break
+         @case('account_id')
+         @php
+         $account = $r->account_id ? DB::table('accounts')->where('id', $r->account_id)->first() : null;
+         @endphp
+         <td>{{ $account ? ($account->account_code ?? $account->name ?? $r->account_id) : '-' }}</td>
+         @break
          @case('l_license')
          <td>{{ ($r->l_license == 1) ? 'Learning' : '-' }}</td>
          @break
@@ -60,15 +69,24 @@
          @break
          @case('status')
          @php
-         $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
-         $isWalker = $r->designation === 'Walker';
+         $statusOptionLabel = !empty($r->rider_status_option) ? $r->rider_status_option : null;
+         if (!$statusOptionLabel) {
+           if (($r->absconder ?? 0) == 1) $statusOptionLabel = 'Absconder';
+           elseif (($r->flowup ?? 0) == 1) $statusOptionLabel = 'Follow Up';
+           elseif (($r->l_license ?? 0) == 1) $statusOptionLabel = 'Learning License';
+           elseif ($r->designation === 'Walker') $statusOptionLabel = 'Walker';
+           elseif ($r->designation === 'Vacation') $statusOptionLabel = 'Vacation';
+           elseif ($r->designation === 'Cancel') $statusOptionLabel = 'Cancel';
+           elseif ($r->designation === 'PRO' || ($r->pro ?? 0) == 1) $statusOptionLabel = 'PRO';
+         }
 
-         if ($isWalker) {
-         $statusText = 'Active';
-         $badgeClass = 'bg-label-success';
+         if ($statusOptionLabel) {
+           $statusText = $statusOptionLabel;
+           $badgeClass = 'bg-label-primary';
          } else {
-         $statusText = $hasActiveBike ? 'Active' : 'Inactive';
-         $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
+           $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
+           $statusText = $hasActiveBike ? 'Active' : 'Inactive';
+           $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
          }
          @endphp
          <td>

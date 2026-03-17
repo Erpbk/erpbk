@@ -12,6 +12,7 @@ use App\Models\Accounts;
 use App\Models\ExpenseAccount;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Models\VoucherType;
 use App\Repositories\AccountsRepository;
 use App\Traits\GlobalPagination;
 use Carbon\Carbon;
@@ -253,11 +254,11 @@ class ExpenseController extends AppBaseController
         }
         $expenseIds = $this->getExpenseAccountIds();
         if (!in_array((int) $id, $expenseIds, true)) {
-            return response()->json(['errors' => ['error' => 'Expense account not found.']], 422);
+            return redirect()->route('expenses.index')->with('error', 'Expense account not found.');
         }
         $accounts = $this->accountsRepository->find($id);
         if (empty($accounts)) {
-            return response()->json(['errors' => ['error' => 'Account not found.']], 422);
+            return redirect()->route('expenses.index')->with('error', 'Account not found.');
         }
 
         $input = $request->except(['custom_field_values']);
@@ -274,7 +275,7 @@ class ExpenseController extends AppBaseController
             }
         }
 
-        return response()->json(['message' => 'Expense account updated successfully.']);
+        return redirect()->route('expenses.index')->with('success', 'Expense account updated successfully.');
     }
 
     /**
@@ -291,7 +292,7 @@ class ExpenseController extends AppBaseController
         }
         $account = $this->accountsRepository->find($id);
         if (empty($account)) {
-            return response()->json(['errors' => ['error' => 'Account not found!']], 422);
+            return redirect()->route('expenses.index')->with('error', 'Account not found!');
         }
 
         $childCount = Accounts::where('parent_id', $account->id)->whereIn('id', $expenseIds)->count();
@@ -308,13 +309,13 @@ class ExpenseController extends AppBaseController
             ->where('account_id', $account->id)
             ->count();
         if ($ledgerEntriesCount > 0) {
-            return response()->json(['errors' => ['error' => "Cannot delete account. This account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first."]], 422);
+            return redirect()->route('expenses.index')->with('error', "Cannot delete account. This account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.");
         }
 
         ExpenseAccount::where('account_id', $account->id)->delete();
         $account->delete();
 
-        return response()->json(['message' => 'Expense account deleted successfully.']);
+        return redirect()->route('expenses.index')->with('success', 'Expense account deleted successfully.');
     }
 
     /**
@@ -324,7 +325,7 @@ class ExpenseController extends AppBaseController
     {
         $expenseIds = $this->getExpenseAccountIds();
         if (!in_array((int) $id, $expenseIds, true)) {
-            return response()->json(['error' => 'Expense account not found.'], 404);
+            return redirect()->route('expenses.index')->with('error', 'Expense account not found.');
         }
         return app(AccountsController::class)->accountDetail($request, $id);
     }
@@ -336,7 +337,7 @@ class ExpenseController extends AppBaseController
     {
         $expenseIds = $this->getExpenseAccountIds();
         if (!in_array((int) $id, $expenseIds, true)) {
-            return response()->json(['error' => 'Expense account not found.'], 404);
+            return redirect()->route('expenses.index')->with('error', 'Expense account not found.');
         }
         return app(AccountsController::class)->ledgerEntries($request, $id);
     }
@@ -360,7 +361,7 @@ class ExpenseController extends AppBaseController
     {
         $expenseIds = $this->getExpenseAccountIds();
         if (!in_array((int) $id, $expenseIds, true)) {
-            return response()->json(['error' => 'Expense account not found.'], 404);
+            return redirect()->route('expenses.index')->with('error', 'Expense account not found.');
         }
         return app(AccountsController::class)->toggleStatus($request, $id);
     }
@@ -438,8 +439,12 @@ class ExpenseController extends AppBaseController
 
         foreach ($debitAccounts as $debitAccountId) {
             if (!in_array((int) $debitAccountId, $expenseIds, true)) {
-                return response()->json(['errors' => ['error' => 'Invalid expense account selected.']], 422);
+                return redirect()->route('expenses.index')->with('error', 'Invalid expense account selected.');
             }
+        }
+
+        if (!VoucherType::isCodeAllowedForModule('EXP', 'expenses')) {
+            return redirect()->route('expenses.index')->with('error', 'Expense voucher type (EXP) is not assigned to the Expenses module. Please assign it in Voucher Settings.');
         }
 
         DB::beginTransaction();
@@ -449,7 +454,7 @@ class ExpenseController extends AppBaseController
             $grandTotal = $subtotal + $totalVat;
             $transCode = Account::trans_code();
 
-            $voucher = \App\Models\Vouchers::create([
+            $voucher = Vouchers::create([
                 'voucher_type' => 'EXP',
                 'trans_code' => $transCode,
                 'trans_date' => $request->input('trans_date'),
@@ -510,10 +515,10 @@ class ExpenseController extends AppBaseController
 
             DB::commit();
 
-            return response()->json(['message' => 'Expense voucher created successfully.', 'reload' => true]);
+            return redirect()->route('expenses.index')->with('success', 'Expense voucher created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['errors' => ['error' => 'Failed to create voucher: ' . $e->getMessage()]], 422);
+            return redirect()->route('expenses.index')->with('error', 'Failed to create voucher: ' . $e->getMessage());
         }
     }
 
@@ -603,7 +608,7 @@ class ExpenseController extends AppBaseController
 
         foreach ($debitAccounts as $debitAccountId) {
             if (!in_array((int) $debitAccountId, $expenseIds, true)) {
-                return response()->json(['errors' => ['error' => 'Invalid expense account selected.']], 422);
+                return redirect()->route('expenses.index')->with('error', 'Invalid expense account selected.');
             }
         }
 
@@ -674,10 +679,10 @@ class ExpenseController extends AppBaseController
 
             DB::commit();
 
-            return response()->json(['message' => 'Expense voucher updated successfully.', 'reload' => true]);
+            return redirect()->route('expenses.index')->with('success', 'Expense voucher updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['errors' => ['error' => 'Failed to update voucher: ' . $e->getMessage()]], 422);
+            return redirect()->route('expenses.index')->with('error', 'Failed to update voucher: ' . $e->getMessage());
         }
     }
 
@@ -699,10 +704,10 @@ class ExpenseController extends AppBaseController
 
             DB::commit();
 
-            return response()->json(['message' => 'Expense voucher deleted successfully.']);
+            return redirect()->route('expenses.index')->with('success', 'Expense voucher deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['errors' => ['error' => 'Failed to delete voucher: ' . $e->getMessage()]], 422);
+            return redirect()->route('expenses.index')->with('error', 'Failed to delete voucher: ' . $e->getMessage());
         }
     }
 }

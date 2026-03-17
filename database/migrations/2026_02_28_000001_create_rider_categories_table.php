@@ -12,14 +12,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('rider_categories', function (Blueprint $table) {
-            $table->id();
-            $table->string('slug', 50)->nullable()->unique()->comment('Used to map fixed rider fields; null for user-created categories');
-            $table->string('label');
-            $table->unsignedInteger('display_order')->default(0);
-            $table->boolean('is_system')->default(false)->comment('System categories cannot be deleted');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('rider_categories')) {
+            Schema::create('rider_categories', function (Blueprint $table) {
+                $table->id();
+                $table->string('slug', 50)->nullable()->unique()->comment('Used to map fixed rider fields; null for user-created categories');
+                $table->string('label');
+                $table->unsignedInteger('display_order')->default(0);
+                $table->boolean('is_system')->default(false)->comment('System categories cannot be deleted');
+                $table->timestamps();
+            });
+        }
 
         $defaults = [
             ['slug' => 'rider_info', 'label' => 'Rider Info', 'display_order' => 0, 'is_system' => true],
@@ -31,9 +33,13 @@ return new class extends Migration
         ];
 
         foreach ($defaults as $row) {
-            $row['created_at'] = now();
-            $row['updated_at'] = now();
-            DB::table('rider_categories')->insert($row);
+            DB::table('rider_categories')->updateOrInsert(
+                ['slug' => $row['slug']],
+                array_merge($row, [
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])
+            );
         }
     }
 

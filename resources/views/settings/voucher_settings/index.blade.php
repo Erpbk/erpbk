@@ -4,13 +4,45 @@
 
 @push('third_party_stylesheets')
 <style>
-  .voucher-settings-table th { font-weight: 600; white-space: nowrap; }
-  .voucher-settings-table .drag-handle { cursor: grab; color: #697a8d; }
-  .voucher-settings-table .drag-handle:active { cursor: grabbing; }
-  .voucher-settings-table tr.badge-soft-primary { background: rgba(105, 108, 255, 0.08); }
-  #config-options-container .form-group, #addFieldConfigFields .form-group, #edit-config-options-fields .form-group { margin-bottom: 0.75rem; }
-  #config-options-container label, #addFieldConfigFields label, #edit-config-options-fields label { font-weight: 500; font-size: 0.875rem; }
-  .add-field-form .form-text { font-size: 0.8125rem; }
+  .voucher-settings-table th {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .voucher-settings-table .drag-handle {
+    cursor: grab;
+    color: #697a8d;
+  }
+
+  .voucher-settings-table .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .voucher-settings-table tr.badge-soft-primary {
+    background: rgba(105, 108, 255, 0.08);
+  }
+
+  #config-options-container .form-group,
+  #addFieldConfigFields .form-group,
+  #edit-config-options-fields .form-group {
+    margin-bottom: 0.75rem;
+  }
+
+  #config-options-container label,
+  #addFieldConfigFields label,
+  #edit-config-options-fields label {
+    font-weight: 500;
+    font-size: 0.875rem;
+  }
+
+  .add-field-form .form-text {
+    font-size: 0.8125rem;
+  }
+
+  .voucher-module-picker {
+    max-height: 220px;
+    overflow-y: auto;
+  }
 </style>
 @endpush
 
@@ -77,6 +109,7 @@
                     <th>#</th>
                     <th>Code</th>
                     <th>Label</th>
+                    <th>Modules</th>
                     <th>Status</th>
                     <th class="text-end" style="width: 120px;">Actions</th>
                   </tr>
@@ -140,6 +173,37 @@
             <label class="form-label">Label <span class="text-danger">*</span></label>
             <input type="text" name="label" class="form-control" placeholder="e.g. Journal Voucher" required>
           </div>
+          <div class="mb-3">
+            <label class="form-label">Module assignment <span class="text-danger">*</span></label>
+            <p class="form-text text-muted small mb-2">Assign this voucher type to the modules where it should be available.</p>
+            <div class="border rounded p-3 voucher-module-picker">
+              <div class="row g-2">
+                @foreach($voucherModules as $moduleKey => $moduleName)
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="module_assignments[{{ $moduleKey }}][assigned]" value="1" id="add_mod_assign_{{ $loop->index }}">
+                    <label class="form-check-label" for="add_mod_assign_{{ $loop->index }}">{{ $moduleName }}</label>
+                  </div>
+                </div>
+                @endforeach
+              </div>
+            </div>
+            <p class="form-text text-muted small mb-0 mt-2">At least one module must be assigned.</p>
+          </div>
+          <div class="mb-3 border rounded p-3 bg-light">
+            <label class="form-label mb-2">Vouchers module</label>
+            <p class="form-text text-muted small mb-2">Separate from assignment: control whether this type can be edited or deleted when viewing vouchers in the Vouchers module.</p>
+            <div class="form-check mb-2">
+              <input type="hidden" name="allow_edit_in_voucher_module" value="0">
+              <input class="form-check-input" type="checkbox" name="allow_edit_in_voucher_module" value="1" id="addAllowEditVoucher" checked>
+              <label class="form-check-label" for="addAllowEditVoucher">Allow edit in Vouchers module</label>
+            </div>
+            <div class="form-check">
+              <input type="hidden" name="allow_delete_in_voucher_module" value="0">
+              <input class="form-check-input" type="checkbox" name="allow_delete_in_voucher_module" value="1" id="addAllowDeleteVoucher" checked>
+              <label class="form-check-label" for="addAllowDeleteVoucher">Allow delete in Vouchers module</label>
+            </div>
+          </div>
         </div>
         <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -169,6 +233,37 @@
           <div class="mb-3">
             <label class="form-label">Label <span class="text-danger">*</span></label>
             <input type="text" name="label" id="editVoucherTypeLabel" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Module assignment <span class="text-danger">*</span></label>
+            <p class="form-text text-muted small mb-2">Assign this voucher type to the modules where it should be available.</p>
+            <div class="border rounded p-3 voucher-module-picker">
+              <div class="row g-2">
+                @foreach($voucherModules as $moduleKey => $moduleName)
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input edit-module-assign" type="checkbox" name="module_assignments[{{ $moduleKey }}][assigned]" value="1" id="edit_mod_assign_{{ $loop->index }}" data-module-key="{{ $moduleKey }}">
+                    <label class="form-check-label" for="edit_mod_assign_{{ $loop->index }}">{{ $moduleName }}</label>
+                  </div>
+                </div>
+                @endforeach
+              </div>
+            </div>
+            <p class="form-text text-muted small mb-0 mt-2">At least one module must be assigned.</p>
+          </div>
+          <div class="mb-3 border rounded p-3 bg-light">
+            <label class="form-label mb-2">Vouchers module</label>
+            <p class="form-text text-muted small mb-2">Separate from assignment: control whether this type can be edited or deleted when viewing vouchers in the Vouchers module.</p>
+            <div class="form-check mb-2">
+              <input type="hidden" name="allow_edit_in_voucher_module" value="0">
+              <input class="form-check-input" type="checkbox" name="allow_edit_in_voucher_module" value="1" id="editAllowEditVoucher">
+              <label class="form-check-label" for="editAllowEditVoucher">Allow edit in Vouchers module</label>
+            </div>
+            <div class="form-check">
+              <input type="hidden" name="allow_delete_in_voucher_module" value="0">
+              <input class="form-check-input" type="checkbox" name="allow_delete_in_voucher_module" value="1" id="editAllowDeleteVoucher">
+              <label class="form-check-label" for="editAllowDeleteVoucher">Allow delete in Vouchers module</label>
+            </div>
           </div>
           <div class="mb-3">
             <div class="form-check">
@@ -324,324 +419,585 @@
 @push('third_party_scripts')
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script id="voucherSettingsDataTypes" type="application/json">
+  @json($dataTypes)
+</script>
 <script>
-(function() {
-  var dataTypes = @json($dataTypes);
-  var baseUrl = '{{ url("/") }}';
-  var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-  var voucherTypesUrl = '{{ route("settings-panel.voucher-settings.types-table-body") }}';
-  var voucherFieldsUrl = '{{ route("settings-panel.voucher-settings.fields-table-body") }}';
-  var storeTypeUrl = '{{ route("settings-panel.voucher-settings.store-type") }}';
-  var storeFieldUrl = '{{ route("settings-panel.voucher-settings.store-field") }}';
-  var reorderTypesUrl = '{{ route("settings-panel.voucher-settings.reorder-types") }}';
-  var reorderFieldsUrl = '{{ route("settings-panel.voucher-settings.reorder-fields") }}';
+  (function() {
+    var dataTypes = JSON.parse(document.getElementById('voucherSettingsDataTypes').textContent || '{}');
+    var baseUrl = '{{ url("/") }}';
+    var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    var voucherTypesUrl = '{{ route("settings-panel.voucher-settings.types-table-body") }}';
+    var voucherFieldsUrl = '{{ route("settings-panel.voucher-settings.fields-table-body") }}';
+    var storeTypeUrl = '{{ route("settings-panel.voucher-settings.store-type") }}';
+    var storeFieldUrl = '{{ route("settings-panel.voucher-settings.store-field") }}';
+    var reorderTypesUrl = '{{ route("settings-panel.voucher-settings.reorder-types") }}';
+    var reorderFieldsUrl = '{{ route("settings-panel.voucher-settings.reorder-fields") }}';
 
-  function refreshVoucherTypesTbody() {
-    fetch(voucherTypesUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-      .then(function(r) { return r.text(); })
-      .then(function(html) {
-        var tbody = document.getElementById('voucherTypesTbody');
-        if (tbody) tbody.innerHTML = html;
+    function setEditVoucherTypeForm(form, moduleKeys, allowEdit, allowDelete) {
+      moduleKeys = Array.isArray(moduleKeys) ? moduleKeys : [];
+      form.querySelectorAll('.edit-module-assign').forEach(function(cb) {
+        var key = cb.getAttribute('data-module-key');
+        cb.checked = key ? moduleKeys.indexOf(key) !== -1 : false;
       });
-  }
-
-  document.getElementById('formAddVoucherType').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var form = this;
-    var btn = document.getElementById('addVoucherTypeSubmitBtn');
-    var fd = new FormData(form);
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-    fetch(storeTypeUrl, {
-      method: 'POST',
-      body: fd,
-      headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
-      if (data.success) {
-        bootstrap.Modal.getInstance(document.getElementById('addVoucherTypeModal')).hide();
-        refreshVoucherTypesTbody();
-        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, icon: 'success', title: 'Voucher type added.' });
-      } else {
-        Swal.fire({ icon: 'error', title: 'Error', text: (data.message || (data.errors && JSON.stringify(data.errors))) || 'Could not save.' });
-      }
-    })
-    .catch(function() {
-      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
-      Swal.fire({ icon: 'error', title: 'Error', text: 'Could not save.' });
-    });
-  });
-
-  document.getElementById('formEditVoucherType').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var form = this;
-    var id = form.querySelector('[name="id"]').value;
-    var fd = new FormData(form);
-    fd.set('_method', 'PUT');
-    fd.set('is_active', form.querySelector('#editVoucherTypeActive').checked ? '1' : '0');
-    fetch(baseUrl + '/settings-panel/voucher-settings/types/' + id, {
-      method: 'POST',
-      body: fd,
-      headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.success) {
-        bootstrap.Modal.getInstance(document.getElementById('editVoucherTypeModal')).hide();
-        refreshVoucherTypesTbody();
-        Swal.fire({ icon: 'success', title: 'Updated', text: data.message || 'Voucher type updated.' });
-      } else {
-        Swal.fire({ icon: 'error', title: 'Error', text: (data.message || data.errors) || 'Could not update.' });
-      }
-    })
-    .catch(function() { Swal.fire({ icon: 'error', title: 'Error', text: 'Could not update.' }); });
-  });
-
-  document.addEventListener('click', function(e) {
-    var editBtn = e.target.closest('.edit-voucher-type');
-    if (editBtn) {
-      e.preventDefault();
-      document.getElementById('editVoucherTypeId').value = editBtn.dataset.id;
-      document.getElementById('editVoucherTypeCode').value = editBtn.dataset.code;
-      document.getElementById('editVoucherTypeLabel').value = editBtn.dataset.label;
-      document.getElementById('editVoucherTypeActive').checked = editBtn.dataset.active === '1';
-      new bootstrap.Modal(document.getElementById('editVoucherTypeModal')).show();
+      var editCb = form.querySelector('#editAllowEditVoucher');
+      var delCb = form.querySelector('#editAllowDeleteVoucher');
+      if (editCb) editCb.checked = allowEdit === '1' || allowEdit === true;
+      if (delCb) delCb.checked = allowDelete === '1' || allowDelete === true;
     }
-    var delBtn = e.target.closest('.delete-voucher-type');
-    if (delBtn) {
-      e.preventDefault();
-      var id = delBtn.dataset.id, label = delBtn.dataset.label;
-      Swal.fire({ title: 'Delete voucher type?', text: 'Delete "' + label + '"?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Delete' })
-        .then(function(result) {
-          if (!result.isConfirmed) return;
-          var fd = new FormData();
-          fd.set('_method', 'DELETE');
-          fd.set('_token', csrf);
-          fetch(baseUrl + '/settings-panel/voucher-settings/types/' + id, { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-              if (data.success) { refreshVoucherTypesTbody(); Swal.fire({ icon: 'success', title: 'Deleted' }); }
-              else Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not delete.' });
-            })
-            .catch(function() { Swal.fire({ icon: 'error', title: 'Error', text: 'Could not delete.' }); });
+
+    function resetAddVoucherTypeForm(form) {
+      form.reset();
+      var editCb = form.querySelector('#addAllowEditVoucher');
+      var delCb = form.querySelector('#addAllowDeleteVoucher');
+      if (editCb) editCb.checked = true;
+      if (delCb) delCb.checked = true;
+    }
+
+    function refreshVoucherTypesTbody() {
+      fetch(voucherTypesUrl, {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.text();
+        })
+        .then(function(html) {
+          var tbody = document.getElementById('voucherTypesTbody');
+          if (tbody) tbody.innerHTML = html;
         });
     }
-  });
 
-  function buildConfigFields(containerId, dataType, existingConfig) {
-    existingConfig = existingConfig || {};
-    var typeMeta = dataTypes[dataType];
-    var container = document.getElementById(containerId);
-    if (!container) return;
-    container.innerHTML = '';
-    if (!typeMeta || !typeMeta.config || !typeMeta.config.length) return;
-    typeMeta.config.forEach(function(c) {
-      var key = c.key, label = c.label, type = c.type || 'text', defaultVal = c.default, placeholder = c.placeholder || '';
-      var val = existingConfig[key] !== undefined && existingConfig[key] !== null ? existingConfig[key] : (defaultVal !== undefined ? defaultVal : '');
-      if (type === 'checkbox') val = val ? '1' : '0';
-      var wrap = document.createElement('div');
-      wrap.className = 'form-group';
-      var lbl = document.createElement('label');
-      lbl.className = 'form-label';
-      lbl.textContent = label;
-      var input;
-      if (type === 'textarea') {
-        input = document.createElement('textarea');
-        input.rows = 3;
-        input.placeholder = placeholder;
-        input.value = Array.isArray(val) ? val.join('\n') : (val || '');
-      } else if (type === 'checkbox') {
-        input = document.createElement('input');
-        input.type = 'checkbox';
-        input.value = '1';
-        input.checked = val === '1' || val === true;
-        input.name = 'config[' + key + ']';
-        wrap.appendChild(lbl);
-        wrap.appendChild(document.createElement('br'));
-        wrap.appendChild(input);
-        container.appendChild(wrap);
-        return;
-      } else {
-        input = document.createElement('input');
-        input.type = type;
-        input.placeholder = placeholder;
-        input.value = val;
-      }
-      input.name = 'config[' + key + ']';
-      input.className = 'form-control form-control-sm';
-      wrap.appendChild(lbl);
-      wrap.appendChild(input);
-      container.appendChild(wrap);
+    document.getElementById('addVoucherTypeModal').addEventListener('show.bs.modal', function() {
+      var form = document.getElementById('formAddVoucherType');
+      resetAddVoucherTypeForm(form);
     });
-  }
 
-  function showAddVoucherFieldOptions() {
-    var dataType = document.getElementById('addVoucherFieldDataType').value;
-    var opt = document.getElementById('addVoucherFieldOptionsContainer');
-    if (!dataType) { if (opt) opt.style.display = 'none'; return; }
-    if (opt) opt.style.display = 'block';
-    var typeMeta = dataTypes[dataType];
-    var configWrap = document.getElementById('addVoucherFieldConfigOptionsWrap');
-    if (typeMeta && typeMeta.config && typeMeta.config.length) {
-      buildConfigFields('addVoucherFieldConfigFields', dataType, {});
-      configWrap.style.display = 'block';
-    } else {
-      configWrap.style.display = 'none';
-    }
-  }
-  document.getElementById('addVoucherFieldDataType').addEventListener('change', showAddVoucherFieldOptions);
-
-  document.getElementById('addVoucherFieldModal').addEventListener('show.bs.modal', function() {
-    document.getElementById('formAddVoucherField').reset();
-    document.getElementById('addVoucherFieldConfigFields').innerHTML = '';
-    document.getElementById('addVoucherFieldOptionsContainer').style.display = 'none';
-    document.getElementById('addVoucherFieldConfigOptionsWrap').style.display = 'none';
-    document.getElementById('addVoucherMandatoryNo').checked = true;
-    document.getElementById('addVoucherPreventDupNo').checked = true;
-    showAddVoucherFieldOptions();
-    var count = document.querySelectorAll('#voucherCustomFieldsTbody tr[data-id]').length;
-    var rem = document.getElementById('remainingVoucherFieldsCount');
-    if (rem) rem.textContent = Math.max(0, 50 - count);
-  });
-
-  document.getElementById('formAddVoucherField').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var form = this;
-    var submitBtn = document.getElementById('addVoucherFieldSubmitBtn');
-    var fd = new FormData(form);
-    fd.set('is_mandatory', form.querySelector('[name="is_mandatory"]:checked').value === '1' ? '1' : '0');
-    fd.set('prevent_duplicate_values', form.querySelector('[name="prevent_duplicate_values"]:checked').value);
-    var config = {};
-    form.querySelectorAll('[name^="config["]').forEach(function(inp) {
-      var m = (inp.getAttribute('name') || '').match(/config\[([^\]]+)\]/);
-      if (m) {
-        var v = inp.type === 'checkbox' ? (inp.checked ? '1' : '0') : inp.value;
-        if (inp.type === 'textarea' && inp.name.indexOf('options') !== -1) v = (v || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
-        config[m[1]] = v;
+    document.getElementById('formAddVoucherType').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var form = this;
+      var btn = document.getElementById('addVoucherTypeSubmitBtn');
+      var fd = new FormData(form);
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
       }
-    });
-    form.querySelectorAll('[name^="config["]').forEach(function(inp) { fd.delete(inp.name); });
-    fd.append('config', JSON.stringify(config));
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving…'; }
-    fetch(storeFieldUrl, { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save Field'; }
-        if (data.success) {
-          bootstrap.Modal.getInstance(document.getElementById('addVoucherFieldModal')).hide();
-          fetch(voucherFieldsUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(function(r) { return r.text(); })
-            .then(function(html) {
-              document.getElementById('voucherCustomFieldsTbody').innerHTML = html;
-              Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, icon: 'success', title: 'Field saved.' });
-              initVoucherFieldsSortable();
+      fetch(storeTypeUrl, {
+          method: 'POST',
+          body: fd,
+          headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.json();
+        })
+        .then(function(data) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Save';
+          }
+          if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('addVoucherTypeModal')).hide();
+            resetAddVoucherTypeForm(form);
+            refreshVoucherTypesTbody();
+            Swal.fire({
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 2500,
+              icon: 'success',
+              title: 'Voucher type added.'
             });
-        } else {
-          Swal.fire({ icon: 'error', title: 'Error', text: (data.message || (data.errors && JSON.stringify(data.errors))) || 'Could not save.' });
-        }
-      })
-      .catch(function() {
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save Field'; }
-        Swal.fire({ icon: 'error', title: 'Error', text: 'Could not save.' });
-      });
-  });
-
-  document.getElementById('formEditVoucherField').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var form = this;
-    var id = form.querySelector('[name="id"]').value;
-    var fd = new FormData(form);
-    fd.set('_method', 'PUT');
-    fd.set('is_mandatory', form.querySelector('#editVoucherFieldMandatory').checked ? '1' : '0');
-    var config = {};
-    form.querySelectorAll('[name^="config["]').forEach(function(inp) {
-      var m = (inp.getAttribute('name') || '').match(/config\[([^\]]+)\]/);
-      if (m) {
-        var v = inp.type === 'checkbox' ? (inp.checked ? '1' : '0') : inp.value;
-        if (inp.type === 'textarea' && inp.name.indexOf('options') !== -1) v = (v || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
-        config[m[1]] = v;
-      }
-    });
-    form.querySelectorAll('[name^="config["]').forEach(function(inp) { fd.delete(inp.name); });
-    fd.append('config', JSON.stringify(config));
-    fetch(baseUrl + '/settings-panel/voucher-settings/fields/' + id, { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.success) {
-          Swal.fire({ icon: 'success', title: 'Updated', text: data.message || 'Custom field updated.' });
-          window.location.reload();
-        } else {
-          Swal.fire({ icon: 'error', title: 'Error', text: (data.message || data.errors) || 'Could not update.' });
-        }
-      })
-      .catch(function() { Swal.fire({ icon: 'error', title: 'Error', text: 'Could not update.' }); });
-  });
-
-  document.addEventListener('click', function(e) {
-    var editBtn = e.target.closest('.edit-voucher-field');
-    if (editBtn) {
-      e.preventDefault();
-      var config = {};
-      try { config = JSON.parse(editBtn.dataset.config || '{}'); } catch (err) {}
-      document.getElementById('editVoucherFieldId').value = editBtn.dataset.id;
-      document.getElementById('editVoucherFieldLabel').value = editBtn.dataset.label;
-      document.getElementById('editVoucherFieldDataType').value = editBtn.dataset.type;
-      document.getElementById('editVoucherFieldMandatory').checked = editBtn.dataset.mandatory === '1';
-      buildConfigFields('edit-voucher-config-options-fields', editBtn.dataset.type, config);
-      document.getElementById('edit-voucher-config-options-container').style.display = (dataTypes[editBtn.dataset.type] && dataTypes[editBtn.dataset.type].config && dataTypes[editBtn.dataset.type].config.length) ? 'block' : 'none';
-      new bootstrap.Modal(document.getElementById('editVoucherFieldModal')).show();
-    }
-    var delBtn = e.target.closest('.delete-voucher-field');
-    if (delBtn) {
-      e.preventDefault();
-      var id = delBtn.dataset.id, label = delBtn.dataset.label;
-      Swal.fire({ title: 'Delete field?', text: 'Delete custom field "' + label + '"?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Delete' })
-        .then(function(result) {
-          if (!result.isConfirmed) return;
-          var fd = new FormData();
-          fd.set('_method', 'DELETE');
-          fd.set('_token', csrf);
-          fetch(baseUrl + '/settings-panel/voucher-settings/fields/' + id, { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-              if (data.success) {
-                var row = document.querySelector('#voucherCustomFieldsTbody tr[data-id="' + id + '"]');
-                if (row) row.remove();
-                var rows = document.querySelectorAll('#voucherCustomFieldsTbody tr[data-id]');
-                if (rows.length === 0) document.getElementById('voucherCustomFieldsTbody').innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No custom fields yet. Click "Add New Field" to create one.</td></tr>';
-                else rows.forEach(function(row, i) { var td = row.cells[1]; if (td) td.textContent = i + 1; });
-                Swal.fire({ icon: 'success', title: 'Deleted' });
-              } else Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not delete.' });
-            })
-            .catch(function() { Swal.fire({ icon: 'error', title: 'Error', text: 'Could not delete.' }); });
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: (data.message || (data.errors && JSON.stringify(data.errors))) || 'Could not save.'
+            });
+          }
+        })
+        .catch(function() {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Save';
+          }
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Could not save.'
+          });
         });
-    }
-  });
+    });
 
-  var voucherFieldsSortable = null;
-  function initVoucherFieldsSortable() {
-    var tbody = document.getElementById('voucherCustomFieldsTbody');
-    if (voucherFieldsSortable) { voucherFieldsSortable.destroy(); voucherFieldsSortable = null; }
-    if (!tbody || !tbody.querySelectorAll('tr[data-id]').length) return;
-    voucherFieldsSortable = new Sortable(tbody, {
-      handle: '.drag-handle',
-      animation: 150,
-      ghostClass: 'table-warning',
-      onEnd: function() {
-        var order = Array.from(tbody.querySelectorAll('tr[data-id]')).map(function(tr) { return tr.getAttribute('data-id'); });
-        fetch(reorderFieldsUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }, body: JSON.stringify({ order: order }) })
-          .then(function(r) { return r.json(); })
-          .then(function(data) {
-            if (data.success) {
-              var idx = 1;
-              tbody.querySelectorAll('tr[data-id]').forEach(function(row) { var td = row.cells[1]; if (td) td.textContent = idx++; });
-            }
+    document.getElementById('formEditVoucherType').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var form = this;
+      var id = form.querySelector('[name="id"]').value;
+      var fd = new FormData(form);
+      fd.set('_method', 'PUT');
+      fd.set('is_active', form.querySelector('#editVoucherTypeActive').checked ? '1' : '0');
+      fetch(baseUrl + '/settings-panel/voucher-settings/types/' + id, {
+          method: 'POST',
+          body: fd,
+          headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.json();
+        })
+        .then(function(data) {
+          if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('editVoucherTypeModal')).hide();
+            refreshVoucherTypesTbody();
+            Swal.fire({
+              icon: 'success',
+              title: 'Updated',
+              text: data.message || 'Voucher type updated.'
+            });
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: (data.message || data.errors) || 'Could not update.'
+            });
+          }
+        })
+        .catch(function() {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Could not update.'
+          });
+        });
+    });
+
+    document.addEventListener('click', function(e) {
+      var editBtn = e.target.closest('.edit-voucher-type');
+      if (editBtn) {
+        e.preventDefault();
+        var modules = [];
+        try {
+          modules = JSON.parse(editBtn.dataset.modules || '[]');
+        } catch (err) {}
+        var allowEdit = editBtn.dataset.allowEditVoucher || '0';
+        var allowDelete = editBtn.dataset.allowDeleteVoucher || '0';
+        document.getElementById('editVoucherTypeId').value = editBtn.dataset.id;
+        document.getElementById('editVoucherTypeCode').value = editBtn.dataset.code;
+        document.getElementById('editVoucherTypeLabel').value = editBtn.dataset.label;
+        document.getElementById('editVoucherTypeActive').checked = editBtn.dataset.active === '1';
+        setEditVoucherTypeForm(document.getElementById('formEditVoucherType'), modules, allowEdit, allowDelete);
+        new bootstrap.Modal(document.getElementById('editVoucherTypeModal')).show();
+      }
+      var delBtn = e.target.closest('.delete-voucher-type');
+      if (delBtn) {
+        e.preventDefault();
+        var id = delBtn.dataset.id,
+          label = delBtn.dataset.label;
+        Swal.fire({
+            title: 'Delete voucher type?',
+            text: 'Delete "' + label + '"?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Delete'
+          })
+          .then(function(result) {
+            if (!result.isConfirmed) return;
+            var fd = new FormData();
+            fd.set('_method', 'DELETE');
+            fd.set('_token', csrf);
+            fetch(baseUrl + '/settings-panel/voucher-settings/types/' + id, {
+                method: 'POST',
+                body: fd,
+                headers: {
+                  'X-CSRF-TOKEN': csrf,
+                  'Accept': 'application/json',
+                  'X-Requested-With': 'XMLHttpRequest'
+                }
+              })
+              .then(function(r) {
+                return r.json();
+              })
+              .then(function(data) {
+                if (data.success) {
+                  refreshVoucherTypesTbody();
+                  Swal.fire({
+                    icon: 'success',
+                    title: 'Deleted'
+                  });
+                } else Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: data.message || 'Could not delete.'
+                });
+              })
+              .catch(function() {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: 'Could not delete.'
+                });
+              });
           });
       }
     });
-  }
-  initVoucherFieldsSortable();
-})();
+
+    function buildConfigFields(containerId, dataType, existingConfig) {
+      existingConfig = existingConfig || {};
+      var typeMeta = dataTypes[dataType];
+      var container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = '';
+      if (!typeMeta || !typeMeta.config || !typeMeta.config.length) return;
+      typeMeta.config.forEach(function(c) {
+        var key = c.key,
+          label = c.label,
+          type = c.type || 'text',
+          defaultVal = c.default,
+          placeholder = c.placeholder || '';
+        var val = existingConfig[key] !== undefined && existingConfig[key] !== null ? existingConfig[key] : (defaultVal !== undefined ? defaultVal : '');
+        if (type === 'checkbox') val = val ? '1' : '0';
+        var wrap = document.createElement('div');
+        wrap.className = 'form-group';
+        var lbl = document.createElement('label');
+        lbl.className = 'form-label';
+        lbl.textContent = label;
+        var input;
+        if (type === 'textarea') {
+          input = document.createElement('textarea');
+          input.rows = 3;
+          input.placeholder = placeholder;
+          input.value = Array.isArray(val) ? val.join('\n') : (val || '');
+        } else if (type === 'checkbox') {
+          input = document.createElement('input');
+          input.type = 'checkbox';
+          input.value = '1';
+          input.checked = val === '1' || val === true;
+          input.name = 'config[' + key + ']';
+          wrap.appendChild(lbl);
+          wrap.appendChild(document.createElement('br'));
+          wrap.appendChild(input);
+          container.appendChild(wrap);
+          return;
+        } else {
+          input = document.createElement('input');
+          input.type = type;
+          input.placeholder = placeholder;
+          input.value = val;
+        }
+        input.name = 'config[' + key + ']';
+        input.className = 'form-control form-control-sm';
+        wrap.appendChild(lbl);
+        wrap.appendChild(input);
+        container.appendChild(wrap);
+      });
+    }
+
+    function showAddVoucherFieldOptions() {
+      var dataType = document.getElementById('addVoucherFieldDataType').value;
+      var opt = document.getElementById('addVoucherFieldOptionsContainer');
+      if (!dataType) {
+        if (opt) opt.style.display = 'none';
+        return;
+      }
+      if (opt) opt.style.display = 'block';
+      var typeMeta = dataTypes[dataType];
+      var configWrap = document.getElementById('addVoucherFieldConfigOptionsWrap');
+      if (typeMeta && typeMeta.config && typeMeta.config.length) {
+        buildConfigFields('addVoucherFieldConfigFields', dataType, {});
+        configWrap.style.display = 'block';
+      } else {
+        configWrap.style.display = 'none';
+      }
+    }
+    document.getElementById('addVoucherFieldDataType').addEventListener('change', showAddVoucherFieldOptions);
+
+    document.getElementById('addVoucherFieldModal').addEventListener('show.bs.modal', function() {
+      document.getElementById('formAddVoucherField').reset();
+      document.getElementById('addVoucherFieldConfigFields').innerHTML = '';
+      document.getElementById('addVoucherFieldOptionsContainer').style.display = 'none';
+      document.getElementById('addVoucherFieldConfigOptionsWrap').style.display = 'none';
+      document.getElementById('addVoucherMandatoryNo').checked = true;
+      document.getElementById('addVoucherPreventDupNo').checked = true;
+      showAddVoucherFieldOptions();
+      var count = document.querySelectorAll('#voucherCustomFieldsTbody tr[data-id]').length;
+      var rem = document.getElementById('remainingVoucherFieldsCount');
+      if (rem) rem.textContent = Math.max(0, 50 - count);
+    });
+
+    document.getElementById('formAddVoucherField').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var form = this;
+      var submitBtn = document.getElementById('addVoucherFieldSubmitBtn');
+      var fd = new FormData(form);
+      fd.set('is_mandatory', form.querySelector('[name="is_mandatory"]:checked').value === '1' ? '1' : '0');
+      fd.set('prevent_duplicate_values', form.querySelector('[name="prevent_duplicate_values"]:checked').value);
+      var config = {};
+      form.querySelectorAll('[name^="config["]').forEach(function(inp) {
+        var m = (inp.getAttribute('name') || '').match(/config\[([^\]]+)\]/);
+        if (m) {
+          var v = inp.type === 'checkbox' ? (inp.checked ? '1' : '0') : inp.value;
+          if (inp.type === 'textarea' && inp.name.indexOf('options') !== -1) v = (v || '').split('\n').map(function(s) {
+            return s.trim();
+          }).filter(Boolean);
+          config[m[1]] = v;
+        }
+      });
+      form.querySelectorAll('[name^="config["]').forEach(function(inp) {
+        fd.delete(inp.name);
+      });
+      fd.append('config', JSON.stringify(config));
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving…';
+      }
+      fetch(storeFieldUrl, {
+          method: 'POST',
+          body: fd,
+          headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.json();
+        })
+        .then(function(data) {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Field';
+          }
+          if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('addVoucherFieldModal')).hide();
+            fetch(voucherFieldsUrl, {
+                headers: {
+                  'X-Requested-With': 'XMLHttpRequest'
+                }
+              })
+              .then(function(r) {
+                return r.text();
+              })
+              .then(function(html) {
+                document.getElementById('voucherCustomFieldsTbody').innerHTML = html;
+                Swal.fire({
+                  toast: true,
+                  position: 'top-end',
+                  showConfirmButton: false,
+                  timer: 2500,
+                  icon: 'success',
+                  title: 'Field saved.'
+                });
+                initVoucherFieldsSortable();
+              });
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: (data.message || (data.errors && JSON.stringify(data.errors))) || 'Could not save.'
+            });
+          }
+        })
+        .catch(function() {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Field';
+          }
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Could not save.'
+          });
+        });
+    });
+
+    document.getElementById('formEditVoucherField').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var form = this;
+      var id = form.querySelector('[name="id"]').value;
+      var fd = new FormData(form);
+      fd.set('_method', 'PUT');
+      fd.set('is_mandatory', form.querySelector('#editVoucherFieldMandatory').checked ? '1' : '0');
+      var config = {};
+      form.querySelectorAll('[name^="config["]').forEach(function(inp) {
+        var m = (inp.getAttribute('name') || '').match(/config\[([^\]]+)\]/);
+        if (m) {
+          var v = inp.type === 'checkbox' ? (inp.checked ? '1' : '0') : inp.value;
+          if (inp.type === 'textarea' && inp.name.indexOf('options') !== -1) v = (v || '').split('\n').map(function(s) {
+            return s.trim();
+          }).filter(Boolean);
+          config[m[1]] = v;
+        }
+      });
+      form.querySelectorAll('[name^="config["]').forEach(function(inp) {
+        fd.delete(inp.name);
+      });
+      fd.append('config', JSON.stringify(config));
+      fetch(baseUrl + '/settings-panel/voucher-settings/fields/' + id, {
+          method: 'POST',
+          body: fd,
+          headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.json();
+        })
+        .then(function(data) {
+          if (data.success) {
+            Swal.fire({
+              icon: 'success',
+              title: 'Updated',
+              text: data.message || 'Custom field updated.'
+            });
+            window.location.reload();
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: (data.message || data.errors) || 'Could not update.'
+            });
+          }
+        })
+        .catch(function() {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Could not update.'
+          });
+        });
+    });
+
+    document.addEventListener('click', function(e) {
+      var editBtn = e.target.closest('.edit-voucher-field');
+      if (editBtn) {
+        e.preventDefault();
+        var config = {};
+        try {
+          config = JSON.parse(editBtn.dataset.config || '{}');
+        } catch (err) {}
+        document.getElementById('editVoucherFieldId').value = editBtn.dataset.id;
+        document.getElementById('editVoucherFieldLabel').value = editBtn.dataset.label;
+        document.getElementById('editVoucherFieldDataType').value = editBtn.dataset.type;
+        document.getElementById('editVoucherFieldMandatory').checked = editBtn.dataset.mandatory === '1';
+        buildConfigFields('edit-voucher-config-options-fields', editBtn.dataset.type, config);
+        document.getElementById('edit-voucher-config-options-container').style.display = (dataTypes[editBtn.dataset.type] && dataTypes[editBtn.dataset.type].config && dataTypes[editBtn.dataset.type].config.length) ? 'block' : 'none';
+        new bootstrap.Modal(document.getElementById('editVoucherFieldModal')).show();
+      }
+      var delBtn = e.target.closest('.delete-voucher-field');
+      if (delBtn) {
+        e.preventDefault();
+        var id = delBtn.dataset.id,
+          label = delBtn.dataset.label;
+        Swal.fire({
+            title: 'Delete field?',
+            text: 'Delete custom field "' + label + '"?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Delete'
+          })
+          .then(function(result) {
+            if (!result.isConfirmed) return;
+            var fd = new FormData();
+            fd.set('_method', 'DELETE');
+            fd.set('_token', csrf);
+            fetch(baseUrl + '/settings-panel/voucher-settings/fields/' + id, {
+                method: 'POST',
+                body: fd,
+                headers: {
+                  'X-CSRF-TOKEN': csrf,
+                  'Accept': 'application/json',
+                  'X-Requested-With': 'XMLHttpRequest'
+                }
+              })
+              .then(function(r) {
+                return r.json();
+              })
+              .then(function(data) {
+                if (data.success) {
+                  var row = document.querySelector('#voucherCustomFieldsTbody tr[data-id="' + id + '"]');
+                  if (row) row.remove();
+                  var rows = document.querySelectorAll('#voucherCustomFieldsTbody tr[data-id]');
+                  if (rows.length === 0) document.getElementById('voucherCustomFieldsTbody').innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No custom fields yet. Click "Add New Field" to create one.</td></tr>';
+                  else rows.forEach(function(row, i) {
+                    var td = row.cells[1];
+                    if (td) td.textContent = i + 1;
+                  });
+                  Swal.fire({
+                    icon: 'success',
+                    title: 'Deleted'
+                  });
+                } else Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: data.message || 'Could not delete.'
+                });
+              })
+              .catch(function() {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: 'Could not delete.'
+                });
+              });
+          });
+      }
+    });
+
+    var voucherFieldsSortable = null;
+
+    function initVoucherFieldsSortable() {
+      var tbody = document.getElementById('voucherCustomFieldsTbody');
+      if (voucherFieldsSortable) {
+        voucherFieldsSortable.destroy();
+        voucherFieldsSortable = null;
+      }
+      if (!tbody || !tbody.querySelectorAll('tr[data-id]').length) return;
+      voucherFieldsSortable = new Sortable(tbody, {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'table-warning',
+        onEnd: function() {
+          var order = Array.from(tbody.querySelectorAll('tr[data-id]')).map(function(tr) {
+            return tr.getAttribute('data-id');
+          });
+          fetch(reorderFieldsUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                order: order
+              })
+            })
+            .then(function(r) {
+              return r.json();
+            })
+            .then(function(data) {
+              if (data.success) {
+                var idx = 1;
+                tbody.querySelectorAll('tr[data-id]').forEach(function(row) {
+                  var td = row.cells[1];
+                  if (td) td.textContent = idx++;
+                });
+              }
+            });
+        }
+      });
+    }
+    initVoucherFieldsSortable();
+  })();
 </script>
 @endpush

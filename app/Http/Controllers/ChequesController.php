@@ -420,6 +420,9 @@ class ChequesController extends Controller
                         'narration' => $cheque->description,
                     ]);
 
+                    if (!\App\Models\VoucherType::isCodeAllowedForModule('PV', 'cheques')) {
+                        throw new \Exception('Payment voucher type (PV) is not assigned to the Cheques module. Please assign it in Voucher Settings.');
+                    }
                     // voucher
                     $voucherData = [
                         'trans_date' => $payment->date_of_payment,
@@ -487,6 +490,9 @@ class ChequesController extends Controller
                         'narration' => $cheque->description,
                     ]);
 
+                    if (!\App\Models\VoucherType::isCodeAllowedForModule('RV', 'cheques')) {
+                        throw new \Exception('Receipt voucher type (RV) is not assigned to the Cheques module. Please assign it in Voucher Settings.');
+                    }
                     // voucher
                     $voucherData = [
                         'trans_date' => $receipt->date_of_receipt,

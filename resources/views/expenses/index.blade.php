@@ -82,6 +82,7 @@
 <div class="content-wrapper">
   <section class="content-header">
     <div class="container-fluid">
+      @include('flash::message')
       <div class="row mb-2">
         <div class="col-sm-6">
           <h3>Expense Vouchers</h3>

@@ -61,6 +61,7 @@ class Riders extends Model
     'c3_card',
     'contract',
     'designation',
+    'rider_status_option',
     'image_name',
     'salary_model',
     'rider_reference',

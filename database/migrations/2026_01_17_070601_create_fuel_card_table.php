@@ -11,16 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('fuel_cards', function (Blueprint $table) {
-            $table->id();
-            $table->string('card_number');
-            $table->string('card_type')->nullable();
-            $table->string('status');
-            $table->unsignedBigInteger('assigned_to')->nullable();
-            $table->unsignedBigInteger('created_by');
-            $table->unsignedBigInteger('updated_by')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('fuel_cards')) {
+            Schema::create('fuel_cards', function (Blueprint $table) {
+                $table->id();
+                $table->string('card_number');
+                $table->string('card_type')->nullable();
+                $table->string('status');
+                $table->unsignedBigInteger('assigned_to')->nullable();
+                $table->unsignedBigInteger('created_by');
+                $table->unsignedBigInteger('updated_by')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**
@@ -28,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('fuel_card');
+        Schema::dropIfExists('fuel_cards');
     }
 };

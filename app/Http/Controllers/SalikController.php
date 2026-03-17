@@ -269,6 +269,9 @@ class SalikController extends AppBaseController
         if ($exists) {
             return response()->json(['errors' => ['error' => 'This Transaction ID already exists.']], 422);
         }
+        if (!\App\Models\VoucherType::isCodeAllowedForModule('SV', 'rta_saliks')) {
+            return response()->json(['errors' => ['error' => 'Salik voucher type (SV) is not assigned to the RTA Saliks module. Please assign it in Voucher Settings.']], 422);
+        }
         \DB::beginTransaction();
         try {
             $input = $request->all();
@@ -631,6 +634,9 @@ class SalikController extends AppBaseController
 
         if (!$salikAccountId || !$riderAccountId) {
             throw new \Exception('Account IDs are missing or invalid.');
+        }
+        if (!\App\Models\VoucherType::isCodeAllowedForModule('SV', 'rta_saliks')) {
+            throw new \Exception('Salik voucher type (SV) is not assigned to the RTA Saliks module. Please assign it in Voucher Settings.');
         }
 
         $transactionService = new TransactionService();

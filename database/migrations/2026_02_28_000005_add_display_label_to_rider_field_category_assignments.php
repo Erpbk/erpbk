@@ -8,15 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('rider_field_category_assignments', function (Blueprint $table) {
-            $table->string('display_label', 255)->nullable()->after('field_key');
-        });
+        if (Schema::hasTable('rider_field_category_assignments') && !Schema::hasColumn('rider_field_category_assignments', 'display_label')) {
+            Schema::table('rider_field_category_assignments', function (Blueprint $table) {
+                $table->string('display_label', 255)->nullable()->after('field_key');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('rider_field_category_assignments', function (Blueprint $table) {
-            $table->dropColumn('display_label');
-        });
+        if (Schema::hasTable('rider_field_category_assignments') && Schema::hasColumn('rider_field_category_assignments', 'display_label')) {
+            Schema::table('rider_field_category_assignments', function (Blueprint $table) {
+                $table->dropColumn('display_label');
+            });
+        }
     }
 };

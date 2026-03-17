@@ -186,6 +186,15 @@ class PaymentController extends Controller
                 ]);
             }
 
+            if (!\App\Models\VoucherType::isCodeAllowedForModule('PV', 'cash_banks')) {
+                DB::rollBack();
+                if ($request->ajax()) {
+                    return response()->json(['message' => 'Payment voucher type (PV) is not assigned to the Cash & Banks module. Please assign it in Voucher Settings.'], 422);
+                }
+                Flash::error('Payment voucher type (PV) is not assigned to the Cash & Banks module. Please assign it in Voucher Settings.');
+                return redirect()->back()->withInput();
+            }
+
             // voucher
             $voucherData = [
                 'trans_date' => $date,

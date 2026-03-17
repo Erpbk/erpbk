@@ -143,6 +143,11 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::match(['get', 'post'], '/company', [HomeController::class, 'settings'])->name('settings-panel.company');
         Route::get('/erp', [App\Http\Controllers\ErpSettingsController::class, 'index'])->name('settings-panel.erp');
         Route::post('/erp', [App\Http\Controllers\ErpSettingsController::class, 'store'])->name('settings-panel.erp.store');
+        Route::get('vat-settings', [App\Http\Controllers\VatSettingsController::class, 'index'])->name('settings-panel.vat-settings.index');
+        Route::post('vat-settings/module-label', [App\Http\Controllers\VatSettingsController::class, 'storeModuleLabel'])->name('settings-panel.vat-settings.store-module-label');
+        Route::post('vat-settings/quarters', [App\Http\Controllers\VatSettingsController::class, 'storeQuarter'])->name('settings-panel.vat-settings.store-quarter');
+        Route::delete('vat-settings/quarters/{slot}', [App\Http\Controllers\VatSettingsController::class, 'deleteQuarter'])->name('settings-panel.vat-settings.delete-quarter');
+        Route::post('vat-settings', [App\Http\Controllers\VatSettingsController::class, 'store'])->name('settings-panel.vat-settings.store');
         Route::resource('departments', App\Http\Controllers\DepartmentsController::class)->names('settings-panel.departments');
         Route::resource('dropdowns', App\Http\Controllers\DropdownsController::class)->names('settings-panel.dropdowns');
         Route::resource('visa-statuses', App\Http\Controllers\VisaStatusController::class)->names('settings-panel.visa-statuses');
@@ -200,9 +205,9 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[a-z_]+');
         Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[a-z_]+');
         // User Management, Activity Logs, Recycle Bin (moved into Settings)
-        
+
         Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');
-        Route::patch('users/{id}/password',[App\Http\Controllers\UserController::class, 'changePassword'])->name('users.password');
+        Route::patch('users/{id}/password', [App\Http\Controllers\UserController::class, 'changePassword'])->name('users.password');
         Route::resource('permissions', App\Http\Controllers\PermissionsController::class)->names('settings-panel.permissions');
         Route::resource('roles', App\Http\Controllers\RolesController::class)->names('settings-panel.roles');
         Route::prefix('activity-logs')->name('settings-panel.activity-logs.')->group(function () {
@@ -321,8 +326,10 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('riders/toggle-flowup/{id}', [\App\Http\Controllers\RidersController::class, 'toggleFlowup'])->name('riders.toggleFlowup');
     Route::post('riders/toggle-llicense/{id}', [\App\Http\Controllers\RidersController::class, 'toggleLlicense'])->name('riders.toggleLlicense');
     Route::post('riders/toggle-walker/{id}', [\App\Http\Controllers\RidersController::class, 'toggleWalker'])->name('riders.toggleWalker');
+    Route::post('riders/toggle-vacation/{id}', [\App\Http\Controllers\RidersController::class, 'toggleVacation'])->name('riders.toggleVacation');
     Route::post('riders/toggle-mol/{id}', [\App\Http\Controllers\RidersController::class, 'toggleMol'])->name('riders.toggleMol');
     Route::post('riders/toggle-pro/{id}', [\App\Http\Controllers\RidersController::class, 'togglePro'])->name('riders.togglePro');
+    Route::post('riders/set-status-option/{id}', [\App\Http\Controllers\RidersController::class, 'setRiderStatusOption'])->name('riders.setStatusOption');
     Route::post('riders/return-bike/{id}', [\App\Http\Controllers\RidersController::class, 'returnBike'])->name('riders.returnBike');
     Route::post('riders/add-recruiter', [\App\Http\Controllers\RidersController::class, 'addRecruiter'])->name('riders.addRecruiter');
     Route::get('riders/vendorcharges/{id}', [\App\Http\Controllers\RidersController::class, 'vendorcharges'])->name('riders.vendorcharges');
@@ -510,6 +517,15 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::get('/ledger', [LedgerController::class, 'index'])->name('accounts.ledger');
         Route::get('/ledger/data', [LedgerController::class, 'getLedgerData'])->name('ledger.data');
         Route::get('/ledger/export', [LedgerController::class, 'export'])->name('ledger.export');
+        Route::get('/vat', [App\Http\Controllers\VatController::class, 'index'])->name('vat.index');
+        Route::get('/vat/returns', [App\Http\Controllers\VatController::class, 'returnsIndex'])->name('vat.returns.index');
+        Route::get('/vat/returns/{vat_return}', [App\Http\Controllers\VatController::class, 'returnsShow'])->name('vat.returns.show');
+        Route::post('/vat/return-file', [App\Http\Controllers\VatController::class, 'fileReturn'])->name('vat.return.file');
+        Route::patch('/vat/returns/{vat_return}/status', [App\Http\Controllers\VatController::class, 'updateReturnStatus'])->name('vat.returns.update-status');
+        Route::delete('/vat/returns/{vat_return}', [App\Http\Controllers\VatController::class, 'destroyReturn'])->name('vat.returns.destroy');
+        Route::post('/vat/returns/{vat_return}/delete-entries', [App\Http\Controllers\VatController::class, 'deleteReturnEntries'])->name('vat.returns.delete-entries');
+        Route::get('/vat/voucher/create', [App\Http\Controllers\VatController::class, 'createVoucher'])->name('vat.voucher.create');
+        Route::post('/vat/voucher/store', [App\Http\Controllers\VatController::class, 'storeVoucher'])->name('vat.voucher.store');
         Route::post('accounts/{id}/toggle-lock', [App\Http\Controllers\AccountsController::class, 'toggleLock'])->name('accounts.toggleLock');
         Route::post('accounts/{id}/toggle-status', [App\Http\Controllers\AccountsController::class, 'toggleStatus'])->name('accounts.toggleStatus');
     });

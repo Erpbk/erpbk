@@ -11,12 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('cheques')) {
+            return;
+        }
+
         Schema::table('cheques' , function (Blueprint $table) {
             // Add due_date column (nullable date)
-            $table->date('cheque_date')->nullable()->after('issue_date');
+            if (!Schema::hasColumn('cheques', 'cheque_date')) {
+                $table->date('cheque_date')->nullable()->after('issue_date');
+            }
             
             // Add security_cheque column with default false
-            $table->boolean('is_security')->default(false)->after('type');
+            if (!Schema::hasColumn('cheques', 'is_security')) {
+                $table->boolean('is_security')->default(false)->after('type');
+            }
         });
     }
 
@@ -25,8 +33,19 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('cheques')) {
+            return;
+        }
+
         Schema::table('cheques', function (Blueprint $table) {
-            $table->dropColumn(['cheque_date','is_security']);
+            $dropColumns = collect(['cheque_date', 'is_security'])
+                ->filter(fn ($column) => Schema::hasColumn('cheques', $column))
+                ->values()
+                ->all();
+
+            if (!empty($dropColumns)) {
+                $table->dropColumn($dropColumns);
+            }
         });
     }
 };

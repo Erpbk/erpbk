@@ -5,29 +5,29 @@
 $configData = Helper::appClasses();
 $settingsPanelLabels = \App\Models\Settings::getMenuLabels();
 $moduleIcons = [
-    'dashboard'         => 'ti-layout-dashboard',
-    'recycle_bin'       => 'ti-trash',
-    'cash_banks'        => 'ti-building-bank',
-    'employees'         => 'ti-user',
-    'attendance'        => 'ti-calendar-check',
-    'items'             => 'ti-notes',
-    'leads'             => 'ti-user-plus',
-    'customers'         => 'ti-user-star',
-    'vendors'           => 'ti-user-star',
-    'recruiters'        => 'ti-user-star',
-    'bikes'             => 'ti-motorbike',
-    'sims'              => 'ti-device-sim',
-    'fuel_cards'        => 'ti-gas-station',
-    'rta_fines'         => 'ti-file-alert',
-    'rta_saliks'        => 'ti-cash',
-    'inventory'         => 'ti-package',
-    'visa_expense'      => 'ti-credit-card',
-    'expenses'          => 'ti-receipt',
-    'leasing_companies' => 'ti-building',
-    'garages'           => 'ti-parking',
-    'supplier'          => 'ti-truck',
-    'assets'            => 'ti-box',
-    'documents'         => 'ti-upload',
+'dashboard' => 'ti-layout-dashboard',
+'recycle_bin' => 'ti-trash',
+'cash_banks' => 'ti-building-bank',
+'employees' => 'ti-user',
+'attendance' => 'ti-calendar-check',
+'items' => 'ti-notes',
+'leads' => 'ti-user-plus',
+'customers' => 'ti-user-star',
+'vendors' => 'ti-user-star',
+'recruiters' => 'ti-user-star',
+'bikes' => 'ti-motorbike',
+'sims' => 'ti-device-sim',
+'fuel_cards' => 'ti-gas-station',
+'rta_fines' => 'ti-file-alert',
+'rta_saliks' => 'ti-cash',
+'inventory' => 'ti-package',
+'visa_expense' => 'ti-credit-card',
+'expenses' => 'ti-receipt',
+'leasing_companies' => 'ti-building',
+'garages' => 'ti-parking',
+'supplier' => 'ti-truck',
+'assets' => 'ti-box',
+'documents' => 'ti-upload',
 ];
 @endphp
 @extends('layouts/commonMaster')
@@ -168,6 +168,14 @@ $containerNav = 'container-fluid';
           <a href="{{ route('settings-panel.rider-settings.index') }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-motorbike"></i>
             <div>{{ $settingsPanelLabels['riders'] ?? 'Riders' }}</div>
+          </a>
+        </li>
+        @endcan
+        @can('vat_view')
+        <li class="menu-item {{ Request::is('settings-panel/vat-settings*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.vat-settings.index') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-receipt-tax"></i>
+            <div>{{ $settingsPanelLabels['vat_settings'] ?? 'VAT Settings' }}</div>
           </a>
         </li>
         @endcan

@@ -5,6 +5,7 @@ namespace App\DataTables;
 use App\Helpers\Common;
 use App\Helpers\General;
 use App\Models\Vouchers;
+use App\Models\VoucherType;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
 use Illuminate\Support\Facades\DB;
@@ -87,7 +88,15 @@ class VouchersDataTable extends DataTable
 
 
     $dataTable->rawColumns(['role', 'action', 'attach_file', 'id']);
-    $dataTable->addColumn('action', 'vouchers.datatables_actions');
+    $editDeleteFlags = VoucherType::getEditDeleteFlagsByModule('vouchers');
+    $dataTable->addColumn('action', function (Vouchers $row) use ($editDeleteFlags) {
+      return view('vouchers.datatables_actions', [
+        'id' => $row->id,
+        'trans_code' => $row->trans_code,
+        'voucher_type' => $row->voucher_type,
+        'editDeleteFlags' => $editDeleteFlags,
+      ])->render();
+    });
 
     return $dataTable;
   }

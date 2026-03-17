@@ -16,9 +16,11 @@ return new class extends Migration
             return;
         }
 
-        Schema::table('rider_custom_fields', function (Blueprint $table) {
-            $table->foreignId('category_id')->nullable()->after('config')->constrained('rider_categories')->cascadeOnDelete();
-        });
+        if (!Schema::hasColumn('rider_custom_fields', 'category_id')) {
+            Schema::table('rider_custom_fields', function (Blueprint $table) {
+                $table->foreignId('category_id')->nullable()->after('config')->constrained('rider_categories')->cascadeOnDelete();
+            });
+        }
 
         $slugToId = DB::table('rider_categories')->whereNotNull('slug')->pluck('id', 'slug')->all();
         $defaultCategoryId = DB::table('rider_categories')->where('slug', 'other')->value('id') ?? array_values($slugToId)[0] ?? null;
@@ -30,9 +32,11 @@ return new class extends Migration
             }
         }
 
-        Schema::table('rider_custom_fields', function (Blueprint $table) {
-            $table->dropColumn('category');
-        });
+        if (Schema::hasColumn('rider_custom_fields', 'category')) {
+            Schema::table('rider_custom_fields', function (Blueprint $table) {
+                $table->dropColumn('category');
+            });
+        }
     }
 
     /**
@@ -44,9 +48,11 @@ return new class extends Migration
             return;
         }
 
-        Schema::table('rider_custom_fields', function (Blueprint $table) {
-            $table->string('category', 50)->nullable()->after('config');
-        });
+        if (!Schema::hasColumn('rider_custom_fields', 'category')) {
+            Schema::table('rider_custom_fields', function (Blueprint $table) {
+                $table->string('category', 50)->nullable()->after('config');
+            });
+        }
 
         $idToSlug = DB::table('rider_categories')->pluck('slug', 'id')->all();
 
@@ -55,8 +61,10 @@ return new class extends Migration
             DB::table('rider_custom_fields')->where('id', $row->id)->update(['category' => $slug]);
         }
 
-        Schema::table('rider_custom_fields', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('category_id');
-        });
+        if (Schema::hasColumn('rider_custom_fields', 'category_id')) {
+            Schema::table('rider_custom_fields', function (Blueprint $table) {
+                $table->dropConstrainedForeignId('category_id');
+            });
+        }
     }
 };

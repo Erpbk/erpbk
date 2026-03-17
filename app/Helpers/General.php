@@ -775,6 +775,8 @@ class General
       'GV' => 'Garage Voucher',
       'RV' => 'Receipt Voucher',
       'PV' => 'Payments Voucher',
+      'VP' => 'VP VAT Payment',
+      'EXP' => 'Expense Voucher',
     ];
 
     try {
@@ -799,12 +801,22 @@ class General
   }
 
   /**
-   * Active voucher types only (for create voucher UI). Uses DB when available.
+   * Active voucher types for create voucher UI. When $moduleKey is provided,
+   * returns only types assigned to that module (dynamic per-module).
+   *
+   * @param string|null $moduleKey e.g. 'vouchers', 'riders', 'expenses'
+   * @return array code => label
    */
-  public static function ActiveVoucherTypesForCreate()
+  public static function ActiveVoucherTypesForCreate($moduleKey = null)
   {
     try {
       if (\Illuminate\Support\Facades\Schema::hasTable('voucher_types')) {
+        if ($moduleKey !== null && \Illuminate\Support\Facades\Schema::hasTable('voucher_type_module_assignments')) {
+          $active = \App\Models\VoucherType::activeCodeLabelMapForModule($moduleKey);
+          if (!empty($active)) {
+            return $active;
+          }
+        }
         $active = \App\Models\VoucherType::activeCodeLabelMap();
         if (!empty($active)) {
           return $active;

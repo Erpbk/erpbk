@@ -11,26 +11,28 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('activity_logs', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('user_id')->nullable();
-            $table->string('action');
-            $table->string('module_name');
-            $table->string('model_type')->nullable();
-            $table->unsignedBigInteger('model_id')->nullable();
-            $table->json('changes')->nullable();
-            $table->string('ip_address')->nullable();
-            $table->timestamps();
+        if (!Schema::hasTable('activity_logs')) {
+            Schema::create('activity_logs', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('user_id')->nullable();
+                $table->string('action');
+                $table->string('module_name');
+                $table->string('model_type')->nullable();
+                $table->unsignedBigInteger('model_id')->nullable();
+                $table->json('changes')->nullable();
+                $table->string('ip_address')->nullable();
+                $table->timestamps();
 
-            // Foreign key constraint
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');
+                // Foreign key constraint
+                $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');
 
-            // Indexes for better performance
-            $table->index(['user_id', 'created_at']);
-            $table->index(['module_name', 'created_at']);
-            $table->index(['action', 'created_at']);
-            $table->index(['model_type', 'model_id']);
-        });
+                // Indexes for better performance
+                $table->index(['user_id', 'created_at']);
+                $table->index(['module_name', 'created_at']);
+                $table->index(['action', 'created_at']);
+                $table->index(['model_type', 'model_id']);
+            });
+        }
     }
 
     /**

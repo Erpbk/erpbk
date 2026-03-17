@@ -12,17 +12,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('rider_document_types', function (Blueprint $table) {
-            $table->id();
-            $table->string('key', 80)->unique()->comment('Slug used to match file names (e.g. photo, passport)');
-            $table->string('label', 255)->nullable()->comment('Display label for single document type');
-            $table->string('type', 20)->default('single')->comment('single or dual');
-            $table->string('front_label', 255)->nullable()->comment('Display label for dual type front/first page');
-            $table->string('back_label', 255)->nullable()->comment('Display label for dual type back/second page');
-            $table->unsignedInteger('display_order')->default(0);
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('rider_document_types')) {
+            Schema::create('rider_document_types', function (Blueprint $table) {
+                $table->id();
+                $table->string('key', 80)->unique()->comment('Slug used to match file names (e.g. photo, passport)');
+                $table->string('label', 255)->nullable()->comment('Display label for single document type');
+                $table->string('type', 20)->default('single')->comment('single or dual');
+                $table->string('front_label', 255)->nullable()->comment('Display label for dual type front/first page');
+                $table->string('back_label', 255)->nullable()->comment('Display label for dual type back/second page');
+                $table->unsignedInteger('display_order')->default(0);
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
 
         $defaults = [
             ['key' => 'photo', 'label' => 'Profile Photo', 'type' => 'single', 'front_label' => null, 'back_label' => null, 'display_order' => 0],
@@ -42,11 +44,14 @@ return new class extends Migration
 
         $now = now();
         foreach ($defaults as $row) {
-            DB::table('rider_document_types')->insert(array_merge($row, [
-                'is_active' => true,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]));
+            DB::table('rider_document_types')->updateOrInsert(
+                ['key' => $row['key']],
+                array_merge($row, [
+                    'is_active' => true,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])
+            );
         }
     }
 

@@ -4,7 +4,7 @@
 if(isset($vouchers->voucher_type)){
 $voucherType = $vouchers->voucher_type;
 }else{
-$voucherType = request("vt");
+$voucherType = $vt ?? request('vt');
 }
 @endphp
 <input type="hidden" name="v_trans_code" value="{{@$vouchers->trans_code??0}}">

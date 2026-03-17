@@ -248,6 +248,32 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@can('vat_view')
+<li class="menu-item {{ Request::is('accounts/vat') || Request::is('accounts/vat/returns') ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle ">
+    <i class="menu-icon tf-icons ti ti-receipt-tax"></i>
+    <div>{{ $menuLabels['vat'] ?? 'VAT' }}</div>
+  </a>
+  <ul class="menu-sub">
+
+    @can('vat_view')
+    <li class="menu-item {{ Request::is('accounts/vat') ? 'active' : '' }}">
+      <a href="{{ route('vat.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-receipt-tax"></i>
+        <div>{{ $menuLabels['vat_ledger'] ?? 'VAT' }}</div>
+      </a>
+    </li>
+    @endcan
+    @can('vat_return_view')
+    <li class="menu-item {{ Request::is('accounts/vat/returns') ? 'active' : '' }}">
+      <a href="{{ route('vat.returns.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-file-export"></i>
+        <div>{{ $menuLabels['vat_return_file'] ?? 'Return File' }}</div>
+      </a>
+    </li>
+    @endcan
+  </ul>
+  @endcan
 <li class="menu-item {{ Request::is('leasingCompanies*') ? 'open' : '' }} {{ Request::is('leasingCompanyInvoices*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-building"></i>

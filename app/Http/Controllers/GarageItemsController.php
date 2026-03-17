@@ -9,6 +9,7 @@ use App\Models\GarageItem;
 use App\Models\Supplier;
 use App\Models\Accounts;
 use App\Models\Vouchers;
+use App\Models\VoucherType;
 use App\Traits\GlobalPagination;
 use App\Services\GarageItemService;
 use Illuminate\Http\Request;
@@ -378,6 +379,9 @@ class GarageItemsController extends AppBaseController
     private function createAccountingEntries($garageItem)
     {
         try {
+            if (!VoucherType::isCodeAllowedForModule('GV', 'garage_items')) {
+                throw new \Exception('Garage voucher type (GV) is not assigned to the Garage Items module. Please assign it in Voucher Settings.');
+            }
             Log::debug('Starting createAccountingEntries in GarageItemsController');
             Log::debug('GarageItem: ' . json_encode($garageItem->toArray()));
 

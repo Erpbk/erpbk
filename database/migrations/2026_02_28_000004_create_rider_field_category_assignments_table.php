@@ -12,13 +12,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('rider_field_category_assignments', function (Blueprint $table) {
-            $table->id();
-            $table->string('field_key', 80)->unique()->comment('Rider table column name');
-            $table->foreignId('category_id')->constrained('rider_categories')->cascadeOnDelete();
-            $table->unsignedInteger('display_order')->default(0);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('rider_field_category_assignments')) {
+            Schema::create('rider_field_category_assignments', function (Blueprint $table) {
+                $table->id();
+                $table->string('field_key', 80)->unique()->comment('Rider table column name');
+                $table->foreignId('category_id')->constrained('rider_categories')->cascadeOnDelete();
+                $table->unsignedInteger('display_order')->default(0);
+                $table->timestamps();
+            });
+        }
 
         $slugMap = [
             'rider_info' => [
@@ -54,13 +56,15 @@ return new class extends Migration
                 continue;
             }
             foreach ($keys as $fieldKey) {
-                DB::table('rider_field_category_assignments')->insert([
-                    'field_key' => $fieldKey,
-                    'category_id' => $categoryId,
-                    'display_order' => $order++,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
+                DB::table('rider_field_category_assignments')->updateOrInsert(
+                    ['field_key' => $fieldKey],
+                    [
+                        'category_id' => $categoryId,
+                        'display_order' => $order++,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ]
+                );
             }
         }
     }

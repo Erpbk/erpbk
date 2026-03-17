@@ -11,17 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('fuel_card_histories', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('card_id');
-            $table->unsignedBigInteger('assigned_by');
-            $table->unsignedBigInteger('returned_by')->nullable();
-            $table->unsignedBigInteger('assigned_to');
-            $table->date('assign_date');
-            $table->date('return_date')->nullable();
-            $table->string('note')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('fuel_card_histories')) {
+            Schema::create('fuel_card_histories', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('card_id');
+                $table->unsignedBigInteger('assigned_by');
+                $table->unsignedBigInteger('returned_by')->nullable();
+                $table->unsignedBigInteger('assigned_to');
+                $table->date('assign_date');
+                $table->date('return_date')->nullable();
+                $table->string('note')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**

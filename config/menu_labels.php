@@ -51,6 +51,8 @@ return [
         'accounts'             => 'Accounts',
         'chart_of_accounts'    => 'Chart Of Accounts',
         'ledger'               => 'Ledger',
+        'vat_ledger'           => 'VAT',
+        'vat_return_file'      => 'Return',
         'user_management'      => 'User Management',
         'users'                => 'Users',
         'roles'                => 'Roles',
@@ -62,6 +64,7 @@ return [
         // Settings panel module labels (rename in each module's settings page)
         'rider_settings'     => 'Rider Settings',
         'voucher_settings'   => 'Voucher Settings',
+        'vat_settings'       => 'VAT Settings',
         'account_fields'     => 'Account Fields',
     ],
 ];

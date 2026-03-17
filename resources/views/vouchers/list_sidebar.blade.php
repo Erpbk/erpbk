@@ -1,5 +1,6 @@
 @php
   $voucherTypes = \App\Helpers\General::VoucherType();
+  $voucherTypesForCreate = $voucherTypesForCreate ?? \App\Models\VoucherType::activeCodeLabelMapForModule('vouchers');
 @endphp
 <div class="voucher-list-sidebar h-100 d-flex flex-column">
   <div class="voucher-list-sidebar-header d-flex align-items-center justify-content-between gap-2 px-3 py-2 border-bottom bg-light flex-shrink-0">
@@ -9,9 +10,9 @@
     </div>
     <div class="d-flex align-items-center gap-1 flex-shrink-0">
       @can('voucher_create')
-        @php $firstJv = collect(App\Helpers\General::ActiveVoucherTypesForCreate())->keys()->first(); @endphp
-        @if($firstJv)
-          <a href="javascript:void(0);" class="btn btn-sm btn-primary py-1 px-2 show-modal" data-size="xl" data-title="Create Voucher" data-action="{{ route('vouchers.create', ['vt' => $firstJv]) }}" title="Add"><i class="ti ti-plus"></i></a>
+        @php $firstVt = collect($voucherTypesForCreate)->keys()->first(); @endphp
+        @if($firstVt)
+          <a href="javascript:void(0);" class="btn btn-sm btn-primary py-1 px-2 show-modal" data-size="xl" data-title="Create Voucher" data-action="{{ route('vouchers.create', ['vt' => $firstVt]) }}" title="Add"><i class="ti ti-plus"></i></a>
         @endif
       @endcan
       <span class="badge bg-label-secondary">{{ $data->total() }}</span>

@@ -130,6 +130,15 @@ class ReceiptController extends Controller
                 'narration' => $desc,
             ]);
 
+            if (!\App\Models\VoucherType::isCodeAllowedForModule('RV', 'cash_banks')) {
+                DB::rollBack();
+                if ($request->ajax()) {
+                    return response()->json(['message' => 'Receipt voucher type (RV) is not assigned to the Cash & Banks module. Please assign it in Voucher Settings.'], 422);
+                }
+                Flash::error('Receipt voucher type (RV) is not assigned to the Cash & Banks module. Please assign it in Voucher Settings.');
+                return redirect()->back()->withInput();
+            }
+
             // voucher
             $voucherData = [
                 'trans_date' => $date,

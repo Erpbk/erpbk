@@ -1,300 +1,252 @@
 
-<div class="row mb-2">
-    <!-- reference Field -->
-    <div class="form-group col-md-2">
-        {!! Form::label('reference', 'Reference:') !!}
-        {!! Form::text('reference', null, ['class' => 'form-control', 'maxlength' => 255]) !!}
-    </div>
-
-    <!-- Payment Type Field -->
-    <div class="form-group col-md-2">
-        {!! Form::label('amount_type', 'Amount Type:') !!}
-        {!! Form::select('amount_type', 
-            ['' => 'Select', 'Cash' => 'Cash', 'Online' => 'Online', 'Cheque' => 'Cheque', 'Credit' => 'Credit'], 
-            old('amount_type', isset($receipt) ? $receipt->amount_type : ''), 
-            ['class' => 'form-control select2']
-        ) !!}
-    </div>
-
-    <!-- Date of Receipt Field -->
-    <div class="form-group col-md-2">
-        {!! Form::label('date_of_receipt', 'Date of Receipt:') !!}
-        {!! Form::date('date_of_receipt', null, ['class' => 'form-control']) !!}
-    </div>
-
-    <!-- Billing Month Field -->
-    <div class="form-group col-md-2">
-        {!! Form::label('billing_month', 'Billing Month:') !!}
-        {!! Form::month('billing_month', null, ['class' => 'form-control', 'maxlength' => 255]) !!}
-    </div>
-
-    <!-- Voucher Attachment Field -->
-    <div class="form-group col-md-3">
-        {!! Form::label('attachment', 'Attachment:') !!}
-        {!! Form::file('attachment', ['class' => 'form-control']) !!}
-    </div>
-</div>
-
-<div class="scrollbar">
-    @if(!isset($transactions))
-        <div id="row-container">
-            <h5 class="my-1">Receipt Voucher</h5>
-            <div class="row">
-                @if(isset($leasingCompany) || (isset($receipt) && $receipt->leasing_company_id))
-                    <div class="form-group col-md-3">
-                        {!! Form::label('leasing_company', 'Leasing Company:') !!}
-                        {!! Form::hidden('leasing_company_id', $leasingCompany->id ?? $receipt->leasing_company_id ?? '')!!}
-                        {!! Form::text('leasing-company-name', $leasingCompany->name ?? $receipt->leasingCompany->name ?? '-', ['class' => 'form-control', 'readonly' => true]) !!}
-                    </div>
-                @else
-                    <div class="form-group col-md-3">
-                        {!! Form::label('bank', 'Account:') !!}
-                        {!! Form::hidden('bank_id', $bank->id ?? $receipt->bank_id ?? '')!!}
-                        {!! Form::text('bank-name', $bank->account->account_code.'-'.$bank->account->name, ['class' => 'form-control', 'readonly' => true]) !!}
-                    </div>
-                @endif
-                <div class="form-group col-md-4">
-                    {!! Form::label('description', 'Narration') !!}
-                    {!! Form::textarea('description', null, ['class' => 'form-control', 'rows'=>10, 'placeholder' =>'Narration', 'style' => "height: 40px !important;"]) !!}
-                </div>
-                <div class="form-group col-md-2">
-                    {!! Form::label('amount', 'Dr Amount:') !!}
-                    {!! Form::number('amount', null, ['class' => 'form-control dr_amount', 'step' => 'any']) !!}
-                </div>
-                <div class="form-group col-md-2">
-                </div>
+    <div class="card-body px-2">
+        <!-- Basic Receipt Information -->
+        <div class="row">
+            <!-- reference Field -->
+            <div class="form-group col-md-3">
+                {!! Form::label('reference', 'Reference:') !!}
+                {!! Form::text('reference', null, ['class' => 'form-control', 'maxlength' => 255, 'placeholder' => 'Enter reference number']) !!}
             </div>
-            <div class="row">
+
+            <!-- Payment Type Field -->
+            <div class="form-group col-md-3">
+                {!! Form::label('amount_type', 'Payment Mode:') !!}
+                {!! Form::select('amount_type', 
+                    ['' => 'Select Payment Mode', 'Cash' => 'Cash', 'Online' => 'Online', 'Cheque' => 'Cheque', 'Credit' => 'Credit'], 
+                    old('amount_type', isset($receipt) ? $receipt->amount_type : ''), 
+                    ['class' => 'form-control select2']
+                ) !!}
+            </div>
+
+            <!-- Date of Receipt Field -->
+            <div class="form-group col-md-3">
+                {!! Form::label('date_of_receipt', 'Receipt Date:') !!}
+                {!! Form::date('date_of_receipt', null, ['class' => 'form-control']) !!}
+            </div>
+
+            <!-- Billing Month Field -->
+            <div class="form-group col-md-3">
+                {!! Form::label('billing_month', 'Billing Month:') !!}
+                {!! Form::month('billing_month', null, ['class' => 'form-control']) !!}
+            </div>
+        </div>
+
+        <!-- Receiving Account Section (Single) -->
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <h6 class="bg-light p-2 mb-3">Transaction Details</h6>
+            </div>
+            @if(isset($bank))
                 <div class="form-group col-md-3">
-                    {!! Form::label('account', 'Account:') !!}
-                    <select name="account_id[]" class="form-control account-select select2">
-                        <option value="">Select</option>
-                        @foreach(\App\Models\Accounts::where('status', 1)->get() as $payer)
-                        <option value="{{ $payer->id }}" {{ old('payer_account_id', isset($receipt) ? $receipt->payer_account_id : '') == $payer->id ? 'selected' : '' }}>{{ $payer->account_code.'-'.$payer->name }}</option>
+                    {!! Form::label('bank', 'Receiving Account:') !!}
+                    {!! Form::hidden('bank_id', $bank->id ?? $receipt->bank_id ?? '')!!}
+                    {!! Form::text('bank-name', $bank->account->account_code.'-'.$bank->account->name, ['class' => 'form-control bg-light', 'readonly' =>true]) !!}
+                </div>
+            @else
+                <div class="form-group col-md-3">
+                    {!! Form::label('bank', 'Receiving Account:') !!}
+                    <select name="bank_id" class="form-control select2" required>
+                        <option value="">-- Select --</option>
+                        @foreach ($banks as $bank)
+                            <option value="{{ $bank->id }}" {{ old('bank_id', isset($receipt) ? $receipt->bank_id : '') == $bank->id ? 'selected' : '' }}>{{ $bank->account->account_code .'-'. $bank->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="form-group col-md-4">
-                    {!! Form::label('narration', 'Narration') !!}
-                    {!! Form::textarea('narration[]', null, ['class' => 'form-control', 'rows'=>10, 'placeholder' =>'Narration', 'style' => "height: 40px !important;"]) !!}
+            @endif
+            
+            @if(isset($leasingCompany))
+                <div class="form-group col-md-3">
+                    {!! Form::label('leasing_company', 'Sender (Leasing Company):') !!}
+                    {!! Form::hidden('payer_account_id', $leasingCompany->account_id)!!}
+                    {!! Form::text('leasing-company-name', $leasingCompany->name ?? $receipt->leasingCompany->name ?? '-', ['class' => 'form-control bg-light', 'readonly' => true]) !!}
                 </div>
-                <div class="form-group col-md-2">
+            @else
+                <div class="form-group col-md-3">
+                    {!! Form::label('payer_account_id', 'Sending Account:') !!}
+                    <select name="payer_account_id" class="form-control select2" required>
+                        <option value="">-- Select --</option>
+                        @foreach(\App\Models\Accounts::where('status', 1)->get() as $payer)
+                            <option value="{{ $payer->id }}" {{ old('payer_account_id', isset($receipt) ? $receipt->payer_account_id : '') == $payer->id ? 'selected' : '' }}>
+                                {{ $payer->account_code }} - {{ $payer->name }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
-                <div class="form-group col-md-2">
-                    {!! Form::label('amount', 'Cr Amount:') !!}
-                    {!! Form::number('cr_amount[]', null, ['class' => 'form-control cr_amount', 'step' => 'any']) !!}
+            @endif
+
+
+            <!-- Amount Field -->
+            <div class="form-group col-md-3">
+                {!! Form::label('amount', 'Receipt Amount:') !!}
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">AED</span>
+                    </div>
+                    {!! Form::number('amount', null, ['class' => 'form-control', 'step' => 'any', 'placeholder' => 'Enter amount', 'id' => 'receipt_amount']) !!}
+                </div>
+            </div>
+
+            <!-- Voucher Attachment Field -->
+            <div class="form-group col-md-3">
+                {!! Form::label('attachment', 'Attachment:') !!}
+                {!! Form::file('attachment', ['class' => 'form-control']) !!} 
+            </div>
+        </div>
+
+        <!-- Sending Account Section (Single) -->
+        <div class="row mt-4">
+
+            <!-- Narration Field -->
+            <div class="form-group col-md-7">
+                {!! Form::label('description', 'Narration / Description:') !!}
+                {!! Form::textarea('description', null, [
+                    'class' => 'form-control', 
+                    'rows' => 3, 
+                    'placeholder' => 'Enter description or notes about this receipt...'
+                ]) !!}
+            </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="row mt-4">
+            <div class="col-md-8 offset-md-4">
+                <div class="card bg-light">
+                    <div class="card-body p-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Receipt Amount:</strong>
+                            </div>
+                            <div class="col-md-6 text-right">
+                                Rs. <span id="display_amount">0.00</span>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Amount in Words:</strong>
+                            </div>
+                            <div class="col-md-6 text-right text-muted small" id="amount_in_words">
+                                Zero only
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    @else
-         <div id="row-container">
-            <h5 class="my-1">Receipt Voucher</h5>   
-            @foreach ($transactions as $index => $transaction)
-                @if($index == 0)
-                    <div class="row">
-                        @if(isset($leasingCompany) || (isset($receipt) && $receipt->leasing_company_id))
-                            <div class="form-group col-md-3">
-                                {!! Form::label('leasing_company', 'Leasing Company:') !!}
-                                {!! Form::hidden('leasing_company_id', $leasingCompany->id ?? $receipt->leasing_company_id ?? '')!!}
-                                {!! Form::text('leasing-company-name', $leasingCompany->name ?? $receipt->leasingCompany->name ?? '-', ['class' => 'form-control', 'readonly' => true]) !!}
-                            </div>
-                        @else
-                            <div class="form-group col-md-3">
-                                {!! Form::label('bank', 'Account:') !!}
-                                {!! Form::hidden('bank_id', $bank->id ?? $receipt->bank_id ?? '')!!}
-                                {!! Form::text('bank-name', $bank->account->account_code.'-'.$bank->account->name, ['class' => 'form-control', 'readonly' => true]) !!}
-                            </div>
-                        @endif
-                        <div class="form-group col-md-4">
-                            {!! Form::label('description', 'Narration') !!}
-                            {!! Form::textarea('description', null, ['class' => 'form-control', 'rows'=>10, 'placeholder' =>'Narration', 'style' => "height: 40px !important;"]) !!}
-                        </div>
-                        <div class="form-group col-md-2">
-                            {!! Form::label('amount', 'Dr Amount:') !!}
-                            {!! Form::number('amount', null, ['class' => 'form-control dr_amount', 'step' => 'any']) !!}
-                        </div>
-                        <div class="form-group col-md-2">
-                        </div>
-                    </div>
-                @else
-                    <div class="row">
-                        <div class="form-group col-md-3">
-                            {!! Form::label('account', 'Account:') !!}
-                            <select name="account_id[]" class="form-control account-select select2">
-                                <option value="">Select</option>
-                                @foreach(\App\Models\Accounts::where('status', 1)->get() as $payer)
-                                <option value="{{ $payer->id }}" {{ old('payer_account_id',  $transaction->account_id) == $payer->id ? 'selected' : '' }}>{{ $payer->account_code.'-'.$payer->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group col-md-4">
-                            {!! Form::label('narration', 'Narration') !!}
-                            {!! Form::textarea('narration[]', $transaction->narration, ['class' => 'form-control', 'rows'=>10, 'placeholder' =>'Narration', 'style' => "height: 40px !important;"]) !!}
-                        </div>
-                        <div class="form-group col-md-2">
-                        </div>
-                        <div class="form-group col-md-2">
-                            {!! Form::label('amount', 'Cr Amount:') !!}
-                            {!! Form::number('cr_amount[]', $transaction->credit, ['class' => 'form-control cr_amount', 'step' => 'any']) !!}
-                        </div>
-                    </div>
-                @endif
-            @endforeach
-        </div>
-    @endif
-    <button type="button" id="add-row" class="btn btn-success btn-sm mt-3 mb-3">Add New</button>
-</div>
-
-<div class="row">
-    <div class="col-md-5 text-danger" id="total-error"></div>
-    <div class="col-md-2 content-right mt-1">Total:&nbsp;<a href="javascript:void(0);" onclick="getTotal();" class="btn btn-default btn-sm"><i class="fa fa-refresh"></i></a></div>
-    <div class="form-group col-md-2">
-        <input type="number" class="form-control " id="total_dr" readonly placeholder="Total Dr">
     </div>
-    <div class="form-group col-md-2">
-        <input type="number" class="form-control " id="total_cr" readonly placeholder="Total Cr">
-    </div>
-</div>
 
 <script>
 $(document).ready(function() {
-    // Initialize all select2 elements
-    initializeSelect2();
-    
-    // Event delegation for dynamically added elements
-    $(document).on('focus keyup change', '.cr_amount, .dr_amount', function() {
-        getTotal();
-        $("#total_dr, #total_cr").removeClass('is-invalid');
-    });
-    
-    $(document).on('click', '.remove-row', function(e){
-        e.preventDefault();
-        $(this).closest('.row').remove();
-        getTotal();
-    });
-
-    // Add row button click
-    $('#add-row').click(addNewRow);
-
-    // Initial calculation
-    getTotal();
-
-    $('form').on('submit', function(e) {
-        if (!validateReceiptForm()) {
-            e.preventDefault(); // Stop form submission
-            return false;
-        }
-    });
-
-}); // End of $(document).ready
-
-function validateReceiptForm() {
-    var totalDr = parseFloat($("#total_dr").val()) || 0;
-    var totalCr = parseFloat($("#total_cr").val()) || 0;
-    
-    // Calculate with precision to avoid floating point issues
-    if (Math.abs(totalDr - totalCr) > 0.01) { // Allow 0.01 difference for rounding
-        // Show error message
-        $('#total-error').text('Error: Total debit and credit must be same.');
-        
-        
-        // Highlight the totals
-        $("#total_dr, #total_cr").addClass('is-invalid');
-        
-        return false; // Prevent form submission
-    }
-    
-    // Additional validation: Check if at least one row has amount
-    var hasAmount = false;
-    $(".cr_amount, .dr_amount").each(function() {
-        var val = parseFloat($(this).val()) || 0;
-        if (val > 0) {
-            hasAmount = true;
-        }
-    });
-    
-    if (!hasAmount) {
-        
-        $('#total-error').text('Cannot Submit Form without Any Amounts');
-        return false;
-    }
-    
-    // Remove error styling
-    $("#total_dr, #total_cr").removeClass('is-invalid');
-    return true; // Allow form submission
-}
-
-function addNewRow(){
-    const newRow = $(`
-        <div class="row">
-            <div class="form-group col-md-3">
-                <label for="account">Account:</label>
-                <select name="account_id[]" class="form-control account-select">
-                    <option value="">Select</option>
-                    @foreach(\App\Models\Accounts::where('status', 1)->get() as $payer)
-                    <option value="{{ $payer->id }}" {{ old('payer_account_id', isset($receipt) ? $receipt->payer_account_id : '') == $payer->id ? 'selected' : '' }}>{{ $payer->account_code.'-'.$payer->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="form-group col-md-4">
-                <label for="narration">Narration</label>
-                <textarea name="narration[]" class="form-control" rows="1" placeholder="Narration" style="height: 40px !important;"></textarea>
-            </div>
-            <div class="form-group col-md-2">
-            </div>
-            <div class="form-group col-md-2">
-                <label for="amount">Cr Amount:</label>
-                <input type="number" name="cr_amount[]" class="form-control cr_amount" step="any">
-            </div>
-            <div class="form-group col-md-1 d-flex align-items-end">
-                <a href="javascript:void(0);" class="text-danger remove-row"><i class="fa fa-trash"></i></a>
-            </div>
-        </div>
-    `);
-    
-    // Append to container
-    $('#row-container').append(newRow);
-    
-    // Initialize select2 for the new row's select element
-    newRow.find('.account-select').select2({
-        dropdownParent: $('#formajax'),
-        allowClear: true
-    });
-    
-    // Calculate total
-    getTotal();
-}
-
-function initializeSelect2() {
-    // Initialize all existing select2 elements
+    // Initialize Select2
     $('.select2').select2({
         dropdownParent: $('#formajax'),
         allowClear: true
     });
-}
 
-function getTotal() {
-    var cr_sum = 0;
-    var dr_sum = 0;
-    
-    // Iterate through each cr_amount textbox and add the values
-    $(".cr_amount").each(function() {
-        // Add only if the value is a number
-        if (!isNaN(this.value) && this.value.length != 0) {
-            cr_sum += parseFloat(this.value);
-        }
+    // Initialize custom file input
+    $('.custom-file-input').on('change', function() {
+        var fileName = $(this).val().split('\\').pop();
+        $(this).next('.custom-file-label').html(fileName);
     });
-    
-    // Iterate through each dr_amount textbox and add the values
-    $(".dr_amount").each(function() {
-        // Add only if the value is a number
-        if (!isNaN(this.value) && this.value.length != 0) {
-            dr_sum += parseFloat(this.value);
-        }
+
+    // Update amount display on change
+    $('#receipt_amount').on('keyup change', function() {
+        var amount = parseFloat($(this).val()) || 0;
+        $('#display_amount').text(amount.toFixed(2));
+        
+        // Convert amount to words (you can implement this function or use a library)
+        $('#amount_in_words').text(numberToWords(amount));
     });
+
+    // Trigger initial amount display
+    $('#receipt_amount').trigger('change');
+});
+
+// Simple number to words converter (basic implementation)
+function numberToWords(num) {
+    if (num === 0) return 'Zero only';
     
-    // .toFixed() method will round off the final sum to 2 decimal places
-    $("#total_cr").val(cr_sum.toFixed(2));
-    $("#total_dr").val(dr_sum.toFixed(2));
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+        'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    
+    let words = '';
+    let rupees = Math.floor(num);
+    let paise = Math.round((num - rupees) * 100);
+    
+    if (rupees > 0) {
+        if (rupees >= 10000000) {
+            words += convertToWords(Math.floor(rupees / 10000000)) + ' Crore ';
+            rupees %= 10000000;
+        }
+        if (rupees >= 100000) {
+            words += convertToWords(Math.floor(rupees / 100000)) + ' Lakh ';
+            rupees %= 100000;
+        }
+        if (rupees >= 1000) {
+            words += convertToWords(Math.floor(rupees / 1000)) + ' Thousand ';
+            rupees %= 1000;
+        }
+        if (rupees >= 100) {
+            words += convertToWords(Math.floor(rupees / 100)) + ' Hundred ';
+            rupees %= 100;
+        }
+        if (rupees > 0) {
+            words += convertToWords(rupees);
+        }
+    }
+    
+    words += ' Dirhams';
+    
+    if (paise > 0) {
+        words += ' and ' + convertToWords(paise) + ' Paise';
+    }
+    
+    return words + ' only';
+    
+    function convertToWords(n) {
+        if (n < 20) return ones[n];
+        return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+    }
 }
 </script>
+
+<style>
+
+.form-group label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.form-control:focus, .select2-container--default .select2-selection--single:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.input-group-text {
+    background-color: #e9ecef;
+    border-right: none;
+}
+
+hr {
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+#amount_in_words {
+    font-style: italic;
+    word-break: break-word;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .col-md-8.offset-md-4 {
+        margin-left: 0;
+        margin-right: 0;
+    }
+}
+</style>

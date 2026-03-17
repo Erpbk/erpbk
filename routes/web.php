@@ -334,7 +334,10 @@ Route::middleware(['auth', 'web'])->group(function () {
 
 
 
+    
 
+    Route::resource('payments', App\Http\Controllers\PaymentController::class);
+    Route::resource('receipts', App\Http\Controllers\ReceiptController::class);
 
 
 
@@ -638,13 +641,6 @@ Route::middleware('auth')->group(function () {
     Route::put('/upload_files/{id}', [UploadFilesController::class, 'update'])->name('upload_files.update');
     Route::delete('/upload_files/{id}', [UploadFilesController::class, 'destroy'])->name('upload_files.destroy');
 });
-
-Route::resource('payments', App\Http\Controllers\PaymentController::class);
-Route::resource('receipts', App\Http\Controllers\ReceiptController::class);
-Route::get('payments/byparent/{id}', [\App\Http\Controllers\PaymentController::class, 'byparent']);
-Route::get('payments/headbytype/{id}', [\App\Http\Controllers\PaymentController::class, 'headbytype']);
-Route::get('receipts/byparent/{id}', [\App\Http\Controllers\ReceiptController::class, 'byparent']);
-Route::get('receipts/headbytype/{id}', [\App\Http\Controllers\ReceiptController::class, 'headbytype']);
 
 
 

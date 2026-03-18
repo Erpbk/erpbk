@@ -48,7 +48,7 @@
                     <select name="bank_id" class="form-control select2" required>
                         <option value="">-- Select --</option>
                         @foreach ($banks as $bank)
-                            <option value="{{ $bank->id }}" {{ old('bank_id', isset($receipt) ? $receipt->bank_id : '') == $bank->id ? 'selected' : '' }}>{{ $bank->account->account_code .'-'. $bank->name }}</option>
+                            <option value="{{ $bank->id }}" {{ old('bank_id', isset($receipt) ? $receipt->bank_id : '') == $bank->id ? 'selected' : '' }}>{{ $bank->name }}</option>
                         @endforeach
                     </select>
                 </div>

@@ -59,7 +59,7 @@
                         <option value="">-- Select Paying Account --</option>
                         @foreach ($banks as $bank)
                             <option value="{{ $bank->id }}" {{ old('bank_id', isset($payment) ? $payment->bank_id : '') == $bank->id ? 'selected' : '' }}>
-                                {{ $bank->account->account_code .'-'. $bank->name }}
+                                {{ $bank->name }}
                             </option>
                         @endforeach
                     </select>

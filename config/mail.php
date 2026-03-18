@@ -103,6 +103,8 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    'admin_notification_email' => env('MAIL_ADMIN_NOTIFICATION_EMAIL', env('MAIL_FROM_ADDRESS')),
+
     /*
     |--------------------------------------------------------------------------
     | Markdown Mail Settings

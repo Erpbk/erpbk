@@ -23,6 +23,9 @@ use App\Http\Controllers\pages\MiscError;
 use App\Http\Controllers\authentications\LoginBasic;
 use App\Http\Controllers\authentications\RegisterBasic;
 use App\Http\Controllers\RecruitersController;
+use App\Http\Controllers\Company\CompanyAuthController;
+use App\Http\Controllers\Company\CompanyRegistrationController;
+use App\Http\Controllers\Admin\AdminCompaniesController;
 use Illuminate\Support\Facades\Artisan;
 
 
@@ -39,7 +42,35 @@ use Illuminate\Support\Facades\Artisan;
 /* Route::any('/register', function () {
   return view('auth.register');
 }); */
-// Main Page Route
+
+// ---------- Company registration (public) ----------
+Route::get('company/register', [CompanyRegistrationController::class, 'showRegistrationForm'])->name('company.register');
+Route::post('company/register/step1', [CompanyRegistrationController::class, 'submitStep1'])->name('company.register.step1.submit');
+Route::get('company/register/otp', [CompanyRegistrationController::class, 'showOtpForm'])->name('company.register.otp');
+Route::post('company/register/otp', [CompanyRegistrationController::class, 'verifyOtp'])->name('company.register.otp.verify');
+Route::get('company/register/details', [CompanyRegistrationController::class, 'showDetailsForm'])->name('company.register.details');
+Route::post('company/register/details', [CompanyRegistrationController::class, 'submitDetails'])->name('company.register.details.submit');
+Route::get('company/register/pending', [CompanyRegistrationController::class, 'pending'])->name('company.register.pending');
+
+// ---------- Company login (public) ----------
+Route::get('app/{company_id}/login', [CompanyAuthController::class, 'showLoginForm'])->name('company.login-form');
+Route::post('app/{company_id}/login', [CompanyAuthController::class, 'login'])->name('company.login');
+
+// ---------- Company app: /app/{company_id}/* (tenant + auth) ----------
+Route::prefix('app/{company_id}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->name('company.')->group(function () {
+    Route::get('/', [HomeController::class, 'index'])->name('home');
+    Route::get('/home', [HomeController::class, 'index'])->name('home-dashboard');
+    Route::post('/logout', [CompanyAuthController::class, 'logout'])->name('logout');
+    require base_path('routes/company_app.php');
+});
+
+// ---------- Admin: companies (global; uses central DB) ----------
+Route::prefix('admin')->middleware(['web', 'auth'])->name('admin.')->group(function () {
+    Route::get('companies', [AdminCompaniesController::class, 'index'])->name('companies.index');
+    Route::get('companies/{company}', [AdminCompaniesController::class, 'show'])->name('companies.show');
+    Route::post('companies/{company}/approve', [AdminCompaniesController::class, 'approve'])->name('companies.approve');
+    Route::post('companies/{company}/reject', [AdminCompaniesController::class, 'reject'])->name('companies.reject');
+});
 
 // pages
 Route::get('/pages/misc-error', [MiscError::class, 'index'])->name('pages-misc-error');
@@ -341,7 +372,7 @@ Route::middleware(['auth', 'web'])->group(function () {
 
 
 
-    
+
 
     Route::resource('payments', App\Http\Controllers\PaymentController::class);
     Route::resource('receipts', App\Http\Controllers\ReceiptController::class);

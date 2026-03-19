@@ -306,8 +306,9 @@ Route::middleware(['auth', 'web'])->group(function () {
 
 
     
-
+    Route::get('payments/{id}/clone', [\App\Http\Controllers\PaymentController::class, 'clone'])->name('payments.clone');
     Route::resource('payments', App\Http\Controllers\PaymentController::class);
+    Route::get('receipts/{id}/clone', [\App\Http\Controllers\ReceiptController::class, 'clone'])->name('receipts.clone');
     Route::resource('receipts', App\Http\Controllers\ReceiptController::class);
 
 

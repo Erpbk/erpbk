@@ -258,7 +258,7 @@ class VouchersController extends Controller
     if (empty($voucher)) {
       Flash::error('Vouchers not found');
 
-      return redirect(route('vouchers.index'));
+      return redirect()->back();
     }
 
     if (request()->ajax() || request()->wantsJson()) {

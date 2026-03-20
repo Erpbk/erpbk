@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // This migration targets the central DB on purpose, so it must be idempotent
+        // (tenant migrations should not fail if the column already exists).
+        if (Schema::connection('mysql_central')->hasColumn('companies', 'modules_settings')) {
+            return;
+        }
         Schema::connection('mysql_central')->table('companies', function (Blueprint $table) {
             $table->json('modules_settings')->nullable()->after('branding_json');
         });
@@ -18,6 +23,9 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (!Schema::connection('mysql_central')->hasColumn('companies', 'modules_settings')) {
+            return;
+        }
         Schema::connection('mysql_central')->table('companies', function (Blueprint $table) {
             $table->dropColumn('modules_settings');
         });

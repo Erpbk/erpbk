@@ -820,9 +820,6 @@ class VouchersController extends Controller
     if($vouchers->voucher_type == 'RV') {
       $receipt = Receipt::find($vouchers->ref_id);
         if (empty($receipt)) {
-            if ($request->ajax()) {
-                return response()->json(['message' => 'Receipt Not found'], 404);
-            }
             Flash::error('Receipt not found');
             return redirect()->back();
         }
@@ -834,9 +831,6 @@ class VouchersController extends Controller
     }  elseif($vouchers->voucher_type == 'PV') {
       $payment = Payment::find($vouchers->ref_id);
         if (empty($payment)) {
-            if ($request->ajax()) {
-                return response()->json(['message' => 'Payment Not found'], 404);
-            }
             Flash::error('Payment not found');
             return redirect()->back();
         }

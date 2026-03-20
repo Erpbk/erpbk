@@ -72,10 +72,12 @@
           </button>
           <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}" style="z-index: 1050;">
             @can('voucher_document')
-            <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
-                data-action="{{ url('voucher/attach_file/'.$voucher->id) }}" class='dropdown-item waves-effect show-modal'>
-                <i class="fa fa-file my-1"></i> Upload Document
-              </a></li>
+              @if($voucher->voucher_type != 'PV' && $voucher->voucher_type != 'RV')
+              <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
+                  data-action="{{ url('voucher/attach_file/'.$voucher->id) }}" class='dropdown-item waves-effect show-modal'>
+                  <i class="fa fa-file my-1"></i> Upload Document
+                </a></li>
+              @endif
             @endcan
             @can('voucher_view')
             <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', $voucher->id) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1">

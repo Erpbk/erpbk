@@ -19,7 +19,13 @@ $settings = \DB::table('settings')->pluck('value', 'name')->toArray();
       <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.edit', $voucher->trans_code) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
       @endif
       @endcan
-      <a href="{{ route('vouchers.show', $voucher->id) }}?print=1" target="_blank" class="btn btn-sm btn-outline-secondary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
+      @can('voucher_create')
+        @if(!in_array($voucher->voucher_type, ['VL', 'LV', 'RFV', 'SV', 'RI']))
+          <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Clone Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.clone', $voucher->trans_code) }}" data-collapse-sidebar="1"><i class="ti ti-copy me-1"></i> Clone</a>
+        @endif
+      @endcan
+      <a href="{{ route('vouchers.show', $voucher->id) }}?print=1" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
+      <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-arrow-right  me-1"></i> Email</a>
     </div>
   </div>
 

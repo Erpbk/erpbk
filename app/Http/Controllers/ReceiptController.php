@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use App\Repositories\ReceiptsRepository;
 use App\Models\Receipt;
 use App\Models\Banks;
@@ -422,5 +421,23 @@ class ReceiptController extends Controller
         }
         Flash::success('Receipt deleted successfully.');
         return redirect()->back();
+    }
+
+    public function clone(Request $request, $id)
+    {
+        $receipt = Receipt::find($id);
+        if (empty($receipt)) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Receipt Not found'], 404);
+            }
+            Flash::error('Receipt not found');
+            return redirect()->back();
+        }
+
+        $banks = Banks::active()->get();
+
+        $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
+
+        return view('receipts.create', compact('receipt', 'banks'));
     }
 }

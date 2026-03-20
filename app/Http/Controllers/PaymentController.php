@@ -38,17 +38,18 @@ class PaymentController extends Controller
     {
         $accountId = request()->input('id') ?? null;
         $leasingCompanyId = request()->input('leasing_company_id') ?? null;
+        $payment = null;
 
         if ($accountId) {
             $bank = Banks::find($accountId);
-            return view('payments.create', compact('bank'));
+            return view('payments.create', compact('bank','payment'));
         } elseif ($leasingCompanyId) {
             $leasingCompany = LeasingCompanies::find($leasingCompanyId);
             $banks = Banks::with('account')->active()->get();
-            return view('payments.create', compact('leasingCompany','banks'));
+            return view('payments.create', compact('leasingCompany','banks','payment'));
         } else{
             $banks = Banks::with('account')->active()->get();
-            return view('payments.create', compact('banks'));
+            return view('payments.create', compact('banks','payment'));
         }
     }
 
@@ -434,31 +435,22 @@ class PaymentController extends Controller
         }
     }
 
-    /**
-     * Get head accounts by account type (AJAX)
-     */
-    function byparent($id)
-    {
-        $accounts = Accounts::where('parent_id', $id)->get();
-        if ($accounts->isEmpty()) {
-            echo '<option value="">There is no account against this parent</option>';
-        } else {
-            echo '<option value="">Select Account</option>';
-            foreach ($accounts as $account) {
-                echo '<option value="' . $account->id . '">' . $account->name . '</option>';
+    public function clone($id){
+
+        $payment = Payment::find($id);
+        if (empty($payment)) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Payment Not found'], 404);
             }
+            Flash::error('Payment not found');
+            return redirect()->back();
         }
-    }
-    public function headbytype($id)
-    {
-        $accounts = Accounts::where('account_type', $id)->get();
-        if ($accounts->isEmpty()) {
-            echo '<option value="">There is no account against this type</option>';
-        } else {
-            echo '<option value="">Select Account</option>';
-            foreach ($accounts as $account) {
-                echo '<option value="' . $account->id . '">' . $account->name . '</option>';
-            }
-        }
+
+        $banks = Banks::active()->get();
+        $payment->billing_month = \Carbon\Carbon::parse($payment->billing_month)->format('Y-m');
+        $payment->amount = $payment->amount - $payment->bank_charges;
+
+        return view('payments.create', compact('payment', 'banks'));
+
     }
 }

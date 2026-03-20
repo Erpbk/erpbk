@@ -1,4 +1,4 @@
-{!! Form::open(['route' => 'vouchers.store', 'id'=>'formajax', 'class' => 'form-with-fixed-footer']) !!}
+{!! Form::model($vouchers,['route' => 'vouchers.store', 'id'=>'formajax', 'class' => 'form-with-fixed-footer']) !!}
 <input type="hidden" id="reload_page" value="1">
 
 <div class="card-body card-body-with-footer">

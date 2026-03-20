@@ -1,4 +1,4 @@
-{!! Form::open(['route' => 'receipts.store','id'=>'formajax', 'enctype' => 'multipart/form-data']) !!}
+{!! Form::model($receipt, ['route' => 'receipts.store','id'=>'formajax', 'enctype' => 'multipart/form-data']) !!}
 
 <div class="card-body">
 

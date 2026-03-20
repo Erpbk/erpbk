@@ -21,7 +21,10 @@
     </tr>
   </thead>
   <tbody>
-    @if(isset($data) && $data->count() > 0)
+    @php
+  $editDeleteFlags = $editDeleteFlags ?? [];
+@endphp
+@if(isset($data) && $data->count() > 0)
     @foreach($data as $voucher)
     <tr class="text-center">
       <td>
@@ -82,9 +85,9 @@
               </a></li>
             @endcan
             @can('voucher_edit')
-            @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV']))
+            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']))
             <li><a href="javascript:void(0);" data-size="xl"
-                data-title="Edit Voucher No. {{$voucher->voucher_type.'-'.str_pad($voucher->id,4,'0',STR_PAD_LEFT)}}"
+                data-title="Edit Voucher No. {{ $voucher->voucher_type.'-'.str_pad($voucher->id,4,'0',STR_PAD_LEFT) }}"
                 data-action="{{ route('vouchers.edit', $voucher->trans_code) }}"
                 class='dropdown-item waves-effect show-modal'>
                 <i class="fa fa-edit my-1"></i> Edit
@@ -92,7 +95,7 @@
             @endif
             @endcan
             @can('voucher_delete')
-            @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV', 'LV']))
+            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']))
             <li><a href="javascript:void(0);" onclick="deleteVoucher('{{ $voucher->trans_code }}')" class='dropdown-item waves-effect text-danger'>
                 <i class="fa fa-trash my-1"></i> Delete
               </a></li>

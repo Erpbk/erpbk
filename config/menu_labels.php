@@ -11,6 +11,8 @@ return [
         'dashboard'            => 'Dashboard',
         'recycle_bin'         => 'Recycle Bin',
         'cash_banks'           => 'Cash & Banks',
+        'employees'            => 'Employees',
+        'attendance'           => 'Attendance',
         'items'                => 'Items',
         'items_list'           => 'Items List',
         'garage_items'         => 'Garage Items',
@@ -49,6 +51,8 @@ return [
         'accounts'             => 'Accounts',
         'chart_of_accounts'    => 'Chart Of Accounts',
         'ledger'               => 'Ledger',
+        'vat_ledger'           => 'VAT',
+        'vat_return_file'      => 'Return',
         'user_management'      => 'User Management',
         'users'                => 'Users',
         'roles'                => 'Roles',
@@ -57,5 +61,10 @@ return [
         'company_settings'   => 'Company Settings',
         'settings'           => 'Settings',
         'erp_settings'       => 'ERP Settings',
+        // Settings panel module labels (rename in each module's settings page)
+        'rider_settings'     => 'Rider Settings',
+        'voucher_settings'   => 'Voucher Settings',
+        'vat_settings'       => 'VAT Settings',
+        'account_fields'     => 'Account Fields',
     ],
 ];

@@ -20,10 +20,19 @@ trait BranchScope
             }
             $branches = app('user_branches');
 
+            // Qualify branch_id with table name to avoid ambiguity when query joins other tables that have branch_id
+            $table = $builder->getModel()->getTable();
+            $branchColumn = $table . '.branch_id';
+
             if (empty($branches)) {
-                $builder->whereRaw('1 = 0');
+                // User has no branches assigned: show only records with no branch (NULL) so data still visible
+                $builder->whereNull($branchColumn);
             } else {
-                $builder->whereIn('branch_id', $branches);
+                // Include riders in user's branches OR with no branch assigned (NULL) so legacy/unassigned riders still show
+                $builder->where(function ($q) use ($branches, $branchColumn) {
+                    $q->whereIn($branchColumn, $branches)
+                      ->orWhereNull($branchColumn);
+                });
             }
 
         });

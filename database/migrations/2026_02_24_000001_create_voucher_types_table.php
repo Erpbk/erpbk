@@ -3,19 +3,22 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('voucher_types', function (Blueprint $table) {
-            $table->id();
-            $table->string('code', 20)->unique();
-            $table->string('label');
-            $table->unsignedInteger('display_order')->default(0);
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('voucher_types')) {
+            Schema::create('voucher_types', function (Blueprint $table) {
+                $table->id();
+                $table->string('code', 20)->unique();
+                $table->string('label');
+                $table->unsignedInteger('display_order')->default(0);
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
 
         // Seed default types from the existing General::VoucherType() list
         $defaults = [
@@ -36,11 +39,14 @@ return new class extends Migration
             ['code' => 'PV', 'label' => 'Payments Voucher', 'display_order' => 15],
         ];
         foreach ($defaults as $row) {
-            \DB::table('voucher_types')->insert(array_merge($row, [
-                'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]));
+            DB::table('voucher_types')->updateOrInsert(
+                ['code' => $row['code']],
+                array_merge($row, [
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])
+            );
         }
     }
 

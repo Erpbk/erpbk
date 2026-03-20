@@ -36,6 +36,7 @@ $('body').on('click', '.show-voucher-panel', function (e) {
   var action = $(this).data('action');
   var title = $(this).data('title');
   var collapseSidebar = $(this).data('collapse-sidebar');
+  var customListUrl = $(this).data('list-url');
   if (!action) return;
   var voucherPanelEl = document.getElementById('voucherPanel');
   var voucherOffcanvas = bootstrap.Offcanvas.getOrCreateInstance(voucherPanelEl);
@@ -50,7 +51,7 @@ $('body').on('click', '.show-voucher-panel', function (e) {
       $('#voucherListSidebarBackdrop').addClass('visible').attr('aria-hidden', 'false');
       $('body').addClass('voucher-panels-open');
       listBody.html('<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><p class="mb-0 mt-2 small">Loading…</p></div>');
-      var listUrl = ($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar';
+      var listUrl = customListUrl || (($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar');
       listBody.load(listUrl);
     }
     if (collapseSidebar) {

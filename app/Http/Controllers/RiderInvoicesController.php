@@ -656,6 +656,10 @@ class RiderInvoicesController extends AppBaseController
     ];
     $transactionService->recordTransaction($transactionDataCredit);
 
+    if (!\App\Models\VoucherType::isCodeAllowedForModule('RI', 'riders_list')) {
+        throw new \Exception('Rider Invoice voucher type (RI) is not assigned to the Riders List module. Please assign it in Voucher Settings.');
+    }
+
     // Create voucher record
     $voucherData = [
       'trans_date' => $invoiceDate,

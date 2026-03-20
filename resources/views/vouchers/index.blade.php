@@ -95,16 +95,14 @@
                         href="javascript:void(0);" data-size="sm" data-title="Import Voucher" data-action="{{ route('voucher.import') }}">
                         Import Voucher
                     </a>
-                    @foreach(App\Helpers\General::ActiveVoucherTypesForCreate() as $key => $value)
-                    @if($key !== 'RFV' && $key !== 'LV' && $key !== 'VL' && $key !== 'SV' && $key !== 'AL' && $key !== 'INC' && $key !== 'PN' && $key !== 'PAY' && $key !== 'COD' && $key !== 'VC' && $key !== 'RI' && $key !== 'GV' && $key !== 'RV' && $key !== 'PV')
+                    @foreach($voucherTypesForFilter ?? [] as $key => $value)
                     <a class="show-modal action-btn btn btn-primary" style="margin-right:5px;"
                         href="javascript:void(0);"
                         data-size="xl"
-                        data-title="Create {{$value}}"
+                        data-title="Create {{ $value }}"
                         data-action="{{ route('vouchers.create', ['vt' => $key]) }}">
-                        <i class="fa fa-plus"></i>&nbsp;{{$value}}
+                        <i class="fa fa-plus"></i>&nbsp;{{ $value }}
                     </a>
-                    @endif
                     @endforeach
                     @endcan
                 </div>
@@ -140,7 +138,7 @@
                             <label for="voucher_type">Voucher Type</label>
                             <select class="form-control" id="voucher_type" name="voucher_type">
                                 <option value="" selected>Select</option>
-                                @foreach(App\Helpers\General::VoucherType() as $key => $value)
+                                @foreach($voucherTypesForFilter ?? \App\Helpers\General::VoucherType() as $key => $value)
                                 <option value="{{ $key }}" {{ request('voucher_type') == $key ? 'selected' : '' }}>{{ $value }}</option>
                                 @endforeach
                             </select>
@@ -212,7 +210,7 @@
                 </div>
             </div>
             <div class="card-body  px-2 py-0 table-responsive" id="table-data">
-                @include('vouchers.table', ['data' => $data ?? collect()])
+                @include('vouchers.table', ['data' => $data ?? collect(), 'editDeleteFlags' => $editDeleteFlags ?? []])
             </div>
         </div>
     </div>

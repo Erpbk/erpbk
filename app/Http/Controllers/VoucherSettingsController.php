@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Settings;
 use App\Models\VoucherType;
 use App\Models\VoucherCustomField;
 use Illuminate\Http\Request;
@@ -18,24 +19,69 @@ class VoucherSettingsController extends Controller
      */
     public function index()
     {
-        $voucherTypes = VoucherType::orderBy('display_order')->orderBy('id')->get();
+        $voucherTypes = VoucherType::with('moduleAssignments')->orderBy('display_order')->orderBy('id')->get();
         $customFields = VoucherCustomField::orderBy('display_order')->orderBy('id')->get();
         $dataTypes = VoucherCustomField::dataTypes();
+        $moduleLabel = Settings::getMenuLabel('voucher_settings');
+        $voucherModules = VoucherType::availableModules();
 
-        return view('settings.voucher_settings.index', compact('voucherTypes', 'customFields', 'dataTypes'));
+        return view('settings.voucher_settings.index', compact('voucherTypes', 'customFields', 'dataTypes', 'moduleLabel', 'voucherModules'));
+    }
+
+    /**
+     * Save the display name for this module (settings panel + main app menu use key 'vouchers').
+     */
+    public function storeModuleLabel(Request $request)
+    {
+        $request->validate(['module_label' => 'required|string|max:100']);
+        $value = trim($request->input('module_label'));
+        Settings::updateOrCreate(['name' => 'menu_label_voucher_settings'], ['value' => $value]);
+        Settings::updateOrCreate(['name' => 'menu_label_vouchers'], ['value' => $value]);
+        Settings::clearMenuLabelsCache();
+        return redirect()->route('settings-panel.voucher-settings.index')->with('success', 'Module name updated.');
     }
 
     // ---------- Voucher Types ----------
 
     public function storeType(Request $request)
     {
+        $allowedModules = array_keys(VoucherType::availableModules());
         $validated = $request->validate([
             'code' => 'required|string|max:20|unique:voucher_types,code',
             'label' => 'required|string|max:255',
+            'module_assignments' => 'required|array|min:1',
+            'module_assignments.*' => 'array',
+            'module_assignments.*.assigned' => 'nullable|boolean',
+            'allow_edit_in_voucher_module' => 'nullable|boolean',
+            'allow_delete_in_voucher_module' => 'nullable|boolean',
         ]);
-        $validated['display_order'] = (int) VoucherType::max('display_order') + 1;
-        $validated['is_active'] = true;
-        VoucherType::create($validated);
+        $assignments = $request->input('module_assignments', []);
+        $moduleKeys = [];
+        foreach ($allowedModules as $key) {
+            $a = $assignments[$key] ?? [];
+            if (!empty($a['assigned'])) {
+                $moduleKeys[] = $key;
+            }
+        }
+        if (empty($moduleKeys)) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Select at least one module.'], 422);
+            }
+            return redirect()->back()->withInput()->withErrors(['module_assignments' => 'Select at least one module.']);
+        }
+        $canEditByModule = array_fill_keys($moduleKeys, true);
+        $canDeleteByModule = array_fill_keys($moduleKeys, true);
+        if (in_array('vouchers', $moduleKeys, true)) {
+            $canEditByModule['vouchers'] = $request->boolean('allow_edit_in_voucher_module');
+            $canDeleteByModule['vouchers'] = $request->boolean('allow_delete_in_voucher_module');
+        }
+        $voucherType = VoucherType::create([
+            'code' => $validated['code'],
+            'label' => $validated['label'],
+            'display_order' => (int) VoucherType::max('display_order') + 1,
+            'is_active' => true,
+        ]);
+        $voucherType->syncModules($moduleKeys, $canEditByModule, $canDeleteByModule);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json(['success' => true, 'message' => 'Voucher type added successfully.']);
@@ -46,15 +92,42 @@ class VoucherSettingsController extends Controller
     public function updateType(Request $request, $id)
     {
         $type = VoucherType::findOrFail($id);
+        $allowedModules = array_keys(VoucherType::availableModules());
         $validated = $request->validate([
             'code' => 'required|string|max:20|unique:voucher_types,code,' . $id,
             'label' => 'required|string|max:255',
             'is_active' => 'boolean',
+            'module_assignments' => 'required|array|min:1',
+            'module_assignments.*' => 'array',
+            'module_assignments.*.assigned' => 'nullable|boolean',
+            'allow_edit_in_voucher_module' => 'nullable|boolean',
+            'allow_delete_in_voucher_module' => 'nullable|boolean',
         ]);
+        $assignments = $request->input('module_assignments', []);
+        $moduleKeys = [];
+        foreach ($allowedModules as $key) {
+            $a = $assignments[$key] ?? [];
+            if (!empty($a['assigned'])) {
+                $moduleKeys[] = $key;
+            }
+        }
+        if (empty($moduleKeys)) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Select at least one module.'], 422);
+            }
+            return redirect()->back()->withInput()->withErrors(['module_assignments' => 'Select at least one module.']);
+        }
+        $canEditByModule = array_fill_keys($moduleKeys, true);
+        $canDeleteByModule = array_fill_keys($moduleKeys, true);
+        if (in_array('vouchers', $moduleKeys, true)) {
+            $canEditByModule['vouchers'] = $request->boolean('allow_edit_in_voucher_module');
+            $canDeleteByModule['vouchers'] = $request->boolean('allow_delete_in_voucher_module');
+        }
         $type->code = $validated['code'];
         $type->label = $validated['label'];
         $type->is_active = $request->boolean('is_active');
         $type->save();
+        $type->syncModules($moduleKeys, $canEditByModule, $canDeleteByModule);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json(['success' => true, 'message' => 'Voucher type updated successfully.']);
@@ -84,7 +157,7 @@ class VoucherSettingsController extends Controller
 
     public function typesTableBody()
     {
-        $voucherTypes = VoucherType::orderBy('display_order')->orderBy('id')->get();
+        $voucherTypes = VoucherType::with('moduleAssignments')->orderBy('display_order')->orderBy('id')->get();
         return view('settings.voucher_settings._voucher_types_tbody', compact('voucherTypes'));
     }
 

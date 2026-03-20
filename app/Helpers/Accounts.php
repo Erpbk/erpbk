@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Helpers;
+
 use App\Models\Banks;
 use App\Models\Customers;
 use App\Models\LeasingCompanies;
@@ -30,13 +31,20 @@ class Accounts
     }
   }
 
-  public static function dropdown($items, $selected = null, $parentId = null, $prefix = '')
+  /**
+   * Build dropdown options for accounts (optionally bold root-level/main parent accounts).
+   *
+   * @param array|\Illuminate\Support\Collection $items Items grouped by parent_id
+   * @param mixed $selected Selected id
+   * @param mixed $parentId Current parent id (null = root level)
+   * @param string $prefix Prefix for nested display
+   * @param bool $boldRootLevel If true, root-level options are rendered in bold (e.g. for Expense module)
+   */
+  public static function dropdown($items, $selected = null, $parentId = null, $prefix = '', $boldRootLevel = false)
   {
     $html = '';
     $select = '';
-    //$items = Accounts::all(['id', 'name', 'account_parent_id'])->groupBy('account_parent_id');
 
-    // Get categories grouped by parent_id
     if (isset($items[$parentId])) {
       foreach ($items[$parentId] as $item) {
         if ($selected) {
@@ -47,9 +55,44 @@ class Accounts
           }
         }
 
-        $html .= '<option value="' . $item->id . '" ' . $select . '>' . $prefix . $item->name . '</option>';
-        $html .= self::dropdown($items, $selected, $item->id, $prefix . '⮞ ');
+        $isRoot = $parentId === null;
+        $style = ($boldRootLevel && $isRoot) ? ' style="font-weight: bold;"' : '';
+        $html .= '<option value="' . $item->id . '" ' . $select . $style . '>' . $prefix . e($item->name) . '</option>';
+        $html .= self::dropdown($items, $selected, $item->id, $prefix . '⮞ ', $boldRootLevel);
       }
+    }
+
+    return $html;
+  }
+
+  /**
+   * Build dropdown for expense accounts with parent accounts bold and disabled (not selectable).
+   * Only child (leaf) accounts are selectable.
+   *
+   * @param array $items Items grouped by parent_id ('_root_' key = root level)
+   * @param mixed $selected Selected id
+   * @param mixed $parentKey Current parent key ('_root_' = root level, or account id)
+   * @param string $prefix Prefix for nested display
+   */
+  public static function expenseAccountsDropdown($items, $selected = null, $parentKey = '_root_', $prefix = '')
+  {
+    $html = '';
+
+    if (!isset($items[$parentKey])) {
+      return $html;
+    }
+
+    foreach ($items[$parentKey] as $item) {
+      $select = ($selected && $item->id == $selected) ? 'selected' : '';
+      $hasChildren = isset($items[$item->id]) && count($items[$item->id]) > 0;
+
+      if ($hasChildren) {
+        $html .= '<option value="" disabled style="font-weight: bold;">' . $prefix . e($item->name) . '</option>';
+      } else {
+        $html .= '<option value="' . $item->id . '" ' . $select . '>' . $prefix . e($item->name) . '</option>';
+      }
+
+      $html .= self::expenseAccountsDropdown($items, $selected, $item->id, $prefix . '⮞ ');
     }
 
     return $html;
@@ -93,5 +136,4 @@ class Accounts
     $finalBalance = $balance->closing_balance; */
     return number_format($finalBalance, 2);
   }
-
 }

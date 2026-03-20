@@ -502,7 +502,9 @@ class RidersController extends AppBaseController
    */
   public function create()
   {
-    return view('riders.create');
+    $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+    $fieldsByCategory = \App\Models\RiderCustomField::fieldsByCategoryForForm();
+    return view('riders.create', compact('riderCategories', 'fieldsByCategory'));
   }
   /**
    * Store a newly created Riders in storage.
@@ -621,13 +623,14 @@ class RidersController extends AppBaseController
     // $rider_items = $rider->items;
     $result = $rider->toArray();
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
+    $fieldsByCategory = \App\Models\RiderCustomField::fieldsByCategoryForForm();
 
     // Get dropdown data for edit forms
     $countries = \App\Models\Countries::pluck('name', 'id')->prepend('Select', '');
     $vendors = \App\Models\Vendors::pluck('name', 'id')->prepend('Select', '');
     $customers = \App\Models\Customers::pluck('name', 'id')->prepend('Select', '');
 
-    return view('riders.show_fields', compact('result', 'rider', 'job_status', 'countries', 'vendors', 'customers'));
+    return view('riders.show_fields', compact('result', 'rider', 'job_status', 'countries', 'vendors', 'customers', 'fieldsByCategory'));
   }
 
   /**
@@ -644,7 +647,9 @@ class RidersController extends AppBaseController
       return redirect(route('riders.index'));
     }
 
-    return view('riders.edit')->with('riders', $riders);
+    $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+    $fieldsByCategory = \App\Models\RiderCustomField::fieldsByCategoryForForm();
+    return view('riders.edit', compact('riders', 'riderCategories', 'fieldsByCategory'));
   }
 
   /**
@@ -1507,41 +1512,7 @@ class RidersController extends AppBaseController
 
   public function files($rider_id)
   {
-    // Define documents in a more structured way
-    $expectedFiles = [
-      'single' => [
-        'photo' => 'Profile Photo',
-        'offer' => 'Job Offer Letter ( MOL )',
-        'entry' => 'Entry Permit',
-        'residency' => 'Residency',
-        'health' => 'Health insurance',
-        'workers' => 'Workers Compensation Insurance',
-        'road' => 'Road Permit',
-        'contract' => 'Agreement/Contract'
-      ],
-      'dual' => [
-        'passport' => [
-          'front' => 'Passport ( First Page )',
-          'back' => 'Passport ( Second Page )'
-        ],
-        'nic' => [
-          'front' => 'Home Country NIC ( Front )',
-          'back' => 'Home Country NIC ( Back )'
-        ],
-        'labor' => [
-          'front' => 'Labor Card ( Front )',
-          'back' => 'Labor Card ( Back )'
-        ],
-        'emirates' => [
-          'front' => 'Emirates ID ( Front )',
-          'back' => 'Emirates ID ( Back )'
-        ],
-        'license' => [
-          'front' => 'Bike License ( Front )',
-          'back' => 'Bike License ( Back )'
-        ]
-      ]
-    ];
+    $expectedFiles = \App\Models\RiderDocumentType::expectedFilesStructure();
 
     $files = DB::table('files')
       ->where('type', 'rider')
@@ -1566,30 +1537,24 @@ class RidersController extends AppBaseController
       }
     }
 
-    // Check dual documents
+    // Check dual documents (match file name containing key + front/first or back/second)
     foreach ($expectedFiles['dual'] as $key => $sides) {
       $foundFront = false;
       $foundBack = false;
-
       foreach ($files as $riderFile) {
-        if (str_contains(strtolower($riderFile->name), $key)) {
-          if (
-            str_contains(strtolower($riderFile->name), 'back') ||
-            ($key == 'passport' && str_contains(strtolower($riderFile->name), 'second'))
-          ) {
-            $foundBack = true;
-          } elseif (
-            str_contains(strtolower($riderFile->name), 'front') ||
-            ($key == 'passport' && str_contains(strtolower($riderFile->name), 'first'))
-          ) {
-            $foundFront = true;
-          } else {
-            $foundBack = true;
-            $foundFront = true;
-          }
+        $name = strtolower($riderFile->name);
+        if (!str_contains($name, $key)) {
+          continue;
+        }
+        if (str_contains($name, 'back') || str_contains($name, 'second')) {
+          $foundBack = true;
+        } elseif (str_contains($name, 'front') || str_contains($name, 'first')) {
+          $foundFront = true;
+        } else {
+          $foundBack = true;
+          $foundFront = true;
         }
       }
-
       if (!$foundFront) {
         $missingFiles[$key . '_front'] = $sides['front'];
       }
@@ -1868,6 +1833,76 @@ class RidersController extends AppBaseController
     }
   }
 
+  /**
+   * Toggle Vacation: when turning ON, set designation to Vacation, return bike automatically, and set status to inactive.
+   * Similar to Walker but for vacation leave.
+   */
+  public function toggleVacation(Request $request, $id)
+  {
+    $rider = $this->ridersRepository->find($id);
+
+    if (empty($rider)) {
+      return response()->json(['error' => 'Rider not found'], 404);
+    }
+
+    try {
+      $isSettingVacation = $rider->designation !== 'Vacation';
+      $rider->designation = $isSettingVacation ? 'Vacation' : null;
+
+      if ($isSettingVacation) {
+        $rider->status = 3; // Inactive while on vacation
+      } else {
+        $rider->status = 1; // Active when vacation is turned off
+      }
+
+      $rider->save();
+
+      $bikeReturned = false;
+      // When setting to Vacation: return the bike automatically (same logic as Walker)
+      if ($isSettingVacation) {
+        $bike = Bikes::where('rider_id', $rider->id)->first();
+        if ($bike) {
+          $today = Carbon::now()->toDateString();
+
+          $lastHistory = BikeHistory::where('bike_id', $bike->id)
+            ->where('rider_id', $rider->id)
+            ->whereNull('return_date')
+            ->latest('note_date')
+            ->first();
+          if ($lastHistory) {
+            $lastHistory->update([
+              'warehouse'   => 'Return',
+              'return_date' => $today,
+              'updated_by'  => Auth::id(),
+            ]);
+          }
+
+          $bike->update([
+            'rider_id'  => null,
+            'warehouse' => 'Return',
+          ]);
+          $bikeReturned = true;
+        }
+      }
+
+      $message = 'Vacation status updated successfully.';
+      if ($isSettingVacation && $bikeReturned) {
+        $message .= ' Bike returned.';
+      }
+
+      return response()->json([
+        'success' => true,
+        'message' => $message,
+        'designation' => $rider->designation,
+      ]);
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error updating vacation status'
+      ], 500);
+    }
+  }
+
   public function toggleMol(Request $request, $id)
   {
     $rider = $this->ridersRepository->find($id);
@@ -1915,6 +1950,96 @@ class RidersController extends AppBaseController
       return response()->json([
         'success' => false,
         'message' => 'Error updating PRO status'
+      ], 500);
+    }
+  }
+
+  /**
+   * Set rider status option (single-select). Only updates the status option; does not change designation or rider status.
+   * No bike return. Designation remains unchanged.
+   */
+  public function setRiderStatusOption(Request $request, $id)
+  {
+    $rider = $this->ridersRepository->find($id);
+
+    if (empty($rider)) {
+      return response()->json(['error' => 'Rider not found'], 404);
+    }
+
+    $validTypes = ['absconder', 'flowup', 'llicense', 'walker', 'vacation', 'cancel', 'pro', 'none'];
+    $type = $request->input('type', 'none');
+    if (!in_array($type, $validTypes, true)) {
+      return response()->json(['success' => false, 'message' => 'Invalid status type'], 400);
+    }
+
+    try {
+      // Clear all status option flags and rider_status_option only (do not touch designation or status)
+      $rider->absconder = 0;
+      $rider->flowup = 0;
+      $rider->l_license = 0;
+      $rider->rider_status_option = null;
+      if (Schema::hasColumn($rider->getTable(), 'pro')) {
+        $rider->pro = 0;
+      }
+      if (Schema::hasColumn($rider->getTable(), 'mol')) {
+        $rider->mol = 0;
+      }
+
+      if ($type !== 'none') {
+        $labels = [
+          'absconder' => 'Absconder',
+          'flowup' => 'Follow Up',
+          'llicense' => 'Learning License',
+          'walker' => 'Walker',
+          'vacation' => 'Vacation',
+          'cancel' => 'Cancel',
+          'pro' => 'PRO',
+        ];
+        $rider->rider_status_option = $labels[$type] ?? null;
+        switch ($type) {
+          case 'absconder':
+            $rider->absconder = 1;
+            break;
+          case 'flowup':
+            $rider->flowup = 1;
+            break;
+          case 'llicense':
+            $rider->l_license = 1;
+            break;
+          case 'walker':
+            break;
+          case 'vacation':
+            break;
+          case 'cancel':
+            break;
+          case 'pro':
+            if (Schema::hasColumn($rider->getTable(), 'pro')) {
+              $rider->pro = 1;
+            }
+            break;
+        }
+      }
+
+      $rider->save();
+
+      $statusLabel = $type === 'none' ? (null) : $rider->rider_status_option;
+
+      return response()->json([
+        'success' => true,
+        'message' => $type === 'none' ? 'Status option cleared.' : 'Status option updated.',
+        'statusLabel' => $statusLabel,
+        'rider_status_option' => $rider->rider_status_option,
+        'designation' => $rider->designation,
+        'status' => $rider->status,
+        'absconder' => $rider->absconder,
+        'flowup' => $rider->flowup,
+        'l_license' => $rider->l_license,
+        'pro' => $rider->pro ?? 0,
+      ]);
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error updating status: ' . $e->getMessage(),
       ], 500);
     }
   }
@@ -1982,6 +2107,9 @@ class RidersController extends AppBaseController
   public function storeadvanceloan(Request $request)
   {
     try {
+      if (!\App\Models\VoucherType::isCodeAllowedForModule('AL', 'riders')) {
+        return response()->json(['errors' => ['error' => 'Advance Loan voucher type (AL) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
+      }
       \DB::beginTransaction();
 
       // Validate the request
@@ -2123,6 +2251,9 @@ class RidersController extends AppBaseController
   public function storecod(Request $request)
   {
     try {
+      if (!\App\Models\VoucherType::isCodeAllowedForModule('COD', 'riders')) {
+        return response()->json(['errors' => ['error' => 'COD voucher type is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
+      }
       \DB::beginTransaction();
 
       // Validate the request
@@ -2246,6 +2377,9 @@ class RidersController extends AppBaseController
   public function storepenalty(Request $request)
   {
     try {
+      if (!\App\Models\VoucherType::isCodeAllowedForModule('PN', 'riders')) {
+        return response()->json(['errors' => ['error' => 'Penalty voucher type (PN) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
+      }
       \DB::beginTransaction();
 
       // Validate the request
@@ -2387,6 +2521,9 @@ class RidersController extends AppBaseController
   public function storepayment(Request $request)
   {
     try {
+      if (!\App\Models\VoucherType::isCodeAllowedForModule('PAY', 'riders')) {
+        return response()->json(['errors' => ['error' => 'Payment voucher type (PAY) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
+      }
       \DB::beginTransaction();
 
       // Validate the request
@@ -2510,6 +2647,9 @@ class RidersController extends AppBaseController
   public function storeincentive(Request $request)
   {
     try {
+      if (!\App\Models\VoucherType::isCodeAllowedForModule('INC', 'riders')) {
+        return response()->json(['errors' => ['error' => 'Incentive voucher type (INC) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
+      }
       \DB::beginTransaction();
 
       // Validate the request
@@ -2648,20 +2788,16 @@ class RidersController extends AppBaseController
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
-    // Provide available voucher types (exclude Incentive)
-    $voucherTypes = [
-      'AL'  => 'Advance Loan',
-      'COD' => 'COD',
-      'PN'  => 'Penalty',
-      'PAY' => 'Payment',
-      'VC'  => 'Vendor Charges',
-    ];
+    $voucherTypes = \App\Models\VoucherType::activeCodeLabelMapForModule('riders');
     return view('riders.voucher-modal', compact('rider', 'account', 'accounts', 'bank_accounts', 'voucherTypes'));
   }
 
   public function storevendorcharges(Request $request)
   {
     try {
+      if (!\App\Models\VoucherType::isCodeAllowedForModule('VC', 'riders')) {
+        return response()->json(['errors' => ['error' => 'Vendor Charges voucher type (VC) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
+      }
       \DB::beginTransaction();
 
       // Validate the request

@@ -11,30 +11,32 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('branches', function (Blueprint $table) {
+        if (!Schema::hasTable('branches')) {
+            Schema::create('branches', function (Blueprint $table) {
 
-            $table->id();
-            $table->string('code')->unique()->nullable();
-            $table->string('name');
-            $table->string('contact')->nullable();
-            $table->string('address')->nullable();
-            $table->foreignId('parent_branch_id')->nullable()->constrained('branches');
-            $table->enum('branch_type', ['headquarters', 'branch', 'warehouse', 'grage'])
-                  ->default('branch');
-            $table->boolean('is_active')->default(true);
-            $table->string('description')->nullable();
-            $table->unsignedBigInteger('created_by');
-            $table->unsignedBigInteger('updated_by')->nullable();
-            
-            $table->softDeletes();
-            $table->timestamps();
-            
-            // Indexes
-            $table->index('name');
-            $table->index('is_active');
-            $table->index('branch_type');
-            $table->index('parent_branch_id');
-        });
+                $table->id();
+                $table->string('code')->unique()->nullable();
+                $table->string('name');
+                $table->string('contact')->nullable();
+                $table->string('address')->nullable();
+                $table->foreignId('parent_branch_id')->nullable()->constrained('branches');
+                $table->enum('branch_type', ['headquarters', 'branch', 'warehouse', 'grage'])
+                      ->default('branch');
+                $table->boolean('is_active')->default(true);
+                $table->string('description')->nullable();
+                $table->unsignedBigInteger('created_by');
+                $table->unsignedBigInteger('updated_by')->nullable();
+                
+                $table->softDeletes();
+                $table->timestamps();
+                
+                // Indexes
+                $table->index('name');
+                $table->index('is_active');
+                $table->index('branch_type');
+                $table->index('parent_branch_id');
+            });
+        }
     }
 
     /**

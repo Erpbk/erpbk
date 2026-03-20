@@ -77,7 +77,7 @@
                                     <td class="text-end">
                                         <a class="btn btn-sm btn-primary show-modal action-btn"
                                             href="javascript:void(0);" 
-                                            data-action="{{ route('files.create', [
+                                            data-action="{{ route('files.cregit ate', [
                                                 'type_id' => request()->segment(3),
                                                 'type' => 'rider',
                                                 'suggested_name' => $fileName

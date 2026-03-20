@@ -12,6 +12,7 @@ use App\Models\Riders;
 use App\Models\visa_expenses;
 use App\Models\Accounts;
 use App\Models\Vouchers;
+use App\Models\VoucherType;
 use App\Models\LedgerEntry;
 use App\Models\visa_installment_plan;
 use App\Models\Transactions;
@@ -490,6 +491,11 @@ class VisaexpenseController extends AppBaseController
                 return redirect()->back();
             }
             $rider = Riders::findOrFail($riderAccount->ref_id);
+
+            if (!VoucherType::isCodeAllowedForModule('VL', 'visa_expense')) {
+                Flash::error('Visa Loan voucher type (VL) is not assigned to the Visa Expense module. Please assign it in Voucher Settings.');
+                return redirect()->back()->withInput();
+            }
 
             $existingInstallmentCount  = visa_installment_plan::where('rider_id', $validated['rider_id'])->count();
 
@@ -1591,6 +1597,10 @@ class VisaexpenseController extends AppBaseController
                 $fine->payment_status = 'unpaid';
             } else {
                 $fine->payment_status = 'paid';
+                if (!VoucherType::isCodeAllowedForModule($request->voucher_type ?? '', 'visa_expense')) {
+                    Flash::error('The selected voucher type is not assigned to the Visa Expense module. Please assign it in Voucher Settings.');
+                    return redirect()->back()->withInput();
+                }
                 $payment_type_flag = match ($request->payment_type) {
                     'Liability' => 1,
                     'Asset' => 0,

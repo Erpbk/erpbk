@@ -731,9 +731,19 @@ class BikesController extends AppBaseController
         $message .= "*Emirates:* {$bike->emirates}\n";
         $message .= "*Note:*" . $request->notes ?? '' . "\n";
 
-        // Update rider status + designation depending on warehouse
+        // Update rider status + designation depending on warehouse.
+        // If rider was on Vacation, clear the Vacation status option when assigning a bike.
         $rider = Riders::find($request->rider_id);
-        $rider->update(['status' => 1, 'designation' => $designation, 'customer_id' => $customer_id, 'emirate_hub' => $bike->emirates]);
+        if ($rider) {
+          if ($rider->rider_status_option === 'Vacation') {
+            $rider->rider_status_option = null;
+          }
+          $rider->status = 1;
+          $rider->designation = $designation;
+          $rider->customer_id = $customer_id;
+          $rider->emirate_hub = $bike->emirates;
+          $rider->save();
+        }
         $bike->update(['rider_id' => $request->rider_id, 'warehouse' => $request->warehouse, 'customer_id' => $customer_id]);
 
 
@@ -1151,10 +1161,11 @@ class BikesController extends AppBaseController
     return view('bikes.files', compact('missingFiles', 'files', 'bikes'));
   }
 
-  public function maintenance($id){
+  public function maintenance($id)
+  {
     $bikes = Bikes::findOrFail($id);
     $maintenances = $bikes->maintenanceRecords()->orderBy('maintenance_date', 'desc')->get();
-    return view('bikes.maintenance', compact('bikes','maintenances'));
+    return view('bikes.maintenance', compact('bikes', 'maintenances'));
   }
 
   /**

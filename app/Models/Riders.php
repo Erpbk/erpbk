@@ -61,6 +61,7 @@ class Riders extends Model
     'c3_card',
     'contract',
     'designation',
+    'rider_status_option',
     'image_name',
     'salary_model',
     'rider_reference',
@@ -78,10 +79,12 @@ class Riders extends Model
     'attendance_date',
     'recuriter',
     'recruiter_id',
-    'deleted_by'
+    'deleted_by',
+    'custom_field_values'
   ];
 
   protected $casts = [
+    'custom_field_values' => 'array',
     'name' => 'string',
     'courier_id' => 'string',
     'personal_contact' => 'string',

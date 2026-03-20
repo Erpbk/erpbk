@@ -1,4 +1,7 @@
-@php $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels(); @endphp
+@php
+// Labels are editable in Settings > ERP Module Settings > [Module] > General; same source as ModuleSettingsController
+$menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
+@endphp
 @can('dashboard_view')
 <li class="menu-item {{ Request::is('/') ? 'active' : '' }}">
   <a href="{{ route('home') }}" class="menu-link ">
@@ -43,13 +46,13 @@
     <div>{{ $menuLabels['attendance'] ?? 'Attendance' }}</div>
   </a>
   <ul class="menu-sub">
-    <li class="menu-item {{ Request::routeIs('attendance.index') ? 'active' : '' }}" >
+    <li class="menu-item {{ Request::routeIs('attendance.index') ? 'active' : '' }}">
       <a href="{{ route('attendance.index') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-calendar-check"></i>
         {{ $menuLabels['attendance_records'] ?? 'Attendance Records' }}
       </a>
     </li>
-    <li class="menu-item {{ Request::routeIs('attendance.summary') ? 'active' : '' }}" >
+    <li class="menu-item {{ Request::routeIs('attendance.summary') ? 'active' : '' }}">
       <a href="{{ route('attendance.summary') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-calendar-check"></i>
         {{ $menuLabels['attendance_summary'] ?? 'Attendance Summary' }}
@@ -237,14 +240,40 @@
   </a>
 </li>
 @endcan
-@can('expense_view')
-<li class="menu-item ">
-  <a href="#" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-device-sim"></i>
+@can('expenses_view')
+<li class="menu-item {{ Request::is('expenses*') ? 'active' : '' }}">
+  <a href="{{ route('expenses.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-cash"></i>
     <div>{{ $menuLabels['expenses'] ?? 'Expenses' }}</div>
   </a>
 </li>
 @endcan
+@can('vat_view')
+<li class="menu-item {{ Request::is('accounts/vat') || Request::is('accounts/vat/returns') ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle ">
+    <i class="menu-icon tf-icons ti ti-receipt-tax"></i>
+    <div>{{ $menuLabels['vat'] ?? 'VAT' }}</div>
+  </a>
+  <ul class="menu-sub">
+
+    @can('vat_view')
+    <li class="menu-item {{ Request::is('accounts/vat') ? 'active' : '' }}">
+      <a href="{{ route('vat.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-receipt-tax"></i>
+        <div>{{ $menuLabels['vat_ledger'] ?? 'VAT' }}</div>
+      </a>
+    </li>
+    @endcan
+    @can('vat_return_view')
+    <li class="menu-item {{ Request::is('accounts/vat/returns') ? 'active' : '' }}">
+      <a href="{{ route('vat.returns.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-file-export"></i>
+        <div>{{ $menuLabels['vat_return_file'] ?? 'Return File' }}</div>
+      </a>
+    </li>
+    @endcan
+  </ul>
+  @endcan
 <li class="menu-item {{ Request::is('leasingCompanies*') ? 'open' : '' }} {{ Request::is('leasingCompanyInvoices*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-building"></i>

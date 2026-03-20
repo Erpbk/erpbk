@@ -116,7 +116,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('/employees/update-status', [App\Http\Controllers\EmployeeController::class, 'updateStatus'])->name('employee.update-status');
     Route::post('/employees/{id}/update-section', [App\Http\Controllers\EmployeeController::class, 'updateSection'])->name('employees.updateSection');
 
-    Route::get('attendance/summary', [\App\Http\Controllers\AttendanceController::class, 'summary'])->name('attendance.summary');    
+    Route::get('attendance/summary', [\App\Http\Controllers\AttendanceController::class, 'summary'])->name('attendance.summary');
     Route::get('attendance/export', [\App\Http\Controllers\AttendanceController::class, 'export'])->name('attendance.export');
     Route::get('attendance/summary/export', [\App\Http\Controllers\AttendanceController::class, 'exportSummary'])->name('attendance.summary.export');
     Route::resource('attendance', App\Http\Controllers\AttendanceController::class);
@@ -143,6 +143,11 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::match(['get', 'post'], '/company', [HomeController::class, 'settings'])->name('settings-panel.company');
         Route::get('/erp', [App\Http\Controllers\ErpSettingsController::class, 'index'])->name('settings-panel.erp');
         Route::post('/erp', [App\Http\Controllers\ErpSettingsController::class, 'store'])->name('settings-panel.erp.store');
+        Route::get('vat-settings', [App\Http\Controllers\VatSettingsController::class, 'index'])->name('settings-panel.vat-settings.index');
+        Route::post('vat-settings/module-label', [App\Http\Controllers\VatSettingsController::class, 'storeModuleLabel'])->name('settings-panel.vat-settings.store-module-label');
+        Route::post('vat-settings/quarters', [App\Http\Controllers\VatSettingsController::class, 'storeQuarter'])->name('settings-panel.vat-settings.store-quarter');
+        Route::delete('vat-settings/quarters/{slot}', [App\Http\Controllers\VatSettingsController::class, 'deleteQuarter'])->name('settings-panel.vat-settings.delete-quarter');
+        Route::post('vat-settings', [App\Http\Controllers\VatSettingsController::class, 'store'])->name('settings-panel.vat-settings.store');
         Route::resource('departments', App\Http\Controllers\DepartmentsController::class)->names('settings-panel.departments');
         Route::resource('dropdowns', App\Http\Controllers\DropdownsController::class)->names('settings-panel.dropdowns');
         Route::resource('visa-statuses', App\Http\Controllers\VisaStatusController::class)->names('settings-panel.visa-statuses');
@@ -151,6 +156,7 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::resource('branches', App\Http\Controllers\BranchController::class)->names('settings-panel.branches');
         // Account field settings (fixed + custom fields; only custom are editable/deletable)
         Route::get('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'index'])->name('settings-panel.account-fields.index');
+        Route::post('account-fields/module-label', [App\Http\Controllers\AccountFieldSettingsController::class, 'storeModuleLabel'])->name('settings-panel.account-fields.store-module-label');
         Route::get('account-fields/table-body', [App\Http\Controllers\AccountFieldSettingsController::class, 'tableBody'])->name('settings-panel.account-fields.table-body');
         Route::get('account-fields/config-schema/{dataType}', [App\Http\Controllers\AccountFieldSettingsController::class, 'configSchema'])->name('settings-panel.account-fields.config-schema');
         Route::post('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'store'])->name('settings-panel.account-fields.store');
@@ -159,6 +165,7 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::post('account-fields/reorder', [App\Http\Controllers\AccountFieldSettingsController::class, 'reorder'])->name('settings-panel.account-fields.reorder');
         // Voucher Settings (voucher types + voucher custom fields)
         Route::get('voucher-settings', [App\Http\Controllers\VoucherSettingsController::class, 'index'])->name('settings-panel.voucher-settings.index');
+        Route::post('voucher-settings/module-label', [App\Http\Controllers\VoucherSettingsController::class, 'storeModuleLabel'])->name('settings-panel.voucher-settings.store-module-label');
         Route::get('voucher-settings/types/table-body', [App\Http\Controllers\VoucherSettingsController::class, 'typesTableBody'])->name('settings-panel.voucher-settings.types-table-body');
         Route::post('voucher-settings/types', [App\Http\Controllers\VoucherSettingsController::class, 'storeType'])->name('settings-panel.voucher-settings.store-type');
         Route::put('voucher-settings/types/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateType'])->name('settings-panel.voucher-settings.update-type');
@@ -170,10 +177,37 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::put('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateField'])->name('settings-panel.voucher-settings.update-field');
         Route::delete('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'destroyField'])->name('settings-panel.voucher-settings.destroy-field');
         Route::post('voucher-settings/fields/reorder', [App\Http\Controllers\VoucherSettingsController::class, 'reorderFields'])->name('settings-panel.voucher-settings.reorder-fields');
+        // Rider Settings (categories + fixed rider fields + rider custom fields)
+        Route::get('rider-settings', [App\Http\Controllers\RiderSettingsController::class, 'index'])->name('settings-panel.rider-settings.index');
+        Route::post('rider-settings/module-label', [App\Http\Controllers\RiderSettingsController::class, 'storeModuleLabel'])->name('settings-panel.rider-settings.store-module-label');
+        Route::post('rider-settings/field-assignment', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.rider-settings.update-field-assignment');
+        Route::post('rider-settings/field-assignment/display-label', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignmentLabel'])->name('settings-panel.rider-settings.update-field-assignment-label');
+        Route::post('rider-settings/field-assignment/visibility', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignmentVisibility'])->name('settings-panel.rider-settings.update-field-assignment-visibility');
+        Route::post('rider-settings/field-assignments/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.rider-settings.reorder-field-assignments');
+        Route::get('rider-settings/categories/table-body', [App\Http\Controllers\RiderSettingsController::class, 'categoriesTableBody'])->name('settings-panel.rider-settings.categories-table-body');
+        Route::post('rider-settings/categories', [App\Http\Controllers\RiderSettingsController::class, 'storeCategory'])->name('settings-panel.rider-settings.store-category');
+        Route::put('rider-settings/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateCategory'])->name('settings-panel.rider-settings.update-category');
+        Route::delete('rider-settings/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyCategory'])->name('settings-panel.rider-settings.destroy-category');
+        Route::post('rider-settings/categories/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderCategories'])->name('settings-panel.rider-settings.reorder-categories');
+        Route::get('rider-settings/fields/table-body', [App\Http\Controllers\RiderSettingsController::class, 'tableBody'])->name('settings-panel.rider-settings.table-body');
+        Route::get('rider-settings/fields/table-body/{categoryId}', [App\Http\Controllers\RiderSettingsController::class, 'tableBodyCategory'])->name('settings-panel.rider-settings.table-body-category');
+        Route::get('rider-settings/fields/config-schema/{dataType}', [App\Http\Controllers\RiderSettingsController::class, 'fieldConfigSchema'])->name('settings-panel.rider-settings.field-config-schema');
+        Route::post('rider-settings/fields', [App\Http\Controllers\RiderSettingsController::class, 'storeField'])->name('settings-panel.rider-settings.store-field');
+        Route::put('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateField'])->name('settings-panel.rider-settings.update-field');
+        Route::delete('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyField'])->name('settings-panel.rider-settings.destroy-field');
+        Route::post('rider-settings/fields/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderFields'])->name('settings-panel.rider-settings.reorder-fields');
+        Route::get('rider-settings/documents/table-body', [App\Http\Controllers\RiderSettingsController::class, 'documentTypesTableBody'])->name('settings-panel.rider-settings.document-types-table-body');
+        Route::post('rider-settings/documents', [App\Http\Controllers\RiderSettingsController::class, 'storeDocumentType'])->name('settings-panel.rider-settings.store-document-type');
+        Route::put('rider-settings/documents/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateDocumentType'])->name('settings-panel.rider-settings.update-document-type');
+        Route::delete('rider-settings/documents/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyDocumentType'])->name('settings-panel.rider-settings.destroy-document-type');
+        Route::post('rider-settings/documents/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentTypes'])->name('settings-panel.rider-settings.reorder-document-types');
+        // Module settings (General tab only) for all ERP modules
+        Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[a-z_]+');
+        Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[a-z_]+');
         // User Management, Activity Logs, Recycle Bin (moved into Settings)
-        
+
         Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');
-        Route::patch('users/{id}/password',[App\Http\Controllers\UserController::class, 'changePassword'])->name('users.password');
+        Route::patch('users/{id}/password', [App\Http\Controllers\UserController::class, 'changePassword'])->name('users.password');
         Route::resource('permissions', App\Http\Controllers\PermissionsController::class)->names('settings-panel.permissions');
         Route::resource('roles', App\Http\Controllers\RolesController::class)->names('settings-panel.roles');
         Route::prefix('activity-logs')->name('settings-panel.activity-logs.')->group(function () {
@@ -292,8 +326,10 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::post('riders/toggle-flowup/{id}', [\App\Http\Controllers\RidersController::class, 'toggleFlowup'])->name('riders.toggleFlowup');
     Route::post('riders/toggle-llicense/{id}', [\App\Http\Controllers\RidersController::class, 'toggleLlicense'])->name('riders.toggleLlicense');
     Route::post('riders/toggle-walker/{id}', [\App\Http\Controllers\RidersController::class, 'toggleWalker'])->name('riders.toggleWalker');
+    Route::post('riders/toggle-vacation/{id}', [\App\Http\Controllers\RidersController::class, 'toggleVacation'])->name('riders.toggleVacation');
     Route::post('riders/toggle-mol/{id}', [\App\Http\Controllers\RidersController::class, 'toggleMol'])->name('riders.toggleMol');
     Route::post('riders/toggle-pro/{id}', [\App\Http\Controllers\RidersController::class, 'togglePro'])->name('riders.togglePro');
+    Route::post('riders/set-status-option/{id}', [\App\Http\Controllers\RidersController::class, 'setRiderStatusOption'])->name('riders.setStatusOption');
     Route::post('riders/return-bike/{id}', [\App\Http\Controllers\RidersController::class, 'returnBike'])->name('riders.returnBike');
     Route::post('riders/add-recruiter', [\App\Http\Controllers\RidersController::class, 'addRecruiter'])->name('riders.addRecruiter');
     Route::get('riders/vendorcharges/{id}', [\App\Http\Controllers\RidersController::class, 'vendorcharges'])->name('riders.vendorcharges');
@@ -486,10 +522,32 @@ Route::middleware(['auth', 'web'])->group(function () {
         Route::get('/ledger', [LedgerController::class, 'index'])->name('accounts.ledger');
         Route::get('/ledger/data', [LedgerController::class, 'getLedgerData'])->name('ledger.data');
         Route::get('/ledger/export', [LedgerController::class, 'export'])->name('ledger.export');
+        Route::get('/vat', [App\Http\Controllers\VatController::class, 'index'])->name('vat.index');
+        Route::get('/vat/returns', [App\Http\Controllers\VatController::class, 'returnsIndex'])->name('vat.returns.index');
+        Route::get('/vat/returns/{vat_return}', [App\Http\Controllers\VatController::class, 'returnsShow'])->name('vat.returns.show');
+        Route::post('/vat/return-file', [App\Http\Controllers\VatController::class, 'fileReturn'])->name('vat.return.file');
+        Route::patch('/vat/returns/{vat_return}/status', [App\Http\Controllers\VatController::class, 'updateReturnStatus'])->name('vat.returns.update-status');
+        Route::delete('/vat/returns/{vat_return}', [App\Http\Controllers\VatController::class, 'destroyReturn'])->name('vat.returns.destroy');
+        Route::post('/vat/returns/{vat_return}/delete-entries', [App\Http\Controllers\VatController::class, 'deleteReturnEntries'])->name('vat.returns.delete-entries');
+        Route::get('/vat/voucher/create', [App\Http\Controllers\VatController::class, 'createVoucher'])->name('vat.voucher.create');
+        Route::post('/vat/voucher/store', [App\Http\Controllers\VatController::class, 'storeVoucher'])->name('vat.voucher.store');
         Route::post('accounts/{id}/toggle-lock', [App\Http\Controllers\AccountsController::class, 'toggleLock'])->name('accounts.toggleLock');
         Route::post('accounts/{id}/toggle-status', [App\Http\Controllers\AccountsController::class, 'toggleStatus'])->name('accounts.toggleStatus');
     });
 
+    // Expense module: expense accounts from Chart of Accounts
+    Route::get('expenses/detail/{id}', [App\Http\Controllers\ExpenseController::class, 'accountDetail'])->name('expenses.detail');
+    Route::get('expenses/detail/{id}/ledger-entries', [App\Http\Controllers\ExpenseController::class, 'ledgerEntries'])->name('expenses.ledgerEntries');
+    Route::post('expenses/{expense}/toggle-lock', [App\Http\Controllers\ExpenseController::class, 'toggleLock'])->name('expenses.toggleLock');
+    Route::post('expenses/{expense}/toggle-status', [App\Http\Controllers\ExpenseController::class, 'toggleStatus'])->name('expenses.toggleStatus');
+    Route::get('expenses/voucher/create', [App\Http\Controllers\ExpenseController::class, 'createVoucher'])->name('expenses.voucher.create');
+    Route::post('expenses/voucher/store', [App\Http\Controllers\ExpenseController::class, 'storeVoucher'])->name('expenses.voucher.store');
+    Route::get('expenses/voucher/{id}/edit', [App\Http\Controllers\ExpenseController::class, 'editVoucher'])->name('expenses.voucher.edit');
+    Route::put('expenses/voucher/{id}', [App\Http\Controllers\ExpenseController::class, 'updateVoucher'])->name('expenses.voucher.update');
+    Route::delete('expenses/voucher/{id}', [App\Http\Controllers\ExpenseController::class, 'destroyVoucher'])->name('expenses.voucher.destroy');
+    Route::get('expenses/list-sidebar', [App\Http\Controllers\ExpenseController::class, 'listSidebar'])->name('expenses.list-sidebar');
+    Route::get('expenses/voucher/{id}', [App\Http\Controllers\ExpenseController::class, 'showVoucher'])->name('expenses.voucher.show');
+    Route::resource('expenses', App\Http\Controllers\ExpenseController::class)->only(['index', 'create', 'store']);
 });
 Route::group(['prefix' => 'laravel-filemanager', 'middleware' => ['web', 'auth']], function () {
     \UniSharp\LaravelFilemanager\Lfm::routes();

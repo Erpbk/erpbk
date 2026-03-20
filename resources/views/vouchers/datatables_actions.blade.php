@@ -1,3 +1,8 @@
+@php
+  $editDeleteFlags = $editDeleteFlags ?? [];
+  $canEdit = !empty($editDeleteFlags[$voucher_type]['can_edit']);
+  $canDelete = !empty($editDeleteFlags[$voucher_type]['can_delete']);
+@endphp
 {!! Form::open(['route' => ['vouchers.destroy', $trans_code], 'method' => 'delete','id'=>'formajax']) !!}
 <div class='btn-group'>
     @can('voucher_document')
@@ -11,19 +16,22 @@
         <i class="fa fa-eye"></i>
     </a>
     @endcan
-    {{-- @can('jv_edit') --}}
     @can('voucher_edit')
-    <a href="javascript:void(0);" @if($voucher_type !='RFV' && $voucher_type !='SV' && $voucher_type !='VL' ) data-size="xl" data-title="Edit Voucher No. {{$voucher_type.'-'.str_pad($id,4,"0",STR_PAD_LEFT)}}"
-        data-action="{{ route('vouchers.edit', $trans_code) }}" @endif class='btn btn-info btn-sm show-modal'>
+    @if($canEdit)
+    <a href="javascript:void(0);" data-size="xl" data-title="Edit Voucher No. {{ $voucher_type.'-'.str_pad($id,4,'0',STR_PAD_LEFT) }}"
+        data-action="{{ route('vouchers.edit', $trans_code) }}" class='btn btn-info btn-sm show-modal'>
         <i class="fa fa-edit"></i>
     </a>
+    @endif
     @endcan
     @can('voucher_delete')
+    @if($canDelete)
     {!! Form::button('<i class="fa fa-trash"></i>', [
     'type' => 'submit',
     'class' => 'btn btn-danger btn-sm',
     'onclick' => "return confirm('Are you sure?')"
     ]) !!}
+    @endif
     @endcan
 </div>
 {!! Form::close() !!}

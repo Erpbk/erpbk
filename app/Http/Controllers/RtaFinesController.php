@@ -13,6 +13,7 @@ use App\Models\Riders;
 use App\Models\RtaFines;
 use App\Models\Accounts;
 use App\Models\Vouchers;
+use App\Models\VoucherType;
 use App\Models\LedgerEntry;
 use App\Models\Transactions;
 use App\Repositories\RtaFinesRepository;
@@ -254,7 +255,7 @@ class RtaFinesController extends AppBaseController
 
         try {
 
-            $service_accounts = DB::table('accounts')->where('name', 'Service Charges (RTA Fine)')->where('account_type', 'Expense')->first();
+            $service_accounts = DB::table('accounts')->where('id', 1368)->where('account_type', 'Expense')->first();
             $fine = RtaFines::findOrFail($request->id);
             $fine->pay_account = $request->account;
 
@@ -273,6 +274,11 @@ class RtaFinesController extends AppBaseController
                 // File Upload
                 $photo = $request->file('attach_file');
                 $docFile = $photo->store('fines/files', 'public');
+
+                if (!VoucherType::isCodeAllowedForModule($request->voucher_type ?? '', 'rta_fines')) {
+                    Flash::error('The selected voucher type is not assigned to the RTA Fines module. Please assign it in Voucher Settings.');
+                    return redirect()->back()->withInput();
+                }
 
                 // Narration
                 $remarks = $request->voucher_type === 'RFV' ? 'RTA Fine Voucher' : 'Journal Voucher';

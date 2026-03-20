@@ -20,6 +20,7 @@ use App\Models\Receipt;
 use App\Models\Payment;
 use App\Models\Vouchers;
 use App\Models\VoucherCustomField;
+use App\Models\VoucherType;
 use App\Services\TransactionService;
 use App\Services\VoucherService;
 use Illuminate\Http\Request;
@@ -112,10 +113,15 @@ class VouchersController extends Controller
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
 
+    $voucherModuleKey = 'vouchers';
+    $voucherTypesForFilter = VoucherType::activeCodeLabelMapForModule($voucherModuleKey);
+    $editDeleteFlags = VoucherType::getEditDeleteFlagsByModule($voucherModuleKey);
+
     // AJAX Response for filtered results
     if ($request->ajax()) {
       $tableData = view('vouchers.table', [
         'data' => $data,
+        'editDeleteFlags' => $editDeleteFlags,
       ])->render();
       $paginationLinks = $data->links('components.global-pagination')->render();
       return response()->json([
@@ -126,6 +132,8 @@ class VouchersController extends Controller
 
     return view('vouchers.index', [
       'data' => $data,
+      'voucherTypesForFilter' => $voucherTypesForFilter,
+      'editDeleteFlags' => $editDeleteFlags,
     ]);
   }
 
@@ -153,20 +161,27 @@ class VouchersController extends Controller
     }
 
     $data = $query->paginate(20)->appends($request->query());
+    $voucherTypesForCreate = VoucherType::activeCodeLabelMapForModule('vouchers');
 
-    return view('vouchers.list_sidebar', compact('data'));
+    return view('vouchers.list_sidebar', compact('data', 'voucherTypesForCreate'));
   }
 
   /**
    * Show the form for creating a new Vouchers.
+   * Only voucher types assigned to the vouchers module are allowed (vt query param).
    *
    * @return Response
    */
-  public function create()
+  public function create(Request $request)
   {
     $vouchers = null;
+    $allowedTypes = VoucherType::activeCodeLabelMapForModule('vouchers');
+    $vt = $request->query('vt');
+    if ($vt !== null && !array_key_exists($vt, $allowedTypes)) {
+      $vt = count($allowedTypes) > 0 ? array_key_first($allowedTypes) : null;
+    }
     $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
-    return view('vouchers.create', compact('voucherCustomFields','vouchers'));
+    return view('vouchers.create', compact('voucherCustomFields', 'vt','vouchers'));
   }
 
   /**
@@ -178,6 +193,10 @@ class VouchersController extends Controller
    */
   public function store(Request $request, VoucherService $voucherService)
   {
+    $allowedTypes = VoucherType::activeCodeLabelMapForModule('vouchers');
+    if (!array_key_exists($request->voucher_type ?? '', $allowedTypes)) {
+      return response()->json(['errors' => ['voucher_type' => ['The selected voucher type is not allowed for this module.']]], 422);
+    }
     try {
       $request->billing_month = $request->billing_month . "-01";
       $request->merge(['custom_field_values' => $request->input('voucher_custom_fields', [])]);

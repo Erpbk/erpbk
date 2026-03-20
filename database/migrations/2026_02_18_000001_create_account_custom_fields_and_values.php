@@ -11,15 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('account_custom_fields', function (Blueprint $table) {
-            $table->id();
-            $table->string('label');
-            $table->string('data_type', 50); // text, textarea, number, decimal, date, datetime, dropdown, checkbox, email, url
-            $table->boolean('is_mandatory')->default(false);
-            $table->json('config')->nullable(); // type-specific options: max_length, options[], min, max, decimals, etc.
-            $table->unsignedInteger('display_order')->default(0);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('account_custom_fields')) {
+            Schema::create('account_custom_fields', function (Blueprint $table) {
+                $table->id();
+                $table->string('label');
+                $table->string('data_type', 50); // text, textarea, number, decimal, date, datetime, dropdown, checkbox, email, url
+                $table->boolean('is_mandatory')->default(false);
+                $table->json('config')->nullable(); // type-specific options: max_length, options[], min, max, decimals, etc.
+                $table->unsignedInteger('display_order')->default(0);
+                $table->timestamps();
+            });
+        }
 
         if (!Schema::hasColumn('accounts', 'custom_field_values')) {
             Schema::table('accounts', function (Blueprint $table) {

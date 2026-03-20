@@ -15,6 +15,9 @@ use App\Models\Rider;
 use App\Models\RiderInvoice;
 use App\Models\Transactions;
 use App\Models\User;
+use App\Models\Banks;
+use App\Models\Receipt;
+use App\Models\Payment;
 use App\Models\Vouchers;
 use App\Models\VoucherCustomField;
 use App\Services\TransactionService;
@@ -161,8 +164,9 @@ class VouchersController extends Controller
    */
   public function create()
   {
+    $vouchers = null;
     $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
-    return view('vouchers.create', compact('voucherCustomFields'));
+    return view('vouchers.create', compact('voucherCustomFields','vouchers'));
   }
 
   /**
@@ -787,5 +791,70 @@ class VouchersController extends Controller
     }
 
     return view('vouchers.import');
+  }
+
+  public function cloneVoucher($id)
+  {
+    /** @var Vouchers $vouchers */
+    $vouchers = Vouchers::where('trans_code', $id)->first();
+    $vouchers->billing_month = Carbon::parse($vouchers->billing_month)->format('Y-m');
+    if($vouchers->voucher_type == 'RV') {
+      $receipt = Receipt::find($vouchers->ref_id);
+        if (empty($receipt)) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Receipt Not found'], 404);
+            }
+            Flash::error('Receipt not found');
+            return redirect()->back();
+        }
+
+        $banks = Banks::active()->get();
+        $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
+        return view('receipts.create', compact('receipt', 'banks'));
+
+    }  elseif($vouchers->voucher_type == 'PV') {
+      $payment = Payment::find($vouchers->ref_id);
+        if (empty($payment)) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Payment Not found'], 404);
+            }
+            Flash::error('Payment not found');
+            return redirect()->back();
+        }
+
+        $banks = Banks::active()->get();
+        $payment->billing_month = \Carbon\Carbon::parse($payment->billing_month)->format('Y-m');
+        $payment->amount = $payment->amount - $payment->bank_charges;
+
+        return view('payments.create', compact('payment', 'banks'));
+
+    } elseif ($vouchers->voucher_type == 'JV') {
+      $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'RFV') {
+      $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'AL') {
+      $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'COD') {
+      $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'PN') {
+      $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'PAY') {
+      $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'VC') {
+      $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'INC') {
+      $data = Transactions::where('trans_code', $id)->get();
+    } else {
+      $data = Transactions::where('trans_code', $id)->where('debit', '>', 0)->get();
+    }
+
+    if (empty($vouchers)) {
+      Flash::error('Vouchers not found');
+
+      return redirect(route('vouchers.index'));
+    }
+
+    $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
+    return view('vouchers.create', compact('vouchers', 'data', 'voucherCustomFields'));
   }
 }

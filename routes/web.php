@@ -440,6 +440,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     // Route::post('banks/{id}/restore', [\App\Http\Controllers\BanksController::class, 'restore'])->name('banks.restore');
     // Route::delete('banks/{id}/force-delete', [\App\Http\Controllers\BanksController::class, 'forceDestroy'])->name('banks.force-destroy');
 
+    Route::get('vouchers/{id}/clone', [\App\Http\Controllers\VouchersController::class, 'cloneVoucher'])->name('vouchers.clone');
     Route::get('vouchers/list-sidebar', [\App\Http\Controllers\VouchersController::class, 'listSidebar'])->name('vouchers.list-sidebar');
     Route::resource('vouchers', \App\Http\Controllers\VouchersController::class);
     Route::any('voucher/import', [\App\Http\Controllers\VouchersController::class, 'import'])->name('voucher.import');

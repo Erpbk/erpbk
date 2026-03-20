@@ -11,6 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Tenant DBs may not have `accounts` table yet when migrations are run.
+        // Guard the alterations so tenant creation doesn't fail.
+        if (!Schema::hasTable('accounts')) {
+            return;
+        }
+
         if (!Schema::hasColumn('accounts', 'deleted_at')) {
             Schema::table('accounts', function (Blueprint $table) {
                 $table->softDeletes();
@@ -31,9 +37,16 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('accounts')) {
+            return;
+        }
+
         Schema::table('accounts', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-            $table->dropIndex(['deleted_at']); // Drop index on rollback
+            // Only attempt drop operations when columns exist.
+            if (Schema::hasColumn('accounts', 'deleted_at')) {
+                $table->dropSoftDeletes();
+                $table->dropIndex(['deleted_at']); // Drop index on rollback
+            }
         });
     }
 };

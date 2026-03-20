@@ -12,6 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('leasing_companies')) {
+            return;
+        }
+
         // Add foreign key for leasing_companies.account_id -> accounts.id
         $this->addForeignKeyIfNotExists(
             'leasing_companies',
@@ -22,26 +26,28 @@ return new class extends Migration
         );
 
         // Add foreign key for bikes.company -> leasing_companies.id (RESTRICT on delete)
-        // Note: Application layer prevents deletion if bikes exist, but RESTRICT provides database-level protection
-        $this->addForeignKeyIfNotExists(
-            'bikes',
-            'company',
-            'leasing_companies',
-            'id',
-            'bikes_company_leasing_companies_foreign',
-            'RESTRICT'
-        );
+        if (Schema::hasTable('bikes')) {
+            $this->addForeignKeyIfNotExists(
+                'bikes',
+                'company',
+                'leasing_companies',
+                'id',
+                'bikes_company_leasing_companies_foreign',
+                'RESTRICT'
+            );
+        }
 
         // Add foreign key for vouchers.lease_company -> leasing_companies.id (RESTRICT on delete)
-        // Note: Application layer prevents deletion if vouchers exist, but RESTRICT provides database-level protection
-        $this->addForeignKeyIfNotExists(
-            'vouchers',
-            'lease_company',
-            'leasing_companies',
-            'id',
-            'vouchers_lease_company_leasing_companies_foreign',
-            'RESTRICT'
-        );
+        if (Schema::hasTable('vouchers')) {
+            $this->addForeignKeyIfNotExists(
+                'vouchers',
+                'lease_company',
+                'leasing_companies',
+                'id',
+                'vouchers_lease_company_leasing_companies_foreign',
+                'RESTRICT'
+            );
+        }
 
         // Add indexes for better query performance
         Schema::table('leasing_companies', function (Blueprint $table) {
@@ -53,17 +59,21 @@ return new class extends Migration
             }
         });
 
-        Schema::table('bikes', function (Blueprint $table) {
-            if (!$this->hasIndex('bikes', 'bikes_company_index')) {
-                $table->index('company', 'bikes_company_index');
-            }
-        });
+        if (Schema::hasTable('bikes')) {
+            Schema::table('bikes', function (Blueprint $table) {
+                if (!$this->hasIndex('bikes', 'bikes_company_index')) {
+                    $table->index('company', 'bikes_company_index');
+                }
+            });
+        }
 
-        Schema::table('vouchers', function (Blueprint $table) {
-            if (!$this->hasIndex('vouchers', 'vouchers_lease_company_index')) {
-                $table->index('lease_company', 'vouchers_lease_company_index');
-            }
-        });
+        if (Schema::hasTable('vouchers')) {
+            Schema::table('vouchers', function (Blueprint $table) {
+                if (!$this->hasIndex('vouchers', 'vouchers_lease_company_index')) {
+                    $table->index('lease_company', 'vouchers_lease_company_index');
+                }
+            });
+        }
     }
 
     /**

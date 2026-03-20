@@ -171,14 +171,34 @@ class ReportController extends Controller
       $data .= '<td  >' . @$rider->bikes->plate . '</td>';
       $data .= '<td  >' . $rider->wps . '</td>';
 
-      // Use pre-loaded active bike status (optimized - no database query per rider)
-      $isActive = in_array($rider->id, $activeBikeRiders);
-      $badgeClass = $isActive ? 'bg-label-success' : 'bg-label-danger';
-      $statusText = $isActive ? 'Active' : 'Inactive';
-      $data .= '<td>
-            <span class="badge ' . $badgeClass . '">' . $statusText . '</span>
-          </td>';
-
+      // Status column: same logic as Rider table (riders/table.blade.php)
+      $statusOptionLabel = !empty($rider->rider_status_option) ? $rider->rider_status_option : null;
+      if (!$statusOptionLabel) {
+        if (($rider->absconder ?? 0) == 1) {
+          $statusOptionLabel = 'Absconder';
+        } elseif (($rider->flowup ?? 0) == 1) {
+          $statusOptionLabel = 'Follow Up';
+        } elseif (($rider->l_license ?? 0) == 1) {
+          $statusOptionLabel = 'Learning License';
+        } elseif ($rider->designation === 'Walker') {
+          $statusOptionLabel = 'Walker';
+        } elseif ($rider->designation === 'Vacation') {
+          $statusOptionLabel = 'Vacation';
+        } elseif ($rider->designation === 'Cancel') {
+          $statusOptionLabel = 'Cancel';
+        } elseif ($rider->designation === 'PRO' || ($rider->pro ?? 0) == 1) {
+          $statusOptionLabel = 'PRO';
+        }
+      }
+      if ($statusOptionLabel) {
+        $statusText = $statusOptionLabel;
+        $badgeClass = 'bg-label-primary';
+      } else {
+        $isActive = in_array($rider->id, $activeBikeRiders);
+        $statusText = $isActive ? 'Active' : 'Inactive';
+        $badgeClass = $isActive ? 'bg-label-success' : 'bg-label-danger';
+      }
+      $data .= '<td><span class="badge ' . $badgeClass . '">' . e($statusText) . '</span></td>';
 
       $data .= '<td align="right" >' . number_format($opening_balance, 2) . '</td>';
       $data .= '<td align="right" >' . number_format($balance, 2) . '</td>';

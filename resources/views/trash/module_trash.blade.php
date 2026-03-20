@@ -1,5 +1,8 @@
 @extends('layouts.app')
 @section('title', $config['name'] . ' - Recycle Bin')
+@php
+    $moduleKey = $config['module_key'] ?? str_replace('.trash', '', ($config['trash_view'] ?? ''));
+@endphp
 
 @section('content')
 <div class="container-fluid">
@@ -88,7 +91,7 @@
                             </td>
                             <td class="text-center">
                                 @if(auth()->user()->can('trash_restore'))
-                                <form action="{{ route(str_replace('.trash', '.restore', Route::currentRouteName()), $item->id) }}" 
+                                <form action="{{ route('settings-panel.trash.restore', ['module' => $moduleKey, 'id' => $item->id]) }}" 
                                       method="POST" style="display: inline-block;">
                                     @csrf
                                     <button type="submit" class="btn btn-success btn-sm"
@@ -99,7 +102,7 @@
                                 @endif
 
                                 @if(auth()->user()->can('trash_force_delete'))
-                                <form action="{{ route(str_replace('.trash', '.force-destroy', Route::currentRouteName()), $item->id) }}" 
+                                <form action="{{ route('settings-panel.trash.force-destroy', ['module' => $moduleKey, 'id' => $item->id]) }}" 
                                       method="POST" style="display: inline-block;">
                                     @csrf
                                     @method('DELETE')

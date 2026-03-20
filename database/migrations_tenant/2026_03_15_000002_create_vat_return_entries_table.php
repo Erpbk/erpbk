@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('vat_return_entries')) {
+            return;
+        }
         Schema::create('vat_return_entries', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('vat_return_id');

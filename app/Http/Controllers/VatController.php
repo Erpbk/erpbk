@@ -190,7 +190,7 @@ class VatController extends Controller
     }
 
     /**
-     * File a VAT return for a chosen quarter. Always includes all entries from both VAT accounts (1023, 1025) in that quarter.
+     * File a VAT return with only the selected ledger entries. Year and quarter are for reference.
      */
     public function fileReturn(Request $request)
     {
@@ -199,7 +199,7 @@ class VatController extends Controller
         }
 
         $request->validate([
-            'transaction_ids' => ['nullable', 'array'],
+            'transaction_ids' => ['required', 'array', 'min:1'],
             'transaction_ids.*' => ['integer', 'exists:transactions,id'],
             'vat_year' => ['required', 'integer', 'min:2000', 'max:2100'],
             'vat_quarter_slot' => ['required', 'integer', Rule::in([1, 2, 3, 4])],
@@ -212,25 +212,24 @@ class VatController extends Controller
             return redirect()->route('vat.index')->with('error', 'VAT accounts not configured.');
         }
 
-        // All unfiled transaction IDs from both VAT accounts in this quarter and all previous quarters in the year
         $months = $this->getMonthsThroughQuarter($quarterSlot);
         if (empty($months)) {
             return redirect()->route('vat.index')->with('error', 'Invalid VAT quarter.');
         }
-        $allInQuarter = Transactions::whereIn('account_id', $accountIds)
-            ->whereYear('billing_month', $year)
-            ->whereRaw('MONTH(billing_month) IN (' . implode(',', array_map('intval', $months)) . ')')
-            ->whereNotIn('id', VatReturnEntry::query()->select('transaction_id'))
-            ->pluck('id')
-            ->toArray();
 
         $quarters = VatSettingsController::getQuartersForDropdown();
         $quarterLabel = $quarters[$quarterSlot] ?? 'Q' . $quarterSlot;
 
-        $selected = array_values(array_unique(array_map('intval', $request->input('transaction_ids', []))));
-        $transactionIds = array_values(array_unique(array_merge($selected, $allInQuarter)));
+        $selected = array_values(array_unique(array_map('intval', $request->input('transaction_ids'))));
+        // Only the selected entries are included; ensure they belong to VAT accounts and are not already filed
+        $transactionIds = Transactions::whereIn('id', $selected)
+            ->whereIn('account_id', $accountIds)
+            ->whereNotIn('id', VatReturnEntry::query()->select('transaction_id'))
+            ->pluck('id')
+            ->toArray();
+
         if (empty($transactionIds)) {
-            return redirect()->route('vat.index')->with('error', 'No VAT entries found for ' . $quarterLabel . ' ' . $year . '.');
+            return redirect()->route('vat.index')->with('error', 'Select at least one VAT entry. Selected entries must be from VAT accounts (1023, 1025) and not already filed.');
         }
 
         if (!VoucherType::isCodeAllowedForModule('VV', 'vat')) {
@@ -312,6 +311,7 @@ class VatController extends Controller
             'billing_month' => $billingMonth,
             'reference_number' => $referenceNumber,
             'amount' => abs($remaining),
+            'ref_id' => $vatReturn->id,
             'Created_By' => auth()->id(),
         ]);
 
@@ -555,11 +555,22 @@ class VatController extends Controller
 
     /**
      * Delete a VAT return and its entries. Transactions will show again in the VAT ledger.
+     * When the return is unpaid, the associated VV voucher (ref_id + voucher_type) is also deleted.
      */
     public function destroyReturn(VatReturn $vat_return)
     {
         if (!auth()->user()->hasPermissionTo('gn_ledger')) {
             abort(403, 'Unauthorized action.');
+        }
+
+        if ($vat_return->status === 'unpaid') {
+            $vvVouchers = Vouchers::where('voucher_type', 'VV')
+                ->where('ref_id', $vat_return->id)
+                ->get();
+            foreach ($vvVouchers as $voucher) {
+                Transactions::where('trans_code', $voucher->trans_code)->delete();
+                $voucher->delete();
+            }
         }
 
         $vat_return->entries()->delete();

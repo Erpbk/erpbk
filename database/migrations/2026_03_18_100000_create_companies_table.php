@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('phone', 50);
             $table->string('password');
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            $table->string('database_name')->unique()->nullable(); // e.g. erpbk_company_15454
+            $table->string('database_name')->unique()->nullable(); // e.g. tenant_company_15454
             $table->string('city')->nullable();
             $table->text('address')->nullable();
             $table->boolean('is_taxpayer')->default(false);

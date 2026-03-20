@@ -18,6 +18,7 @@ return new class extends Migration
         Schema::create('admin_notifications', function (Blueprint $table) {
             $table->id();
             $table->string('type'); // e.g. 'company_registered'
+            $table->string('title')->nullable();
             $table->json('data'); // payload: company_id, company_name, etc.
             $table->timestamp('read_at')->nullable();
             $table->timestamps();

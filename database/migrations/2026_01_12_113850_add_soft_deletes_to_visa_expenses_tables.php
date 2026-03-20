@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // Add soft deletes to visa_expenses table
-        if (!Schema::hasColumn('visa_expenses', 'deleted_at')) {
+        if (Schema::hasTable('visa_expenses') && !Schema::hasColumn('visa_expenses', 'deleted_at')) {
             Schema::table('visa_expenses', function (Blueprint $table) {
                 $table->softDeletes();
                 $table->index('deleted_at'); // Add index for performance
@@ -20,14 +20,14 @@ return new class extends Migration
         }
 
         // Add deleted_by column to visa_expenses if not exists
-        if (!Schema::hasColumn('visa_expenses', 'deleted_by')) {
+        if (Schema::hasTable('visa_expenses') && !Schema::hasColumn('visa_expenses', 'deleted_by')) {
             Schema::table('visa_expenses', function (Blueprint $table) {
                 $table->unsignedBigInteger('deleted_by')->nullable()->after('deleted_at');
             });
         }
 
         // Add soft deletes to visa_installment_plans table
-        if (!Schema::hasColumn('visa_installment_plans', 'deleted_at')) {
+        if (Schema::hasTable('visa_installment_plans') && !Schema::hasColumn('visa_installment_plans', 'deleted_at')) {
             Schema::table('visa_installment_plans', function (Blueprint $table) {
                 $table->softDeletes();
                 $table->index('deleted_at'); // Add index for performance
@@ -35,7 +35,7 @@ return new class extends Migration
         }
 
         // Add deleted_by column to visa_installment_plans if not exists
-        if (!Schema::hasColumn('visa_installment_plans', 'deleted_by')) {
+        if (Schema::hasTable('visa_installment_plans') && !Schema::hasColumn('visa_installment_plans', 'deleted_by')) {
             Schema::table('visa_installment_plans', function (Blueprint $table) {
                 $table->unsignedBigInteger('deleted_by')->nullable()->after('deleted_at');
             });

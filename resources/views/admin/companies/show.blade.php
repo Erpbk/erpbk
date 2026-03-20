@@ -31,13 +31,21 @@
                 <tr><th>{{ __('Taxpayer') }}</th><td>{{ $company->is_taxpayer ? __('Yes') : __('No') }}</td></tr>
                 @if($company->is_taxpayer)
                     <tr><th>{{ __('NTN') }}</th><td>{{ $company->ntn_number }}</td></tr>
-                    <tr><th>{{ __('Tax registration date') }}</th><td>{{ $company->tax_registration_date?->format('Y-m-d') }}</td></tr>
+                    <tr><th>{{ __('Tax registration date') }}</th><td>
+                        {{ $company->tax_registration_date ? \Carbon\Carbon::parse($company->tax_registration_date)->format('Y-m-d') : '-' }}
+                    </td></tr>
                 @endif
                 <tr><th>{{ __('Registered') }}</th><td>{{ $company->created_at->format('M j, Y H:i') }}</td></tr>
                 @if($company->database_name)
                     <tr><th>{{ __('Database') }}</th><td><code>{{ $company->database_name }}</code></td></tr>
                 @endif
             </table>
+
+            @if(auth('admin')->user()->hasPermission('companies_approve'))
+                <div class="mt-3">
+                    <a href="{{ route('admin.companies.modules.edit', $company) }}" class="btn btn-outline-primary">{{ __('ERP modules & menu titles') }}</a>
+                </div>
+            @endif
 
             @if($company->status === 'pending')
                 <form action="{{ route('admin.companies.approve', $company) }}" method="post" class="d-inline" onsubmit="return confirm('{{ __('Approve and create company database?') }}');">

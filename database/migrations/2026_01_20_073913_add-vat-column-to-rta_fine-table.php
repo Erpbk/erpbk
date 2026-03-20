@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('rta_fines')) {
+            return;
+        }
         if (!Schema::hasColumn('rta_fines', 'vat')) {
             Schema::table('rta_fines', function (Blueprint $table) {
                 $table->decimal('vat', 10, 2)
@@ -26,6 +29,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('rta_fines')) {
+            return;
+        }
         if (Schema::hasColumn('rta_fines', 'vat')) {
             Schema::table('rta_fines', function (Blueprint $table) {
                 $table->dropColumn('vat');

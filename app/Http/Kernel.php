@@ -7,6 +7,26 @@ use Illuminate\Foundation\Http\Kernel as HttpKernel;
 class Kernel extends HttpKernel
 {
   /**
+   * Route middleware sort order (Laravel merges by this list).
+   * Tenant DB must switch before the session guard resolves users (AuthenticatesRequests).
+   */
+  protected $middlewarePriority = [
+    \Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests::class,
+    \Illuminate\Cookie\Middleware\EncryptCookies::class,
+    \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+    \Illuminate\Session\Middleware\StartSession::class,
+    \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+    \App\Http\Middleware\SetCompanyIdForRoutes::class,
+    \App\Http\Middleware\SetTenantConnection::class,
+    \Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests::class,
+    \Illuminate\Routing\Middleware\ThrottleRequests::class,
+    \Illuminate\Routing\Middleware\ThrottleRequestsWithRedis::class,
+    \Illuminate\Contracts\Session\Middleware\AuthenticatesSessions::class,
+    \Illuminate\Routing\Middleware\SubstituteBindings::class,
+    \Illuminate\Auth\Middleware\Authorize::class,
+  ];
+
+  /**
    * The application's global HTTP middleware stack.
    *
    * These middleware are run during every request to your application.
@@ -71,6 +91,10 @@ class Kernel extends HttpKernel
     'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
     'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
     'settings.panel' => \App\Http\Middleware\SettingsPanelLayout::class,
+    'ensure.admin.permissions' => \App\Http\Middleware\EnsureAdminPanelPermissions::class,
+    'admin.auth' => \App\Http\Middleware\AuthenticateAdmin::class,
+    'admin.guard' => \App\Http\Middleware\SetAdminGuard::class,
+    'admin.permission' => \App\Http\Middleware\AdminPermissionMiddleware::class,
     'tenant' => \App\Http\Middleware\SetTenantConnection::class,
     'company.routes' => \App\Http\Middleware\SetCompanyIdForRoutes::class,
   ];

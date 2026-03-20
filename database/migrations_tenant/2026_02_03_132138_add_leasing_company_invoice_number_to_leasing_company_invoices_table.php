@@ -11,6 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('leasing_company_invoices')) {
+            return;
+        }
+
+        if (Schema::hasColumn('leasing_company_invoices', 'leasing_company_invoice_number')) {
+            return;
+        }
         Schema::table('leasing_company_invoices', function (Blueprint $table) {
             $table->string('leasing_company_invoice_number', 255)->nullable()->after('reference_number');
         });
@@ -21,6 +28,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('leasing_company_invoices')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('leasing_company_invoices', 'leasing_company_invoice_number')) {
+            return;
+        }
         Schema::table('leasing_company_invoices', function (Blueprint $table) {
             $table->dropColumn('leasing_company_invoice_number');
         });

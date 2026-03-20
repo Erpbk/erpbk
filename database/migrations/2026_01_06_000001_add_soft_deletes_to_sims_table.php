@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasColumn('sims', 'deleted_at')) {
+        if (Schema::hasTable('sims') && !Schema::hasColumn('sims', 'deleted_at')) {
             Schema::table('sims', function (Blueprint $table) {
                 $table->softDeletes();
                 $table->unsignedBigInteger('deleted_by')->nullable()->after('deleted_at');
@@ -24,7 +24,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (Schema::hasColumn('sims', 'deleted_at')) {
+        if (Schema::hasTable('sims') && Schema::hasColumn('sims', 'deleted_at')) {
             Schema::table('sims', function (Blueprint $table) {
                 $table->dropColumn(['deleted_at', 'deleted_by']);
             });

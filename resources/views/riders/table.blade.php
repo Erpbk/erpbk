@@ -149,7 +149,24 @@
          </td>
          @break
          @default
-         <td>{{ data_get($r, $key, '-') }}</td>
+         <td>
+            @php
+               $value = data_get($r, $key, '-');
+               // Blade escapes output via htmlspecialchars(). If $value is an array/collection,
+               // convert it into a displayable string first to avoid "must be of type string" errors.
+               if (is_array($value)) {
+                  $value = array_is_list($value)
+                     ? implode(', ', array_map(fn($v) => is_scalar($v) ? (string)$v : json_encode($v), $value))
+                     : json_encode($value);
+               } elseif ($value instanceof \Illuminate\Support\Collection) {
+                  $value = $value->toArray();
+                  $value = array_is_list($value)
+                     ? implode(', ', array_map(fn($v) => is_scalar($v) ? (string)$v : json_encode($v), $value))
+                     : json_encode($value);
+               }
+            @endphp
+            {{ $value }}
+         </td>
          @endswitch
          @endforeach
          <td></td>

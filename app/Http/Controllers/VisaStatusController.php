@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\VisaStatus;
+use App\Support\CompanyAuthRedirect;
 use Illuminate\Http\Request;
 use Flash;
 use DB;
@@ -18,7 +19,7 @@ class VisaStatusController extends Controller
     {
         // Check if user is authenticated
         if (!auth()->check()) {
-            return redirect()->route('login')->with('error', 'Please log in to access this page.');
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
         // Check permissions

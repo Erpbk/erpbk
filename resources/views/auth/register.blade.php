@@ -117,7 +117,7 @@ $customizerHidden = 'customizer-hide';
                         </div>
                     </form>
 
-                    <a href="{{ route('login') }}" class="text-center">I already have a membership</a>
+                    <a href="{{ \App\Support\CompanyAuthRedirect::url(request()) }}" class="text-center">I already have a membership</a>
                 </div>
                 <!-- /.form-box -->
             </div><!-- /.card -->

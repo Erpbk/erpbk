@@ -20,6 +20,7 @@ class Company extends Model
 
     protected $fillable = [
         'name',
+        'slug',
         'email',
         'country',
         'phone',
@@ -35,6 +36,7 @@ class Company extends Model
         'primary_color',
         'secondary_color',
         'branding_json',
+        'modules_settings',
         'email_verified_at',
         'approved_at',
         'approved_by',
@@ -48,8 +50,10 @@ class Company extends Model
     protected $casts = [
         'email_verified_at' => 'datetime',
         'approved_at' => 'datetime',
+        'tax_registration_date' => 'date',
         'password' => 'hashed',
         'is_taxpayer' => 'boolean',
+        'modules_settings' => 'array',
     ];
 
     public const STATUS_PENDING = 'pending';
@@ -76,7 +80,31 @@ class Company extends Model
      */
     public static function generateDatabaseName(int $companyId): string
     {
-        $prefix = env('DB_DATABASE_PREFIX', 'erpbk');
+        $prefix = env('DB_DATABASE_PREFIX', 'tenant');
         return $prefix . '_company_' . $companyId;
+    }
+
+    /**
+     * Generate a unique URL slug for company access URLs.
+     */
+    public static function generateUniqueSlug(string $name, ?int $ignoreId = null): string
+    {
+        $base = \Illuminate\Support\Str::slug($name);
+        if ($base === '') {
+            $base = 'company';
+        }
+
+        $slug = $base;
+        $i = 1;
+
+        while (self::query()
+            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+            ->where('slug', $slug)
+            ->exists()) {
+            $i++;
+            $slug = $base . '-' . $i;
+        }
+
+        return $slug;
     }
 }

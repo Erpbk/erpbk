@@ -7,11 +7,9 @@
         <i class="fa fa-eye"></i>
     </a> --}}
     @endcan
-    @can('user_edit')
     <a href="javascript:void(0);" data-action="{{ route($usersRoute . '.edit', $id) }}" data-title="Edit User" data-size="xl" class='btn btn-info btn-sm show-modal'>
         <i class="fa fa-edit"></i>
     </a>
-    @endcan
 
     @can('user_delete')
     @if($id !=1 && $id !=2)

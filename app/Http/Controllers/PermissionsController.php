@@ -10,6 +10,7 @@ use App\Repositories\PermissionsRepository;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 use Flash;
 
@@ -67,41 +68,39 @@ class PermissionsController extends AppBaseController
         // Create base permission name (module name)
         $fixstr = str_replace(' ', '_', strtolower($request->name));
         $data = request()->except(['_token', 'extra']);
-        
-        // Create parent permission
-        $parent = Permission::create($data);
-        
-        // Create standard CRUD permissions
+        $data['guard_name'] = $data['guard_name'] ?? 'web';
+
+        // Parent + children: idempotent (avoids Spatie PermissionAlreadyExists)
+        $parent = Permission::query()->firstOrCreate(
+            ['name' => $data['name'], 'guard_name' => $data['guard_name']],
+            ['parent_id' => $data['parent_id'] ?? null]
+        );
+
         $standardPermissions = ['view', 'create', 'edit', 'delete'];
-        foreach($standardPermissions as $perm) {
-            Permission::create([
-                'name' => $fixstr . '_' . $perm,
-                'parent_id' => $parent->id
-            ]);
+        foreach ($standardPermissions as $perm) {
+            Permission::query()->firstOrCreate(
+                ['name' => $fixstr . '_' . $perm, 'guard_name' => $data['guard_name']],
+                ['parent_id' => $parent->id]
+            );
         }
-        
-        // Create extra custom permissions if provided
-        if($request->has('extra') && !empty($request->extra)) {
-            // Filter out empty values
-            $extraPermissions = array_filter($request->extra, function($value) {
+
+        if ($request->has('extra') && !empty($request->extra)) {
+            $extraPermissions = array_filter($request->extra, function ($value) {
                 return !empty(trim($value));
             });
-            
-            foreach($extraPermissions as $customPerm) {
-                // Clean the custom permission name
+
+            foreach ($extraPermissions as $customPerm) {
                 $customPerm = str_replace(' ', '_', strtolower(trim($customPerm)));
-                
-                // Check if it's not empty after cleaning
-                if(!empty($customPerm)) {
-                    Permission::create([
-                        'name' => $fixstr . '_' . $customPerm,
-                        'parent_id' => $parent->id
-                    ]);
+                if ($customPerm !== '') {
+                    Permission::query()->firstOrCreate(
+                        ['name' => $fixstr . '_' . $customPerm, 'guard_name' => $data['guard_name']],
+                        ['parent_id' => $parent->id]
+                    );
                 }
             }
         }
-        
-        // Optional: Show count of permissions created
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
         Flash::success(' permissions saved successfully.');
 
         return redirect(route('settings-panel.permissions.index'));
@@ -181,37 +180,33 @@ class PermissionsController extends AppBaseController
         // Delete all existing child permissions
         Permission::where('parent_id', $id)->delete();
         
-        // Recreate standard CRUD permissions
+        $guard = $parent->guard_name ?? 'web';
         $standardPermissions = ['view', 'create', 'edit', 'delete'];
-        foreach($standardPermissions as $perm) {
-            Permission::create([
-                'name' => $fixstr . '_' . $perm,
-                'parent_id' => $id
-            ]);
+        foreach ($standardPermissions as $perm) {
+            Permission::query()->firstOrCreate(
+                ['name' => $fixstr . '_' . $perm, 'guard_name' => $guard],
+                ['parent_id' => $id]
+            );
         }
-        
-        // Recreate extra custom permissions if provided
-        if($request->has('extra') && !empty($request->extra)) {
-            // Filter out empty values
-            $extraPermissions = array_filter($request->extra, function($value) {
+
+        if ($request->has('extra') && !empty($request->extra)) {
+            $extraPermissions = array_filter($request->extra, function ($value) {
                 return !empty(trim($value));
             });
-            
-            foreach($extraPermissions as $customPerm) {
-                // Clean the custom permission name
+
+            foreach ($extraPermissions as $customPerm) {
                 $customPerm = str_replace(' ', '_', strtolower(trim($customPerm)));
-                
-                // Check if it's not empty after cleaning
-                if(!empty($customPerm)) {
-                    Permission::create([
-                        'name' => $fixstr . '_' . $customPerm,
-                        'parent_id' => $id
-                    ]);
+                if ($customPerm !== '') {
+                    Permission::query()->firstOrCreate(
+                        ['name' => $fixstr . '_' . $customPerm, 'guard_name' => $guard],
+                        ['parent_id' => $id]
+                    );
                 }
             }
         }
         
         $totalPermissions = 4 + (isset($extraPermissions) ? count($extraPermissions) : 0);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
         Flash::success('Permissions updated successfully. ' . $totalPermissions . ' permissions active.');
 
         return redirect(route('settings-panel.permissions.index'));

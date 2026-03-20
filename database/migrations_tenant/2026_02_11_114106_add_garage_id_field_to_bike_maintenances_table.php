@@ -11,6 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('bike_maintenances')) {
+            return;
+        }
+
+        if (Schema::hasColumn('bike_maintenances', 'garage_id')) {
+            return;
+        }
         Schema::table('bike_maintenances', function (Blueprint $table) {
             $table->unsignedBigInteger('garage_id')->after('rider_id');
         });
@@ -21,6 +28,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('bike_maintenances')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('bike_maintenances', 'garage_id')) {
+            return;
+        }
         Schema::table('bike_maintenances', function (Blueprint $table) {
             $table->dropColumn('garage_id');
         });

@@ -92,7 +92,7 @@ $customizerHidden = 'customizer-hide';
                     </form>
 
                     <p class="mt-3 mb-1">
-                        <a href="{{ route('login') }}">Login</a>
+                        <a href="{{ \App\Support\CompanyAuthRedirect::url(request()) }}">Login</a>
                     </p>
                 </div>
                 <!-- /.login-card-body -->

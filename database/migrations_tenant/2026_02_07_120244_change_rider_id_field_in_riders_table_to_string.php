@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('riders')) {
+            return;
+        }
         DB::statement('SET SESSION sql_mode=""');
         Schema::table('riders', function (Blueprint $table) {
 
@@ -23,6 +26,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('riders')) {
+            return;
+        }
         DB::statement('SET SESSION sql_mode=""');
         Schema::table('riders', function (Blueprint $table) {
             $table->bigInteger('rider_id')->change();

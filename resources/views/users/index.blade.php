@@ -99,7 +99,7 @@
                     
                     <div class="d-flex justify-content-between align-items-center">
                         <a href="javascript:;" class="role-edit-modal show-modal text-decoration-none" 
-                           data-title="Edit Role" 
+                           data-title="Edit permissions — {{ $role->name }}" 
                            data-size="xl" 
                            data-action="{{ route($rolesRoute . '.edit', $role->id) }}">
                             <i class="ti ti-edit me-1"></i>Edit Permissions

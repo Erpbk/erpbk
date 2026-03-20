@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('leasing_companies')) {
+            return;
+        }
         Schema::table('leasing_companies', function (Blueprint $table) {
             $table->decimal('rental_amount', 10, 2)->nullable()->after('contact_number');
         });
@@ -21,6 +24,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('leasing_companies')) {
+            return;
+        }
         Schema::table('leasing_companies', function (Blueprint $table) {
             $table->dropColumn('rental_amount');
         });

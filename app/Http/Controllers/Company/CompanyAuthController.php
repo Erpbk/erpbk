@@ -17,9 +17,12 @@ class CompanyAuthController extends Controller
     /**
      * Show company login form. Company loaded from central DB; no tenant switch yet.
      */
-    public function showLoginForm(int $company_id)
+    public function showLoginForm(string $company_slug)
     {
-        $company = Company::query()->find($company_id);
+        $company = Company::query()->where('slug', $company_slug)->first();
+        if (!$company && is_numeric($company_slug)) {
+            $company = Company::query()->find((int) $company_slug);
+        }
         if (!$company) {
             abort(404, 'Company not found.');
         }
@@ -33,21 +36,28 @@ class CompanyAuthController extends Controller
             abort(503, 'Company database is not ready. Please contact support.');
         }
 
+        $this->ensureSlug($company);
+
         return view('company.login', [
             'company' => $company,
-            'companyId' => $company_id,
+            'companySlug' => $company->slug,
         ]);
     }
 
     /**
      * Handle company login. Switch to tenant DB then attempt auth.
      */
-    public function login(Request $request, int $company_id)
+    public function login(Request $request, string $company_slug)
     {
-        $company = Company::query()->find($company_id);
+        $company = Company::query()->where('slug', $company_slug)->first();
+        if (!$company && is_numeric($company_slug)) {
+            $company = Company::query()->find((int) $company_slug);
+        }
         if (!$company || !$company->isApproved() || empty($company->database_name)) {
             return back()->withErrors(['email' => __('Invalid company or not approved.')]);
         }
+
+        $this->ensureSlug($company);
 
         $this->tenantService->setTenant($company);
 
@@ -58,11 +68,17 @@ class CompanyAuthController extends Controller
 
         $remember = $request->boolean('remember');
 
-        if (Auth::attempt($credentials, $remember)) {
+        $login = $credentials['email'];
+        $password = $credentials['password'];
+
+        $authenticated = Auth::attempt(['email' => $login, 'password' => $password], $remember)
+            || Auth::attempt(['username' => $login, 'password' => $password], $remember);
+
+        if ($authenticated) {
             $request->session()->regenerate();
-            $request->session()->put('company_id', $company_id);
+            $request->session()->put('company_slug', $company->slug);
             $this->tenantService->clearTenant();
-            return redirect()->intended(route('company.home', ['company_id' => $company_id]));
+            return redirect()->route('company.home', ['company_slug' => $company->slug]);
         }
 
         $this->tenantService->clearTenant();
@@ -72,9 +88,12 @@ class CompanyAuthController extends Controller
     /**
      * Logout from company app.
      */
-    public function logout(Request $request, int $company_id)
+    public function logout(Request $request, string $company_slug)
     {
-        $company = Company::query()->find($company_id);
+        $company = Company::query()->where('slug', $company_slug)->first();
+        if (!$company && is_numeric($company_slug)) {
+            $company = Company::query()->find((int) $company_slug);
+        }
         if ($company) {
             $this->tenantService->setTenant($company);
         }
@@ -84,6 +103,14 @@ class CompanyAuthController extends Controller
         if ($company) {
             $this->tenantService->clearTenant();
         }
-        return redirect()->route('company.login-form', ['company_id' => $company_id]);
+        return redirect()->route('company.login-form', ['company_slug' => $company?->slug ?? $company_slug]);
+    }
+
+    protected function ensureSlug(Company $company): void
+    {
+        if (empty($company->slug)) {
+            $company->slug = Company::generateUniqueSlug($company->name, $company->id);
+            $company->save();
+        }
     }
 }

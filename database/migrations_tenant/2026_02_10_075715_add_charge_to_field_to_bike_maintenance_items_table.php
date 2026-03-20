@@ -11,6 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('bike_maintenance_items')) {
+            return;
+        }
+
+        if (Schema::hasColumn('bike_maintenance_items', 'charge_to')) {
+            return;
+        }
         Schema::table('bike_maintenance_items', function (Blueprint $table) {
             $table->string('charge_to')->after('total_amount');
         });
@@ -21,6 +28,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('bike_maintenance_items')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('bike_maintenance_items', 'charge_to')) {
+            return;
+        }
         Schema::table('bike_maintenance_items', function (Blueprint $table) {
             $table->dropColumn('charge_to');
         });

@@ -103,15 +103,26 @@ $containerNav = 'container-fluid';
         <li class="menu-header small text-uppercase mt-3">
           <span class="menu-header-text">User & System</span>
         </li>
-        @canany(['user_view','role_view','activity_logs_view','trash_view'])
-        @can('user_view')
         <li class="menu-item {{ Request::is('settings-panel/users*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.users.index') }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-users-group"></i>
             <div>Users</div>
           </a>
         </li>
-        @endcan
+
+        <li class="menu-item {{ Request::is('settings-panel/profile*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.profile') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-user"></i>
+            <div>Profile</div>
+          </a>
+        </li>
+
+        <li class="menu-item {{ Request::is('settings-panel/email-settings*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.email-settings.edit') }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-mail"></i>
+            <div>Email Settings</div>
+          </a>
+        </li>
         @can('role_view')
         <li class="menu-item {{ Request::is('settings-panel/roles*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.roles.index') }}" class="menu-link">
@@ -144,7 +155,6 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
-        @endcanany
 
         {{-- ERP Module Settings (General tab: change module name in menu) --}}
         <li class="menu-header small text-uppercase mt-3">

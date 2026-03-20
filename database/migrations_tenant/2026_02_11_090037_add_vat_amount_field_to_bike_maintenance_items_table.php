@@ -11,6 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('bike_maintenance_items')) {
+            return;
+        }
+
+        if (Schema::hasColumn('bike_maintenance_items', 'vat_amount')) {
+            return;
+        }
         Schema::table('bike_maintenance_items', function (Blueprint $table) {
             $table->decimal('vat_amount',7,2)->after('vat');
         });
@@ -21,6 +28,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('bike_maintenance_items')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('bike_maintenance_items', 'vat_amount')) {
+            return;
+        }
         Schema::table('bike_maintenance_items', function (Blueprint $table) {
             $table->dropColumn('vat_amount');
         });

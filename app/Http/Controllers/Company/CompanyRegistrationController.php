@@ -11,6 +11,7 @@ use App\Models\Countries;
 use App\Services\TenantService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 
@@ -170,6 +171,7 @@ class CompanyRegistrationController extends Controller
         DB::connection('mysql_central')->transaction(function () use ($step1, $validated) {
             $company = Company::query()->create([
                 'name' => $step1['name'],
+                'slug' => Company::generateUniqueSlug($step1['name']),
                 'email' => $step1['email'],
                 'country' => $step1['country'],
                 'phone' => $step1['phone'],
@@ -182,6 +184,8 @@ class CompanyRegistrationController extends Controller
                 'ntn_number' => $validated['ntn_number'],
                 'tax_registration_date' => $validated['tax_registration_date'],
             ]);
+
+            $this->mirrorCompanyToAdminDb($company);
 
             $this->notifyAdminNewCompany($company);
         });
@@ -196,6 +200,7 @@ class CompanyRegistrationController extends Controller
     {
         DB::connection('mysql_central')->table('admin_notifications')->insert([
             'type' => 'company_registered',
+            'title' => __('New company registered'),
             'data' => json_encode([
                 'company_id' => $company->id,
                 'company_name' => $company->name,
@@ -209,6 +214,22 @@ class CompanyRegistrationController extends Controller
         $adminEmail = config('mail.admin_notification_email');
         if (!empty($adminEmail)) {
             Mail::to($adminEmail)->send(new CompanyRegisteredAdminMail($company));
+        }
+    }
+
+    /**
+     * Mirror newly registered central companies into admin DB.
+     */
+    protected function mirrorCompanyToAdminDb(Company $company): void
+    {
+        try {
+            \App\Models\AdminCompany::syncFromCentralCompany($company);
+        } catch (\Throwable $e) {
+            Log::error('Failed to mirror company to admin DB', [
+                'company_id' => $company->id,
+                'message' => $e->getMessage(),
+            ]);
+            throw $e;
         }
     }
 

@@ -12,6 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('visa_expenses')) {
+            return;
+        }
+
         // Add indexes and foreign keys to visa_expenses table
         Schema::table('visa_expenses', function (Blueprint $table) {
             // Add indexes for commonly queried columns
@@ -38,6 +42,10 @@ return new class extends Migration
         // Add foreign keys to visa_expenses table (only if they don't exist)
         $this->addForeignKeyIfNotExists('visa_expenses', 'rider_id', 'accounts', 'id', 'visa_expenses_rider_id_foreign');
 
+        if (!Schema::hasTable('visa_installment_plans')) {
+            return;
+        }
+
         // Add indexes and foreign keys to visa_installment_plans table
         Schema::table('visa_installment_plans', function (Blueprint $table) {
             // Add indexes for commonly queried columns
@@ -57,6 +65,10 @@ return new class extends Migration
 
         // Add foreign keys to visa_installment_plans table
         $this->addForeignKeyIfNotExists('visa_installment_plans', 'rider_id', 'accounts', 'id', 'visa_installment_plans_rider_id_foreign');
+
+        if (!Schema::hasTable('transactions')) {
+            return;
+        }
 
         // Ensure indexes exist on transactions table for visa expense queries
         // (These may already exist from RTA Fines migration, but we'll check)
@@ -79,6 +91,10 @@ return new class extends Migration
             }
         });
 
+        if (!Schema::hasTable('vouchers')) {
+            return;
+        }
+
         // Ensure indexes exist on vouchers table for visa expense queries
         Schema::table('vouchers', function (Blueprint $table) {
             if (!$this->hasIndex('vouchers', 'vouchers_ref_id_index')) {
@@ -95,6 +111,10 @@ return new class extends Migration
                 $table->index(['ref_id', 'voucher_type'], 'vouchers_ref_id_type_index');
             }
         });
+
+        if (!Schema::hasTable('ledger_entries')) {
+            return;
+        }
 
         // Ensure indexes exist on ledger_entries table
         Schema::table('ledger_entries', function (Blueprint $table) {

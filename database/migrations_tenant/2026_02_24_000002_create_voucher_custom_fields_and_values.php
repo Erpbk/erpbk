@@ -25,7 +25,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasColumn('vouchers', 'custom_field_values')) {
+        if (Schema::hasTable('vouchers') && !Schema::hasColumn('vouchers', 'custom_field_values')) {
             Schema::table('vouchers', function (Blueprint $table) {
                 $table->json('custom_field_values')->nullable()->after('status');
             });
@@ -35,7 +35,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('voucher_custom_fields');
-        if (Schema::hasColumn('vouchers', 'custom_field_values')) {
+        if (Schema::hasTable('vouchers') && Schema::hasColumn('vouchers', 'custom_field_values')) {
             Schema::table('vouchers', function (Blueprint $table) {
                 $table->dropColumn('custom_field_values');
             });

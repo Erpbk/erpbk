@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('garages')) {
+            return;
+        }
         // First add the column as nullable
         Schema::table('garages', function (Blueprint $table) {
             $table->unsignedBigInteger('account_id')->nullable()->after('detail');
@@ -29,6 +32,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('garages')) {
+            return;
+        }
         Schema::table('garages', function (Blueprint $table) {
             $table->dropColumn('account_id');
         });

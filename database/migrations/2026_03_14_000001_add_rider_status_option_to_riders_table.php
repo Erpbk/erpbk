@@ -8,6 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (!Schema::hasTable('riders')) {
+            return;
+        }
         Schema::table('riders', function (Blueprint $table) {
             $table->string('rider_status_option', 50)->nullable()->after('designation');
         });
@@ -15,6 +18,9 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (!Schema::hasTable('riders')) {
+            return;
+        }
         Schema::table('riders', function (Blueprint $table) {
             $table->dropColumn('rider_status_option');
         });

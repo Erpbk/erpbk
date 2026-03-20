@@ -23,6 +23,12 @@ return new class extends Migration
             });
         }
 
+        // Tenant DBs may not have `accounts` table yet when migrations are run.
+        // Guard the alteration so fresh tenant DB creation doesn't fail.
+        if (!Schema::hasTable('accounts')) {
+            return;
+        }
+
         if (!Schema::hasColumn('accounts', 'custom_field_values')) {
             Schema::table('accounts', function (Blueprint $table) {
                 $table->json('custom_field_values')->nullable()->after('is_locked');
@@ -36,6 +42,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('account_custom_fields');
+        if (!Schema::hasTable('accounts')) {
+            return;
+        }
         if (Schema::hasColumn('accounts', 'custom_field_values')) {
             Schema::table('accounts', function (Blueprint $table) {
                 $table->dropColumn('custom_field_values');

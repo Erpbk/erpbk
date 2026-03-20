@@ -10,13 +10,13 @@ use Symfony\Component\HttpFoundation\Response;
 class SetCompanyIdForRoutes
 {
     /**
-     * Set default company_id for route() when in company context so links work.
+     * Set default company_slug for route() when in company context so links work.
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $companyId = $request->route('company_id') ?? session('company_id');
-        if ($companyId !== null) {
-            URL::defaults(['company_id' => $companyId]);
+        $companySlug = $request->route('company_slug') ?? session('company_slug');
+        if ($companySlug !== null) {
+            URL::defaults(['company_slug' => $companySlug]);
         }
         return $next($request);
     }

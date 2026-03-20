@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Services\TenantService;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class SetTenantConnection
@@ -19,12 +20,17 @@ class SetTenantConnection
      */
     public function handle(Request $request, Closure $next, string ...$guards): Response
     {
-        $companyId = $request->route('company_id');
-        if ($companyId === null) {
-            abort(404, 'Company not found.');
+        $companySlug = $request->route('company_slug') ?? $request->session()->get('company_slug');
+        if ($companySlug === null || $companySlug === '') {
+            // Allow non-company routes to continue when no company context exists.
+            return $next($request);
         }
 
-        $company = Company::query()->find($companyId);
+        $company = Company::query()->where('slug', $companySlug)->first();
+        if (!$company && is_numeric($companySlug)) {
+            // Backward compatibility for old links using numeric ID.
+            $company = Company::query()->find((int) $companySlug);
+        }
         if (!$company) {
             abort(404, 'Company not found.');
         }
@@ -42,6 +48,8 @@ class SetTenantConnection
         }
 
         $this->tenantService->setTenant($company);
+        // Clear any SessionGuard user resolved earlier in the stack against the wrong connection.
+        Auth::guard('web')->forgetUser();
         $request->attributes->set('company', $company);
         view()->share('currentCompany', $company);
 

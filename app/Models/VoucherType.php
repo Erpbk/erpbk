@@ -187,6 +187,23 @@ class VoucherType extends Model
     }
 
     /**
+     * Get active types for create/filter UI in the given module.
+     * Only includes types explicitly allowed to be edited in that module (can_edit = true).
+     */
+    public static function activeCodeLabelMapForModuleWithEditAccess(string $moduleKey): array
+    {
+        return static::where('is_active', true)
+            ->whereHas('moduleAssignments', function (Builder $q) use ($moduleKey) {
+                $q->where('module_key', $moduleKey)
+                    ->where('can_edit', true);
+            })
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->pluck('label', 'code')
+            ->toArray();
+    }
+
+    /**
      * Check whether a voucher type code is assigned and active for the given module.
      * Use when a module creates a voucher with a fixed type to ensure it is allowed.
      */

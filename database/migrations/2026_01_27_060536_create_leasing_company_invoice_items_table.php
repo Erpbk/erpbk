@@ -23,7 +23,9 @@ return new class extends Migration
                 $table->timestamps();
 
                 $table->foreign('inv_id')->references('id')->on('leasing_company_invoices')->onDelete('cascade');
-                $table->foreign('bike_id')->references('id')->on('bikes')->onDelete('restrict');
+                // NOTE:
+                // Avoid strict FK enforcement to `bikes.id` because the tenant/central
+                // schemas may define `bikes.id` using a different integer type.
                 $table->index('inv_id');
                 $table->index('bike_id');
             });

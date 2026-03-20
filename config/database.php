@@ -48,7 +48,8 @@ return [
             'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
-            'database' => env('DB_DATABASE', 'forge'),
+            // Central app DB (companies, OTP, etc.). Tenant DBs are separate; use DB_DATABASE_PREFIX for naming.
+            'database' => env('CENTRAL_DB_DATABASE', env('DB_DATABASE', 'forge')),
             'username' => env('DB_USERNAME', 'forge'),
             'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
@@ -72,10 +73,36 @@ return [
             'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
-            'database' => env('DB_DATABASE', 'forge'),
+            'database' => env('CENTRAL_DB_DATABASE', env('DB_DATABASE', 'forge')),
             'username' => env('DB_USERNAME', 'forge'),
             'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        /*
+         | Admin panel database (separate from tenant databases)
+         |
+         | Stores admin-only content (blogs, testimonials, policies) and a
+         | mirrored company list for the admin UI.
+         */
+        'mysql_admin' => [
+            'driver' => 'mysql',
+            'url' => env('ADMIN_DATABASE_URL'),
+            'host' => env('ADMIN_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('ADMIN_DB_PORT', env('DB_PORT', '3306')),
+            'database' => env('ADMIN_DB_DATABASE', env('DB_DATABASE', 'forge')),
+            'username' => env('ADMIN_DB_USERNAME', env('DB_USERNAME', 'forge')),
+            'password' => env('ADMIN_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('ADMIN_DB_SOCKET', env('DB_SOCKET', '')),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',

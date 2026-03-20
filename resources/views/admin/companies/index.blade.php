@@ -21,11 +21,16 @@
 
     <div class="card shadow-sm">
         <div class="card-body">
-            <div class="d-flex gap-2 mb-3">
-                <a href="{{ route('admin.companies.index') }}" class="btn btn-{{ !request('status') ? 'primary' : 'outline-primary' }} btn-sm">{{ __('All') }}</a>
-                <a href="{{ route('admin.companies.index', ['status' => 'pending']) }}" class="btn btn-{{ request('status') === 'pending' ? 'warning' : 'outline-warning' }} btn-sm">{{ __('Pending') }}</a>
-                <a href="{{ route('admin.companies.index', ['status' => 'approved']) }}" class="btn btn-{{ request('status') === 'approved' ? 'success' : 'outline-success' }} btn-sm">{{ __('Approved') }}</a>
-                <a href="{{ route('admin.companies.index', ['status' => 'rejected']) }}" class="btn btn-{{ request('status') === 'rejected' ? 'danger' : 'outline-danger' }} btn-sm">{{ __('Rejected') }}</a>
+            <div class="d-flex gap-2 mb-3 justify-content-between">
+                <div class="d-flex gap-2">
+                    <a href="{{ route('admin.companies.index') }}" class="btn btn-{{ !request('status') ? 'primary' : 'outline-primary' }} btn-sm">{{ __('All') }}</a>
+                    <a href="{{ route('admin.companies.index', ['status' => 'pending']) }}" class="btn btn-{{ request('status') === 'pending' ? 'warning' : 'outline-warning' }} btn-sm">{{ __('Pending') }}</a>
+                    <a href="{{ route('admin.companies.index', ['status' => 'approved']) }}" class="btn btn-{{ request('status') === 'approved' ? 'success' : 'outline-success' }} btn-sm">{{ __('Approved') }}</a>
+                    <a href="{{ route('admin.companies.index', ['status' => 'rejected']) }}" class="btn btn-{{ request('status') === 'rejected' ? 'danger' : 'outline-danger' }} btn-sm">{{ __('Rejected') }}</a>
+                </div>
+                @if(auth('admin')->user()->hasPermission('companies_create'))
+                    <a href="{{ route('admin.companies.create') }}" class="btn btn-primary btn-sm">{{ __('Create Company') }}</a>
+                @endif
             </div>
 
             <div class="table-responsive">
@@ -60,6 +65,9 @@
                                 <td>{{ $company->created_at->format('M j, Y') }}</td>
                                 <td>
                                     <a href="{{ route('admin.companies.show', $company) }}" class="btn btn-sm btn-outline-primary">{{ __('View') }}</a>
+                                    @if(auth('admin')->user()->hasPermission('companies_approve'))
+                                        <a href="{{ route('admin.companies.modules.edit', $company) }}" class="btn btn-sm btn-outline-secondary">{{ __('Modules') }}</a>
+                                    @endif
                                     @if($company->status === 'pending')
                                         <form action="{{ route('admin.companies.approve', $company) }}" method="post" class="d-inline" onsubmit="return confirm('{{ __('Approve this company and create their database?') }}');">
                                             @csrf

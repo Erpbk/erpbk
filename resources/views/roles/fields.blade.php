@@ -26,10 +26,14 @@
           </td>
         </tr> --}}
         @php
-             use Spatie\Permission\Models\Permission;
-
-            $modules = Permission::where(['parent_id'=>0])->orWhere('parent_id',NULL)->get();
-
+            use Spatie\Permission\Models\Permission;
+            if (! isset($modules)) {
+                $modules = Permission::query()
+                    ->where(function ($q) {
+                        $q->whereNull('parent_id')->orWhere('parent_id', 0);
+                    })
+                    ->get();
+            }
         @endphp
         @foreach ($modules as $module)
 

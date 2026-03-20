@@ -8,6 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (!Schema::hasTable('riders')) {
+            return;
+        }
         Schema::table('riders', function (Blueprint $table) {
             $table->json('custom_field_values')->nullable()->after('updated_by');
         });
@@ -15,6 +18,9 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (!Schema::hasTable('riders')) {
+            return;
+        }
         Schema::table('riders', function (Blueprint $table) {
             $table->dropColumn('custom_field_values');
         });

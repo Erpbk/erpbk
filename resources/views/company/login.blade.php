@@ -18,7 +18,7 @@
       <div class="card">
         <div class="card-body">
           <div class="app-brand justify-content-center mb-4 mt-2">
-            <a href="{{ route('company.login-form', ['company_id' => $companyId]) }}" class="app-brand-link gap-2 d-flex flex-column align-items-center">
+            <a href="{{ route('company.login-form', ['company_slug' => $companySlug]) }}" class="app-brand-link gap-2 d-flex flex-column align-items-center">
               @if($company->logo)
                 <img src="{{ asset('storage/' . $company->logo) }}" alt="{{ $company->name }}" class="company-brand">
               @else
@@ -35,7 +35,7 @@
             </div>
           @endif
 
-          <form action="{{ route('company.login', ['company_id' => $companyId]) }}" method="post" class="mb-3">
+          <form action="{{ route('company.login', ['company_slug' => $companySlug]) }}" method="post" class="mb-3">
             @csrf
             <div class="mb-3">
               <label for="email" class="form-label">{{ __('Email or Username') }}</label>

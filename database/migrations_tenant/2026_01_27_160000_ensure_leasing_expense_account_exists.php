@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
@@ -14,6 +15,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('accounts')) {
+            // Some tenant clones may not contain the accounts table at migration time.
+            // In that case, skip this seed-style migration.
+            return;
+        }
         $id = 1129;
         $exists = DB::table('accounts')->where('id', $id)->exists();
         if ($exists) {
@@ -42,6 +48,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('accounts')) {
+            return;
+        }
         DB::table('accounts')->where('id', 1129)->delete();
     }
 };

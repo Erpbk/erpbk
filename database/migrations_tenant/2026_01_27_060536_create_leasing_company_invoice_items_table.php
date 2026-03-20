@@ -23,7 +23,11 @@ return new class extends Migration
                 $table->timestamps();
 
                 $table->foreign('inv_id')->references('id')->on('leasing_company_invoices')->onDelete('cascade');
-                $table->foreign('bike_id')->references('id')->on('bikes')->onDelete('restrict');
+                // NOTE:
+                // The tenant schema is cloned from `mysql_central` which may define `bikes.id`
+                // with a different integer type (e.g., int vs bigint or unsigned mismatch).
+                // Enforcing a strict FK here can fail tenant provisioning with errno=150.
+                // Keeping `bike_id` indexed without FK keeps the app functional.
                 $table->index('inv_id');
                 $table->index('bike_id');
             });

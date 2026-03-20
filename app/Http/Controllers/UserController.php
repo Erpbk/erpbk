@@ -104,9 +104,9 @@ class UserController extends AppBaseController
   /**
    * Display the specified User.
    */
-  public function show($id)
+  public function show(string $company_slug, $user)
   {
-    $user = $this->userRepository->find($id);
+    $user = $this->userRepository->find($user);
 
     if (empty($user)) {
       Flash::error('User not found');
@@ -120,9 +120,16 @@ class UserController extends AppBaseController
   /**
    * Show the form for editing the specified User.
    */
-  public function edit($id)
+  public function edit(string $company_slug, $user)
   {
-    $user = $this->userRepository->find($id);
+    $user = $this->userRepository->find($user);
+
+    if (empty($user)) {
+      Flash::error('User not found');
+
+      return redirect(route('settings-panel.users.index'));
+    }
+
     $user->load('employee');
     $roles = Role::where('name', '!=', IConstants::ROLE_SUPER_ADMIN)->pluck('name', 'name')->all();
     $userRole = $user->roles->pluck('name', 'name')->first();
@@ -131,21 +138,15 @@ class UserController extends AppBaseController
     $branches = Branch::active()->pluck('name','id');
     $employees = Employee::active()->get(['id','employee_id','name']);
 
-    if (empty($user)) {
-      Flash::error('User not found');
-
-      return redirect(route('settings-panel.users.index'));
-    }
-
     return view('users.edit', compact('user', 'roles', 'countries', 'userRole', 'departments', 'branches','employees'));
   }
 
   /**
    * Update the specified User in storage.
    */
-  public function update($id, UpdateUserRequest $request)
+  public function update(UpdateUserRequest $request, string $company_slug, $user)
   {
-    $user = $this->userRepository->find($id);
+    $user = $this->userRepository->find($user);
     $input = $request->all();
 
     if (empty($user)) {
@@ -174,7 +175,7 @@ class UserController extends AppBaseController
       $input['branch_ids'] = json_encode($input['branch_ids']);
     }
 
-    $user = $this->userRepository->update($input, $id);
+    $user = $this->userRepository->update($input, $user->id);
 
     $user->syncRoles($request->input('roles'));
 
@@ -191,9 +192,9 @@ class UserController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy(string $company_slug, $user)
   {
-    $user = $this->userRepository->find($id);
+    $user = $this->userRepository->find($user);
 
     if (empty($user)) {
       Flash::error('User not found');
@@ -204,7 +205,7 @@ class UserController extends AppBaseController
     // Log the user deletion activity before deleting
     ActivityLogger::deleted('Users', $user);
 
-    $this->userRepository->delete($id);
+    $this->userRepository->delete($user->id);
 
     Flash::success('User deleted successfully.');
 
@@ -273,7 +274,7 @@ class UserController extends AppBaseController
     return view('users.profile', compact('user', 'countries','branches','employees'));
   }
 
-  public function changePassword(Request $request, $id)
+  public function changePassword(Request $request, string $company_slug, $id)
   {
       $user = $this->userRepository->find($id);
       if (auth()->id() != $id) {

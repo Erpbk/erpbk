@@ -38,6 +38,7 @@ return [
         'visa_expense'         => 'Visa Expense',
         'visa_status_types'    => 'Visa Status Types',
         'expenses'             => 'Expenses',
+        'vat'                  => 'VAT',
         'leasing_companies'    => 'Leasing Companies',
         'leasing_companies_list' => 'Leasing Companies List',
         'leasing_invoices'     => 'Invoices',

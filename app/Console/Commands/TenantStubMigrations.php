@@ -15,6 +15,8 @@ class TenantStubMigrations extends Command
         '2026_03_18_100001_create_company_otp_verifications_table.php',
         '2026_03_18_100002_create_subscription_tables_design.php',
         '2026_03_18_100003_create_admin_notifications_table.php',
+        '2026_03_20_000000_add_slug_to_companies_table_if_missing.php',
+        '2026_03_21_000002_add_title_to_admin_notifications_table.php',
     ];
 
     public function handle(): int

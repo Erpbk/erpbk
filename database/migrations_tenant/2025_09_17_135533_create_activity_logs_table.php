@@ -23,8 +23,16 @@ return new class extends Migration
                 $table->string('ip_address')->nullable();
                 $table->timestamps();
 
-                // Foreign key constraint
-                $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');
+                // Foreign key constraint:
+                // In new tenant databases, `users` may not exist (yet), which makes
+                // MySQL fail with "Foreign key constraint is incorrectly formed".
+                // We only add the FK when the referenced table exists.
+                if (Schema::hasTable('users')) {
+                    $table->foreign('user_id')
+                        ->references('id')
+                        ->on('users')
+                        ->onDelete('set null');
+                }
 
                 // Indexes for better performance
                 $table->index(['user_id', 'created_at']);

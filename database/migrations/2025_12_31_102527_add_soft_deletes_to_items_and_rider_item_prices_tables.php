@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // Add soft delete columns to items table
-        if (!Schema::hasColumn('items', 'deleted_at')) {
+        if (Schema::hasTable('items') && !Schema::hasColumn('items', 'deleted_at')) {
             Schema::table('items', function (Blueprint $table) {
                 $table->softDeletes();
                 $table->unsignedBigInteger('deleted_by')->nullable()->after('deleted_at');
@@ -20,7 +20,7 @@ return new class extends Migration
         }
 
         // Add soft delete columns to rider_item_prices table
-        if (!Schema::hasColumn('rider_item_prices', 'deleted_at')) {
+        if (Schema::hasTable('rider_item_prices') && !Schema::hasColumn('rider_item_prices', 'deleted_at')) {
             Schema::table('rider_item_prices', function (Blueprint $table) {
                 $table->softDeletes();
                 $table->unsignedBigInteger('deleted_by')->nullable()->after('deleted_at');
@@ -34,14 +34,14 @@ return new class extends Migration
     public function down(): void
     {
         // Remove soft delete columns from items table
-        if (Schema::hasColumn('items', 'deleted_at')) {
+        if (Schema::hasTable('items') && Schema::hasColumn('items', 'deleted_at')) {
             Schema::table('items', function (Blueprint $table) {
                 $table->dropColumn(['deleted_at', 'deleted_by']);
             });
         }
 
         // Remove soft delete columns from rider_item_prices table
-        if (Schema::hasColumn('rider_item_prices', 'deleted_at')) {
+        if (Schema::hasTable('rider_item_prices') && Schema::hasColumn('rider_item_prices', 'deleted_at')) {
             Schema::table('rider_item_prices', function (Blueprint $table) {
                 $table->dropColumn(['deleted_at', 'deleted_by']);
             });

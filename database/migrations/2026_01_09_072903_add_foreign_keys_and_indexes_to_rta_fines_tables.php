@@ -12,6 +12,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Skip when base tables are not present yet (fresh / partial database).
+        if (!Schema::hasTable('rta_fines')) {
+            return;
+        }
+
         // Add indexes and foreign keys to rta_fines table
         Schema::table('rta_fines', function (Blueprint $table) {
             // Add indexes for commonly queried columns
@@ -41,6 +46,10 @@ return new class extends Migration
         $this->addForeignKeyIfNotExists('rta_fines', 'rider_id', 'riders', 'id', 'rta_fines_rider_id_foreign');
         $this->addForeignKeyIfNotExists('rta_fines', 'bike_id', 'bikes', 'id', 'rta_fines_bike_id_foreign');
 
+        if (!Schema::hasTable('transactions')) {
+            return;
+        }
+
         // Add indexes to transactions table for RTA fines queries
         Schema::table('transactions', function (Blueprint $table) {
             if (!$this->hasIndex('transactions', 'transactions_reference_id_index')) {
@@ -60,6 +69,10 @@ return new class extends Migration
         // Add foreign key to transactions table for account_id
         $this->addForeignKeyIfNotExists('transactions', 'account_id', 'accounts', 'id', 'transactions_account_id_foreign');
 
+        if (!Schema::hasTable('vouchers')) {
+            return;
+        }
+
         // Add indexes to vouchers table for RTA fines queries
         Schema::table('vouchers', function (Blueprint $table) {
             if (!$this->hasIndex('vouchers', 'vouchers_ref_id_index')) {
@@ -72,6 +85,10 @@ return new class extends Migration
                 $table->index('trans_code', 'vouchers_trans_code_index');
             }
         });
+
+        if (!Schema::hasTable('ledger_entries')) {
+            return;
+        }
 
         // Add indexes to ledger_entries table
         Schema::table('ledger_entries', function (Blueprint $table) {

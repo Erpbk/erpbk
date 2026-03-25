@@ -46,12 +46,16 @@ class BanksController extends AppBaseController
     if (!auth()->user()->hasPermissionTo('bank_view')) {
       abort(403, 'Unauthorized action.');
     }
-
+    
+    $fundIn = 0;
+    $fundOut = 0;
     $banks = Banks::all();
     foreach($banks as $bank){
       $credit = Transactions::where('account_id',$bank->account_id)->sum('credit');
       $debit  = Transactions::where('account_id',$bank->account_id)->sum('debit');
       $balance = $debit - $credit;
+      $fundIn += $debit;
+      $fundOut += $credit;
       $bank->update(['balance' => $balance]);
     }
     // Use global pagination trait
@@ -87,6 +91,8 @@ class BanksController extends AppBaseController
     }
     return view('banks.index', [
       'data' => $data,
+      'fundsIn' => $fundIn,
+      'fundsOut' => $fundOut
     ]);
   }
 

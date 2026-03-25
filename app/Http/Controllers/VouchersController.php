@@ -278,6 +278,8 @@ class VouchersController extends Controller
   {
     /** @var Vouchers $vouchers */
     $voucher = Vouchers::with(['transactions.account'])->find($id);
+    $voucherModuleKey = 'vouchers';
+    $editDeleteFlags = VoucherType::getEditDeleteFlagsByModule($voucherModuleKey);
     if (empty($voucher)) {
       Flash::error('Vouchers not found');
 
@@ -285,7 +287,7 @@ class VouchersController extends Controller
     }
 
     if (request()->ajax() || request()->wantsJson()) {
-      return view('vouchers.show_modal', compact('voucher'));
+      return view('vouchers.show_modal', compact('voucher','editDeleteFlags'));
     }
 
     return view('vouchers.show', compact('voucher'));

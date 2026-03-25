@@ -28,6 +28,7 @@ class ReceiptController extends Controller
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Receipt::query()->with(['payerAccount','payeeAccount'])->orderBy('date_of_receipt', 'desc');
+        dd($query->get());
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
         return view('receipts.index', ['data' => $data]);

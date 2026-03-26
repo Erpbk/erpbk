@@ -9,8 +9,10 @@ use App\Models\Countries;
 use App\Services\TenantService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Str;
 
 class AdminCompaniesController extends Controller
 {
@@ -156,9 +158,41 @@ class AdminCompaniesController extends Controller
     /**
      * Approve company: create tenant DB, run migrations, create first user.
      */
-    public function approve(AdminCompany $company)
+    public function approve(int|string $company)
     {
-        $centralCompany = Company::query()->findOrFail($company->id);
+        $adminCompany = AdminCompany::withTrashed()->findOrFail($company);
+
+        $centralCompany = Company::query()->find($adminCompany->id);
+        $tempPassword = null;
+        if (!$centralCompany) {
+            // Some admin rows may exist without a matching central company record.
+            // Create a central company entry so tenant provisioning can continue.
+            $tempPassword = Str::random(12);
+            $centralCompany = new Company();
+            $centralCompany->id = $adminCompany->id;
+            $centralCompany->name = $adminCompany->name;
+            $centralCompany->slug = Company::generateUniqueSlug($adminCompany->name, $adminCompany->id);
+            $centralCompany->email = $adminCompany->email;
+            $centralCompany->country = $adminCompany->country;
+            $centralCompany->phone = $adminCompany->phone;
+            $centralCompany->city = $adminCompany->city;
+            $centralCompany->address = $adminCompany->address;
+            $centralCompany->password = Hash::make($tempPassword);
+            $centralCompany->status = Company::STATUS_PENDING;
+            $centralCompany->database_name = $adminCompany->database_name ?: Company::generateDatabaseName($adminCompany->id);
+            $centralCompany->is_taxpayer = (bool) ($adminCompany->is_taxpayer ?? false);
+            $centralCompany->ntn_number = $adminCompany->ntn_number;
+            $centralCompany->tax_registration_date = $adminCompany->tax_registration_date;
+            $centralCompany->logo = $adminCompany->logo;
+            $centralCompany->primary_color = $adminCompany->primary_color;
+            $centralCompany->secondary_color = $adminCompany->secondary_color;
+            $centralCompany->branding_json = $adminCompany->branding_json;
+            $centralCompany->modules_settings = $adminCompany->modules_settings;
+            $centralCompany->approved_at = null;
+            $centralCompany->approved_by = null;
+            $centralCompany->rejection_reason = null;
+            $centralCompany->save();
+        }
 
         if ($centralCompany->status !== Company::STATUS_PENDING) {
             return back()->with('error', __('Company is not pending.'));
@@ -176,7 +210,7 @@ class AdminCompaniesController extends Controller
             $this->createFirstUserForCompany($centralCompany);
 
             // Sync admin DB company record
-            $company->update([
+            $adminCompany->update([
                 'status' => Company::STATUS_APPROVED,
                 'database_name' => $databaseName,
                 'approved_at' => $centralCompany->approved_at,
@@ -185,7 +219,7 @@ class AdminCompaniesController extends Controller
             ]);
         } catch (\Throwable $e) {
             $centralCompany->update(['status' => Company::STATUS_PENDING, 'database_name' => null]);
-            $company->update([
+            $adminCompany->update([
                 'status' => Company::STATUS_PENDING,
                 'database_name' => null,
                 'approved_at' => null,
@@ -194,7 +228,12 @@ class AdminCompaniesController extends Controller
             return back()->with('error', __('Failed to create company database: :message', ['message' => $e->getMessage()]));
         }
 
-        return back()->with('success', __('Company approved. Database and owner user created.'));
+        $successMessage = __('Company approved. Database and owner user created.');
+        if ($tempPassword !== null) {
+            $successMessage .= ' ' . __('Temporary owner password: :password', ['password' => $tempPassword]);
+        }
+
+        return back()->with('success', $successMessage);
     }
 
     /**

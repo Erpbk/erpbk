@@ -11,6 +11,10 @@ return new class extends Migration
         if (!Schema::hasTable('riders')) {
             return;
         }
+
+        if (Schema::hasColumn('riders', 'custom_field_values')) {
+            return;
+        }
         Schema::table('riders', function (Blueprint $table) {
             $table->json('custom_field_values')->nullable()->after('updated_by');
         });
@@ -19,6 +23,10 @@ return new class extends Migration
     public function down(): void
     {
         if (!Schema::hasTable('riders')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('riders', 'custom_field_values')) {
             return;
         }
         Schema::table('riders', function (Blueprint $table) {

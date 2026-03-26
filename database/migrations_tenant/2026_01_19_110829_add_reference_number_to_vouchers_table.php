@@ -15,6 +15,10 @@ return new class extends Migration
             return;
         }
 
+        if (Schema::hasColumn('vouchers', 'reference_number')) {
+            return;
+        }
+
         Schema::table('vouchers', function (Blueprint $table) {
             $table->string('reference_number')->nullable()->after('remarks');
         });

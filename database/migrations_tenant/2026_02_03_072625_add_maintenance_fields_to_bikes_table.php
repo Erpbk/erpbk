@@ -14,10 +14,25 @@ return new class extends Migration
         if (!Schema::hasTable('bikes')) {
             return;
         }
+
+        $hasCurrentKm = Schema::hasColumn('bikes', 'current_km');
+        $hasPreviousKm = Schema::hasColumn('bikes', 'previous_km');
+        $hasMaintenanceKm = Schema::hasColumn('bikes', 'maintenance_km');
+
+        if ($hasCurrentKm && $hasPreviousKm && $hasMaintenanceKm) {
+            return;
+        }
+
         Schema::table('bikes', function (Blueprint $table) {
-            $table->decimal('current_km', 10, 3)->nullable()->after('customer_id');
-            $table->decimal('previous_km', 10, 3)->nullable()->after('current_km');
-            $table->decimal('maintenance_km',10,3)->nullable()->after('previous_km');
+            if (!Schema::hasColumn('bikes', 'current_km')) {
+                $table->decimal('current_km', 10, 3)->nullable()->after('customer_id');
+            }
+            if (!Schema::hasColumn('bikes', 'previous_km')) {
+                $table->decimal('previous_km', 10, 3)->nullable()->after('current_km');
+            }
+            if (!Schema::hasColumn('bikes', 'maintenance_km')) {
+                $table->decimal('maintenance_km', 10, 3)->nullable()->after('previous_km');
+            }
         });
     }
 
@@ -29,8 +44,25 @@ return new class extends Migration
         if (!Schema::hasTable('bikes')) {
             return;
         }
+
+        $hasCurrentKm = Schema::hasColumn('bikes', 'current_km');
+        $hasPreviousKm = Schema::hasColumn('bikes', 'previous_km');
+        $hasMaintenanceKm = Schema::hasColumn('bikes', 'maintenance_km');
+
+        if (!$hasCurrentKm && !$hasPreviousKm && !$hasMaintenanceKm) {
+            return;
+        }
+
         Schema::table('bikes', function (Blueprint $table) {
-            $table->dropColumn(['current_km', 'previous_km', 'maintenance_km']);
+            if (Schema::hasColumn('bikes', 'current_km')) {
+                $table->dropColumn('current_km');
+            }
+            if (Schema::hasColumn('bikes', 'previous_km')) {
+                $table->dropColumn('previous_km');
+            }
+            if (Schema::hasColumn('bikes', 'maintenance_km')) {
+                $table->dropColumn('maintenance_km');
+            }
         });
     }
 };

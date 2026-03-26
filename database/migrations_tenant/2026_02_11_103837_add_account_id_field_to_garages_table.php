@@ -14,6 +14,10 @@ return new class extends Migration
         if (!Schema::hasTable('garages')) {
             return;
         }
+
+        if (Schema::hasColumn('garages', 'account_id')) {
+            return;
+        }
         // First add the column as nullable
         Schema::table('garages', function (Blueprint $table) {
             $table->unsignedBigInteger('account_id')->nullable()->after('detail');
@@ -33,6 +37,10 @@ return new class extends Migration
     public function down(): void
     {
         if (!Schema::hasTable('garages')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('garages', 'account_id')) {
             return;
         }
         Schema::table('garages', function (Blueprint $table) {

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class TenantService
 {
@@ -147,6 +148,13 @@ class TenantService
         }
 
         $this->setTenant($company);
+
+        // Enforce tenant "initial state":
+        // - Keep only specific permanent accounts.
+        // - Copy countries data from central.
+        // - Clear all other tenant data so the tenant starts fresh.
+        $this->enforceTenantInitialDataPolicy($company);
+
         try {
             TenantModulePermissionsSync::sync();
         } finally {
@@ -278,5 +286,202 @@ class TenantService
     public function getCompanyFromId(int|string $companyId): ?Company
     {
         return Company::query()->find($companyId);
+    }
+
+    /**
+     * Reset tenant DB data so only the required seed/reference remains.
+     *
+     * Requirements:
+     * - In `accounts`, keep only a fixed set of account codes.
+     * - In `countries`, copy central rows + data.
+     * - Clear all other tenant data (fresh/empty).
+     */
+    private function enforceTenantInitialDataPolicy(Company $company): void
+    {
+        $allowedAccounts = [
+            // Assets
+            '1031' => ['name' => 'Enoc Fuel Wallet', 'account_type' => 'Asset', 'status' => 1],
+            '1097' => ['name' => '1097', 'account_type' => 'Asset', 'status' => 0],
+            '1247' => ['name' => 'Non-Current Assets', 'account_type' => 'Asset', 'status' => 1],
+            '1639' => ['name' => 'Current Assets', 'account_type' => 'Asset', 'status' => 1],
+            '1648' => ['name' => 'Intangible Assets', 'account_type' => 'Asset', 'status' => 1],
+            '2452' => ['name' => 'Cash & Bank', 'account_type' => 'Asset', 'status' => 1],
+
+            // Expenses
+            '0998' => ['name' => 'Operating Expenses', 'account_type' => 'Expense', 'status' => 1],
+            '1007' => ['name' => 'Admin Expenses', 'account_type' => 'Expense', 'status' => 1],
+            '1046' => ['name' => 'Bike Renewal Charges', 'account_type' => 'Expense', 'status' => 0],
+            '1154' => ['name' => 'Service Charges', 'account_type' => 'Expense', 'status' => 1],
+            '1213' => ['name' => 'Bike Maintenance Expenses', 'account_type' => 'Expense', 'status' => 1],
+            '1374' => ['name' => 'Visa Expense', 'account_type' => 'Expense', 'status' => 1],
+            '1652' => ['name' => 'Cost of Revenue', 'account_type' => 'Expense', 'status' => 1],
+            '2148' => ['name' => 'Finance Cost', 'account_type' => 'Expense', 'status' => 1],
+
+            // Liabilities
+            '0001' => ['name' => 'Riders', 'account_type' => 'Liability', 'status' => 1],
+            '0996' => ['name' => 'Leasing Companies', 'account_type' => 'Liability', 'status' => 1],
+            '1235' => ['name' => 'RTA Fines', 'account_type' => 'Liability', 'status' => 1],
+            '1237' => ['name' => 'RTA Salik', 'account_type' => 'Liability', 'status' => 1],
+            '1256' => ['name' => 'Vendors', 'account_type' => 'Liability', 'status' => 1],
+            '1287' => ['name' => 'Supplier', 'account_type' => 'Liability', 'status' => 1],
+            '1644' => ['name' => 'Current Liabilities', 'account_type' => 'Liability', 'status' => 1],
+            '1645' => ['name' => 'Non-Current Liabilities', 'account_type' => 'Liability', 'status' => 1],
+            '1664' => ['name' => 'Garages', 'account_type' => 'Liability', 'status' => 1],
+            '2176' => ['name' => 'Recruiter', 'account_type' => 'Liability', 'status' => 1],
+            '2454' => ['name' => 'VAT %', 'account_type' => 'Liability', 'status' => 1],
+
+            // Revenue
+            '1002' => ['name' => 'Incomes', 'account_type' => 'Revenue', 'status' => 1],
+            '1638' => ['name' => 'Garage Revenue', 'account_type' => 'Revenue', 'status' => 1],
+            '1641' => ['name' => 'Other Incomes', 'account_type' => 'Revenue', 'status' => 1],
+            '2150' => ['name' => 'Interest On RAK Bank', 'account_type' => 'Revenue', 'status' => 1],
+        ];
+
+        $tenantDb = DB::connection('tenant')->getDatabaseName();
+        $allowedAccountCodes = array_keys($allowedAccounts);
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+        // 1) Keep only allowed rows in `accounts`.
+        if (Schema::hasTable('accounts')) {
+            DB::table('accounts')
+                ->whereNotIn('account_code', $allowedAccountCodes)
+                ->delete();
+
+            $existingAllowedCodes = DB::table('accounts')
+                ->whereIn('account_code', $allowedAccountCodes)
+                ->pluck('account_code')
+                ->map(fn ($v) => (string) $v)
+                ->all();
+
+            foreach ($allowedAccounts as $code => $meta) {
+                if (in_array($code, $existingAllowedCodes, true)) {
+                    // Preserve structure like `parent_id` if the chart already exists.
+                    DB::table('accounts')
+                        ->where('account_code', $code)
+                        ->update([
+                            'name' => $meta['name'],
+                            'account_type' => $meta['account_type'],
+                            'status' => $meta['status'],
+                        ]);
+                } else {
+                    // If missing, insert a minimal row so the required accounts exist.
+                    DB::table('accounts')->insert([
+                        'account_code' => $code,
+                        'name' => $meta['name'],
+                        'account_type' => $meta['account_type'],
+                        'parent_id' => null,
+                        'ref_name' => null,
+                        'ref_id' => null,
+                        'status' => $meta['status'],
+                        'notes' => null,
+                        'opening_balance' => 0,
+                        'is_locked' => 0,
+                        'custom_field_values' => null,
+                    ]);
+                }
+            }
+        }
+
+        // 2) Overwrite `countries` with central data.
+        if (Schema::hasTable('countries')) {
+            if (Schema::connection('mysql_central')->hasTable('countries')) {
+                // Insert as associative arrays to avoid Laravel interpreting objects as numeric-key rows.
+                $centralCountries = DB::connection('mysql_central')
+                    ->table('countries')
+                    ->get(['name', 'code', 'created_at', 'updated_at']);
+
+                DB::table('countries')->delete();
+                if ($centralCountries->isNotEmpty()) {
+                    $rows = $centralCountries->map(static function ($c) {
+                        return [
+                            'name' => $c->name,
+                            'code' => $c->code,
+                            'created_at' => $c->created_at,
+                            'updated_at' => $c->updated_at,
+                        ];
+                    })->toArray();
+
+                    DB::table('countries')->insert($rows);
+                }
+            }
+        }
+
+        // 3) Clear every other tenant table’s data except required reference tables.
+        $tables = DB::select(
+            'SELECT table_name
+             FROM information_schema.tables
+             WHERE table_schema = ?
+             AND table_type = \'BASE TABLE\'',
+            [$tenantDb]
+        );
+
+        $preserveTables = [
+            // Allowed per your requirement
+            'accounts',
+            'countries',
+
+            // Voucher reference data seeded by migrations (used by voucher UI/filters)
+            'voucher_types',
+            'voucher_type_module_assignments',
+
+            // Keep Laravel migration tracking so future migrations behave.
+            'migrations',
+        ];
+
+        foreach ($tables as $t) {
+            $table = (string) $t->table_name;
+            if (in_array($table, $preserveTables, true)) {
+                continue;
+            }
+            if (!Schema::hasTable($table)) {
+                continue;
+            }
+
+            DB::table($table)->delete();
+        }
+
+        // Rebuild derived expense_accounts based on the filtered accounts chart.
+        if (Schema::hasTable('expense_accounts') && Schema::hasTable('accounts')) {
+            DB::table('expense_accounts')->delete();
+
+            $expenseRootIds = DB::table('accounts')
+                ->whereNull('parent_id')
+                ->where('account_type', 'Expense')
+                ->pluck('id')
+                ->all();
+
+            if (!empty($expenseRootIds)) {
+                $allExpenseIds = [];
+                $toProcess = $expenseRootIds;
+                while (!empty($toProcess)) {
+                    $parentIds = $toProcess;
+                    $allExpenseIds = array_merge($allExpenseIds, $parentIds);
+                    $toProcess = DB::table('accounts')
+                        ->whereIn('parent_id', $parentIds)
+                        ->pluck('id')
+                        ->all();
+                }
+
+                $allExpenseIds = array_unique($allExpenseIds);
+                $existing = DB::table('expense_accounts')->pluck('account_id')->flip()->all();
+                $toInsert = array_diff($allExpenseIds, array_keys($existing));
+
+                if (!empty($toInsert)) {
+                    $now = now();
+                    $rows = array_map(function ($accountId) use ($now) {
+                        return [
+                            'account_id' => $accountId,
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    }, $toInsert);
+
+                    DB::table('expense_accounts')->insert($rows);
+                }
+            }
+        }
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     }
 }

@@ -15,6 +15,10 @@ return new class extends Migration
             return;
         }
 
+        if (Schema::hasColumn('visa_expenses', 'reference_number')) {
+            return;
+        }
+
         Schema::table('visa_expenses', function (Blueprint $table) {
             $table->string('reference_number')->nullable()->after('detail');
         });

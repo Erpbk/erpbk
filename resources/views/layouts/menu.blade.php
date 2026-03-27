@@ -274,7 +274,7 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
     @endcan
   </ul>
   @endcan
-<li class="menu-item {{ Request::is('leasingCompanies*') ? 'open' : '' }} {{ Request::is('leasingCompanyInvoices*') ? 'open' : '' }}">
+<li class="menu-item {{ Request::is('leasingCompanies*') ? 'open' : '' }} {{ Request::is('leasingCompanyInvoices*') ? 'open' : '' }} {{ Request::is('leasingCompanyBillingInvoices*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-building"></i>
     <div>{{ $menuLabels['leasing_companies'] ?? 'Leasing Companies' }}</div>
@@ -295,6 +295,14 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
       <a href="{{ route('leasingCompanyInvoices.index') }}" class="menu-link ">
         <i class="menu-icon tf-icons ti ti-file-invoice"></i>
         <div>{{ $menuLabels['leasing_invoices'] ?? 'Invoices' }}</div>
+      </a>
+    </li>
+    @endcan
+    @can('billing_invoice_view')
+    <li class="menu-item {{ Request::is('leasingCompanyBillingInvoices*') ? 'active' : '' }}">
+      <a href="{{ route('leasingCompanyBillingInvoices.index') }}" class="menu-link ">
+        <i class="menu-icon tf-icons ti ti-file-plus"></i>
+        <div>{{ $menuLabels['leasing_billing_invoice'] ?? 'Billing Invoice' }}</div>
       </a>
     </li>
     @endcan

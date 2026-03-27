@@ -8,6 +8,7 @@ interface HeadAccount
   const BANK = 994;
   const SALARY_ACCOUNT = 1103;
   const TAX_ACCOUNT = 1023;
+  const VAT_ON_SALES = 1025; // Leasing company account – must exist in Chart of Accounts
   const ADVANCE_LOAN = 1135;
   const RTA_FINE = 1235;
   const SALARIES_PAYABLE = 1200; // Add the correct GL code for Salaries Payable here

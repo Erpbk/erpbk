@@ -70,8 +70,13 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         }
 
         $leasingCompanies = LeasingCompanies::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
-        $bikes = Bikes::where('status', 1)->orderBy('plate')->get()->mapWithKeys(function ($b) {
-            return [$b->id => $b->plate . ' - ' . ($b->model ?? '')];
+        $bikes = Bikes::orderBy('plate')->get()->mapWithKeys(function ($b) {
+            $label = $b->plate . ' - ' . ($b->model ?? '');
+            $isInactive = (int) $b->status !== 1 || in_array($b->warehouse ?? '', ['Return', 'Vacation', 'Express Garage', 'Absconded'], true);
+            if ($isInactive) {
+                $label .= ' (Inactive/Returned)';
+            }
+            return [$b->id => $label];
         })->prepend('Select', '')->toArray();
 
         $rentalAmountByCompany = [];
@@ -132,18 +137,11 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
             ];
         }
 
-        $companyBikes = Bikes::withTrashed()
-            ->where(function ($q) use ($sourceInvoice, $cloneBikeIds) {
-                $q->where('company', $sourceInvoice->leasing_company_id)
-                    ->orWhereIn('id', $cloneBikeIds);
-            })
-            ->orderBy('plate')
-            ->get();
-
+        $allBikes = Bikes::orderBy('plate')->get();
         $bikes = [];
-        foreach ($companyBikes as $b) {
+        foreach ($allBikes as $b) {
             $label = $b->plate . ' - ' . ($b->model ?? '');
-            $isInactive = (int) $b->status !== 1 || $b->trashed() || in_array($b->warehouse, ['Return', 'Vacation', 'Express Garage', 'Absconded'], true);
+            $isInactive = (int) $b->status !== 1 || in_array($b->warehouse, ['Return', 'Vacation', 'Express Garage', 'Absconded'], true);
             if ($isInactive) {
                 $label .= ' (Inactive/Returned)';
             }
@@ -300,8 +298,13 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
 
         $invoice->load('items');
         $leasingCompanies = LeasingCompanies::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
-        $bikes = Bikes::where('status', 1)->orderBy('plate')->get()->mapWithKeys(function ($b) {
-            return [$b->id => $b->plate . ' - ' . ($b->model ?? '')];
+        $bikes = Bikes::orderBy('plate')->get()->mapWithKeys(function ($b) {
+            $label = $b->plate . ' - ' . ($b->model ?? '');
+            $isInactive = (int) $b->status !== 1 || in_array($b->warehouse ?? '', ['Return', 'Vacation', 'Express Garage', 'Absconded'], true);
+            if ($isInactive) {
+                $label .= ' (Inactive/Returned)';
+            }
+            return [$b->id => $label];
         })->prepend('Select', '')->toArray();
         $rentalAmountByCompany = [];
 

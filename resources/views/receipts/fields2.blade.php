@@ -56,7 +56,7 @@
             
             @if(isset($leasingCompany))
                 <div class="form-group col-md-3">
-                    {!! Form::label('leasing_company', 'Sender (Leasing Company):') !!}
+                    {!! Form::label('leasing_company', 'Sender Account:') !!}
                     {!! Form::hidden('payer_account_id', $leasingCompany->account_id)!!}
                     {!! Form::text('leasing-company-name', $leasingCompany->name ?? $receipt->leasingCompany->name ?? '-', ['class' => 'form-control bg-light', 'readonly' => true]) !!}
                 </div>

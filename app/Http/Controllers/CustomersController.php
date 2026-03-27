@@ -12,6 +12,9 @@ use App\Http\Controllers\AppBaseController;
 use App\Models\Accounts;
 use App\Models\Customers;
 use App\Models\Transactions;
+use App\Models\Files;
+use App\Models\Payment;
+use App\Models\Receipt;
 use App\Repositories\CustomersRepository;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
@@ -43,14 +46,8 @@ class CustomersController extends AppBaseController
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Customers::query()
       ->orderBy('id', 'asc');
-    if ($request->has('name') && !empty($request->name)) {
-      $query->where('name', 'like', '%' . $request->name . '%');
-    }
     if ($request->has('company_name') && !empty($request->company_name)) {
       $query->where('company_name', $request->company_name);
-    }
-    if ($request->has('account_id') && !empty($request->account_id)) {
-      $query->where('account_id', $request->account_id);
     }
     if ($request->has('status') && !empty($request->status)) {
       $query->where('status', $request->status);
@@ -236,18 +233,87 @@ class CustomersController extends AppBaseController
 
   public function ledger($id, LedgerDataTable $ledgerDataTable)
   {
-    $customers = Customers::find($id);
-    $files = Transactions::where('account_id', $customers->account_id)->get();
-    $account_id = $customers->account_id;
+    $customer = Customers::find($id);
+    if(!$customer){
+      Flash::error('Customer not found');
+      return redirect(route('customers.index'));
+    }
+    $details = $this->getDetails($customer->account_id);
+    $account_id = $customer->account_id;
 
-    return $ledgerDataTable->with(['account_id' => $account_id])->render('customers.customer_ledger', compact('files', 'customers'));
+    return $ledgerDataTable->with(['account_id' => $account_id])->render('customers.customer_ledger', compact('customer','details'));
   }
 
   public function files($id, FilesDataTable $filesDataTable)
   {
-    return $filesDataTable->with(['type_id' => $id, 'type' => 'customer'])->render('customers.document');
+    $customer = Customers::find($id);
+    if(!$customer){
+      Flash::error('Customer not found');
+      return redirect(route('customers.index'));
+    }
+    $files = Files::where(['type' => 'customer', 'type_id' => $id])->latest('id')->get();
+    $details = $this->getDetails($customer->account_id);
+    return view('customers.document', compact('files','details','customer'));
   }
 
+  public function payments(Request $request, $id)
+  {
+    $customer = Customers::find($id);
+
+    if (empty($customer)) {
+      Flash::error('Customer not found');
+      return redirect(route('customers.index'));
+    }
+
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Payment::query()->latest('date_of_payment');
+    $query->where('payee_account_id', $customer->account_id);
+
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    $details = $this->getDetails($customer->account_id);
+    return view('customers.payments', compact('data', 'customer','details'));
+  }
+
+  public function receipts(Request $request, $id)
+  {
+    $customer = Customers::find($id);
+
+    if (empty($customer)) {
+      Flash::error('Customer not found');
+      return redirect(route('customers.index'));
+    }
+
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Payment::query()->latest('date_of_receipt')->with('payerAccount','payeeAccount');
+    $query->where('payee_account_id', $customer->account_id);
+
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    $details = $this->getDetails($customer->account_id);
+    return view('customers.receipts', compact('data', 'customer','details'));
+  }
+
+  private function getDetails($accountId){
+    $currentMonthStart = \Carbon\Carbon::now()->startOfMonth()->format('Y-m-d');
+    $currentMonthEnd = \Carbon\Carbon::now()->endOfMonth()->format('Y-m-d');
+    $transactions = Transactions::where('account_id', $accountId)->get();
+    $currentMonthCredit = $transactions->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])->sum('credit');
+    $currentMonthDebit = $transactions->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])->sum('debit');
+    $netFlow = $currentMonthDebit - $currentMonthCredit;
+
+    // Calculate balance
+    $credit = $transactions->sum('credit');
+    $debit = $transactions->sum('debit');
+    $balance = $debit - $credit;
+    return ['currentMonthCredit' => $currentMonthCredit,
+      'currentMonthDebit' => $currentMonthDebit,
+      'netFlow' => $netFlow,
+      'credit' => $credit,
+      'debit' => $debit,
+      'balance' => $balance
+    ];
+  }
   /**
    * Get the model class for trash functionality
    */

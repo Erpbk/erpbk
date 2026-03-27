@@ -9,6 +9,7 @@ use App\Models\Banks;
 use App\Models\LeasingCompanies;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Models\Customers;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use Illuminate\Support\Facades\DB;
@@ -42,13 +43,23 @@ class PaymentController extends Controller
         $query = Payment::query()->with('payeeAccount')->orderBy('date_of_payment', 'desc');
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
-        return view('payments.index', ['data' => $data, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
+        $fundsIn = 0;
+        $fundsOut = 0;
+        $banks = Banks::all();
+        foreach($banks as $bank){
+        $credit = Transactions::where('account_id',$bank->account_id)->sum('credit');
+        $debit  = Transactions::where('account_id',$bank->account_id)->sum('debit');
+        $fundsIn += $debit;
+        $fundsOut += $credit;
+        }
+        return view('payments.index', compact('data','fundsIn','fundsOut'));
     }
 
     public function create()
     {
         $accountId = request()->input('id') ?? null;
         $leasingCompanyId = request()->input('leasing_company_id') ?? null;
+        $customerId = request()->input('customer_id') ?? null;
         $payment = null;
 
         if ($accountId) {
@@ -58,6 +69,10 @@ class PaymentController extends Controller
             $leasingCompany = LeasingCompanies::find($leasingCompanyId);
             $banks = Banks::with('account')->active()->get();
             return view('payments.create', compact('leasingCompany','banks','payment'));
+        } elseif ($customerId) {
+            $customer = Customers::find($customerId);
+            $banks = Banks::with('account')->active()->get();
+            return view('payments.create', compact('customer','banks','payment'));
         } else{
             $banks = Banks::with('account')->active()->get();
             return view('payments.create', compact('banks','payment'));

@@ -68,7 +68,7 @@
                                 <i class="bi bi-arrow-down-circle fs-1 text-success"></i>
                             </div>
                             <h5 class="card-title text-success">Funds In</h5>
-                            <h3 class="card-text fw-bold">${{ number_format($fundsIn, 2) }}</h3>
+                            <h3 class="card-text fw-bold">AED {{ number_format($fundsIn, 2) }}</h3>
                             <p class="card-text text-muted">Total incoming transactions</p>
                         </div>
                     </div>
@@ -83,7 +83,7 @@
                             </div>
                             <h5 class="card-title text-primary">Net Balance</h5>
                             <h3 class="card-text fw-bold {{ $balanceClass }}">
-                                {{ $balanceIcon }} ${{ number_format(abs($netBalance), 2) }}
+                                {{ $balanceIcon }} AED {{ number_format(abs($netBalance), 2) }}
                             </h3>
                         </div>
                     </div>
@@ -97,7 +97,7 @@
                                 <i class="bi bi-arrow-up-circle fs-1 text-danger"></i>
                             </div>
                             <h5 class="card-title text-danger">Funds Out</h5>
-                            <h3 class="card-text fw-bold">${{ number_format($fundsOut, 2) }}</h3>
+                            <h3 class="card-text fw-bold">AED {{ number_format($fundsOut, 2) }}</h3>
                             <p class="card-text text-muted">Total outgoing transactions</p>
                         </div>
                     </div>

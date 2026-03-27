@@ -85,6 +85,8 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::resource('customers', App\Http\Controllers\CustomersController::class)->parameters(['customers' => 'id']);
     Route::get('customer/ledger/{id}', [\App\Http\Controllers\CustomersController::class, 'ledger'])->name('customer.ledger');
     Route::get('customer/files/{id}', [\App\Http\Controllers\CustomersController::class, 'files'])->name('customer.files');
+    Route::get('customer/payments/{id}', [\App\Http\Controllers\CustomersController::class, 'payments'])->name('customers.payments');
+    Route::get('customer/receipts/{id}', [\App\Http\Controllers\CustomersController::class, 'receipts'])->name('customers.receipts');
     // Customers Trash Routes
     Route::get('customers/trash', [\App\Http\Controllers\CustomersController::class, 'trash'])->name('customers.trash');
     Route::post('customers/trash/{id}/restore', [\App\Http\Controllers\CustomersController::class, 'restoreTrash'])->name('customers.restore');
@@ -110,6 +112,9 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('rtaFines/getrider/{id}', [\App\Http\Controllers\RtaFinesController::class, 'getrider']);
 
 
+    Route::get('/customer_invoices/{id}/edit', [App\Http\Controllers\CustomerInvoicesController::class, 'edit'])->name('customer_invoice.edit');
+    Route::get('/customer_invoices/{id}/clone', [App\Http\Controllers\CustomerInvoicesController::class, 'clone'])->name('customer_invoice.clone');
+    Route::resource('customer_invoices', App\Http\Controllers\CustomerInvoicesController::class);
 
     Route::resource('employees', App\Http\Controllers\EmployeeController::class);
     Route::get('/employees/{id}/ledger', [App\Http\Controllers\EmployeeController::class, 'ledger'])->name('employee.ledger');

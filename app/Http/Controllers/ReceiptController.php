@@ -7,6 +7,7 @@ use App\Models\Banks;
 use App\Models\LeasingCompanies;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Models\Customers;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use Illuminate\Support\Facades\DB;
@@ -41,14 +42,24 @@ class ReceiptController extends Controller
         $query = Receipt::query()->with(['payerAccount','payeeAccount'])->orderBy('date_of_receipt', 'desc');
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
-
-        return view('receipts.index', ['data' => $data, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
+        $fundsIn = 0;
+        $fundsOut = 0;
+        $banks = Banks::all();
+        foreach($banks as $bank){
+        $credit = Transactions::where('account_id',$bank->account_id)->sum('credit');
+        $debit  = Transactions::where('account_id',$bank->account_id)->sum('debit');
+        $fundsIn += $debit;
+        $fundsOut += $credit;
+        }
+        return view('receipts.index', compact('data','fundsIn','fundsOut'));
     }
 
     public function create()
     {
         $accountId = request()->input('id') ?? null;
         $leasingCompanyId = request()->input('leasing_company_id') ?? null;
+        $customerId = request()->input('customer_id') ?? null;
+        $receipt = null;
 
         if ($accountId) {
             $bank = Banks::find($accountId);
@@ -56,10 +67,14 @@ class ReceiptController extends Controller
         } elseif ($leasingCompanyId) {
             $leasingCompany = LeasingCompanies::find($leasingCompanyId);
             $banks = Banks::with('account')->active()->get();
-            return view('receipts.create', compact('leasingCompany','banks'));
+            return view('receipts.create', compact('leasingCompany','banks','receipt'));
+        } elseif ($customerId) {
+            $leasingCompany = Customers::find($customerId);
+            $banks = Banks::with('account')->active()->get();
+            return view('receipts.create', compact('leasingCompany','banks','receipt'));
         } else {
             $banks = Banks::with('account')->active()->get();
-            return view('receipts.create', compact('banks'));
+            return view('receipts.create', compact('banks','receipt'));
         }
     }
 

@@ -26,6 +26,17 @@ class ReceiptController extends Controller
 
     public function index(Request $request)
     {
+        $fundIn = 0;
+        $fundOut = 0;
+        $banks = Banks::all();
+        foreach($banks as $bank){
+          $credit = Transactions::where('account_id',$bank->account_id)->sum('credit');
+          $debit  = Transactions::where('account_id',$bank->account_id)->sum('debit');
+          $balance = $debit - $credit;
+          $fundIn += $debit;
+          $fundOut += $credit;
+          $bank->update(['balance' => $balance]);
+        }
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Receipt::query()->with(['payerAccount','payeeAccount'])->orderBy('date_of_receipt', 'desc');

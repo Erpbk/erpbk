@@ -379,25 +379,41 @@ class BanksController extends AppBaseController
   public function receipts(Request $request, $id)
   {
     $banks = Banks::find($id);
+    $fundIn = 0;
+    $fundOut = 0;
+    $credit = Transactions::where('account_id',$banks->account_id)->sum('credit');
+    $debit  = Transactions::where('account_id',$banks->account_id)->sum('debit');
+    $balance = $debit - $credit;
+    $fundIn += $debit;
+    $fundOut += $credit;
+    $banks->update(['balance' => $balance]);
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Receipt::query()->latest('id');
     $query->where('bank_id', $banks->id);
-
+    
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
-    return view('banks.receipts', compact('data', 'banks'));
+    return view('banks.receipts' , ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
   }
 
   public function payments(Request $request, $id)
   {
     $banks = Banks::find($id);
+    $fundIn = 0;
+    $fundOut = 0;
+    $credit = Transactions::where('account_id',$banks->account_id)->sum('credit');
+    $debit  = Transactions::where('account_id',$banks->account_id)->sum('debit');
+    $balance = $debit - $credit;
+    $fundIn += $debit;
+    $fundOut += $credit;
+    $banks->update(['balance' => $balance]);
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Payment::query()->latest('id');
     $query->where('bank_id', $id);
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
-    return view('banks.payments', compact('data', 'banks'));
+    return view('banks.payments' , ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
   }
 
   public function cheques(Request $request, $id)

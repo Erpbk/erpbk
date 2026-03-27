@@ -180,6 +180,10 @@ class LedgerDataTable extends DataTable
         $invoice_ID = $row->reference_id;
         $voucher_text = '<span class="d-none">LI-' . $invoice_ID . '</span><a href="javascript:void(0);" data-title="Leasing Company Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyInvoices.show', $invoice_ID) . '" class="no-print show-modal">LI-' . $invoice_ID . '</a>';
       }
+      if ($row->reference_type == 'LeasingCompanyBillingInvoice') {
+        $invoice_ID = $row->reference_id;
+        $voucher_text = '<span class="d-none">LBI-' . $invoice_ID . '</span><a href="javascript:void(0);" data-title="Leasing Billing Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyBillingInvoices.show', $invoice_ID) . '" class="no-print show-modal">LBI-' . $invoice_ID . '</a>';
+      }
       $month = "<span style='white-space: nowrap;'>" . date('M Y', strtotime($row->billing_month)) . "</span>";
       if ($row->reference_type == 'RTA') {
         $vouchers = DB::table('vouchers')->where('trans_code', $row->trans_code)->first();

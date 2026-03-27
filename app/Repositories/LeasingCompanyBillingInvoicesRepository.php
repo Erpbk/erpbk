@@ -176,7 +176,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
         $narration = 'Leasing Billing Invoice #' . $invoiceRef . ' - ' . ($invoice->descriptions ?? 'Billing Invoice');
 
         $bikeRentalAccountId = HeadAccount::BIKE_RENTAL_ACCOUNT;
-        $vatAccountId = HeadAccount::TAX_ACCOUNT;
+        $vatAccountId = HeadAccount::VAT_ON_SALES;
 
         $bikeRentalAccountExists = DB::table('accounts')->where('id', $bikeRentalAccountId)->whereNull('deleted_at')->exists();
         if (!$bikeRentalAccountExists) {
@@ -200,7 +200,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
                 'trans_code' => $trans_code,
                 'trans_date' => $transDate,
                 'narration' => $narration,
-                'debit' => $subtotal,
+                'credit' => $subtotal,
                 'billing_month' => $billingMonthStr,
             ], true);
 
@@ -212,7 +212,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
                     'trans_code' => $trans_code,
                     'trans_date' => $transDate,
                     'narration' => $narration . ' - VAT',
-                    'debit' => $vatAmount,
+                    'credit' => $vatAmount,
                     'billing_month' => $billingMonthStr,
                 ], true);
             }
@@ -224,7 +224,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
                 'trans_code' => $trans_code,
                 'trans_date' => $transDate,
                 'narration' => $narration,
-                'credit' => $totalAmount,
+                'debit' => $totalAmount,
                 'billing_month' => $billingMonthStr,
             ], true);
         } catch (\Throwable $e) {

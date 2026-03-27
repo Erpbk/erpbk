@@ -12,10 +12,12 @@
                 <h3>Leasing Company Billing Invoices</h3>
             </div>
             <div class="col-sm-6">
+                @can('billing_invoice_create')
                 <a class="btn btn-primary action-btn show-modal"
                     href="javascript:void(0);" data-size="xl" data-title="Create Leasing Company Billing Invoice" data-action="{{ route('leasingCompanyBillingInvoices.create') }}">
                     Create Billing Invoice
                 </a>
+                @endcan
                 <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
                         <div class="modal-content">
@@ -125,4 +127,3 @@
     });
 </script>
 @endsection
-

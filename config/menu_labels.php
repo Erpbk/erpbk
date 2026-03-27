@@ -41,6 +41,7 @@ return [
         'leasing_companies'    => 'Leasing Companies',
         'leasing_companies_list' => 'Leasing Companies List',
         'leasing_invoices'     => 'Invoices',
+        'leasing_billing_invoice' => 'Billing Invoice',
         'garages'              => 'Garages',
         'supplier'             => 'Supplier',
         'suppliers'            => 'Suppliers',

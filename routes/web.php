@@ -449,6 +449,17 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::put('leasingCompanyInvoices/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'updateInvoice'])->name('leasingCompanyInvoices.update');
     Route::delete('leasingCompanyInvoices/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroyInvoice'])->name('leasingCompanyInvoices.destroy');
     Route::post('leasingCompanyInvoices/{id}/clone', [\App\Http\Controllers\LeasingCompaniesController::class, 'cloneInvoice'])->name('leasingCompanyInvoices.clone');
+
+    // Leasing Company Billing Invoice Routes (separate module)
+    Route::get('leasingCompanyBillingInvoices', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'index'])->name('leasingCompanyBillingInvoices.index');
+    Route::get('leasingCompanyBillingInvoices/create/{leasingCompanyId?}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'create'])->name('leasingCompanyBillingInvoices.create');
+    Route::get('leasingCompanyBillingInvoices/create-from-clone/{id}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'createFromClone'])->name('leasingCompanyBillingInvoices.createFromClone');
+    Route::post('leasingCompanyBillingInvoices/store', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'store'])->name('leasingCompanyBillingInvoices.store');
+    Route::get('leasingCompanyBillingInvoices/{id}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'show'])->name('leasingCompanyBillingInvoices.show');
+    Route::get('leasingCompanyBillingInvoices/{id}/edit', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'edit'])->name('leasingCompanyBillingInvoices.edit');
+    Route::put('leasingCompanyBillingInvoices/{id}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'update'])->name('leasingCompanyBillingInvoices.update');
+    Route::delete('leasingCompanyBillingInvoices/{id}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'destroy'])->name('leasingCompanyBillingInvoices.destroy');
+    Route::post('leasingCompanyBillingInvoices/{id}/clone', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'clone'])->name('leasingCompanyBillingInvoices.clone');
     Route::get('leasingCompanies/{id}/invoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'createInvoice'])->name('leasingCompanies.createInvoice');
     Route::post('leasingCompanies/{id}/invoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'storeInvoice'])->name('leasingCompanies.storeInvoice');
     Route::get('leasingCompanies/{id}/bikes', [\App\Http\Controllers\LeasingCompaniesController::class, 'getBikes'])->name('leasingCompanies.getBikes');

@@ -37,8 +37,9 @@ class CustomerInvoicesController extends Controller
     public function create()
     {
         $invoiceId = request()->input('invoice_id') ?? null;
+        $customer_id = request()->input('customer_id') ?? null;
         $invoice = $invoiceId ? CustomerInvoices::find($invoiceId) : null;
-        return view('customer_invoices.create',compact('invoice'));
+        return view('customer_invoices.create',compact('invoice','customer_id'));
     }
 
     /**

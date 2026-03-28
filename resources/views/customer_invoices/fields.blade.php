@@ -9,7 +9,7 @@
                         @endphp
                         <option value="" selected>Select</option>
                         @foreach($customers as $customer)
-                        <option value="{{ $customer->id }}" {{ isset($invoice) ? $invoice->customer_id == $customer->id ? 'selected' : '' : '' }}>
+                        <option value="{{ $customer->id }}" {{ isset($invoice) ? $invoice->customer_id == $customer->id ? 'selected' : '' : '' }} {{ isset($customer_id) ? $customer_id == $customer->id ? 'selected' : '' : '' }}>
                             {{ $customer->name }}
                         </option>
                         @endforeach

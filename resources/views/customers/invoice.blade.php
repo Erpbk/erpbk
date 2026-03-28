@@ -8,23 +8,22 @@
     <div class="content">
         @include('flash::message')
         <div class="clearfix"></div>
-        @can('customer_payments')
+        @can('receipt_view')
         <div class="card">
             <div class="card-header d-flex justify-content-between">
                 <div class="card-search">
                     <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
                 </div>
-                <button class="btn btn-primary btn-sm show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Payment" data-action="{{ route('payments.create') }}?customer_id={{ $customer->id }}">Add New</button>
-                
+                @can('customer_payments')
+                    <button class="btn btn-primary btn-sm show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Receipt" data-action="{{ route('customer_invoices.create') }}?customer_id={{ $customer->id }}">Add New</button>
+                @endcan
             </div>
-            <div class="card-body table-responsive py-0" id="table-data">
-                @include('payments.table')
-            </div>
+            @include('customer_invoices.table')
         </div>
         @endcan
-        @cannot('customer_payments')
+        @cannot('receipt_view')
             <div class="text-center mt-5">
-                <h3>You do not have permission to view Payments.</h3> 
+                <h3>You do not have permission to view Receipts.</h3> 
             </div>
         @endcannot
     </div>

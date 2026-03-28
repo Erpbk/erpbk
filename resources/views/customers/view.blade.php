@@ -38,6 +38,13 @@ $statusText = $customer->status == 1 ? 'Active' : 'Inactive';
         </a>
       </li>
       <li class="nav-item" role="presentation">
+        <a class="nav-link @if(request()->segment(2) == 'invoices') active @endif d-flex align-items-center justify-content-center py-3"
+          href="{{ route('customer.invoices', $customer->id) }}">
+          <i class="tf-icons ti ti-notes me-2"></i>
+          <span class="fw-semibold">Invoices</span>
+        </a>
+      </li>
+      <li class="nav-item" role="presentation">
         <a class="nav-link @if(request()->segment(2) == 'ledger') active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('customer.ledger', $customer->id) }}">
           <i class="fas fa-book fa-lg me-2"></i>

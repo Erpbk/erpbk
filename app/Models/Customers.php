@@ -70,4 +70,9 @@ class Customers extends Model
   {
     return $query->where('status', 1);
   }
+
+  public function invoices()
+  {
+    return $this->hasMany(CustomerInvoices::class, 'customer_id', 'id');
+  }
 }

@@ -307,8 +307,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
     </li>
     @endcan
   </ul>
-@endcan
-@can('leasing_view')
+  @endcan
+
 <li class="menu-item {{ Request::is('leasingCompanies*') ? 'open' : '' }} {{ Request::is('leasingCompanyInvoices*') ? 'open' : '' }} {{ Request::is('leasingCompanyBillingInvoices*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-building"></i>
@@ -340,7 +340,6 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
     @endcan
   </ul>
 </li>
-@endcan
 @can('garage_view')
 <li class="menu-item {{ Request::is('garages*') ? 'active' : '' }}">
   <a href="{{ route('garages.index') }}" class="menu-link">

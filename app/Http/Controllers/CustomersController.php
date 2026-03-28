@@ -285,13 +285,44 @@ class CustomersController extends AppBaseController
     }
 
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Payment::query()->latest('date_of_receipt')->with('payerAccount','payeeAccount');
-    $query->where('payee_account_id', $customer->account_id);
+    $query = Receipt::query()->latest('date_of_receipt')->with('payerAccount','payeeAccount');
+    $query->where('payer_account_id', $customer->account_id);
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
     $details = $this->getDetails($customer->account_id);
     return view('customers.receipts', compact('data', 'customer','details'));
+  }
+
+  public function cPayments(Request $request){
+    $account_ids = Customers::all()->pluck('account_id')->toArray();
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Payment::query()->latest('date_of_payment');
+    $query->whereIn('payee_account_id', $account_ids);
+    $data = $this->applyPagination($query, $paginationParams);
+    return view('customers.payment', compact('data'));
+
+  }
+
+  public function cReceipts(Request $request){
+    $account_ids = Customers::all()->pluck('account_id')->toArray();
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Receipt::query()->latest('date_of_receipt');
+    $query->whereIn('payer_account_id', $account_ids);
+    $data = $this->applyPagination($query, $paginationParams);
+    return view('customers.receipt', compact('data'));
+
+  }
+
+  public function invoices(Request $request, $id){
+    $customer = Customers::find($id);
+    if(!$customer){
+      Flash::error('customer not found');
+      return redirect()->back();
+    }
+    $invoices = $customer->invoices;
+    $details = $this->getDetails($customer->account_id);
+    return view('customers.invoice', compact('invoices','customer','details'));
   }
 
   private function getDetails($accountId){

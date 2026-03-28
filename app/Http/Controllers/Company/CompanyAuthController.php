@@ -7,12 +7,87 @@ use App\Models\Company;
 use App\Services\TenantService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class CompanyAuthController extends Controller
 {
     public function __construct(
         protected TenantService $tenantService
     ) {}
+
+    /**
+     * Step 1: ask for company name, then redirect to /app/{slug}/login.
+     */
+    public function showFindLoginForm()
+    {
+        if (Auth::check() && session()->get('company_slug')) {
+            return redirect()->route('company.home', ['company_slug' => session('company_slug')]);
+        }
+
+        return view('company.find-login');
+    }
+
+    /**
+     * Resolve central company(ies) by name and send the user to the correct login URL.
+     */
+    public function findLogin(Request $request)
+    {
+        if (Auth::check() && session()->get('company_slug')) {
+            return redirect()->route('company.home', ['company_slug' => session('company_slug')]);
+        }
+
+        $validated = $request->validate([
+            'company_name' => 'required|string|max:255',
+        ]);
+
+        $term = trim($validated['company_name']);
+        if ($term === '') {
+            return back()->withErrors(['company_name' => __('Please enter your company name.')])->withInput();
+        }
+
+        $normalized = Str::lower($term);
+
+        $exact = Company::query()
+            ->whereRaw('LOWER(TRIM(name)) = ?', [$normalized])
+            ->orderBy('id')
+            ->get();
+
+        if ($exact->count() === 1) {
+            return $this->redirectToCompanyLogin($exact->first());
+        }
+
+        if ($exact->count() > 1) {
+            $exact->each(fn (Company $c) => $this->ensureSlug($c));
+
+            return view('company.find-login-choose', ['companies' => $exact]);
+        }
+
+        $escaped = addcslashes($term, '%_\\');
+        $partial = Company::query()
+            ->where('name', 'like', '%'.$escaped.'%')
+            ->orderBy('name')
+            ->limit(25)
+            ->get();
+
+        if ($partial->isEmpty()) {
+            return back()->withErrors(['company_name' => __('No company found with that name.')])->withInput();
+        }
+
+        if ($partial->count() === 1) {
+            return $this->redirectToCompanyLogin($partial->first());
+        }
+
+        $partial->each(fn (Company $c) => $this->ensureSlug($c));
+
+        return view('company.find-login-choose', ['companies' => $partial]);
+    }
+
+    protected function redirectToCompanyLogin(Company $company)
+    {
+        $this->ensureSlug($company);
+
+        return redirect()->route('company.login-form', ['company_slug' => $company->slug]);
+    }
 
     /**
      * Show company login form. Company loaded from central DB; no tenant switch yet.

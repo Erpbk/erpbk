@@ -38,6 +38,18 @@
                 <tr><th>{{ __('Registered') }}</th><td>{{ $company->created_at->format('M j, Y H:i') }}</td></tr>
                 @if($company->database_name)
                     <tr><th>{{ __('Database') }}</th><td><code>{{ $company->database_name }}</code></td></tr>
+                    <tr>
+                        <th>{{ __('Tenant DB') }}</th>
+                        <td>
+                            @if($tenantDbReady)
+                                <span class="badge bg-success">{{ __('Ready') }}</span>
+                            @else
+                                <span class="badge bg-danger">{{ __('Missing') }}</span>
+                            @endif
+                        </td>
+                    </tr>
+                @elseif($company->status === 'approved')
+                    <tr><th>{{ __('Tenant DB') }}</th><td><span class="badge bg-danger">{{ __('Missing') }}</span></td></tr>
                 @endif
             </table>
 
@@ -74,6 +86,12 @@
                         </div>
                     </div>
                 </div>
+            @elseif($company->status === 'approved' && ! $tenantDbReady && auth('admin')->user()->hasPermission('companies_approve'))
+                <div class="alert alert-warning mb-3">{{ __('This company is marked approved but the tenant database is missing or could not be verified. You can create it now.') }}</div>
+                <form action="{{ route('admin.companies.approve', $company) }}" method="post" class="d-inline" onsubmit="return confirm('{{ __('Create the tenant database now?') }}');">
+                    @csrf
+                    <button type="submit" class="btn btn-warning">{{ __('Create tenant database') }}</button>
+                </form>
             @endif
         </div>
     </div>

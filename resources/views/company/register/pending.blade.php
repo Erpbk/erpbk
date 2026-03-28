@@ -26,7 +26,10 @@
           @if(session('message'))
             <div class="alert alert-info">{{ session('message') }}</div>
           @endif
-          <a href="{{ url('/') }}" class="btn btn-primary">{{ __('Back to home') }}</a>
+          <div class="d-flex flex-column flex-sm-row gap-2 justify-content-center">
+            <a href="{{ route('company.find-login') }}" class="btn btn-outline-primary">{{ __('Sign in') }}</a>
+            <a href="{{ url('/') }}" class="btn btn-primary">{{ __('Back to home') }}</a>
+          </div>
         </div>
       </div>
     </div>

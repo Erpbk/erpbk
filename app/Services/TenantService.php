@@ -92,7 +92,25 @@ class TenantService
     }
 
     /**
-     * Create the database for a company and run tenant migrations.
+     * Whether a MySQL schema exists on the same server as mysql_central.
+     */
+    public function tenantDatabaseExists(string $databaseName): bool
+    {
+        if ($databaseName === '') {
+            return false;
+        }
+
+        $result = DB::connection('mysql_central')->selectOne(
+            'SELECT COUNT(1) AS c FROM information_schema.schemata WHERE schema_name = ?',
+            [$databaseName]
+        );
+
+        return ((int) ($result->c ?? 0)) > 0;
+    }
+
+    /**
+     * Create the tenant database, clone schema from central, run tenant migrations,
+     * and apply the initial data policy. Used when an admin approves a company.
      */
     public function createDatabaseForCompany(Company $company): void
     {

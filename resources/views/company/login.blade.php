@@ -57,6 +57,9 @@
             <button type="submit" class="btn btn-primary d-grid w-100">{{ __('Sign in') }}</button>
           </form>
 
+          <p class="text-center mb-1">
+            <a href="{{ route('company.find-login') }}">{{ __('Different company?') }}</a>
+          </p>
           <p class="text-center">
             <a href="{{ url('/') }}">{{ __('Back to home') }}</a>
           </p>

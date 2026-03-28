@@ -42,12 +42,14 @@
                             <th>{{ __('Email') }}</th>
                             <th>{{ __('Country') }}</th>
                             <th>{{ __('Status') }}</th>
+                            <th>{{ __('Database') }}</th>
                             <th>{{ __('Registered') }}</th>
                             <th>{{ __('Actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($companies as $company)
+                            @php $dbReady = $companyTenantDbReady[$company->id] ?? null; @endphp
                             <tr>
                                 <td>{{ $company->id }}</td>
                                 <td>{{ $company->name }}</td>
@@ -60,6 +62,15 @@
                                         <span class="badge bg-success">{{ __('Approved') }}</span>
                                     @else
                                         <span class="badge bg-danger">{{ __('Rejected') }}</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($dbReady === null)
+                                        <span class="text-muted">—</span>
+                                    @elseif($dbReady)
+                                        <span class="badge bg-success">{{ __('Ready') }}</span>
+                                    @else
+                                        <span class="badge bg-danger">{{ __('Missing') }}</span>
                                     @endif
                                 </td>
                                 <td>{{ $company->created_at->format('M j, Y') }}</td>
@@ -95,11 +106,16 @@
                                                 </div>
                                             </div>
                                         </div>
+                                    @elseif($company->status === 'approved' && $dbReady === false && auth('admin')->user()->hasPermission('companies_approve'))
+                                        <form action="{{ route('admin.companies.approve', $company) }}" method="post" class="d-inline" onsubmit="return confirm('{{ __('Create or repair this company tenant database now?') }}');">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-warning">{{ __('Create database') }}</button>
+                                        </form>
                                     @endif
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="text-center text-muted">{{ __('No companies found.') }}</td></tr>
+                            <tr><td colspan="8" class="text-center text-muted">{{ __('No companies found.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

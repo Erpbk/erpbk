@@ -19,6 +19,6 @@ class CompanyAuthRedirect
             return route('company.login-form', ['company_slug' => $slug]);
         }
 
-        return url('/');
+        return route('company.find-login');
     }
 }

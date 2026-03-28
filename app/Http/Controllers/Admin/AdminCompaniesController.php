@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\AdminCompany;
 use App\Models\Countries;
+use App\Services\CompanyTenantProvisioner;
 use App\Services\TenantService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Str;
@@ -17,7 +19,8 @@ use Illuminate\Support\Str;
 class AdminCompaniesController extends Controller
 {
     public function __construct(
-        protected TenantService $tenantService
+        protected TenantService $tenantService,
+        protected CompanyTenantProvisioner $tenantProvisioner
     ) {}
 
     /**
@@ -30,7 +33,39 @@ class AdminCompaniesController extends Controller
             $query->where('status', $request->status);
         }
         $companies = $query->orderByDesc('created_at')->paginate(20);
-        return view('admin.companies.index', compact('companies'));
+
+        $dbNames = $companies->getCollection()
+            ->pluck('database_name')
+            ->filter(fn ($v) => is_string($v) && trim($v) !== '')
+            ->unique()
+            ->values();
+
+        $tenantSchemaLookup = collect();
+        if ($dbNames->isNotEmpty()) {
+            $placeholders = implode(',', array_fill(0, $dbNames->count(), '?'));
+            $rows = DB::connection('mysql_central')->select(
+                "SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ({$placeholders})",
+                $dbNames->all()
+            );
+            $tenantSchemaLookup = collect($rows)->pluck('schema_name')->flip();
+        }
+
+        $companyTenantDbReady = [];
+        foreach ($companies as $c) {
+            if ($c->status !== 'approved') {
+                $companyTenantDbReady[$c->id] = null;
+
+                continue;
+            }
+            if (empty($c->database_name)) {
+                $companyTenantDbReady[$c->id] = false;
+
+                continue;
+            }
+            $companyTenantDbReady[$c->id] = isset($tenantSchemaLookup[$c->database_name]);
+        }
+
+        return view('admin.companies.index', compact('companies', 'companyTenantDbReady'));
     }
 
     /**
@@ -81,7 +116,7 @@ class AdminCompaniesController extends Controller
 
         try {
             $company->update(['database_name' => Company::generateDatabaseName($company->id)]);
-            $this->tenantService->createDatabaseForCompany($company);
+            $this->tenantProvisioner->provisionOnApproval($company);
             $this->createFirstUserForCompany($company);
         } catch (\Throwable $e) {
             $company->update(['status' => Company::STATUS_PENDING, 'database_name' => null]);
@@ -98,7 +133,12 @@ class AdminCompaniesController extends Controller
      */
     public function show(AdminCompany $company)
     {
-        return view('admin.companies.show', compact('company'));
+        $tenantDbReady = false;
+        if ($company->status === 'approved' && is_string($company->database_name) && trim($company->database_name) !== '') {
+            $tenantDbReady = $this->tenantProvisioner->tenantDatabaseExists($company->database_name);
+        }
+
+        return view('admin.companies.show', compact('company', 'tenantDbReady'));
     }
 
     /**
@@ -156,7 +196,8 @@ class AdminCompaniesController extends Controller
     }
 
     /**
-     * Approve company: create tenant DB, run migrations, create first user.
+     * Approve company: synchronously create tenant DB, migrate, then mark approved.
+     * "Approved" is only persisted after the database and owner user exist.
      */
     public function approve(int|string $company)
     {
@@ -165,8 +206,6 @@ class AdminCompaniesController extends Controller
         $centralCompany = Company::query()->find($adminCompany->id);
         $tempPassword = null;
         if (!$centralCompany) {
-            // Some admin rows may exist without a matching central company record.
-            // Create a central company entry so tenant provisioning can continue.
             $tempPassword = Str::random(12);
             $centralCompany = new Company();
             $centralCompany->id = $adminCompany->id;
@@ -177,9 +216,9 @@ class AdminCompaniesController extends Controller
             $centralCompany->phone = $adminCompany->phone;
             $centralCompany->city = $adminCompany->city;
             $centralCompany->address = $adminCompany->address;
-            $centralCompany->password = Hash::make($tempPassword);
+            $centralCompany->password = $tempPassword;
             $centralCompany->status = Company::STATUS_PENDING;
-            $centralCompany->database_name = $adminCompany->database_name ?: Company::generateDatabaseName($adminCompany->id);
+            $centralCompany->database_name = null;
             $centralCompany->is_taxpayer = (bool) ($adminCompany->is_taxpayer ?? false);
             $centralCompany->ntn_number = $adminCompany->ntn_number;
             $centralCompany->tax_registration_date = $adminCompany->tax_registration_date;
@@ -192,39 +231,71 @@ class AdminCompaniesController extends Controller
             $centralCompany->approved_by = null;
             $centralCompany->rejection_reason = null;
             $centralCompany->save();
-        }
 
-        if ($centralCompany->status !== Company::STATUS_PENDING) {
-            return back()->with('error', __('Company is not pending.'));
+            AdminCompany::syncFromCentralCompany($centralCompany);
+            $adminCompany->refresh();
         }
 
         $databaseName = Company::generateDatabaseName($centralCompany->id);
-        $centralCompany->database_name = $databaseName;
-        $centralCompany->status = Company::STATUS_APPROVED;
-        $centralCompany->approved_at = now();
-        $centralCompany->approved_by = Auth::guard('admin')->id();
-        $centralCompany->save();
+        $storedDbName = $centralCompany->database_name;
+        $candidateDbName = (is_string($storedDbName) && trim($storedDbName) !== '') ? $storedDbName : $databaseName;
 
-        try {
-            $this->tenantService->createDatabaseForCompany($centralCompany);
-            $this->createFirstUserForCompany($centralCompany);
-
-            // Sync admin DB company record
+        if ($centralCompany->status === Company::STATUS_APPROVED
+            && $this->tenantProvisioner->tenantDatabaseExists($candidateDbName)) {
             $adminCompany->update([
                 'status' => Company::STATUS_APPROVED,
-                'database_name' => $databaseName,
+                'database_name' => $candidateDbName,
                 'approved_at' => $centralCompany->approved_at,
                 'approved_by' => $centralCompany->approved_by,
                 'rejection_reason' => null,
             ]);
+
+            return back()->with('success', __('Company is already approved and its database is ready.'));
+        }
+
+        $canProvision = $centralCompany->status === Company::STATUS_PENDING
+            || (
+                $centralCompany->status === Company::STATUS_APPROVED
+                && ! $this->tenantProvisioner->tenantDatabaseExists($candidateDbName)
+            );
+
+        if (! $canProvision) {
+            return back()->with('error', __('This company cannot be approved right now.'));
+        }
+
+        $centralCompany->database_name = $databaseName;
+
+        try {
+            $this->tenantProvisioner->provisionOnApproval($centralCompany);
+            $this->createFirstUserForCompany($centralCompany);
+
+            $centralCompany->status = Company::STATUS_APPROVED;
+            $centralCompany->approved_at = now();
+            $centralCompany->approved_by = Auth::guard('admin')->id();
+            $centralCompany->rejection_reason = null;
+            $centralCompany->save();
+
+            AdminCompany::syncFromCentralCompany($centralCompany);
         } catch (\Throwable $e) {
-            $centralCompany->update(['status' => Company::STATUS_PENDING, 'database_name' => null]);
+            Log::error('Admin company approval provisioning failed', [
+                'company_id' => $centralCompany->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            $centralCompany->refresh();
+            $centralCompany->update([
+                'status' => Company::STATUS_PENDING,
+                'database_name' => null,
+                'approved_at' => null,
+                'approved_by' => null,
+            ]);
             $adminCompany->update([
                 'status' => Company::STATUS_PENDING,
                 'database_name' => null,
                 'approved_at' => null,
                 'approved_by' => null,
             ]);
+
             return back()->with('error', __('Failed to create company database: :message', ['message' => $e->getMessage()]));
         }
 

@@ -60,7 +60,10 @@ Route::get('company/register/details', [CompanyRegistrationController::class, 's
 Route::post('company/register/details', [CompanyRegistrationController::class, 'submitDetails'])->name('company.register.details.submit');
 Route::get('company/register/pending', [CompanyRegistrationController::class, 'pending'])->name('company.register.pending');
 
-// ---------- Company login (public) ----------
+// ---------- Company login (public): find tenant by name, then slug login ----------
+Route::get('company/login', [CompanyAuthController::class, 'showFindLoginForm'])->name('company.find-login');
+Route::post('company/login', [CompanyAuthController::class, 'findLogin'])->name('company.find-login.submit');
+
 Route::get('app/{company_slug}/login', [CompanyAuthController::class, 'showLoginForm'])->name('company.login-form');
 Route::post('app/{company_slug}/login', [CompanyAuthController::class, 'login'])->name('company.login');
 

@@ -4,6 +4,7 @@ namespace App\DataTables;
 
 use App\Helpers\Common;
 use App\Models\BikeMaintenance;
+use App\Models\CustomerInvoices;
 use App\Models\Transactions;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
@@ -174,6 +175,19 @@ class LedgerDataTable extends DataTable
         } else {
           $voucher_ID = 'MA-' . ($row->reference_id ?? '?');
           $voucher_text = '<span class="text-danger">Maintenance record not found</span>';
+        }
+      }
+      if ($row->reference_type == 'CI') {
+        $invoice = CustomerInvoices::where('id', $row->reference_id)->first();
+        if ($invoice) {
+          $voucher_ID = $invoice->invoice_number;
+          $voucher_text = '<span class="d-none">' . $voucher_ID . '</span><a href="' . route('customer_invoices.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+          if ($invoice->attachment) {
+            $view_file = '  <a href="' . url('storage2/' . $invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
+          }
+        } else {
+          $voucher_ID = 'CI-' . ($row->reference_id ?? '?');
+          $voucher_text = '<span class="text-danger">Customer invoice not found</span>';
         }
       }
       if ($row->reference_type == 'LeasingCompanyInvoice') {

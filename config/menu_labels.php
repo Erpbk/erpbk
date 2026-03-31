@@ -20,7 +20,6 @@ return [
         'customers'            => 'Customers',
         'customer_list'        => 'customer list',
         'customer_invoices'    => 'Invoices',
-        'customer_payents'     => 'Payments Sent',
         'customer_receipts'    => 'Payments Received',
         'vendors'              => 'Vendors',
         'recruiters'           => 'Recruiters',

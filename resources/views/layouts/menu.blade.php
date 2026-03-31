@@ -105,14 +105,7 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
         </li>
         @endcan
         @can('customer_payments')
-        {{-- Invoices --}}
-        <li class="menu-item {{ Request::is('customer/payments*') ? 'active' : '' }}">
-            <a href="{{ route('customer.payments') }}" class="menu-link">
-                <i class="menu-icon tf-icons ti ti-receipt"></i>
-                <div>{{ $menuLabels['customer_payents'] ?? 'Payments Sent' }}</div>
-            </a>
-        </li>
-        {{-- Invoices --}}
+        {{-- Payments Receieved --}}
         <li class="menu-item {{ Request::is('customer/receipts*') ? 'active' : '' }}">
             <a href="{{ route('customer.receipts') }}" class="menu-link">
                 <i class="menu-icon tf-icons ti ti-receipt"></i>

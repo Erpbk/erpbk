@@ -17,7 +17,6 @@
             width: 850px;
             margin: auto;
             padding: 10px;
-            border: 1px solid #000;
         }
 
         table {
@@ -128,15 +127,40 @@
                 display: none !important;
             }
         }
+
+        .action-buttons {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 9999;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-buttons .btn {
+            text-decoration: none;
+            display: inline-block;
+            padding: 8px 12px;
+            background: #004aad;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .action-buttons .btn:hover {
+            background: #2A62FF;
+        }
     </style>
 </head>
 
 <body>
 
-    <div class="no-print" style="position: fixed; top: 10px; right: 10px; z-index: 9999; display: flex; gap: 10px;">
-        <button type="button" class="print-btn" onclick="window.print()">Print</button>
-        <a href="{{ route('customer_invoice.edit', $invoice->id) }}" class="print-btn" style="text-decoration: none; display: inline-block; padding: 8px 12px;">Edit</a>
-        <a href="{{ route('customer_invoices.index') }}" class="print-btn" style="text-decoration: none; display: inline-block; padding: 8px 12px;">Back to List</a>
+    <div class="action-buttons no-print">
+        <button type="button" class="btn" onclick="window.print()">Print</button>
+        <a href="{{ url()->previous() }}" class="btn">Go Back</a>
     </div>
 
     <div class="invoice-box">
@@ -145,13 +169,13 @@
         @endphp
         <table width="100%" style="font-family: sans-serif;">
             <tr>
-                <td width="33.33%"><img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" /></td>
-                <td width="33.33%" style="text-align: center;">
+                <td width="33.33%" style="border: none !important;"><img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" /></td>
+                <td width="33.33%" style="text-align: center; border: none !important;">
                     <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ $settings['company_name'] ?? '' }}</h4>
                     <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{ $settings['company_address'] ?? '' }}</p>
                     <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;"> TRN {{ $settings['vat_number'] ?? '' }}</p>
                 </td>
-                <td width="33.33%"></td>
+                <td width="33.33%" style="border: none !important;"></td>
             </tr>
         </table>
 
@@ -167,7 +191,7 @@
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
             <tr>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Invoice No:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->invoice_number ?? 'INV-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) }}</td>
+                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ $invoice->invoice_number ?? 'CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) }}</td>
                 <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Customer:</td>
                 <td style="border: 1px solid #000; padding: 4px 6px;">{{ $invoice->customer->name ?? 'N/A' }}</td>
             </tr>

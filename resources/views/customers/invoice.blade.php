@@ -14,7 +14,7 @@
                 <div class="card-search">
                     <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
                 </div>
-                @can('customer_payments')
+                @can('customer_invoice_create')
                     <button class="btn btn-primary btn-sm show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Receipt" data-action="{{ route('customer_invoices.create') }}?customer_id={{ $customer->id }}">Add New</button>
                 @endcan
             </div>

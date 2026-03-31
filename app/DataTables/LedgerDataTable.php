@@ -180,7 +180,7 @@ class LedgerDataTable extends DataTable
       if ($row->reference_type == 'CI') {
         $invoice = CustomerInvoices::where('id', $row->reference_id)->first();
         if ($invoice) {
-          $voucher_ID = 'CI-' . str_pad($invoice->id, 5, '0', STR_PAD_LEFT);
+          $voucher_ID = $invoice->invoice_number;
           $voucher_text = '<span class="d-none">' . $voucher_ID . '</span><a href="' . route('customer_invoices.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
           if ($invoice->attachment) {
             $view_file = '  <a href="' . url('storage2/' . $invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';

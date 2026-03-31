@@ -1,6 +1,13 @@
 @extends('layouts.app')
 
 @section('title','Customer Invoices')
+@push('third_party_stylesheets')
+<style>
+    .table-responsive {
+        max-height: calc(100vh - 210px);
+    }
+</style>
+@endpush
 @section('content')
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
@@ -78,7 +85,10 @@
     @include('flash::message')
     <div class="clearfix"></div>
     <div class="card">
-        <div class="card-header text-end">
+        <div class="card-header d-flex justify-content-between">
+            <div class="card-search">
+                <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
+            </div>
             <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">

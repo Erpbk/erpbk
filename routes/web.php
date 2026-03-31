@@ -86,7 +86,6 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('customer/ledger/{id}', [\App\Http\Controllers\CustomersController::class, 'ledger'])->name('customer.ledger');
     Route::get('customer/files/{id}', [\App\Http\Controllers\CustomersController::class, 'files'])->name('customer.files');
     Route::get('customer/invoices/{id}', [\App\Http\Controllers\CustomersController::class, 'invoices'])->name('customer.invoices');
-    Route::get('customer/payments', [\App\Http\Controllers\CustomersController::class, 'cPayments'])->name('customer.payments');
     Route::get('customer/receipts', [\App\Http\Controllers\CustomersController::class, 'cReceipts'])->name('customer.receipts');
     Route::get('customers/payments/{id}', [\App\Http\Controllers\CustomersController::class, 'payments'])->name('customers.payments');
     Route::get('customers/receipts/{id}', [\App\Http\Controllers\CustomersController::class, 'receipts'])->name('customers.receipts');

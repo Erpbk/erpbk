@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CustomerInvoices;
+use App\Models\Transactions;
 use Illuminate\Http\Request;
 use \Illuminate\Support\Facades\DB;
 use \Illuminate\Support\Facades\Storage;
@@ -127,11 +128,57 @@ class CustomerInvoicesController extends Controller
             foreach ($itemsData as $itemData) {
                 $invoice->items()->create($itemData);
             }
+
+            //Create Transactions Against Invoice
+            $transCode = \App\Helpers\Account::trans_code();
+
+            // DEBIT the customer account
+            Transactions::create([
+                'trans_code' => $transCode,
+                'trans_date' => $invoice->inv_date,
+                'reference_id' => $invoice->id,
+                'reference_type' => 'CI',
+                'account_id' => $invoice->customer->account_id,
+                'credit' => 0,
+                'debit' => $invoice->total,
+                'billing_month' => $invoice->billing_month,
+                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : '.$invoice->description,
+            ]);
+
+            //Credit Sales Account
+            Transactions::create([
+                'trans_code' => $transCode, 
+                'trans_date' => $invoice->inv_date,
+                'reference_id' => $invoice->id,
+                'reference_type' => 'CI',
+                'account_id' => 1099,
+                'credit' => $invoice->subtotal,
+                'debit' => 0,
+                'billing_month' => $invoice->billing_month,
+                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : '.$invoice->description,
+            ]);
+
+            //Credit VAT Account
+            if($invoice->vat > 0){
+                Transactions::create([
+                    'trans_code' => $transCode, 
+                    'trans_date' => $invoice->inv_date,
+                    'reference_id' => $invoice->id,
+                    'reference_type' => 'CI',
+                    'account_id' => 1025,
+                    'credit' => $invoice->vat,
+                    'debit' => 0,
+                    'billing_month' => $invoice->billing_month,
+                    'narration' => $invoice->description,
+                ]);
+            }
             
             DB::commit();
             
-            return redirect()->route('customer_invoices.show', $invoice)
-                            ->with('success', 'Invoice created successfully!');
+            return response()->json([
+                'message' => 'Invoice created successfully!',
+                'redirect' => route('customer_invoices.show', $invoice->id)
+            ], 201);
                             
         } catch (\Exception $e) {
             DB::rollBack();

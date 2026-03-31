@@ -14,4 +14,5 @@ return [
     'default_supplier_account' => 1287,
     'admin_fee_account_id' => 302,
     'service_charge_account_id' => 303,
+    'sales_account_id' => 1099,
 ];

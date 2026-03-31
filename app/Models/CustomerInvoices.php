@@ -28,6 +28,8 @@ class CustomerInvoices extends Model
         'vat',
         'total',
         'attachment',
+        'status',
+        'partial_paid_amount',
     ];
 
     /**
@@ -43,6 +45,7 @@ class CustomerInvoices extends Model
         'subtotal' => 'decimal:2',
         'vat' => 'decimal:2',
         'total' => 'decimal:2',
+        'partial_paid_amount' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -67,9 +70,9 @@ class CustomerInvoices extends Model
     /**
      * Scope a query to only include invoices for a specific company.
      */
-    public function scopeForCompany($query, $companyId)
+    public function scopeForCustomer($query, $customerId)
     {
-        return $query->where('company_id', $companyId);
+        return $query->where('customer_id', $customerId);
     }
 
     /**
@@ -85,6 +88,18 @@ class CustomerInvoices extends Model
      */
     public function getInvoiceNumberAttribute()
     {
-        return 'CI-' . str_pad($this->id, 6, '0', STR_PAD_LEFT);
+        return 'CI-' . str_pad($this->id, 5, '0', STR_PAD_LEFT);
+    }
+
+    public static function getIdFromInvoiceNumber($invoiceNumber)
+    {
+        // Remove the prefix 'CI-' and get the numeric part
+        $numericPart = str_replace('CI-', '', $invoiceNumber);
+        
+        // Remove leading zeros and convert to integer
+        $id = (int) ltrim($numericPart, '0');
+        
+        // Verify the invoice exists
+        return self::where('id', $id)->exists() ? $id : null;
     }
 }

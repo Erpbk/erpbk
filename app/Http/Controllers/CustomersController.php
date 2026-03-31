@@ -10,6 +10,7 @@ use App\Http\Requests\CreateCustomersRequest;
 use App\Http\Requests\UpdateCustomersRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Accounts;
+use App\Models\CustomerInvoices;
 use App\Models\Customers;
 use App\Models\Transactions;
 use App\Models\Files;
@@ -294,16 +295,6 @@ class CustomersController extends AppBaseController
     return view('customers.receipts', compact('data', 'customer','details'));
   }
 
-  public function cPayments(Request $request){
-    $account_ids = Customers::all()->pluck('account_id')->toArray();
-    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Payment::query()->latest('date_of_payment');
-    $query->whereIn('payee_account_id', $account_ids);
-    $data = $this->applyPagination($query, $paginationParams);
-    return view('customers.payment', compact('data'));
-
-  }
-
   public function cReceipts(Request $request){
     $account_ids = Customers::all()->pluck('account_id')->toArray();
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
@@ -320,7 +311,9 @@ class CustomersController extends AppBaseController
       Flash::error('customer not found');
       return redirect()->back();
     }
-    $invoices = $customer->invoices;
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = CustomerInvoices::query()->latest('billing_month')->where('customer_id', $id);
+    $invoices = $this->applyPagination($query, $paginationParams);
     $details = $this->getDetails($customer->account_id);
     return view('customers.invoice', compact('invoices','customer','details'));
   }

@@ -1,9 +1,11 @@
 @extends('banks.view')
+@push('third_party_stylesheets')
 <style>
     .table-responsive {
-        max-height: calc(100vh + 350px);
+        max-height: calc(100vh - 100px);
     }
 </style>
+@endpush
 @section('page_content')
     <div class="content">
         @include('flash::message')

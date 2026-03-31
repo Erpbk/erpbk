@@ -1,9 +1,12 @@
 @extends('layouts.app')
+@section('title','Cheques')
+@push('third_party_stylesheets')
 <style>
     .table-responsive {
         max-height: calc(100vh - 210px);
     }
 </style>
+@endpush
 @section('content')
         @include('flash::message')
         <div class="clearfix"></div>

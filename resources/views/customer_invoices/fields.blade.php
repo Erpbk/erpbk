@@ -131,7 +131,6 @@
                                     'class' => 'form-control vatAmount',
                                     'step' => 'any',
                                     'min' => '0',
-                                    'max' => '100'
                                 ]) !!}
                             </div>
                             <div class="form-group col-md-2">
@@ -193,7 +192,6 @@
                                     'class' => 'form-control vatAmount',
                                     'step' => 'any',
                                     'min' => '0',
-                                    'max' => '100'
                                 ]) !!}
                             </div>
                             <div class="form-group col-md-2">
@@ -260,7 +258,6 @@
                                 'class' => 'form-control vatAmount',
                                 'step' => 'any',
                                 'min' => '0',
-                                'max' => '100'
                             ]) !!}
                         </div>
                         <div class="form-group col-md-2">
@@ -398,7 +395,7 @@ $(document).ready(function() {
                     <input type="number" name="item_vat[]" class="form-control vat" value="0" step="any" min="0" max="100">
                 </div>
                 <div class="form-group col-md-2">
-                    <input type="number" name="item_vatAmount[]" class="form-control vatAmount" value="0" step="any" min="0" max="100">
+                    <input type="number" name="item_vatAmount[]" class="form-control vatAmount" value="0" step="any" min="0">
                 </div>
                 <div class="form-group col-md-2">
                     <input type="number" name="items_total[]" class="form-control item-total" step="any" readonly>

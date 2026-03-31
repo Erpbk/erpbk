@@ -18,7 +18,7 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
-                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Payment (Cash Out)" data-action="{{ route('receipts.create') }}">
+                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Receipt (Cash In)" data-action="{{ route('receipts.create') }}?customer_receipt={{ true }}">
                             <i class="ti ti-plus"></i>
                             <div>
                                 <div class="action-dropdown-item-text">New Receipt</div>

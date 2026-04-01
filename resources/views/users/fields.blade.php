@@ -13,6 +13,12 @@
 </div>
 
 <!-- Branches Field  -->
+@php
+    $selectedBranchIds = old('branch_ids', isset($user) ? $user->branch_ids : []);
+    if (! is_array($selectedBranchIds)) {
+        $selectedBranchIds = json_decode((string) ($selectedBranchIds ?? '[]'), true) ?: [];
+    }
+@endphp
 <div class="form-group col-sm-4">
     {!! Form::label('branch_ids', 'Branches:',['class' => 'required']) !!}
     <select class="form-select select2" 
@@ -22,7 +28,7 @@
         <option value="all">All</option>
         @foreach($branches as $id => $name)
             <option value="{{ $id }}" 
-                {{ in_array($id, old('branch_ids', isset($user) ? json_decode($user->branch_ids ?? '[]') : [])) ? 'selected' : '' }}>
+                {{ in_array($id, $selectedBranchIds) ? 'selected' : '' }}>
                 {{ $name }}
             </option>
         @endforeach

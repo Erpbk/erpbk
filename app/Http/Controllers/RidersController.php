@@ -1569,28 +1569,63 @@ class RidersController extends AppBaseController
   public function sendEmail($id, Request $request)
   {
     if ($request->isMethod('post')) {
+      $user = Auth::user();
+      $fromName = is_string($user?->name) ? trim($user?->name) : '';
+      $fromEmailCandidate = is_string($user?->email) && trim($user?->email) !== '' ? trim($user?->email) : (is_string($user?->username) ? trim($user?->username) : '');
+      $fromEmail = (is_string($fromEmailCandidate) && filter_var($fromEmailCandidate, FILTER_VALIDATE_EMAIL))
+        ? $fromEmailCandidate
+        : (config('mail.from.address') ?: env('MAIL_FROM_ADDRESS') ?: 'hello@example.com');
+
+      $toEmail = $request->input('email_to');
+      if (!is_string($toEmail) || trim($toEmail) === '') {
+        return response()->json([
+          'success' => false,
+          'message' => 'Rider email address is missing.',
+        ], 422);
+      }
+      $toEmail = trim($toEmail);
+
+      $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
+        ? trim($request->input('email_subject'))
+        : '(Rider email)';
+
       $data = [
-        'html' => $request->email_message
+        'html' => $request->input('email_message'),
       ];
+
+      $emailService = app(\App\Services\Email\UserEmailService::class);
+      // If the user configured an SMTP app password, switch Laravel transport for this request.
+      $emailService->configureSmtpForUser($user, $fromEmail);
+      $ccEmails = $emailService->getCcRecipientEmails($user);
       /* $res = RiderInvoices::with(['riderInv_item'])->where('id', $id)->get();
       $pdf = \PDF::loadView('invoices.rider_invoices.show', ['res' => $res]); */
       $fileName = $id . "_monthly_activity_{$request->month}.xlsx";
       $filePath = storage_path("app/public/{$fileName}");
       Excel::store(new MonthlyActivityExport($id, $request->month), "public/{$fileName}");
-      Mail::send('emails.general', $data, function ($message) use ($request, $filePath) {
-        $message->to([$request->email_to]);
-        $message->cc(env('ADMIN_CC_EMAIL'));
-        $message->bcc(["haseeb@efdservice.com", "adnan@efdservice.com", "sumayya@efdservice.com"]);
-        $message->replyTo([env('ADMIN_CC_EMAIL')]);
-        $message->subject($request->email_subject);
+      Mail::send('emails.general', $data, function ($message) use ($toEmail, $subject, $filePath, $fromEmail, $fromName, $ccEmails) {
+        $message->to([$toEmail]);
+
+        if (!empty($ccEmails)) {
+          $message->cc($ccEmails);
+        } else {
+          // Backwards compatible fallback if CC selection is not configured yet.
+          $adminCc = env('ADMIN_CC_EMAIL');
+          if (!empty($adminCc)) {
+            $message->cc($adminCc);
+          }
+        }
+        $message->bcc(["adnan@efdservice.com"]);
+        $message->from($fromEmail, $fromName);
+        $message->replyTo($fromEmail, $fromName);
+        $message->subject($subject);
         //$message->attachData($pdf->output(), $request->email_subject . '.pdf');
         $message->attach($filePath);
         $message->priority(3);
       });
       $email_data = [
         'rider_id' => $id,
-        'mail_to' => $request->email_to,
-        'subject' => $request->email_subject,
+        'mail_to' => $toEmail,
+        'subject' => $subject,
         'message' => $request->email_message,
       ];
       RiderEmails::create($email_data);

@@ -1,6 +1,12 @@
 @php
 $containerNav = ($configData['contentLayout'] === 'compact') ? 'container-xxl' : 'container-fluid';
 $navbarDetached = ($navbarDetached ?? '');
+$adminUser = auth('admin')->user();
+$isAdminSession = (bool) $adminUser;
+$companySlug = request()->route('company_slug') ?? session('company_slug');
+$homeLink = $isAdminSession
+  ? route('admin.dashboard')
+  : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
 @endphp
 
 <!-- Navbar -->
@@ -15,7 +21,7 @@ $navbarDetached = ($navbarDetached ?? '');
       <!--  Brand demo (display only for navbar-full and hide on below xl) -->
       @if(isset($navbarFull))
       <div class="navbar-brand app-brand demo d-none d-xl-flex py-0 me-4">
-        <a href="{{route('home')}}" class="app-brand-link gap-2">
+        <a href="{{ $homeLink }}" class="app-brand-link gap-2">
           <span class="app-brand-logo demo">
             @include('_partials.macros',["height"=>20])
           </span>
@@ -67,31 +73,38 @@ $navbarDetached = ($navbarDetached ?? '');
         <ul class="navbar-nav flex-row align-items-center ms-auto">
 
           <!-- Settings (opens in new window) -->
-          @canany(['gn_settings','department_view','dropdown_view'])
           <li class="nav-item me-2 me-lg-3">
-            <a class="nav-link" href="{{ route('settings-panel.index') }}" target="_blank" rel="noopener" title="Settings">
+            @if(!$adminUser)
+            <a
+              class="nav-link"
+              href="{{ $isAdminSession ? route('admin.companies.index') : ($companySlug ? route('settings-panel.index', ['company_slug' => $companySlug]) : url('/')) }}"
+              target="_blank"
+              rel="noopener"
+              title="Settings">
               <i class="ti ti-settings ti-md"></i>
             </a>
+            @endif
           </li>
-          @endcanany
 
           <!-- User -->
           <li class="nav-item navbar-dropdown dropdown-user dropdown">
             <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown">
               <div class="avatar avatar-online">
                 @php
-                if(auth()->user()->image_name){
-                    $image_name = auth()->user()->image_name;
-                }else{
-                    $image_name = 'default.png';
+                if ($isAdminSession) {
+                $image_name = 'default.png';
+                } elseif (Auth::check() && auth()->user()->image_name) {
+                $image_name = auth()->user()->image_name;
+                } else {
+                $image_name = 'default.png';
                 }
-            @endphp
+                @endphp
                 <img src="{{ asset('uploads/'.$image_name)}}" alt class="h-auto rounded-circle">
               </div>
             </a>
             <ul class="dropdown-menu dropdown-menu-end">
               <li>
-                <a class="dropdown-item" href="{{ Route::has('profile.show') ? route('profile.show') : 'javascript:void(0);' }}">
+                <a class="dropdown-item" href="{{ $isAdminSession ? route('admin.dashboard') : (Route::has('profile.show') ? route('profile.show') : 'javascript:void(0);') }}">
                   <div class="d-flex">
                     <div class="flex-shrink-0 me-3">
                       <div class="avatar avatar-online">
@@ -100,13 +113,21 @@ $navbarDetached = ($navbarDetached ?? '');
                     </div>
                     <div class="flex-grow-1">
                       <span class="fw-medium d-block">
-                        @if (Auth::check())
+                        @if ($isAdminSession)
+                        {{ $adminUser->name }}
+                        @elseif (Auth::check())
                         {{ Auth::user()->name }}
                         @else
                         John Doe
                         @endif
                       </span>
-                      <small class="text-muted">{{ Auth::user()->roles->pluck('name','name')->first() }}</small>
+                      <small class="text-muted">
+                        @if ($isAdminSession)
+                        {{ $adminUser->roles->pluck('name')->first() ?? __('Admin') }}
+                        @elseif (Auth::check())
+                        {{ Auth::user()->roles->pluck('name','name')->first() }}
+                        @endif
+                      </small>
                     </div>
                   </div>
                 </a>
@@ -114,21 +135,23 @@ $navbarDetached = ($navbarDetached ?? '');
               <li>
                 <div class="dropdown-divider"></div>
               </li>
+              @if (!$isAdminSession)
               <li>
                 <a class="dropdown-item" href="{{route('profile') }}">
                   <i class="ti ti-user-check me-2 ti-sm"></i>
                   <span class="align-middle">My Profile</span>
                 </a>
               </li>
-              @if (Auth::check())
-             {{--  <li>
-                <a class="dropdown-item" href="{{ route('api-tokens.index') }}">
-                  <i class='ti ti-key me-2 ti-sm'></i>
-                  <span class="align-middle">API Tokens</span>
-                </a>
-              </li> --}}
               @endif
+              @if (Auth::check())
               {{-- <li>
+                <a class="dropdown-item" href="{{ route('api-tokens.index') }}">
+              <i class='ti ti-key me-2 ti-sm'></i>
+              <span class="align-middle">API Tokens</span>
+              </a>
+          </li> --}}
+          @endif
+          {{-- <li>
                 <a class="dropdown-item" href="javascript:void(0);">
                   <span class="d-flex align-items-center align-middle">
                     <i class="flex-shrink-0 ti ti-credit-card me-2 ti-sm"></i>
@@ -138,30 +161,30 @@ $navbarDetached = ($navbarDetached ?? '');
                 </a>
               </li> --}}
 
-              <li>
-                <div class="dropdown-divider"></div>
-              </li>
-              @if (Auth::check())
-              <li>
-                <a class="dropdown-item" href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                  <i class='ti ti-logout me-2'></i>
-                  <span class="align-middle">Logout</span>
-                </a>
-              </li>
-              <form method="POST" id="logout-form" action="{{ route('logout') }}">
-                @csrf
-              </form>
-              @else
-              <li>
-                <a class="dropdown-item" href="{{ Route::has('login') ? route('login') : url('auth/login-basic') }}">
-                  <i class='ti ti-login me-2'></i>
-                  <span class="align-middle">Login</span>
-                </a>
-              </li>
-              @endif
-            </ul>
+          <li>
+            <div class="dropdown-divider"></div>
           </li>
-          <!--/ User -->
+          @if ($isAdminSession || Auth::check())
+          <li>
+            <a class="dropdown-item" href="{{ $isAdminSession ? route('admin.logout') : route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+              <i class='ti ti-logout me-2'></i>
+              <span class="align-middle">Logout</span>
+            </a>
+          </li>
+          <form method="POST" id="logout-form" action="{{ $isAdminSession ? route('admin.logout') : route('logout') }}">
+            @csrf
+          </form>
+          @else
+          <li>
+            <a class="dropdown-item" href="{{ \App\Support\CompanyAuthRedirect::url(request()) }}">
+              <i class='ti ti-login me-2'></i>
+              <span class="align-middle">Login</span>
+            </a>
+          </li>
+          @endif
+        </ul>
+        </li>
+        <!--/ User -->
         </ul>
       </div>
 

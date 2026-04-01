@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 @section('title','Rider Report')
 
 @push('third_party_stylesheets')
@@ -716,7 +716,7 @@
                 }
 
                 if (!$('#get_data').children().length) {
-                    $('#get_data').html('<tr><td colspan="16"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
+                    $('#get_data').html('<tr><td colspan="14"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
                 }
             }
         });
@@ -815,7 +815,7 @@
                     errorMessage = 'Server error occurred. Please try again.';
                 }
 
-                $('#get_data').html('<tr><td colspan="16"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
+                $('#get_data').html('<tr><td colspan="14"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
             }
         });
     }

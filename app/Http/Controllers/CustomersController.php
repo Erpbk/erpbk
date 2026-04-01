@@ -89,9 +89,9 @@ class CustomersController extends AppBaseController
     $customers = $this->customersRepository->create($input);
 
 
-    $parentAccount = Accounts::where('name', 'Receivable')->where('account_type', 'Asset')->where('parent_id', null)->first();
+    $parentAccount = Accounts::where('name', 'Customers')->where('account_type', 'Asset')->where('parent_id', null)->first();
     if (!$parentAccount) {
-      Flash::error('Parent account "Receivable" not found.');
+      Flash::error('Parent account "Customers" not found.');
       return redirect(route('customers.index'));
     }
     $account = new Accounts();

@@ -200,8 +200,8 @@
         <table width="100%" style="font-family: sans-serif;">
             <tr>
                 <td width="33.33%" style=" border: none !important;">
-                    @if(file_exists(public_path('assets/img/logo-full.png')))
-                    <img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" />
+                    @if(!empty($companyLogoUrl))
+                    <img src="{{ $companyLogoUrl }}" width="150" />
                     @else
                     <h3>{{ $settings['company_name'] ?? 'Company Name' }}</h3>
                     @endif

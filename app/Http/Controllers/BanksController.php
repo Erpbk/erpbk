@@ -50,9 +50,9 @@ class BanksController extends AppBaseController
     $fundIn = 0;
     $fundOut = 0;
     $banks = Banks::all();
-    foreach($banks as $bank){
-      $credit = Transactions::where('account_id',$bank->account_id)->sum('credit');
-      $debit  = Transactions::where('account_id',$bank->account_id)->sum('debit');
+    foreach ($banks as $bank) {
+      $credit = Transactions::where('account_id', $bank->account_id)->sum('credit');
+      $debit  = Transactions::where('account_id', $bank->account_id)->sum('debit');
       $balance = $debit - $credit;
       $fundIn += $debit;
       $fundOut += $credit;
@@ -116,7 +116,7 @@ class BanksController extends AppBaseController
 
     //Adding Account and setting reference
 
-    $parentAccount = Accounts::where('name', 'Bank')->where('account_type', 'Asset')->where('parent_id', 1639)->first();
+    $parentAccount = Accounts::where('name', 'Cash & Bank')->where('account_type', 'Asset')->first();
     if (!$parentAccount) {
       Flash::error('Parent account "Asset" not found.');
     }

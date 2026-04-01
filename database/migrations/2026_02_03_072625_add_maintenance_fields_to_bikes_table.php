@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('bikes')) {
+            return;
+        }
         Schema::table('bikes', function (Blueprint $table) {
             $table->decimal('current_km', 10, 3)->nullable()->after('customer_id');
             $table->decimal('previous_km', 10, 3)->nullable()->after('current_km');
@@ -23,6 +26,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('bikes')) {
+            return;
+        }
         Schema::table('bikes', function (Blueprint $table) {
             $table->dropColumn(['current_km', 'previous_km', 'maintenance_km']);
         });

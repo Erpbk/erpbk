@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Laravel\Fortify\Fortify;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
+use App\Models\Company;
 use App\Models\Settings;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +18,7 @@ class AppServiceProvider extends ServiceProvider
    */
   public function register(): void
   {
-    //
+    Fortify::ignoreRoutes();
   }
 
   /**
@@ -29,9 +31,38 @@ class AppServiceProvider extends ServiceProvider
       URL::forceScheme('https');
     }
 
-    // Dynamic ERP menu labels (editable from Settings)
+    // Dynamic ERP menu labels (Settings + optional per-company admin overrides)
     View::composer('layouts.menu', function ($view) {
-      $view->with('menuLabels', Settings::getMenuLabels());
+      $labels = Settings::getMenuLabels();
+      $shared = app('view')->getShared();
+      $company = $view->getData()['currentCompany'] ?? ($shared['currentCompany'] ?? null);
+      if ($company instanceof Company && is_array($company->modules_settings)) {
+        $overrides = $company->modules_settings['label_overrides'] ?? [];
+        if ($overrides !== []) {
+          $labels = array_merge($labels, array_filter($overrides, fn ($v) => $v !== null && $v !== ''));
+        }
+      }
+      $view->with('menuLabels', $labels);
+    });
+
+    // Make company branding available across all Blade views.
+    View::composer('*', function ($view) {
+      $shared = app('view')->getShared();
+      $company = $view->getData()['currentCompany'] ?? ($shared['currentCompany'] ?? null);
+      $logoUrl = asset('assets/img/logo-full.png');
+      $companyName = config('app.name');
+
+      if ($company instanceof Company) {
+        if (!empty($company->logo)) {
+          $logoUrl = asset('storage/' . $company->logo);
+        }
+        if (!empty($company->name)) {
+          $companyName = $company->name;
+        }
+      }
+
+      $view->with('companyLogoUrl', $logoUrl);
+      $view->with('companyDisplayName', $companyName);
     });
 
     Relation::morphMap([
@@ -40,7 +71,15 @@ class AppServiceProvider extends ServiceProvider
     ]);
 
     app()->singleton('user_branches', function () {
-        return json_decode(Auth::user()?->branch_ids) ?? [];
+        $ids = Auth::user()?->branch_ids;
+        if ($ids === null) {
+            return [];
+        }
+        if (is_array($ids)) {
+            return $ids;
+        }
+
+        return json_decode((string) $ids, true) ?: [];
     });
   }
 }

@@ -225,7 +225,7 @@
 
         <!-- Invoice Header -->
         <div class="invoice-header">
-            <div class="company-image"><img src="{{ asset('assets/img/logo.png') }}" alt="Company Logo" style="width: 37px; height: 31px;"><span style="font-size: 32px; font-weight: bold;">{{config('variables.templateName')}}</span></div>
+            <div class="company-image"><img src="{{ $companyLogoUrl ?? asset('assets/img/logo.png') }}" alt="Company Logo" style="width: 37px; height: 31px;"><span style="font-size: 32px; font-weight: bold;">{{ $companyDisplayName ?? config('variables.templateName') }}</span></div>
             <div class="invoice-title">Loan Installment Plan Invoice</div>
 
         </div>

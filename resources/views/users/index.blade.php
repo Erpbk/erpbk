@@ -3,9 +3,9 @@
 @section('content')
 
 @php
-  $usersRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.users' : 'users';
-  $rolesRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.roles' : 'roles';
-  $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.permissions' : 'permissions';
+$usersRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.users' : 'users';
+$rolesRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.roles' : 'roles';
+$permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.permissions' : 'permissions';
 @endphp
 
 <div class="container-fluid px-4">
@@ -33,16 +33,16 @@
             <div class="card border-0 shadow-sm h-100 bg-light border-dashed">
                 <div class="card-body d-flex align-items-center justify-content-center">
                     <div class="text-center">
-                        <img src="{{ asset('assets/img/illustrations/add-new-roles.png') }}" 
-                             class="img-fluid mb-3" 
-                             alt="add-new-roles" 
-                             width="60">
+                        <img src="{{ asset('assets/img/illustrations/add-new-roles.png') }}"
+                            class="img-fluid mb-3"
+                            alt="add-new-roles"
+                            width="60">
                         <h5 class="fw-bold mb-2">Add New Role</h5>
                         <p class="text-muted small mb-3">Create a new role with custom permissions</p>
-                        <button data-action="{{ route($rolesRoute . '.create') }}" 
-                                data-title="Create New Role" 
-                                data-size="lg" 
-                                class="btn btn-primary btn-sm show-modal">
+                        <button data-action="{{ route($rolesRoute . '.create') }}"
+                            data-title="Create New Role"
+                            data-size="lg"
+                            class="btn btn-primary btn-sm show-modal">
                             <i class="ti ti-plus me-1"></i>New Role
                         </button>
                     </div>
@@ -54,16 +54,16 @@
             <div class="card border-0 shadow-sm h-100 bg-light border-dashed">
                 <div class="card-body d-flex align-items-center justify-content-center">
                     <div class="text-center">
-                        <img src="{{ asset('assets/img/illustrations/add-new-roles.png') }}" 
-                             class="img-fluid mb-3" 
-                             alt="add-new-roles" 
-                             width="60">
+                        <img src="{{ asset('assets/img/illustrations/add-new-roles.png') }}"
+                            class="img-fluid mb-3"
+                            alt="add-new-roles"
+                            width="60">
                         <h5 class="fw-bold mb-2">Add New Permission</h5>
                         <p class="text-muted small mb-3">Create a new permission to assign to roles</p>
-                        <button data-action="{{ route($permissionsRoute . '.create') }}" 
-                                data-title="Create New Role" 
-                                data-size="lg" 
-                                class="btn btn-primary btn-sm show-modal">
+                        <button data-action="{{ route($permissionsRoute . '.create') }}"
+                            data-title="Create New Role"
+                            data-size="lg"
+                            class="btn btn-primary btn-sm show-modal">
                             <i class="ti ti-plus me-1"></i>New Permission
                         </button>
                         <a class="btn btn-primary btn-sm" href="{{ route($permissionsRoute . '.index') }}" target="_blank">
@@ -96,12 +96,12 @@
                             </button>
                         </form>
                     </div>
-                    
+
                     <div class="d-flex justify-content-between align-items-center">
-                        <a href="javascript:;" class="role-edit-modal show-modal text-decoration-none" 
-                           data-title="Edit Role" 
-                           data-size="xl" 
-                           data-action="{{ route($rolesRoute . '.edit', $role->id) }}">
+                        <a href="javascript:;" class="role-edit-modal show-modal text-decoration-none"
+                            data-title="Edit permissions — {{ $role->name }}"
+                            data-size="xl"
+                            data-action="{{ route($rolesRoute . '.edit', $role->id) }}">
                             <i class="ti ti-edit me-1"></i>Edit Permissions
                         </a>
                         <span class="text-muted small">
@@ -122,15 +122,13 @@
                     <h4 class="fw-bold mb-0">System Users</h4>
                     <span class="badge bg-secondary ms-2">{{ \App\Models\User::count() }} Total</span>
                 </div>
-                @can('user_create')
-                <a class="btn btn-primary show-modal" 
-                   href="javascript:void(0)" 
-                   data-action="{{ route($usersRoute . '.create') }}"
-                   data-title="Add User Account" 
-                   data-size="xl">
+                <a class="btn btn-primary show-modal"
+                    href="javascript:void(0)"
+                    data-action="{{ route($usersRoute . '.create') }}"
+                    data-title="Add User Account"
+                    data-size="xl">
                     <i class="ti ti-plus me-1"></i>Add New User
                 </a>
-                @endcan
             </div>
         </div>
     </div>
@@ -147,59 +145,59 @@
 </div>
 
 <style>
-.bg-gradient-primary {
-    background: linear-gradient(45deg, #4e73df 0%, #224abe 100%);
-}
-
-.role-card {
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.role-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 1rem 3rem rgba(0,0,0,.175)!important;
-}
-
-.border-dashed {
-    border: 2px dashed #dee2e6 !important;
-}
-
-.role-icon {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.progress {
-    border-radius: 10px;
-    background-color: #f0f0f0;
-}
-
-.card {
-    border-radius: 1rem;
-}
-
-.btn {
-    border-radius: 0.5rem;
-}
-
-.badge {
-    font-weight: 500;
-    padding: 0.5rem 1rem;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
     .bg-gradient-primary {
-        padding: 1.5rem !important;
+        background: linear-gradient(45deg, #4e73df 0%, #224abe 100%);
     }
-    
-    .container-fluid {
-        padding: 1rem !important;
+
+    .role-card {
+        transition: transform 0.2s, box-shadow 0.2s;
     }
-}
+
+    .role-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .175) !important;
+    }
+
+    .border-dashed {
+        border: 2px dashed #dee2e6 !important;
+    }
+
+    .role-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .progress {
+        border-radius: 10px;
+        background-color: #f0f0f0;
+    }
+
+    .card {
+        border-radius: 1rem;
+    }
+
+    .btn {
+        border-radius: 0.5rem;
+    }
+
+    .badge {
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .bg-gradient-primary {
+            padding: 1.5rem !important;
+        }
+
+        .container-fluid {
+            padding: 1rem !important;
+        }
+    }
 </style>
 
 @endsection

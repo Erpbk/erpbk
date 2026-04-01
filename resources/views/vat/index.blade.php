@@ -16,7 +16,7 @@
   </div>
 
   <div class="card-body pt-0 px-0">
-    <p class="text-muted small px-3 mb-2">Combined entries of VAT accounts (1023, 1025). When you select a quarter, the ledger shows that quarter <strong>plus any unfiled entries from earlier quarters in the same year</strong>, so nothing is missed. Click <strong>Return File</strong>, choose the year and quarter, then submit — the return will include all unfiled entries from both accounts for that period.</p>
+    <p class="text-muted small px-3 mb-2">Combined entries of VAT accounts (1023, 1025). When you select a quarter, the ledger shows that quarter <strong>plus any unfiled entries from earlier quarters in the same year</strong>. <strong>Select the entries</strong> you want to include, then click <strong>Return File</strong>, choose the year and quarter — only the selected entries will be included in the return and in the VV voucher.</p>
     <div class="table-responsive" style="max-height: 800px; overflow: auto;">
       <table class="table table-striped table-bordered table-hover mb-0">
         <thead class="table-light">
@@ -99,7 +99,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p class="text-muted small">Choose the year and quarter. The return will include <strong>all VAT entries from both accounts (1023 & 1025)</strong> in that period.</p>
+          <p class="text-muted small">Choose the year and quarter for the return. Only the <strong>entries you selected</strong> in the ledger will be included (no entries selected = please select at least one).</p>
           <div class="mb-3">
             <label class="form-label">Year</label>
             <select name="vat_year" class="form-select" required>

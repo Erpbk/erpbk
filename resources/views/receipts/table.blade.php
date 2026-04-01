@@ -6,7 +6,7 @@
                 <th title="Sender" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Sender: activate to sort column ascending">Sender</th>
                 <th title="Bank" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Bank: activate to sort column ascending">Receiver</th>
                 <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
-                <th title="Voucher" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher ID</th>
+                <th title="Voucher" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher</th>
                 <th title="Attachement" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachement: activate to sort column ascending">Attachement</th>
                 <th title="Date of Receipt" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date of Receipt: activate to sort column ascending">Date of Receipt</th>
                 <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
@@ -44,11 +44,13 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $receipt->id }}" style="z-index: 1050;">
-                        {{-- @can('bank_view')
-                            <a href="{{ route('receipts.show' , $receipt->id)}}" target="_blank" class='dropdown-item waves-effect'>
-                                <i class="fa fa-eye my-1"></i>view
+                        @can('receipt_create')
+                            @if(!str_contains($receipt->reference, 'CI-'))
+                            <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Add New Receipt (Cloned From RV-{{ $receipt->voucher_id }})" data-action="{{ route('receipts.clone', $receipt->id) }}">
+                                <i class="fa fa-copy my-1"></i>Clone Receipt
                             </a>
-                        @endcan --}}
+                            @endif
+                        @endcan
                         @can('receipt_edit')
                             <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Receipt Details" data-action="{{ route('receipts.edit', $receipt->id) }}">
                                 <i class="fa fa-edit my-1"></i> Edit

@@ -107,11 +107,38 @@ $homeLink = auth('admin')->check()
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('customers'))
 @can('customer_view')
-<li class="menu-item {{ Request::is('customers*') ? 'active' : '' }}">
-  <a href="{{ route('customers.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-user-star"></i>
-    <div>{{ $menuLabels['customers'] ?? 'Customers' }}</div>
-  </a>
+<li class="menu-item {{ (Request::is('customer*') || Request::is('customers*') || Request::is('customer_invoice*') || Request::is('customer_invoices*')) ? 'open' : '' }}">
+    <a href="javascript:void(0);" class="menu-link menu-toggle">
+        <i class="menu-icon tf-icons ti ti-user-star"></i>
+        <div>{{ $menuLabels['customers'] ?? 'Customers' }}</div>
+    </a>
+    <ul class="menu-sub">
+        {{-- Customer List --}}
+        <li class="menu-item {{ (Request::is('customers*') || Request::is('customer*')) && !Request::is('customer/payments*') && !Request::is('customer/receipts*') && !Request::is('customer_invoices*') ? 'active' : '' }}">
+            <a href="{{ route('customers.index') }}" class="menu-link">
+                <i class="menu-icon tf-icons ti ti-users"></i>
+                <div>{{ $menuLabels['customer_list'] ?? 'Customer List' }}</div>
+            </a>
+        </li>
+        @can('customer_invoice_view')
+        {{-- Invoices --}}
+        <li class="menu-item {{ Request::is('customer-invoices*') || Request::is('customer_invoices*') ? 'active' : '' }}">
+            <a href="{{ route('customer_invoices.index') }}" class="menu-link">
+                <i class="menu-icon tf-icons ti ti-receipt"></i>
+                <div>{{ $menuLabels['customer_invoices'] ?? 'Invoices' }}</div>
+            </a>
+        </li>
+        @endcan
+        @can('customer_payments')
+        {{-- Payments Receieved --}}
+        <li class="menu-item {{ Request::is('customer/receipts*') ? 'active' : '' }}">
+            <a href="{{ route('customer.receipts') }}" class="menu-link">
+                <i class="menu-icon tf-icons ti ti-receipt"></i>
+                <div>{{ $menuLabels['customer_receipts'] ?? 'Payments Received' }}</div>
+            </a>
+        </li>
+        @endcan
+    </ul>
 </li>
 @endcan
 @endif
@@ -141,14 +168,22 @@ $homeLink = auth('admin')->check()
 <li class="menu-item {{ Request::is('riders*') ? 'open' : '' }}
  {{ Request::is('riderInvoices*') ? 'open' : '' }}
  {{ Request::is('riderActivities*') ? 'open' : '' }}
-  {{ Request::is('reports/rider_report*') ? 'open' : '' }}
-  {{ Request::is('reports/rider_monthly_report*') ? 'open' : '' }}  ">
+ {{ Request::is('reports/rider_report*') ? 'open' : '' }}
+ {{ Request::is('reports/rider_monthly_report*') ? 'open' : '' }}
+ {{ Request::is('employees*') ? 'open' : '' }}  ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-user-pin"></i>
     <div>{{ $menuLabels['riders'] ?? 'Riders' }}</div>
   </a>
   <ul class="menu-sub">
-
+    @can('employees_view')
+    <li class="menu-item {{ Request::is('employees*') ? 'active' : '' }}">
+      <a href="{{ route('employees.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-user"></i>
+        <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
+      </a>
+    </li>
+    @endcan
     <li class="menu-item {{ Request::is('riders*') ? 'active' : '' }}">
       <a href="{{ route('riders.index') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-user-pin"></i>
@@ -326,20 +361,25 @@ $homeLink = auth('admin')->check()
   </a>
 
   <ul class="menu-sub">
-
-    @can('leasing_view')
     <li class="menu-item {{ Request::is('leasingCompanies*') && !Request::is('leasingCompanyInvoices*') ? 'active' : '' }}">
       <a href="{{ route('leasingCompanies.index') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-building"></i>
         <div>{{ $menuLabels['leasing_companies_list'] ?? 'Leasing Companies List' }}</div>
       </a>
     </li>
-    @endcan
     @can('leasing_company_invoice_view')
     <li class="menu-item {{ Request::is('leasingCompanyInvoices*') ? 'active' : '' }}">
       <a href="{{ route('leasingCompanyInvoices.index') }}" class="menu-link ">
         <i class="menu-icon tf-icons ti ti-file-invoice"></i>
         <div>{{ $menuLabels['leasing_invoices'] ?? 'Invoices' }}</div>
+      </a>
+    </li>
+    @endcan
+    @can('billing_invoice_view')
+    <li class="menu-item {{ Request::is('leasingCompanyBillingInvoices*') ? 'active' : '' }}">
+      <a href="{{ route('leasingCompanyBillingInvoices.index') }}" class="menu-link ">
+        <i class="menu-icon tf-icons ti ti-file-plus"></i>
+        <div>{{ $menuLabels['leasing_billing_invoice'] ?? 'Billing Invoice' }}</div>
       </a>
     </li>
     @endcan

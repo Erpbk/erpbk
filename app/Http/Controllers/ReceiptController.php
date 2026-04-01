@@ -1,13 +1,14 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use App\Repositories\ReceiptsRepository;
 use App\Models\Receipt;
 use App\Models\Banks;
+use App\Models\CustomerInvoices;
 use App\Models\LeasingCompanies;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Models\Customers;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use Illuminate\Support\Facades\DB;
@@ -26,18 +27,64 @@ class ReceiptController extends Controller
 
     public function index(Request $request)
     {
+        $fundIn = 0;
+        $fundOut = 0;
+        $banks = Banks::all();
+        foreach($banks as $bank){
+          $credit = Transactions::where('account_id',$bank->account_id)->sum('credit');
+          $debit  = Transactions::where('account_id',$bank->account_id)->sum('debit');
+          $balance = $debit - $credit;
+          $fundIn += $debit;
+          $fundOut += $credit;
+          $bank->update(['balance' => $balance]);
+        }
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Receipt::query()->with(['payerAccount','payeeAccount'])->orderBy('date_of_receipt', 'desc');
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
-        return view('receipts.index', ['data' => $data]);
+        $fundsIn = 0;
+        $fundsOut = 0;
+        $banks = Banks::all();
+        foreach($banks as $bank){
+        $credit = Transactions::where('account_id',$bank->account_id)->sum('credit');
+        $debit  = Transactions::where('account_id',$bank->account_id)->sum('debit');
+        $fundsIn += $debit;
+        $fundsOut += $credit;
+        }
+        return view('receipts.index', compact('data','fundsIn','fundsOut'));
     }
 
     public function create()
     {
         $accountId = request()->input('id') ?? null;
         $leasingCompanyId = request()->input('leasing_company_id') ?? null;
+        $customerId = request()->input('customer_id') ?? null;
+        $customerIds = null;
+        $accountIds = null;
+        if(request()->input('customer_receipt')){
+            $customerIds = Customers::pluck('id')->toArray();
+            $accountIds = Customers::pluck('account_id')->toArray();
+        }
+        \Log::info('Customer IDs:', ['ids' => $customerIds]);
+        if($customerId){
+            $invoices = CustomerInvoices::with('customer')
+                        ->where('customer_id', $customerId)
+                        ->where('status', 'pending')
+                        ->orWhere('status', 'partially_paid')
+                        ->get();
+            $accountIds = Customers::where('id', $customerId)->pluck('account_id')->toArray();
+        }elseif($customerIds){
+            $invoices = CustomerInvoices::with('customer')
+                        ->whereIn('customer_id', $customerIds)
+                        ->where('status', 'pending')
+                        ->orWhere('status', 'partially_paid')
+                        ->get();
+        }else{
+            $invoices = null;
+        }
+        $receipt = null;
+        $customerIds = $accountIds;
 
         if ($accountId) {
             $bank = Banks::find($accountId);
@@ -45,10 +92,13 @@ class ReceiptController extends Controller
         } elseif ($leasingCompanyId) {
             $leasingCompany = LeasingCompanies::find($leasingCompanyId);
             $banks = Banks::with('account')->active()->get();
-            return view('receipts.create', compact('leasingCompany','banks'));
+            return view('receipts.create', compact('leasingCompany','banks','receipt'));
+        } elseif ($customerId || $customerIds) {
+            $banks = Banks::with('account')->active()->get();
+            return view('receipts.create', compact('banks','receipt','invoices','customerIds','customerId'));
         } else {
             $banks = Banks::with('account')->active()->get();
-            return view('receipts.create', compact('banks'));
+            return view('receipts.create', compact('banks','receipt','invoices'));
         }
     }
 
@@ -64,16 +114,23 @@ class ReceiptController extends Controller
             'description' => 'required|string|max:500',
             'payer_account_id' => 'required|numeric|exists:accounts,id',
             'amount' => 'required|numeric|min:1',
-            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048'
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'invoice_ids' => 'nullable|array',
+            'invoice_ids.*' => 'numeric|exists:customer_invoices,id',
+            'payment_amounts' => 'nullable|array',
+            'payment_amounts.*' => 'numeric|min:0.01',
         ];
 
         $messages = [
             'bank_id.required' => 'Bank Account is Required',
             'date_of_receipt.required' => 'Receipt date is Required',
             'billing_month.required' => 'Billing month is Required',
-            'description.required' => 'Narration for Transaction is Required',
+            'description.required' => 'Narration is Required',
             'payer_account_id.required' => 'Sender Account is Required',
             'amount.required' => 'Amount is Required',
+            'amount.min' => 'Amount must be greater than zero',
+            'invoice_ids.*.exists' => 'One or more selected invoices are invalid.',
+            'payment_amounts.*.min' => 'Payment amounts must be greater than zero.',
         ];
 
         $this->validate($request, $rules, $messages);
@@ -92,18 +149,42 @@ class ReceiptController extends Controller
         $input['created_by'] = auth()->id();
         $input['billing_month'] = $input['billing_month'] . '-01';
         $input['account_id'] = $bank->account_id;
-
         try {
             DB::beginTransaction();
-
+            if($request->has('invoice_ids') && count($input['invoice_ids']) > 0){
+                $paymentAmounts = $request->input('payment_amounts');
+                $totalPayment = array_sum($paymentAmounts);
+                if($totalPayment > $input['amount']){
+                    throw new \Exception('Total payment amount for selected invoices cannot exceed the receipt amount.');
+                }
+            }
             $receipt = Receipt::create($input);
-            $transCode = \App\Helpers\Account::trans_code();
 
+            if($request->has('invoice_ids') && count($input['invoice_ids']) > 0){
+                $invoiceIds = $request->input('invoice_ids');
+                $invoices = CustomerInvoices::whereIn('id', $invoiceIds)->get();
+                foreach($invoices as $invoice){
+                    $paymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+                    $partialAmount = $invoice->partial_paid_amount ?? [];
+                    $partialAmount[$receipt->id] = $paymentAmount; 
+                    if($paymentAmount > 0){
+
+                        // Update the invoice status based on the payment
+                        if ($paymentAmount == $invoice->total) {
+                            $invoice->update(['status' => 'paid','partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
+                        } else {
+                            $invoice->update(['status' => 'partially_paid', 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
+                        }
+                    }
+                }
+            }
+
+            $transCode = \App\Helpers\Account::trans_code();
             $date = $input['date_of_receipt'] ?? now();
             $billingMonth = $input['billing_month'];
             $desc = $input['description'];
 
-            // DEBIT the receiving account (BANK or LEASING COMPANY)
+            // DEBIT the receiving account (BANK or CASH)
             Transactions::create([
                 'trans_code' => $transCode,
                 'trans_date' => $date,
@@ -207,6 +288,10 @@ class ReceiptController extends Controller
     public function edit(Request $request, $id)
     {
         $receipt = Receipt::find($id);
+        $existingInvoices = null;
+        $customerIds = null;
+        $customerId = null;
+        $invoices = null;
         if (empty($receipt)) {
             if ($request->ajax()) {
                 return response()->json(['message' => 'Receipt Not found'], 404);
@@ -214,12 +299,34 @@ class ReceiptController extends Controller
             Flash::error('Receipt not found');
             return redirect()->back();
         }
+        if(str_contains($receipt->reference, 'CI-')){
+            $invoice_numbers = explode(' ', $receipt->reference);
+            $invoiceIds = [];
+            foreach($invoice_numbers as $invoice_number){
+                $id = CustomerInvoices::getIdFromInvoiceNumber($invoice_number);
+                if($id){
+                    $invoiceIds[] = $id;
+                }
+            }
+            $existingInvoices = CustomerInvoices::with('customer')
+                        ->whereIn('id', $invoiceIds)
+                        ->get();
+            $invoices = CustomerInvoices::with('customer')
+                        ->whereIn('customer_id', $existingInvoices->pluck('customer_id'))
+                        ->where(function($query) use ($invoiceIds){
+                            $query->whereIn('status', ['pending', 'partially_paid'])
+                                  ->WhereNotIn('id', $invoiceIds);
+                        })
+                        ->get();
+            $customerIds = $existingInvoices->pluck('customer.account_id')->toArray();
+            $customerId = $existingInvoices->first()->customer_id ?? null;
+        }
 
         $banks = Banks::active()->get();
 
         $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
 
-        return view('receipts.edit', compact('receipt', 'banks'));
+        return view('receipts.edit', compact('receipt', 'banks','invoices','existingInvoices','customerIds', 'customerId'));
     }
 
     public function update(Request $request, $id)
@@ -244,7 +351,11 @@ class ReceiptController extends Controller
             'description' => 'required|string|max:500',
             'payer_account_id' => 'required|numeric|exists:accounts,id',
             'amount' => 'required|numeric|min:0.01',
-            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048'
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'invoice_ids' => 'nullable|array',
+            'invoice_ids.*' => 'numeric|exists:customer_invoices,id',
+            'payment_amounts' => 'nullable|array',
+            'payment_amounts.*' => 'numeric|min:0.01',
         ];
 
         $messages = [
@@ -255,6 +366,8 @@ class ReceiptController extends Controller
             'payer_account_id.required' => 'Sender Account is Required',
             'amount.required' => 'Amount is Required',
             'amount.min' => 'Amount must be greater than zero',
+            'invoice_ids.*.exists' => 'One or more selected invoices are invalid.',
+            'payment_amounts.*.min' => 'Payment amounts must be greater than zero.',
         ];
 
         $this->validate($request, $rules, $messages);
@@ -274,12 +387,43 @@ class ReceiptController extends Controller
 
             // Prepare data for receipt update
             $input = $request->all();
+            $input['billing_month'] = $input['billing_month'] . '-01';
             $input['updated_by'] = auth()->id();
-
+            if($request->has('invoice_ids') && count($input['invoice_ids']) > 0){
+                $paymentAmounts = $request->input('payment_amounts');
+                $totalPayment = array_sum($paymentAmounts);
+                if($totalPayment > $input['amount']){
+                    throw new \Exception('Total payment amount for selected invoices cannot exceed the receipt amount.');
+                }
+                $invoice_numbers = explode(' ', $receipt->reference);
+                $invoiceIds = [];
+                foreach($invoice_numbers as $invoice_number){
+                    $id = CustomerInvoices::getIdFromInvoiceNumber($invoice_number);
+                    if($id){
+                        $invoiceIds[] = $id;
+                    }
+                }
+                $existingInvoices = CustomerInvoices::with('customer')
+                            ->whereIn('id', $invoiceIds)
+                            ->get();
+                foreach($existingInvoices as $invoice){
+                    $partialAmount = $invoice->partial_paid_amount ?? [];
+                    unset($partialAmount[$receipt->id]); // Remove payment for this receipt
+                    $invoice->partial_paid_amount = $partialAmount;
+                    if(count($partialAmount) < 1){
+                        $invoice->status = 'pending'; // Revert to pending if no payments left
+                    }else{
+                        $invoice->status = 'partially_paid'; // Otherwise, it's still partially paid
+                    }
+                    $invoice->updated_by = auth()->id();
+                    $invoice->save();
+                }
+            }
             // Fill the model with new data and check for changes
             $receipt->fill($input);
             $receiptHasChanges = $receipt->isDirty();
             $hasNewAttachment = $request->hasFile('attachment');
+            
 
             // If nothing changed, return early
             if (!$receiptHasChanges && !$hasNewAttachment) {
@@ -288,6 +432,24 @@ class ReceiptController extends Controller
                     'message' => 'Nothing New Entered to Update',
                     'reload' => true
                 ], 200);
+            }
+            if($request->has('invoice_ids') && count($input['invoice_ids']) > 0){
+                $invoiceIds = $request->input('invoice_ids');
+                $invoices = CustomerInvoices::whereIn('id', $invoiceIds)->get();
+                foreach($invoices as $invoice){
+                    $paymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+                    $partialAmount = $invoice->partial_paid_amount ?? [];
+                    $partialAmount[$receipt->id] = $paymentAmount;
+                    if($paymentAmount > 0){
+
+                        // Update the invoice status based on the payment
+                        if ($paymentAmount == $invoice->total) {
+                            $invoice->update(['status' => 'paid','partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
+                        } else {
+                            $invoice->update(['status' => 'partially_paid', 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
+                        }
+                    }
+                }
             }
 
             // Save receipt if it has changes
@@ -415,6 +577,28 @@ class ReceiptController extends Controller
                     ]);
                 }
             }
+            if(str_contains($receipt->reference, 'CI-')){
+                $invoice_numbers = explode(' ', $receipt->reference);
+                $invoiceIds = [];
+                foreach($invoice_numbers as $invoice_number){
+                    $id = CustomerInvoices::getIdFromInvoiceNumber($invoice_number);
+                    if($id){
+                        $invoiceIds[] = $id;
+                    }
+                }
+                $invoices = CustomerInvoices::whereIn('id', $invoiceIds)->get();
+                foreach($invoices as $invoice){
+                    $partialAmount = $invoice->partial_paid_amount ?? [];
+                    unset($partialAmount[$receipt->id]); // Remove payment for this receipt
+                    $invoice->partial_paid_amount = $partialAmount;
+                    if(count($partialAmount) < 1){
+                        $invoice->status = 'pending'; // Revert to pending if no payments left
+                    } else {
+                        $invoice->status = 'partially_paid';
+                    }
+                    $invoice->save();
+                }
+            }
             $receipt->delete();
             if ($request->ajax()) {
                 return response()->json(['success' => true, 'message' => 'Receipt Deleted Successfuly', 'reload' => true]);
@@ -422,5 +606,23 @@ class ReceiptController extends Controller
         }
         Flash::success('Receipt deleted successfully.');
         return redirect()->back();
+    }
+
+    public function clone(Request $request, $id)
+    {
+        $receipt = Receipt::find($id);
+        if (empty($receipt)) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Receipt Not found'], 404);
+            }
+            Flash::error('Receipt not found');
+            return redirect()->back();
+        }
+
+        $banks = Banks::active()->get();
+
+        $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
+
+        return view('receipts.create', compact('receipt', 'banks'));
     }
 }

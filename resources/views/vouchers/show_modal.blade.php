@@ -19,7 +19,24 @@ $settings = \DB::table('settings')->pluck('value', 'name')->toArray();
       <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.edit', $voucher->trans_code) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
       @endif
       @endcan
-      <a href="{{ route('vouchers.show', $voucher->id) }}?print=1" target="_blank" class="btn btn-sm btn-outline-secondary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
+      @can('voucher_create')
+        @if(!in_array($voucher->voucher_type, ['VL', 'LV', 'RFV', 'SV', 'RI']))
+          <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Clone Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.clone', $voucher->trans_code) }}" data-collapse-sidebar="1"><i class="ti ti-copy me-1"></i> Clone</a>
+        @endif
+      @endcan
+      @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV']))
+        <li>
+          <form action="{{ route('vouchers.destroy',$voucher->trans_code) }}" id="formajax" >
+              @csrf
+              @method('Delete')
+              <button onclick="submit()" class='btn btn-sm btn-outline-danger'>
+                <i class="fa fa-trash my-1"></i> Delete
+              </button>
+          </form>
+        </li>
+      @endif
+      <a href="{{ route('vouchers.show', $voucher->id) }}?print=1" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
+      <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-arrow-right  me-1"></i> Email</a>
     </div>
   </div>
 

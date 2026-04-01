@@ -59,7 +59,7 @@
                         <option value="">-- Select Paying Account --</option>
                         @foreach ($banks as $bank)
                             <option value="{{ $bank->id }}" {{ old('bank_id', isset($payment) ? $payment->bank_id : '') == $bank->id ? 'selected' : '' }}>
-                                {{ $bank->account->account_code .'-'. $bank->name }}
+                                {{ $bank->name }}
                             </option>
                         @endforeach
                     </select>
@@ -72,6 +72,9 @@
                  @if(isset($leasingCompany))
                     {!! Form::hidden('payee_account_id', $leasingCompany->account_id)!!}
                     {!! Form::text('leasing-company-name', $leasingCompany->name ?? '-', ['class' => 'form-control bg-light', 'readonly' => true]) !!}
+                @elseif(isset($customer))
+                    {!! Form::hidden('payee_account_id', $customer->account_id)!!}
+                    {!! Form::text('leasing-company-name', $customer->name ?? '-', ['class' => 'form-control bg-light', 'readonly' => true]) !!}
                 @else
                     <select name="payee_account_id" class="form-control select2" required>
                         <option value="">-- Select Payee Account --</option>

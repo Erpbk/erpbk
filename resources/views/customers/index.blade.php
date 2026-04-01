@@ -6,98 +6,85 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 <section class="content-header">
-    <div class="container-fluid">
+    <div class="container">
         <div class="row mb-2">
             <div class="col-sm-6">
-                <h3>Customers</h3>
             </div>
             <div class="col-sm-6">
                 @can('customer_create')
-                <a class="btn btn-primary action-btn show-modal"
-                    href="javascript:void(0);" data-size="lg" data-title="New Customer" data-action="{{ route('customers.create') }}">
-                    Add New
-                </a>
-                @endcan
-                <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Filter Customers</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body" id="searchTopbody">
-                                <form id="filterForm" action="{{ route('customers.index') }}" method="GET">
-                                    <div class="row">
-                                        <div class="form-group col-md-4">
-                                            <label for="name">Customers Name</label>
-                                            <input type="text" name="name" class="form-control" placeholder="Filter By Customers Name" value="{{ request('name') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="company_name">Filter by Company Name</label>
-                                            <select class="form-control " id="company_name" name="company_name">
-                                                @php
-                                                $companyname = DB::table('customers')
-                                                ->whereNotNull('company_name')
-                                                ->where('company_name', '!=', '')
-                                                ->pluck('company_name')
-                                                ->unique();
-                                                @endphp
-                                                <option value="" selected>Select</option>
-                                                @foreach($companyname as $company)
-                                                <option value="{{ $company }}" {{ request('company_name') == $company ? 'selected' : '' }}>{{ $company }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="account_id">Filter by Accounts</label>
-                                            <select class="form-control " id="account_id" name="account_id">
-                                                @php
-                                                $accountid = DB::table('customers')
-                                                ->whereNotNull('account_id')
-                                                ->where('account_id', '!=', '')
-                                                ->pluck('account_id')
-                                                ->unique();
-
-                                                $accounts = DB::table('accounts')
-                                                ->whereIn('id', $accountid)
-                                                ->select('id', 'name')
-                                                ->get();
-                                                @endphp
-                                                <option value="" selected>Select</option>
-                                                @foreach($accounts as $account)
-                                                <option value="{{ $account->id }}" {{ request('account_id') == $account->id ? 'selected' : '' }}>{{ $account->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="status">Filter by Status</label>
-                                            <select class="form-control " id="status" name="status">
-                                                <option value="" selected>Select</option>
-                                                <option value="1" {{ request('status') == 1 ? 'selected' : '' }}>Active</option>
-                                                <option value="3" {{ request('status') == 3 ? 'selected' : '' }}>In Active</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-12 form-group text-center">
-                                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                                        </div>
+                    <div class="action-buttons d-flex justify-content-end">
+                        <div class="action-dropdown-container">
+                            <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                                <i class="ti ti-plus"></i>
+                                <span>Add New</span>
+                                <i class="ti ti-chevron-down"></i>
+                            </button>
+                            <div class="action-dropdown-menu" id="addBikeDropdown">
+                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Customer" data-action="{{ route('customers.create') }}">
+                                    <i class="ti ti-plus"></i>
+                                    <div>
+                                        <div class="action-dropdown-item-text">New Customer</div>
+                                        <div class="action-dropdown-item-desc">Add a new Customer</div>
                                     </div>
-                                </form>
+                                </a>
                             </div>
                         </div>
                     </div>
-                </div>
+                @endcan
             </div>
         </div>
     </div>
 </section>
 
-<div class="content px-3">
+<!-- Filter Sidebar -->
+<div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+    <div class="filter-header">
+        <h5>Filter Customers</h5>
+        <button type="button" class="btn-close" id="closeSidebar"></button>
+    </div>
+    <div class="filter-body" id="searchTopbody">
+        <form id="filterForm" action="{{ route('customers.index') }}" method="GET">
+            <div class="row">
+                <div class="form-group col-md-12">
+                    <label for="company_name">Filter by Customer</label>
+                    <select class="form-control select2" id="name" name="company_name">
+                        @php
+                        $customers = \App\Models\Customers::active()->get();
+                        @endphp
+                        <option value="" selected>Select</option>
+                        @foreach($customers as $company)
+                        <option value="{{ $company->name }}" {{ request('name') == $company->name ? 'selected' : '' }}>{{ $company->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="status">Filter by Status</label>
+                    <select class="form-control select2" id="status" name="status">
+                        <option value="" selected>Select</option>
+                        <option value="1" {{ request('status') == 1 ? 'selected' : '' }}>Active</option>
+                        <option value="2" {{ request('status') == 2 ? 'selected' : '' }}>In Active</option>
+                    </select>
+                </div>
+                <div class="col-md-12 form-group text-center">
+                    <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Filter Overlay -->
+<div id="filterOverlay" class="filter-overlay"></div>
+
+<div class="content">
 
     @include('flash::message')
 
     <div class="clearfix"></div>
 
     <div class="card">
+        <div class="card-header text-end">
+            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
+        </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
             @include('customers.table', ['data' => $data])
         </div>
@@ -108,19 +95,8 @@
 @section('page-script')
 <script type="text/javascript">
     $(document).ready(function() {
-        $('#company_name').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Company Name",
-            allowClear: true
-        });
-        $('#account_id').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Account Name",
-            allowClear: true
-        });
-        $('#status').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By status",
+        $('.select2').select2({
+            dropdownParent: $('#filterSidebar'),
             allowClear: true
         });
     });

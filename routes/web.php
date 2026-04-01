@@ -191,6 +191,10 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::resource('customers', App\Http\Controllers\CustomersController::class)->parameters(['customers' => 'id']);
     Route::get('customer/ledger/{id}', [\App\Http\Controllers\CustomersController::class, 'ledger'])->name('customer.ledger');
     Route::get('customer/files/{id}', [\App\Http\Controllers\CustomersController::class, 'files'])->name('customer.files');
+    Route::get('customer/invoices/{id}', [\App\Http\Controllers\CustomersController::class, 'invoices'])->name('customer.invoices');
+    Route::get('customer/receipts', [\App\Http\Controllers\CustomersController::class, 'cReceipts'])->name('customer.receipts');
+    Route::get('customers/payments/{id}', [\App\Http\Controllers\CustomersController::class, 'payments'])->name('customers.payments');
+    Route::get('customers/receipts/{id}', [\App\Http\Controllers\CustomersController::class, 'receipts'])->name('customers.receipts');
     // Customers Trash Routes
     Route::get('customers/trash', [\App\Http\Controllers\CustomersController::class, 'trash'])->name('customers.trash');
     Route::post('customers/trash/{id}/restore', [\App\Http\Controllers\CustomersController::class, 'restoreTrash'])->name('customers.restore');
@@ -216,6 +220,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('rtaFines/getrider/{id}', [\App\Http\Controllers\RtaFinesController::class, 'getrider']);
 
 
+    Route::get('/customer_invoices/{id}/edit', [App\Http\Controllers\CustomerInvoicesController::class, 'edit'])->name('customer_invoice.edit');
+    Route::get('/customer_invoices/{id}/clone', [App\Http\Controllers\CustomerInvoicesController::class, 'clone'])->name('customer_invoice.clone');
+    Route::resource('customer_invoices', App\Http\Controllers\CustomerInvoicesController::class);
 
     Route::resource('employees', App\Http\Controllers\EmployeeController::class);
     Route::get('/employees/{id}/ledger', [App\Http\Controllers\EmployeeController::class, 'ledger'])->name('employee.ledger');
@@ -365,6 +372,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
 
     Route::resource('payments', App\Http\Controllers\PaymentController::class);
+    Route::get('receipts/{id}/clone', [\App\Http\Controllers\ReceiptController::class, 'clone'])->name('receipts.clone');
     Route::resource('receipts', App\Http\Controllers\ReceiptController::class);
 
 
@@ -469,6 +477,17 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::put('leasingCompanyInvoices/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'updateInvoice'])->name('leasingCompanyInvoices.update');
     Route::delete('leasingCompanyInvoices/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroyInvoice'])->name('leasingCompanyInvoices.destroy');
     Route::post('leasingCompanyInvoices/{id}/clone', [\App\Http\Controllers\LeasingCompaniesController::class, 'cloneInvoice'])->name('leasingCompanyInvoices.clone');
+
+    // Leasing Company Billing Invoice Routes (separate module)
+    Route::get('leasingCompanyBillingInvoices', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'index'])->name('leasingCompanyBillingInvoices.index');
+    Route::get('leasingCompanyBillingInvoices/create/{leasingCompanyId?}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'create'])->name('leasingCompanyBillingInvoices.create');
+    Route::get('leasingCompanyBillingInvoices/create-from-clone/{id}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'createFromClone'])->name('leasingCompanyBillingInvoices.createFromClone');
+    Route::post('leasingCompanyBillingInvoices/store', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'store'])->name('leasingCompanyBillingInvoices.store');
+    Route::get('leasingCompanyBillingInvoices/{id}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'show'])->name('leasingCompanyBillingInvoices.show');
+    Route::get('leasingCompanyBillingInvoices/{id}/edit', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'edit'])->name('leasingCompanyBillingInvoices.edit');
+    Route::put('leasingCompanyBillingInvoices/{id}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'update'])->name('leasingCompanyBillingInvoices.update');
+    Route::delete('leasingCompanyBillingInvoices/{id}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'destroy'])->name('leasingCompanyBillingInvoices.destroy');
+    Route::post('leasingCompanyBillingInvoices/{id}/clone', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'clone'])->name('leasingCompanyBillingInvoices.clone');
     Route::get('leasingCompanies/{id}/invoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'createInvoice'])->name('leasingCompanies.createInvoice');
     Route::post('leasingCompanies/{id}/invoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'storeInvoice'])->name('leasingCompanies.storeInvoice');
     Route::get('leasingCompanies/{id}/bikes', [\App\Http\Controllers\LeasingCompaniesController::class, 'getBikes'])->name('leasingCompanies.getBikes');
@@ -496,6 +515,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     // Route::post('banks/{id}/restore', [\App\Http\Controllers\BanksController::class, 'restore'])->name('banks.restore');
     // Route::delete('banks/{id}/force-delete', [\App\Http\Controllers\BanksController::class, 'forceDestroy'])->name('banks.force-destroy');
 
+    Route::get('vouchers/{id}/clone', [\App\Http\Controllers\VouchersController::class, 'cloneVoucher'])->name('vouchers.clone');
     Route::get('vouchers/list-sidebar', [\App\Http\Controllers\VouchersController::class, 'listSidebar'])->name('vouchers.list-sidebar');
     Route::resource('vouchers', \App\Http\Controllers\VouchersController::class);
     Route::any('voucher/import', [\App\Http\Controllers\VouchersController::class, 'import'])->name('voucher.import');

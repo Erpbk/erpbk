@@ -379,7 +379,7 @@ class ChequesController extends Controller
                 $bank = Banks::findOrFail($updateData['bank_id']);
                 if($cheque->type==='payable'){
                     $paymentData = [
-                        'payee_account_id' => (array)$cheque->payee_account,
+                        'payee_account_id' => $cheque->payee_account,
                         'amount' => $cheque->amount,
                         'date_of_payment' => $validated['cleared_date'],
                         'reference' => 'Cheque Cleared: '.$cheque->cheque_number,
@@ -387,6 +387,7 @@ class ChequesController extends Controller
                         'amount_type' => 'Cheque',
                         'billing_month' => $validated['billing_month'].'-01',
                         'description' => $cheque->description,
+                        'bank_charges' => 0,
                         'status' => '1',
                         'attachment'=> $cheque->attachment,
                         'created_by' => Auth::id(),
@@ -449,7 +450,7 @@ class ChequesController extends Controller
                     $updateData['voucher_id'] = $voucher->id;
                 }else{
                     $receiptData = [
-                        'payer_account_id' => (array)$cheque->payer_account,
+                        'payer_account_id' => $cheque->payer_account,
                         'amount' => $cheque->amount,
                         'date_of_receipt' => $validated['cleared_date'],
                         'reference' => 'Cheque Cleared: '.$cheque->cheque_number,

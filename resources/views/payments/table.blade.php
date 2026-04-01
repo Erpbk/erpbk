@@ -44,11 +44,11 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $payment->id }}" style="z-index: 1050;">
-                        {{-- @can('bank_view')
-                            <a href="{{ route('receipts.show' , $receipt->id)}}" target="_blank" class='dropdown-item waves-effect'>
-                                <i class="fa fa-eye my-1"></i>view
+                        @can('payment_create')
+                            <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Add New Payment (Cloned From PV-{{ $payment->voucher_id }})" data-action="{{ route('payments.clone', $payment->id) }}">
+                                <i class="fa fa-copy my-1"></i>Clone Payment
                             </a>
-                        @endcan --}}
+                        @endcan
                         @can('payments_edit')
                             <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Payment Details" data-action="{{ route('payments.edit', $payment->id) }}">
                                 <i class="fa fa-edit my-1"></i> Edit
@@ -75,3 +75,52 @@
     @if(method_exists($data, 'links'))
         {!! $data->links('components.global-pagination') !!}
     @endif
+
+    @section('page-script')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    $(document).ready(function(){
+        $(document).on('click', '.delete-payment', function(e) {
+            e.preventDefault();
+            const url = $(this).data('url');
+            
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "You won't be able to revert this!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: url,
+                        type: 'DELETE',
+                        data: {
+                            _token: '{{ csrf_token() }}'
+                        },
+                        success: function(response) {
+                            Swal.fire(
+                                'Deleted!',
+                                'Payment has been deleted.',
+                                'success'
+                            ).then(() => {
+                                location.reload();
+                            });
+                        },
+                        error: function(xhr) {
+                            Swal.fire(
+                                'Error!',
+                                'Failed to delete Payment. ' + (xhr.responseJSON?.message || xhr.statusText || 'Unknown error'),
+                                'error'
+                            );
+                        }
+                    });
+                }
+            });
+        });
+    })
+</script>
+
+@endsection

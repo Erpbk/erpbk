@@ -9,7 +9,7 @@ $amountEditVoucherTypes = ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC'];
             <label for="exampleInputEmail1">Select Account</label>
             @if (in_array($voucherType, $amountEditVoucherTypes))
             <input type="hidden" name="account_id[]" value="{{ $entry->account_id ?? '' }}" />
-            {!! Form::select('account_id[]', $accounts, $entry->account_id??null, ['class' => 'form-control form-select select2', 'disabled' => true]) !!}
+            {!! Form::select('account_id[]', $accounts, $entry->account_id??null, ['class' => 'form-control form-select select2']) !!}
             @else
             {!! Form::select('account_id[]', $accounts, $entry->account_id ?? null, [
             'class' => 'form-control form-select select2',

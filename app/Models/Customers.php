@@ -65,4 +65,14 @@ class Customers extends Model
     $query = self::select('id', 'name')->pluck('name', 'id')->prepend('Select', '');
     return $query;
   }
+
+  public function scopeActive($query)
+  {
+    return $query->where('status', 1);
+  }
+
+  public function invoices()
+  {
+    return $this->hasMany(CustomerInvoices::class, 'customer_id', 'id');
+  }
 }

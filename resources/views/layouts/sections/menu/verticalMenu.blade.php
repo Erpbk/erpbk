@@ -1,5 +1,7 @@
 @php
 $configData = Helper::appClasses();
+$tenantCompany = view()->shared('currentCompany');
+$tenantLogo = (!empty($tenantCompany?->logo)) ? asset('storage/' . $tenantCompany->logo) : asset('assets/img/logo.png');
 @endphp
 
 <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
@@ -9,10 +11,9 @@ $configData = Helper::appClasses();
   <div class="app-brand demo">
     <a href="{{route('home')}}" class="app-brand-link">
       <span class="app-brand-logo ">
-        {{-- @include('_partials.macros',["height"=>30])
- --}} <img src="{{asset('assets/img/logo.png')}}" width="50" />
+        <img src="{{ $tenantLogo }}" width="50" style="object-fit:contain;" />
       </span>
-      <span class="app-brand-text demo menu-text fw-bold fs-5">{{config('variables.templateName')}}</span>
+      <span class="app-brand-text demo menu-text fw-bold fs-5">{{ $tenantCompany?->name ?? config('app.name') }}</span>
     </a>
 
     <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">

@@ -3,12 +3,16 @@
 namespace App\Http\Controllers;
 use App\Helpers\IConstants;
 use App\Helpers\Common;
+use App\Models\AdminCompany;
 use App\Models\Calculations;
+use App\Models\Company;
 use App\Models\Services;
 use App\Models\Settings;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\View;
 use App\Traits\GlobalPagination;
 
 class HomeController extends Controller
@@ -63,6 +67,41 @@ class HomeController extends Controller
          abort(404);
        } */
 
+    $isSettingsPanel = (bool) (View::shared('settings_panel') ?? false);
+    $currentCompany = $request->attributes->get('company');
+
+    if ($isSettingsPanel && $currentCompany instanceof Company && $request->isMethod('post')) {
+      $validated = $request->validate([
+        'company_name' => 'required|string|max:255',
+        'company_email' => 'nullable|email|max:255',
+        'company_phone' => 'nullable|string|max:50',
+        'company_address' => 'nullable|string|max:1000',
+        'company_country' => 'nullable|string|max:255',
+        'company_city' => 'nullable|string|max:255',
+        'company_logo' => 'nullable|image|mimes:jpg,jpeg,png,webp',
+      ]);
+
+      $currentCompany->name = $validated['company_name'];
+      $currentCompany->email = $validated['company_email'] ?? null;
+      $currentCompany->phone = $validated['company_phone'] ?? null;
+      $currentCompany->address = $validated['company_address'] ?? null;
+      $currentCompany->country = $validated['company_country'] ?? null;
+      $currentCompany->city = $validated['company_city'] ?? null;
+
+      if ($request->hasFile('company_logo')) {
+        $path = $request->file('company_logo')->store('company-logos', 'public');
+        if (!empty($currentCompany->logo)) {
+          Storage::disk('public')->delete($currentCompany->logo);
+        }
+        $currentCompany->logo = $path;
+      }
+
+      $currentCompany->save();
+      AdminCompany::syncFromCentralCompany($currentCompany);
+
+      return back()->with('success', __('Company details updated successfully.'));
+    }
+
     if ($request->post('settings')) {
 
       foreach ($request->post('settings') as $key => $value) {
@@ -73,7 +112,7 @@ class HomeController extends Controller
       }
     }
     $settings = Settings::pluck('value', 'name');
-    return view('content.settings', compact('settings'));
+    return view('content.settings', compact('settings', 'currentCompany'));
   }
 
 

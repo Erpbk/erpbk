@@ -26,7 +26,7 @@ $settings = \DB::table('settings')->pluck('value', 'name')->toArray();
   {{-- Company info (compact) --}}
   <div class="mb-3">
     <div class="d-flex align-items-center gap-3 flex-wrap">
-      <img src="{{ asset('assets/img/logo-full.png') }}" alt="" width="120" class="img-fluid" onerror="this.style.display='none'">
+      <img src="{{ $companyLogoUrl ?? asset('assets/img/logo-full.png') }}" alt="" width="120" class="img-fluid" onerror="this.style.display='none'">
       <div>
         <h6 class="mb-0 fw-semibold">{{ $settings['company_name'] ?? config('app.name') }}</h6>
         <p class="text-muted small mb-0">{{ $settings['company_address'] ?? '' }}</p>

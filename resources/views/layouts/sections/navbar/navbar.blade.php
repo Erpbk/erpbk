@@ -71,17 +71,18 @@ $isAdminSession = (bool) $adminUser;
           <!-- Settings (opens in new window) -->
           <li class="nav-item me-2 me-lg-3">
             @php
-              $companySlug = request()->route('company_slug') ?? session('company_slug');
+            $companySlug = request()->route('company_slug') ?? session('company_slug');
             @endphp
+            @if(!$adminUser)
             <a
               class="nav-link"
               href="{{ $isAdminSession ? route('admin.companies.index') : ($companySlug ? route('settings-panel.index', ['company_slug' => $companySlug]) : url('/')) }}"
               target="_blank"
               rel="noopener"
-              title="Settings"
-            >
+              title="Settings">
               <i class="ti ti-settings ti-md"></i>
             </a>
+            @endif
           </li>
 
           <!-- User -->
@@ -90,13 +91,13 @@ $isAdminSession = (bool) $adminUser;
               <div class="avatar avatar-online">
                 @php
                 if ($isAdminSession) {
-                    $image_name = 'default.png';
+                $image_name = 'default.png';
                 } elseif (Auth::check() && auth()->user()->image_name) {
-                    $image_name = auth()->user()->image_name;
+                $image_name = auth()->user()->image_name;
                 } else {
-                    $image_name = 'default.png';
+                $image_name = 'default.png';
                 }
-            @endphp
+                @endphp
                 <img src="{{ asset('uploads/'.$image_name)}}" alt class="h-auto rounded-circle">
               </div>
             </a>
@@ -121,9 +122,9 @@ $isAdminSession = (bool) $adminUser;
                       </span>
                       <small class="text-muted">
                         @if ($isAdminSession)
-                          {{ $adminUser->roles->pluck('name')->first() ?? __('Admin') }}
+                        {{ $adminUser->roles->pluck('name')->first() ?? __('Admin') }}
                         @elseif (Auth::check())
-                          {{ Auth::user()->roles->pluck('name','name')->first() }}
+                        {{ Auth::user()->roles->pluck('name','name')->first() }}
                         @endif
                       </small>
                     </div>
@@ -142,14 +143,14 @@ $isAdminSession = (bool) $adminUser;
               </li>
               @endif
               @if (Auth::check())
-             {{--  <li>
-                <a class="dropdown-item" href="{{ route('api-tokens.index') }}">
-                  <i class='ti ti-key me-2 ti-sm'></i>
-                  <span class="align-middle">API Tokens</span>
-                </a>
-              </li> --}}
-              @endif
               {{-- <li>
+                <a class="dropdown-item" href="{{ route('api-tokens.index') }}">
+              <i class='ti ti-key me-2 ti-sm'></i>
+              <span class="align-middle">API Tokens</span>
+              </a>
+          </li> --}}
+          @endif
+          {{-- <li>
                 <a class="dropdown-item" href="javascript:void(0);">
                   <span class="d-flex align-items-center align-middle">
                     <i class="flex-shrink-0 ti ti-credit-card me-2 ti-sm"></i>
@@ -159,30 +160,30 @@ $isAdminSession = (bool) $adminUser;
                 </a>
               </li> --}}
 
-              <li>
-                <div class="dropdown-divider"></div>
-              </li>
-              @if ($isAdminSession || Auth::check())
-              <li>
-                <a class="dropdown-item" href="{{ $isAdminSession ? route('admin.logout') : route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                  <i class='ti ti-logout me-2'></i>
-                  <span class="align-middle">Logout</span>
-                </a>
-              </li>
-              <form method="POST" id="logout-form" action="{{ $isAdminSession ? route('admin.logout') : route('logout') }}">
-                @csrf
-              </form>
-              @else
-              <li>
-                <a class="dropdown-item" href="{{ \App\Support\CompanyAuthRedirect::url(request()) }}">
-                  <i class='ti ti-login me-2'></i>
-                  <span class="align-middle">Login</span>
-                </a>
-              </li>
-              @endif
-            </ul>
+          <li>
+            <div class="dropdown-divider"></div>
           </li>
-          <!--/ User -->
+          @if ($isAdminSession || Auth::check())
+          <li>
+            <a class="dropdown-item" href="{{ $isAdminSession ? route('admin.logout') : route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+              <i class='ti ti-logout me-2'></i>
+              <span class="align-middle">Logout</span>
+            </a>
+          </li>
+          <form method="POST" id="logout-form" action="{{ $isAdminSession ? route('admin.logout') : route('logout') }}">
+            @csrf
+          </form>
+          @else
+          <li>
+            <a class="dropdown-item" href="{{ \App\Support\CompanyAuthRedirect::url(request()) }}">
+              <i class='ti ti-login me-2'></i>
+              <span class="align-middle">Login</span>
+            </a>
+          </li>
+          @endif
+        </ul>
+        </li>
+        <!--/ User -->
         </ul>
       </div>
 

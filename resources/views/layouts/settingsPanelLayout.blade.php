@@ -4,6 +4,7 @@
 @php
 $configData = Helper::appClasses();
 $settingsPanelLabels = \App\Models\Settings::getMenuLabels();
+$settingsCompanySlug = request()->route('company_slug') ?? session('company_slug');
 $moduleIcons = [
 'dashboard' => 'ti-layout-dashboard',
 'recycle_bin' => 'ti-trash',
@@ -43,7 +44,7 @@ $containerNav = 'container-fluid';
     {{-- Settings panel sidebar: Zoho-style clean admin --}}
     <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme settings-panel-sidebar">
       <div class="app-brand demo border-bottom">
-        <a href="{{ route('settings-panel.company') }}" class="app-brand-link">
+        <a href="{{ route('settings-panel.company', ['company_slug' => $settingsCompanySlug]) }}" class="app-brand-link">
           <span class="app-brand-logo">
             <i class="ti ti-settings ti-lg text-primary"></i>
           </span>
@@ -60,14 +61,14 @@ $containerNav = 'container-fluid';
 
         @canany(['gn_settings','department_view','dropdown_view','visaexpense_view','branches_view'])
         <li class="menu-item {{ Request::is('settings-panel/company') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.company') }}" class="menu-link">
+          <a href="{{ route('settings-panel.company', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-building-community"></i>
             <div>Company Details</div>
           </a>
         </li>
         @can('gn_settings')
         <li class="menu-item {{ Request::is('settings-panel/erp') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.erp') }}" class="menu-link">
+          <a href="{{ route('settings-panel.erp', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-adjustments"></i>
             <div>Settings</div>
           </a>
@@ -75,7 +76,7 @@ $containerNav = 'container-fluid';
         @endcan
         @can('department_view')
         <li class="menu-item {{ Request::is('settings-panel/departments*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.departments.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.departments.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-sitemap"></i>
             <div>Departments</div>
           </a>
@@ -83,7 +84,7 @@ $containerNav = 'container-fluid';
         @endcan
         @can('branches_view')
         <li class="menu-item {{ Request::is('settings-panel/branches*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.branches.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.branches.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-building"></i>
             <div>Branches</div>
           </a>
@@ -91,7 +92,7 @@ $containerNav = 'container-fluid';
         @endcan
         @can('dropdown_view')
         <li class="menu-item {{ Request::is('settings-panel/dropdowns*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.dropdowns.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.dropdowns.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-list"></i>
             <div>Dropdown Management</div>
           </a>
@@ -104,28 +105,28 @@ $containerNav = 'container-fluid';
           <span class="menu-header-text">User & System</span>
         </li>
         <li class="menu-item {{ Request::is('settings-panel/users*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.users.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.users.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-users-group"></i>
             <div>Users</div>
           </a>
         </li>
 
         <li class="menu-item {{ Request::is('settings-panel/profile*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.profile') }}" class="menu-link">
+          <a href="{{ route('settings-panel.profile', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-user"></i>
             <div>Profile</div>
           </a>
         </li>
 
         <li class="menu-item {{ Request::is('settings-panel/email-settings*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.email-settings.edit') }}" class="menu-link">
+          <a href="{{ route('settings-panel.email-settings.edit', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-mail"></i>
             <div>Email Settings</div>
           </a>
         </li>
         @can('role_view')
         <li class="menu-item {{ Request::is('settings-panel/roles*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.roles.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.roles.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-user-check"></i>
             <div>Roles</div>
           </a>
@@ -133,7 +134,7 @@ $containerNav = 'container-fluid';
         @endcan
         @can('permissions_view')
         <li class="menu-item {{ Request::is('settings-panel/permissions*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.permissions.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.permissions.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-lock"></i>
             <div>Permissions</div>
           </a>
@@ -141,7 +142,7 @@ $containerNav = 'container-fluid';
         @endcan
         @can('activity_logs_view')
         <li class="menu-item {{ Request::is('settings-panel/activity-logs*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.activity-logs.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.activity-logs.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-history"></i>
             <div>Activity Logs</div>
           </a>
@@ -149,7 +150,7 @@ $containerNav = 'container-fluid';
         @endcan
         @can('trash_view')
         <li class="menu-item {{ Request::is('settings-panel/trash*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.trash.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.trash.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-trash text-warning"></i>
             <div>Recycle Bin</div>
           </a>
@@ -163,19 +164,19 @@ $containerNav = 'container-fluid';
         {{-- Specific module settings (Account Fields, Voucher, Rider, Visa Status Types) --}}
         @can('gn_settings')
         <li class="menu-item {{ Request::is('settings-panel/account-fields*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.account-fields.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.account-fields.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-wallet"></i>
             <div>{{ $settingsPanelLabels['accounts'] ?? 'Accounts' }}</div>
           </a>
         </li>
         <li class="menu-item {{ Request::is('settings-panel/voucher-settings*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.voucher-settings.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.voucher-settings.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-file-invoice"></i>
             <div>{{ $settingsPanelLabels['vouchers'] ?? 'Vouchers' }}</div>
           </a>
         </li>
         <li class="menu-item {{ Request::is('settings-panel/rider-settings*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.rider-settings.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.rider-settings.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-motorbike"></i>
             <div>{{ $settingsPanelLabels['riders'] ?? 'Riders' }}</div>
           </a>
@@ -183,7 +184,7 @@ $containerNav = 'container-fluid';
         @endcan
         @can('vat_view')
         <li class="menu-item {{ Request::is('settings-panel/vat-settings*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.vat-settings.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.vat-settings.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-receipt-tax"></i>
             <div>{{ $settingsPanelLabels['vat_settings'] ?? 'VAT Settings' }}</div>
           </a>
@@ -191,7 +192,7 @@ $containerNav = 'container-fluid';
         @endcan
         @can('visaexpense_view')
         <li class="menu-item {{ Request::is('settings-panel/visa-statuses*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.visa-statuses.index') }}" class="menu-link">
+          <a href="{{ route('settings-panel.visa-statuses.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-list-check"></i>
             <div>{{ $settingsPanelLabels['visa_status_types'] ?? 'Visa Status Types' }}</div>
           </a>
@@ -199,7 +200,7 @@ $containerNav = 'container-fluid';
         @endcan
         @foreach(config('erp_modules.modules', []) as $moduleKey => $defaultLabel)
         <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $moduleKey) ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.module-settings.index', ['module' => $moduleKey]) }}" class="menu-link">
+          <a href="{{ route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti {{ $moduleIcons[$moduleKey] ?? 'ti-adjustments-alt' }}"></i>
             <div>{{ $settingsPanelLabels[$moduleKey] ?? $defaultLabel }}</div>
           </a>
@@ -208,7 +209,7 @@ $containerNav = 'container-fluid';
       </ul>
 
       <div class="mt-auto border-top pt-3">
-        <a href="{{ route('home') }}" target="_blank" class="menu-link d-flex align-items-center px-3 py-2 text-muted">
+        <a href="{{ route('home', ['company_slug' => $settingsCompanySlug]) }}" target="_blank" class="menu-link d-flex align-items-center px-3 py-2 text-muted">
           <i class="ti ti-arrow-left me-2 ti-sm"></i>
           <span>Back to main app</span>
         </a>
@@ -226,7 +227,7 @@ $containerNav = 'container-fluid';
             <span class="app-brand-text demo menu-text fw-semibold ms-2">Settings Panel</span>
           </div>
           <div class="navbar-nav-right d-flex align-items-center ms-auto">
-            <a href="{{ route('home') }}" target="_blank" class="btn btn-sm btn-outline-primary">
+            <a href="{{ route('home', ['company_slug' => $settingsCompanySlug]) }}" target="_blank" class="btn btn-sm btn-outline-primary">
               <i class="ti ti-external-link me-1 ti-sm"></i>
               Open main app
             </a>

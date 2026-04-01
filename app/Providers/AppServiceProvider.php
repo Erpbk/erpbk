@@ -34,7 +34,8 @@ class AppServiceProvider extends ServiceProvider
     // Dynamic ERP menu labels (Settings + optional per-company admin overrides)
     View::composer('layouts.menu', function ($view) {
       $labels = Settings::getMenuLabels();
-      $company = $view->getData()['currentCompany'] ?? view()->shared('currentCompany');
+      $shared = app('view')->getShared();
+      $company = $view->getData()['currentCompany'] ?? ($shared['currentCompany'] ?? null);
       if ($company instanceof Company && is_array($company->modules_settings)) {
         $overrides = $company->modules_settings['label_overrides'] ?? [];
         if ($overrides !== []) {
@@ -42,6 +43,26 @@ class AppServiceProvider extends ServiceProvider
         }
       }
       $view->with('menuLabels', $labels);
+    });
+
+    // Make company branding available across all Blade views.
+    View::composer('*', function ($view) {
+      $shared = app('view')->getShared();
+      $company = $view->getData()['currentCompany'] ?? ($shared['currentCompany'] ?? null);
+      $logoUrl = asset('assets/img/logo-full.png');
+      $companyName = config('app.name');
+
+      if ($company instanceof Company) {
+        if (!empty($company->logo)) {
+          $logoUrl = asset('storage/' . $company->logo);
+        }
+        if (!empty($company->name)) {
+          $companyName = $company->name;
+        }
+      }
+
+      $view->with('companyLogoUrl', $logoUrl);
+      $view->with('companyDisplayName', $companyName);
     });
 
     Relation::morphMap([

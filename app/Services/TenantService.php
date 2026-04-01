@@ -92,7 +92,11 @@ class TenantService
     }
 
     /**
-     * Whether a MySQL schema exists on the same server as mysql_central.
+     * Whether the tenant database is provisioned enough for the app to run.
+     *
+     * We intentionally check for a critical table (`accounts`) instead of only
+     * `information_schema.schemata`, so the admin UI doesn't show "Ready" when
+     * the database exists but migrations didn't create the expected schema.
      */
     public function tenantDatabaseExists(string $databaseName): bool
     {
@@ -101,8 +105,10 @@ class TenantService
         }
 
         $result = DB::connection('mysql_central')->selectOne(
-            'SELECT COUNT(1) AS c FROM information_schema.schemata WHERE schema_name = ?',
-            [$databaseName]
+            'SELECT COUNT(1) AS c
+             FROM information_schema.tables
+             WHERE table_schema = ? AND table_name = ?',
+            [$databaseName, 'accounts']
         );
 
         return ((int) ($result->c ?? 0)) > 0;

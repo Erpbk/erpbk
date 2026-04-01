@@ -7,7 +7,14 @@
 
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\HomeController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+// Backward-compatibility alias: redirect old typo URLs (/settings-pane/*) to /settings-panel/*.
+Route::get('settings-pane/{path?}', function (Request $request, ?string $path = null) {
+    $companySlug = $request->route('company_slug') ?? session('company_slug');
+    return redirect()->to(url('app/' . $companySlug . '/settings-panel/' . ltrim((string) $path, '/')));
+})->where('path', '.*');
 
 // Settings Panel (opens in separate window, Zoho-style admin)
 Route::prefix('settings-panel')->middleware('settings.panel')->group(function () {
@@ -80,8 +87,8 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::delete('rider-settings/documents/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyDocumentType'])->name('settings-panel.rider-settings.destroy-document-type');
     Route::post('rider-settings/documents/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentTypes'])->name('settings-panel.rider-settings.reorder-document-types');
     // Module settings (General tab only) for all ERP modules
-    Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[a-z_]+');
-    Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[a-z_]+');
+    Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[A-Za-z0-9_-]+');
     // User Management, Activity Logs, Recycle Bin (moved into Settings)
 
     Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');

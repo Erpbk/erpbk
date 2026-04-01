@@ -21,7 +21,7 @@ class CompanyAuthController extends Controller
     public function showFindLoginForm()
     {
         if (Auth::check() && session()->get('company_slug')) {
-            return redirect()->route('company.home', ['company_slug' => session('company_slug')]);
+            return redirect()->route('home', ['company_slug' => session('company_slug')]);
         }
 
         return view('company.find-login');
@@ -57,14 +57,14 @@ class CompanyAuthController extends Controller
         }
 
         if ($exact->count() > 1) {
-            $exact->each(fn (Company $c) => $this->ensureSlug($c));
+            $exact->each(fn(Company $c) => $this->ensureSlug($c));
 
             return view('company.find-login-choose', ['companies' => $exact]);
         }
 
         $escaped = addcslashes($term, '%_\\');
         $partial = Company::query()
-            ->where('name', 'like', '%'.$escaped.'%')
+            ->where('name', 'like', '%' . $escaped . '%')
             ->orderBy('name')
             ->limit(25)
             ->get();
@@ -77,7 +77,7 @@ class CompanyAuthController extends Controller
             return $this->redirectToCompanyLogin($partial->first());
         }
 
-        $partial->each(fn (Company $c) => $this->ensureSlug($c));
+        $partial->each(fn(Company $c) => $this->ensureSlug($c));
 
         return view('company.find-login-choose', ['companies' => $partial]);
     }

@@ -148,7 +148,7 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
 // pages
 Route::get('/pages/misc-error', [MiscError::class, 'index'])->name('pages-misc-error');
 
-Route::middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
+Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
 
     Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home-dashboard');
@@ -633,7 +633,7 @@ Route::prefix('settings')->group(function () {
 
 
 /* Suppliers section start here */
-Route::middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
+Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
     // Suppliers
     Route::resource('suppliers', SupplierController::class);
     Route::get('/suppliers/show/{id}', [SupplierController::class, 'show'])->name('suppliers.show');
@@ -668,7 +668,7 @@ Route::middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function (
 });
 
 /* Suppliers section end here */
-Route::middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
+Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
     Route::resource('upload_files', UploadFilesController::class);
     Route::get('/upload_files', [UploadFilesController::class, 'index'])->name('upload_files.index');
     Route::get('/upload_files/create', [UploadFilesController::class, 'create'])->name('upload_files.create');
@@ -681,27 +681,29 @@ Route::middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function (
 
 
 
-// Specific Salik routes (must come before resource route)
-Route::get('salik/missing-records', [\App\Http\Controllers\SalikController::class, 'showMissingRecords'])->name('salik.missing.records');
-Route::get('salik/export-missing-records', [\App\Http\Controllers\SalikController::class, 'exportMissingRecords'])->name('salik.export.missing.records');
-Route::post('salik/analyze-excel', [\App\Http\Controllers\SalikController::class, 'analyzeExcelFile'])->name('salik.analyze.excel');
-Route::any('salik/clear-failed-imports', [\App\Http\Controllers\SalikController::class, 'clearFailedImports'])->name('salik.clear.failed.imports');
-Route::get('salik/import/{salik_account_id}', [\App\Http\Controllers\SalikController::class, 'importForm'])->name('salik.import.form');
-Route::post('salik/import', [\App\Http\Controllers\SalikController::class, 'import'])->name('salik.import');
-Route::post('salik/test-import', [\App\Http\Controllers\SalikController::class, 'testImport'])->name('salik.test.import');
+Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
+    // Specific Salik routes (must come before resource route)
+    Route::get('salik/missing-records', [\App\Http\Controllers\SalikController::class, 'showMissingRecords'])->name('salik.missing.records');
+    Route::get('salik/export-missing-records', [\App\Http\Controllers\SalikController::class, 'exportMissingRecords'])->name('salik.export.missing.records');
+    Route::post('salik/analyze-excel', [\App\Http\Controllers\SalikController::class, 'analyzeExcelFile'])->name('salik.analyze.excel');
+    Route::any('salik/clear-failed-imports', [\App\Http\Controllers\SalikController::class, 'clearFailedImports'])->name('salik.clear.failed.imports');
+    Route::get('salik/import/{salik_account_id}', [\App\Http\Controllers\SalikController::class, 'importForm'])->name('salik.import.form');
+    Route::post('salik/import', [\App\Http\Controllers\SalikController::class, 'import'])->name('salik.import');
+    Route::post('salik/test-import', [\App\Http\Controllers\SalikController::class, 'testImport'])->name('salik.test.import');
 
-// Salik resource routes
-Route::resource('salik', App\Http\Controllers\SalikController::class);
-Route::post('salik/store', [\App\Http\Controllers\SalikController::class, 'store'])->name('salik.store');
-Route::get('salik/edit/{id}', [\App\Http\Controllers\SalikController::class, 'edit'])->name('salik.edit');
-Route::post('/salik/{id}/update', [SalikController::class, 'update'])->name('salik.update');
-Route::get('salik/create/{id}', [\App\Http\Controllers\SalikController::class, 'create'])->name('salik.create');
-Route::any('salik/attach_file/{id}', [\App\Http\Controllers\SalikController::class, 'fileUpload'])->name('salik.fileupload');
-Route::get('salik/delete/{id}', [\App\Http\Controllers\SalikController::class, 'destroy'])->name('salik.delete');
+    // Salik resource routes
+    Route::resource('salik', App\Http\Controllers\SalikController::class);
+    Route::post('salik/store', [\App\Http\Controllers\SalikController::class, 'store'])->name('salik.store');
+    Route::get('salik/edit/{id}', [\App\Http\Controllers\SalikController::class, 'edit'])->name('salik.edit');
+    Route::post('/salik/{id}/update', [SalikController::class, 'update'])->name('salik.update');
+    Route::get('salik/create/{id}', [\App\Http\Controllers\SalikController::class, 'create'])->name('salik.create');
+    Route::any('salik/attach_file/{id}', [\App\Http\Controllers\SalikController::class, 'fileUpload'])->name('salik.fileupload');
+    Route::get('salik/delete/{id}', [\App\Http\Controllers\SalikController::class, 'destroy'])->name('salik.delete');
 
-Route::post('salik/accountcreate', [\App\Http\Controllers\SalikController::class, 'accountcreate'])->name('salik.accountcreate');
-Route::post('salik/editaccount', [\App\Http\Controllers\SalikController::class, 'editaccount'])->name('salik.editaccount');
-Route::get('salik/deleteaccount/{id}', [\App\Http\Controllers\SalikController::class, 'deleteaccount'])->name('salik.deleteaccount');
-Route::get('salik/tickets/{id}', [\App\Http\Controllers\SalikController::class, 'tickets'])->name('salik.tickets');
-Route::get('salik/viewvoucher/{id}', [\App\Http\Controllers\SalikController::class, 'viewvoucher'])->name('salik.viewvoucher');
-Route::post('salik/getriderbybikedate', [SalikController::class, 'getriderbybikedate'])->name('salik.getriderbybikedate');
+    Route::post('salik/accountcreate', [\App\Http\Controllers\SalikController::class, 'accountcreate'])->name('salik.accountcreate');
+    Route::post('salik/editaccount', [\App\Http\Controllers\SalikController::class, 'editaccount'])->name('salik.editaccount');
+    Route::get('salik/deleteaccount/{id}', [\App\Http\Controllers\SalikController::class, 'deleteaccount'])->name('salik.deleteaccount');
+    Route::get('salik/tickets/{id}', [\App\Http\Controllers\SalikController::class, 'tickets'])->name('salik.tickets');
+    Route::get('salik/viewvoucher/{id}', [\App\Http\Controllers\SalikController::class, 'viewvoucher'])->name('salik.viewvoucher');
+    Route::post('salik/getriderbybikedate', [SalikController::class, 'getriderbybikedate'])->name('salik.getriderbybikedate');
+});

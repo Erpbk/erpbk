@@ -16,6 +16,8 @@ class SettingsPanelController extends Controller
      */
     public function index()
     {
-        return redirect()->route('settings-panel.company');
+        return redirect()->route('settings-panel.company', [
+            'company_slug' => request()->route('company_slug') ?? session('company_slug'),
+        ]);
     }
 }

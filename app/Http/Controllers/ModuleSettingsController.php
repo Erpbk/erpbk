@@ -20,11 +20,12 @@ class ModuleSettingsController extends Controller
     /**
      * Show module settings (General tab only for now).
      */
-    public function index(string $module)
+    public function index(string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);
-        $modules = config('erp_modules.modules', []);
-        $defaultLabel = $modules[$module] ?? ucwords(str_replace('_', ' ', $module));
+        $defaultLabels = config('menu_labels.defaults', []);
+        $defaultLabel = $defaultLabels[$module] ?? ucwords(str_replace('_', ' ', $module));
+
         $moduleLabel = Settings::getMenuLabel($module);
         $pageTitle = $moduleLabel . ' – Settings';
 
@@ -42,11 +43,11 @@ class ModuleSettingsController extends Controller
      * This value is used by the main app sidebar (resources/views/layouts/menu.blade.php)
      * via Settings::getMenuLabels(), so the menu updates on the next page load.
      */
-    public function storeModuleLabel(Request $request, string $module)
+    public function storeModuleLabel(Request $request, string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);
-        $modules = config('erp_modules.modules', []);
-        if (!isset($modules[$module])) {
+        $allowedLabels = config('menu_labels.defaults', []);
+        if (!isset($allowedLabels[$module])) {
             return back()->with('error', __('Invalid module key.'));
         }
         $request->validate(['module_label' => 'required|string|max:100']);
@@ -58,7 +59,7 @@ class ModuleSettingsController extends Controller
 
         return redirect()
             ->route('settings-panel.module-settings.index', [
-                'company_slug' => request()->route('company_slug') ?? session('company_slug'),
+                'company_slug' => $company_slug,
                 'module' => $module,
             ])
             ->with('success', 'Module name updated.');

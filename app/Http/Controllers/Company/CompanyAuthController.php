@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Services\TenantService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 class CompanyAuthController extends Controller
@@ -33,7 +34,7 @@ class CompanyAuthController extends Controller
     public function findLogin(Request $request)
     {
         if (Auth::check() && session()->get('company_slug')) {
-            return redirect()->route('company.home', ['company_slug' => session('company_slug')]);
+            return redirect()->route($this->companyHomeRouteName(), ['company_slug' => session('company_slug')]);
         }
 
         $validated = $request->validate([
@@ -153,7 +154,7 @@ class CompanyAuthController extends Controller
             $request->session()->regenerate();
             $request->session()->put('company_slug', $company->slug);
             $this->tenantService->clearTenant();
-            return redirect()->route('company.home', ['company_slug' => $company->slug]);
+            return redirect()->route($this->companyHomeRouteName(), ['company_slug' => $company->slug]);
         }
 
         $this->tenantService->clearTenant();
@@ -187,5 +188,22 @@ class CompanyAuthController extends Controller
             $company->slug = Company::generateUniqueSlug($company->name, $company->id);
             $company->save();
         }
+    }
+
+    protected function companyHomeRouteName(): string
+    {
+        if (Route::has('company.home')) {
+            return 'company.home';
+        }
+
+        if (Route::has('home')) {
+            return 'home';
+        }
+
+        if (Route::has('company.home-dashboard')) {
+            return 'company.home-dashboard';
+        }
+
+        return 'home';
     }
 }

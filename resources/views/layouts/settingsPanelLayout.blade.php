@@ -29,6 +29,58 @@ $moduleIcons = [
 'supplier' => 'ti-truck',
 'assets' => 'ti-box',
 'documents' => 'ti-upload',
+'cheques' => 'ti-file',
+'items_list' => 'ti-list-details',
+'garage_items' => 'ti-tool',
+'attendance_records' => 'ti-calendar-check',
+'attendance_summary' => 'ti-calendar-stats',
+'riders' => 'ti-user-pin',
+'riders_list' => 'ti-users',
+'invoices' => 'ti-file-invoice',
+'activities' => 'ti-bike',
+'live_activities' => 'ti-activity',
+'rider_report' => 'ti-chart-bar',
+'bike_list' => 'ti-motorbike',
+'maintenance_overview' => 'ti-tool',
+'vat' => 'ti-receipt-tax',
+'vat_ledger' => 'ti-receipt-tax',
+'vat_return_file' => 'ti-file-export',
+'leasing_companies_list' => 'ti-building',
+'leasing_invoices' => 'ti-file-invoice',
+'suppliers' => 'ti-truck',
+'supplier_invoices' => 'ti-file-invoice',
+'vouchers' => 'ti-ticket',
+'accounts' => 'ti-graph',
+'chart_of_accounts' => 'ti-list-tree',
+'ledger' => 'ti-book',
+];
+$erpModuleMenu = [
+    ['key' => 'dashboard'],
+    ['key' => 'cash_banks', 'children' => ['cash_banks', 'cheques']],
+    ['key' => 'employees'],
+    ['key' => 'attendance', 'children' => ['attendance', 'attendance_records', 'attendance_summary']],
+    ['key' => 'items', 'children' => ['items', 'items_list', 'garage_items']],
+    ['key' => 'leads'],
+    ['key' => 'customers'],
+    ['key' => 'vendors'],
+    ['key' => 'recruiters'],
+    ['key' => 'riders', 'children' => ['riders', 'riders_list', 'invoices', 'activities', 'live_activities', 'rider_report']],
+    ['key' => 'bikes', 'children' => ['bikes', 'bike_list', 'maintenance_overview']],
+    ['key' => 'sims'],
+    ['key' => 'fuel_cards'],
+    ['key' => 'rta_fines'],
+    ['key' => 'rta_saliks'],
+    ['key' => 'inventory'],
+    ['key' => 'visa_expense'],
+    ['key' => 'expenses'],
+    ['key' => 'vat', 'children' => ['vat', 'vat_ledger', 'vat_return_file']],
+    ['key' => 'leasing_companies', 'children' => ['leasing_companies', 'leasing_companies_list', 'leasing_invoices']],
+    ['key' => 'garages'],
+    ['key' => 'supplier', 'children' => ['supplier', 'suppliers', 'supplier_invoices']],
+    ['key' => 'assets'],
+    ['key' => 'documents'],
+    ['key' => 'vouchers'],
+    ['key' => 'accounts', 'children' => ['accounts', 'chart_of_accounts', 'ledger']],
 ];
 @endphp
 @extends('layouts/commonMaster')
@@ -198,13 +250,48 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
-        @foreach(config('erp_modules.modules', []) as $moduleKey => $defaultLabel)
-        <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $moduleKey) ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti {{ $moduleIcons[$moduleKey] ?? 'ti-adjustments-alt' }}"></i>
-            <div>{{ $settingsPanelLabels[$moduleKey] ?? $defaultLabel }}</div>
+        @foreach($erpModuleMenu as $menuItem)
+        @php
+        $parentKey = $menuItem['key'];
+        $children = $menuItem['children'] ?? [];
+        $parentRoutePattern = 'settings-panel/module-settings/' . $parentKey;
+        $anyChildActive = false;
+        foreach ($children as $childKey) {
+            if (Request::is('settings-panel/module-settings/' . $childKey)) {
+                $anyChildActive = true;
+                break;
+            }
+        }
+        $isOpen = Request::is($parentRoutePattern) || $anyChildActive;
+        $isVisible = \App\Support\CompanyModuleVisibility::enabled($parentKey);
+        @endphp
+        @if($isVisible)
+        @if(!empty($children))
+        <li class="menu-item {{ $isOpen ? 'open' : '' }}">
+          <a href="javascript:void(0);" class="menu-link menu-toggle">
+            <i class="menu-icon tf-icons ti {{ $moduleIcons[$parentKey] ?? 'ti-adjustments-alt' }}"></i>
+            <div>{{ $settingsPanelLabels[$parentKey] ?? config('menu_labels.defaults.' . $parentKey, ucwords(str_replace('_', ' ', $parentKey))) }}</div>
+          </a>
+          <ul class="menu-sub">
+            @foreach($children as $childKey)
+            <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $childKey) ? 'active' : '' }}">
+              <a href="{{ route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $childKey]) }}" class="menu-link">
+                <i class="menu-icon tf-icons ti {{ $moduleIcons[$childKey] ?? 'ti-adjustments-alt' }}"></i>
+                <div>{{ $settingsPanelLabels[$childKey] ?? config('menu_labels.defaults.' . $childKey, ucwords(str_replace('_', ' ', $childKey))) }}</div>
+              </a>
+            </li>
+            @endforeach
+          </ul>
+        </li>
+        @else
+        <li class="menu-item {{ Request::is($parentRoutePattern) ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $parentKey]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti {{ $moduleIcons[$parentKey] ?? 'ti-adjustments-alt' }}"></i>
+            <div>{{ $settingsPanelLabels[$parentKey] ?? config('menu_labels.defaults.' . $parentKey, ucwords(str_replace('_', ' ', $parentKey))) }}</div>
           </a>
         </li>
+        @endif
+        @endif
         @endforeach
       </ul>
 

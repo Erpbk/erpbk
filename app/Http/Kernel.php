@@ -59,6 +59,7 @@ class Kernel extends HttpKernel
       \Illuminate\Routing\Middleware\SubstituteBindings::class,
       \App\Http\Middleware\LocaleMiddleware::class,
       \App\Http\Middleware\AutoMarkInstallments::class,
+      \App\Http\Middleware\ApplyDynamicModuleLabels::class,
     ],
 
     'api' => [

@@ -160,7 +160,31 @@ class AdminCompaniesController extends Controller
      */
     public function updateModules(Request $request, AdminCompany $company)
     {
-        $keys = array_keys(config('company_modules.modules', []));
+        $parentKeys = array_keys(config('company_modules.modules', []));
+        $childKeys = [
+            'cheques',
+            'attendance_records',
+            'attendance_summary',
+            'items_list',
+            'garage_items',
+            'riders_list',
+            'invoices',
+            'activities',
+            'live_activities',
+            'rider_report',
+            'bike_list',
+            'maintenance_overview',
+            'vat_ledger',
+            'vat_return_file',
+            'leasing_companies_list',
+            'leasing_invoices',
+            'suppliers',
+            'supplier_invoices',
+            'chart_of_accounts',
+            'ledger',
+        ];
+        $keys = array_values(array_unique(array_merge($parentKeys, $childKeys)));
+        $labelKeys = array_keys(config('menu_labels.defaults', []));
         $validated = $request->validate([
             'enabled' => 'nullable|array',
             'enabled.*' => ['string', Rule::in($keys)],
@@ -172,12 +196,10 @@ class AdminCompaniesController extends Controller
         $disabled = array_values(array_diff($keys, $enabled));
 
         $labelOverrides = [];
-        foreach ($keys as $key) {
+        foreach ($labelKeys as $key) {
             $raw = $validated['labels'][$key] ?? null;
             if (is_string($raw) && trim($raw) !== '') {
-                $meta = config("company_modules.modules.$key");
-                $labelKey = $meta['primary_label_key'] ?? $key;
-                $labelOverrides[$labelKey] = trim($raw);
+                $labelOverrides[$key] = trim($raw);
             }
         }
 

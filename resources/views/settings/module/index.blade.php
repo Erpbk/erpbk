@@ -12,7 +12,7 @@
     <div class="card mb-4">
       <div class="card-header d-flex align-items-center justify-content-between">
         <div>
-          <h4 class="card-title mb-0">{{ $moduleLabel }} – Settings</h4>
+          <h4 class="card-title mb-0">{{ $moduleLabel }}</h4>
           <p class="text-muted small mb-0 mt-1">Change the name that appears in the main application menu for this module.</p>
         </div>
       </div>

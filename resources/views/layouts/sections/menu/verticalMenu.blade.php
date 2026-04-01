@@ -2,6 +2,11 @@
 $configData = Helper::appClasses();
 $tenantCompany = view()->shared('currentCompany');
 $tenantLogo = (!empty($tenantCompany?->logo)) ? asset('storage/' . $tenantCompany->logo) : asset('assets/img/logo.png');
+$adminUser = auth('admin')->user();
+$companySlug = request()->route('company_slug') ?? session('company_slug');
+$homeLink = $adminUser
+  ? route('admin.dashboard')
+  : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
 @endphp
 
 <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
@@ -9,7 +14,7 @@ $tenantLogo = (!empty($tenantCompany?->logo)) ? asset('storage/' . $tenantCompan
   <!-- ! Hide app brand if navbar-full -->
   @if(!isset($navbarFull))
   <div class="app-brand demo">
-    <a href="{{route('home')}}" class="app-brand-link">
+    <a href="{{ $homeLink }}" class="app-brand-link">
       <span class="app-brand-logo ">
         <img src="{{ $tenantLogo }}" width="50" style="object-fit:contain;" />
       </span>

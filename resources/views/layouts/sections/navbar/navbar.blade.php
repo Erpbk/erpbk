@@ -3,6 +3,10 @@ $containerNav = ($configData['contentLayout'] === 'compact') ? 'container-xxl' :
 $navbarDetached = ($navbarDetached ?? '');
 $adminUser = auth('admin')->user();
 $isAdminSession = (bool) $adminUser;
+$companySlug = request()->route('company_slug') ?? session('company_slug');
+$homeLink = $isAdminSession
+  ? route('admin.dashboard')
+  : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
 @endphp
 
 <!-- Navbar -->
@@ -17,7 +21,7 @@ $isAdminSession = (bool) $adminUser;
       <!--  Brand demo (display only for navbar-full and hide on below xl) -->
       @if(isset($navbarFull))
       <div class="navbar-brand app-brand demo d-none d-xl-flex py-0 me-4">
-        <a href="{{route('home')}}" class="app-brand-link gap-2">
+        <a href="{{ $homeLink }}" class="app-brand-link gap-2">
           <span class="app-brand-logo demo">
             @include('_partials.macros',["height"=>20])
           </span>
@@ -70,9 +74,6 @@ $isAdminSession = (bool) $adminUser;
 
           <!-- Settings (opens in new window) -->
           <li class="nav-item me-2 me-lg-3">
-            @php
-            $companySlug = request()->route('company_slug') ?? session('company_slug');
-            @endphp
             @if(!$adminUser)
             <a
               class="nav-link"

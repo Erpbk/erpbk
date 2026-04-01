@@ -2,8 +2,12 @@
     @php
     $tenantCompany = view()->shared('currentCompany');
     $tenantLogo = !empty($tenantCompany?->logo) ? asset('storage/' . $tenantCompany->logo) : 'https://assets.infyom.com/logo/blue_logo_150x150.png';
+    $companySlug = request()->route('company_slug') ?? session('company_slug');
+    $homeLink = auth('admin')->check()
+        ? route('admin.dashboard')
+        : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
     @endphp
-    <a href="{{ route('home') }}" class="brand-link">
+    <a href="{{ $homeLink }}" class="brand-link">
         <img src="{{ $tenantLogo }}"
             alt="{{ $tenantCompany?->name ?? config('app.name') }}"
             class="brand-image img-circle elevation-3">

@@ -61,6 +61,7 @@ Route::post('company/register/details', [CompanyRegistrationController::class, '
 Route::get('company/register/pending', [CompanyRegistrationController::class, 'pending'])->name('company.register.pending');
 
 // ---------- Company login (public): find tenant by name, then slug login ----------
+Route::redirect('/', '/company/login');
 Route::get('company/login', [CompanyAuthController::class, 'showFindLoginForm'])->name('company.find-login');
 Route::post('company/login', [CompanyAuthController::class, 'findLogin'])->name('company.find-login.submit');
 
@@ -624,6 +625,36 @@ Route::get('/artisan-storage-link', function () {
 Route::get('/artisan-storage-unlink', function () {
     Artisan::call('storage:unlink');
     return 'storage unlink';
+});
+
+// Admin DB: only migrations in database/migrations_admin (or one file via ?path=...)
+Route::get('/run-admin-migrate', function () {
+    $path = request('path');
+    $options = [
+        '--database' => 'mysql_admin',
+        '--force' => true,
+    ];
+
+    if ($path !== null && $path !== '') {
+        $path = str_replace('\\', '/', (string) $path);
+        if (str_contains($path, '..')) {
+            return response('Invalid path.', 400);
+        }
+        if (! str_starts_with($path, 'database/')) {
+            return response('path must start with database/ (e.g. database/migrations_admin/2026_03_20_000004_create_admin_auth_and_permission_tables.php)', 400);
+        }
+        $full = realpath(base_path($path));
+        if ($full === false || ! str_starts_with($full, realpath(base_path('database')))) {
+            return response('path must be under database/.', 400);
+        }
+        $options['--path'] = $path;
+    } else {
+        $options['--path'] = 'database/migrations_admin';
+    }
+
+    Artisan::call('migrate', $options);
+
+    return Artisan::output();
 });
 
 /* Route::resource('calculations', App\Http\Controllers\CalculationsController::class)

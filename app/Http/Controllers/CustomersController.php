@@ -239,6 +239,12 @@ class CustomersController extends AppBaseController
       Flash::error('Customer not found');
       return redirect(route('customers.index'));
     }
+
+    if (empty($customer->account_id)) {
+      Flash::error('Customer account not linked. Please assign an account first.');
+      return redirect(route('customers.show', $customer->id));
+    }
+
     $details = $this->getDetails($customer->account_id);
     $account_id = $customer->account_id;
 

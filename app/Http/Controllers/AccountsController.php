@@ -87,7 +87,7 @@ class AccountsController extends AppBaseController
   }
   public function tree(AccountsDataTable $accountsDataTable)
   {
-    $accounts = Accounts::with('children')->whereNull('parent_id')->orderBy('account_code')->get();
+    $accounts = Accounts::with('children','branch')->whereNull('parent_id')->orderBy('account_code')->get();
     return view('accounts.tree', compact('accounts'));
   }
 
@@ -181,7 +181,6 @@ class AccountsController extends AppBaseController
       $row = \App\Helpers\Accounts::getRef(['ref_name' => $accounts->ref_name, 'ref_id' => $accounts->ref_id]);
       if (isset($row)) {
         $row->name = $accounts->name;
-        $row->account_code = $accounts->account_code;
         $row->status = $accounts->status;
         $row->save();
       }

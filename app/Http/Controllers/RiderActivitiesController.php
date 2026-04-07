@@ -39,6 +39,7 @@ class RiderActivitiesController extends AppBaseController
         $query = RiderActivities::query()
             ->with('rider')
             ->orderByDesc('date');
+        $query->whereHas('rider');
         if ($request->filled('id')) {
             $rider = Riders::where('rider_id', (int) $request->id)->first();
             if ($rider) {
@@ -540,7 +541,7 @@ class RiderActivitiesController extends AppBaseController
         $query = liveactivities::query()
             ->with('rider')
             ->orderByDesc('date');
-
+        $query->whereHas('rider');
         if ($request->filled('id')) {
             $rider = Riders::where('rider_id', (int) $request->id)->first();
             if ($rider) {

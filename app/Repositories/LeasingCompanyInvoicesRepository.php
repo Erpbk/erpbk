@@ -242,6 +242,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                 'narration' => $narration,
                 'debit' => $subtotal,
                 'billing_month' => $billingMonthStr,
+                'branch_id' => $invoice->leasingCompany->branch_id,
             ], true);
 
             // 2. Debit VAT Account with VAT amount only
@@ -254,6 +255,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                     'trans_date' => $transDate,
                     'narration' => $narration . ' - VAT',
                     'debit' => $vatAmount,
+                    'branch_id' => $invoice->leasingCompany->branch_id,
                     'billing_month' => $billingMonthStr,
                 ], true);
             }
@@ -267,6 +269,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                 'trans_date' => $transDate,
                 'narration' => $narration,
                 'credit' => $totalAmount,
+                'branch_id' => $invoice->leasingCompany->branch_id,
                 'billing_month' => $billingMonthStr,
             ], true);
         } catch (\Throwable $e) {

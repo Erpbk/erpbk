@@ -197,6 +197,7 @@
                         <tr>
                             <th data-col="account-name" style="width: 410px;">Account Name</th>
                             <th data-col="account-code" class="text-nowrap" style="width: 520px;">Account Code</th>
+                            <th data-col="Branch" class="text-nowrap" style="width: 240px;">Branch</th>
                             <th data-col="account-type" class="text-nowrap" style="width: 540px;">Account Type</th>
                             <th data-col="parent-account" class="text-nowrap" style="width: 240px;">Parent Account</th>
                             <th data-col="status" class="text-nowrap" style="width: 90px;">Status</th>

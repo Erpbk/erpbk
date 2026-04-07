@@ -3,7 +3,7 @@ $depth = $depth ?? 0;
 $hasChildren = $account->children && $account->children->count() > 0;
 $isRoot = is_null($account->parent_id);
 $parentName = $parentName ?? ($account->parent ? $account->parent->name : null);
-$searchText = strtolower(($account->name ?? '') . ' ' . ($account->account_code ?? '') . ' ' . ($account->account_type ?? '') . ' ' . ($parentName ?? ''));
+$searchText = strtolower(($account->name ?? '') . ' ' . ($account->account_code ?? '') . ' ' . ($account->account_type ?? '') . ' ' . ($parentName ?? '') .' '. $account->branch_name);
 @endphp
 <tr class="chart-account-row {{ $depth > 0 ? 'child-row' : '' }}" data-account-id="{{ $account->id }}" data-parent-id="{{ $account->parent_id ?? '' }}" data-depth="{{ $depth }}" data-search="{{ $searchText }}" {{ $depth > 0 ? 'style="display:none;"' : '' }}>
   <td class="align-middle" data-col="account-name">
@@ -30,6 +30,7 @@ $searchText = strtolower(($account->name ?? '') . ' ' . ($account->account_code 
     </div>
   </td>
   <td class="align-middle text-nowrap" data-col="account-code">{{ $account->account_code ?: '—' }}</td>
+  <td class="align-middle text-nowrap" data-col="branch">{{ $account->branch_name }}</td>
   <td class="align-middle text-nowrap" data-col="account-type">{{ $account->account_type ?? '—' }}</td>
   <td class="align-middle" data-col="parent-account">{{ $parentName ?: '—' }}</td>
   <td class="align-middle" data-col="status">{!! App\Helpers\Common::status($account->status) !!}</td>

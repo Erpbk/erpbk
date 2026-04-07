@@ -119,6 +119,17 @@
                     </div>
 
                     <div class="row mb-2">
+                        <div class="col-5 font-weight-bold text-muted">Branch:</div>
+                        <div class="col-7">
+                            @if($sims->branch && $sims->branch->name)
+                            <span class="badge bg-primary">{{ $sims->branch->name }}</span>
+                            @else
+                            N/A
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
                         <div class="col-5 font-weight-bold text-muted">Created By:</div>
                         <div class="col-7">
                             @php

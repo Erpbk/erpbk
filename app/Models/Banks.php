@@ -6,14 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
+use App\Traits\BranchScope;
 
 class Banks extends Model
 {
-  use SoftDeletes, LogsActivity, HasActiveStatus;
+  use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope;
 
   public $table = 'banks';
 
   public $fillable = [
+    'branch_id',
     'name',
     'title',
     'account_no',
@@ -71,5 +73,16 @@ class Banks extends Model
   function transactions()
   {
     return $this->hasMany(Transactions::class, 'account_id', 'account_id');
+  }
+
+  public function branch()
+  {
+      return $this->belongsTo(Branch::class, 'branch_id' , 'id');
+  }
+
+  public function getBranchNameAttribute()
+  {
+    $branch = $this->branch_id ? $this->branch->name .' ( '. $this->branch->code .' )' : 'All' ; 
+    return $branch;
   }
 }

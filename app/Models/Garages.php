@@ -4,14 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
+use App\Traits\BranchScope;
 
 class Garages extends Model
 {
-    use LogsActivity;
+    use LogsActivity, BranchScope;
 
   public $table = 'garages';
 
   public $fillable = [
+    'branch_id',
     'name',
     'contact_person',
     'address',

@@ -646,13 +646,26 @@
             <h3></h3>
             <ul class="info-list">
 
+                <!-- Leasing Company -->
+                <li class="info-item">
+                    <div class="info-icon">
+                        <i class="ti ti-building"></i>
+                    </div>
+                    <div class="info-content">
+                        <span class="info-label">Branch</span>
+                        <span class="info-value">
+                            {{ $bikes->branch ?  $bikes->branch->name .' ( '.$bikes->branch->code.' )' : 'N/A' }}
+                        </span>
+                    </div>
+                </li>
+
                 <li class="info-item">
                     <div class="info-icon">
                         <i class="ti ti-user"></i>
                     </div>
                     <div class="info-content">
                         @php
-                            $rider = DB::table('riders')->where('id', $bikes->rider_id)->first();
+                            $rider = $bikes->rider;
                             $riderName = $rider->name ?? 'Not Assigned';
                         @endphp
                         <span class="info-label">Rider</span>
@@ -672,10 +685,7 @@
                     <div class="info-content">
                         <span class="info-label">Leasing Company</span>
                         <span class="info-value">
-                            @php
-                                $company = DB::table('leasing_companies')->where('id', $bikes->company)->first();
-                                echo $company->name ?? 'N/A';
-                            @endphp
+                            {{ $bikes->leasingComopany ? $bikes->leasingCompany->name : 'N/A' }}
                         </span>
                     </div>
                 </li>

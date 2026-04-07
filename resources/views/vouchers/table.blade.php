@@ -12,12 +12,6 @@
       <th title="Updated By" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>
       <th title="File" class="sorting_disabled" rowspan="1" colspan="1" aria-label="File">File</th>
       <th title="Actions" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Actions">Actions</th>
-      <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-        <a class="openFilterSidebar" href="javascript:void(0);" title="Filters"> <i class="fa fa-search"></i></a>
-      </th>
-      <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-        <a class="openColumnControlSidebar" href="javascript:void(0);" title="Column Control"> <i class="fa fa-columns"></i></a>
-      </th>
     </tr>
   </thead>
   <tbody>
@@ -104,8 +98,6 @@
             </ul>
           </div>
       </td>
-      <td></td>
-      <td></td>
     </tr>
     @endforeach
     @else

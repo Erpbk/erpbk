@@ -818,6 +818,7 @@ class VouchersController extends Controller
   {
     /** @var Vouchers $vouchers */
     $vouchers = Vouchers::where('trans_code', $id)->first();
+    $vouchers->trans_code = null;
     $vouchers->billing_month = Carbon::parse($vouchers->billing_month)->format('Y-m');
     if($vouchers->voucher_type == 'RV') {
       $receipt = Receipt::find($vouchers->ref_id);

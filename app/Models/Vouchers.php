@@ -7,6 +7,7 @@ use Eloquent as Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use App\Traits\BranchScope;
 
 /**
  * Class Vouchers
@@ -31,7 +32,7 @@ use App\Traits\LogsActivity;
  */
 class Vouchers extends Model
 {
-  use HasFactory, LogsActivity, SoftDeletes;
+  use HasFactory, LogsActivity, SoftDeletes, BranchScope;
 
   public $table = 'vouchers';
 
@@ -89,6 +90,7 @@ class Vouchers extends Model
    * @var array
    */
   public static $rules = [
+    'branch_id' => 'required|exists:branches,id',
     'trans_date' => 'nullable',
     'trans_code' => 'nullable',
     'posting_date' => 'nullable',
@@ -118,5 +120,10 @@ class Vouchers extends Model
     $prefix = $this->voucher_type ?: 'V';
     $number = str_pad($this->id, 4, '0', STR_PAD_LEFT);
     return "{$prefix}-{$number}";
+  }
+
+  public function branch()
+  {
+    return $this->belongsTo(Branch::class,'branch_id', 'id');
   }
 }

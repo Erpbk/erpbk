@@ -190,6 +190,30 @@ class LedgerDataTable extends DataTable
           $voucher_text = '<span class="text-danger">Customer invoice not found</span>';
         }
       }
+      if ($row->reference_type == 'PV') {
+        $vouchers =  \App\Models\Vouchers::where('trans_code', $row->trans_code)->first();
+        if ($vouchers) {
+          $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
+          $voucher_text = '<span class="d-none">' . $voucher_ID . '</span><a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+          if ($vouchers->attach_file) {
+            $view_file = '  <a href="' . url('storage2/' . $vouchers->attach_file) . '" class="no-print"  target="_blank">View File</a>';
+          }
+        } else {
+          $voucher_text = '<span class="text-danger">No Voucher Found</span>';
+        }
+      }
+      if ($row->reference_type == 'RV') {
+        $vouchers =  \App\Models\Vouchers::where('trans_code', $row->trans_code)->first();
+        if ($vouchers) {
+          $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
+          $voucher_text = '<span class="d-none">' . $voucher_ID . '</span><a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
+          if ($vouchers->attach_file) {
+            $view_file = '  <a href="' . url('storage2/' . $vouchers->attach_file) . '" class="no-print"  target="_blank">View File</a>';
+          }
+        } else {
+          $voucher_text = '<span class="text-danger">No Voucher Found</span>';
+        }
+      }
       if ($row->reference_type == 'LeasingCompanyInvoice') {
         $invoice_ID = $row->reference_id;
         $voucher_text = '<span class="d-none">LI-' . $invoice_ID . '</span><a href="javascript:void(0);" data-title="Leasing Company Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyInvoices.show', $invoice_ID) . '" class="no-print show-modal">LI-' . $invoice_ID . '</a>';

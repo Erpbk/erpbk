@@ -96,7 +96,6 @@ class SupplierController extends AppBaseController
       'status' => 'nullable|string',
     ]);
 
-    $supplier = Supplier::create($validated);
 
     // Create or get parent "Supplier" account
     $parentAccount = Accounts::where('name', 'Supplier')->where('account_type', 'Liability')->where('parent_id', null)->first();
@@ -104,22 +103,44 @@ class SupplierController extends AppBaseController
       Flash::error('Parent account "Supplier" not found.');
     }
 
-    // Create linked account in chart of accounts
-    $account = new Accounts();
-    $account->account_code = 'SUP' . str_pad($supplier->id, 4, "0", STR_PAD_LEFT);
-    $account->account_type = 'Liability';
-    $account->name = $supplier->name;
-    $account->parent_id = $parentAccount->id;
-    $account->ref_name = 'Supplier';
-    $account->ref_id = $supplier->id;
-    $account->status = 1;
-    $account->save();
+    try{
+      DB::beginTransaction();
+      $supplier = Supplier::create($validated);
+      // Create linked account in chart of accounts
+      $account = new Accounts();
+      $account->account_code = 'SUP' . str_pad($supplier->id, 4, "0", STR_PAD_LEFT);
+      $account->account_type = 'Liability';
+      $account->name = $supplier->name;
+      $account->parent_id = $parentAccount->id;
+      $account->ref_name = 'Supplier';
+      $account->ref_id = $supplier->id;
+      $account->status = 1;
+      $account->branch_id = $supplier->branch_id;
+      $account->save();
 
-    $supplier->account_id = $account->id;
-    $supplier->save();
-
-    Flash::success('Supplier created successfully.');
-    return redirect(route('suppliers.index'));
+      $supplier->account_id = $account->id;
+      $supplier->save();
+      DB::commit();
+      if($request->ajax()){
+        return response()->json([
+          'message' => 'Supplier Added Successfully',
+          'reload' => true
+        ],200);
+      }
+      Flash::success('Supplier created successfully.');
+      return redirect(route('suppliers.index'));
+    }catch(\Exception $e){
+      \Log::error('error occured while creating supplier : '.$e->getMessage());
+      DB::rollBack();
+      if($request->ajax()){
+        return response()->json([
+            'message' => 'Error: '.$e->getMessage(),
+          ],500);
+      }
+      Flash::error('Error: '.$e->getMessage());
+      return redirect()->back();
+    }
+    
   }
 
 
@@ -167,26 +188,6 @@ class SupplierController extends AppBaseController
 
     Flash::success('Supplier updated successfully.');
     return redirect(route('suppliers.index'));
-
-    $parentAccount = Accounts::where('name', 'Supplier')->where('account_type', 'Liability')->where('parent_id', null)->first();
-    if (!$parentAccount) {
-      Flash::error('Parent account "Supplier" not found.');
-    }
-
-
-    foreach ($supplier as $supplier) {
-      $account = new Accounts();
-      $account->account_code = 'SUP' . str_pad($supplier->id, 4, "0", STR_PAD_LEFT);
-      $account->name = $supplier->name;
-      $account->account_type = 'Liability';
-      $account->ref_name = 'Supplier';
-      $account->parent_id = $parentAccount->id;
-      $account->ref_id = $supplier->id;
-      $account->save();
-
-      $supplier->account_id = $account->id;
-      $supplier->save();
-    }
   }
 
   public function destroy($id)

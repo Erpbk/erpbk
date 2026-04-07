@@ -25,6 +25,7 @@ class BikeMaintenanceController extends Controller
     {
         $maintenances = BikeMaintenance::with(['bike.rider'])
                         ->orderBy('maintenance_date', 'desc')
+                        ->whereHas('bike')
                         ->get();
         $stats = $this->stats($maintenances);
 

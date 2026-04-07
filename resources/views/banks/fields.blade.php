@@ -5,7 +5,7 @@
 </div>
 <!-- Branch Field -->
 <div class="form-group col-sm-6">
-  {!! Form::label('branch', 'Branch:') !!}
+  {!! Form::label('branch', 'Bank Branch:') !!}
   {!! Form::text('branch', null, ['class' => 'form-control', 'maxlength' => 255, 'maxlength' => 255]) !!}
 </div>
 <!-- Account Type Field -->
@@ -44,6 +44,12 @@
     {!! Form::label('balance', 'Opening Balance:') !!}
     {!! Form::number('balance', null, ['class' => 'form-control']) !!}
 </div>
+<!-- Branch Field -->
+<div class="form-group col-sm-6">
+    {!! Form::label('branch_id', 'Company Branch:',['class'=>'required']) !!}
+    {!! Form::select('branch_id', auth()->user()->branchDropdown(true), null, ['class' => 'form-select select2']) !!}
+</div>
+<div class="mt-4 col-sm-12 alert alert-warning">Select <b>'All'</b> option in  Branch list if this account will be used by all or multiple company branches</div>
 
 <!-- Status Field -->
 <div class="form-group col-sm-6 mt-3">

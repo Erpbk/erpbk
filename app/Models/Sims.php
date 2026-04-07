@@ -5,14 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use App\Traits\BranchScope;
 
 class Sims extends Model
 {
-    use SoftDeletes, LogsActivity;
+    use SoftDeletes, LogsActivity, BranchScope;
 
   public $table = 'sims';
 
   public $fillable = [
+    'branch_id',
     'number',
     'company',
     'assign_to',
@@ -41,6 +43,7 @@ class Sims extends Model
   public static array $rules = [
     'number' => 'required|string|max:191',
     'company' => 'required|string|max:191',
+    'branch_id' => 'nullable|exists:branches,id',       
     'assign_to' => 'nullable',
     'created_by' => 'nullable',
     'updated_by' => 'nullable',
@@ -65,5 +68,10 @@ class Sims extends Model
   public function vendors()
   {
     return $this->hasOne(Vendors::class, 'id', 'vendor');
+  }
+
+  public function branch()
+  {
+    return $this->belongsTo(Branch::class, 'branch_id', 'id');
   }
 }

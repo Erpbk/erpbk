@@ -61,7 +61,6 @@ class ReportController extends Controller
 
     // Optimize query with eager loading to reduce database queries
     $result = Riders::with(['vendor', 'bikes']);
-
     if ($request->status && $request->status !== '') {
       $result = $result->where('status', $request->status);
     }

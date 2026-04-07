@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\BranchScope;
 
 class CustomerInvoices extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, BranchScope;
 
     /**
      * The attributes that are mass assignable.
@@ -16,6 +17,7 @@ class CustomerInvoices extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'branch_id',
         'inv_date',
         'customer_id',
         'billing_month',
@@ -102,4 +104,15 @@ class CustomerInvoices extends Model
         // Verify the invoice exists
         return self::where('id', $id)->exists() ? $id : null;
     }
+
+    public function getPaidAmountAttribute()
+    {
+        return array_sum($this->partial_paid_amount ?? []);
+    }
+
+    public function getBalanceAttribute()
+    {
+        return $this->total - $this->paid_amount;
+    }
+
 }

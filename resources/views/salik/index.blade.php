@@ -134,6 +134,16 @@
     <div class="filter-body" id="searchTopbody">
         <form id="filterForm" action="{{ route('salik.tickets', $account->id) }}" method="GET">
             <div class="row">
+                @if(auth()->user()->hasMultiplebranches())
+                <div class="form-group col-md-12">
+                    <label for="branch_id">Filter by Branch</label>
+                    <select class="form-control " id="branch_id" name="branch_id">
+                        @foreach(auth()->user()->branchDropdown() as $id => $name)
+                        <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
                 <div class="form-group col-md-12">
                     <label for="transaction_id">Transaction ID</label>
                     <input type="text" name="transaction_id" id="transaction_id" class="form-control" placeholder="Filter By Transaction ID" value="{{ request('transaction_id') }}">
@@ -289,6 +299,11 @@
             dropdownParent: $('#searchTopbody'),
             allowClear: true,
             placeholder: "Filter By Rider",
+        });
+        $('#branch_id').select2({
+            dropdownParent: $('#searchTopbody'),
+            allowClear: true,
+            placeholder: "Filter By Branch",
         });
         $('#direction').select2({
             dropdownParent: $('#searchTopbody'),

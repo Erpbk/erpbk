@@ -1,17 +1,22 @@
 <script src="{{ asset('js/modal_custom.js') }}"></script>
 
+<div class="alert alert-warning"> Select <b>'All'</b> option in Branch list if this account will be used by all or multiple branches</div>
+
 <!-- Account Type Field -->
 <div class="form-group col-sm-6">
   {!! Form::label('account_type', 'Account Type:') !!}
   {!! Form::select('account_type', App\Helpers\Accounts::AccountTypes(),null, ['class' => 'form-control form-select select2']) !!}
 </div>
-<div class="form-group col-sm-6"></div>
+<!-- Branch Field -->
+<div class="form-group col-sm-6">
+    {!! Form::label('branch_id', 'Branch:',['class'=>'required']) !!}
+    {!! Form::select('branch_id', auth()->user()->branchDropdown(true), null, ['class' => 'form-select select2']) !!}
+</div>
 <!-- Account Name Field -->
 <div class="form-group col-sm-6">
   {!! Form::label('name', 'Account Name:') !!}
   {!! Form::text('name', null, ['class' => 'form-control', 'required', 'maxlength' => 100, 'maxlength' => 100]) !!}
 </div>
-<div class="form-group col-sm-6"></div>
 <!-- Account Code Field -->
 @if(Route::currentRouteName() == 'accounts.edit' && isset($accounts->id))
 <div class="form-group col-sm-6">
@@ -21,7 +26,7 @@
 @endif
 
 <!-- Parent Account Id Field -->
-<div class="form-group col-sm-8">
+<div class="form-group col-sm-6">
   {!! Form::label('parent_id', 'Parent Account:') !!}
   <select name="parent_id" class="form-control form-select select2">
     <option value="">Select</option>

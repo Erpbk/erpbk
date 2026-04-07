@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use App\Traits\BranchScope;
 
 class Transactions extends Model
 {
-  use SoftDeletes, LogsActivity;
+  use SoftDeletes, LogsActivity, BranchScope;
 
   protected $fillable = [
     'branch_id',
@@ -24,6 +25,10 @@ class Transactions extends Model
     'deleted_by',
   ];
 
+  public static $rules = [
+    'branch_id' => 'required|exists:branches,id',
+  ];
+
   function account()
   {
     return $this->hasOne(Accounts::class, 'id', 'account_id');
@@ -31,6 +36,11 @@ class Transactions extends Model
   function voucher()
   {
     return $this->hasOne(Vouchers::class, 'trans_code', 'trans_code');
+  }
+
+  public function branch()
+  {
+    return $this->belongsTo(Branch::class, 'branch_id', 'id');
   }
 
   public function supplierInvoice()

@@ -43,7 +43,7 @@
                   <span class="badge bg-success">Paid</span>
                @elseif($invoice->status == 'partially_paid')
                   <span class="badge bg-warning">Partially Paid</span>
-                  <small>(AED {{ number_format(($invoice->total - $invoice->partial_paid_amount) ?? 0, 2) }} due)</small>
+                  <small>(AED {{ number_format(($invoice->total - array_sum($invoice->partial_paid_amount ?? [])), 2) }} due)</small>
                @else
                   <span class="badge bg-secondary">Unpaid</span>
                @endif

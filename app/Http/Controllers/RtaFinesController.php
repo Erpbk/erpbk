@@ -170,11 +170,15 @@ class RtaFinesController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
         $query = RtaFines::query()
+            ->with('branch')
             ->orderBy('id', 'asc')
             ->where('rta_account_id', $id);
 
         if ($request->filled('ticket_no')) {
             $query->where('ticket_no', 'like', '%' . $request->ticket_no . '%');
+        }
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
         }
         if ($request->filled('billing_month')) {
             $billingMonth = \Carbon\Carbon::parse($request->billing_month);
@@ -304,6 +308,7 @@ class RtaFinesController extends AppBaseController
                         'narration'      => $fine->detail ?? 'RTA Fine Payment',
                         'debit'          => $fine->amount,
                         'billing_month'  => $billingMonth,
+                        'branch_id'      => $fine->branch_id
                     ]);
                 }
 
@@ -317,6 +322,7 @@ class RtaFinesController extends AppBaseController
                         'trans_date'     => $transDate,
                         'narration'      => $service_accounts->name . 'RTA Fine',
                         'debit'          => $fine->service_charges,
+                        'branch_id'      => $fine->branch_id,
                         'billing_month'  => $billingMonth,
                     ]);
                 }
@@ -332,6 +338,7 @@ class RtaFinesController extends AppBaseController
                         'trans_date'     => $transDate,
                         'narration'      => $fine->detail ?? 'RTA Fine Payment',
                         'credit'         => $fine->amount + $fine->service_charges,
+                        'branch_id'      => $fine->branch_id,
                         'billing_month'  => $billingMonth,
                     ]);
                 }
@@ -351,6 +358,7 @@ class RtaFinesController extends AppBaseController
                     'attach_file'   => $docFile,
                     'pay_account'   => $request->account,
                     'ref_id'        => $fine->id,
+                    'branch_id'     => $fine->branch_id,
                     'custom_field_values' => $request->input('voucher_custom_fields', []),
                 ]);
 
@@ -453,6 +461,7 @@ class RtaFinesController extends AppBaseController
             $input['total_amount']    = ($request->service_charges ?? 0) + ($request->admin_fee ?? 0) + ($request->amount ?? 0) + ($request->vat ?? 0);
             $input['status']          = 'unpaid';
             $input['reference_number']        = $input['reference_number'];
+            $input['branch_id']       = $bike->branch_id;
 
             // Create RTA Fine
             $rtaFines = $this->rtaFinesRepository->create($input);
@@ -475,6 +484,7 @@ class RtaFinesController extends AppBaseController
                 'narration'      => $rtaFines->detail ?? 'RTA Fine',
                 'debit'          => $rtaFines->amount + $rtaFines->admin_fee + $rtaFines->service_charges, // Only amount (admin + service + fine), not including VAT
                 'billing_month'  => $billingMonth,
+                'branch_id'      => $bike->branch_id,
             ]);
 
 
@@ -490,6 +500,7 @@ class RtaFinesController extends AppBaseController
                     'trans_date'     => $rtaFines->trans_date,
                     'narration'      => $admin_accounts->name,
                     'credit'          => $request->admin_fee,
+                    'branch_id'      => $bike->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
             }
@@ -503,6 +514,7 @@ class RtaFinesController extends AppBaseController
                     'trans_date'     => $rtaFines->trans_date,
                     'narration'      => $service_accounts->name . 'RTA Fine',
                     'credit'          => $request->service_charges,
+                    'branch_id'      => $bike->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
             }
@@ -516,6 +528,7 @@ class RtaFinesController extends AppBaseController
                     'narration'      => 'VAT on RTA Fine',
                     'debit'         => $request->vat,
                     'billing_month'  => $billingMonth,
+                    'branch_id'      => $bike->branch_id,
                 ]);
             }
             if ($request->amount > 0) {
@@ -527,6 +540,7 @@ class RtaFinesController extends AppBaseController
                     'trans_date'     => $rtaFines->trans_date,
                     'narration'      => $rtaFines->detail ?? 'RTA Fine Received',
                     'credit'         => $rtaFines->amount + $request->vat, // Total amount including VAT
+                    'branch_id'      => $bike->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
             }
@@ -546,6 +560,7 @@ class RtaFinesController extends AppBaseController
                 'attach_file'   => $path,
                 'pay_account'   => $rider_account->id,
                 'ref_id'        => $rtaFines->id,
+                'branch_id'     => $bike->branch_id,
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
             ]);
 
@@ -681,6 +696,7 @@ class RtaFinesController extends AppBaseController
             $input['trans_date']      = Carbon::today()->format('Y-m-d');
             $input['total_amount']    = ($request->amount ?? 0) + ($request->service_charges ?? 0) + ($request->admin_fee ?? 0) + ($request->vat ?? 0);
             $input['rta_account_id']  = $request->rta_account_id;
+            $input['branch_id']       = $bike->branch_id;
 
             $rtaFines->update($input);
             $trans_code    = $rtaFines->trans_code;
@@ -702,6 +718,7 @@ class RtaFinesController extends AppBaseController
                     'debit'          => $rtaFines->total_amount,
                     'credit'         => 0,
                     'billing_month'  => $billingMonth,
+                    'branch_id'      => $rtaFines->branch_id,
                 ],
                 $rtaFines->rider_id
             );
@@ -716,6 +733,7 @@ class RtaFinesController extends AppBaseController
                     'narration'      => $admin_accounts->name,
                     'debit'          => 0,
                     'credit'         => $request->admin_fee,
+                    'branch_id'      => $rtaFines->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
             }
@@ -730,6 +748,7 @@ class RtaFinesController extends AppBaseController
                     'narration'      => $service_accounts->name . ' RTA Fine',
                     'debit'          => 0,
                     'credit'         => $request->service_charges,
+                    'branch_id'      => $rtaFines->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
             }
@@ -743,6 +762,7 @@ class RtaFinesController extends AppBaseController
                     'narration'      => $request->detail ?? 'RTA Fine Received',
                     'debit'          => 0,
                     'credit'         => $rtaFines->amount,
+                    'branch_id'      => $rtaFines->branch_id,
                     'billing_month'  => $billingMonth,
                 ],
                 $rta_account->rta_account_id
@@ -774,6 +794,7 @@ class RtaFinesController extends AppBaseController
                     'amount'        => $rtaFines->total_amount,
                     'attach_file'   => $path,
                     'pay_account'   => $rider_account->id,
+                    'branch_id'      => $rtaFines->branch_id,
                     'Updated_By'    => auth()->id(),
                 ]);
             }
@@ -793,6 +814,7 @@ class RtaFinesController extends AppBaseController
                     'billing_month' => $billingMonth,
                     'reference_number' => $rtaFines->reference_number,
                     'amount'        => $rtaFines->total_amount,
+                    'branch_id'      => $rtaFines->branch_id,
                     'attach_file'   => $path,
                     'Updated_By'    => auth()->id(),
                     // Preserve payment-specific fields: pay_account, payment_type, voucher_type, trans_code
@@ -817,6 +839,7 @@ class RtaFinesController extends AppBaseController
                     $updateData = [
                         'trans_date'    => $rtaFines->trans_date,
                         'billing_month'  => $billingMonth,
+                        'branch_id'      => $rtaFines->branch_id,
                         'updated_at'     => now(),
                     ];
 

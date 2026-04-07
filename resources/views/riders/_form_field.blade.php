@@ -33,6 +33,8 @@
           $opts = \App\Models\Accounts::dropdown(null) ?? ['' => 'Select'];
         } elseif (($spec['dropdown'] ?? '') === 'customers') {
           $opts = \App\Models\Customers::pluck('name', 'id')->prepend('Select', '')->toArray();
+        } elseif (($spec['dropdown'] ?? '') === 'branch') {
+          $opts = \App\Models\Branch::active()->pluck('name', 'id')->prepend('Select', '')->toArray();
         } else {
           $opts = Common::Dropdowns($spec['dropdown'] ?? '');
         }

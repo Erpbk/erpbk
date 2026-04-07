@@ -1,7 +1,6 @@
 ﻿@extends('riders.view')
 @section('title','Visa Expenses')
 @section('page_content')
-
   {{-- Visa Expenses --}}
   <div class="content">
     @include('flash::message')

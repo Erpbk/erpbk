@@ -122,6 +122,16 @@
             <div class="filter-body" id="searchTopbody">
                 <form id="filterForm" action="{{ route('vouchers.index') }}" method="GET">
                     <div class="row">
+                        @if(auth()->user()->hasMultiplebranches())
+                        <div class="form-group col-md-12">
+                            <label for="branch_id">Filter by Branch</label>
+                            <select class="form-control " id="branch_id" name="branch_id">
+                                @foreach(auth()->user()::branchDropdown() as $id => $name)
+                                <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
                         <div class="form-group col-md-12">
                             <label for="voucher_id">Voucher ID</label>
                             <input type="text" name="voucher_id" class="form-control" placeholder="Filter By Voucher ID (e.g., JV-0001)" value="{{ request('voucher_id') }}">
@@ -202,11 +212,12 @@
 
         <div class="card">
             <div class="card-header d-flex justify-content-between">
-                <div class="card-title">
-                    <h3>Vouchers @if(isset($data)) ({{ $data->total() }} Records) @endif</h3>
-                </div>
                 <div class="card-search">
                     <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-primary btn-sm openColumnControlSidebar" title="Column Control"> Column Control</button>
+                    <button class="btn btn-primary btn-sm openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
                 </div>
             </div>
             <div class="card-body  px-2 py-0 table-responsive" id="table-data">
@@ -293,6 +304,11 @@
                 $('#created_by').select2({
                     dropdownParent: $('#searchTopbody'),
                     placeholder: "Filter By Created By",
+                    allowClear: true,
+                });
+                $('#branch_id').select2({
+                    dropdownParent: $('#searchTopbody'),
+                    placeholder: "Filter By Branch",
                     allowClear: true,
                 });
             }

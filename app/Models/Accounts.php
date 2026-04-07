@@ -6,14 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
+use App\Traits\BranchScope;
 
 class Accounts extends Model
 {
-  use LogsActivity, HasActiveStatus, SoftDeletes;
+  use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
 
   public $table = 'accounts';
 
   public $fillable = [
+    'branch_id',
     'account_code',
     'name',
     'account_type',
@@ -47,6 +49,11 @@ class Accounts extends Model
     'opening_balance' => 'nullable|numeric'
 
   ];
+
+  public function branch()
+  {
+    return $this->belongsTo(Branch::class, 'branch_id' , 'id');
+  }
 
   public function ledgerEntries()
   {
@@ -126,5 +133,11 @@ class Accounts extends Model
       ->orderBy('account_code')
       ->pluck('full_name', 'id')
       ->prepend('Select', '');
+  }
+
+  public function getBranchNameAttribute()
+  {
+    $branch = $this->branch_id ? $this->branch->name .' ( '. $this->branch->code .' )' : 'All' ; 
+    return $branch;
   }
 }

@@ -27,6 +27,9 @@ class FuelCardController extends Controller
         if ($request->has('card_number') && !empty($request->card_number)) {
             $query->where('card_number', 'like', '%' . $request->card_number . '%');
         }
+        if ($request->has('branch_id') && !empty($request->branch_id)) {
+            $query->where('branch_id', $request->branch_id);
+        }
         if ($request->has('status') && !empty($request->status)) {
             $query->where('status',  $request->status );
         }
@@ -77,11 +80,15 @@ class FuelCardController extends Controller
             'card_type'=> 'nullable|string|max:255',
             'assigned_to'=> 'nullable|integer',
             'status' =>'nullable|string',
+            'branch_id' => 'required|numeric|exists:branches,id',
             ]);
 
         $request['created_by'] = auth()->id();
-        if(($request['assigned_to']))
+        if(($request['assigned_to'])){
             $request['status'] = 'Active';
+            $rider = \App\Models\Riders::find($request->assigned_to);
+            $request['branch_id'] = $rider->branch_id;
+        }
         else
             $request['status'] = 'Inactive';
         DB::beginTransaction();
@@ -120,6 +127,7 @@ class FuelCardController extends Controller
     {
         $card = FuelCards::find($id);
         $histories = $card->histories()->orderByDesc('id')->get();
+        $card->load('branch');
         return view('fuel_cards.show', compact('card', 'histories'));
     }
 
@@ -140,6 +148,7 @@ class FuelCardController extends Controller
         $this->validate($request, [
             'card_number' => 'required|string|min:16|unique:fuel_cards,card_number,'.$id,
             'card_type'=> 'nullable|string|max:255',
+            'branch_id' => 'required|numeric|exists:branches,id',
             ]);
 
         $card = FuelCards::find($id);
@@ -166,7 +175,7 @@ class FuelCardController extends Controller
         }
         
         if($request->ajax()) {
-            return response()->json(['message' => 'Fuel Card Updated Succesfully']);
+            return response()->json(['message' => 'Fuel Card Updated Succesfully', 'reload' => true]);
         }
         Flash::success('Fuel Card Updated Successfully');
         return redirect()->back();

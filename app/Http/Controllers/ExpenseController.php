@@ -462,6 +462,7 @@ class ExpenseController extends AppBaseController
                 'reference_number' => $request->input('reference_number'),
                 'payment_type' => $request->input('payment_type'),
                 'amount' => $grandTotal,
+                'branch_id' => count(array_unique($debitAccounts)) === 1 ? Accounts::where('id',$debitAccounts[0])->value('branch_id') : null,
                 'Created_By' => auth()->id(),
             ]);
 
@@ -469,7 +470,7 @@ class ExpenseController extends AppBaseController
                 $amount = floatval($amounts[$index] ?? 0);
                 $vatAmount = floatval($vatAmounts[$index] ?? 0);
                 $debitNarration = $debitNarrations[$index] ?? '';
-
+                $branchId = Accounts::where('id',$debitAccountId)->value('branch_id');
                 if ($amount <= 0) {
                     continue;
                 }
@@ -484,6 +485,7 @@ class ExpenseController extends AppBaseController
                     'reference_id' => $voucher->id,
                     'reference_type' => 'Voucher',
                     'billing_month' => $request->input('billing_month') . '-01',
+                    'branch_id' => $branchId,
                 ]);
 
                 if ($vatAmount > 0) {
@@ -497,6 +499,7 @@ class ExpenseController extends AppBaseController
                         'reference_id' => $voucher->id,
                         'reference_type' => 'Voucher',
                         'billing_month' => $request->input('billing_month') . '-01',
+                        'branch_id' => $branchId,
                     ]);
                 }
             }
@@ -511,6 +514,7 @@ class ExpenseController extends AppBaseController
                 'reference_id' => $voucher->id,
                 'reference_type' => 'Voucher',
                 'billing_month' => $request->input('billing_month') . '-01',
+                'branch_id' => Accounts::where('id',$creditAccountId)->value('branch_id'),
             ]);
 
             DB::commit();
@@ -626,6 +630,7 @@ class ExpenseController extends AppBaseController
                 'reference_number' => $request->input('reference_number'),
                 'payment_type' => $request->input('payment_type'),
                 'amount' => $grandTotal,
+                'branch_id' => count(array_unique($debitAccounts)) === 1 ? Accounts::where('id',$debitAccounts[0])->value('branch_id') : null,
                 'Updated_By' => auth()->id(),
             ]);
 
@@ -633,7 +638,7 @@ class ExpenseController extends AppBaseController
                 $amount = floatval($amounts[$index] ?? 0);
                 $vatAmount = floatval($vatAmounts[$index] ?? 0);
                 $debitNarration = $debitNarrations[$index] ?? '';
-
+                $branchId = Accounts::where('id', $debitAccountId)->value('branch_id');
                 if ($amount <= 0) {
                     continue;
                 }
@@ -648,6 +653,7 @@ class ExpenseController extends AppBaseController
                     'reference_id' => $voucher->id,
                     'reference_type' => 'Voucher',
                     'billing_month' => $request->input('billing_month') . '-01',
+                    'branch_id' => $branchId,
                 ]);
 
                 if ($vatAmount > 0) {
@@ -660,6 +666,7 @@ class ExpenseController extends AppBaseController
                         'narration' => 'VAT: ' . $debitNarration,
                         'reference_id' => $voucher->id,
                         'reference_type' => 'Voucher',
+                        'branch_id' => $branchId,
                         'billing_month' => $request->input('billing_month') . '-01',
                     ]);
                 }
@@ -675,6 +682,7 @@ class ExpenseController extends AppBaseController
                 'reference_id' => $voucher->id,
                 'reference_type' => 'Voucher',
                 'billing_month' => $request->input('billing_month') . '-01',
+                'branch_id' => Accounts::where('id', $creditAccountId)->value('branch_id'),
             ]);
 
             DB::commit();

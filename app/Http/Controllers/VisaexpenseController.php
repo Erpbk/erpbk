@@ -53,10 +53,27 @@ class VisaexpenseController extends AppBaseController
         $parent = Accounts::where('name', 'Visa Expense')->first();
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-
+        $userBranches = app('user_branches');
         $query = Accounts::query()
-            ->orderBy('id', 'desc')
-            ->where('parent_id', $parent->id);
+            ->select('accounts.*','riders.rider_id', 'riders.person_code', 'riders.labor_card_number', 'riders.policy_no')
+            ->leftJoin('riders', 'accounts.ref_id', '=', 'riders.id')
+            ->orderBy('accounts.id', 'desc')
+            ->where('accounts.parent_id', $parent->id);
+
+        // Apply branch filtering (if not admin)
+        if (!auth()->user()->isAdmin()) {
+            if (!empty($userBranches)) {
+                // User has branches: filter by them
+                $query->where(function ($q) use ($userBranches){
+                    $q->whereIn('riders.branch_id', $userBranches);
+                    $q->orWhere('riders.branch_id', null);
+                });
+                
+            } else {
+                // User has NO branches: only show accounts with branchless riders
+                $query->whereNull('riders.branch_id');
+            }
+        }
 
         // Existing filters
         if ($request->has('account_code') && !empty($request->account_code)) {
@@ -87,9 +104,17 @@ class VisaexpenseController extends AppBaseController
                 });
             }
         }
-
+        $statsQuery = clone $query;
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
+        $riders = Riders::all();
+        $riderIds = $statsQuery->pluck('rider_id')->toArray();
+        $visaAccounts = visa_expenses::whereIn('rider_id', $riderIds)->get();
+        $stats = [
+            'unpaid_accounts' => $visaAccounts->where('payment_status', 'unpaid')->count(),
+            'paid_amount' => $visaAccounts->where('payment_status', 'paid')->sum('amount'),
+            'unpaid_amount' => $visaAccounts->where('payment_status', 'unpaid')->sum('amount'),
+        ];
 
         if ($request->ajax()) {
             $tableData = view('visa_expenses.account_table', [
@@ -100,12 +125,17 @@ class VisaexpenseController extends AppBaseController
             return response()->json([
                 'tableData' => $tableData,
                 'paginationLinks' => $paginationLinks,
+                'riders' => $riders,
+                'stats' => $stats,
             ]);
         }
 
         return view('visa_expenses.account_index', [
             'data' => $data,
             'parent' => $parent,
+            'riders' => $riders,
+            'stats' => $stats,
+            'riderIds' => $riderIds,
         ]);
     }
     public function accountcreate(Request $request)
@@ -450,6 +480,7 @@ class VisaexpenseController extends AppBaseController
 
             // Get the rider account (visa expense account)
             $riderAccount = Accounts::findOrFail($validated['rider_id']);
+            $branch_id = Riders::where('id',$riderAccount->ref_id)->get('branch_id');
 
 
 
@@ -545,6 +576,7 @@ class VisaexpenseController extends AppBaseController
                     'Created_By' => auth()->user()->id,
                     'ref_id' => $installment->id,
                     'custom_field_values' => [],
+                    'branch_id' => $branch_id,
                 ]);
 
                 // Debit the liability account for each installment
@@ -556,6 +588,7 @@ class VisaexpenseController extends AppBaseController
                     'trans_date' => $trans_date,
                     'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment ' . ($i + 1 + $existingInstallmentCount) ,
                     'debit' => $installmentAmount,
+                    'branch_id' => $branch_id,
                     'billing_month' => $billingMonth,
                     'created_by' => auth()->user()->id,
                 ]);
@@ -569,7 +602,9 @@ class VisaexpenseController extends AppBaseController
                     'trans_date' => $trans_date,
                     'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment ' . ($i + 1 + $existingInstallmentCount) ,
                     'credit' => $installmentAmount,
+                    'branch_id' => $branch_id,
                     'billing_month' => $billingMonth,
+                    'created_by' => auth()->user()->id,
                 ]);
 
                 // Create ledger entry for liability account for each installment
@@ -925,6 +960,7 @@ class VisaexpenseController extends AppBaseController
                         'Created_By' => auth()->user()->id,
                         'ref_id' => $installment->id,
                         'custom_field_values' => [],
+                        'branch_id' => $rider->branch_id,
                     ]);
 
                     // Create transactions for the voucher
@@ -939,6 +975,7 @@ class VisaexpenseController extends AppBaseController
                         'debit' => (float) $newAmount,
                         'billing_month' => $billingMonth,
                         'created_by' => auth()->user()->id,
+                        'branch_id' => $rider->branch_id,
                     ]);
 
                     $TransactionService->recordTransaction([
@@ -950,6 +987,8 @@ class VisaexpenseController extends AppBaseController
                         'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting <b> installment </b> - ' . $installment->billing_month,
                         'credit' => (float) $newAmount,
                         'billing_month' => $billingMonth,
+                        'created_by' => auth()->user()->id,
+                        'branch_id' => $rider->branch_id,
                     ]);
                 }
 
@@ -1212,6 +1251,7 @@ class VisaexpenseController extends AppBaseController
                         'Created_By' => auth()->user()->id,
                         'ref_id' => $installment->id,
                         'custom_field_values' => [],
+                        'branch_id' => $rider->branch_id,
                     ]);
 
                     $TransactionService = new TransactionService();
@@ -1226,6 +1266,7 @@ class VisaexpenseController extends AppBaseController
                             'debit' => $amount,
                             'billing_month' => $billingMonthFull,
                             'created_by' => auth()->user()->id,
+                            'branch_id' => $rider->branch_id,
                         ]);
 
                         // Update or insert ledger entry for liability
@@ -1271,6 +1312,8 @@ class VisaexpenseController extends AppBaseController
                         'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting installment - ' . $bm,
                         'credit' => $amount,
                         'billing_month' => $billingMonthFull,
+                        'created_by' => auth()->user()->id,
+                        'branch_id' => $rider->branch_id,
                     ]);
                 }
             }

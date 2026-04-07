@@ -21,8 +21,7 @@ class ChequesController extends Controller
      */
     public function index()
     {
-        $query = Cheques::query()->latest('issue_date');
-        $data = $query->get();
+        $data = Cheques::latest('issue_date')->get();
         return view('cheques.index', compact('data'));
 
     }
@@ -99,6 +98,7 @@ class ChequesController extends Controller
                 
                 $chequeData['payee_account'] = $request->payee_account;
                 $chequeData['payee_name'] = $request->payee_name ?? $payeeAccount->name;
+                $chequeData['branch_id'] = $payeeAccount->branch_id;
                 
                 $bank = Banks::find($request->bank_id);
                 $chequeData['payer_account'] = $bank->account_id ;
@@ -110,6 +110,7 @@ class ChequesController extends Controller
                 
                 $chequeData['payer_account'] = $request->payer_account;
                 $chequeData['payer_name'] = $request->payer_name ?? $payerAccount->name;
+                $chequeData['branch_id'] = $payerAccount->branch_id;
                 
                 // Payee is the bank account
                 if($request->bank_id){
@@ -220,6 +221,7 @@ class ChequesController extends Controller
                 $payeeAccount = Accounts::find($request->payee_account);
                 $updateData['payee_account'] = $request->payee_account;
                 $updateData['payee_name'] = $request->payee_name ?? $payeeAccount->name;
+                $updateData['branch_id'] = $payeeAccount->branch_id;
                 
                 // Update payer from bank
                 $bank = Banks::find($cheque->bank_id);
@@ -229,6 +231,7 @@ class ChequesController extends Controller
                 $payerAccount = Accounts::find($request->payer_account);
                 $updateData['payer_account'] = $request->payer_account;
                 $updateData['payer_name'] = $request->payer_name ?? $payerAccount->name;
+                $updateData['branch_id'] = $payerAccount->branch_id;
                 
                 // Update payee from bank
                 if($validated['bank_id']){
@@ -263,6 +266,7 @@ class ChequesController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Cheque updated successfully!',
+                'reload' => true,
             ]);
 
         } catch (\Exception $e) {
@@ -390,6 +394,7 @@ class ChequesController extends Controller
                         'bank_charges' => 0,
                         'status' => '1',
                         'attachment'=> $cheque->attachment,
+                        'branch_id' => $cheque->branch_id,
                         'created_by' => Auth::id(),
                     ];
                     $payment = Payment::create($paymentData);
@@ -406,6 +411,7 @@ class ChequesController extends Controller
                         'debit' => 0,
                         'billing_month' => $payment->billing_month,
                         'narration' => $cheque->description,
+                        'branch_id' => $cheque->branch_id,
                     ]);
                     
                     // Debit payee account 
@@ -418,6 +424,7 @@ class ChequesController extends Controller
                         'credit' => 0,
                         'debit' => $cheque->amount,
                         'billing_month' => $payment->billing_month,
+                        'branch_id' => $cheque->branch_id,
                         'narration' => $cheque->description,
                     ]);
 
@@ -438,6 +445,7 @@ class ChequesController extends Controller
                         'Created_By' => Auth::id(),
                         'status' => 1,
                         'attach_file'=> $cheque->attachment,
+                        'branch_id' => $cheque->branch_id,
                         'custom_field_values' => [],
                     ];
 
@@ -461,6 +469,7 @@ class ChequesController extends Controller
                         'description' => $cheque->description,
                         'status' => '1',
                         'attachment'=> $cheque->attachment,
+                        'branch_id' => $cheque->branch_id,
                         'created_by' => Auth::id(),
                     ];
                     $receipt = Receipt::create($receiptData);
@@ -475,6 +484,7 @@ class ChequesController extends Controller
                         'credit' => 0,
                         'debit' => $cheque->amount,
                         'billing_month' => $receipt->billing_month,
+                        'branch_id' => $cheque->branch_id,
                         'narration' => $cheque->description,
                     ]);
 
@@ -488,6 +498,7 @@ class ChequesController extends Controller
                         'credit' => $cheque->amount,
                         'debit' => 0,
                         'billing_month' => $receipt->billing_month,
+                        'branch_id' => $cheque->branch_id,
                         'narration' => $cheque->description,
                     ]);
 
@@ -508,6 +519,7 @@ class ChequesController extends Controller
                         'Created_By' => Auth::id(),
                         'status' => 1,
                         'attach_file'=> $cheque->attachment,
+                        'branch_id' => $cheque->branch_id,
                         'custom_field_values' => [],
                     ];
                     $voucher = Vouchers::create($voucherData);
@@ -525,6 +537,7 @@ class ChequesController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Cheque status updated successfully!',
+                'reload' => true,
             ]);
             
         } catch (\Exception $e) {

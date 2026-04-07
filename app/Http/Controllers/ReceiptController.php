@@ -9,6 +9,7 @@ use App\Models\LeasingCompanies;
 use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Models\Customers;
+use App\Models\Accounts;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use Illuminate\Support\Facades\DB;
@@ -148,6 +149,7 @@ class ReceiptController extends Controller
 
         $input['created_by'] = auth()->id();
         $input['billing_month'] = $input['billing_month'] . '-01';
+        $input['branch_id'] = Accounts::where('id',$input['payer_account_id'])->value('branch_id');
         $input['account_id'] = $bank->account_id;
         try {
             DB::beginTransaction();
@@ -195,6 +197,7 @@ class ReceiptController extends Controller
                 'debit' => $receipt->amount,
                 'billing_month' => $billingMonth,
                 'narration' => $desc,
+                'branch_id' => $receipt->branch_id,
             ]);
 
             // CREDIT payer account
@@ -208,6 +211,7 @@ class ReceiptController extends Controller
                 'credit' => $receipt->amount,
                 'debit' => 0,
                 'billing_month' => $billingMonth,
+                'branch_id' => $receipt->branch_id,
                 'narration' => $desc,
             ]);
 
@@ -233,6 +237,7 @@ class ReceiptController extends Controller
                 'ref_id' => $receipt->id,
                 'Created_By' => auth()->id(),
                 'status' => 1,
+                'branch_id' => $receipt->branch_id,
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
             ];
 
@@ -388,6 +393,7 @@ class ReceiptController extends Controller
             // Prepare data for receipt update
             $input = $request->all();
             $input['billing_month'] = $input['billing_month'] . '-01';
+            $input['branch_id'] = Accounts::where('id',$input['payer_account_id'])->value('branch_id');
             $input['updated_by'] = auth()->id();
             if($request->has('invoice_ids') && count($input['invoice_ids']) > 0){
                 $paymentAmounts = $request->input('payment_amounts');
@@ -478,6 +484,7 @@ class ReceiptController extends Controller
                     'debit' => $amount,
                     'credit' => 0,
                     'billing_month' => $billingMonth,
+                    'branch_id' => $receipt->branch_id,
                     'narration' => $desc,
                 ]);
 
@@ -491,6 +498,7 @@ class ReceiptController extends Controller
                     'credit' => $amount,
                     'debit' => 0,
                     'billing_month' => $billingMonth,
+                    'branch_id' => $receipt->branch_id,
                     'narration' => $desc,
                 ]);
 
@@ -501,6 +509,7 @@ class ReceiptController extends Controller
                     'reference_number' => $receipt->reference,
                     'payment_to' => $bank->account_id,
                     'amount' => $amount,
+                    'branch_id' => $receipt->branch_id,
                     'Updated_By' => auth()->id(),
                 ];
 

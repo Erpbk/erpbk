@@ -1,7 +1,11 @@
 @php
   $spec = [];
   if ($item->kind === 'fixed') {
-    $value = $rider->{$item->field_key} ?? null;
+    if($item->field_key === 'branch_id') {
+      $value = $rider->branch ? $rider->branch->name .' ( '. $rider->branch->code . ' )' : null;
+    } else {
+      $value = $rider->{$item->field_key} ?? null;
+    }
     $spec = $item->spec ?? [];
   } else {
     $cfValues = is_array($rider->custom_field_values ?? null) ? $rider->custom_field_values : [];

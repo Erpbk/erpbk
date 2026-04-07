@@ -5,14 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use App\Traits\BranchScope;
 
 class RtaFines extends Model
 {
-    use LogsActivity, SoftDeletes;
+    use LogsActivity, SoftDeletes, BranchScope;
 
   public $table = 'rta_fines';
 
   public $fillable = [
+    'branch_id',
     'trans_date',
     'trans_code',
     'trip_date',
@@ -74,7 +76,8 @@ class RtaFines extends Model
     'total_amount' => 'nullable|numeric',
     'status' => 'nullable|string|max:20',
     'created_at' => 'nullable',
-    'updated_at' => 'nullable'
+    'updated_at' => 'nullable',
+    'branch_id' => 'nullable|exists:branches,id',
   ];
 
   public function rider()
@@ -92,5 +95,10 @@ class RtaFines extends Model
   function transactions()
   {
     return $this->hasMany(Transactions::class, 'trans_code', 'trans_code');
+  }
+
+  public function branch()
+  {
+    return $this->belongsTo(Branch::class, 'branch_id', 'id');
   }
 }

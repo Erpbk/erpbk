@@ -177,4 +177,9 @@ class Branch extends Model
             'total_children' => $this->children()->count(),
         ];
     }
+
+    public static function dropdown()
+    {
+      return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->toArray();
+    }
 }

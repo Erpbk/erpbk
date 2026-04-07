@@ -54,6 +54,16 @@
             <form id="filterForm" action="{{ route('fuelCards.index') }}" method="GET">
                 @csrf
                 <div class="row">
+                    @if(auth()->user()->hasMultiplebranches())
+                    <div class="form-group col-md-12">
+                        <label for="branch_id">Filter by Branch</label>
+                        <select class="form-control " id="branch_id" name="branch_id">
+                            @foreach(auth()->user()->branchDropdown() as $id => $name)
+                            <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
                     <div class="form-group col-md-12 col-sm-12">
                             <label for="number">Card Number</label>
                             <input type="text" name="card_number" class="form-control" placeholder="Filter By Card Number" >
@@ -126,6 +136,11 @@ $(document).ready(function () {
     $('#status').select2({
         dropdownParent: $('#searchTopbody'),
         placeholder: "Filter By status",
+        allowClear: true
+    });
+    $('#branch_id').select2({
+        dropdownParent: $('#searchTopbody'),
+        placeholder: "Filter By Branch",
         allowClear: true
     });
 });

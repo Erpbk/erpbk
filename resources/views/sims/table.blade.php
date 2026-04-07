@@ -63,6 +63,7 @@
             {{$r->number}}
           </a>
         </td>
+        <td>{{ $r->branch?->name ?? '-' }}</td>
         <td>{{$r->company}}</td>
         <td>{{$r->emi}}</td>
         <td>

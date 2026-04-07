@@ -29,11 +29,13 @@ class VoucherService
       'trans_date' => 'required',
       'payment_type' => 'required',
       'reference_number' => 'required|string|max:255',
+      'branch_id' => 'required|exists:branches,id',
     ];
     $message = [
       'trans_date.required' => 'Transaction Date Required',
       'payment_type.required' => 'Payment Type Required',
       'reference_number.required' => 'Reference Number is required',
+      'branch_id.required' => 'Please Select a Branch',
     ];
     $request->validate($rules, $message);
     $data = $request->except(['_method', '_token', 'v_trans_code', 'narration', 'dr_amount', 'cr_amount', 'account_id', 'id']);
@@ -66,6 +68,7 @@ class VoucherService
             'debit' => $request['dr_amount'][$key] ?? 0,
             //'credit' => $data['credit'] ?? 0,
             'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
+            'branch_id' => $request['branch_id'],
           ];
           $this->TransactionService->recordTransaction($transactionData);
         }
@@ -82,6 +85,7 @@ class VoucherService
             //'debit' => $request['dr_amount'][$key] ?? 0,
             'credit' => $request['cr_amount'][$key] ?? 0,
             'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
+            'branch_id' => $request['branch_id'],
           ];
           $this->TransactionService->recordTransaction($transactionData);
         }
@@ -107,6 +111,7 @@ class VoucherService
             'debit' => $request['dr_amount'][$key] ?? 0,
             //'credit' => $data['credit'] ?? 0,
             'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
+            'branch_id' => $data['branch_id'] ,
           ];
           $this->TransactionService->recordTransaction($transactionData);
         }
@@ -123,6 +128,7 @@ class VoucherService
             //'debit' => $request['dr_amount'][$key] ?? 0,
             'credit' => $request['cr_amount'][$key] ?? 0,
             'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
+            'branch_id' => $data['branch_id'],
           ];
           $this->TransactionService->recordTransaction($transactionData);
         }
@@ -271,7 +277,7 @@ class VoucherService
     $tData['Created_By'] = \Auth::user()->id;
     $tData['SID'] = $request['ref_id'];
     $tData['payment_type'] = @$request->payment_type;
-
+    $tData['branch_id'] = $data['branch_id'] ;
     //dr to rider
 
     $total_amount = 0;
@@ -643,7 +649,7 @@ class VoucherService
     $data['payment_from'] = $request->account_id[0];
     $data['billing_month'] = $request->billing_month;
     $data['reference_number'] = $request->reference_number;
-
+    $data['branch_id'] = $request->branch_id ;
     $data['remarks'] = General::VoucherType($request->voucher_type) . ' Month of ' . date('M-Y', strtotime($data['billing_month']));
     $data['amount'] = array_sum($request->dr_amount);
     $data['custom_field_values'] = $request->input('custom_field_values', []);
@@ -690,6 +696,7 @@ class VoucherService
             'narration' => $request->narration[$key],
             'debit' => $request->dr_amount[$key],
             'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
+            'branch_id' => $data['branch_id'],
           ];
           $this->TransactionService->recordTransaction($transactionData);
         }
@@ -703,6 +710,7 @@ class VoucherService
             'narration' => $request->narration[$key],
             'credit' => $request->cr_amount[$key],
             'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
+            'branch_id' => $data['branch_id'],
           ];
           $this->TransactionService->recordTransaction($transactionData);
         }

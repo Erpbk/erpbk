@@ -44,6 +44,9 @@
          @case('customer_id')
          <td>{{ DB::table('customers')->where('id' , $r->customer_id)->first()->name ?? '-'}}</td>
          @break
+         @case('branch_id')
+         <td>{{ $r->branch ? $r->branch->name . ' (' . $r->branch->code . ')' : '-' }}</td>
+         @break
          @case('recruiter_id')
          <td>{{ DB::table('recruiters')->where('id' , $r->recruiter_id)->first()->name ?? '-'}}</td>
          @break

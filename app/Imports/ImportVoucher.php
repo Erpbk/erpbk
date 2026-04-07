@@ -17,7 +17,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\ToModel;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Auth;
 use Maatwebsite\Excel\Concerns\WithCalculatedFormulas;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
@@ -82,6 +82,8 @@ class ImportVoucher implements ToCollection
 
           if (!$rider) {
             //throw ValidationException::withMessages(['file' => 'Row(' . $i . ') - Rider ID ' . $row[1] . ' do not match.']);
+          }elseif(!$rider->branch_id){
+            throw ValidationException::withMessages(['file' => 'Row(' . $i . ') - Rider ID ' . $row[2] . ' is not assigned a specific branch.']);
           } else {
 
             /* $rider->shift = $this->extractValue($row[2]);
@@ -103,6 +105,7 @@ class ImportVoucher implements ToCollection
             $data['payment_from'] = $request['payment_from'];
             $data['Created_By'] = \Auth::user()->id;
             $data['trans_code'] = $trans_code;
+            $data['branch_id'] = $rider->branch_id;
             $data['custom_field_values'] = [];
 
             $ret = Vouchers::create($data);
@@ -119,6 +122,7 @@ class ImportVoucher implements ToCollection
               'debit' => $row[4] ?? 0,
               //'credit' => $data['credit'] ?? 0,
               'billing_month' => $billing_month ?? date('Y-m-01'),
+              'branch_id' => $rider->branch_id,
             ];
             $TransactionService->recordTransaction($transactionData);
 
@@ -133,6 +137,7 @@ class ImportVoucher implements ToCollection
               //'debit' => $request['dr_amount'][$key] ?? 0,
               'credit' => $row[4] ?? 0,
               'billing_month' => $billing_month ?? date('Y-m-01'),
+              'branch_id' => $rider->branch_id,
             ];
             $TransactionService->recordTransaction($transactionData);
           }
@@ -142,7 +147,13 @@ class ImportVoucher implements ToCollection
       } catch (QueryException $e) {
         DB::rollBack();
         throw $e;
-      }
+      } catch (ValidationException $e) {
+        DB::rollBack();
+        throw $e;
+      } catch (\Exception $e) {
+        DB::rollBack();
+        throw $e;
+       }
     }
   }
 }

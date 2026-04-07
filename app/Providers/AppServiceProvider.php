@@ -40,7 +40,20 @@ class AppServiceProvider extends ServiceProvider
     ]);
 
     app()->singleton('user_branches', function () {
-        return json_decode(Auth::user()?->branch_ids) ?? [];
+        $user = Auth::user();
+        
+        if (!$user) {
+            return [];
+        }
+        
+        // Check if user is admin
+        if ($user->hasAnyRole('Administrator', 'Super Admin')) {
+            // Return ALL branch IDs
+            return \App\Models\Branch::pluck('id')->toArray() ?? [];
+        }
+        
+        // Non-admin: return only assigned branches
+        return json_decode($user->branch_ids, true) ?? [];
     });
   }
 }

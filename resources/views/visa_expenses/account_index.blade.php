@@ -28,7 +28,7 @@
                                             <label for="rider_id">Select Rider</label>
                                             <select class="form-control " id="rider_id" name="rider_id">
                                                 <option value="" selected>Select</option>
-                                                @foreach(DB::table('riders')->get() as $r)
+                                                @foreach($riders as $r)
                                                 <option value="{{ $r->id }}">{{ $r->rider_id }} - {{ $r->name }}</option>
                                                 @endforeach
                                             </select>
@@ -78,71 +78,39 @@
                        </div>
                     </div>
                 </div>
-                <div class="col-12 col-md-12 mt-3">
-                  <div class="card h-100">
-                    <div class="card-body d-flex align-items-end">
-                      <div class="w-100">
-                        <div class="row gy-3">
-                          <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center">
-                              <div class="badge rounded bg-label-primary me-4 p-2"><i class="menu-icon tf-icons ti ti-user"></i></div>
-                              <div class="card-info">
-                                <h5 class="mb-0">{{ DB::table('accounts')->where('parent_id' , $parent->id)->count() }}</h5>
-                                <small>Total Accounts</small>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center">
-                              <div class="badge rounded bg-label-info me-4 p-2"><i class="menu-icon tf-icons ti ti-receipt"></i></div>
-                              <div class="card-info">
-                                <h5 class="mb-0">
-                                    {{ DB::table('visa_expenses')->where('payment_status', 'unpaid')->sum('amount') }}
-                                </h5>
-                                <small>UnPaid Amount</small>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center">
-                              <div class="badge rounded bg-label-success me-4 p-2"><i class="menu-icon tf-icons ti ti-receipt"></i></div>
-                              <div class="card-info">
-                                <h5 class="mb-0">
-                                    {{ DB::table('visa_expenses')->where('payment_status', 'paid')->sum('amount') }}
-                                </h5>
-                                <small>Paid Amount</small>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center">
-                              <div class="badge rounded bg-label-danger me-4 p-2"><i class="menu-icon tf-icons ti ti-receipt"></i></div>
-                              <div class="card-info">
-                                <h5 class="mb-0">
-                                    {{ DB::table('visa_expenses')
-                                        ->where('payment_status', 'unpaid')
-                                        ->distinct('rider_id')
-                                        ->count('rider_id') }}
-                                </h5>
-                                <small>Unpaid Accounts</small>
-
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                 </div>
             </div>
         </div>
     </section>
 
-    <div class="content px-3">
+    <div class="content">
         @include('flash::message')
         <div class="clearfix"></div>
 
         <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <div class="card-search">
+                    <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
+                </div>
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#searchModal"> <i class="fa fa-search"></i> Filter</button>
+            </div>
+            <div class="totals-cards">
+                <div class="total-card total-blue">
+                    <div class="label"><i class="fa fa-motorcycle"></i>Total Accounts</div>
+                    <div class="value" id="total_orders"> {{ $data->total() }}</div>
+                </div>
+                <div class="total-card total-black">
+                    <div class="label"><i class="fa fa-check-circle"></i>UnPaid Visa Expenses</div>
+                    <div class="value" id="avg_ontime"> {{ $stats['unpaid_accounts'] }}</div>
+                </div>
+                <div class="total-card total-green">
+                    <div class="label"><i class="fa fa-check-circle"></i>Paid Amount</div>
+                    <div class="value" id="avg_ontime"> {{ $stats['paid_amount'] }}</div>
+                </div>
+                <div class="total-card total-red">
+                    <div class="label"><i class="fa fa-times-circle"></i>Unpaid Amount</div>
+                    <div class="value" id="total_rejected"> {{ $stats['unpaid_amount'] }}</div>
+                </div>
+            </div>
             <div class="card-body table-responsive px-2 py-0"  id="table-data">
                 @include('visa_expenses.account_table', ['data' => $data])
             </div>

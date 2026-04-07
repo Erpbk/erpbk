@@ -4,14 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
+use App\Traits\BranchScope;
 
 class Receipt extends Model
 {
-    use LogsActivity;
+    use LogsActivity, BranchScope;
 
     public $table = 'receipts';
 
     public $fillable = [
+        'branch_id',
         'reference',
         'account_id',
         'bank_id',
@@ -58,6 +60,17 @@ class Receipt extends Model
 
     public function payeeAccount(){
         return $this->belongsTo(Accounts::class, 'account_id', 'id');
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class, 'branch_id' , 'id');
+    }
+
+    public function getBranchNameAttribute()
+    {
+        $branch = $this->branch_id ? $this->branch->name .' ( '. $this->branch->code .' )' : 'All' ; 
+        return $branch;
     }
 }
 

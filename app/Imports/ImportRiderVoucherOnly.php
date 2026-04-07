@@ -73,7 +73,7 @@ class ImportRiderVoucherOnly implements ToCollection
 
                 $accountId = $account->id;
                 $rider = Riders::where('rider_id', $riderExternalId)->first();
-                if (!$rider) {
+                if (!$rider || !in_array($rider->branch_id, app('user_branches'))) {
                     throw ValidationException::withMessages([
                         'file' => "Row({$rowNum}) - Rider ID {$riderExternalId} not found."
                     ]);
@@ -99,6 +99,7 @@ class ImportRiderVoucherOnly implements ToCollection
                     'Created_By' => auth()->id(),
                     'status' => 1,
                     'custom_field_values' => [],
+                    'branch_id' => $rider->branch_id,
                 ];
 
                 $voucher = Vouchers::create($voucherData);
@@ -119,6 +120,7 @@ class ImportRiderVoucherOnly implements ToCollection
                     'narration' => $narration,
                     'debit' => $amount,
                     'billing_month' => $voucherData['billing_month'],
+                    'branch_id' => $rider->branch_id,
                 ]);
 
                 // Credit - counter account if provided
@@ -132,6 +134,7 @@ class ImportRiderVoucherOnly implements ToCollection
                         'narration' => $narration,
                         'credit' => $amount,
                         'billing_month' => $voucherData['billing_month'],
+                        'branch_id' => $rider->branch_id,
                     ]);
                 }
 

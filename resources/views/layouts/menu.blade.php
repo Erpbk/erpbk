@@ -1,16 +1,23 @@
 @php
 // Labels are editable in Settings > ERP Module Settings > [Module] > General; same source as ModuleSettingsController
 $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
+$companySlug = request()->route('company_slug') ?? session('company_slug');
+$homeLink = auth('admin')->check()
+  ? route('admin.dashboard')
+  : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
 @endphp
+@if(\App\Support\CompanyModuleVisibility::enabled('dashboard'))
 @can('dashboard_view')
 <li class="menu-item {{ Request::is('/') ? 'active' : '' }}">
-  <a href="{{ route('home') }}" class="menu-link ">
+  <a href="{{ $homeLink }}" class="menu-link ">
     <i class="menu-icon tf-icons ti ti-layout-dashboard"></i>
     <div>{{ $menuLabels['dashboard'] ?? 'Dashboard' }}</div>
     {{-- <div class="badge bg-white text-dark rounded-pill ms-auto">2</div>  --}}
   </a>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('cash_banks'))
 @can('bank_view')
 <li class="menu-item {{ Request::is('banks*') ? 'open' : '' }} {{ Request::is('bank*') ? 'open' : '' }} {{ Request::is('cheques') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
@@ -31,6 +38,18 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </ul>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('employees'))
+@can('employees_view')
+<li class="menu-item {{ Request::is('employees*') ? 'active' : '' }}">
+  <a href="{{ route('employees.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-user"></i>
+    <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
+  </a>
+</li>
+@endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('attendance'))
 @can('attendance_view')
 <li class="menu-item {{ Request::is('attendance*') ? 'open' : '' }}">
   <a href="javascript:void(0)" class="menu-link menu-toggle">
@@ -53,6 +72,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </ul>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('items'))
 @can('item_view')
 <li class="menu-item {{ Request::is('items*') ? 'open' : '' }} {{ Request::is('garage-items*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
@@ -73,6 +94,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </ul>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('leads'))
 @can('leads_view')
 <li class="menu-item {{ Request::is('riderleads*') ? 'active' : '' }}">
   <a href="{{ route('riderleads.index') }}" class="menu-link">
@@ -81,6 +104,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('customers'))
 @can('customer_view')
 <li class="menu-item {{ (Request::is('customer*') || Request::is('customers*') || Request::is('customer_invoice*') || Request::is('customer_invoices*')) ? 'open' : '' }}">
     <a href="javascript:void(0);" class="menu-link menu-toggle">
@@ -116,6 +141,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
     </ul>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('vendors'))
 @can('vendor_view')
 <li class="menu-item {{ Request::is('vendors*') ? 'active' : '' }}">
   <a href="{{ route('vendors.index') }}" class="menu-link">
@@ -124,6 +151,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('recruiters'))
 @can('recruiter_view')
 <li class="menu-item {{ Request::is('recruiters*') ? 'active' : '' }}">
   <a href="{{ route('recruiters.index') }}" class="menu-link">
@@ -132,7 +161,9 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
 
+@if(\App\Support\CompanyModuleVisibility::enabled('riders'))
 @can('rider_view')
 <li class="menu-item {{ Request::is('riders*') ? 'open' : '' }}
  {{ Request::is('riderInvoices*') ? 'open' : '' }}
@@ -188,6 +219,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </ul>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('bikes'))
 @can('bike_view')
 <li class="menu-item {{ Request::is('bikes*') || Request::is('bikeMaintenance*')? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
@@ -216,6 +249,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
 </a>
 </li> --}}
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('sims'))
 @can('sim_view')
 <li class="menu-item {{ Request::is('sims*') ? 'active' : '' }}">
   <a href="{{ route('sims.index') }}" class="menu-link">
@@ -224,7 +259,9 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
 
+@if(\App\Support\CompanyModuleVisibility::enabled('fuel_cards'))
 @can('fuel_view')
 <li class="menu-item {{ Request::is('fuelCards*') ? 'active' : '' }}">
   <a href="{{ route('fuelCards.index') }}" class="menu-link">
@@ -233,7 +270,9 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
 
+@if(\App\Support\CompanyModuleVisibility::enabled('rta_fines'))
 @can('rtafine_view')
 <li class="menu-item {{ Request::is('rtaFines*') ? 'active' : '' }}">
   <a href="{{ route('rtaFines.index') }}" class="menu-link">
@@ -242,6 +281,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('rta_saliks'))
 @can('salik_view')
 <li class="menu-item {{ Request::is('salik*') ? 'active' : '' }}">
   <a href="{{ route('salik.index') }}" class="menu-link">
@@ -250,7 +291,9 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
 
+@if(\App\Support\CompanyModuleVisibility::enabled('inventory'))
 @can('inventory_view')
 <li class="menu-item ">
   <a href="#" class="menu-link">
@@ -259,6 +302,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('visa_expense'))
 @can('visaexpense_view')
 <li class="menu-item {{ Request::is('VisaExpense*') ? 'active' : '' }}">
   <a href="{{ route('VisaExpense.index') }}" class="menu-link">
@@ -267,6 +312,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('expenses'))
 @can('expenses_view')
 <li class="menu-item {{ Request::is('expenses*') ? 'active' : '' }}">
   <a href="{{ route('expenses.index') }}" class="menu-link">
@@ -275,6 +322,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('vat'))
 @can('vat_view')
 <li class="menu-item {{ Request::is('accounts/vat') || Request::is('accounts/vat/returns') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
@@ -300,9 +349,12 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
     </li>
     @endcan
   </ul>
-  @endcan
-
-<li class="menu-item {{ Request::is('leasingCompanies*') ? 'open' : '' }} {{ Request::is('leasingCompanyInvoices*') ? 'open' : '' }} {{ Request::is('leasingCompanyBillingInvoices*') ? 'open' : '' }}">
+</li>
+@endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('leasing_companies'))
+@can('leasing_view')
+<li class="menu-item {{ Request::is('leasingCompanies*') ? 'open' : '' }} {{ Request::is('leasingCompanyInvoices*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-building"></i>
     <div>{{ $menuLabels['leasing_companies'] ?? 'Leasing Companies' }}</div>
@@ -333,6 +385,9 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
     @endcan
   </ul>
 </li>
+@endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('garages'))
 @can('garage_view')
 <li class="menu-item {{ Request::is('garages*') ? 'active' : '' }}">
   <a href="{{ route('garages.index') }}" class="menu-link">
@@ -341,6 +396,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('supplier'))
 @canany(['supplier_view'])
 <li class="menu-item {{ Request::is('suppliers*') ? 'open' : '' }}">
 
@@ -365,6 +422,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </ul>
 </li>
 @endcanany
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('assets'))
 @can('asset_view')
 <li class="menu-item ">
   <a href="#" class="menu-link">
@@ -373,6 +432,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('documents'))
 @can('company_documents_view')
 <li class="menu-item {{ Request::is('upload_files*') ? 'active' : '' }}">
   <a href="{{ route('upload_files.index') }}" class="menu-link">
@@ -381,6 +442,8 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('vouchers'))
 @can('voucher_view')
 <li class="menu-item {{ Request::is('vouchers*') ? 'active' : '' }}">
   <a href="{{ route('vouchers.index') }}" class="menu-link">
@@ -389,9 +452,86 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </a>
 </li>
 @endcan
+@endif
 
 
 
+
+{{-- Admin Panel (global site settings) --}}
+@php($adminUser = auth('admin')->user())
+@if($adminUser)
+<li class="menu-header small text-uppercase mt-3">
+  <span class="menu-header-text">{{ __('Admin Panel') }}</span>
+</li>
+<li class="menu-item {{ Request::is('admin/dashboard') ? 'active' : '' }}">
+  <a href="{{ route('admin.dashboard') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-layout-dashboard"></i>
+    <div>{{ __('Dashboard') }}</div>
+  </a>
+</li>
+@endif
+@if($adminUser && $adminUser->hasPermission('companies_view'))
+<li class="menu-item {{ Request::is('admin/companies*') ? 'active' : '' }}">
+  <a href="{{ route('admin.companies.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-building-community"></i>
+    <div>{{ __('Companies') }}</div>
+  </a>
+</li>
+@endif
+
+@if($adminUser && $adminUser->hasPermission('blogs_view'))
+<li class="menu-item {{ Request::is('admin/blogs*') ? 'active' : '' }}">
+  <a href="{{ route('admin.blogs.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-pencil"></i>
+    <div>{{ __('Blogs') }}</div>
+  </a>
+</li>
+@endif
+
+@if($adminUser && $adminUser->hasPermission('testimonials_view'))
+<li class="menu-item {{ Request::is('admin/testimonials*') ? 'active' : '' }}">
+  <a href="{{ route('admin.testimonials.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-message-dots"></i>
+    <div>{{ __('Testimonials') }}</div>
+  </a>
+</li>
+@endif
+
+@if($adminUser && $adminUser->hasPermission('privacy_policy_view'))
+<li class="menu-item {{ Request::is('admin/privacy-policy*') ? 'active' : '' }}">
+  <a href="{{ route('admin.privacy-policy.edit') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-file-description"></i>
+    <div>{{ __('Privacy Policy') }}</div>
+  </a>
+</li>
+@endif
+
+@if($adminUser && $adminUser->hasPermission('terms_conditions_view'))
+<li class="menu-item {{ Request::is('admin/terms-conditions*') ? 'active' : '' }}">
+  <a href="{{ route('admin.terms-conditions.edit') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-file-description"></i>
+    <div>{{ __('Terms & Conditions') }}</div>
+  </a>
+</li>
+@endif
+
+@if($adminUser && $adminUser->hasPermission('users_view'))
+<li class="menu-item {{ Request::is('admin/users*') ? 'active' : '' }}">
+  <a href="{{ route('admin.users.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-users-group"></i>
+    <div>{{ __('Users') }}</div>
+  </a>
+</li>
+@endif
+
+@if($adminUser && $adminUser->hasRole('Super Admin'))
+<li class="menu-item {{ Request::is('admin/permissions*') ? 'active' : '' }}">
+  <a href="{{ route('admin.permissions.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-lock"></i>
+    <div>{{ __('Permissions') }}</div>
+  </a>
+</li>
+@endif
 
 @canany(['account_view','gn_ledger'])
 <li class="menu-item {{ Request::is('accounts*') ? 'open' : '' }} ">
@@ -423,7 +563,7 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
 
   </ul>
 </li>
-@endcan
+@endcanany
 {{-- <li class="menu-item {{ Request::is('reports*') ? 'open' : '' }} ">
 <a href="javascript:void(0);" class="menu-link menu-toggle ">
   <i class="menu-icon tf-icons ti ti-chart-area"></i>

@@ -11,10 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('customer_invoices', function (Blueprint $table) {
-            $table->string('status')->default('pending')->after('attachment');
-            $table->string('partial_paid_amount')->nullable()->after('status');
-        });
+        if (!Schema::hasColumn('customer_invoices', 'status')) {
+            Schema::table('customer_invoices', function (Blueprint $table) {
+                $table->string('status')->default('pending')->after('attachment');
+            });
+        }
+
+        if (!Schema::hasColumn('customer_invoices', 'partial_paid_amount')) {
+            Schema::table('customer_invoices', function (Blueprint $table) {
+                $table->string('partial_paid_amount')->nullable()->after('status');
+            });
+        }
     }
 
     /**
@@ -22,8 +29,16 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('customer_invoices', function (Blueprint $table) {
-            $table->dropColumn(['status', 'partial_paid_amount']);
-        });
+        if (Schema::hasColumn('customer_invoices', 'partial_paid_amount')) {
+            Schema::table('customer_invoices', function (Blueprint $table) {
+                $table->dropColumn('partial_paid_amount');
+            });
+        }
+
+        if (Schema::hasColumn('customer_invoices', 'status')) {
+            Schema::table('customer_invoices', function (Blueprint $table) {
+                $table->dropColumn('status');
+            });
+        }
     }
 };

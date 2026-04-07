@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('visa_expenses')) {
+            return;
+        }
+
         Schema::table('visa_expenses', function (Blueprint $table) {
             $table->string('reference_number')->nullable()->after('detail');
         });
@@ -21,6 +25,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('visa_expenses') || !Schema::hasColumn('visa_expenses', 'reference_number')) {
+            return;
+        }
+
         Schema::table('visa_expenses', function (Blueprint $table) {
             $table->dropColumn('reference_number');
         });

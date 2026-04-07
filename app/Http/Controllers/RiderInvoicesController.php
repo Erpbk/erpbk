@@ -680,18 +680,55 @@ class RiderInvoicesController extends AppBaseController
   {
 
     if ($request->isMethod('post')) {
+      $user = Auth::user();
+      $fromName = is_string($user?->name) ? trim($user?->name) : '';
+      $fromEmailCandidate = is_string($user?->email) && trim($user?->email) !== '' ? trim($user?->email) : (is_string($user?->username) ? trim($user?->username) : '');
+      $fromEmail = (is_string($fromEmailCandidate) && filter_var($fromEmailCandidate, FILTER_VALIDATE_EMAIL))
+        ? $fromEmailCandidate
+        : (config('mail.from.address') ?: env('MAIL_FROM_ADDRESS') ?: 'hello@example.com');
+
+      $toEmail = $request->input('email_to');
+      if (!is_string($toEmail) || trim($toEmail) === '') {
+        return response()->json([
+          'success' => false,
+          'message' => 'Rider invoice email address is missing.',
+        ], 422);
+      }
+      $toEmail = trim($toEmail);
+
+      $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
+        ? trim($request->input('email_subject'))
+        : '(Rider invoice email)';
 
       $data = [
-        'html' => $request->email_message
+        'html' => $request->input('email_message'),
       ];
+
+      $emailService = app(\App\Services\Email\UserEmailService::class);
+      // If the user configured an SMTP app password, switch Laravel transport for this request.
+      $emailService->configureSmtpForUser($user, $fromEmail);
+      $ccEmails = $emailService->getCcRecipientEmails($user);
+
       $res = RiderInvoices::with(['riderInv_item'])->where('id', $id)->get();
       $pdf = \PDF::loadView('invoices.rider_invoices.show', ['res' => $res]);
 
-      Mail::send('emails.general', $data, function ($message) use ($request, $pdf) {
-        $message->to([$request->email_to]);
+      Mail::send('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $ccEmails) {
+        $message->to([$toEmail]);
         //$message->replyTo([$request->email]);
-        $message->subject($request->email_subject);
-        $message->attachData($pdf->output(), $request->email_subject . '.pdf');
+
+        if (!empty($ccEmails)) {
+          $message->cc($ccEmails);
+        } else {
+          $adminCc = env('ADMIN_CC_EMAIL');
+          if (!empty($adminCc)) {
+            $message->cc($adminCc);
+          }
+        }
+
+        $message->from($fromEmail, $fromName);
+        $message->replyTo($fromEmail, $fromName);
+        $message->subject($subject);
+        $message->attachData($pdf->output(), $subject . '.pdf');
         $message->priority(3);
       });
     }

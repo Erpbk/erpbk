@@ -85,9 +85,13 @@ class CustomersController extends AppBaseController
   public function store(CreateCustomersRequest $request)
   {
     $input = $request->all();
-    $parentAccount = Accounts::where('name', 'Receivable')->where('account_type', 'Asset')->where('parent_id', null)->first();
+
+    $customers = $this->customersRepository->create($input);
+
+
+    $parentAccount = Accounts::where('name', 'Customers')->where('account_type', 'Asset')->where('parent_id', null)->first();
     if (!$parentAccount) {
-      Flash::error('Parent account "Receivable" not found.');
+      Flash::error('Parent account "Customers" not found.');
       return redirect(route('customers.index'));
     }
     try{
@@ -253,6 +257,12 @@ class CustomersController extends AppBaseController
       Flash::error('Customer not found');
       return redirect(route('customers.index'));
     }
+
+    if (empty($customer->account_id)) {
+      Flash::error('Customer account not linked. Please assign an account first.');
+      return redirect(route('customers.show', $customer->id));
+    }
+
     $details = $this->getDetails($customer->account_id);
     $account_id = $customer->account_id;
 

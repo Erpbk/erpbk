@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Fortify;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 
 class FortifyServiceProvider extends ServiceProvider
@@ -61,9 +62,6 @@ class FortifyServiceProvider extends ServiceProvider
       return view('auth.register');
     }); */
 
-    Fortify::loginView(function () {
-      return view('auth.login');
-    });
     Fortify::requestPasswordResetLinkView(function () {
       return view('auth.passwords.email');
     });
@@ -85,5 +83,8 @@ class FortifyServiceProvider extends ServiceProvider
     RateLimiter::for('two-factor', function (Request $request) {
       return Limit::perMinute(5)->by($request->session()->get('login.id'));
     });
+
+    Route::middleware(config('fortify.middleware', ['web']))
+      ->group(base_path('routes/fortify.php'));
   }
 }

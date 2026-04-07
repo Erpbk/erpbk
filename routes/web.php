@@ -23,6 +23,17 @@ use App\Http\Controllers\pages\MiscError;
 use App\Http\Controllers\authentications\LoginBasic;
 use App\Http\Controllers\authentications\RegisterBasic;
 use App\Http\Controllers\RecruitersController;
+use App\Http\Controllers\Company\CompanyAuthController;
+use App\Http\Controllers\Company\CompanyRegistrationController;
+use App\Http\Controllers\Admin\AdminCompaniesController;
+use App\Http\Controllers\Admin\AdminBlogsController;
+use App\Http\Controllers\Admin\AdminTestimonialsController;
+use App\Http\Controllers\Admin\AdminPolicyController;
+use App\Http\Controllers\Admin\AdminUsersController;
+use App\Http\Controllers\Admin\AdminRolesController;
+use App\Http\Controllers\Admin\AdminLoginController;
+use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AdminPermissionsController;
 use Illuminate\Support\Facades\Artisan;
 
 
@@ -39,12 +50,106 @@ use Illuminate\Support\Facades\Artisan;
 /* Route::any('/register', function () {
   return view('auth.register');
 }); */
-// Main Page Route
+
+// ---------- Company registration (public) ----------
+Route::get('company/register', [CompanyRegistrationController::class, 'showRegistrationForm'])->name('company.register');
+Route::post('company/register/step1', [CompanyRegistrationController::class, 'submitStep1'])->name('company.register.step1.submit');
+Route::get('company/register/otp', [CompanyRegistrationController::class, 'showOtpForm'])->name('company.register.otp');
+Route::post('company/register/otp', [CompanyRegistrationController::class, 'verifyOtp'])->name('company.register.otp.verify');
+Route::get('company/register/details', [CompanyRegistrationController::class, 'showDetailsForm'])->name('company.register.details');
+Route::post('company/register/details', [CompanyRegistrationController::class, 'submitDetails'])->name('company.register.details.submit');
+Route::get('company/register/pending', [CompanyRegistrationController::class, 'pending'])->name('company.register.pending');
+
+// ---------- Company login (public): find tenant by name, then slug login ----------
+Route::redirect('/', '/company/login');
+Route::get('company/login', [CompanyAuthController::class, 'showFindLoginForm'])->name('company.find-login');
+Route::post('company/login', [CompanyAuthController::class, 'findLogin'])->name('company.find-login.submit');
+
+Route::get('app/{company_slug}/login', [CompanyAuthController::class, 'showLoginForm'])->name('company.login-form');
+Route::post('app/{company_slug}/login', [CompanyAuthController::class, 'login'])->name('company.login');
+
+// ---------- Admin login (separate portal) ----------
+Route::get('admin/login', [AdminLoginController::class, 'showLogin'])->name('admin.login')->middleware('guest:admin');
+Route::post('admin/login', [AdminLoginController::class, 'login'])->name('admin.login.submit')->middleware('guest:admin');
+Route::post('admin/logout', [AdminLoginController::class, 'logout'])->name('admin.logout')->middleware('auth:admin');
+
+// ---------- Company app: /app/{company_slug}/* (tenant + auth) ----------
+Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->name('company.')->group(function () {
+    Route::get('/', [HomeController::class, 'index'])->name('home');
+    Route::get('/home', [HomeController::class, 'index'])->name('home-dashboard');
+    Route::post('/logout', [CompanyAuthController::class, 'logout'])->name('logout');
+    require base_path('routes/company_app.php');
+});
+
+// Settings panel must live under /app/{company_slug}/ so tenant DB is active (same names: settings-panel.*)
+Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
+    require base_path('routes/settings_panel.php');
+});
+
+// ---------- Admin: companies (global; uses central DB) ----------
+Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('admin.')->group(function () {
+    Route::get('dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+    Route::get('companies', [AdminCompaniesController::class, 'index'])->middleware('admin.permission:companies_view')->name('companies.index');
+    Route::get('companies/create', [AdminCompaniesController::class, 'create'])->middleware('admin.permission:companies_approve')->name('companies.create');
+    Route::post('companies', [AdminCompaniesController::class, 'store'])->middleware('admin.permission:companies_approve')->name('companies.store');
+    Route::get('companies/{company}', [AdminCompaniesController::class, 'show'])->middleware('admin.permission:companies_view')->name('companies.show');
+    Route::post('companies/{company}/approve', [AdminCompaniesController::class, 'approve'])->middleware('admin.permission:companies_approve')->name('companies.approve');
+    Route::post('companies/{company}/reject', [AdminCompaniesController::class, 'reject'])->middleware('admin.permission:companies_reject')->name('companies.reject');
+    Route::get('companies/{company}/modules', [AdminCompaniesController::class, 'editModules'])->middleware('admin.permission:companies_approve')->name('companies.modules.edit');
+    Route::put('companies/{company}/modules', [AdminCompaniesController::class, 'updateModules'])->middleware('admin.permission:companies_approve')->name('companies.modules.update');
+
+    // Site Settings Modules (admin DB)
+    Route::get('blogs', [AdminBlogsController::class, 'index'])->middleware('admin.permission:blogs_view')->name('blogs.index');
+    Route::get('blogs/create', [AdminBlogsController::class, 'create'])->middleware('admin.permission:blogs_create')->name('blogs.create');
+    Route::post('blogs', [AdminBlogsController::class, 'store'])->middleware('admin.permission:blogs_create')->name('blogs.store');
+    Route::get('blogs/{blog}/edit', [AdminBlogsController::class, 'edit'])->middleware('admin.permission:blogs_edit')->name('blogs.edit');
+    Route::put('blogs/{blog}', [AdminBlogsController::class, 'update'])->middleware('admin.permission:blogs_edit')->name('blogs.update');
+    Route::delete('blogs/{blog}', [AdminBlogsController::class, 'destroy'])->middleware('admin.permission:blogs_delete')->name('blogs.destroy');
+
+    Route::get('testimonials', [AdminTestimonialsController::class, 'index'])->middleware('admin.permission:testimonials_view')->name('testimonials.index');
+    Route::get('testimonials/create', [AdminTestimonialsController::class, 'create'])->middleware('admin.permission:testimonials_create')->name('testimonials.create');
+    Route::post('testimonials', [AdminTestimonialsController::class, 'store'])->middleware('admin.permission:testimonials_create')->name('testimonials.store');
+    Route::get('testimonials/{testimonial}/edit', [AdminTestimonialsController::class, 'edit'])->middleware('admin.permission:testimonials_edit')->name('testimonials.edit');
+    Route::put('testimonials/{testimonial}', [AdminTestimonialsController::class, 'update'])->middleware('admin.permission:testimonials_edit')->name('testimonials.update');
+    Route::delete('testimonials/{testimonial}', [AdminTestimonialsController::class, 'destroy'])->middleware('admin.permission:testimonials_delete')->name('testimonials.destroy');
+
+    Route::get('privacy-policy', [AdminPolicyController::class, 'editPrivacy'])->middleware('admin.permission:privacy_policy_view')->name('privacy-policy.edit');
+    Route::post('privacy-policy', [AdminPolicyController::class, 'updatePrivacy'])->middleware('admin.permission:privacy_policy_edit')->name('privacy-policy.update');
+
+    Route::get('terms-conditions', [AdminPolicyController::class, 'editTerms'])->middleware('admin.permission:terms_conditions_view')->name('terms-conditions.edit');
+    Route::post('terms-conditions', [AdminPolicyController::class, 'updateTerms'])->middleware('admin.permission:terms_conditions_edit')->name('terms-conditions.update');
+
+    // Admin roles (create/edit/delete from Users page)
+    Route::get('roles/create', [AdminRolesController::class, 'create'])->middleware('admin.permission:users_edit')->name('roles.create');
+    Route::post('roles', [AdminRolesController::class, 'store'])->middleware('admin.permission:users_edit')->name('roles.store');
+    Route::get('roles/{role}/edit', [AdminRolesController::class, 'edit'])->middleware('admin.permission:users_edit')->name('roles.edit');
+    Route::patch('roles/{role}', [AdminRolesController::class, 'update'])->middleware('admin.permission:users_edit')->name('roles.update');
+    Route::delete('roles/{role}', [AdminRolesController::class, 'destroy'])->middleware('admin.permission:users_edit')->name('roles.destroy');
+
+    // Users: role assignment + permission gating for admin sections
+    Route::get('users', [AdminUsersController::class, 'index'])->middleware('admin.permission:users_view')->name('users.index');
+    Route::get('users/create', [AdminUsersController::class, 'create'])->middleware('admin.permission:users_edit')->name('users.create');
+    Route::post('users', [AdminUsersController::class, 'store'])->middleware('admin.permission:users_edit')->name('users.store');
+    Route::get('users/{user}/edit', [AdminUsersController::class, 'edit'])->middleware('admin.permission:users_edit')->name('users.edit');
+    Route::patch('users/{user}', [AdminUsersController::class, 'update'])->middleware('admin.permission:users_edit')->name('users.update');
+    Route::delete('users/{user}', [AdminUsersController::class, 'destroy'])->middleware('admin.permission:users_edit')->name('users.destroy');
+    Route::get('users/{user}/edit-roles', [AdminUsersController::class, 'editRoles'])->middleware('admin.permission:users_edit')->name('users.edit-roles');
+    Route::post('users/{user}/roles', [AdminUsersController::class, 'updateRoles'])->middleware('admin.permission:users_edit')->name('users.update-roles');
+
+    // Permissions module (Super Admin only)
+    Route::get('permissions', [AdminPermissionsController::class, 'index'])->name('permissions.index');
+    Route::get('permissions/create', [AdminPermissionsController::class, 'create'])->name('permissions.create');
+    Route::post('permissions', [AdminPermissionsController::class, 'store'])->name('permissions.store');
+    Route::get('permissions/{permission}/edit', [AdminPermissionsController::class, 'edit'])->name('permissions.edit');
+    Route::patch('permissions/{permission}', [AdminPermissionsController::class, 'update'])->name('permissions.update');
+    Route::post('permissions/roles/{role}', [AdminPermissionsController::class, 'updateRolePermissions'])->name('permissions.update-role');
+    Route::delete('permissions/{permission}', [AdminPermissionsController::class, 'destroy'])->name('permissions.destroy');
+});
 
 // pages
 Route::get('/pages/misc-error', [MiscError::class, 'index'])->name('pages-misc-error');
 
-Route::middleware(['auth', 'web'])->group(function () {
+Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
 
     Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home-dashboard');
@@ -54,6 +159,8 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('garage-items/{id}/vouchers', [App\Http\Controllers\GarageItemsController::class, 'vouchers'])->name('garage-items.vouchers');
 
     Route::any('/user/profile', [App\Http\Controllers\UserController::class, 'profile'])->name('profile');
+    Route::get('/user/email-settings', [App\Http\Controllers\UserEmailSettingsController::class, 'edit'])->name('user.email-settings.edit');
+    Route::post('/user/email-settings', [App\Http\Controllers\UserEmailSettingsController::class, 'update'])->name('user.email-settings.update');
     Route::any('/user/services/{id}', [App\Http\Controllers\UserController::class, 'services'])->name('user_services');
 
     Route::get('bikes/import', [\App\Http\Controllers\BikesController::class, 'importbikes'])->name('bikes.import');
@@ -144,92 +251,7 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('VisaExpense/delete/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'destroy'])->name('VisaExpense.delete');
     Route::get('VisaExpense/installmentPlan/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'installmentPlan'])->name('VisaExpense.installmentPlan');
 
-    // Settings Panel (opens in separate window, Zoho-style admin)
-    Route::prefix('settings-panel')->middleware('settings.panel')->group(function () {
-        Route::get('/', [App\Http\Controllers\SettingsPanelController::class, 'index'])->name('settings-panel.index');
-        Route::match(['get', 'post'], '/company', [HomeController::class, 'settings'])->name('settings-panel.company');
-        Route::get('/erp', [App\Http\Controllers\ErpSettingsController::class, 'index'])->name('settings-panel.erp');
-        Route::post('/erp', [App\Http\Controllers\ErpSettingsController::class, 'store'])->name('settings-panel.erp.store');
-        Route::get('vat-settings', [App\Http\Controllers\VatSettingsController::class, 'index'])->name('settings-panel.vat-settings.index');
-        Route::post('vat-settings/module-label', [App\Http\Controllers\VatSettingsController::class, 'storeModuleLabel'])->name('settings-panel.vat-settings.store-module-label');
-        Route::post('vat-settings/quarters', [App\Http\Controllers\VatSettingsController::class, 'storeQuarter'])->name('settings-panel.vat-settings.store-quarter');
-        Route::delete('vat-settings/quarters/{slot}', [App\Http\Controllers\VatSettingsController::class, 'deleteQuarter'])->name('settings-panel.vat-settings.delete-quarter');
-        Route::post('vat-settings', [App\Http\Controllers\VatSettingsController::class, 'store'])->name('settings-panel.vat-settings.store');
-        Route::resource('departments', App\Http\Controllers\DepartmentsController::class)->names('settings-panel.departments');
-        Route::resource('dropdowns', App\Http\Controllers\DropdownsController::class)->names('settings-panel.dropdowns');
-        Route::resource('visa-statuses', App\Http\Controllers\VisaStatusController::class)->names('settings-panel.visa-statuses');
-        Route::post('visa-statuses/reorder', [App\Http\Controllers\VisaStatusController::class, 'reorder'])->name('settings-panel.visa-statuses.reorder');
-        Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('settings-panel.visa-statuses.toggle-active');
-        Route::resource('branches', App\Http\Controllers\BranchController::class)->names('settings-panel.branches');
-        // Account field settings (fixed + custom fields; only custom are editable/deletable)
-        Route::get('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'index'])->name('settings-panel.account-fields.index');
-        Route::post('account-fields/module-label', [App\Http\Controllers\AccountFieldSettingsController::class, 'storeModuleLabel'])->name('settings-panel.account-fields.store-module-label');
-        Route::get('account-fields/table-body', [App\Http\Controllers\AccountFieldSettingsController::class, 'tableBody'])->name('settings-panel.account-fields.table-body');
-        Route::get('account-fields/config-schema/{dataType}', [App\Http\Controllers\AccountFieldSettingsController::class, 'configSchema'])->name('settings-panel.account-fields.config-schema');
-        Route::post('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'store'])->name('settings-panel.account-fields.store');
-        Route::put('account-fields/{id}', [App\Http\Controllers\AccountFieldSettingsController::class, 'update'])->name('settings-panel.account-fields.update');
-        Route::delete('account-fields/{id}', [App\Http\Controllers\AccountFieldSettingsController::class, 'destroy'])->name('settings-panel.account-fields.destroy');
-        Route::post('account-fields/reorder', [App\Http\Controllers\AccountFieldSettingsController::class, 'reorder'])->name('settings-panel.account-fields.reorder');
-        // Voucher Settings (voucher types + voucher custom fields)
-        Route::get('voucher-settings', [App\Http\Controllers\VoucherSettingsController::class, 'index'])->name('settings-panel.voucher-settings.index');
-        Route::post('voucher-settings/module-label', [App\Http\Controllers\VoucherSettingsController::class, 'storeModuleLabel'])->name('settings-panel.voucher-settings.store-module-label');
-        Route::get('voucher-settings/types/table-body', [App\Http\Controllers\VoucherSettingsController::class, 'typesTableBody'])->name('settings-panel.voucher-settings.types-table-body');
-        Route::post('voucher-settings/types', [App\Http\Controllers\VoucherSettingsController::class, 'storeType'])->name('settings-panel.voucher-settings.store-type');
-        Route::put('voucher-settings/types/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateType'])->name('settings-panel.voucher-settings.update-type');
-        Route::delete('voucher-settings/types/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'destroyType'])->name('settings-panel.voucher-settings.destroy-type');
-        Route::post('voucher-settings/types/reorder', [App\Http\Controllers\VoucherSettingsController::class, 'reorderTypes'])->name('settings-panel.voucher-settings.reorder-types');
-        Route::get('voucher-settings/fields/table-body', [App\Http\Controllers\VoucherSettingsController::class, 'fieldsTableBody'])->name('settings-panel.voucher-settings.fields-table-body');
-        Route::get('voucher-settings/fields/config-schema/{dataType}', [App\Http\Controllers\VoucherSettingsController::class, 'fieldConfigSchema'])->name('settings-panel.voucher-settings.field-config-schema');
-        Route::post('voucher-settings/fields', [App\Http\Controllers\VoucherSettingsController::class, 'storeField'])->name('settings-panel.voucher-settings.store-field');
-        Route::put('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateField'])->name('settings-panel.voucher-settings.update-field');
-        Route::delete('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'destroyField'])->name('settings-panel.voucher-settings.destroy-field');
-        Route::post('voucher-settings/fields/reorder', [App\Http\Controllers\VoucherSettingsController::class, 'reorderFields'])->name('settings-panel.voucher-settings.reorder-fields');
-        // Rider Settings (categories + fixed rider fields + rider custom fields)
-        Route::get('rider-settings', [App\Http\Controllers\RiderSettingsController::class, 'index'])->name('settings-panel.rider-settings.index');
-        Route::post('rider-settings/module-label', [App\Http\Controllers\RiderSettingsController::class, 'storeModuleLabel'])->name('settings-panel.rider-settings.store-module-label');
-        Route::post('rider-settings/field-assignment', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.rider-settings.update-field-assignment');
-        Route::post('rider-settings/field-assignment/display-label', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignmentLabel'])->name('settings-panel.rider-settings.update-field-assignment-label');
-        Route::post('rider-settings/field-assignment/visibility', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignmentVisibility'])->name('settings-panel.rider-settings.update-field-assignment-visibility');
-        Route::post('rider-settings/field-assignments/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.rider-settings.reorder-field-assignments');
-        Route::get('rider-settings/categories/table-body', [App\Http\Controllers\RiderSettingsController::class, 'categoriesTableBody'])->name('settings-panel.rider-settings.categories-table-body');
-        Route::post('rider-settings/categories', [App\Http\Controllers\RiderSettingsController::class, 'storeCategory'])->name('settings-panel.rider-settings.store-category');
-        Route::put('rider-settings/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateCategory'])->name('settings-panel.rider-settings.update-category');
-        Route::delete('rider-settings/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyCategory'])->name('settings-panel.rider-settings.destroy-category');
-        Route::post('rider-settings/categories/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderCategories'])->name('settings-panel.rider-settings.reorder-categories');
-        Route::get('rider-settings/fields/table-body', [App\Http\Controllers\RiderSettingsController::class, 'tableBody'])->name('settings-panel.rider-settings.table-body');
-        Route::get('rider-settings/fields/table-body/{categoryId}', [App\Http\Controllers\RiderSettingsController::class, 'tableBodyCategory'])->name('settings-panel.rider-settings.table-body-category');
-        Route::get('rider-settings/fields/config-schema/{dataType}', [App\Http\Controllers\RiderSettingsController::class, 'fieldConfigSchema'])->name('settings-panel.rider-settings.field-config-schema');
-        Route::post('rider-settings/fields', [App\Http\Controllers\RiderSettingsController::class, 'storeField'])->name('settings-panel.rider-settings.store-field');
-        Route::put('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateField'])->name('settings-panel.rider-settings.update-field');
-        Route::delete('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyField'])->name('settings-panel.rider-settings.destroy-field');
-        Route::post('rider-settings/fields/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderFields'])->name('settings-panel.rider-settings.reorder-fields');
-        Route::get('rider-settings/documents/table-body', [App\Http\Controllers\RiderSettingsController::class, 'documentTypesTableBody'])->name('settings-panel.rider-settings.document-types-table-body');
-        Route::post('rider-settings/documents', [App\Http\Controllers\RiderSettingsController::class, 'storeDocumentType'])->name('settings-panel.rider-settings.store-document-type');
-        Route::put('rider-settings/documents/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateDocumentType'])->name('settings-panel.rider-settings.update-document-type');
-        Route::delete('rider-settings/documents/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyDocumentType'])->name('settings-panel.rider-settings.destroy-document-type');
-        Route::post('rider-settings/documents/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentTypes'])->name('settings-panel.rider-settings.reorder-document-types');
-        // Module settings (General tab only) for all ERP modules
-        Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[a-z_]+');
-        Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[a-z_]+');
-        // User Management, Activity Logs, Recycle Bin (moved into Settings)
-
-        Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');
-        Route::patch('users/{id}/password', [App\Http\Controllers\UserController::class, 'changePassword'])->name('users.password');
-        Route::resource('permissions', App\Http\Controllers\PermissionsController::class)->names('settings-panel.permissions');
-        Route::resource('roles', App\Http\Controllers\RolesController::class)->names('settings-panel.roles');
-        Route::prefix('activity-logs')->name('settings-panel.activity-logs.')->group(function () {
-            Route::get('/', [ActivityLogController::class, 'index'])->name('index');
-            Route::get('/api/statistics', [ActivityLogController::class, 'statistics'])->name('statistics');
-            Route::get('/{activityLog}', [ActivityLogController::class, 'show'])->name('show');
-        });
-        Route::prefix('trash')->name('settings-panel.trash.')->group(function () {
-            Route::get('/', [App\Http\Controllers\TrashController::class, 'index'])->name('index');
-            Route::get('/stats', [App\Http\Controllers\TrashController::class, 'stats'])->name('stats');
-            Route::get('/{module}/{id}/show', [App\Http\Controllers\TrashController::class, 'show'])->name('show');
-            Route::post('/{module}/{id}/restore', [App\Http\Controllers\TrashController::class, 'restore'])->name('restore');
-            Route::delete('/{module}/{id}/force-destroy', [App\Http\Controllers\TrashController::class, 'forceDestroy'])->name('force-destroy');
-        });
-    });
+    // Settings panel: registered under /app/{company_slug}/ — see routes/settings_panel.php
 
 
 
@@ -348,8 +370,8 @@ Route::middleware(['auth', 'web'])->group(function () {
 
 
 
-    
-    Route::get('payments/{id}/clone', [\App\Http\Controllers\PaymentController::class, 'clone'])->name('payments.clone');
+
+
     Route::resource('payments', App\Http\Controllers\PaymentController::class);
     Route::get('receipts/{id}/clone', [\App\Http\Controllers\ReceiptController::class, 'clone'])->name('receipts.clone');
     Route::resource('receipts', App\Http\Controllers\ReceiptController::class);
@@ -605,6 +627,36 @@ Route::get('/artisan-storage-unlink', function () {
     return 'storage unlink';
 });
 
+// Admin DB: only migrations in database/migrations_admin (or one file via ?path=...)
+Route::get('/run-admin-migrate', function () {
+    $path = request('path');
+    $options = [
+        '--database' => 'mysql_admin',
+        '--force' => true,
+    ];
+
+    if ($path !== null && $path !== '') {
+        $path = str_replace('\\', '/', (string) $path);
+        if (str_contains($path, '..')) {
+            return response('Invalid path.', 400);
+        }
+        if (! str_starts_with($path, 'database/')) {
+            return response('path must start with database/ (e.g. database/migrations_admin/2026_03_20_000004_create_admin_auth_and_permission_tables.php)', 400);
+        }
+        $full = realpath(base_path($path));
+        if ($full === false || ! str_starts_with($full, realpath(base_path('database')))) {
+            return response('path must be under database/.', 400);
+        }
+        $options['--path'] = $path;
+    } else {
+        $options['--path'] = 'database/migrations_admin';
+    }
+
+    Artisan::call('migrate', $options);
+
+    return Artisan::output();
+});
+
 /* Route::resource('calculations', App\Http\Controllers\CalculationsController::class)
     ->names([
         'index' => 'calculations.index',
@@ -632,7 +684,7 @@ Route::prefix('settings')->group(function () {
 
 
 /* Suppliers section start here */
-Route::middleware(['auth'])->group(function () {
+Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
     // Suppliers
     Route::resource('suppliers', SupplierController::class);
     Route::get('/suppliers/show/{id}', [SupplierController::class, 'show'])->name('suppliers.show');
@@ -667,7 +719,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 /* Suppliers section end here */
-Route::middleware('auth')->group(function () {
+Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
     Route::resource('upload_files', UploadFilesController::class);
     Route::get('/upload_files', [UploadFilesController::class, 'index'])->name('upload_files.index');
     Route::get('/upload_files/create', [UploadFilesController::class, 'create'])->name('upload_files.create');
@@ -680,27 +732,29 @@ Route::middleware('auth')->group(function () {
 
 
 
-// Specific Salik routes (must come before resource route)
-Route::get('salik/missing-records', [\App\Http\Controllers\SalikController::class, 'showMissingRecords'])->name('salik.missing.records');
-Route::get('salik/export-missing-records', [\App\Http\Controllers\SalikController::class, 'exportMissingRecords'])->name('salik.export.missing.records');
-Route::post('salik/analyze-excel', [\App\Http\Controllers\SalikController::class, 'analyzeExcelFile'])->name('salik.analyze.excel');
-Route::any('salik/clear-failed-imports', [\App\Http\Controllers\SalikController::class, 'clearFailedImports'])->name('salik.clear.failed.imports');
-Route::get('salik/import/{salik_account_id}', [\App\Http\Controllers\SalikController::class, 'importForm'])->name('salik.import.form');
-Route::post('salik/import', [\App\Http\Controllers\SalikController::class, 'import'])->name('salik.import');
-Route::post('salik/test-import', [\App\Http\Controllers\SalikController::class, 'testImport'])->name('salik.test.import');
+Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
+    // Specific Salik routes (must come before resource route)
+    Route::get('salik/missing-records', [\App\Http\Controllers\SalikController::class, 'showMissingRecords'])->name('salik.missing.records');
+    Route::get('salik/export-missing-records', [\App\Http\Controllers\SalikController::class, 'exportMissingRecords'])->name('salik.export.missing.records');
+    Route::post('salik/analyze-excel', [\App\Http\Controllers\SalikController::class, 'analyzeExcelFile'])->name('salik.analyze.excel');
+    Route::any('salik/clear-failed-imports', [\App\Http\Controllers\SalikController::class, 'clearFailedImports'])->name('salik.clear.failed.imports');
+    Route::get('salik/import/{salik_account_id}', [\App\Http\Controllers\SalikController::class, 'importForm'])->name('salik.import.form');
+    Route::post('salik/import', [\App\Http\Controllers\SalikController::class, 'import'])->name('salik.import');
+    Route::post('salik/test-import', [\App\Http\Controllers\SalikController::class, 'testImport'])->name('salik.test.import');
 
-// Salik resource routes
-Route::resource('salik', App\Http\Controllers\SalikController::class);
-Route::post('salik/store', [\App\Http\Controllers\SalikController::class, 'store'])->name('salik.store');
-Route::get('salik/edit/{id}', [\App\Http\Controllers\SalikController::class, 'edit'])->name('salik.edit');
-Route::post('/salik/{id}/update', [SalikController::class, 'update'])->name('salik.update');
-Route::get('salik/create/{id}', [\App\Http\Controllers\SalikController::class, 'create'])->name('salik.create');
-Route::any('salik/attach_file/{id}', [\App\Http\Controllers\SalikController::class, 'fileUpload'])->name('salik.fileupload');
-Route::get('salik/delete/{id}', [\App\Http\Controllers\SalikController::class, 'destroy'])->name('salik.delete');
+    // Salik resource routes
+    Route::resource('salik', App\Http\Controllers\SalikController::class);
+    Route::post('salik/store', [\App\Http\Controllers\SalikController::class, 'store'])->name('salik.store');
+    Route::get('salik/edit/{id}', [\App\Http\Controllers\SalikController::class, 'edit'])->name('salik.edit');
+    Route::post('/salik/{id}/update', [SalikController::class, 'update'])->name('salik.update');
+    Route::get('salik/create/{id}', [\App\Http\Controllers\SalikController::class, 'create'])->name('salik.create');
+    Route::any('salik/attach_file/{id}', [\App\Http\Controllers\SalikController::class, 'fileUpload'])->name('salik.fileupload');
+    Route::get('salik/delete/{id}', [\App\Http\Controllers\SalikController::class, 'destroy'])->name('salik.delete');
 
-Route::post('salik/accountcreate', [\App\Http\Controllers\SalikController::class, 'accountcreate'])->name('salik.accountcreate');
-Route::post('salik/editaccount', [\App\Http\Controllers\SalikController::class, 'editaccount'])->name('salik.editaccount');
-Route::get('salik/deleteaccount/{id}', [\App\Http\Controllers\SalikController::class, 'deleteaccount'])->name('salik.deleteaccount');
-Route::get('salik/tickets/{id}', [\App\Http\Controllers\SalikController::class, 'tickets'])->name('salik.tickets');
-Route::get('salik/viewvoucher/{id}', [\App\Http\Controllers\SalikController::class, 'viewvoucher'])->name('salik.viewvoucher');
-Route::post('salik/getriderbybikedate', [SalikController::class, 'getriderbybikedate'])->name('salik.getriderbybikedate');
+    Route::post('salik/accountcreate', [\App\Http\Controllers\SalikController::class, 'accountcreate'])->name('salik.accountcreate');
+    Route::post('salik/editaccount', [\App\Http\Controllers\SalikController::class, 'editaccount'])->name('salik.editaccount');
+    Route::get('salik/deleteaccount/{id}', [\App\Http\Controllers\SalikController::class, 'deleteaccount'])->name('salik.deleteaccount');
+    Route::get('salik/tickets/{id}', [\App\Http\Controllers\SalikController::class, 'tickets'])->name('salik.tickets');
+    Route::get('salik/viewvoucher/{id}', [\App\Http\Controllers\SalikController::class, 'viewvoucher'])->name('salik.viewvoucher');
+    Route::post('salik/getriderbybikedate', [SalikController::class, 'getriderbybikedate'])->name('salik.getriderbybikedate');
+});

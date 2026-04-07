@@ -27,7 +27,7 @@
 @endphp
     <table width="100%" style="font-family: sans-serif;margin-bottom:20px;">
       <tr>
-          <td width="33.33%"><img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" /></td>
+          <td width="33.33%"><img src="{{ $companyLogoUrl ?? URL::asset('assets/img/logo-full.png') }}" width="150" /></td>
           <td width="33.33%" style="text-align: center;"><h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{$settings['company_name']}}</h4>
               <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{$settings['company_address']}}</p>
               <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;"> TRN {{$settings['vat_number']}}</p>

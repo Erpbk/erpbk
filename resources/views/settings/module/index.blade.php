@@ -4,12 +4,15 @@
 
 @section('content')
 @include('flash::message')
+@php
+  $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug');
+@endphp
 <div class="row">
   <div class="col-12">
     <div class="card mb-4">
       <div class="card-header d-flex align-items-center justify-content-between">
         <div>
-          <h4 class="card-title mb-0">{{ $moduleLabel }} – Settings</h4>
+          <h4 class="card-title mb-0">{{ $moduleLabel }}</h4>
           <p class="text-muted small mb-0 mt-1">Change the name that appears in the main application menu for this module.</p>
         </div>
       </div>
@@ -30,7 +33,7 @@
         <div class="tab-content" id="moduleSettingsTabContent">
           <div class="tab-pane fade show active" id="tab-general" role="tabpanel">
             <p class="text-muted small mb-3">This name appears in the left sidebar menu of the main application.</p>
-            <form action="{{ route('settings-panel.module-settings.store-module-label', ['module' => $moduleKey]) }}" method="POST" class="row g-3 align-items-end">
+            <form action="{{ route('settings-panel.module-settings.store-module-label', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey]) }}" method="POST" class="row g-3 align-items-end">
               @csrf
               <div class="col-md-6">
                 <label class="form-label">Name in menu</label>

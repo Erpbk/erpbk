@@ -20,6 +20,14 @@ class RolesController extends AppBaseController
   /** @var RolesRepository $rolesRepository*/
   private $rolesRepository;
 
+  /**
+   * User Management lives at settings-panel.users; listing roles alone is not used (avoid redirect()->back() breaking modals).
+   */
+  protected function redirectToUserManagement()
+  {
+      return redirect()->route('settings-panel.users.index');
+  }
+
   public function __construct(RolesRepository $rolesRepo)
   {
     $this->rolesRepository = $rolesRepo;
@@ -43,8 +51,7 @@ class RolesController extends AppBaseController
         abort(404);
       }
     } */
-   return redirect()->back();
-    return $rolesDataTable->render('roles.index');
+    return $this->redirectToUserManagement();
   }
 
   /**
@@ -70,20 +77,20 @@ class RolesController extends AppBaseController
 
     Flash::success('Roles saved successfully.');
 
-    return redirect(route('settings-panel.roles.index'));
+    return $this->redirectToUserManagement();
   }
 
   /**
    * Display the specified Roles.
    */
-  public function show($id)
+  public function show(string $company_slug, $role)
   {
-    $roles = $this->rolesRepository->find($id);
+    $roles = $this->rolesRepository->find($role);
 
     if (empty($roles)) {
       Flash::error('Roles not found');
 
-      return redirect(route('settings-panel.roles.index'));
+      return $this->redirectToUserManagement();
     }
 
     return view('roles.show')->with('roles', $roles);
@@ -92,48 +99,52 @@ class RolesController extends AppBaseController
   /**
    * Show the form for editing the specified Roles.
    */
-  public function edit($id)
+  public function edit(string $company_slug, $role)
   {
-    $roles = $this->rolesRepository->find($id);
-    $rolePermissions = DB::table('role_has_permissions')
-      ->where('role_has_permissions.role_id', $id)
-      ->pluck('role_has_permissions.permission_id', 'role_has_permissions.permission_id')
-      ->all();
-    $modules = Permission::where(['parent_id'=>0])->orWhere('parent_id',NULL)->get();
+    $roles = Role::query()->find($role);
     if (empty($roles)) {
       Flash::error('Roles not found');
 
-      return redirect(route('settings-panel.roles.index'));
+      return $this->redirectToUserManagement();
     }
 
-    return view('roles.edit', compact('roles', 'rolePermissions','modules'));
+    $rolePermissions = DB::table('role_has_permissions')
+      ->where('role_has_permissions.role_id', $role)
+      ->pluck('role_has_permissions.permission_id', 'role_has_permissions.permission_id')
+      ->all();
+
+    $modules = Permission::query()
+      ->where(function ($q) {
+        $q->whereNull('parent_id')->orWhere('parent_id', 0);
+      })
+      ->get();
+
+    return view('roles.edit', compact('roles', 'rolePermissions', 'modules'));
   }
 
   /**
    * Update the specified Roles in storage.
    */
-  public function update($id, Request $request)
+  public function update(Request $request, string $company_slug, $roleId)
   {
     $this->validate($request, [
       'name' => 'required',
       'permission' => 'required',
     ]);
-    $role = Role::find($id);
+    $role = Role::query()->find($roleId);
+    if (empty($role)) {
+      Flash::error('Roles not found');
+
+      return $this->redirectToUserManagement();
+    }
+
     $role->name = $request->input('name');
     $role->save();
     $role->syncPermissions($request->input('permission'));
 
-    if (empty($roles)) {
-      Flash::error('Roles not found');
-
-      return redirect(route('settings-panel.roles.index'));
-    }
-
-    $roles = $this->rolesRepository->update($request->all(), $id);
-
     Flash::success('Roles updated successfully.');
 
-    return redirect(route('settings-panel.roles.index'));
+    return $this->redirectToUserManagement();
   }
 
   /**
@@ -141,13 +152,13 @@ class RolesController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy(Request $request, $id)
+  public function destroy(Request $request, string $company_slug, $id)
   {
     $role = Role::find($id);
     if (empty($role)) {
       Flash::error('Roles not found');
 
-      return redirect(route('settings-panel.roles.index'));
+      return $this->redirectToUserManagement();
     }
     if($role->users()->count() > 0){
       if($request->ajax()){
@@ -178,8 +189,10 @@ class RolesController extends AppBaseController
 
   public function get_permissions()
   {
-    $result = Permission::where(['parent_id' => 0])
-      ->orWhere('parent_id', null)
+    $result = Permission::query()
+      ->where(function ($q) {
+        $q->whereNull('parent_id')->orWhere('parent_id', 0);
+      })
       ->get();
     $htmlData = '';
     foreach ($result as $item) {

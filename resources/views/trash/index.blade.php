@@ -186,7 +186,8 @@
                 'totalPages' => $totalPages,
                 'modules' => $modules,
                 'currentModule' => $currentModule,
-                'tableColumns' => $tableColumns ?? []
+                'tableColumns' => $tableColumns ?? [],
+                'trashRoute' => $trashRoute,
                 ])
                 @else
                 {{-- Generic table for other modules --}}
@@ -225,7 +226,7 @@
 
                             <!-- Record ID (clickable like Voucher ID) -->
                             <td>
-                                <a href="javascript:void(0);" @if($item['module']=='vouchers' ) data-action="{{ route($trashRoute . '.show', ['vouchers', $item['id']]) }}" data-title="Voucher Details - {{ $item['id'] }} (Deleted)" data-size="xl" @endif class="text-primary show-modal">{{ $item['module_name'] }} #{{ $item['id'] }}</a>
+                                <a href="javascript:void(0);" @if($item['module']=='vouchers' ) data-action="{{ route($trashRoute . '.show', ['module' => 'vouchers', 'id' => $item['id']]) }}" data-title="Voucher Details - {{ $item['id'] }} (Deleted)" data-size="xl" @endif class="text-primary show-modal">{{ $item['module_name'] }} #{{ $item['id'] }}</a>
                             </td>
 
                             <!-- Display Columns -->
@@ -290,7 +291,7 @@
                                             <a href="javascript:void(0);" class="dropdown-item waves-effect restore-item" data-form-id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}">
                                                 <i class="fa fa-undo text-success my-1"></i> Restore
                                             </a>
-                                            <form id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route($trashRoute . '.restore', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
+                                            <form id="restore-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route($trashRoute . '.restore', ['module' => $item['module'], 'id' => $item['id']]) }}" method="POST" style="display: none;">
                                                 @csrf
                                             </form>
                                             @endif
@@ -299,7 +300,7 @@
                                             <a href="javascript:void(0);" class="dropdown-item waves-effect delete-item" data-form-id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}">
                                                 <i class="fa fa-trash-o text-danger my-1"></i> Delete Forever
                                             </a>
-                                            <form id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route($trashRoute . '.force-destroy', [$item['module'], $item['id']]) }}" method="POST" style="display: none;">
+                                            <form id="delete-form-{{ $item['module'] }}-{{ $item['id'] }}" action="{{ route($trashRoute . '.force-destroy', ['module' => $item['module'], 'id' => $item['id']]) }}" method="POST" style="display: none;">
                                                 @csrf
                                                 @method('DELETE')
                                             </form>
@@ -603,13 +604,15 @@ $moduleTableViewExists = $moduleTableView && view()->exists($moduleTableView);
             const ok = confirm(confirmMessage);
             if (!ok) return;
 
-            const action = form.getAttribute('action');
-            const method = (form.getAttribute('method') || 'POST').toUpperCase();
-            const formData = new FormData(form);
+            // form.action resolves relative URLs to an absolute URL; getAttribute('action') can be empty/wrong.
+            const actionUrl = form.action || form.getAttribute('action');
+            if (!actionUrl || (actionUrl.indexOf('/settings-panel/trash') !== -1 && actionUrl.indexOf('force-destroy') === -1 && actionUrl.indexOf('/restore') === -1)) {
+                console.error('Invalid recycle-bin form action:', actionUrl);
+                alert('Could not submit this action (missing route). Please refresh the page.');
+                return;
+            }
 
-            // Respect method spoofing
-            const override = formData.get('_method');
-            const fetchMethod = override ? override.toUpperCase() : method;
+            const formData = new FormData(form);
 
             // Show loading indicator
             const originalText = trigger.innerHTML;
@@ -617,14 +620,15 @@ $moduleTableViewExists = $moduleTableView && view()->exists($moduleTableView);
             trigger.disabled = true;
 
             try {
-                const response = await fetch(action, {
-                    method: fetchMethod === 'GET' ? 'POST' : fetchMethod,
+                // Always POST with FormData so _method spoofing works (DELETE/PATCH). Raw fetch('DELETE') breaks web routing.
+                const response = await fetch(actionUrl, {
+                    method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRF-TOKEN': formData.get('_token') || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                         'Accept': 'application/json',
                     },
-                    body: fetchMethod === 'GET' ? null : formData,
+                    body: formData,
                 });
 
                 let data = {};

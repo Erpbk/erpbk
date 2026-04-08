@@ -22,6 +22,7 @@
     "laravel/framework": "^10.0",
     "laravel/sanctum": "^3.2",
     "laravel/tinker": "^2.8",
+    "livewire/livewire": "^3.7.15",
     "maatwebsite/excel": "^3.1",
     "maestroerror/php-heic-to-jpg": "^1.0",
     "spatie/laravel-permission": "^6.0",

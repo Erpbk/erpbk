@@ -8,8 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $vendorsTableExists = Schema::hasTable('vendors');
+
         if (!Schema::hasTable('sim_invoices')) {
-            Schema::create('sim_invoices', function (Blueprint $table) {
+            Schema::create('sim_invoices', function (Blueprint $table) use ($vendorsTableExists) {
                 $table->id();
                 $table->date('inv_date');
                 $table->integer('vendor_id');
@@ -27,7 +29,10 @@ return new class extends Migration
                 $table->timestamps();
                 $table->softDeletes();
 
-                $table->foreign('vendor_id')->references('id')->on('vendors')->onDelete('restrict');
+                // Some environments do not have vendors table in this migration path.
+                if ($vendorsTableExists) {
+                    $table->foreign('vendor_id')->references('id')->on('vendors')->onDelete('restrict');
+                }
                 $table->index('vendor_id');
                 $table->index('billing_month');
                 $table->index('status');

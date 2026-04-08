@@ -4,7 +4,7 @@
 /vendor1
 /yarn.lock
 /package-lock.json
-*.lock
+# Keep composer.lock tracked for deterministic deploys
 
 # Environment
 .env

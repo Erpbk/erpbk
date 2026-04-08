@@ -4,14 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
+use App\Traits\BranchScope;
 
 class Payment extends Model
 {
-    use LogsActivity;
+    use LogsActivity, BranchScope;
 
     public $table = 'payments';
 
     public $fillable = [
+        'branch_id',
         'reference',
         'bank_charges',
         'bank_charges_account',
@@ -31,6 +33,7 @@ class Payment extends Model
     ];
 
     public static array $rules = [
+        'branch_id' => 'nullable',
         'bank_id' => 'required|numeric',
         'account_type' => 'nullable|string|max:255',
         'head_account_id' => 'nullable|string|max:255',
@@ -54,6 +57,11 @@ class Payment extends Model
         return $this->belongsTo(Banks::class,'bank_id','id');
     }
 
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class, 'branch_id' , 'id');
+    }
+
     public function getPayerAccountAttribute(){
         $bank = Banks::findOrFail($this->bank_id);
         $account = Accounts::find($bank->account_id);
@@ -63,4 +71,10 @@ class Payment extends Model
     public function payeeAccount(){
         return $this->belongsTo(Accounts::class, 'payee_account_id', 'id');
     }
+
+    public function getBranchNameAttribute()
+  {
+    $branch = $this->branch_id ? $this->branch->name .' ( '. $this->branch->code .' )' : 'All' ; 
+    return $branch;
+  }
 }

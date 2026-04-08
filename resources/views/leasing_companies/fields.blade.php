@@ -1,31 +1,38 @@
 <!-- Name Field -->
-<div class="form-group col-sm-12">
+<div class="form-group col-sm-6">
     {!! Form::label('name', 'Name:',['class'=>'required']) !!}
     {!! Form::text('name', null, ['class' => 'form-control', 'maxlength' => 255, 'maxlength' => 255, 'required' => true]) !!}
 </div>
 
 <!-- Contact Person Field -->
-<div class="form-group col-sm-12">
+<div class="form-group col-sm-6">
     {!! Form::label('contact_person', 'Contact Person:',['class'=>'required']) !!}
     {!! Form::text('contact_person', null, ['class' => 'form-control', 'maxlength' => 255, 'maxlength' => 255, 'required' => true]) !!}
 </div>
 
 <!-- Contact Number Field -->
-<div class="form-group col-sm-12">
+<div class="form-group col-sm-6">
     {!! Form::label('contact_number', 'Contact Number:',['class'=>'required']) !!}
     {!! Form::text('contact_number', null, ['class' => 'form-control', 'maxlength' => 100, 'maxlength' => 100, 'required' => true]) !!}
 </div>
 <!-- Contact Number Field -->
-<div class="form-group col-sm-12">
+<div class="form-group col-sm-6">
     {!! Form::label('trn_number', 'TRN Number:',['class'=>'required']) !!}
     {!! Form::text('trn_number', null, ['class' => 'form-control', 'maxlength' => 100, 'maxlength' => 100, 'required' => true]) !!}
 </div>
+
+<!-- Branch Field -->
+<div class="form-group col-sm-6">
+    {!! Form::label('branch_id', 'Branch:',['class'=>'required']) !!}
+    {!! Form::select('branch_id', auth()->user()->branchDropdown(true), null, ['class' => 'form-select select2']) !!}
+</div>
+<div class="mt-4 col-sm-12 alert alert-warning">Select <b>'All'</b> option in  Branch list if this leasing company will be used by all or multiple branches</div>
+
 <!-- Detail Field -->
-<div class="form-group col-sm-12 col-lg-12">
+<div class="form-group col-sm-12">
     {!! Form::label('detail', 'Detail:',['class'=>'required']) !!}
     {!! Form::textarea('detail', null, ['class' => 'form-control', 'maxlength' => 65535, 'rows' => 3]) !!}
 </div>
-
 <!-- Status Field -->
 <div class="form-group col-sm-6 mt-3">
     <label>Status</label>

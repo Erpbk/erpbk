@@ -5,14 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use App\Traits\BranchScope;
 
 class LeasingCompanies extends Model
 {
-  use LogsActivity, SoftDeletes;
+  use LogsActivity, SoftDeletes, BranchScope;
 
   public $table = 'leasing_companies';
 
   public $fillable = [
+    'branch_id',
     'name',
     'contact_person',
     'contact_number',

@@ -25,6 +25,10 @@ class CustomerInvoicesController extends Controller
             $query->where('billing_month', $request->billing_month.'-01');
         }
 
+        if ($request->has('branch_id') && $request->branch_id) {
+            $query->where('branch_id', $request->branch_id);
+        }
+
         if($request->has('reference') && $request->reference){
             $query->where('reference','Like',$request->reference);
         }
@@ -122,6 +126,7 @@ class CustomerInvoicesController extends Controller
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
                 'attachment' => $attachmentPath,
+                'branch_id' => \App\Models\Customers::where('id'. $request->customer_id)->value('branch_id'),
             ]);
             
             // Create invoice items
@@ -143,6 +148,7 @@ class CustomerInvoicesController extends Controller
                 'debit' => $invoice->total,
                 'billing_month' => $invoice->billing_month,
                 'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : '.$invoice->description,
+                'branch_id' => $invoice->branch_id,
             ]);
 
             //Credit Sales Account
@@ -155,6 +161,7 @@ class CustomerInvoicesController extends Controller
                 'credit' => $invoice->subtotal,
                 'debit' => 0,
                 'billing_month' => $invoice->billing_month,
+                'branch_id' => $invoice->branch_id,
                 'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : '.$invoice->description,
             ]);
 
@@ -169,6 +176,7 @@ class CustomerInvoicesController extends Controller
                     'credit' => $invoice->vat,
                     'debit' => 0,
                     'billing_month' => $invoice->billing_month,
+                    'branch_id' => $invoice->branch_id,
                     'narration' => $invoice->description,
                 ]);
             }
@@ -314,6 +322,7 @@ class CustomerInvoicesController extends Controller
                 'subtotal' => $subtotal,
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
+                'branch_id' => \App\Models\Customers::where('id'. $request->customer_id)->value('branch_id'),
                 'attachment' => $attachmentPath,
             ]);
 
@@ -323,6 +332,52 @@ class CustomerInvoicesController extends Controller
             // Re-insert items
             foreach ($itemsData as $itemData) {
                 $invoice->items()->create($itemData);
+            }
+            
+            $transactions = Transactions::where(['reference_id' =>  $invoice->id, 'reference_type' => 'CI'])->get();
+            $transCode = $transactions->first()->trans_code;
+            // DEBIT the customer account
+            Transactions::create([
+                'trans_code' => $transCode,
+                'trans_date' => $invoice->inv_date,
+                'reference_id' => $invoice->id,
+                'reference_type' => 'CI',
+                'account_id' => $invoice->customer->account_id,
+                'credit' => 0,
+                'debit' => $invoice->total,
+                'billing_month' => $invoice->billing_month,
+                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : '.$invoice->description,
+                'branch_id' => $invoice->branch_id,
+            ]);
+
+            //Credit Sales Account
+            Transactions::create([
+                'trans_code' => $transCode, 
+                'trans_date' => $invoice->inv_date,
+                'reference_id' => $invoice->id,
+                'reference_type' => 'CI',
+                'account_id' => 1099,
+                'credit' => $invoice->subtotal,
+                'debit' => 0,
+                'billing_month' => $invoice->billing_month,
+                'branch_id' => $invoice->branch_id,
+                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : '.$invoice->description,
+            ]);
+
+            //Credit VAT Account
+            if($invoice->vat > 0){
+                Transactions::create([
+                    'trans_code' => $transCode, 
+                    'trans_date' => $invoice->inv_date,
+                    'reference_id' => $invoice->id,
+                    'reference_type' => 'CI',
+                    'account_id' => 1025,
+                    'credit' => $invoice->vat,
+                    'debit' => 0,
+                    'billing_month' => $invoice->billing_month,
+                    'branch_id' => $invoice->branch_id,
+                    'narration' => $invoice->description,
+                ]);
             }
 
             DB::commit();

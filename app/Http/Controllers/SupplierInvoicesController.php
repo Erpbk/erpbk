@@ -46,6 +46,8 @@ class SupplierInvoicesController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = SupplierInvoices::query()
             ->orderBy('id', 'asc');
+
+        $query->whereHas('supplier');
         if ($request->has('inv_id') && !empty($request->inv_id)) {
             $query->where('inv_id', 'like', '%' . $request->inv_id . '%');
         }

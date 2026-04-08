@@ -222,7 +222,10 @@ class Riders extends Model
     return $this->hasMany(RiderItemPrice::class, 'RID', 'id');
   }
 
-
+  public function branch()
+  {
+    return $this->belongsTo(Branch::class, 'branch_id', 'id');
+  }
   public static function dropdown()
   {
     return self::select('id', \DB::raw("CONCAT(rider_id, '-', name) as full_name"))->pluck('full_name', 'id')->prepend('Select', '');

@@ -94,21 +94,39 @@ class CustomersController extends AppBaseController
       Flash::error('Parent account "Customers" not found.');
       return redirect(route('customers.index'));
     }
-    $account = new Accounts();
-    $account->account_code = 'CS' . str_pad($customers->id, 4, '0', STR_PAD_LEFT);
-    $account->account_type = 'Asset';
-    $account->name = $customers->name;
-    $account->parent_id = $parentAccount->id;
-    $account->ref_name = 'Customer';
-    $account->ref_id = $customers->id;
-    $account->status = $customers->status;
-    $account->save();
+    try{
+      $customers = $this->customersRepository->create($input);
+      $account = new Accounts();
+      $account->account_code = 'CS' . str_pad($customers->id, 4, '0', STR_PAD_LEFT);
+      $account->account_type = 'Asset';
+      $account->name = $customers->name;
+      $account->parent_id = $parentAccount->id;
+      $account->ref_name = 'Customer';
+      $account->ref_id = $customers->id;
+      $account->status = $customers->status;
+      $account->branch_id = $customers->branch_id;
+      $account->save();
 
-    $customers->account_id = $account->id;
-    $customers->save();
-
-    Flash::success('Customer added successfully.');
-    return redirect(route('customers.index'));
+      $customers->account_id = $account->id;
+      $customers->save();
+      if($request->ajax()){
+        return response()->json([
+          'mesaage' => 'Customer Added Successfully.',
+          'reload' => true
+        ],200);
+      }
+      Flash::success('Customer added successfully.');
+      return redirect(route('customers.index'));
+    }catch(\Exception $e){
+      \Log::error('error creating customer: '.$e->getMessage());
+      if($request->ajax()){
+        return response()->json([
+          'mesaage' => 'Error: '.$e->getMessage(),
+        ],500);
+      }
+      Flash::error('Error creating customer: '.$e->getMessage());
+      return redirect(route('customers.index'));
+    }
   }
 
   /**

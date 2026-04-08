@@ -46,7 +46,9 @@ class FuelCardHistoryController extends Controller
                 'assign_date' => $request['assign_date'],
                 'note'=> $request['note'],
             ]);
+            $branchId = \App\Models\Riders::where('id', $request['assigned_to'])->get('branch_id');
             $fuelCard->assigned_to = $request['assigned_to'];
+            $fuelCard->branch_id = $branchId;
             $fuelCard->status = 'Active';
             $fuelCard->save();
             DB::commit();

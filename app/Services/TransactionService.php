@@ -31,6 +31,7 @@ class TransactionService
         'debit' => $data['debit'] ?? 0,
         'credit' => $data['credit'] ?? 0,
         'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
+        'branch_id' => $data['branch_id'],
         'created_at' => now(),
         'updated_at' => now(),
       ];

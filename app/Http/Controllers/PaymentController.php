@@ -135,6 +135,7 @@ class PaymentController extends Controller
         $input['created_by'] = auth()->id();
         $input['billing_month'] = $input['billing_month'] . '-01';
         $input['amount'] = $totalAmount;
+        $input['branch_id'] = Accounts::where('id',$input['payee_account_id'])->value('branch_id');
 
         try {
             DB::beginTransaction();
@@ -158,6 +159,7 @@ class PaymentController extends Controller
                 'debit' => 0,
                 'billing_month' => $billingMonth,
                 'narration' => $desc,
+                'branch_id' => $payment->branch_id,
             ]);
 
             // 2. Debit the payee account (receiving account) - DEBIT entry
@@ -170,6 +172,7 @@ class PaymentController extends Controller
                 'credit' => 0,
                 'debit' => $paymentAmount, // Money coming to this account
                 'billing_month' => $billingMonth,
+                'branch_id' => $payment->branch_id,
                 'narration' => $desc,
             ]);
 
@@ -186,6 +189,7 @@ class PaymentController extends Controller
                         'credit' => 0,
                         'debit' => $bankCharges,
                         'billing_month' => $billingMonth,
+                        'branch_id' => $payment->branch_id,
                         'narration' => 'Bank charges for ( ' . $payment->description .' )',
                     ]);
                 }else {
@@ -218,6 +222,7 @@ class PaymentController extends Controller
                 'ref_id' => $payment->id,
                 'Created_by' => auth()->id(),
                 'status' => 1,
+                'branch_id' => $payment->branch_id,
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
             ];
 
@@ -329,6 +334,7 @@ class PaymentController extends Controller
         $input = $request->all();
         $input['updated_by'] = auth()->id();
         $input['billing_month'] = $input['billing_month'] . '-01';
+        $input['branch_id'] = Accounts::where('id',$input['payee_account_id'])->value('branch_id');
         $input['amount'] = $totalAmount;
 
         try {
@@ -357,6 +363,7 @@ class PaymentController extends Controller
                 'debit' => 0,
                 'billing_month' => $billingMonth,
                 'narration' => $desc,
+                'branch_id' => $payment->branch_id,
             ]);
 
             // 2. DEBIT payee
@@ -369,6 +376,7 @@ class PaymentController extends Controller
                 'credit' => 0,
                 'debit' => $paymentAmount,
                 'billing_month' => $billingMonth,
+                'branch_id' => $payment->branch_id,
                 'narration' => $desc,
             ]);
 
@@ -388,6 +396,7 @@ class PaymentController extends Controller
                     'credit' => 0,
                     'debit' => $bankCharges,
                     'billing_month' => $billingMonth,
+                    'branch_id' => $payment->branch_id,
                     'narration' => 'Bank charges for ( ' . $desc . ' )',
                 ]);
             }
@@ -399,6 +408,7 @@ class PaymentController extends Controller
                 'payment_from' => $payingAccountId,
                 'reference_number' => $payment->reference,
                 'amount' => $totalAmount,
+                'branch_id' => $payment->branch_id,
                 'Updated_By' => auth()->id(),
             ]);
 

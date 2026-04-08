@@ -58,27 +58,27 @@ class SupplierInvoicesRepository extends BaseRepository
         }
 
         foreach ($request['item_id'] as $key => $val) {
-    if (!empty($request['item_id'][$key]) && $request['amount'][$key] > 0) {
-        $itemId = $request['item_row_id'][$key] ?? null; // Optional hidden input for existing item ID
+            if (!empty($request['item_id'][$key]) && $request['amount'][$key] > 0) {
+                $itemId = $request['item_row_id'][$key] ?? null; // Optional hidden input for existing item ID
 
-        $dta = [
-            'item_id' => $request['item_id'][$key],
-            'qty' => $request['qty'][$key] ?? 0,
-            'rate' => $request['rate'][$key],
-            'amount' => $request['amount'][$key],
-            'tax' => $request['tax'][$key],
-            'discount' => $request['discount'][$key],
-            'inv_id' => $invoice->id
-        ];
+                $dta = [
+                    'item_id' => $request['item_id'][$key],
+                    'qty' => $request['qty'][$key] ?? 0,
+                    'rate' => $request['rate'][$key],
+                    'amount' => $request['amount'][$key],
+                    'tax' => $request['tax'][$key],
+                    'discount' => $request['discount'][$key],
+                    'inv_id' => $invoice->id
+                ];
 
-        if ($itemId) {
-            SupplierInvoicesItem::where('id', $itemId)->update($dta); // Update existing line
-        } else {
-            SupplierInvoicesItem::create($dta); // Add new line
+                if ($itemId) {
+                    SupplierInvoicesItem::where('id', $itemId)->update($dta); // Update existing line
+                } else {
+                    SupplierInvoicesItem::create($dta); // Add new line
+                }
+            }
         }
-    }
-}
-
+        $invoice->load('supplier');
         $trans_code = Account::trans_code();
         $transactionService = new TransactionService();
 
@@ -99,6 +99,7 @@ class SupplierInvoicesRepository extends BaseRepository
             'narration' => "Supplier Invoice #{$invoice->id} - {$invoice->descriptions}",
             'credit' => $invoice->total_amount ?? 0,
             'billing_month' => $invoice->billing_month,
+            'branch_id' => $invoice->supplier->branch_id,
         ];
         $transactionService->recordTransaction($transactionData);
 
@@ -111,6 +112,7 @@ class SupplierInvoicesRepository extends BaseRepository
             'trans_date' => $invoice->inv_date,
             'narration' => "Supplier Invoice #{$invoice->id} - {$invoice->descriptions}",
             'debit' => $invoice->total_amount ?? 0,
+            'branch_id' => $invoice->supplier->branch_id,
             'billing_month' => $invoice->billing_month,
         ];
         $transactionService->recordTransaction($transactionData);

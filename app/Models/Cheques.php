@@ -5,12 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
-
+use App\Traits\BranchScope;
 class Cheques extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, BranchScope;
     protected $table = 'cheques';
     protected $fillable = [
+        'branch_id',
         'cheque_number',
         'bank_id',
         'amount',
@@ -49,6 +50,7 @@ class Cheques extends Model
     protected $dates = ['deleted_at'];
 
     public static array $rules = [
+        'branch_id' => 'nullable',
         'cheque_number' => 'required|string',
         'bank_id' => 'required|exists:banks,id',
         'amount' => 'required|numeric|min:0',
@@ -79,11 +81,21 @@ class Cheques extends Model
         return $this->belongsTo(Accounts::class, 'payee_account');
     }
 
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class, 'branch_id' , 'id');
+    }
     public function Created_by(){
         return $this->belongsTo(User::class, 'created_by');
     }
 
     public function Updated_by(){
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function getBranchNameAttribute()
+    {
+        $branch = $this->branch_id ? $this->branch->name .' ( '. $this->branch->code .' )' : 'All' ; 
+        return $branch;
     }
 }

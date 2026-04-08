@@ -6,15 +6,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
+use App\Traits\BranchScope;
 use App\Helpers\IConstants;
 
 class Supplier extends Model
 {
-    use LogsActivity, HasActiveStatus, SoftDeletes;
+    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
 
     public $table = 'suppliers';
 
     public $fillable = [
+        'branch_id',
         'name',
         'email',
         'contact_number',

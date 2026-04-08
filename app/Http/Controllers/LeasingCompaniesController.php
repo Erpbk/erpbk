@@ -61,6 +61,9 @@ class LeasingCompaniesController extends AppBaseController
     if ($request->has('status') && !empty($request->status)) {
       $query->where('status', $request->status);
     }
+    if ($request->has('branch_id') && !empty($request->branch_id)) {
+      $query->where('branch_id', $request->branch_id);
+    }
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
     if ($request->ajax()) {
@@ -94,9 +97,6 @@ class LeasingCompaniesController extends AppBaseController
   {
     $input = $request->all();
 
-    $leasingCompanies = $this->leasingCompaniesRepository->create($input);
-
-
     //Adding Account and setting reference
 
     $parentAccount = Accounts::where('name', 'Leasing Companies')->where('account_type', 'Liability')->where('parent_id', null)->first();
@@ -104,20 +104,35 @@ class LeasingCompaniesController extends AppBaseController
       Flash::error('Parent account "Leasing Companies" not found.');
     }
 
-    $account = new Accounts();
-    $account->account_code = 'LC' . str_pad($leasingCompanies->id, 4, "0", STR_PAD_LEFT);
-    $account->account_type = 'Liability';
-    $account->name = $leasingCompanies->name;
-    $account->parent_id = $parentAccount->id;
-    $account->ref_name = 'LeasingCompany';
-    $account->ref_id = $leasingCompanies->id;
-    $account->status = $leasingCompanies->status;
-    $account->save();
+    try{
+      DB::beginTransaction();
+      $leasingCompanies = $this->leasingCompaniesRepository->create($input);
+      $account = new Accounts();
+      $account->account_code = 'LC' . str_pad($leasingCompanies->id, 4, "0", STR_PAD_LEFT);
+      $account->account_type = 'Liability';
+      $account->name = $leasingCompanies->name;
+      $account->parent_id = $parentAccount->id;
+      $account->ref_name = 'LeasingCompany';
+      $account->ref_id = $leasingCompanies->id;
+      $account->status = $leasingCompanies->status;
+      $account->branch_id = $leasingCompanies->branch_id;
+      $account->save();
 
-    $leasingCompanies->account_id = $account->id;
-    $leasingCompanies->save();
-
-    return response()->json(['message' => 'Company added successfully.']);
+      $leasingCompanies->account_id = $account->id;
+      $leasingCompanies->save();
+      DB::commit();
+      return response()->json(['message' => 'Company added successfully.','reload' => true]);
+    }catch(\Exception $e){
+      \Log::error('error occured while adding leasing company: '.$e->getMessage());
+      DB::rollBack();
+      if($request->ajax()){
+        return response()->json([
+            'message' => 'Error: '.$e->getMessage(),
+          ],500);
+      }
+      Flash::error('Error: '.$e->getMessage());
+      return redirect()->back();
+    }
   }
 
   /**
@@ -287,7 +302,7 @@ class LeasingCompaniesController extends AppBaseController
     $query = LeasingCompanyInvoice::with('leasingCompany')
       ->orderBy('billing_month', 'desc')
       ->orderBy('id', 'desc');
-
+    $query->whereHas('leasingCompany');
     // Filters
     if ($request->has('leasing_company_id') && !empty($request->leasing_company_id)) {
       $query->where('leasing_company_id', $request->leasing_company_id);

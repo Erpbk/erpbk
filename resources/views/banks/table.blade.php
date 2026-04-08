@@ -5,23 +5,25 @@
    }
 </style>
 @endpush
-<table class="table table-striped dataTable no-footer" id="dataTableBuilder">
+<table class="table dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>
          <th title="Title" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Title: activate to sort column ascending">Title</th>
          <th title="Account No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Account No: activate to sort column ascending">Account No</th>
+         <th title="Branch" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Branch: activate to sort column ascending">Branch</th>
          <th title="Balance" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Balance: activate to sort column ascending">Balance</th>
          <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
          <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
       </tr>
    </thead>
    <tbody>
-      @foreach($data as $r)
+      @forelse($data as $r)
       <tr class="text-center">
          <td><a href="{{ route('bank.files' , $r->id)}}">{{$r->name}}</a><br/></td>
          <td>{{$r->title}}</td>
          <td>{{$r->account_no}}</td>
+         <td>{{ $r->branch_name }}</td>
          <td>{{$r->balance}}</td>
          <td>
             @if($r->status == 1)
@@ -56,7 +58,13 @@
                </div>
             </td>
       </tr>
-      @endforeach
+      @empty
+      <tr>
+         <td colspan="7" class="text-center">
+            <h4 class="mt-3">No Data Found</h4>
+         </td>
+      </tr>
+      @endforelse
    </tbody>
 </table>
 @if(method_exists($data, 'links'))

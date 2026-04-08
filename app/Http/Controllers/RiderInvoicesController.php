@@ -47,7 +47,7 @@ class RiderInvoicesController extends AppBaseController
 
     $query = RiderInvoices::query()
       ->orderBy('billing_month', 'desc');
-
+    $query->whereHas('rider');
     // Filters
     if ($request->has('id') && !empty($request->id)) {
       $query->where('id', 'like', '%' . $request->id . '%');

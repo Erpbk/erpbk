@@ -21,6 +21,27 @@
           @endforeach
         </select>
       </div>
+      
+      
+      <div class="col-md-3 form-group col-3">
+        {!! Form::label('emirate_hub', 'Emirate Hub:', ['class' => 'required']) !!}
+        {!! Form::select(
+        'emirates',
+        Common::Dropdowns('emirates-hub'),
+        old('emirates', $bikes->emirates ?? ''), // ✅ selected value
+        ['class' => 'form-select select2','required', 'placeholder' => 'Select Emirate']
+        ) !!}
+      </div>
+      
+      <div class="col-md-3 form-group col-3">
+        {!! Form::label('branch_id', 'Branch:', ['class' => 'required']) !!}
+        {!! Form::select(
+        'branch_id',
+        \App\Models\Branch::dropdown(),
+        old('branch_id', $bikes->branch_id ?? ''), // ✅ selected value
+        ['class' => 'form-select select2','required']
+        ) !!}
+      </div>
       <div class="col-md-3 form-group col-3 hide-if-cyclist">
         {!! Form::label('bike_code', 'Bike Code:') !!}
         {!! Form::text('bike_code', $bikes->bike_code ?? '', ['class' => 'form-control', 'maxlength' => 100, 'maxlength' => 100]) !!}
@@ -100,15 +121,6 @@
       <div class="col-md-3 form-group col-3 hide-if-cyclist">
         {!! Form::label('traffic_file_number', 'Traffic File Number:') !!}
         {!! Form::text('traffic_file_number', $bikes->traffic_file_number ?? '', ['class' => 'form-control', 'maxlength' => 100, 'maxlength' => 100]) !!}
-      </div>
-      <div class="col-md-3 form-group col-3">
-        {!! Form::label('emirate_hub', 'Emirate Hub:', ['class' => 'required']) !!}
-        {!! Form::select(
-        'emirates',
-        Common::Dropdowns('emirates-hub'),
-        old('emirates', $bikes->emirates ?? ''), // ✅ selected value
-        ['class' => 'form-select select2','required', 'placeholder' => 'Select Emirate']
-        ) !!}
       </div>
       <div class="col-md-3 form-group col-3">
         {!! Form::label('registration_date', 'Registration Date:') !!}

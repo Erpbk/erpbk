@@ -377,7 +377,6 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 @endpush
-
 @section('content')
     <section class="content-header ">
         @include('flash::message')
@@ -446,6 +445,16 @@
             <form id="filterForm" action="{{ route('sims.index') }}" method="GET">
                 @csrf
                 <div class="row">
+                    @if(auth()->user()->hasMultiplebranches())
+                    <div class="form-group col-md-12">
+                        <label for="branch_id">Filter by Branch</label>
+                        <select class="form-control " id="branch_id" name="branch_id">
+                            @foreach(auth()->user()->branchDropdown() as $id => $name)
+                            <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
                     <div class="form-group col-md-12 col-sm-12">
                             <label for="number">Sim Number</label>
                             <input type="text" name="number" class="form-control" placeholder="Filter By Sim Number" value="{{ request('number') }}">
@@ -510,6 +519,10 @@ $(document).ready(function () {
     $('#status').select2({
         dropdownParent: $('#searchTopbody'),
         placeholder: "Filter By status",
+        allowClear: true
+    });
+    $('#branch_id').select2({
+        dropdownParent: $('#searchTopbody'),
         allowClear: true
     });
 });

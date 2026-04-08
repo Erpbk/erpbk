@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use App\Models\Sims;
 use App\Models\SimHistory;
 use App\Models\Riders;
+use App\Models\Branch;
 
 class SimImport implements ToCollection
 {
@@ -49,26 +50,28 @@ class SimImport implements ToCollection
                     $company    = trim($row[1] ?? '');
                     $emi        = trim($row[2] ?? '');
                     $vendor     = trim($row[3] ?? '');
+                    $branch     = trim($row[4] ?? '');
 
-                    if (empty($simNumber) || empty($company) || empty($vendor) || empty($emi)) {
+                    if (empty($simNumber) || empty($company) || empty($vendor) || empty($emi) || empty($branch)) {
                         $stats['missing_data']++;
-                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $vendor, $emi, 'Missing required fields');
+                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $vendor, $emi, $branch, 'Missing required fields');
                         continue;
                     }
 
                     if (in_array($simNumber, $processedSims)) {
                         $stats['duplicate_excel']++;
-                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $vendor, $emi, 'Duplicate SIM number in Excel file');
+                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $vendor, $emi, $branch, 'Duplicate SIM number in Excel file');
                         continue;
                     }
 
                     if (isset($existingSims[$simNumber])) {
                         $stats['duplicate_db']++;
-                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $vendor, $emi, 'Sim number already exists in Database');
+                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $vendor, $emi, $branch, 'Sim number already exists in Database');
                         continue;
                     }
 
                     $rider = Riders::where('company_contact', $simNumber)->first();
+                    $branch = Branch::where('code', $branch)->first();
                     if(!$rider) {
                         $sim = Sims::create([
                         'number' => $simNumber,
@@ -76,6 +79,7 @@ class SimImport implements ToCollection
                         'emi' => $emi,
                         'vendor' => $vendor,
                         'status' => 0,
+                        'branch_id' => $branch?->id ?? null,
                         'created_by' => Auth::id(),
                         ]);
 
@@ -90,6 +94,7 @@ class SimImport implements ToCollection
                         'vendor' => $vendor,
                         'assign_to' => $rider->id,
                         'status' => 1,
+                        'branch_id' => $branch?->id ?? null,
                         'created_by' => Auth::id(),
                         ]);
 
@@ -105,7 +110,7 @@ class SimImport implements ToCollection
                     }
                 } catch (\Exception $e) {
                     $stats['failed']++;
-                    $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber ?? null, $company ?? null, $vendor ?? null, $emi ?? null, 'Exception: ' . $e->getMessage(), ['exception' => $e->getTraceAsString()]);
+                    $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber ?? null, $company ?? null, $vendor ?? null, $emi ?? null, $branch ?? null, 'Exception: ' . $e->getMessage(), ['exception' => $e->getTraceAsString()]);
                     \Log::error("Import error: " . $e->getMessage());
                     continue;
                 }           
@@ -125,7 +130,7 @@ class SimImport implements ToCollection
         }
     }
 
-    private function createFailureEntry($rowIndex, $number, $company, $vendor, $emi,$reason, $extra = [])
+    private function createFailureEntry($rowIndex, $number, $company, $vendor, $emi, $branch, $reason, $extra = [])
     {
         return array_merge([
             'excel_row' => $rowIndex + 1, 
@@ -133,6 +138,7 @@ class SimImport implements ToCollection
             'company' => $company ?? 'Missing',
             'vendor' => $vendor ?? 'Missing',
             'emi' => $emi ?? 'Missing',
+            'branch' => $branch ?? 'Missing',
             'reason' => $reason,
         ], $extra);
     }

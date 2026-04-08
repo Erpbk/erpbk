@@ -94,4 +94,29 @@ class User extends Authenticatable
 
       return Branch::whereIn('id', $branchIds)->get();
   }
+
+  public function branchDropdown($all = null)
+  {
+    if($all){
+      return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->prepend('All', null)->toArray();
+    }else{
+      return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->toArray();
+    }
+  }
+
+  public function hasMultiplebranches()
+  {
+    $branchIds = app('user_branches') ?? [];
+    return count($branchIds) > 1;
+  }
+
+  public function branchById($branchId)
+  {
+    return Branch::find($branchId);
+  }
+
+  public function isAdmin()
+  {
+    return $this->hasAnyRole(['Administrator', 'Super Admin']);
+  }
 }

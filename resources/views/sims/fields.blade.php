@@ -59,3 +59,9 @@
     {!! Form::select('vendor', \App\Models\Vendors::dropdown(), old('vendor', $sims->vendor ?? ''), ['class' => 'form-control select2']) !!}
 </div>
 
+<!-- Branch Field -->
+<div class="form-group col-sm-6">
+    {!! Form::label('branch_id', 'Branch:',['class'=>'required']) !!}
+    {!! Form::select('branch_id', App\Models\Branch::dropdown(),null, ['class' => 'form-select select2', 'required']) !!}
+</div>
+

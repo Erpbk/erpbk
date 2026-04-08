@@ -6,14 +6,12 @@
   {!! Form::text('account_type', isset($accounts) ? $accounts->account_type : 'Expense', ['class' => 'form-control', 'readonly' => 'readonly']) !!}
   <input type="hidden" name="account_type" value="Expense" />
 </div>
-<div class="form-group col-sm-6"></div>
 
 <!-- Account Name Field -->
 <div class="form-group col-sm-6">
   {!! Form::label('name', 'Account Name:') !!}
   {!! Form::text('name', null, ['class' => 'form-control', 'required', 'maxlength' => 100]) !!}
 </div>
-<div class="form-group col-sm-6"></div>
 
 <!-- Account Code Field (edit only) -->
 @if(isset($accounts) && $accounts->id)
@@ -24,7 +22,7 @@
 @endif
 
 {{-- Parent Account: only Expense-related accounts (roots and children from Expense tree); main parents in bold --}}
-<div class="form-group col-sm-8">
+<div class="form-group col-sm-6">
   {!! Form::label('parent_id', 'Parent Account:') !!}
   <select name="parent_id" class="form-control form-select select2">
     <option value="">Select</option>
@@ -37,7 +35,13 @@
   {!! Form::label('opening_balance', 'Opening Balance:') !!}
   {!! Form::number('opening_balance', null, ['class' => 'form-control', 'step' => 'any']) !!}
 </div>
-<div class="form-group col-sm-6"></div>
+
+<!-- Branch Field -->
+<div class="form-group col-sm-6">
+    {!! Form::label('branch_id', 'Company Branch:',['class'=>'required']) !!}
+    {!! Form::select('branch_id', auth()->user()->branchDropdown(true), null, ['class' => 'form-select select2']) !!}
+</div>
+<div class="mt-4 col-sm-12 alert alert-warning">Select <b>'All'</b> option in  Branch list if this account will be used by all or multiple company branches</div>
 
 <!-- Status Field -->
 <div class="form-group col-sm-6">

@@ -6,14 +6,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use App\Traits\BranchScope;
 
 class salik extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes, BranchScope;
     
     protected $table = 'saliks';
     
     protected $fillable = [
+        'branch_id',
         'transaction_id',
         'trip_date',
         'trip_time',

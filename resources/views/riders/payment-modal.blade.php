@@ -1,5 +1,6 @@
 {!! Form::open(['route' => 'riders.storepayment','id'=>'formajax']) !!}
 
+<input type="hidden" name="branch_id" value="{{ $rider->branch_id }}">
 <input type="hidden" id="reload_page" value="1">
 <div class="row">
     @include('vouchers.payment_fields', ['bank_accounts' => $bank_accounts])

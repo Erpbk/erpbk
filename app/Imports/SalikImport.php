@@ -147,6 +147,7 @@ class SalikImport implements ToCollection
                         'admin_charges'    => $this->adminChargePerSalik,
                         'total_amount'     => $transactionAmount + $this->adminChargePerSalik,
                         'status'           => 'paid',
+                        'branch_id'        => $bike->branch_id,
                         'billing_month'    =>  $billingMonthForStore,
                         'trans_date'       => Carbon::today(),
                         'trans_code'       => Account::trans_code(),
@@ -419,6 +420,7 @@ class SalikImport implements ToCollection
                 'trans_date'     => $transDate,
                 'narration'      => "salik charges month of $billingMonthDisplay ($count transactions)",
                 'debit'          => $totalAmount + $totalAdmin,
+                'branch_id'      => $firstSalik->branch_id,
                 'billing_month'  => $billingMonth,
             ]);
 
@@ -432,6 +434,7 @@ class SalikImport implements ToCollection
                     'trans_date'     => $transDate,
                     'narration'      => "salik charges month of $billingMonthDisplay ($count transactions) - Reference Number: {$salik->transaction_id}",
                     'credit'         => $salik->amount,
+                    'branch_id'      => $salik->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
             }
@@ -446,6 +449,7 @@ class SalikImport implements ToCollection
                     'trans_date'     => $transDate,
                     'narration'      => "salik charges month of $billingMonthDisplay ($count × {$this->adminChargePerSalik}) - Reference Number: {$firstSalik->transaction_id}",
                     'credit'         => $totalAdmin,
+                    'branch_id'      => $firstSalik->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
             }
@@ -465,6 +469,7 @@ class SalikImport implements ToCollection
                 'payment_to'    => $this->salikAccountId,
                 'payment_from'  => $riderAccountId,
                 'Created_By'    => Auth::user()->id,
+                'branch_id'      => $firstSalik->branch_id,
                 'custom_field_values' => [],
             ]);
         }

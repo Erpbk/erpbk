@@ -47,6 +47,9 @@ class GaragesController extends AppBaseController
     if ($request->has('status') && !empty($request->status)) {
       $query->where('status', $request->status);
     }
+    if ($request->has('branch_id') && !empty($request->branch_id)) {
+      $query->where('branch_id', $request->branch_id);
+    }
     // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
     if ($request->ajax()) {
@@ -91,6 +94,7 @@ class GaragesController extends AppBaseController
       $account->ref_id = $garages->id;
       $account->status = 1;
       $account->account_code = 'GAR-' . str_pad($garages->id, 5, '0', STR_PAD_LEFT);
+      $account->branch_id = $garages->branch_id;
       $account->save();
       $garages->update([
           'account_id' => $account->id
@@ -150,7 +154,7 @@ class GaragesController extends AppBaseController
 
     $garages = $this->garagesRepository->update($request->all(), $id);
 
-    return response()->json(['message' => 'Garage updated successfully.']);
+    return response()->json(['message' => 'Garage updated successfully.', 'reload' => true]);
   }
 
   /**

@@ -68,6 +68,7 @@ class Bikes extends Model
   protected $dates = ['deleted_at'];
 
   public static array $rules = [
+    'branch_id' => 'required|exists:branches,id',
     'plate' => 'required|string|max:100',
     'vehicle_type' => 'required|string|max:100',
     'chassis_number' => 'required|string|max:100',
@@ -120,6 +121,11 @@ class Bikes extends Model
   public function customer()
   {
     return $this->belongsTo(Customers::class, 'customer_id');
+  }
+
+  public function branch()
+  {
+    return $this->belongsTo(Branch::class, 'branch_id', 'id');
   }
 
   public function maintenanceStatus(): string

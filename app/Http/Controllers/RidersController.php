@@ -106,9 +106,13 @@ class RidersController extends AppBaseController
         'ra.rider_id'
       )
       ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
-      ->orderBy('days_count', 'asc');
+      ->orderBy('days_count', 'asc')
+      ->with('branch');
     if ($request->has('rider_id') && !empty($request->rider_id)) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
+    }
+    if ($request->has('branch_id') && !empty($request->branch_id)) {
+      $query->where('riders.branch_id', $request->branch_id);
     }
     if ($request->has('courier_id') && !empty($request->courier_id)) {
       $courierIdInput = $request->courier_id;
@@ -533,6 +537,7 @@ class RidersController extends AppBaseController
         $account->ref_name = 'Rider';
         $account->parent_id = HeadAccount::RIDER;
         $account->ref_id = $riders->id;
+        $account->branch_id = $riders->branch_id;
         $account->save();
 
         if ($items) {
@@ -620,6 +625,11 @@ class RidersController extends AppBaseController
   public function show($id)
   {
     $rider = $this->ridersRepository->find($id);
+    if (empty($rider) || !in_array($rider->branch_id, app('user_branches'))) {
+
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     // $rider_items = $rider->items;
     $result = $rider->toArray();
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
@@ -941,14 +951,23 @@ class RidersController extends AppBaseController
       return 1;
     }
 
-    $files = Files::where('type_id', $rider_id)->get();
     $rider = Riders::find($rider_id);
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
+    $files = Files::where('type_id', $rider_id)->get();
+    
 
     return view('riders.document', compact('files', 'rider'));
   }
   public function timeline($id)
   {
     $riders = Riders::find($id);
+    if(empty($riders) || !in_array($riders->branch_id, app('user_branches'))){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
     return view('riders.timeline', compact('riders', 'job_status'));
   }
@@ -956,7 +975,10 @@ class RidersController extends AppBaseController
   public function contract($id)
   {
     $rider = Riders::find($id);
-
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     return view('riders.contract', compact('rider'));
   }
   public function contract_upload(Request $request, $id)
@@ -1056,6 +1078,10 @@ class RidersController extends AppBaseController
   public function ledger($rider_id, LedgerDataTable $ledgerDataTable)
   {
     $rider = Riders::find($rider_id);
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $files = Transactions::where('account_id', $rider->account_id)->get();
     $account_id = $rider->account_id;
     return $ledgerDataTable->with(['account_id' => $account_id])->render('riders.ledger', compact('files', 'rider'));
@@ -1063,11 +1089,19 @@ class RidersController extends AppBaseController
   public function items($rider_id)
   {
     $rider = $this->ridersRepository->find($rider_id);
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     return view('riders.items', compact('rider'));
   }
   public function additems($rider_id)
   {
     $rider = $this->ridersRepository->find($rider_id);
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     return view('riders.additems', compact('rider'));
   }
 
@@ -1152,7 +1186,7 @@ class RidersController extends AppBaseController
       ]);
 
       $rider = $this->ridersRepository->find($rider_id);
-      if (empty($rider)) {
+      if (empty($rider) || !in_array($rider->branch_id, app('user_branches'))) {
         return response()->json([
           'success' => false,
           'message' => 'Rider not found'
@@ -1269,10 +1303,20 @@ class RidersController extends AppBaseController
   }
   public function attendance($rider_id, RiderAttendanceDataTable $riderAttendanceDataTable)
   {
+    $rider = Riders::find($rider_id);
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     return $riderAttendanceDataTable->with(['rider_id' => $rider_id])->render('riders.attendance');
   }
   public function activities($rider_id)
   {
+    $rider = Riders::find($rider_id);
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $month = request('month') ?? date('Y-m');
     $filters = [
       'rider_id' => $rider_id,
@@ -1429,10 +1473,20 @@ class RidersController extends AppBaseController
 
   public function invoices($rider_id, RiderInvoicesDataTable $riderInvoicesDataTable)
   {
+    $rider = Riders::find($rider_id);
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     return $riderInvoicesDataTable->with(['rider_id' => $rider_id])->render('riders.invoices');
   }
   public function emails($rider_id, RiderEmailsDataTable $riderEmailsDataTable)
   {
+    $rider = Riders::find($rider_id);
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     return $riderEmailsDataTable->with(['rider_id' => $rider_id])->render('riders.emails');
   }
 
@@ -1495,6 +1549,10 @@ class RidersController extends AppBaseController
   public function visaloan($rider_id)
   {
     $rider = Riders::find($rider_id);
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
@@ -1512,6 +1570,11 @@ class RidersController extends AppBaseController
 
   public function files($rider_id)
   {
+    $rider = Riders::find($rider_id);
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $expectedFiles = \App\Models\RiderDocumentType::expectedFilesStructure();
 
     $files = DB::table('files')
@@ -1563,7 +1626,7 @@ class RidersController extends AppBaseController
       }
     }
 
-    return view('riders.document', compact('missingFiles', 'files'));
+    return view('riders.document', compact('missingFiles', 'files', 'rider'));
   }
 
   public function sendEmail($id, Request $request)
@@ -1631,6 +1694,10 @@ class RidersController extends AppBaseController
       RiderEmails::create($email_data);
     }
     $rider = Riders::find($id);
+    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     return view('riders.send_email', compact('rider'));
   }
 
@@ -2155,6 +2222,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
+        'branch_id' => 'required|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -2199,6 +2267,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
+        'branch_id' => $request->branch_id,
         'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
@@ -2213,8 +2282,9 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[0] ?? 'Advance Loan Received',
         'debit' => $riderAmount,
+        'branch_id' => $request->branch_id,
         'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id()
+        'created_By' => auth()->id()
       ];
 
       Transactions::create($debitTransaction);
@@ -2229,7 +2299,8 @@ class RidersController extends AppBaseController
         'narration' => $request->narration[1] ?? 'Advance Loan Given to ' . $riderAccount->name,
         'credit' => $creditAmount,
         'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id()
+        'Created_By' => auth()->id(),
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($creditTransaction);
@@ -2241,7 +2312,8 @@ class RidersController extends AppBaseController
         'success' => true,
         'message' => 'Advance loan recorded successfully',
         'voucher_id' => $voucher->id,
-        'trans_code' => $transCode
+        'trans_code' => $transCode,
+        'reload' => true
       ]);
     } catch (\Exception $e) {
       \DB::rollback();
@@ -2299,6 +2371,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
+        'branch_id' => 'required|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -2343,6 +2416,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
+        'branch_id' => $request->branch_id,
         'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
@@ -2358,7 +2432,7 @@ class RidersController extends AppBaseController
         'narration' => $request->narration[0] ?? 'COD Amount Received',
         'debit' => $riderAmount,
         'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id()
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($debitTransaction);
@@ -2373,7 +2447,8 @@ class RidersController extends AppBaseController
         'narration' => $request->narration[1] ?? 'COD Amount Given to ' . $riderAccount->name,
         'credit' => $creditAmount,
         'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id()
+        'Created_By' => auth()->id(),
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($creditTransaction);
@@ -2385,7 +2460,8 @@ class RidersController extends AppBaseController
         'success' => true,
         'message' => 'COD amount recorded successfully',
         'voucher_id' => $voucher->id,
-        'trans_code' => $transCode
+        'trans_code' => $transCode,
+        'reload' => true
       ]);
     } catch (\Exception $e) {
       \DB::rollback();
@@ -2425,6 +2501,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
+        'branch_id' => 'required|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -2469,6 +2546,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
+        'branch_id' => $request->branch_id,
         'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
@@ -2484,7 +2562,8 @@ class RidersController extends AppBaseController
         'narration' => $request->narration[0] ?? 'Penalty Amount Received',
         'debit' => $riderAmount,
         'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id()
+        'Created_By' => auth()->id(),
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($debitTransaction);
@@ -2499,7 +2578,8 @@ class RidersController extends AppBaseController
         'narration' => $request->narration[1] ?? 'Penalty Amount Given to ' . $riderAccount->name,
         'credit' => $creditAmount,
         'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id()
+        'Created_By' => auth()->id(),
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($creditTransaction);
@@ -2511,8 +2591,9 @@ class RidersController extends AppBaseController
         'success' => true,
         'message' => 'Penalty amount recorded successfully',
         'voucher_id' => $voucher->id,
-        'trans_code' => $transCode
-      ]);
+        'trans_code' => $transCode,
+        'reload' => true,
+       ]);
     } catch (\Exception $e) {
       \DB::rollback();
 
@@ -2569,6 +2650,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
+        'branch_id' => 'required|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -2613,6 +2695,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
+        'branch_id' => $request->branch_id,
         'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
@@ -2628,7 +2711,8 @@ class RidersController extends AppBaseController
         'narration' => $request->narration[0] ?? 'Payment Amount Received',
         'debit' => $riderAmount,
         'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id()
+        'Created_By' => auth()->id(),
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($debitTransaction);
@@ -2643,7 +2727,8 @@ class RidersController extends AppBaseController
         'narration' => $request->narration[1] ?? 'Payment Amount Given to ' . $riderAccount->name,
         'credit' => $creditAmount,
         'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id()
+        'Created_By' => auth()->id(),
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($creditTransaction);
@@ -2655,7 +2740,8 @@ class RidersController extends AppBaseController
         'success' => true,
         'message' => 'Payment amount recorded successfully',
         'voucher_id' => $voucher->id,
-        'trans_code' => $transCode
+        'trans_code' => $transCode,
+        'reload' => true,
       ]);
     } catch (\Exception $e) {
       \DB::rollback();
@@ -2695,6 +2781,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
+        'branch_id' => 'required|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -2738,6 +2825,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
+        'branch_id' => $request->branch_id,
         'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
@@ -2751,6 +2839,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[0] ?? 'Incentive Amount Received',
+        'branch_id' => $request->branch_id,
         'debit' => $riderAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id()
@@ -2767,6 +2856,7 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[1] ?? 'Incentive Amount Given to ' . $riderAccount->name,
         'credit' => $creditAmount,
+        'branch_id' => $request->branch_id,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id()
       ];
@@ -2780,7 +2870,8 @@ class RidersController extends AppBaseController
         'success' => true,
         'message' => 'Incentive amount recorded successfully',
         'voucher_id' => $voucher->id,
-        'trans_code' => $transCode
+        'trans_code' => $transCode,
+        'reload' => true,
       ]);
     } catch (\Exception $e) {
       \DB::rollback();
@@ -2843,6 +2934,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
+        'branch_id' => 'required|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -2887,6 +2979,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
+        'branch_id' => $request->branch_id,
         'custom_field_values' => $request->input('voucher_custom_fields', [])
       ];
 
@@ -2901,6 +2994,7 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[0] ?? 'Vendor Charges ' . $riderAccount->name,
         'debit' => $riderAmount,
+        'branch_id' => $request->branch_id,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id()
       ];
@@ -2916,6 +3010,7 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[1] ?? 'Vendor Charges from ' . $riderAccount->name,
         'credit' => $creditAmount,
+        'branch_id' => $request->branch_id,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id()
       ];
@@ -2929,7 +3024,8 @@ class RidersController extends AppBaseController
         'success' => true,
         'message' => 'Vendor charges recorded successfully',
         'voucher_id' => $voucher->id,
-        'trans_code' => $transCode
+        'trans_code' => $transCode,
+        'reload' => true,
       ]);
     } catch (\Exception $e) {
       \DB::rollback();

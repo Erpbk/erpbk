@@ -133,6 +133,9 @@
          @case('customer_id')
          <td tabindex="0">{{ DB::table('customers')->where('id' , $r->customer_id)->first()->name ?? '-' }}</td>
          @break
+         @case('branch_id')
+         <td tabindex="0">{{ $r->branch ? $r->branch->name .' ( '. $r->branch->code .' )' : '-' }}</td>
+         @break
          @case('warehouse')
          <td tabindex="0">
             @php

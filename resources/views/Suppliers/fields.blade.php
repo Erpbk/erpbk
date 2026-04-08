@@ -28,6 +28,13 @@
     {!! Form::label('address', 'Address:', ['class' => 'required']) !!}
     {!! Form::text('address', null, ['class' => 'form-control', 'maxlength' => 200, 'required']) !!}
 </div>
+<!-- Branch Field -->
+<div class="form-group col-sm-6">
+    {!! Form::label('branch_id', 'Company Branch:',['class'=>'required']) !!}
+    {!! Form::select('branch_id', auth()->user()->branchDropdown(true), null, ['class' => 'form-select select2']) !!}
+</div>
+<div class="mt-4 col-sm-12 alert alert-warning">Select <b>'All'</b> option in  Branch list if this Supplier will be used by all or multiple company branches</div>
+
 
 <!-- Status Field -->
 <div class="form-group col-sm-6 mt-3">

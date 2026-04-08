@@ -419,6 +419,16 @@
             <div class="filter-body" id="searchTopbody">
                 <form id="filterForm" action="{{ route('riders.index') }}" method="GET">
                     <div class="row">
+                        @if(auth()->user()->hasMultipleBranches())
+                        <div class="form-group col-md-12">
+                            <label for="bike_code">Filter by Branch</label>
+                            <select class="form-control " id="branch_id" name="branch_id">
+                                @foreach(auth()->user()->branchDropdown() as $id => $name)
+                                <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
                         <div class="form-group col-md-12">
                             <label for="id">Rider Id</label>
                             <input type="number" name="rider_id" class="form-control" placeholder="Filter By Rider ID" value="{{ request('rider_id') }}">
@@ -558,6 +568,7 @@ $dbColumns = array_diff($filteredColumns, $exclude);
 $preferredOrder = [
 'rider_id',
 'name',
+'branch_id',
 'company_contact',
 'fleet_supervisor',
 'emirate_hub',
@@ -576,6 +587,7 @@ $customTitles = [
 'recruiter_id' => 'Recruiter',
 'l_license' => 'Learning',
 'emirate_hub' => 'Emirates',
+'branch_id' => 'Branch',
 ];
 return $customTitles[$key] ?? ucwords(str_replace('_', ' ', $key));
 };
@@ -698,6 +710,11 @@ $tableColumns = $columns;
         $('#customer_id').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Customer",
+            allowClear: true, // ✅ cross icon enable
+        });
+        $('#branch_id').select2({
+            dropdownParent: $('#searchTopbody'),
+            placeholder: "Filter By Branch",
             allowClear: true, // ✅ cross icon enable
         });
         $('#designation').select2({

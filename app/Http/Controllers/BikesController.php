@@ -51,6 +51,9 @@ class BikesController extends AppBaseController
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Bikes::query()
       ->orderBy('bike_code', 'desc');
+    if($request->has('branch_id') && !empty($request->branch_id)){
+      $query->where('branch_id', $request->branch_id);
+    }
     if ($request->has('bike_code') && !empty($request->bike_code)) {
       $query->where('bike_code', 'like', '%' . $request->bike_code . '%');
     }
@@ -160,6 +163,7 @@ class BikesController extends AppBaseController
     $preferredOrder = [
       'bike_code',
       'plate',
+      'branch_id',
       'rider_id',
       // Rider name is a computed column and should always be available
       'rider_name', // Ensure rider_name is included and controllable
@@ -185,6 +189,9 @@ class BikesController extends AppBaseController
       if ($key === 'rider_name') {
         $columns[] = ['data' => 'rider_name', 'title' => $makeTitle('rider_name')];
         $added['rider_name'] = true;
+      }elseif ($key === 'branch_id') {
+        $columns[] = ['data' => 'branch_id', 'title' => 'Branch'];
+        $added['branch_id'] = true;
       } elseif (in_array($key, $dbColumns)) {
         $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
         $added[$key] = true;
@@ -339,7 +346,7 @@ class BikesController extends AppBaseController
     $bikes->created_by = Auth::user()->id;
     $bikes->save();
 
-    return response()->json(['message' => 'Bike added successfully.']);
+    return response()->json(['message' => 'Bike added successfully.', 'reload' => true]);
   }
 
 
@@ -349,6 +356,7 @@ class BikesController extends AppBaseController
   public function show($id)
   {
     $bikes = $this->bikesRepository->find($id);
+    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
 
     if (empty($bikes)) {
       Flash::error('Bikes not found');
@@ -371,6 +379,7 @@ class BikesController extends AppBaseController
   public function edit($id)
   {
     $bikes = $this->bikesRepository->find($id);
+    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
     if (empty($bikes)) {
       Flash::error('Bikes not found');
       return redirect(route('bikes.index'));
@@ -419,7 +428,7 @@ class BikesController extends AppBaseController
         ]);
       }
     }
-    return response()->json(['message' => 'Bike updated successfully.']);
+    return response()->json(['message' => 'Bike updated successfully.', 'redirect' => route('bikes.show', $bikes->id)]);
   }
 
   /**
@@ -483,7 +492,7 @@ class BikesController extends AppBaseController
     }
 
     if (request()->ajax()) {
-      return response()->json(['message' => 'Bike moved to Recycle Bin.']);
+      return response()->json(['message' => 'Bike moved to Recycle Bin.', 'reload' => true]);
     }
 
     Flash::success('Bike moved to Recycle Bin.');
@@ -1135,6 +1144,7 @@ class BikesController extends AppBaseController
   public function files($bike_id)
   {
     $bikes = Bikes::find($bike_id);
+    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
 
     $expectedFiles = [
       'mulkiya' => 'Mulkiya',
@@ -1164,6 +1174,7 @@ class BikesController extends AppBaseController
   public function maintenance($id)
   {
     $bikes = Bikes::findOrFail($id);
+    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
     $maintenances = $bikes->maintenanceRecords()->orderBy('maintenance_date', 'desc')->get();
     return view('bikes.maintenance', compact('bikes', 'maintenances'));
   }

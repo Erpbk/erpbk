@@ -44,17 +44,27 @@
 </section>
 
 <!-- Filter Sidebar -->
-<div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+<div id="filterSidebar" class="filter-sidebar" style="z-index: 1100">
     <div class="filter-header">
-        <h5>Filter Customers</h5>
+        <h5>Filter Invoices</h5>
         <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
     <div class="filter-body" id="searchTopbody">
-        <form id="filterForm" action="{{ route('customers.index') }}" method="GET">
+        <form id="filterForm" action="{{ route('customer_invoices.index') }}" method="GET">
             <div class="row">
+                @if(auth()->user()->hasMultiplebranches())
+                <div class="form-group col-md-12">
+                    <label for="branch_id">Filter by Branch</label>
+                    <select class="form-control " id="branch_id" name="branch_id">
+                        @foreach(auth()->user()->branchDropdown() as $id => $name)
+                        <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
                 <div class="form-group col-md-12">
                     <label for="company_name">Filter by Customer</label>
-                    <select class="form-control select2" id="name" name="customer_id">
+                    <select class="form-control" id="name" name="customer_id">
                         @php
                         $customers = \App\Models\Customers::all();
                         @endphp
@@ -99,12 +109,4 @@
 </div>
 @endsection
 @section('page-script')
-<script type="text/javascript">
-    $(document).ready(function() {
-        $('.select2').select2({
-            dropdownParent: $('#filterSidebar'),
-            allowClear: true,
-        });
-    });
-</script>
 @endsection

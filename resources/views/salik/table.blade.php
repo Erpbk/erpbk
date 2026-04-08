@@ -1,6 +1,7 @@
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
     <thead class="text-center">
         <tr role="row">
+            <th title="Branch" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Branch: activate to sort column ascending">Branch</th>
             <th title="Transaction ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Transaction ID: activate to sort column ascending">Transaction ID</th>
             <th title="Rider Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider Name: activate to sort column ascending">Rider Name</th>
             <th title="Admin Charges" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Admin Charges: activate to sort column ascending">Billing Month</th>
@@ -17,6 +18,7 @@
     <tbody>
         @foreach($data as $r)
         <tr class="text-center">
+            <td>{{ $r->branch?->name ?? 'N/A' }}</td>
             <td>{{ $r->transaction_id }}</td>
             @php
             $rider = DB::table('riders')->where('id', $r->rider_id)->first();

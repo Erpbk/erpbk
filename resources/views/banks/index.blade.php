@@ -10,6 +10,16 @@
     <div class="filter-body" id="searchTopbody">
         <form id="filterForm" action="{{ route('banks.index') }}" method="GET">
             <div class="row">
+                @if(auth()->user()->hasMultiplebranches())
+                <div class="form-group col-md-12">
+                    <label for="branch_id">Filter by Branch</label>
+                    <select class="form-control " id="branch_id" name="branch_id">
+                        @foreach(auth()->user()->branchDropdown() as $id => $name)
+                        <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
                 <div class="form-group col-md-12">
                     <label for="name">Bank Name</label>
                     <input type="text" name="name" class="form-control" placeholder="Filter By Bank Name" value="{{ request('name') }}">
@@ -119,6 +129,11 @@
         $('#status').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By status",
+            allowClear: true
+        });
+        $('#branch_id').select2({
+            dropdownParent: $('#searchTopbody'),
+            placeholder: "Filter By Branch",
             allowClear: true
         });
     });

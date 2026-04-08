@@ -42,7 +42,11 @@ class SimsController extends AppBaseController
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Sims::query()
+            ->with('branch')
             ->orderBy('id', 'asc');
+        if ($request->has('branch_id') && !empty($request->branch_id)) {
+            $query->where('branch_id', $request->branch_id);
+        }
         if ($request->has('number') && !empty($request->number)) {
             $query->where('number', 'like', '%' . $request->number . '%');
         }
@@ -113,6 +117,7 @@ class SimsController extends AppBaseController
         // Preferred order (can include both DB and computed columns)
         $preferredOrder = [
             'number',
+            'branch_id',
             'company',
             'emi',
             'assign_to',
@@ -131,7 +136,11 @@ class SimsController extends AppBaseController
         foreach ($preferredOrder as $key) {
             // Check if it's a valid column (either in DB or computed)
             if (in_array($key, $dbColumns) || array_key_exists($key, $computedColumns)) {
-                $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
+                if($key == 'branch_id'){
+                    $columns[] = ['data' => $key, 'title' => 'Branch'];
+                }else{
+                    $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
+                }
                 $added[$key] = true;
             }
         }
@@ -182,6 +191,7 @@ class SimsController extends AppBaseController
             'emi' => 'required|min:15|max:25',
             'vendor' => 'nullable|integer',
             'fleet_supervisor' => 'nullable|string|max:50',
+            'branch_id' => 'required|numeric|exists:branches,id',
         ];
 
         // Custom validation messages
@@ -194,6 +204,8 @@ class SimsController extends AppBaseController
             'emi.required' => 'EMI number is required',
             'emi.min' => 'EMI number must be at least 15 characters',
             'emi.max' => 'EMI number cannot exceed 20 characters',
+            'branch_id.required' => 'Please select Relevant Branch',
+            'branch_id.exists' => 'Selected Branch Does Not Exist',
         ];
 
         // Perform validation
@@ -220,7 +232,7 @@ class SimsController extends AppBaseController
      */
     public function show($id)
     {
-        $sims = Sims::find($id);
+        $sims = Sims::with('branch')->find($id);
 
         if (empty($sims)) {
             Flash::error('Sims not found');
@@ -280,15 +292,13 @@ class SimsController extends AppBaseController
         $input = $request->all();
         $input['updated_by'] = auth()->id();
 
-        // Handle checkbox status
-        $input['status'] = 0;
-
         // Define validation rules
         $rules = [
             'company' => 'required|string|max:191',
             'vendor' => 'nullable|integer',
             'fleet_supervisor' => 'nullable|string|max:50',
             'emi' => 'required|min:15|max:25',
+            'branch_id' => 'required|numeric|exists:branches,id',
         ];
 
         // Custom validation messages
@@ -298,6 +308,8 @@ class SimsController extends AppBaseController
             'emi.required' => 'EMI number is required',
             'emi.min' => 'EMI number must be at least 15 characters',
             'emi.max' => 'EMI number cannot exceed 25 characters',
+            'branch_id.required' => 'Please Select Relevant Branch',
+            'branch_id.exists' => 'Selected Branch Does not Exist',
         ];
 
         // Perform validation
@@ -376,7 +388,9 @@ class SimsController extends AppBaseController
             $this->validate($request, $rules, $messages);
 
             try {
+                $rider = Riders::find($input['assign_to']);
                 $input['status'] = 1; // Set SIM status to active upon assignment
+                $input['branch_id'] = $rider->branch_id;
                 $sims->update($input);
 
                 // Create a new history record for this assignment
@@ -620,12 +634,13 @@ class SimsController extends AppBaseController
             $file = $request->file('file');
             Excel::import($import, $file);
             $results = $import->getResults();
-
+            $importedCount = $results['stats']['imported'];
             if ($request->ajax()) {
                 return response()->json([
                     'success' => true,
                     'results' => $results,
                     'message' => 'Sim data imported successfully.',
+                    'redirect' => route('sims.index')
                 ]);
             }
             Flash::success("Sims imported successfully. Records imported: {$importedCount}");

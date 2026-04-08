@@ -25,7 +25,7 @@ class RiderExport implements FromCollection, WithHeadings, WithMapping, WithColu
 
   public function collection()
   {
-    return Riders::with(['vendor', 'customer', 'bikes', 'country', 'account'])->get();
+    return Riders::with(['vendor', 'customer', 'bikes', 'country', 'account', 'branch'])->get();
   }
   public function map($rider): array
   {
@@ -34,6 +34,7 @@ class RiderExport implements FromCollection, WithHeadings, WithMapping, WithColu
       $rider->rider_id,
       $rider->courier_id ? ('CI-' . $rider->courier_id) : '',
       $rider->name ?? '',
+      $rider->branch?->name ?? '',
       $rider->account_id,
       $rider->account?->name ?? '',
       General::RiderStatus($rider->status),
@@ -109,6 +110,7 @@ class RiderExport implements FromCollection, WithHeadings, WithMapping, WithColu
       'Rider ID',
       'Courier ID',
       'Name',
+      'Branch',
       'Account ID',
       'Account Name',
       'Status',

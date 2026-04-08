@@ -154,6 +154,14 @@
                             </span>
                         </a> --}}
                     </div>
+
+                    <div class="row mb-2">
+                        <div class="col-5 font-weight-bold text-muted">Branch:</div>
+                        <div class="col-7">
+                            {{ $card->branch?->name ?? 'N/A' }}
+                        </div>
+                    </div>
+
                     <div class="row mb-2">
                         <div class="col-5 font-weight-bold text-muted">Card Type:</div>
                         <div class="col-7">

@@ -6,14 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
+use App\Traits\BranchScope;
 
 class Customers extends Model
 {
-  use LogsActivity, HasActiveStatus, SoftDeletes;
+  use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
 
   public $table = 'customers';
 
   public $fillable = [
+    'branch_id',
     'name',
     'company_name',
     'company_email',
@@ -74,5 +76,16 @@ class Customers extends Model
   public function invoices()
   {
     return $this->hasMany(CustomerInvoices::class, 'customer_id', 'id');
+  }
+
+  public function branch()
+  {
+      return $this->belongsTo(Branch::class, 'branch_id' , 'id');
+  }
+
+  public function getBranchNameAttribute()
+  {
+      $branch = $this->branch_id ? $this->branch->name .' ( '. $this->branch->code .' )' : 'All' ; 
+      return $branch;
   }
 }

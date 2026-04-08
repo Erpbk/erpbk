@@ -4,14 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
+use App\Traits\BranchScope;
 
 class FuelCards extends Model
 {
-    use LogsActivity;
+    use LogsActivity, BranchScope;
 
     public $table = "fuel_cards";
 
     protected $fillable = [
+        'branch_id',
         'card_number',
         'card_type',
         'status',
@@ -36,6 +38,7 @@ class FuelCards extends Model
         'assigned_to'=> 'nullable|numeric',
         'created_by'=> 'nullable|numeric',
         'updated_by'=> 'nullable|numeric',
+        'branch_id' => 'nullable|exists:branches,id',
     ];
     public function rider(){
 
@@ -44,5 +47,10 @@ class FuelCards extends Model
 
     public function histories(){
         return $this->hasMany(FuelCardHistory::class, 'card_id','id');
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class, 'branch_id', 'id');
     }
 }

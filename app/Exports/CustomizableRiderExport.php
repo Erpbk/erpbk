@@ -155,7 +155,7 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
 
     public function collection()
     {
-        $query = Riders::with(['bikes', 'country']);
+        $query = Riders::with(['bikes', 'country','branch']);
 
         // Apply any filters that might be passed
         if (!empty($this->filters)) {
@@ -176,6 +176,9 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
                             break;
                         case 'emirate_hub':
                             $query->where('emirate_hub', $value);
+                            break;
+                        case 'branch_id':
+                            $query->where('branch_id', $value);
                             break;
                             // Add more filter cases as needed
                     }
@@ -219,6 +222,8 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
     protected function getColumnValue($rider, $columnKey)
     {
         switch ($columnKey) {
+            case 'branch_id':
+                return $rider->branch?->name ?? '-';
             case 'rider_id':
                 return $rider->rider_id;
 

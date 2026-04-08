@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Accounts;
 use App\DataTables\LedgerDataTable;
 use Illuminate\Support\Facades\Validator;
+use Laracasts\Flash\Flash;
 
 class EmployeeController extends Controller
 {
@@ -100,6 +101,7 @@ class EmployeeController extends Controller
                     'account_type' =>'Liability',
                     'parent_id' => '1', // Rider salaries payable account, for now we are hardcoding it, but ideally this should be configurable
                     'created_by' => auth()->id(),
+                    'branch_id' => $employee->branch_id,
                 ]);
                 $employee->account_id = $account->id;
                 $employee->save();
@@ -112,6 +114,7 @@ class EmployeeController extends Controller
                     'ref_name' => 'employee',
                     'ref_id' => $employee->id,
                     'updated_by' => auth()->id(),
+                    'branch_id' => $employee->branch_id,
                 ]);
             }
 
@@ -258,6 +261,10 @@ class EmployeeController extends Controller
     public function ledger($id, LedgerDataTable $ledgerDataTable)
     {
         $employee = Employee::findOrFail($id);
+        if(empty($employee) || !in_array($employee->branch_id, app('user_branches'))){
+            Flash::error('Employee not Found');
+            return redirect(route('employees.index'));
+        }
         $account = $employee->account_id;
         return $ledgerDataTable->with(['account_id' => $account])->render('employees.ledger', compact('employee'));
     }

@@ -169,6 +169,7 @@ class SalikController extends AppBaseController
             ->orderBy('id', 'asc')
             ->orderBy('billing_month', 'desc')
             ->where('salik_account_id', $id);
+
         if ($request->filled('transaction_id')) {
             $query->where('transaction_id', 'like', '%' . $request->transaction_id . '%');
         }
@@ -188,6 +189,9 @@ class SalikController extends AppBaseController
         }
         if ($request->filled('direction')) {
             $query->where('direction', $request->direction);
+        }
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
         }
         if ($request->filled('trip_date')) {
             // Input comes as "YYYY-MM-DD" from date input field
@@ -297,6 +301,7 @@ class SalikController extends AppBaseController
             $input['salik_account_id'] = $input['salik_account_id'] ?? null;
             $input['admin_charges']    = $input['admin_charges'] ?? ($request->admin_fee ?? 0);
             $input['created_by']      = Auth::user()->id;
+            $input['branch_id']       = $bike->branch_id;
             // Defensive: Ensure salik_account_id is present
             if (empty($input['salik_account_id'])) {
                 throw new \Exception('Salik Account ID is required.');
@@ -341,6 +346,7 @@ class SalikController extends AppBaseController
                 'narration'      => 'Salik Trip Debit (including admin fee)',
                 'debit'          => $tripAmount + $adminCharges,
                 'billing_month'  => $billingMonth,
+                'branch_id'      => $salik->branch_id,
             ]);
             // 2. Credit Salik Account (trip amount only)
             $transactionService->recordTransaction([
@@ -351,6 +357,7 @@ class SalikController extends AppBaseController
                 'trans_date'     => $transDate,
                 'narration'      => 'Salik Trip Credit',
                 'credit'         => $tripAmount,
+                'branch_id'      => $salik->branch_id,
                 'billing_month'  => $billingMonth,
             ]);
             // 3. Credit Admin Charges Account (admin fee only)
@@ -363,6 +370,7 @@ class SalikController extends AppBaseController
                     'trans_date'     => $transDate,
                     'narration'      => 'Salik Admin Charges Credit',
                     'credit'         => $adminCharges,
+                    'branch_id'      => $salik->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
             }
@@ -382,6 +390,7 @@ class SalikController extends AppBaseController
                 'payment_to'    => $salikAccountId,
                 'payment_from'  => $riderAccountId,
                 'Created_By'    => auth()->id(),
+                'branch_id'      => $salik->branch_id,
                 'custom_field_values' => [],
             ]);
             \DB::commit();
@@ -420,7 +429,7 @@ class SalikController extends AppBaseController
      */
     public function show($id)
     {
-        $salik = salik::find($id);
+        $salik = salik::with('branch')->find($id);
         if (empty($salik)) {
             Flash::error('Salik not found');
 
@@ -471,6 +480,8 @@ class SalikController extends AppBaseController
             'status' => 'nullable|string|max:255',
             'details' => 'nullable|string|max:5000',
         ]);
+        $branchId = Bikes::where('id', $validated['bike_id'])->value('branch_id');
+        $validated['branch_id'] = $branchId;
         $validated['updated_by'] = auth()->id();
         $pay_account = $request->pay_account;
 
@@ -485,6 +496,7 @@ class SalikController extends AppBaseController
             $amountDifference = $newAmount - $oldAmount;
             $adminDifference = $newAdminCharges - $oldAdminCharges;
             $billingMonth = date('Y-m-01', strtotime($salik->trip_date ?? $salik->billing_month));
+            $salik->branch_id = $branchId;
 
             // Check if this is part of a group voucher (imported Salik)
             $relatedSaliks = Salik::where('rider_id', $salik->rider_id)
@@ -500,9 +512,8 @@ class SalikController extends AppBaseController
             }
 
             // Update the Salik record
+            $validated['total_amount'] = $newAmount + $newAdminCharges;
             $salik->update($validated);
-            $salik->total_amount = $newAmount + $newAdminCharges;
-            $salik->save();
 
             // Update account balances for all affected accounts
             $this->updateAccountBalances($salik->trans_code ?? null, $billingMonth);
@@ -528,6 +539,7 @@ class SalikController extends AppBaseController
         if ($salikTransaction) {
             // Update Salik account transaction
             $salikTransaction->credit += $amountDifference;
+            $salikTransaction->branch_id = $salik->branch_id;
             $salikTransaction->save();
             // Find and update rider debit transaction
             $riderAccount = DB::table('accounts')->where('ref_id', $salik->rider_id)->first();
@@ -538,6 +550,7 @@ class SalikController extends AppBaseController
                     ->first();
                 if ($riderTransaction) {
                     $riderTransaction->debit += ($amountDifference + $adminDifference);
+                    $riderTransaction->branch_id = $salik->branch_id;
                     $riderTransaction->save();
                 }
             }
@@ -551,6 +564,7 @@ class SalikController extends AppBaseController
 
                 if ($adminTransaction) {
                     $adminTransaction->credit += $adminDifference;
+                    $adminTransaction->branch_id = $salik->branch_id;
                     if ($adminTransaction->credit <= 0) {
                         $adminTransaction->delete();
                     } else {
@@ -566,7 +580,7 @@ class SalikController extends AppBaseController
                     }
                 } elseif ($adminDifference > 0) {
                     // Create new admin transaction if it doesn't exist
-                    $this->createAdminTransaction($salikTransaction->trans_code, $adminDifference, $salik->id, $billingMonth);
+                    $this->createAdminTransaction($salikTransaction->trans_code, $adminDifference, $salik->id, $billingMonth, $salik->branch_id);
                 }
             }
 
@@ -574,6 +588,7 @@ class SalikController extends AppBaseController
             $mainVoucher = Vouchers::where('trans_code', $salikTransaction->trans_code)->where('ref_id', $salik->id)->first();
             if ($mainVoucher) {
                 $mainVoucher->amount += ($amountDifference + $adminDifference);
+                $mainVoucher->branch_id = $salik->branch_id;
                 $mainVoucher->Updated_By = auth()->id();
                 $mainVoucher->save();
 
@@ -590,6 +605,7 @@ class SalikController extends AppBaseController
 
         if ($secondVoucherTransaction) {
             $secondVoucherTransaction->debit += $amountDifference;
+            $secondVoucherTransaction->branch_id = $salik->branch_id;
             $secondVoucherTransaction->save();
 
             $payerCreditTransaction = Transactions::where('trans_code', $secondVoucherTransaction->trans_code)
@@ -598,12 +614,14 @@ class SalikController extends AppBaseController
 
             if ($payerCreditTransaction) {
                 $payerCreditTransaction->credit += $amountDifference;
+                $payerCreditTransaction->branch_id = $salik->branch_id;
                 $payerCreditTransaction->save();
             }
 
             $secondVoucher = Vouchers::where('trans_code', $secondVoucherTransaction->trans_code)->first();
             if ($secondVoucher) {
                 $secondVoucher->amount += $amountDifference;
+                $secondVoucher->branch_id = $salik->branch_id;
                 $secondVoucher->save();
             }
         }
@@ -650,6 +668,7 @@ class SalikController extends AppBaseController
             'narration'      => 'Salik Trip Debit (including admin fee) - Reference Number: ' . $salik->transaction_id,
             'debit'          => $tripAmount + $adminCharges,
             'billing_month'  => $billingMonth,
+            'branch_id'      => $salik->branch_id,
         ]);
 
         $transactionService->recordTransaction([
@@ -660,6 +679,7 @@ class SalikController extends AppBaseController
             'trans_date'     => $transDate,
             'narration'      => 'Salik Trip Credit - Reference Number: ' . $salik->transaction_id,
             'credit'         => $tripAmount,
+            'branch_id'      => $salik->branch_id,
             'billing_month'  => $billingMonth,
         ]);
 
@@ -672,6 +692,7 @@ class SalikController extends AppBaseController
                 'trans_date'     => $transDate,
                 'narration'      => 'Salik Admin Charges Credit - Reference Number: ' . $salik->transaction_id,
                 'credit'         => $adminCharges,
+                'branch_id'      => $salik->branch_id,
                 'billing_month'  => $billingMonth,
             ]);
         }
@@ -689,6 +710,7 @@ class SalikController extends AppBaseController
             'payment_to'    => $salikAccountId,
             'payment_from'  => $riderAccountId,
             'Created_By'    => auth()->id(),
+            'branch_id'      => $salik->branch_id,
             'custom_field_values' => [],
         ]);
     }
@@ -696,7 +718,7 @@ class SalikController extends AppBaseController
     /**
      * Create admin transaction for Salik entries
      */
-    private function createAdminTransaction($transCode, $adminAmount, $referenceId, $billingMonth)
+    private function createAdminTransaction($transCode, $adminAmount, $referenceId, $billingMonth, $branchId)
     {
         $transactionService = new TransactionService();
 
@@ -709,6 +731,7 @@ class SalikController extends AppBaseController
             'narration'      => 'Salik Import - Admin Charges (1 × ' . $adminAmount . ')',
             'credit'         => $adminAmount,
             'billing_month'  => $billingMonth,
+            'branch_id'      => $branchId
         ]);
     }
 

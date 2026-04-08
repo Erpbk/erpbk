@@ -33,24 +33,57 @@ $voucherType = $vt ?? request('vt');
             <input type="hidden" name="payment_from" value="811" /><!--Sim Bike and Vendor Charges Account ID-->
             @endif
            --}}
-@if ($voucherType == 'VC' || $voucherType == 'COD' || $voucherType == 'PN' || $voucherType == 'INC' || $voucherType == 'PAY')
-@else
-<div class="form-group col-md-2">
-    <label for="exampleInputEmail1">Payment Type</label>
-    {!! Form::select('payment_type',App\Helpers\Account::payment_type_list(),null ,['class' => 'form-select form-select-sm select2 ','id'=>'payment_type']) !!}
-</div>
-@endif
+    @if ($voucherType == 'VC' || $voucherType == 'COD' || $voucherType == 'PN' || $voucherType == 'INC' || $voucherType == 'PAY')
+    @else
+    <div class="form-group col-md-2">
+        <label for="exampleInputEmail1">Payment Type</label>
+        {!! Form::select('payment_type',App\Helpers\Account::payment_type_list(),null ,['class' => 'form-select form-select-sm select2 ','id'=>'payment_type']) !!}
+    </div>
+    @endif
 
-<div class="form-group col-md-2">
-    <label for="exampleInputEmail1">Billing Month</label>
-    {{-- {!! Form::select('billing_month',App\Helpers\CommonHelper::BillingMonth(),null ,['class' => 'form-control  select2 ','id'=>'billing_month']) !!}
- --}} <input type="month" name="billing_month" class="form-control " value="@isset($vouchers->billing_month){{date('Y-m',strtotime($vouchers->billing_month)) }}@endisset" required>
-</div>
+    <div class="form-group col-md-2">
+        <label for="exampleInputEmail1">Billing Month</label>
+        {{-- {!! Form::select('billing_month',App\Helpers\CommonHelper::BillingMonth(),null ,['class' => 'form-control  select2 ','id'=>'billing_month']) !!}
+    --}} <input type="month" name="billing_month" class="form-control " value="@isset($vouchers->billing_month){{date('Y-m',strtotime($vouchers->billing_month)) }}@endisset" required>
+    </div>
 
-<div class="form-group col-md-2">
-    <label for="reference_number">Reference Number <span class="text-danger">*</span></label>
-    <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($vouchers->reference_number){{$vouchers->reference_number}}@endisset" placeholder="Reference Number" required>
-</div>
+    <div class="form-group col-md-2">
+        <label for="reference_number">Reference Number <span class="text-danger">*</span></label>
+        <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($vouchers->reference_number){{$vouchers->reference_number}}@endisset" placeholder="Reference Number" required>
+    </div>
+    @if(isset($rider) && $rider)
+    <div class="form-group col-md-3">
+        <label for="branch_id">Branch</label>
+        @php
+            $branchid = $rider->branch_id ?? null;
+            $branch = auth()->user()->branchByid($branchid);
+        @endphp
+        <input type="hidden" name="branch_id" value="{{ $branchid }}" />
+        <input type="text" class="form-control" value="{{ $branch ? $branch->name : 'No Branch Found' }}" readonly />
+    </div>
+    @else
+        @if(auth()->user()->hasMultiplebranches())
+        <div class="form-group col-md-3">
+            <label for="branch_id">Branch</label>
+            <select class="form-control select2" id="branch_id" name="branch_id" required >
+                @foreach(auth()->user()::branchDropdown() as $id => $name)
+                <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }} @isset($vouchers->branch_id){{ $vouchers->branch_id == $id ? 'selected' : ''}} @endisset>{{ $name }}</option>
+                @endforeach
+            </select>
+        </div>
+        @else
+        <div class="form-group col-md-3">
+            <label for="branch_id">Branch</label>
+            @php
+                $branchids = json_decode(auth()->user()->branch_ids) ?? [];
+                $branchid = $branchids[0] ?? null;
+                $branch = auth()->user()->branchByid($branchid);
+            @endphp
+            <input type="hidden" name="branch_id" value="{{ $branchid }}" />
+            <input type="text" class="form-control" value="{{ $branch ? $branch->name : 'No Branch Found' }}" readonly />
+        </div>
+        @endif
+    @endif
 
 </div>
 <div class="scrollbar">

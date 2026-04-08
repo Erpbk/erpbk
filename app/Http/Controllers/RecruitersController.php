@@ -78,32 +78,46 @@ class RecruitersController extends AppBaseController
     public function store(CreateRecruitersRequest $request)
     {
         $input = $request->all();
-
-        $recruiter = $this->recruitersRepository->create($input);
-
         //Adding Account and setting reference
 
         $parentAccount = Accounts::where('name', 'Recruiter')->where('account_type', 'Liability')->where('parent_id', null)->first();
         if (!$parentAccount) {
             Flash::error('Parent account "Recruiter" not found.');
         }
+        try{
+            DB::beginTransaction();
+            $recruiter = $this->recruitersRepository->create($input);
 
-        $account = new Accounts();
-        $account->account_code = 'RC' . str_pad($recruiter->id, 4, "0", STR_PAD_LEFT);
-        $account->account_type = 'Liability';
-        $account->name = $recruiter->name;
-        $account->parent_id = $parentAccount->id;
-        $account->ref_name = 'Recruiter';
-        $account->ref_id = $recruiter->id;
-        $account->status = $recruiter->status;
-        $account->created_by = auth()->user()->id;
-        $account->save();
+            $account = new Accounts();
+            $account->account_code = 'RC' . str_pad($recruiter->id, 4, "0", STR_PAD_LEFT);
+            $account->account_type = 'Liability';
+            $account->name = $recruiter->name;
+            $account->parent_id = $parentAccount->id;
+            $account->ref_name = 'Recruiter';
+            $account->ref_id = $recruiter->id;
+            $account->status = $recruiter->status;
+            $account->created_by = auth()->user()->id;
+            $account->save();
 
-        $recruiter->account_id = $account->id;
-        $recruiter->created_by = auth()->user()->id;
-        $recruiter->save();
+            $recruiter->account_id = $account->id;
+            $recruiter->created_by = auth()->user()->id;
+            $recruiter->save();
+            DB::commit();
 
-        return response()->json(['message' => 'Recruiter added successfully.']);
+            return response()->json(['message' => 'Recruiter added successfully.', 'reload' => true],200);
+
+        } catch(\Exception $e){
+            \Log::error('error occured while adding recruiter : '.$e->getMessage());
+            DB::rollBack();
+            if($request->ajax()){
+                return response()->json([
+                    'message' => 'Error: '.$e->getMessage(),
+                    'reload' => true
+                ],500);
+            }
+            Flash::error('Error: '.$e->getMessage());
+            return redirect()->back();
+        }
     }
 
     /**

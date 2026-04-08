@@ -20,7 +20,7 @@ use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use Flash;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\Receipt;
 use App\Models\Payment;
@@ -77,6 +77,9 @@ class BanksController extends AppBaseController
     if ($request->has('status') && !empty($request->status)) {
       $query->where('status', $request->status);
     }
+    if ($request->has('branch_id') && !empty($request->branch_id)) {
+      $query->where('branch_id', $request->branch_id);
+    }
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
     if ($request->ajax()) {
@@ -112,28 +115,47 @@ class BanksController extends AppBaseController
   {
     $input = $request->all();
 
-    $banks = $this->banksRepository->create($input);
+    try{
+      DB::beginTransaction();
+      $banks = $this->banksRepository->create($input);
 
-    //Adding Account and setting reference
+      //Adding Account and setting reference
+      $parentAccount = Accounts::where('name', 'Cash & Bank')->where('account_type', 'Asset')->first();
+      if (!$parentAccount) {
+        Flash::error('Parent account "Asset" not found.');
+      }
+      $account = new Accounts();
+      $account->account_code = 'BK' . str_pad($banks->id, 4, "0", STR_PAD_LEFT);
+      $account->account_type = 'Asset';
+      $account->name = $banks->name;
+      $account->parent_id = $parentAccount->id;
+      $account->ref_name = 'Bank';
+      $account->ref_id = $banks->id;
+      $account->status = $banks->status;
+      $account->branch_id = $banks->branch_id;
+      $account->save();
 
-    $parentAccount = Accounts::where('name', 'Cash & Bank')->where('account_type', 'Asset')->first();
-    if (!$parentAccount) {
-      Flash::error('Parent account "Asset" not found.');
-    }
-    $account = new Accounts();
-    $account->account_code = 'BK' . str_pad($banks->id, 4, "0", STR_PAD_LEFT);
-    $account->account_type = 'Asset';
-    $account->name = $banks->name;
-    $account->parent_id = $parentAccount->id;
-    $account->ref_name = 'Bank';
-    $account->ref_id = $banks->id;
-    $account->status = $banks->status;
-    $account->save();
-
-    $banks->account_id = $account->id;
-    $banks->save();
-    Flash::success('Bank added successfully.');
-    return redirect()->back();
+      $banks->account_id = $account->id;
+      $banks->save();
+      DB::commit();
+      if($request->ajax()){
+        return response()->json([
+          'message' => 'Bank Account Added Successfully',
+          'reload' => true
+        ],200);
+      }
+      Flash::success('Bank added successfully.');
+      return redirect()->back();
+    }catch(\Exception $e){
+      \Log::error('error occured while creating bank account : '.$e->getMessage());
+      DB::rollBack();
+      if($request->ajax()){
+        return response()->json([
+            'message' => 'Error: '.$e->getMessage(),
+          ],500);
+      }
+      Flash::error('Error: '.$e->getMessage());
+      return redirect()->back();
   }
 
   /**

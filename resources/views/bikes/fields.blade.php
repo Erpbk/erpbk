@@ -8,6 +8,19 @@
         @endforeach
     </select>
 </div>
+
+<!-- Emirates Field -->
+<div class="form-group col-sm-4">
+    {!! Form::label('emirate_hub', 'Emirate Hub:',['class'=>'required']) !!}
+    {!! Form::select('emirate_hub', Common::Dropdowns('emirates-hub'),null, ['class' => 'form-select select2', 'required']) !!}
+</div>
+
+<!-- Vranch Field -->
+<div class="form-group col-sm-4">
+    {!! Form::label('branch_id', 'Branch:',['class'=>'required']) !!}
+    {!! Form::select('branch_id', App\Models\Branch::dropdown(),null, ['class' => 'form-select select2', 'required']) !!}
+</div>
+
 <!-- Bike Code Field -->
 <div class="form-group col-sm-4 hide-if-cyclist">
     {!! Form::label('bike_code', 'Bike Code:') !!}
@@ -67,12 +80,6 @@
 <div class="form-group col-sm-4 hide-if-cyclist">
     {!! Form::label('traffic_file_number', 'Traffic File Number:') !!}
     {!! Form::text('traffic_file_number', null, ['class' => 'form-control', 'maxlength' => 100, 'maxlength' => 100]) !!}
-</div>
-
-<!-- Emirates Field -->
-<div class="form-group col-sm-4">
-    {!! Form::label('emirate_hub', 'Emirate Hub:',['class'=>'required']) !!}
-    {!! Form::select('emirate_hub', Common::Dropdowns('emirates-hub'),null, ['class' => 'form-select select2', 'required']) !!}
 </div>
 
 <!-- Registration Date Field -->

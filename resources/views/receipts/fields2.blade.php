@@ -128,7 +128,7 @@
                         @if(isset($existingInvoices) && $existingInvoices->count() > 0)
                             @foreach($existingInvoices as $invoice)
                             <tr data-invoice-id="{{ $invoice->id }}"
-                                data-balance="{{ $invoice->total - ($invoice->partial_paid_amount[$receipt->id] ?? 0) }}" 
+                                data-balance="{{ $invoice->balance + $invoice->partial_paid_amount[$receipt->id] }}" 
                                 data-reference="{{ $invoice->invoice_number }}" 
                                 data-old-payment="{{ $invoice->partial_paid_amount[$receipt->id] ?? 0 }}"
                                 data-customer-id="{{ $invoice->customer->id }}"
@@ -140,8 +140,8 @@
                                 <td>{{ $invoice->customer->name ?? '-' }}</td>
                                 <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                                 <td class="text-right">{{ number_format($invoice->total, 2) }}</td>
-                                <td class="text-right">{{ number_format($invoice->partial_paid_amount[$receipt->id] ?? 0, 2) }}</td>
-                                <td class="text-right text-danger">{{ number_format($invoice->total - ($invoice->partial_paid_amount[$receipt->id] ?? 0), 2) }}</td>
+                                <td class="text-right">{{ number_format($invoice->paid_amount - $invoice->partial_paid_amount[$receipt->id], 2) }}</td>
+                                <td class="text-right text-danger">{{ number_format($invoice->balance + $invoice->partial_paid_amount[$receipt->id], 2) }}</td>
                                 <td>
                                     <input type="number" name="payment_amounts[{{ $invoice->id }}]" 
                                         class="form-control payment-amount" 
@@ -154,8 +154,11 @@
                             @endforeach
                         @endif
                         @foreach($invoices as $invoice)
+                        @php
+                            $partialPaid = $invoice->partial_paid_amount
+                        @endphp
                         <tr data-invoice-id="{{ $invoice->id }}" 
-                            data-balance="{{ $invoice->total - ($invoice->partial_paid_amount[$receipt->id ?? 0] ?? 0) }}" 
+                            data-balance="{{ $invoice->balance }}" 
                             data-reference="{{ $invoice->invoice_number }}"
                             data-customer-id="{{ $invoice->customer->id }}"
                             data-customer-name="{{ $invoice->customer->name }}">
@@ -166,14 +169,14 @@
                             <td>{{ $invoice->customer->name ?? '-' }}</td>
                             <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                             <td class="text-right">{{ number_format($invoice->total, 2) }}</td>
-                            <td class="text-right">{{ number_format($invoice->partial_paid_amount[$receipt->id ?? 0] ?? 0, 2) }}</td>
-                            <td class="text-right text-danger">{{ number_format($invoice->total - ($invoice->partial_paid_amount[$receipt->id ?? 0] ?? 0), 2) }}</td>
+                            <td class="text-right">{{ number_format($invoice->paid_amount ?? 0, 2) }}</td>
+                            <td class="text-right text-danger">{{ number_format($invoice->balance, 2) }}</td>
                             <td>
                                 <input type="number" name="payment_amounts[{{ $invoice->id }}]" 
                                        class="form-control payment-amount" 
                                        step="any" 
                                        placeholder="Amount"
-                                       data-max="{{ $invoice->total - ($invoice->partial_paid_amount[$receipt->id ?? 0] ?? 0) }}"
+                                       data-max="{{ $invoice->balance }}"
                                        disabled>
                             </td>
                         </tr>

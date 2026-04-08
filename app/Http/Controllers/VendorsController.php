@@ -80,30 +80,50 @@ class VendorsController extends AppBaseController
   {
     $input = $request->all();
 
-    $vendor = $this->vendorsRepository->create($input);
-
     //Adding Account and setting reference
 
     $parentAccount = Accounts::where('name', 'Vendors')->where('account_type', 'Liability')->where('parent_id', null)->first();
     if (!$parentAccount) {
       Flash::error('Parent account "Vendor" not found.');
     }
+    try{
+      DB::beginTransaction();
+      $vendor = $this->vendorsRepository->create($input);
 
-    $account = new Accounts();
-    $account->account_code = 'VD' . str_pad($vendor->id, 4, "0", STR_PAD_LEFT);
-    $account->account_type = 'Liability';
-    $account->name = $vendor->name;
-    $account->parent_id = $parentAccount->id;
-    $account->ref_name = 'Vendor';
-    $account->ref_id = $vendor->id;
-    $account->status = $vendor->status;
-    $account->save();
+      $account = new Accounts();
+      $account->account_code = 'VD' . str_pad($vendor->id, 4, "0", STR_PAD_LEFT);
+      $account->account_type = 'Liability';
+      $account->name = $vendor->name;
+      $account->parent_id = $parentAccount->id;
+      $account->ref_name = 'Vendor';
+      $account->ref_id = $vendor->id;
+      $account->status = $vendor->status;
+      $account->branch_id = $vendor->branch_id;
+      $account->save();
 
-    $vendor->account_id = $account->id;
-    $vendor->save();
-
-    Flash::success('Vendor added successfully.');
-    return redirect(route('vendors.index'));
+      $vendor->account_id = $account->id;
+      $vendor->save();
+      DB::commit();
+      if($request->ajax()){
+        return response()->json([
+          'message' => 'Vendor Added Successfully',
+          'reload' => true,
+        ],200);
+      }
+      Flash::success('Vendor added successfully.');
+      return redirect(route('vendors.index'));
+    }catch(\Exception $e){
+      \Log::error('error occured while creating vendor : '.$e->getMessage());
+      DB::rollBack();
+      if($request->ajax()){
+        return response()->json([
+            'message' => 'Error: '.$e->getMessage(),
+            'reload' => true
+          ],500);
+      }
+      Flash::error('Error: '.$e->getMessage());
+      return redirect()->back();
+    }
   }
 
   /**

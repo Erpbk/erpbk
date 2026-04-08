@@ -2,11 +2,17 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
+        // Fresh environments may not have accounts table in this migration path.
+        if (!Schema::hasTable('accounts')) {
+            return;
+        }
+
         $id = 1130;
         $exists = DB::table('accounts')->where('id', $id)->exists();
         if ($exists) {
@@ -32,6 +38,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (!Schema::hasTable('accounts')) {
+            return;
+        }
+
         DB::table('accounts')->where('id', 1130)->delete();
     }
 };

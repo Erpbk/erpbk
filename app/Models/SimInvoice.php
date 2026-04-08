@@ -1,0 +1,66 @@
+<?php
+
+namespace App\Models;
+
+use App\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class SimInvoice extends Model
+{
+    use SoftDeletes, LogsActivity;
+
+    public $table = 'sim_invoices';
+
+    public $fillable = [
+        'inv_date',
+        'vendor_id',
+        'billing_month',
+        'invoice_number',
+        'reference_number',
+        'sim_invoice_number',
+        'descriptions',
+        'subtotal',
+        'vat',
+        'total_amount',
+        'notes',
+        'attachment',
+        'status',
+    ];
+
+    protected $casts = [
+        'inv_date' => 'date',
+        'billing_month' => 'date',
+        'sim_invoice_number' => 'string',
+        'attachment' => 'string',
+        'subtotal' => 'decimal:2',
+        'vat' => 'decimal:2',
+        'total_amount' => 'decimal:2',
+        'status' => 'integer',
+    ];
+
+    protected $dates = ['deleted_at'];
+
+    public static array $rules = [
+        'inv_date' => 'required|date',
+        'vendor_id' => 'required|exists:vendors,id',
+        'billing_month' => 'required|date',
+        'invoice_number' => 'nullable|string|max:255',
+        'reference_number' => 'required|string|max:255',
+        'sim_invoice_number' => 'nullable|string|max:255',
+        'descriptions' => 'nullable|string',
+        'notes' => 'nullable|string',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+        'status' => 'nullable|integer',
+    ];
+
+    public function vendor()
+    {
+        return $this->belongsTo(Vendors::class, 'vendor_id');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(SimInvoiceItem::class, 'inv_id', 'id');
+    }
+}

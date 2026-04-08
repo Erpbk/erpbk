@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Company;
+use App\Services\TenantModulePermissionsSync;
 use App\Services\TenantService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
@@ -50,10 +51,14 @@ class TenantsMigrate extends Command
 
             try {
                 $this->tenantService->migrateTenantDatabase($name);
+                $this->tenantService->setTenant($company);
+                TenantModulePermissionsSync::sync();
                 $this->line(Artisan::output());
             } catch (\Throwable $e) {
                 $this->error('   Failed: '.$e->getMessage());
                 $exit = 1;
+            } finally {
+                $this->tenantService->clearTenant();
             }
         }
 

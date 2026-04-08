@@ -289,6 +289,18 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::resource('sims', App\Http\Controllers\SimsController::class);
     Route::get('sims/delete/{id}', [\App\Http\Controllers\SimsController::class, 'destroy'])->name('sims.delete');
+    Route::get('simInvoices', [\App\Http\Controllers\SimInvoicesController::class, 'index'])->name('simInvoices.index');
+    Route::get('simInvoices/create/{vendorId?}', [\App\Http\Controllers\SimInvoicesController::class, 'create'])->name('simInvoices.create');
+    Route::get('simInvoices/create-from-clone/{id}', [\App\Http\Controllers\SimInvoicesController::class, 'createFromClone'])->name('simInvoices.createFromClone');
+    Route::post('simInvoices/store', [\App\Http\Controllers\SimInvoicesController::class, 'store'])->name('simInvoices.store');
+    Route::get('simInvoices/{id}', [\App\Http\Controllers\SimInvoicesController::class, 'show'])->name('simInvoices.show');
+    Route::get('simInvoices/{id}/edit', [\App\Http\Controllers\SimInvoicesController::class, 'edit'])->name('simInvoices.edit');
+    Route::put('simInvoices/{id}', [\App\Http\Controllers\SimInvoicesController::class, 'update'])->name('simInvoices.update');
+    Route::delete('simInvoices/{id}', [\App\Http\Controllers\SimInvoicesController::class, 'destroy'])->name('simInvoices.destroy');
+    Route::post('simInvoices/{id}/clone', [\App\Http\Controllers\SimInvoicesController::class, 'clone'])->name('simInvoices.clone');
+    Route::get('simInvoices/vendor/{id}/sims', [\App\Http\Controllers\SimInvoicesController::class, 'getSims'])->name('simInvoices.getSims');
+    Route::get('simInvoices/{id}/payment-voucher/create', [\App\Http\Controllers\SimInvoicesController::class, 'createPaymentVoucher'])->name('simInvoices.paymentVoucher.create');
+    Route::post('simInvoices/{id}/payment-voucher', [\App\Http\Controllers\SimInvoicesController::class, 'storePaymentVoucher'])->name('simInvoices.paymentVoucher.store');
 
     /* Rider section starts from here */
 
@@ -399,6 +411,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('search_item_price/{RID}/{itemID}', [\App\Http\Controllers\ItemsController::class, 'search_item_price']);
     Route::get('riderInvoices/delete/{id}', [\App\Http\Controllers\RiderInvoicesController::class, 'destroy'])->name('riderInvoices.delete');
     Route::post('riderInvoices/bulk-delete', [\App\Http\Controllers\RiderInvoicesController::class, 'bulkDelete'])->name('riderInvoices.bulkDelete');
+    Route::resource('employeeInvoices', App\Http\Controllers\EmployeeInvoicesController::class);
+    Route::get('employeeInvoices/delete/{id}', [\App\Http\Controllers\EmployeeInvoicesController::class, 'destroy'])->name('employeeInvoices.delete');
+    Route::post('employeeInvoices/bulk-delete', [\App\Http\Controllers\EmployeeInvoicesController::class, 'bulkDelete'])->name('employeeInvoices.bulkDelete');
 
     Route::resource('riderAttendances', App\Http\Controllers\RiderAttendanceController::class);
     Route::any('rider/attendance-import', [\App\Http\Controllers\RiderAttendanceController::class, 'import'])->name('rider.attendance_import');

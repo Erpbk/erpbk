@@ -11,7 +11,7 @@ return [
     'modules' => [
         ['parent' => 'Dashboard', 'slug' => 'dashboard', 'extras' => []],
         ['parent' => 'Bank', 'slug' => 'bank', 'extras' => ['bank_view_deleted', 'bank_restore', 'bank_force_delete']],
-        ['parent' => 'Employees', 'slug' => 'employees', 'extras' => []],
+        ['parent' => 'Employees', 'slug' => 'employees', 'extras' => ['employeeinvoice_view', 'employeeinvoice_create', 'employeeinvoice_edit', 'employeeinvoice_delete']],
         ['parent' => 'Attendance', 'slug' => 'attendance', 'extras' => []],
         ['parent' => 'Item', 'slug' => 'item', 'extras' => []],
         ['parent' => 'Leads', 'slug' => 'leads', 'extras' => []],
@@ -20,7 +20,7 @@ return [
         ['parent' => 'Recruiter', 'slug' => 'recruiter', 'extras' => []],
         ['parent' => 'Rider', 'slug' => 'rider', 'extras' => ['riderinvoice_view']],
         ['parent' => 'Bike', 'slug' => 'bike', 'extras' => []],
-        ['parent' => 'Sim', 'slug' => 'sim', 'extras' => []],
+        ['parent' => 'Sim', 'slug' => 'sim', 'extras' => ['sim_invoice_view', 'sim_invoice_create', 'sim_invoice_edit', 'sim_invoice_delete', 'sim_invoice_payment_voucher']],
         ['parent' => 'Fuel', 'slug' => 'fuel', 'extras' => []],
         ['parent' => 'RTA Fines', 'slug' => 'rtafine', 'extras' => []],
         ['parent' => 'Salik', 'slug' => 'salik', 'extras' => []],

@@ -3,8 +3,8 @@
 $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
 $companySlug = request()->route('company_slug') ?? session('company_slug');
 $homeLink = auth('admin')->check()
-  ? route('admin.dashboard')
-  : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
+? route('admin.dashboard')
+: ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
 @endphp
 @if(\App\Support\CompanyModuleVisibility::enabled('dashboard'))
 @can('dashboard_view')
@@ -41,6 +41,43 @@ $homeLink = auth('admin')->check()
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('employees'))
 @can('employees_view')
+@if(\App\Support\CompanyModuleVisibility::enabled('attendance'))
+@can('attendance_view')
+<li class="menu-item {{ Request::is('employees*') ? 'open' : '' }} {{ (Request::is('attendance*') && request('ref_type') === 'employee') || (Request::routeIs('attendance.summary') && request('user_type', 'employee') === 'employee') ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle">
+    <i class="menu-icon tf-icons ti ti-user"></i>
+    <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
+  </a>
+  <ul class="menu-sub">
+    <li class="menu-item {{ Request::is('employees*') ? 'active' : '' }}">
+      <a href="{{ route('employees.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-user"></i>
+        <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
+      </a>
+    </li>
+    <li class="menu-item {{ Request::routeIs('attendance.index') && request('ref_type') === 'employee' ? 'active' : '' }}">
+      <a href="{{ route('attendance.index', ['ref_type' => 'employee']) }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
+        {{ $menuLabels['attendance_records'] ?? 'Attendance Records' }}
+      </a>
+    </li>
+    <li class="menu-item {{ Request::routeIs('attendance.summary') && request('user_type', 'employee') === 'employee' ? 'active' : '' }}">
+      <a href="{{ route('attendance.summary', ['user_type' => 'employee']) }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
+        {{ $menuLabels['attendance_summary'] ?? 'Attendance Summary' }}
+      </a>
+    </li>
+    @can('employeeinvoice_view')
+    <li class="menu-item {{ Request::is('employeeInvoices*') ? 'active' : '' }}">
+      <a href="{{ route('employeeInvoices.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-file"></i>
+        <div>Employee Invoices</div>
+      </a>
+    </li>
+    @endcan
+  </ul>
+</li>
+@else
 <li class="menu-item {{ Request::is('employees*') ? 'active' : '' }}">
   <a href="{{ route('employees.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-user"></i>
@@ -48,29 +85,14 @@ $homeLink = auth('admin')->check()
   </a>
 </li>
 @endcan
-@endif
-@if(\App\Support\CompanyModuleVisibility::enabled('attendance'))
-@can('attendance_view')
-<li class="menu-item {{ Request::is('attendance*') ? 'open' : '' }}">
-  <a href="javascript:void(0)" class="menu-link menu-toggle">
-    <i class="menu-icon tf-icons ti ti-calendar-check"></i>
-    <div>{{ $menuLabels['attendance'] ?? 'Attendance' }}</div>
+@else
+<li class="menu-item {{ Request::is('employees*') ? 'active' : '' }}">
+  <a href="{{ route('employees.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-user"></i>
+    <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
   </a>
-  <ul class="menu-sub">
-    <li class="menu-item {{ Request::routeIs('attendance.index') ? 'active' : '' }}">
-      <a href="{{ route('attendance.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
-        {{ $menuLabels['attendance_records'] ?? 'Attendance Records' }}
-      </a>
-    </li>
-    <li class="menu-item {{ Request::routeIs('attendance.summary') ? 'active' : '' }}">
-      <a href="{{ route('attendance.summary') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
-        {{ $menuLabels['attendance_summary'] ?? 'Attendance Summary' }}
-      </a>
-    </li>
-  </ul>
 </li>
+@endif
 @endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('items'))
@@ -108,37 +130,35 @@ $homeLink = auth('admin')->check()
 @if(\App\Support\CompanyModuleVisibility::enabled('customers'))
 @can('customer_view')
 <li class="menu-item {{ (Request::is('customer*') || Request::is('customers*') || Request::is('customer_invoice*') || Request::is('customer_invoices*')) ? 'open' : '' }}">
-    <a href="javascript:void(0);" class="menu-link menu-toggle">
-        <i class="menu-icon tf-icons ti ti-user-star"></i>
-        <div>{{ $menuLabels['customers'] ?? 'Customers' }}</div>
-    </a>
-    <ul class="menu-sub">
-        {{-- Customer List --}}
-        <li class="menu-item {{ (Request::is('customers*') || Request::is('customer*')) && !Request::is('customer/payments*') && !Request::is('customer/receipts*') && !Request::is('customer_invoices*') ? 'active' : '' }}">
-            <a href="{{ route('customers.index') }}" class="menu-link">
-                <i class="menu-icon tf-icons ti ti-users"></i>
-                <div>{{ $menuLabels['customer_list'] ?? 'Customer List' }}</div>
-            </a>
-        </li>
-        @can('customer_invoice_view')
-        {{-- Invoices --}}
-        <li class="menu-item {{ Request::is('customer-invoices*') || Request::is('customer_invoices*') ? 'active' : '' }}">
-            <a href="{{ route('customer_invoices.index') }}" class="menu-link">
-                <i class="menu-icon tf-icons ti ti-receipt"></i>
-                <div>{{ $menuLabels['customer_invoices'] ?? 'Invoices' }}</div>
-            </a>
-        </li>
-        @endcan
-        @can('customer_payments')
-        {{-- Payments Receieved --}}
-        <li class="menu-item {{ Request::is('customer/receipts*') ? 'active' : '' }}">
-            <a href="{{ route('customer.receipts') }}" class="menu-link">
-                <i class="menu-icon tf-icons ti ti-receipt"></i>
-                <div>{{ $menuLabels['customer_receipts'] ?? 'Payments Received' }}</div>
-            </a>
-        </li>
-        @endcan
-    </ul>
+  <a href="javascript:void(0);" class="menu-link menu-toggle">
+    <i class="menu-icon tf-icons ti ti-user-star"></i>
+    <div>{{ $menuLabels['customers'] ?? 'Customers' }}</div>
+  </a>
+  <ul class="menu-sub">
+    {{-- Customer List --}}
+    <li class="menu-item {{ (Request::is('customers*') || Request::is('customer*')) && !Request::is('customer/payments*') && !Request::is('customer/receipts*') && !Request::is('customer_invoices*') ? 'active' : '' }}">
+      <a href="{{ route('customers.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-users"></i>
+        <div>{{ $menuLabels['customer_list'] ?? 'Customer List' }}</div>
+      </a>
+    </li>
+    @can('customer_invoice_view')
+    {{-- Invoices --}}
+    <li class="menu-item {{ Request::is('customer-invoices*') || Request::is('customer_invoices*') ? 'active' : '' }}">
+      <a href="{{ route('customer_invoices.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-receipt"></i>
+        <div>{{ $menuLabels['customer_invoices'] ?? 'Invoices' }}</div>
+      </a>
+    </li>
+    @endcan
+    {{-- Payments Receieved --}}
+    <li class="menu-item {{ Request::is('customer/receipts*') ? 'active' : '' }}">
+      <a href="{{ route('customer.receipts') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-receipt"></i>
+        <div>{{ $menuLabels['customer_receipts'] ?? 'Payments Received' }}</div>
+      </a>
+    </li>
+  </ul>
 </li>
 @endcan
 @endif
@@ -170,26 +190,34 @@ $homeLink = auth('admin')->check()
  {{ Request::is('riderActivities*') ? 'open' : '' }}
  {{ Request::is('reports/rider_report*') ? 'open' : '' }}
  {{ Request::is('reports/rider_monthly_report*') ? 'open' : '' }}
- {{ Request::is('employees*') ? 'open' : '' }}  ">
+ {{ (Request::is('attendance*') && request('ref_type') === 'rider') || (Request::routeIs('attendance.summary') && request('user_type') === 'rider') ? 'open' : '' }}  ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-user-pin"></i>
     <div>{{ $menuLabels['riders'] ?? 'Riders' }}</div>
   </a>
   <ul class="menu-sub">
-    @can('employees_view')
-    <li class="menu-item {{ Request::is('employees*') ? 'active' : '' }}">
-      <a href="{{ route('employees.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-user"></i>
-        <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
-      </a>
-    </li>
-    @endcan
     <li class="menu-item {{ Request::is('riders*') ? 'active' : '' }}">
       <a href="{{ route('riders.index') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-user-pin"></i>
         <div>{{ $menuLabels['riders_list'] ?? 'Riders List' }}</div>
       </a>
     </li>
+    @if(\App\Support\CompanyModuleVisibility::enabled('attendance'))
+    @can('attendance_view')
+    <li class="menu-item {{ Request::routeIs('attendance.index') && request('ref_type') === 'rider' ? 'active' : '' }}">
+      <a href="{{ route('attendance.index', ['ref_type' => 'rider']) }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
+        {{ $menuLabels['attendance_records'] ?? 'Attendance Records' }}
+      </a>
+    </li>
+    <li class="menu-item {{ Request::routeIs('attendance.summary') && request('user_type') === 'rider' ? 'active' : '' }}">
+      <a href="{{ route('attendance.summary', ['user_type' => 'rider']) }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
+        {{ $menuLabels['attendance_summary'] ?? 'Attendance Summary' }}
+      </a>
+    </li>
+    @endcan
+    @endif
     @can('riderinvoice_view')
     <li class="menu-item {{ Request::is('riderInvoices*') ? 'active' : '' }}">
       <a href="{{ route('riderInvoices.index') }}" class="menu-link ">
@@ -251,16 +279,29 @@ $homeLink = auth('admin')->check()
 @endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('sims'))
-@can('sim_view')
-<li class="menu-item {{ Request::is('sims*') ? 'active' : '' }}">
-  <a href="{{ route('sims.index') }}" class="menu-link">
+<li class="menu-item {{ Request::is('sims*') || Request::is('simInvoices*') ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-device-sim"></i>
     <div>{{ $menuLabels['sims'] ?? 'Sims' }}</div>
   </a>
+  <ul class="menu-sub">
+    <li class="menu-item {{ Request::is('sims*') ? 'active' : '' }}">
+      <a href="{{ route('sims.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-device-sim"></i>
+        <div>{{ $menuLabels['sims'] ?? 'Sims' }}</div>
+      </a>
+    </li>
+    @can('sim_invoice_view')
+    <li class="menu-item {{ Request::is('simInvoices*') ? 'active' : '' }}">
+      <a href="{{ route('simInvoices.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-file-invoice"></i>
+        <div>SIM Invoices</div>
+      </a>
+    </li>
+    @endcan
+  </ul>
 </li>
-@endcan
 @endif
-
 @if(\App\Support\CompanyModuleVisibility::enabled('fuel_cards'))
 @can('fuel_view')
 <li class="menu-item {{ Request::is('fuelCards*') ? 'active' : '' }}">

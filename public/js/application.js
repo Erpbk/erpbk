@@ -78,7 +78,7 @@ function getTotal() {
 }
 
 function rider_price(g) {
-  rider_id = $('#rider_id').val();
+  rider_id = $('#rider_id').val() || $('#employee_id').val();
   item_id = $(g).val();
   $.ajax({
     url: $('#base_url').val() + '/search_item_price/' + rider_id + '/' + item_id,

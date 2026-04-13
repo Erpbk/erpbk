@@ -71,6 +71,7 @@ class AppServiceProvider extends ServiceProvider
     ]);
 
     app()->singleton('user_branches', function () {
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
         
         if (!$user) {
@@ -83,8 +84,15 @@ class AppServiceProvider extends ServiceProvider
             return \App\Models\Branch::pluck('id')->toArray() ?? [];
         }
         
-        // Non-admin: return only assigned branches
-        return json_decode($user->branch_ids, true) ?? [];
+        // Non-admin: return only assigned branches.
+        // branch_ids is cast to array on User model; keep backward compatibility
+        // for legacy rows where it may still be stored as raw JSON string.
+        $branchIds = $user->branch_ids;
+        if (is_array($branchIds)) {
+            return $branchIds;
+        }
+
+        return json_decode((string) ($branchIds ?? '[]'), true) ?? [];
     });
   }
 }

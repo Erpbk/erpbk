@@ -1,17 +1,17 @@
-# Multi-Tenant (Company-Based) Setup
+# Company Isolation Setup (Single ERPBK DB)
 
-This document describes the company-based multi-tenant architecture and how to use it.
+This document describes the production architecture using one shared `erpbk` database with `company_id` isolation, plus a separate admin database.
 
 ## Architecture Overview
 
-- **Central database** (default `mysql` / `mysql_central`): Stores `companies`, `company_otp_verifications`, `subscription_plans`, `plan_features`, `company_subscriptions`, `admin_notifications`. Configure the database name with `DB_DATABASE` or `CENTRAL_DB_DATABASE` in `.env` (create this database once on the server).
-- **Per-company (tenant) databases**: Each company has its own database (e.g. `{DB_DATABASE_PREFIX}_company_15454`). Same table structure as your app (users, bikes, riders, etc.). The correct DB is selected at runtime from the URL `company_slug`.
+- **ERPBK shared database** (`mysql` / `mysql_central`): Stores all business data. Tenant isolation is handled via `company_id` in application tables.
+- **Admin database** (`mysql_admin`): Stores admin panel auth/content tables (`admin_users`, blogs, testimonials, policies, admin mirror company list).
 
 ## URL Structure
 
 - **Company registration (public)**: `/company/register` (Step 1 → OTP → Step 3 details → Pending).
-- **Company login**: `/app/{company_id}/login` (e.g. `efds.com/app/15454/login`). Login page shows company logo and branding.
-- **Company app**: `/app/{company_id}/home`, `/app/{company_id}/bikes`, etc. All routes under `/app/{company_id}/` use the tenant DB and require auth.
+- **Company login**: `/app/{company_slug}/login` (e.g. `/app/efds/login`).
+- **Company app**: `/app/{company_slug}/home`, `/app/{company_slug}/bikes`, etc. Routes stay in the shared DB and are filtered by `company_id`.
 - **Admin (global)**: `/admin/companies` to list, view, approve, or reject companies. Uses central DB and existing auth.
 
 ## Registration Flow
@@ -24,7 +24,7 @@ This document describes the company-based multi-tenant architecture and how to u
 ## Admin Approval
 
 1. Go to **Admin → Companies** (`/admin/companies`). Filter by Pending / Approved / Rejected.
-2. **Approve**: Creates the company’s database (schema cloned from central), creates the first user (company owner) in the tenant DB with the registered email/password.
+2. **Approve**: Creates the first company owner user in `erpbk.users` with `company_id = companies.id`.
 3. **Reject**: Sets status to Rejected; optional reason stored.
 
 After approval, the company can log in at `/app/{company_id}/login`.
@@ -49,25 +49,14 @@ In `.env`:
 - `ADMIN_DATABASE_URL` – Optional full DSN for the admin database (recommended on Laravel Cloud for the second DB).
 - `ADMIN_DB_HOST` / `ADMIN_DB_PORT` / `ADMIN_DB_DATABASE` / `ADMIN_DB_USERNAME` / `ADMIN_DB_PASSWORD` – Admin DB credentials when DSN is not used.
 
-## Tenant Migrations
+## Migrations
 
-Tenant DBs are created with the same schema as your app (excluding central-only tables). Run once:
+With single-DB company isolation, only these commands are needed:
 
 ```bash
-php artisan tenant:stub-migrations
+php artisan migrate --force
+php artisan admin:migrate --force
 ```
-
-This fills `database/migrations_tenant/` from `database/migrations/` (excluding companies, OTP, subscription, admin_notifications). When a company is approved, the tenant database is created from the central schema (see `TenantService::createDatabaseForCompany`).
-
-### Applying new migrations to every company database
-
-After you add or change migrations under `database/migrations` for shared app tables:
-
-1. Sync the tenant copy: `php artisan tenant:stub-migrations`
-2. Run central migrations (if any): `php artisan migrate`
-3. Run tenant migrations on **all** company databases: `php artisan tenants:migrate`
-
-Optional: `php artisan tenants:migrate --company=123` or `--tenant=tenant_company_5` for a single database.
 
 ## Laravel Cloud (central + admin DB)
 
@@ -89,7 +78,7 @@ php artisan admin:migrate --force
 
 ## Adding More Company Routes
 
-Company-scoped routes live in `routes/company_app.php` and are loaded under `/app/{company_id}/`. To mirror more of your main app (e.g. riders, vouchers, settings-panel), copy the corresponding routes from `routes/web.php` (inside the auth group) into `routes/company_app.php`. Use the same controller classes; they will use the tenant connection when the request is under `/app/{company_id}/`.
+Company-scoped routes live under `/app/{company_slug}/`. Controllers must enforce `company_id` scoping for all tenant data access.
 
 ## Subscription Tables (Design Only)
 

@@ -12,15 +12,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        \App\Models\User::factory(10)->create();
-
-        \App\Models\User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
-
         $this->call([
             VisaStatusSeeder::class,
         ]);
+
+        // Factories rely on fakerphp/faker (require-dev). On production deployments
+        // with --no-dev, skip demo/test user factory seeding.
+        if (! app()->environment('production') && class_exists(\Faker\Factory::class)) {
+            \App\Models\User::factory(10)->create();
+
+            \App\Models\User::factory()->create([
+                'name' => 'Test User',
+                'email' => 'test@example.com',
+            ]);
+        }
     }
 }

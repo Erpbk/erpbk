@@ -279,6 +279,7 @@ $homeLink = auth('admin')->check()
 @endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('sims'))
+@can('sim_view')
 <li class="menu-item {{ Request::is('sims*') || Request::is('simInvoices*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-device-sim"></i>
@@ -301,6 +302,7 @@ $homeLink = auth('admin')->check()
     @endcan
   </ul>
 </li>
+@endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('fuel_cards'))
 @can('fuel_view')

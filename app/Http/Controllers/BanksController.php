@@ -156,6 +156,7 @@ class BanksController extends AppBaseController
       }
       Flash::error('Error: '.$e->getMessage());
       return redirect()->back();
+    }
   }
 
   /**

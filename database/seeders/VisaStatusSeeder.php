@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\VisaStatus;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
 class VisaStatusSeeder extends Seeder
 {
@@ -13,6 +14,11 @@ class VisaStatusSeeder extends Seeder
      */
     public function run(): void
     {
+        if (!Schema::hasTable('visa_statuses')) {
+            $this->command?->warn('Skipping VisaStatusSeeder: table visa_statuses does not exist yet.');
+            return;
+        }
+
         $statuses = [
             [
                 'name' => 'Job offer Letter',

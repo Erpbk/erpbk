@@ -46,6 +46,8 @@ In `.env`:
 - `CENTRAL_DB_DATABASE` – Optional; if set, overrides `DB_DATABASE` for central/tenant host credentials only (same MySQL server).
 - `DB_DATABASE_PREFIX` – Prefix for tenant DB names (default `tenant` → `tenant_company_1`, etc.).
 - `MAIL_ADMIN_NOTIFICATION_EMAIL` – Receives “new company registered” emails (optional).
+- `ADMIN_DATABASE_URL` – Optional full DSN for the admin database (recommended on Laravel Cloud for the second DB).
+- `ADMIN_DB_HOST` / `ADMIN_DB_PORT` / `ADMIN_DB_DATABASE` / `ADMIN_DB_USERNAME` / `ADMIN_DB_PASSWORD` – Admin DB credentials when DSN is not used.
 
 ## Tenant Migrations
 
@@ -66,6 +68,24 @@ After you add or change migrations under `database/migrations` for shared app ta
 3. Run tenant migrations on **all** company databases: `php artisan tenants:migrate`
 
 Optional: `php artisan tenants:migrate --company=123` or `--tenant=tenant_company_5` for a single database.
+
+## Laravel Cloud (central + admin DB)
+
+When deploying to Laravel Cloud with two databases:
+
+1. Keep your existing central DB variables as-is (`DB_*` or `DATABASE_URL`).
+2. Set admin DB variables for the second database (`ADMIN_DATABASE_URL` or `ADMIN_DB_*`).
+3. Use this deploy migration command so both DBs are migrated:
+
+```bash
+php artisan app:migrate-all --force
+```
+
+If you only need the admin DB migration step manually, run:
+
+```bash
+php artisan admin:migrate --force
+```
 
 ## Adding More Company Routes
 

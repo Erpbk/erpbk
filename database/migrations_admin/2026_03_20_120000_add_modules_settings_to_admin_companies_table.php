@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    protected $connection = 'mysql_admin';
+
     public function up(): void
     {
         Schema::connection('mysql_admin')->table('admin_companies', function (Blueprint $table) {

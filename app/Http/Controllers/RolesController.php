@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Illuminate\Support\Facades\Schema;
 use Flash;
 use App\Helpers\IConstants;
 
@@ -113,11 +114,13 @@ class RolesController extends AppBaseController
       ->pluck('role_has_permissions.permission_id', 'role_has_permissions.permission_id')
       ->all();
 
-    $modules = Permission::query()
-      ->where(function ($q) {
+    $modulesQuery = Permission::query();
+    if (Schema::hasColumn('permissions', 'parent_id')) {
+      $modulesQuery->where(function ($q) {
         $q->whereNull('parent_id')->orWhere('parent_id', 0);
-      })
-      ->get();
+      });
+    }
+    $modules = $modulesQuery->get();
 
     return view('roles.edit', compact('roles', 'rolePermissions', 'modules'));
   }
@@ -189,17 +192,21 @@ class RolesController extends AppBaseController
 
   public function get_permissions()
   {
-    $result = Permission::query()
-      ->where(function ($q) {
+    $resultQuery = Permission::query();
+    if (Schema::hasColumn('permissions', 'parent_id')) {
+      $resultQuery->where(function ($q) {
         $q->whereNull('parent_id')->orWhere('parent_id', 0);
-      })
-      ->get();
+      });
+    }
+    $result = $resultQuery->get();
     $htmlData = '';
     foreach ($result as $item) {
       $htmlData .= '<tr>';
       $htmlData .= '<td></td>';
       $htmlData .= '<td>' . $item->name . '</td>';
-      $permission = Permission::where('parent_id', $item->id)->get();
+      $permission = Schema::hasColumn('permissions', 'parent_id')
+        ? Permission::where('parent_id', $item->id)->get()
+        : collect();
       foreach ($permission as $per) {
         $name = explode('_', $per->name, 2);
         $name = ucwords(str_replace('_', ' ', $name[1]));

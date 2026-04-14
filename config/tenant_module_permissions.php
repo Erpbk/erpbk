@@ -22,7 +22,7 @@ return [
         ['parent' => 'Bike', 'slug' => 'bike', 'extras' => []],
         ['parent' => 'Sim', 'slug' => 'sim', 'extras' => ['sim_invoice_view', 'sim_invoice_create', 'sim_invoice_edit', 'sim_invoice_delete', 'sim_invoice_payment_voucher']],
         ['parent' => 'Fuel', 'slug' => 'fuel', 'extras' => []],
-        ['parent' => 'RTA Fines', 'slug' => 'rtafine', 'extras' => []],
+        ['parent' => 'RTA Fines', 'slug' => 'rtafine', 'extras' => ['rtafine_paid_view']],
         ['parent' => 'Salik', 'slug' => 'salik', 'extras' => []],
         ['parent' => 'Inventory', 'slug' => 'inventory', 'extras' => []],
         ['parent' => 'Visa Expense', 'slug' => 'visaexpense', 'extras' => []],

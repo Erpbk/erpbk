@@ -8,7 +8,7 @@
                 <h1>Import RTA Fines</h1>
             </div>
             <div class="col-sm-6 text-right">
-                <a class="btn btn-primary float-right action-btn" href="{{ route('rtaFines.tickets', $account->id) }}" style="color: white; background-color: #007bff;">
+                <a class="btn btn-primary float-right action-btn" href="{{ route('rtaFines.tickets') }}" style="color: white; background-color: #007bff;">
                     Back to Fine List
                 </a>
             </div>
@@ -319,7 +319,7 @@
                         
                         // Add buttons with proper event handlers
                         resultsHtml += '<div class="text-center mt-3">';
-                        resultsHtml += '    <a href="{{ route('rtaFines.tickets', $account->id) }}" class="btn btn-primary">';
+                        resultsHtml += '    <a href="{{ route("rtaFines.tickets") }}" class="btn btn-primary">';
                         resultsHtml += '        <i class="fas fa-list"></i> View Imported Fines';
                         resultsHtml += '    </a>';
                         resultsHtml += '    <button type="button" class="btn btn-secondary ml-2" id="closeResultsBtn">';

@@ -23,6 +23,7 @@ class User extends Authenticatable
   protected $fillable = [
     'branch_ids',
     'employee_id',
+    'company_id',
     'name',
     'first_name',
     'last_name',
@@ -43,6 +44,7 @@ class User extends Authenticatable
   public static array $rules = [
     'first_name' => 'required|string|max:255',
     'branch_ids' => 'required|array',
+    'company_id' => 'required|exists:companies,id',
     'branch_ids.*' => 'required',
     'last_name' => 'nullable|string|max:255',
     'email' => 'nullable|string|max:255|email|unique:users',
@@ -82,24 +84,24 @@ class User extends Authenticatable
 
   public function employee()
   {
-    return $this->belongsTo(Employee::class,'employee_id','id');
+    return $this->belongsTo(Employee::class, 'employee_id', 'id');
   }
 
   public function getBranchesAttribute()
   {
-      $branchIds = $this->branch_ids;
-      if (! is_array($branchIds)) {
-          $branchIds = json_decode((string) ($branchIds ?? '[]'), true) ?: [];
-      }
+    $branchIds = $this->branch_ids;
+    if (! is_array($branchIds)) {
+      $branchIds = json_decode((string) ($branchIds ?? '[]'), true) ?: [];
+    }
 
-      return Branch::whereIn('id', $branchIds)->get();
+    return Branch::whereIn('id', $branchIds)->get();
   }
 
   public function branchDropdown($all = null)
   {
-    if($all){
+    if ($all) {
       return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->prepend('All', null)->toArray();
-    }else{
+    } else {
       return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->toArray();
     }
   }

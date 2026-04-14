@@ -2,8 +2,8 @@
 
 @section('title','RTA Fines')
 @push('third_party_stylesheets')
-<style> 
-   .totals-cards {
+<style>
+    .totals-cards {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
@@ -123,62 +123,62 @@
     }
 
     #dataTableBuilder {
-      margin-bottom: 0;
-      min-width: 800px; 
-      width: 100%;
-   }
+        margin-bottom: 0;
+        min-width: 800px;
+        width: 100%;
+    }
 
-   #dataTableBuilder td,
-   #dataTableBuilder th {
-      white-space: nowrap;
-      padding: 8px 12px;
-      vertical-align: middle;
-   }
+    #dataTableBuilder td,
+    #dataTableBuilder th {
+        white-space: nowrap;
+        padding: 8px 12px;
+        vertical-align: middle;
+    }
 
-   td:focus,
-   th:focus {
-      outline: 2px solid #2196f3;
-      outline-offset: -2px;
-      background: #e3f2fd;
-   }
+    td:focus,
+    th:focus {
+        outline: 2px solid #2196f3;
+        outline-offset: -2px;
+        background: #e3f2fd;
+    }
 
-   th {
-      white-space: nowrap;
-   }
+    th {
+        white-space: nowrap;
+    }
 
-   /* Table header bold and fixed */
-   #dataTableBuilder thead th {
-      font-weight: bold;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background-color: #f8f9fa;
-      box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
-   }
+    /* Table header bold and fixed */
+    #dataTableBuilder thead th {
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8f9fa;
+        box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+    }
 
-   /* Ensure table container is scrollable */
-   .table-responsive {
-      max-height: calc(100vh - 240px);
-      overflow-y: auto;
-      overflow-x: auto;
-      position: relative;
-      -webkit-overflow-scrolling: touch;
-   }
+    /* Ensure table container is scrollable */
+    .table-responsive {
+        max-height: calc(100vh - 240px);
+        overflow-y: auto;
+        overflow-x: auto;
+        position: relative;
+        -webkit-overflow-scrolling: touch;
+    }
 
-   /* Hide scrollbar for Chrome, Safari and Opera */
-   .table-responsive::-webkit-scrollbar {
-      display: none;
-   }
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .table-responsive::-webkit-scrollbar {
+        display: none;
+    }
 
-   /* Hide scrollbar for IE, Edge and Firefox */
-   .table-responsive {
-      -ms-overflow-style: none;
-      /* IE and Edge */
-      scrollbar-width: none;
-      /* Firefox */
-   }
+    /* Hide scrollbar for IE, Edge and Firefox */
+    .table-responsive {
+        -ms-overflow-style: none;
+        /* IE and Edge */
+        scrollbar-width: none;
+        /* Firefox */
+    }
 
-   .filter-sidebar {
+    .filter-sidebar {
         position: fixed;
         top: 0;
         right: -420px;
@@ -262,39 +262,39 @@
         }
 
         .totals-cards {
-        gap: 6px;
+            gap: 6px;
         }
-        
+
         .total-card {
-        flex: 1 1 calc(50% - 6px);
-        min-width: 140px;
-        padding: 6px 8px;
+            flex: 1 1 calc(50% - 6px);
+            min-width: 140px;
+            padding: 6px 8px;
         }
-        
+
         .total-card .label {
-        font-size: 9px;
+            font-size: 9px;
         }
-        
+
         .total-card .value {
-        font-size: 12px;
+            font-size: 12px;
         }
-        
+
         /* Reduce table cell padding on mobile */
         #dataTableBuilder td,
         #dataTableBuilder th {
-        padding: 6px 8px;
-        font-size: 12px;
+            padding: 6px 8px;
+            font-size: 12px;
         }
-        
+
         /* Make badges smaller on mobile */
         .badge {
-        font-size: 10px !important;
-        padding: 3px 6px;
+            font-size: 10px !important;
+            padding: 3px 6px;
         }
 
         .openFilterSidebar {
-        font-size: 12px;
-        padding: 6px 12px;
+            font-size: 12px;
+            padding: 6px 12px;
         }
 
         .filter-sidebar {
@@ -308,9 +308,10 @@
     <div class="container-fluid">
         <div class="row mb-2">
             <div class="col-sm-6">
-                <h3>{{ $account->name }} | Rta Fines</h3>
+                <h3>{{ $pageTitle ?? 'RTA Fines' }}</h3>
             </div>
             <div class="col-sm-6">
+                @if(($listingStatus ?? 'unpaid') !== 'paid')
                 <div class="action-buttons d-flex justify-content-end">
                     <div class="action-dropdown-container">
                         <button class="action-dropdown-btn" id="addBikeDropdownBtn">
@@ -320,7 +321,7 @@
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
                             @can('rtafine_create')
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="New Fine" data-action="{{ route('rtaFines.create' , $account->id) }}">
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="New Fine" data-action="{{ route('rtaFines.create') }}">
                                 <i class="ti ti-plus"></i>
                                 <div>
                                     <div class="action-dropdown-item-text">Add New Fine</div>
@@ -329,7 +330,7 @@
                             </a>
                             @endcan
                             @can('rtafine_create')
-                            <a class="action-dropdown-item" href="{{ route('rtaFines.import.form', $account->id) }}">
+                            <a class="action-dropdown-item" href="{{ route('rtaFines.import.form') }}">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Fines</span>
                             </a>
@@ -343,6 +344,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -355,8 +357,19 @@
         <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
     <div class="filter-body" id="searchTopbody">
-        <form id="filterForm" action="{{ route('rtaFines.tickets', $account->id) }}" method="GET">
+        <form id="filterForm" action="{{ route($ticketsRouteName ?? 'rtaFines.tickets') }}" method="GET">
             <div class="row">
+                <div class="form-group col-md-12">
+                    <label for="rta_account_id" class="required">Filter by Account</label>
+                    <select class="form-control" id="rta_account_id" name="rta_account_id" required>
+                        <option value="">Select Account</option>
+                        @foreach(($rtaAccounts ?? collect()) as $rtaAccount)
+                        <option value="{{ $rtaAccount->id }}" {{ (string) $account->id === (string) $rtaAccount->id ? 'selected' : '' }}>
+                            {{ $rtaAccount->name }}
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
                 @if(auth()->user()->hasMultiplebranches())
                 <div class="form-group col-md-12">
                     <label for="branch_id">Filter by Branch</label>
@@ -423,8 +436,8 @@
                     <label for="status">Filter by Status</label>
                     <select class="form-control" id="status" name="status">
                         <option value="" selected>Select</option>
-                        <option value="paid" >paid</option>
-                        <option value="unpaid" >unpaid</option>
+                        <option value="paid">paid</option>
+                        <option value="unpaid">unpaid</option>
                     </select>
                 </div>
                 <div class="col-md-12 form-group text-center">
@@ -444,7 +457,7 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between">
             <div></div>
-            <button class="btn btn-primary openFilterSidebar" id="openFilterSidebar"> <i class="fa fa-search"></i>  Filter Fines</button>
+            <button class="btn btn-primary openFilterSidebar" id="openFilterSidebar"> <i class="fa fa-search"></i> Filter Fines</button>
         </div>
         <div class="totals-cards">
             <div class="total-card total-accounts">
@@ -519,6 +532,11 @@
             allowClear: true,
             placeholder: "Filter By Branch",
         });
+        $('#rta_account_id').select2({
+            dropdownParent: $('#searchTopbody'),
+            allowClear: false,
+            placeholder: "Select Account",
+        });
     });
 </script>
 
@@ -546,7 +564,11 @@
         });
 
         $('#filterForm').on('submit', function(e) {
-            // Let the form submit naturally - no need to prevent default
+            const selectedAccountId = $('#rta_account_id').val();
+            if (!selectedAccountId) {
+                e.preventDefault();
+                return;
+            }
             $('#filterSidebar').removeClass('open');
             $('#filterOverlay').removeClass('show');
         });

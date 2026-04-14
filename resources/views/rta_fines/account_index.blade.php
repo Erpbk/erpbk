@@ -1,4 +1,4 @@
-﻿@extends('rta_fines.viewindex')
+@extends('rta_fines.viewindex')
 @push('third_party_stylesheets')
 <style> 
   .totals-cards {

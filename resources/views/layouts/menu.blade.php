@@ -314,14 +314,30 @@ $homeLink = auth('admin')->check()
 @endif
 
 @if(\App\Support\CompanyModuleVisibility::enabled('rta_fines'))
-@can('rtafine_view')
-<li class="menu-item {{ Request::is('rtaFines*') ? 'active' : '' }}">
-  <a href="{{ route('rtaFines.index') }}" class="menu-link">
+@canany(['rtafine_view', 'rtafine_paid_view'])
+<li class="menu-item {{ Request::is('rtaFines*') ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle">
     <i class="menu-icon tf-icons ti ti-file-alert"></i>
     <div>{{ $menuLabels['rta_fines'] ?? 'RTA Fines' }}</div>
   </a>
+  <ul class="menu-sub">
+    @can('rtafine_view')
+    <li class="menu-item {{ Request::is('rtaFines') || Request::is('rtaFines/tickets*') ? 'active' : '' }}">
+      <a href="{{ route('rtaFines.tickets') }}" class="menu-link">
+        <div>Unpaid Fines</div>
+      </a>
+    </li>
+    @endcan
+    @can('rtafine_paid_view')
+    <li class="menu-item {{ Request::is('rtaFines/paid*') ? 'active' : '' }}">
+      <a href="{{ route('rtaFines.paid') }}" class="menu-link">
+        <div>Paid Fines</div>
+      </a>
+    </li>
+    @endcan
+  </ul>
 </li>
-@endcan
+@endcanany
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('rta_saliks'))
 @can('salik_view')

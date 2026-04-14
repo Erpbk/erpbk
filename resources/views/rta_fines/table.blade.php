@@ -4,6 +4,7 @@
    <thead class="text-center">
       <tr role="row">
          <th title="Branch" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Branch: activate to sort column ascending">Branch</th>
+         <th title="Account" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Account: activate to sort column ascending">Account</th>
          <th title="Trip Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Trip Date: activate to sort column ascending">Trip Date</th>
          <th title="Trip Time" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Trip Time: activate to sort column ascending">Trip Time</th>
          <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
@@ -25,6 +26,7 @@
       @foreach($data as $r)
       <tr class="text-center">
          <td>{{ $r->branch?->name ?? 'N/A' }}</td>
+         <td>{{ DB::table('accounts')->where('id', $r->rta_account_id)->first()->name ?? 'N/A' }}</td>
          <td>{{ App\Helpers\General::DateFormat($r->trip_date) }}</td>
          <td>{{$r->trip_time}}</td>
          <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>

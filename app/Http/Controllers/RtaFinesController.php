@@ -134,45 +134,66 @@ class RtaFinesController extends AppBaseController
             abort(403, 'Unauthorized action.');
         }
         $parent = Accounts::where('id', 1235)->first();
-        // Use global pagination trait
-        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = Accounts::query()
-            ->orderBy('id', 'asc')->where('parent_id', $parent->id);
-        if ($request->has('account_code') && !empty($request->account_code)) {
-            $query->where('account_code', 'like', '%' . $request->account_code . '%');
+        $defaultAccount = Accounts::query()
+            ->where('parent_id', $parent?->id)
+            ->orderBy('id', 'asc')
+            ->first();
+
+        if (!$defaultAccount) {
+            Flash::error('No RTA Fine account found.');
+            return redirect()->back();
         }
-        if ($request->has('name') && !empty($request->name)) {
-            $query->where('name', 'like', '%' . $request->name . '%');
-        }
-        // Apply pagination using the trait
-        $data = $this->applyPagination($query, $paginationParams);
-        if ($request->ajax()) {
-            $tableData = view('rta_fines.account_table', [
-                'data' => $data,
-            ])->render();
-            $paginationLinks = $data->links('components.global-pagination')->render();
-            return response()->json([
-                'tableData' => $tableData,
-                'paginationLinks' => $paginationLinks,
-            ]);
-        }
-        return view('rta_fines.account_index', [
-            'data' => $data,
-        ]);
+
+        return redirect()->route('rtaFines.tickets');
     }
-    public function tickets(Request $request, $id)
+    public function tickets(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('rtafine_view')) {
             abort(403, 'Unauthorized action.');
         }
 
+        return $this->renderTicketsListing($request, 'unpaid');
+    }
+
+    public function paid(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('rtafine_paid_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        return $this->renderTicketsListing($request, 'paid');
+    }
+
+    private function renderTicketsListing(Request $request, string $status)
+    {
+        $status = $status === 'paid' ? 'paid' : 'unpaid';
+        $ticketsRouteName = $status === 'paid' ? 'rtaFines.paid' : 'rtaFines.tickets';
+        $pageTitle = $status === 'paid' ? 'Paid RTA Fines' : 'Unpaid RTA Fines';
+
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+
+        $defaultAccount = Accounts::query()
+            ->where('parent_id', 1235)
+            ->orderBy('id', 'asc')
+            ->first();
+
+        $selectedAccountId = $request->input('rta_account_id')
+            ?? session('rta_selected_account_id')
+            ?? $defaultAccount?->id;
+
+        if (!$selectedAccountId) {
+            Flash::error('No RTA Fine account found.');
+            return redirect()->back();
+        }
+
+        session(['rta_selected_account_id' => $selectedAccountId]);
 
         $query = RtaFines::query()
             ->with('branch')
             ->orderBy('id', 'asc')
-            ->where('rta_account_id', $id);
+            ->where('rta_account_id', $selectedAccountId)
+            ->where('status', $status);
 
         if ($request->filled('ticket_no')) {
             $query->where('ticket_no', 'like', '%' . $request->ticket_no . '%');
@@ -194,10 +215,6 @@ class RtaFinesController extends AppBaseController
         if ($request->filled('bike_id')) {
             $query->where('bike_id', $request->bike_id);
         }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
         // Paginated data
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
@@ -214,7 +231,11 @@ class RtaFinesController extends AppBaseController
         $totalAmount = $filteredData->sum('amount');
         $serviceCharges = $filteredData->sum('service_charges');
         $adminFee = $filteredData->sum('admin_fee');
-        $account = Accounts::find($id);
+        $account = Accounts::find($selectedAccountId);
+        $rtaAccounts = Accounts::query()
+            ->where('parent_id', 1235)
+            ->orderBy('name', 'asc')
+            ->get();
         $total_Amount =  $totalAmount + $serviceCharges + $adminFee;
         if ($request->ajax()) {
             $tableData = view('rta_fines.table', [
@@ -241,6 +262,10 @@ class RtaFinesController extends AppBaseController
         return view('rta_fines.index', [
             'data' => $data,
             'account' => $account,
+            'ticketsRouteName' => $ticketsRouteName,
+            'listingStatus' => $status,
+            'pageTitle' => $pageTitle,
+            'rtaAccounts' => $rtaAccounts,
             'paidAmount' => $paidAmount,
             'unpaidAmount' => $unpaidAmount,
             'totalAmount' => $totalAmount,
@@ -403,7 +428,7 @@ class RtaFinesController extends AppBaseController
             Flash::error('Error: ' . $e->getMessage());
         }
 
-        return redirect(route('rtaFines.tickets', $fine->rta_account_id));
+        return redirect(route('rtaFines.tickets'));
     }
 
 
@@ -418,10 +443,17 @@ class RtaFinesController extends AppBaseController
     /**
      * Show the form for creating a new RtaFines.
      */
-    public function create($id)
+    public function create()
     {
-        $data = Accounts::where('id', $id)->first();
-        return view('rta_fines.create', compact('data'));
+        $selectedAccountId = request('rta_account_id')
+            ?? session('rta_selected_account_id')
+            ?? Accounts::query()->where('parent_id', 1235)->orderBy('id', 'asc')->value('id');
+        $data = Accounts::where('id', $selectedAccountId)->first();
+        $rtaAccounts = Accounts::query()
+            ->where('parent_id', 1235)
+            ->orderBy('name', 'asc')
+            ->get();
+        return view('rta_fines.create', compact('data', 'rtaAccounts'));
     }
     /**
      * Store a newly created RtaFines in storage.
@@ -588,7 +620,7 @@ class RtaFinesController extends AppBaseController
             DB::commit();
             Flash::success('RTA Fine added successfully with all charges and ledger.');
 
-            return redirect(route('rtaFines.tickets', $rtaFines->rta_account_id));
+            return redirect(route('rtaFines.tickets'));
         } catch (\Exception $e) {
             DB::rollBack();
             report($e);
@@ -642,6 +674,10 @@ class RtaFinesController extends AppBaseController
 
         $rtaFines = $this->rtaFinesRepository->find($id);
         $data = Accounts::where('id', $rtaFines->rta_account_id)->first();
+        $rtaAccounts = Accounts::query()
+            ->where('parent_id', 1235)
+            ->orderBy('name', 'asc')
+            ->get();
 
         if (empty($rtaFines)) {
             Flash::error('Rta Fines not found');
@@ -649,7 +685,7 @@ class RtaFinesController extends AppBaseController
             return redirect(route('rtaFines.index'));
         }
 
-        return view('rta_fines.edit', compact('data', 'rtaFines'));
+        return view('rta_fines.edit', compact('data', 'rtaFines', 'rtaAccounts'));
     }
 
     /**
@@ -916,7 +952,7 @@ class RtaFinesController extends AppBaseController
             DB::commit();
             Flash::success('RTA Fine updated successfully.');
 
-            return redirect(route('rtaFines.tickets', $rtaFines->rta_account_id));
+            return redirect(route('rtaFines.tickets'));
         } catch (\Exception $e) {
             DB::rollBack();
             report($e);
@@ -1198,9 +1234,12 @@ class RtaFinesController extends AppBaseController
         }
     }
 
-    public function importForm($AccountId)
+    public function importForm()
     {
-        $account = Accounts::findOrFail($AccountId);
+        $selectedAccountId = request('rta_account_id')
+            ?? session('rta_selected_account_id')
+            ?? Accounts::query()->where('parent_id', 1235)->orderBy('id', 'asc')->value('id');
+        $account = Accounts::findOrFail($selectedAccountId);
         return view('rta_fines.import', compact('account'));
     }
 

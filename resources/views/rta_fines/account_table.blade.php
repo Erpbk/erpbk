@@ -15,7 +15,7 @@
    <tbody>
       @foreach($data as $r)
       <tr class="text-center">
-         <td> <a href="{{ route('rtaFines.tickets' , $r->id) }}">{{$r->name}}</a><br> </td>
+         <td> <a href="{{ route('rtaFines.tickets') }}">{{$r->name}}</a><br> </td>
          @php
          $balance = DB::table('rta_fines')->where('rta_account_id' , $r->id)->sum('amount');
          $account_tax = DB::table('rta_fines')->where('rta_account_id' , $r->id)->sum('service_charges');
@@ -39,13 +39,13 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
-                  <a href="{{ route('rtaFines.tickets' , $r->id) }}" class='dropdown-item waves-effect'>
+                  <a href="{{ route('rtaFines.tickets') }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye"></i>View
                   </a>
                   <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit"></i>Edit
                   </a>
-                  <a href="javascript:void(0);" onclick='confirmDelete("{{route('rtaFines.deleteaccount', $r->id) }}")' class='dropdown-item confirm-modal' data-size="lg" data-title="Delete Account">
+                  <a href="javascript:void(0);" data-delete-url="{{ route('rtaFines.deleteaccount', $r->id) }}" onclick="confirmDelete(this.dataset.deleteUrl)" class='dropdown-item confirm-modal' data-size="lg" data-title="Delete Account">
                      <i class="fa fa-trash"></i>Delete
                   </a>
                </div>

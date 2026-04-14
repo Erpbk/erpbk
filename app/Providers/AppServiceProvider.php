@@ -39,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
       if ($company instanceof Company && is_array($company->modules_settings)) {
         $overrides = $company->modules_settings['label_overrides'] ?? [];
         if ($overrides !== []) {
-          $labels = array_merge($labels, array_filter($overrides, fn ($v) => $v !== null && $v !== ''));
+          $labels = array_merge($labels, array_filter($overrides, fn($v) => $v !== null && $v !== ''));
         }
       }
       $view->with('menuLabels', $labels);
@@ -66,33 +66,33 @@ class AppServiceProvider extends ServiceProvider
     });
 
     Relation::morphMap([
-        'employee' => \App\Models\Employee::class,
-        'rider' => \App\Models\Riders::class,
+      'employee' => \App\Models\Employee::class,
+      'rider' => \App\Models\Riders::class,
     ]);
 
     app()->singleton('user_branches', function () {
-        /** @var \App\Models\User|null $user */
-        $user = Auth::user();
-        
-        if (!$user) {
-            return [];
-        }
-        
-        // Check if user is admin
-        if ($user->hasAnyRole('Administrator', 'Super Admin')) {
-            // Return ALL branch IDs
-            return \App\Models\Branch::pluck('id')->toArray() ?? [];
-        }
-        
-        // Non-admin: return only assigned branches.
-        // branch_ids is cast to array on User model; keep backward compatibility
-        // for legacy rows where it may still be stored as raw JSON string.
-        $branchIds = $user->branch_ids;
-        if (is_array($branchIds)) {
-            return $branchIds;
-        }
+      /** @var \App\Models\User|null $user */
+      $user = Auth::user();
 
-        return json_decode((string) ($branchIds ?? '[]'), true) ?? [];
+      if (!$user) {
+        return [];
+      }
+
+      // Check if user is admin
+      if ($user->hasAnyRole('Administrator', 'Super Admin')) {
+        // Return ALL branch IDs
+        return \App\Models\Branch::pluck('id')->toArray() ?? [];
+      }
+
+      // Non-admin: return only assigned branches.
+      // branch_ids is cast to array on User model; keep backward compatibility
+      // for legacy rows where it may still be stored as raw JSON string.
+      $branchIds = $user->branch_ids;
+      if (is_array($branchIds)) {
+        return $branchIds;
+      }
+
+      return json_decode((string) ($branchIds ?? '[]'), true) ?? [];
     });
   }
 }

@@ -9,16 +9,26 @@
     <h4 class="card-title">Application Settings</h4>
     </div>
     <div class="card-body">
+            @if($errors->any())
+            <div class="alert alert-danger">
+              <ul class="mb-0 ps-3">
+                @foreach($errors->all() as $error)
+                  <li>{{ $error }}</li>
+                @endforeach
+              </ul>
+            </div>
+            @endif
 
             @php $settingsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.company' : 'settings'; @endphp
-            {!! Form::open(['route' => $settingsRoute, 'method' => 'post']) !!}
+            @php $isSettingsPanel = (bool) (View::shared('settings_panel') ?? false); @endphp
+            <form action="{{ route($settingsRoute, ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) }}" method="post" enctype="multipart/form-data">
             @csrf
             <div class="row">
 
                 <div class="col-md-4 mb-3">
                     <label class="">Company Name</label>
                     <div class="input-group ">
-                    <input type="text" name="settings[company_name]" class="form-control" value="{{$settings['company_name']??''}}" />
+                    <input type="text" name="{{ $isSettingsPanel ? 'company_name' : 'settings[company_name]' }}" class="form-control" value="{{ old('company_name', $currentCompany->name ?? ($settings['company_name']??'')) }}" />
                    {{--  <div class="input-group-text">USD</div> --}}
                     </div>
                 </div>
@@ -26,7 +36,7 @@
                 <div class="col-md-4 mb-3">
                   <label class="">Email</label>
                   <div class="input-group ">
-                  <input type="text" name="settings[company_email]" class="form-control" value="{{$settings['company_email']??''}}" />
+                  <input type="text" name="{{ $isSettingsPanel ? 'company_email' : 'settings[company_email]' }}" class="form-control" value="{{ old('company_email', $currentCompany->email ?? ($settings['company_email']??'')) }}" />
                  {{--  <div class="input-group-text">USD</div> --}}
                   </div>
                 </div>
@@ -34,7 +44,7 @@
                 <div class="col-md-4 mb-3">
                   <label class="">Phone</label>
                   <div class="input-group ">
-                  <input type="text" name="settings[company_phone]" class="form-control" value="{{$settings['company_phone']??''}}" />
+                  <input type="text" name="{{ $isSettingsPanel ? 'company_phone' : 'settings[company_phone]' }}" class="form-control" value="{{ old('company_phone', $currentCompany->phone ?? ($settings['company_phone']??'')) }}" />
                  {{--  <div class="input-group-text">USD</div> --}}
                   </div>
                 </div>
@@ -42,10 +52,37 @@
                 <div class="col-md-8 mb-3">
                   <label class="">Address</label>
                   <div class="input-group ">
-                  <input type="text" name="settings[company_address]" class="form-control" value="{{$settings['company_address']??''}}" />
+                  <input type="text" name="{{ $isSettingsPanel ? 'company_address' : 'settings[company_address]' }}" class="form-control" value="{{ old('company_address', $currentCompany->address ?? ($settings['company_address']??'')) }}" />
                  {{--  <div class="input-group-text">USD</div> --}}
                   </div>
                 </div>
+
+                @if($isSettingsPanel)
+                <div class="col-md-2 mb-3">
+                  <label class="">Country</label>
+                  <div class="input-group ">
+                    <input type="text" name="company_country" class="form-control" value="{{ old('company_country', $currentCompany->country ?? '') }}" />
+                  </div>
+                </div>
+                <div class="col-md-2 mb-3">
+                  <label class="">City</label>
+                  <div class="input-group ">
+                    <input type="text" name="company_city" class="form-control" value="{{ old('company_city', $currentCompany->city ?? '') }}" />
+                  </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label class="">Company Logo</label>
+                  <input type="file" name="company_logo" class="form-control" accept=".jpg,.jpeg,.png,.webp" />
+                  @error('company_logo')
+                    <div class="text-danger small mt-1">{{ $message }}</div>
+                  @enderror
+                  @if(!empty($currentCompany?->logo))
+                    <div class="mt-2">
+                      <img src="{{ asset('storage/' . $currentCompany->logo) }}" alt="Company Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;">
+                    </div>
+                  @endif
+                </div>
+                @endif
 
                 <div class="col-md-4 mb-3">
                   <label class="">VAT Number</label>
@@ -74,7 +111,7 @@
             <div class="card-footer" >
               <button type="submit" class="btn btn-primary" style="float:right;">Save Settings</button>
               </div>
-            {!! Form::close() !!}
+            </form>
     </div>
 </div>
 @endsection

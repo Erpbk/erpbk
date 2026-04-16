@@ -19,6 +19,7 @@ use App\Models\Transactions;
 use App\Models\VisaStatus;
 use App\Repositories\VisaExpensesRepository;
 use App\Services\TransactionService;
+use App\Support\CompanyAuthRedirect;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
@@ -43,7 +44,7 @@ class VisaexpenseController extends AppBaseController
     {
         // Check if user is authenticated first
         if (!auth()->check()) {
-            return redirect()->route('login')->with('error', 'Please log in to access this page.');
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
         if (!auth()->user()->hasPermissionTo('visaexpense_view')) {
@@ -243,7 +244,7 @@ class VisaexpenseController extends AppBaseController
     {
         // Check if user is authenticated first
         if (!auth()->check()) {
-            return redirect()->route('login')->with('error', 'Please log in to access this page.');
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
         if (!auth()->user()->hasPermissionTo('visaexpense_view')) {
@@ -386,7 +387,7 @@ class VisaexpenseController extends AppBaseController
                 'session_id' => session()->getId(),
                 'request_url' => $request->fullUrl(),
             ]);
-            return redirect()->route('login')->with('error', 'Please log in to access this page.');
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
         if (!auth()->user()->hasPermissionTo('visaloan_view')) {

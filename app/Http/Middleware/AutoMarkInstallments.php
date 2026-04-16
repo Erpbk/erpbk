@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Models\visa_installment_plan;
@@ -19,12 +20,21 @@ class AutoMarkInstallments
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Only run auto-marking on visa expense related routes and if user is authenticated
-        if (auth()->check() && $this->shouldAutoMark($request)) {
+        // Only run auto-marking on visa expense related routes and if user is authenticated.
+        // auth()->check() can throw QueryException (e.g. wrong/missing DB in .env) — do not break the request.
+        try {
+            $authenticated = auth()->check();
+        } catch (QueryException $e) {
+            Log::warning('AutoMarkInstallments: skipped (database unavailable for auth)', [
+                'message' => $e->getMessage(),
+            ]);
+            return $next($request);
+        }
+
+        if ($authenticated && $this->shouldAutoMark($request)) {
             try {
                 $this->autoMarkOverdueInstallments();
             } catch (\Exception $e) {
-                // Log error but don't break the request
                 Log::error('AutoMarkInstallments middleware failed: ' . $e->getMessage());
             }
         }

@@ -114,7 +114,7 @@ class VouchersController extends Controller
     $data = $this->applyPagination($query, $paginationParams);
 
     $voucherModuleKey = 'vouchers';
-    $voucherTypesForFilter = VoucherType::activeCodeLabelMapForModule($voucherModuleKey);
+    $voucherTypesForFilter = VoucherType::activeCodeLabelMapForModuleWithEditAccess($voucherModuleKey);
     $editDeleteFlags = VoucherType::getEditDeleteFlagsByModule($voucherModuleKey);
 
     // AJAX Response for filtered results
@@ -161,7 +161,7 @@ class VouchersController extends Controller
     }
 
     $data = $query->paginate(20)->appends($request->query());
-    $voucherTypesForCreate = VoucherType::activeCodeLabelMapForModule('vouchers');
+    $voucherTypesForCreate = VoucherType::activeCodeLabelMapForModuleWithEditAccess('vouchers');
 
     return view('vouchers.list_sidebar', compact('data', 'voucherTypesForCreate'));
   }
@@ -174,8 +174,7 @@ class VouchersController extends Controller
    */
   public function create(Request $request)
   {
-    $vouchers = null;
-    $allowedTypes = VoucherType::activeCodeLabelMapForModule('vouchers');
+    $allowedTypes = VoucherType::activeCodeLabelMapForModuleWithEditAccess('vouchers');
     $vt = $request->query('vt');
     if ($vt !== null && !array_key_exists($vt, $allowedTypes)) {
       $vt = count($allowedTypes) > 0 ? array_key_first($allowedTypes) : null;

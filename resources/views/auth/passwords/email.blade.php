@@ -67,7 +67,7 @@ $customizerHidden = 'customizer-hide';
                     </form>
 
                     <p class="mt-3 mb-1">
-                        <a href="{{ route("login") }}"><i class="fa-solid fa-arrow-left"></i>&nbsp;Back to login</a>
+                        <a href="{{ \App\Support\CompanyAuthRedirect::url(request()) }}"><i class="fa-solid fa-arrow-left"></i>&nbsp;Back to login</a>
                     </p>
                     {{-- <p class="mb-0">
                         <a href="{{ route("register") }}" class="text-center">Register a new membership</a>

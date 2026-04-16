@@ -1,9 +1,14 @@
-@extends('layouts.app')
+@extends($layout ?? 'layouts.app')
 @section('title','Profile')
 @section('content')
+@php
+  $isPanel = (View::shared('settings_panel') ?? false);
+  $emailSettingsEditRoute = $isPanel ? 'settings-panel.email-settings.edit' : 'user.email-settings.edit';
+  $passwordRouteName = 'users.password';
+@endphp
 
-@php $usersRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.users' : 'users'; @endphp 
-{!! Form::model($user, ['route' => [$usersRoute .'.password', $user->id], 'method' => 'patch', 'id' => 'formajax', 'enctype' => 'multipart/form-data']) !!}
+
+{!! Form::model($user, ['route' => [$passwordRouteName, $user->id], 'method' => 'patch', 'id' => 'formajax', 'enctype' => 'multipart/form-data']) !!}
 <div class="row">
     <div class="col-xl-4 col-lg-5 col-md-5">
         <!-- Profile Card -->

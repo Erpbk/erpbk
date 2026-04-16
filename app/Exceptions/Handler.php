@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use App\Support\CompanyAuthRedirect;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
@@ -65,7 +66,7 @@ class Handler extends ExceptionHandler
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Unauthenticated.'], 401);
             }
-            return redirect()->guest(route('login'));
+            return redirect()->guest(CompanyAuthRedirect::url($request));
         }
 
         // Handle throttle exceptions

@@ -87,8 +87,11 @@ class User extends Authenticatable
 
   public function getBranchesAttribute()
   {
-      $branchIds = json_decode($this->branch_ids) ?? [];
-      
+      $branchIds = $this->branch_ids;
+      if (! is_array($branchIds)) {
+          $branchIds = json_decode((string) ($branchIds ?? '[]'), true) ?: [];
+      }
+
       return Branch::whereIn('id', $branchIds)->get();
   }
 

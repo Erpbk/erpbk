@@ -14,6 +14,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Some central DBs may not have the `accounts` table yet.
+        if (!Schema::hasTable('accounts')) {
+            return;
+        }
+
         if (!Schema::hasTable('expense_accounts')) {
             Schema::create('expense_accounts', function (Blueprint $table) {
                 $table->id();

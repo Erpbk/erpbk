@@ -37,7 +37,7 @@
                </a>
                @endcan
                @can('vendor_delete')
-               <a href="javascript:void(0);" onclick='confirmDelete("{{route('vendors.delete', $r->id) }}")' class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Item">
+               <a href="javascript:void(0);" data-delete-url="{{ route('vendors.destroy', $r->id) }}" onclick="confirmDelete(this.dataset.deleteUrl)" class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Item">
                   <i class="fa fa-trash"></i>
                </a>
                @endcan

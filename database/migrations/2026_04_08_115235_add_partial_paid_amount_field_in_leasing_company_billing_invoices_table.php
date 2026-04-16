@@ -1,0 +1,29 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('leasing_company_billing_invoices', function (Blueprint $table) {
+            $table->string('partial_paid_amount')->nullable()->after('total_amount');
+            $table->unsignedBigInteger('updated_by')->nullable()->after('updated_at');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('leasing_company_billing_invoices', function (Blueprint $table) {
+            $table->dropColumn(['partial_paid_amount', 'updated_by']);
+        });
+    }
+};

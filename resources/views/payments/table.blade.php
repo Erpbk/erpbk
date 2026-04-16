@@ -45,9 +45,11 @@
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $payment->id }}" style="z-index: 1050;">
                         @can('payment_create')
+                            @if(!str_contains($payment->reference, 'LCI') && !str_contains($payment->reference, 'SUP'))
                             <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Add New Payment (Cloned From PV-{{ $payment->voucher_id }})" data-action="{{ route('payments.clone', $payment->id) }}">
                                 <i class="fa fa-copy my-1"></i>Clone Payment
                             </a>
+                            @endif
                         @endcan
                         @can('payments_edit')
                             <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Payment Details" data-action="{{ route('payments.edit', $payment->id) }}">

@@ -26,7 +26,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         $query = LeasingCompanyBillingInvoice::with('leasingCompany')
             ->orderBy('billing_month', 'desc')
             ->orderBy('id', 'desc');
-
+        $query->whereHas('leasingCompany'); // important to apply branch Scope, don't remove
         if ($request->has('leasing_company_id') && !empty($request->leasing_company_id)) {
             $query->where('leasing_company_id', $request->leasing_company_id);
         }

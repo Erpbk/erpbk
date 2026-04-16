@@ -12,7 +12,7 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
 </li>
 @endcan
 @can('bank_view')
-<li class="menu-item {{ Request::is('banks*') ? 'open' : '' }} {{ Request::is('bank*') ? 'open' : '' }} {{ Request::is('cheques') ? 'open' : '' }}">
+<li class="menu-item {{ Request::is('banks*') ? 'open' : '' }}  {{ Request::is('bank*') ? 'open' : '' }} {{ Request::is('cheques') ? 'open' : '' }} {{ Request::is('payments*') ? 'open' : '' }} {{ Request::is('receipts*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
     <i class="menu-icon tf-icons ti ti-building-bank"></i>
     <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
@@ -23,7 +23,7 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
         <div>{{ $menuLabels['cheques'] ?? 'Cheques' }}</div>
       </a>
     </li>
-    <li class="menu-item {{ Request::is('banks') ? 'active' : '' }} {{ Request::is('bank*') ? 'active' : '' }}">
+    <li class="menu-item {{ Request::is('banks') ? 'active' : '' }} {{ Request::is('bank*') ? 'active' : '' }} {{ Request::is('payments*') ? 'active' : '' }} {{ Request::is('receipts*') ? 'active' : '' }} ">
       <a href="{{ route('banks.index') }}" class="menu-link">
         <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
       </a>
@@ -302,7 +302,7 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
   </ul>
   @endcan
 
-<li class="menu-item {{ Request::is('leasingCompanies*') ? 'open' : '' }} {{ Request::is('leasingCompanyInvoices*') ? 'open' : '' }} {{ Request::is('leasingCompanyBillingInvoices*') ? 'open' : '' }}">
+<li class="menu-item {{ Request::is('leasingCompanies*') ? 'open' : '' }} {{ Request::is('leasingCompany*') ? 'open' : '' }} {{ Request::is('leasingCompanyInvoices*') ? 'open' : '' }} {{ Request::is('leasingCompanyBillingInvoices*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-building"></i>
     <div>{{ $menuLabels['leasing_companies'] ?? 'Leasing Companies' }}</div>
@@ -330,6 +330,20 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
         <div>{{ $menuLabels['leasing_billing_invoice'] ?? 'Billing Invoice' }}</div>
       </a>
     </li>
+    <li class="menu-item {{ Request::is('leasingCompany/receipts') ? 'active' : '' }}">
+      <a href="{{ route('leasingCompanies.receipt') }}" class="menu-link ">
+        <i class="menu-icon tf-icons ti ti-file-plus"></i>
+        <div>{{ $menuLabels['leasing_receipt'] ?? 'Payments Received' }}</div>
+      </a>
+    </li>
+    @endcan
+    @can('leasing_company_invoice_view')
+    <li class="menu-item {{ Request::is('leasingCompany/payments') ? 'active' : '' }}">
+      <a href="{{ route('leasingCompanies.payment') }}" class="menu-link ">
+        <i class="menu-icon tf-icons ti ti-file-plus"></i>
+        <div>{{ $menuLabels['leasing_payment'] ?? 'Payments sent' }}</div>
+      </a>
+    </li>
     @endcan
   </ul>
 </li>
@@ -342,7 +356,7 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
 </li>
 @endcan
 @canany(['supplier_view'])
-<li class="menu-item {{ Request::is('suppliers*') ? 'open' : '' }}">
+<li class="menu-item {{ Request::is('suppliers*') ? 'open' : '' }} {{ Request::is('supplier*') ? 'open' : '' }} {{ Request::is('supplier_invoices*') ? 'open' : '' }}">
 
   <a href="javascript:void(0); " class="menu-link menu-toggle">
     <i class="menu-icon tf-icons ti ti-truck"></i>
@@ -352,15 +366,28 @@ $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
 
     <li class="menu-item {{ Request::is('suppliers*') ? 'active' : '' }}">
       <a href="{{ route('suppliers.index') }}" class="menu-link">
-        <div>{{ $menuLabels['suppliers'] ?? 'Suppliers' }}</div>
+        <div>{{ $menuLabels['suppliers'] ?? 'Suppliers List' }}</div>
       </a>
     </li>
 
-    <li class="menu-item {{ Request::is('supplier-invoices*') ? 'active' : '' }}">
+    <li class="menu-item {{ Request::is('supplier/purchase*') ? 'active' : '' }}">
+      <a href="{{ route('supplier.purchase_order') }}" class="menu-link">
+        <div>{{ $menuLabels['supplier_orders'] ?? 'Purchase Orders' }}</div>
+      </a>
+    </li>
+
+    <li class="menu-item {{ Request::is('supplier_invoices*') ? 'active' : '' }}">
       <a href="{{ route('supplier_invoices.index') }}" class="menu-link">
         <div>{{ $menuLabels['supplier_invoices'] ?? 'Supplier Invoices' }}</div>
       </a>
     </li>
+
+    <li class="menu-item {{ Request::is('supplier/payments') ? 'active' : '' }}">
+      <a href="{{ route('supplier.payments') }}" class="menu-link">
+        <div>{{ $menuLabels['supplier_payments'] ?? 'Payments Sent' }}</div>
+      </a>
+    </li>
+
 
   </ul>
 </li>

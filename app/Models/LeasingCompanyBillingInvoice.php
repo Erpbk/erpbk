@@ -26,6 +26,7 @@ class LeasingCompanyBillingInvoice extends Model
         'notes',
         'attachment',
         'status',
+        'partial_paid_amount'
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class LeasingCompanyBillingInvoice extends Model
         'vat' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'status' => 'integer',
+        'partial_paid_amount' => 'array',
     ];
 
     protected $dates = ['deleted_at'];
@@ -52,6 +54,7 @@ class LeasingCompanyBillingInvoice extends Model
         'notes' => 'nullable|string',
         'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
         'status' => 'nullable|integer',
+        'partial_paid_amount' => 'nullable|array',
     ];
 
     public function leasingCompany()
@@ -62,6 +65,28 @@ class LeasingCompanyBillingInvoice extends Model
     public function items()
     {
         return $this->hasMany(LeasingCompanyBillingInvoiceItem::class, 'inv_id', 'id');
+    }
+
+    public function getPaidAmountAttribute()
+    {
+        return array_sum($this->partial_paid_amount ?? []);
+    }
+
+    public function getBalanceAttribute()
+    {
+        return $this->total_amount - $this->paid_amount;
+    }
+
+    public static function getIdFromInvoiceNumber($invoiceNumber)
+    {
+        // Remove the prefix 'CI-' and get the numeric part
+        $numericPart = str_replace('LBI-', '', $invoiceNumber);
+        
+        // Remove leading zeros and convert to integer
+        $id = (int) ltrim($numericPart, '0');
+        
+        // Verify the invoice exists
+        return self::where('id', $id)->exists() ? $id : null;
     }
 }
 

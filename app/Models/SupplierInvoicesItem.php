@@ -11,7 +11,7 @@ class SupplierInvoicesItem extends Model
 
     protected $table = 'supplier_invoice_items';
     protected $fillable = [
-        'inv_id', 'item_id', 'item_des', 'qty', 'rate', 'discount', 'tax', 'amount',
+        'inv_id', 'item_id', 'item_des', 'qty', 'rate', 'discount', 'tax', 'amount', 'tax_amount', 'total_amount',
     ];
 
     public function invoice()

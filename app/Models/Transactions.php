@@ -26,7 +26,7 @@ class Transactions extends Model
   ];
 
   public static $rules = [
-    'branch_id' => 'required|exists:branches,id',
+    'branch_id' => 'nullable|exists:branches,id',
   ];
 
   function account()

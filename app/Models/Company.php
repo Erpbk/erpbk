@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Each company has its own database; connection is switched at runtime.
  * Company owner credentials are stored here until approval; then first User is created in tenant DB.
  */
-class Company extends Model
+class Company extends BaseModel
 {
     use SoftDeletes;
 

@@ -2,7 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
-use App\Models\VoucherType;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -12,10 +12,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!\Illuminate\Support\Facades\Schema::hasTable('voucher_types') ||
-            !\Illuminate\Support\Facades\Schema::hasTable('voucher_type_module_assignments')) {
+        if (!Schema::hasTable('voucher_types') ||
+            !Schema::hasTable('voucher_type_module_assignments')) {
             return;
         }
+
+        // Defensive guard for fresh environments where settings may be created later.
+        // This migration intentionally avoids Settings model usage to stay order-safe.
+        $settingsTableExists = Schema::hasTable('settings');
 
         // Ensure Expense Voucher type exists (used by ExpenseController)
         DB::table('voucher_types')->updateOrInsert(
@@ -51,13 +55,18 @@ return new class extends Migration
             'VP'   => [['vat', true, true], ['vouchers', true, true]],
         ];
 
-        $allowedModules = array_keys(VoucherType::availableModules());
+        $allowedModules = array_keys(config('voucher_modules.modules', []));
 
         foreach ($assignments as $code => $moduleList) {
-            $type = VoucherType::where('code', $code)->first();
+            $type = DB::table('voucher_types')->where('code', $code)->first();
             if (!$type) {
                 continue;
             }
+
+            if (!$settingsTableExists && empty($allowedModules)) {
+                continue;
+            }
+
             $moduleKeys = [];
             $canEditByModule = [];
             $canDeleteByModule = [];
@@ -71,7 +80,25 @@ return new class extends Migration
                 $canDeleteByModule[$moduleKey] = (bool) ($triple[2] ?? true);
             }
             if (!empty($moduleKeys)) {
-                $type->syncModules($moduleKeys, $canEditByModule, $canDeleteByModule);
+                DB::table('voucher_type_module_assignments')
+                    ->where('voucher_type_id', $type->id)
+                    ->whereNotIn('module_key', $moduleKeys)
+                    ->delete();
+
+                foreach ($moduleKeys as $moduleKey) {
+                    DB::table('voucher_type_module_assignments')->updateOrInsert(
+                        [
+                            'voucher_type_id' => $type->id,
+                            'module_key' => $moduleKey,
+                        ],
+                        [
+                            'can_edit' => (bool) ($canEditByModule[$moduleKey] ?? true),
+                            'can_delete' => (bool) ($canDeleteByModule[$moduleKey] ?? true),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]
+                    );
+                }
             }
         }
     }

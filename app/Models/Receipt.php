@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
-class Receipt extends Model
+class Receipt extends BaseModel
 {
     use LogsActivity, BranchScope;
 

@@ -330,7 +330,7 @@ class BikesController extends AppBaseController
     $input = $request->all();
 
     // Check if selected vehicle type is Cyclist
-    $vehicleModel = DB::table('vehicle_models')->find($request->vehicle_type);
+    $vehicleModel = \App\Support\CompanyQuery::table('vehicle_models')->find($request->vehicle_type);
 
     if ($vehicleModel && strtolower($vehicleModel->name) === 'cyclist') {
       unset(
@@ -364,7 +364,7 @@ class BikesController extends AppBaseController
       return redirect(route('bikes.index'));
     }
 
-    $mulkiyaFile = DB::table('files')
+    $mulkiyaFile = \App\Support\CompanyQuery::table('files')
       ->where('type', 'bike')
       ->where('type_id', $id)
       ->where('name', 'LIKE', '%mulkiya%')
@@ -411,7 +411,7 @@ class BikesController extends AppBaseController
         $designation = $rider->designation;
         $emirate_hub = $request->emirate_hub;
         if ($bikes->vehicle_type) {
-          $vehicleModel = \DB::table('vehicle_models')->where('id', $bikes->vehicle_type)->first();
+          $vehicleModel = \App\Support\CompanyQuery::table('vehicle_models')->where('id', $bikes->vehicle_type)->first();
           $vehicleTypeName = $vehicleModel ? strtolower($vehicleModel->name) : '';
           if (strpos($vehicleTypeName, 'bike') !== false) {
             $designation = 'Rider';
@@ -512,7 +512,7 @@ class BikesController extends AppBaseController
           function ($attribute, $value, $fail) use ($request) {
 
             // Get the last assign date for this bike from bike history
-            $lastAssignDate = DB::table('bike_histories')
+            $lastAssignDate = \App\Support\CompanyQuery::table('bike_histories')
               ->where('bike_id', $request->bike_id)
               ->where('warehouse', 'Active')
               ->orderBy('note_date', 'desc')
@@ -542,7 +542,7 @@ class BikesController extends AppBaseController
       try {
 
         $bike = Bikes::findOrFail($request->bike_id);
-        $rider = DB::table('riders')->where('id', $bike->rider_id)->first();
+        $rider = \App\Support\CompanyQuery::table('riders')->where('id', $bike->rider_id)->first();
         $designation = $request->designation;
         $message = "*Bike* 🏍️\n";
         $message .= "────────────────\n";
@@ -554,7 +554,7 @@ class BikesController extends AppBaseController
         else
           $message .= "*Return Date:* {$request->return_date}\n";
         $message .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
-        $project = DB::table('customers')->where('id', $bike->customer_id)->first();
+        $project = \App\Support\CompanyQuery::table('customers')->where('id', $bike->customer_id)->first();
         $message .= "*Project:* {$project->name}\n";
         $message .= "*Emirates:* {$bike->emirates}\n";
         $message .= "*Note:*" . $request->notes ?? '' . "\n";
@@ -659,7 +659,7 @@ class BikesController extends AppBaseController
           function ($attribute, $value, $fail) use ($request) {
             if ($value) {
               // Check if bike exists
-              $bike = DB::table('bikes')->where('id', $request->bike_id)->first();
+              $bike = \App\Support\CompanyQuery::table('bikes')->where('id', $request->bike_id)->first();
               if (!$bike) {
                 $fail('Bike not found.');
                 return;
@@ -670,7 +670,7 @@ class BikesController extends AppBaseController
                 return;
               }
               // Check if rider has any bike that's not "Returned" or "Vacation"
-              $assignedBike = DB::table('bikes')
+              $assignedBike = \App\Support\CompanyQuery::table('bikes')
                 ->where('rider_id', $value)
                 ->whereNotIn('warehouse', ['Return', 'Vacation', 'Express Garage'])
                 ->first();
@@ -691,7 +691,7 @@ class BikesController extends AppBaseController
               return;
             }
             // Get the last return date for this bike from bike history
-            $lastReturnDate = DB::table('bike_histories')
+            $lastReturnDate = \App\Support\CompanyQuery::table('bike_histories')
               ->where('bike_id', $request->bike_id)
               ->where('warehouse', 'Return')
               ->where('warehouse', 'Vacation')
@@ -724,7 +724,7 @@ class BikesController extends AppBaseController
       DB::beginTransaction();
       try {
         $bike = Bikes::findOrFail($request->bike_id);
-        $rider = DB::table('riders')->where('id', $request->rider_id)->first();
+        $rider = \App\Support\CompanyQuery::table('riders')->where('id', $request->rider_id)->first();
         $designation = $request->designation;
         $customer_id = $request->customer_id;
 
@@ -735,7 +735,7 @@ class BikesController extends AppBaseController
         $message .= "*Name:* {$rider->name}\n";
         $message .= "*Assign Date:* {$request->note_date}\n";
         $message .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
-        $project = DB::table('customers')->where('id', $customer_id)->first();
+        $project = \App\Support\CompanyQuery::table('customers')->where('id', $customer_id)->first();
         $message .= "*Project:* {$project->name}\n";
         $message .= "*Emirates:* {$bike->emirates}\n";
         $message .= "*Note:*" . $request->notes ?? '' . "\n";
@@ -1152,7 +1152,7 @@ class BikesController extends AppBaseController
       'advertising' => 'Advertising Permit',
     ];
 
-    $files = DB::table('files')
+    $files = \App\Support\CompanyQuery::table('files')
       ->where('type', 'bike')
       ->where('type_id', $bike_id)
       ->get();

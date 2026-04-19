@@ -384,12 +384,12 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         }
 
         try {
-            DB::table('transactions')
+            \App\Support\CompanyQuery::table('transactions')
                 ->where('reference_type', 'LeasingCompanyBillingInvoice')
                 ->where('reference_id', $id)
                 ->delete();
 
-            DB::table('leasing_company_billing_invoice_items')
+            \App\Support\CompanyQuery::table('leasing_company_billing_invoice_items')
                 ->where('inv_id', $id)
                 ->delete();
 
@@ -446,11 +446,11 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                     $newItemData = $item->toArray();
                     unset($newItemData['id'], $newItemData['created_at'], $newItemData['updated_at']);
                     $newItemData['inv_id'] = $newInvoice->id;
-                    DB::table('leasing_company_billing_invoice_items')->insert($newItemData);
+                    \App\Support\CompanyQuery::table('leasing_company_billing_invoice_items')->insert($newItemData);
                 }
             }
 
-            $items = DB::table('leasing_company_billing_invoice_items')->where('inv_id', $newInvoice->id)->get();
+            $items = \App\Support\CompanyQuery::table('leasing_company_billing_invoice_items')->where('inv_id', $newInvoice->id)->get();
             $newInvoice->subtotal = $items->sum('rental_amount');
             $newInvoice->vat = $items->sum('tax_amount');
             $newInvoice->total_amount = $items->sum('total_amount');

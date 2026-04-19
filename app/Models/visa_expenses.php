@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Models\Vouchers;
 
-class visa_expenses extends Model
+class visa_expenses extends BaseModel
 {
     use LogsActivity, SoftDeletes;
 

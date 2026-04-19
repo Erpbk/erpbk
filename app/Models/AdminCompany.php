@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Mirror of central {@see Company} for the admin panel DB (`mysql_admin`).
  * `id` matches `companies.id`. Email is unique: remove stale rows with same email before upserting by id.
  */
-class AdminCompany extends Model
+class AdminCompany extends BaseModel
 {
     use SoftDeletes;
 

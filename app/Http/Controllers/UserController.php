@@ -21,6 +21,7 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use App\Helpers\IConstants;
 use App\Models\Activity;
+use App\Models\Company;
 use Illuminate\Support\Facades\Storage;
 
 class UserController extends AppBaseController
@@ -54,8 +55,9 @@ class UserController extends AppBaseController
     }*/
 
 
-    $roles = Role::all();
-
+    $roles = Role::where('company_id', auth()->user()->company_id)
+      ->orWhere('name', 'Super Admin')
+      ->get();
     return $userDataTable->render('users.index', compact('roles'));
   }
 
@@ -68,8 +70,8 @@ class UserController extends AppBaseController
     $countries = Country::countries();
     $departments = Departments::all()->pluck('name', 'id');
     $branches = Branch::active()->pluck('name', 'id');
-    $employees = Employee::active()->get(['id','employee_id','name']);
-    return view('users.create', compact('roles', 'countries', 'departments', 'branches','employees'));
+    $employees = Employee::active()->get(['id', 'employee_id', 'name']);
+    return view('users.create', compact('roles', 'countries', 'departments', 'branches', 'employees'));
   }
 
   /**
@@ -78,16 +80,17 @@ class UserController extends AppBaseController
   public function store(CreateUserRequest $request)
   {
     $input = $request->all();
+    $input['company_id'] = $this->resolveCompanyId($request);
 
     $input['name'] = $input['first_name'] . ' ' . $input['last_name'];
     $input['password'] = Hash::make($input['password']);
     if (!isset($input['status'])) {
       $input['status'] = null;
     }
-    if(in_array('all', $input['branch_ids'])){
+    if (in_array('all', $input['branch_ids'])) {
       $branches = Branch::active()->pluck('id');
       $input['branch_ids'] = json_encode($branches);
-    }else {
+    } else {
       $input['branch_ids'] = json_encode($input['branch_ids']);
     }
     $user = $this->userRepository->create($input);
@@ -108,7 +111,7 @@ class UserController extends AppBaseController
   {
     $user = $this->userRepository->find($user);
 
-    if (empty($user)) {
+    if (empty($user) || !$this->belongsToCurrentCompany($user)) {
       Flash::error('User not found');
 
       return redirect(route('settings-panel.users.index'));
@@ -124,7 +127,7 @@ class UserController extends AppBaseController
   {
     $user = $this->userRepository->find($user);
 
-    if (empty($user)) {
+    if (empty($user) || !$this->belongsToCurrentCompany($user)) {
       Flash::error('User not found');
 
       return redirect(route('settings-panel.users.index'));
@@ -135,10 +138,10 @@ class UserController extends AppBaseController
     $userRole = $user->roles->pluck('name', 'name')->first();
     $departments = Departments::all()->pluck('name', 'id');
     $countries = Country::countries();
-    $branches = Branch::active()->pluck('name','id');
-    $employees = Employee::active()->get(['id','employee_id','name']);
+    $branches = Branch::active()->pluck('name', 'id');
+    $employees = Employee::active()->get(['id', 'employee_id', 'name']);
 
-    return view('users.edit', compact('user', 'roles', 'countries', 'userRole', 'departments', 'branches','employees'));
+    return view('users.edit', compact('user', 'roles', 'countries', 'userRole', 'departments', 'branches', 'employees'));
   }
 
   /**
@@ -148,8 +151,9 @@ class UserController extends AppBaseController
   {
     $user = $this->userRepository->find($user);
     $input = $request->all();
+    unset($input['company_id']);
 
-    if (empty($user)) {
+    if (empty($user) || !$this->belongsToCurrentCompany($user)) {
       Flash::error('User not found');
 
       return redirect(route('settings-panel.users.index'));
@@ -168,10 +172,10 @@ class UserController extends AppBaseController
     } else {
       unset($input['password']);
     }
-    if(in_array('all', $input['branch_ids'])){
+    if (in_array('all', $input['branch_ids'])) {
       $branches = Branch::active()->pluck('id');
       $input['branch_ids'] = json_encode($branches);
-    }else {
+    } else {
       $input['branch_ids'] = json_encode($input['branch_ids']);
     }
 
@@ -196,7 +200,7 @@ class UserController extends AppBaseController
   {
     $user = $this->userRepository->find($user);
 
-    if (empty($user)) {
+    if (empty($user) || !$this->belongsToCurrentCompany($user)) {
       Flash::error('User not found');
 
       return redirect(route('settings-panel.users.index'));
@@ -268,68 +272,89 @@ class UserController extends AppBaseController
 
     //$roles = Role::pluck('name','name')->all();
     $countries = Country::countries();
-    $branches = Branch::active()->pluck('name','id');
-    $employees = Employee::active()->get(['id','employee_id','name']);
+    $branches = Branch::active()->pluck('name', 'id');
+    $employees = Employee::active()->get(['id', 'employee_id', 'name']);
 
-    return view('users.profile', compact('user', 'countries','branches','employees'));
+    return view('users.profile', compact('user', 'countries', 'branches', 'employees'));
   }
 
   public function changePassword(Request $request, string $company_slug, $id)
   {
-      $user = $this->userRepository->find($id);
-      if (auth()->id() != $id) {
-          abort(403, 'Unauthorized action.');
+    $user = $this->userRepository->find($id);
+    if (auth()->id() != $id) {
+      abort(403, 'Unauthorized action.');
+    }
+    $rules = [];
+    if ($request->filled('current_password') || $request->filled('new_password')) {
+      $rules = array_merge($rules, [
+        'current_password' => 'required',
+        'new_password' => 'required|min:8|confirmed',
+      ]);
+    }
+    if ($request->hasFile('image_name')) {
+      $rules = array_merge($rules, [
+        'image_name' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+      ]);
+    }
+    $validated = $request->validate($rules);
+    if ($request->filled('new_password')) {
+      if (!Hash::check($request->current_password, $user->password)) {
+        return response()->json(['message' => 'Incorrect password entered'], 500);
       }
-      $rules = [];
-      if ($request->filled('current_password') || $request->filled('new_password')) {
-          $rules = array_merge($rules, [
-              'current_password' => 'required',
-              'new_password' => 'required|min:8|confirmed',
-          ]);
+
+      // Update password
+      $user->password = Hash::make($request->new_password);
+    }
+
+    // Update image if provided
+    if ($request->hasFile('image_name')) {
+      // Delete old image if exists and not default
+      if ($user->image_name && $user->image_name != 'default.png') {
+        $oldImagePath = public_path('uploads/' . $user->image_name);
+        if (file_exists($oldImagePath)) {
+          unlink($oldImagePath);
+        }
       }
-      if ($request->hasFile('image_name')) {
-          $rules = array_merge($rules, [
-              'image_name' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
-          ]);
-      }
-      $validated = $request->validate($rules);
-      if ($request->filled('new_password')) {
-          if (!Hash::check($request->current_password, $user->password)) {
-              return response()->json(['message' => 'Incorrect password entered'],500);
-          }
-          
-          // Update password
-          $user->password = Hash::make($request->new_password);
-      }
-      
-      // Update image if provided
-      if ($request->hasFile('image_name')) {
-          // Delete old image if exists and not default
-          if ($user->image_name && $user->image_name != 'default.png') {
-              $oldImagePath = public_path('uploads/' . $user->image_name);
-              if (file_exists($oldImagePath)) {
-                  unlink($oldImagePath);
-              }
-          }
-          $imageService = new ImageService();
-          $file_name = $imageService->uploadImage($request);
-          $user->image_name = $file_name;
-      }
-      
-      // Save changes
-      $user->save();
-      
-      // Prepare response message
-      $message = [];
-      if ($request->filled('new_password')) {
-          $message[] = 'Password updated successfully';
-      }
-      if ($request->hasFile('image_name')) {
-          $message[] = 'Profile image updated successfully';
-      }
-      
-      $successMessage = implode(' and ', $message) ?: 'No changes were made.';
-      
-      return response()->json(['message' => $successMessage, 'reload' => true],200);
+      $imageService = new ImageService();
+      $file_name = $imageService->uploadImage($request);
+      $user->image_name = $file_name;
+    }
+
+    // Save changes
+    $user->save();
+
+    // Prepare response message
+    $message = [];
+    if ($request->filled('new_password')) {
+      $message[] = 'Password updated successfully';
+    }
+    if ($request->hasFile('image_name')) {
+      $message[] = 'Profile image updated successfully';
+    }
+
+    $successMessage = implode(' and ', $message) ?: 'No changes were made.';
+
+    return response()->json(['message' => $successMessage, 'reload' => true], 200);
+  }
+
+  private function resolveCompanyId(Request $request): int
+  {
+    $authCompanyId = auth()->user()?->company_id;
+    if (!empty($authCompanyId)) {
+      return (int) $authCompanyId;
+    }
+
+    $company = $request->attributes->get('company');
+    if ($company instanceof Company) {
+      return (int) $company->id;
+    }
+
+    abort(403, 'Unable to determine company context.');
+  }
+
+  private function belongsToCurrentCompany($user): bool
+  {
+    $currentCompanyId = $this->resolveCompanyId(request());
+    return (int) ($user->company_id ?? 0) === (int) $currentCompanyId;
   }
 }

@@ -35,7 +35,7 @@ class UserEmailService
    */
   public function configureSmtpForUser(User $user, ?string $smtpUsername = null): bool
   {
-    $setting = DB::table('user_email_settings')->where('user_id', $user->id)->first();
+    $setting = \App\Support\CompanyQuery::table('user_email_settings')->where('user_id', $user->id)->first();
     if (!$setting?->smtp_app_password_encrypted) {
       return false;
     }
@@ -77,7 +77,7 @@ class UserEmailService
    */
   public function getCcRecipientEmails(User $user): array
   {
-    $recipients = DB::table('user_email_cc_recipients')
+    $recipients = \App\Support\CompanyQuery::table('user_email_cc_recipients')
       ->where('user_id', $user->id)
       ->join('users as u', 'u.id', '=', 'user_email_cc_recipients.recipient_user_id')
       ->get(['u.email', 'u.username']);

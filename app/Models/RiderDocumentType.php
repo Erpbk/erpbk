@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class RiderDocumentType extends Model
+class RiderDocumentType extends BaseModel
 {
     protected $table = 'rider_document_types';
 

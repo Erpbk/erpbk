@@ -83,6 +83,16 @@ echo "Creating storage symlink..."
 php artisan storage:link 2>/dev/null
 echo -e "${GREEN}✓ Storage symlink created (or already exists)${NC}"
 
+# Run central + admin migrations
+echo ""
+echo "Running database migrations (central + admin)..."
+if php artisan app:migrate-all --force; then
+    echo -e "${GREEN}✓ Migrations completed (central + admin)${NC}"
+else
+    echo -e "${RED}✗ Migrations failed. Stopping deployment.${NC}"
+    exit 1
+fi
+
 # Clear caches
 echo ""
 echo "Clearing caches..."

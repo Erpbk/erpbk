@@ -14,6 +14,7 @@ class RtaFinesRepository extends BaseRepository
         'trip_time',
         'rider_id',
         'billing_month',
+        'reference_number',
         'ticket_no',
         'bike_id',
         'plate_no',

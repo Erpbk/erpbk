@@ -30,7 +30,7 @@ use App\Traits\BranchScope;
  * @property integer $vendor_id
  * @property boolean $status
  */
-class Vouchers extends Model
+class Vouchers extends BaseModel
 {
   use HasFactory, LogsActivity, SoftDeletes, BranchScope;
 

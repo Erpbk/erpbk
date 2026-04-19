@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
-class SupplierInvoices extends Model
+class SupplierInvoices extends BaseModel
 {
     use LogsActivity;
 

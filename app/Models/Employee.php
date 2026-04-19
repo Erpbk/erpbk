@@ -5,9 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use App\Traits\BranchScope;
 
-class Employee extends Model
+class Employee extends BaseModel
 {
     use HasFactory, SoftDeletes, BranchScope;
 
@@ -100,5 +101,12 @@ class Employee extends Model
     public function updater()
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public static function dropdown()
+    {
+        return self::select('id', DB::raw("CONCAT(employee_id, '-', name) as full_name"))
+            ->pluck('full_name', 'id')
+            ->prepend('Select', '');
     }
 }

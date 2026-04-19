@@ -50,7 +50,7 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
             </div>
         </div>
         <!-- Add New Role Card -->
-        <div class="col-4">
+        <!-- <div class="col-4">
             <div class="card border-0 shadow-sm h-100 bg-light border-dashed">
                 <div class="card-body d-flex align-items-center justify-content-center">
                     <div class="text-center">
@@ -72,7 +72,7 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
                     </div>
                 </div>
             </div>
-        </div>
+        </div> -->
     </div>
 
     <!-- Role Cards -->

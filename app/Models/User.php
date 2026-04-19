@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -12,7 +13,7 @@ use App\Traits\LogsActivity;
 
 class User extends Authenticatable
 {
-  use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
+  use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity, BelongsToCompany;
 
   /**
    * The attributes that are mass assignable.
@@ -23,6 +24,7 @@ class User extends Authenticatable
   protected $fillable = [
     'branch_ids',
     'employee_id',
+    'company_id',
     'name',
     'first_name',
     'last_name',
@@ -43,6 +45,7 @@ class User extends Authenticatable
   public static array $rules = [
     'first_name' => 'required|string|max:255',
     'branch_ids' => 'required|array',
+    'company_id' => 'nullable|exists:companies,id',
     'branch_ids.*' => 'required',
     'last_name' => 'nullable|string|max:255',
     'email' => 'nullable|string|max:255|email|unique:users',
@@ -74,6 +77,11 @@ class User extends Authenticatable
     'branch_ids' => 'array',
   ];
 
+  public function company()
+  {
+    return $this->belongsTo(Company::class, 'company_id');
+  }
+
 
   public function department()
   {
@@ -82,24 +90,24 @@ class User extends Authenticatable
 
   public function employee()
   {
-    return $this->belongsTo(Employee::class,'employee_id','id');
+    return $this->belongsTo(Employee::class, 'employee_id', 'id');
   }
 
   public function getBranchesAttribute()
   {
-      $branchIds = $this->branch_ids;
-      if (! is_array($branchIds)) {
-          $branchIds = json_decode((string) ($branchIds ?? '[]'), true) ?: [];
-      }
+    $branchIds = $this->branch_ids;
+    if (! is_array($branchIds)) {
+      $branchIds = json_decode((string) ($branchIds ?? '[]'), true) ?: [];
+    }
 
-      return Branch::whereIn('id', $branchIds)->get();
+    return Branch::whereIn('id', $branchIds)->get();
   }
 
   public function branchDropdown($all = null)
   {
-    if($all){
+    if ($all) {
       return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->prepend('All', null)->toArray();
-    }else{
+    } else {
       return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->toArray();
     }
   }

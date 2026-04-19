@@ -134,45 +134,66 @@ class RtaFinesController extends AppBaseController
             abort(403, 'Unauthorized action.');
         }
         $parent = Accounts::where('id', 1235)->first();
-        // Use global pagination trait
-        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = Accounts::query()
-            ->orderBy('id', 'asc')->where('parent_id', $parent->id);
-        if ($request->has('account_code') && !empty($request->account_code)) {
-            $query->where('account_code', 'like', '%' . $request->account_code . '%');
+        $defaultAccount = Accounts::query()
+            ->where('parent_id', $parent?->id)
+            ->orderBy('id', 'asc')
+            ->first();
+
+        if (!$defaultAccount) {
+            Flash::error('No RTA Fine account found.');
+            return redirect()->back();
         }
-        if ($request->has('name') && !empty($request->name)) {
-            $query->where('name', 'like', '%' . $request->name . '%');
-        }
-        // Apply pagination using the trait
-        $data = $this->applyPagination($query, $paginationParams);
-        if ($request->ajax()) {
-            $tableData = view('rta_fines.account_table', [
-                'data' => $data,
-            ])->render();
-            $paginationLinks = $data->links('components.global-pagination')->render();
-            return response()->json([
-                'tableData' => $tableData,
-                'paginationLinks' => $paginationLinks,
-            ]);
-        }
-        return view('rta_fines.account_index', [
-            'data' => $data,
-        ]);
+
+        return redirect()->route('rtaFines.tickets');
     }
-    public function tickets(Request $request, $id)
+    public function tickets(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('rtafine_view')) {
             abort(403, 'Unauthorized action.');
         }
 
+        return $this->renderTicketsListing($request, 'unpaid');
+    }
+
+    public function paid(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('rtafine_paid_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        return $this->renderTicketsListing($request, 'paid');
+    }
+
+    private function renderTicketsListing(Request $request, string $status)
+    {
+        $status = $status === 'paid' ? 'paid' : 'unpaid';
+        $ticketsRouteName = $status === 'paid' ? 'rtaFines.paid' : 'rtaFines.tickets';
+        $pageTitle = $status === 'paid' ? 'Paid RTA Fines' : 'Unpaid RTA Fines';
+
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+
+        $defaultAccount = Accounts::query()
+            ->where('parent_id', 1235)
+            ->orderBy('id', 'asc')
+            ->first();
+
+        $selectedAccountId = $request->input('rta_account_id')
+            ?? session('rta_selected_account_id')
+            ?? $defaultAccount?->id;
+
+        if (!$selectedAccountId) {
+            Flash::error('No RTA Fine account found.');
+            return redirect()->back();
+        }
+
+        session(['rta_selected_account_id' => $selectedAccountId]);
 
         $query = RtaFines::query()
             ->with('branch')
             ->orderBy('id', 'asc')
-            ->where('rta_account_id', $id);
+            ->where('rta_account_id', $selectedAccountId)
+            ->where('status', $status);
 
         if ($request->filled('ticket_no')) {
             $query->where('ticket_no', 'like', '%' . $request->ticket_no . '%');
@@ -194,10 +215,6 @@ class RtaFinesController extends AppBaseController
         if ($request->filled('bike_id')) {
             $query->where('bike_id', $request->bike_id);
         }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
         // Paginated data
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
@@ -214,7 +231,11 @@ class RtaFinesController extends AppBaseController
         $totalAmount = $filteredData->sum('amount');
         $serviceCharges = $filteredData->sum('service_charges');
         $adminFee = $filteredData->sum('admin_fee');
-        $account = Accounts::find($id);
+        $account = Accounts::find($selectedAccountId);
+        $rtaAccounts = Accounts::query()
+            ->where('parent_id', 1235)
+            ->orderBy('name', 'asc')
+            ->get();
         $total_Amount =  $totalAmount + $serviceCharges + $adminFee;
         if ($request->ajax()) {
             $tableData = view('rta_fines.table', [
@@ -241,6 +262,10 @@ class RtaFinesController extends AppBaseController
         return view('rta_fines.index', [
             'data' => $data,
             'account' => $account,
+            'ticketsRouteName' => $ticketsRouteName,
+            'listingStatus' => $status,
+            'pageTitle' => $pageTitle,
+            'rtaAccounts' => $rtaAccounts,
             'paidAmount' => $paidAmount,
             'unpaidAmount' => $unpaidAmount,
             'totalAmount' => $totalAmount,
@@ -259,7 +284,7 @@ class RtaFinesController extends AppBaseController
 
         try {
 
-            $service_accounts = DB::table('accounts')->where('id', 1368)->where('account_type', 'Expense')->first();
+            $service_accounts = \App\Support\CompanyQuery::table('accounts')->where('id', 1368)->where('account_type', 'Expense')->first();
             $fine = RtaFines::findOrFail($request->id);
             $fine->pay_account = $request->account;
 
@@ -364,7 +389,7 @@ class RtaFinesController extends AppBaseController
 
                 // 5. Ledger Entry (Against Payment Account)
                 $total_amount = floatval($fine->total_amount);
-                $lastLedger = DB::table('ledger_entries')
+                $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
                     ->where('account_id', $request->account)
                     ->orderBy('billing_month', 'desc')
                     ->first();
@@ -382,7 +407,7 @@ class RtaFinesController extends AppBaseController
                     $closing_balance = $opening_balance;
                 }
 
-                DB::table('ledger_entries')->insert([
+                \App\Support\CompanyQuery::table('ledger_entries')->insert([
                     'account_id'      => $request->account,
                     'billing_month'   => $billingMonth,
                     'opening_balance' => $opening_balance,
@@ -403,7 +428,7 @@ class RtaFinesController extends AppBaseController
             Flash::error('Error: ' . $e->getMessage());
         }
 
-        return redirect(route('rtaFines.tickets', $fine->rta_account_id));
+        return redirect(route('rtaFines.tickets'));
     }
 
 
@@ -418,17 +443,24 @@ class RtaFinesController extends AppBaseController
     /**
      * Show the form for creating a new RtaFines.
      */
-    public function create($id)
+    public function create()
     {
-        $data = Accounts::where('id', $id)->first();
-        return view('rta_fines.create', compact('data'));
+        $selectedAccountId = request('rta_account_id')
+            ?? session('rta_selected_account_id')
+            ?? Accounts::query()->where('parent_id', 1235)->orderBy('id', 'asc')->value('id');
+        $data = Accounts::where('id', $selectedAccountId)->first();
+        $rtaAccounts = Accounts::query()
+            ->where('parent_id', 1235)
+            ->orderBy('name', 'asc')
+            ->get();
+        return view('rta_fines.create', compact('data', 'rtaAccounts'));
     }
     /**
      * Store a newly created RtaFines in storage.
      */
     public function store(CreateRtaFinesRequest $request)
     {
-        $exists = DB::table('rta_fines')->where('ticket_no', $request->ticket_no)->where('deleted_at', null)->exists();
+        $exists = \App\Support\CompanyQuery::table('rta_fines')->where('ticket_no', $request->ticket_no)->where('deleted_at', null)->exists();
 
         if ($exists) {
             return response()->json(['errors' => ['error' => 'This Ticket Number already exists.']], 422);
@@ -437,9 +469,9 @@ class RtaFinesController extends AppBaseController
         DB::beginTransaction();
 
         try {
-            $admin_accounts = DB::Table('accounts')->where('id', 1004)->first();
-            $service_accounts = DB::table('accounts')->where('id', 1368)->first();
-            $vat_accounts = DB::table('accounts')->where('id', 1023)->first();
+            $admin_accounts = \App\Support\CompanyQuery::table('accounts')->where('id', 1004)->first();
+            $service_accounts = \App\Support\CompanyQuery::table('accounts')->where('id', 1368)->first();
+            $vat_accounts = \App\Support\CompanyQuery::table('accounts')->where('id', 1023)->first();
             $input = $request->all();
             $bike = Bikes::findOrFail($input['bike_id']);
             $trans_code = Account::trans_code();
@@ -473,7 +505,7 @@ class RtaFinesController extends AppBaseController
             $TransactionService = new TransactionService();
             $billingMonth = $rtaFines->billing_month;
 
-            $rider_account = DB::table('accounts')->where('ref_id', $rtaFines->rider_id)->first();
+            $rider_account = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $rtaFines->rider_id)->first();
             // --- 1. Main Fine (Rider Debit - only amount, not including VAT) ---
             $TransactionService->recordTransaction([
                 'account_id'     => $rider_account->id,
@@ -565,7 +597,7 @@ class RtaFinesController extends AppBaseController
             ]);
 
             // --- Ledger Entry (Rider - only amount, not including VAT) ---
-            $lastLedger = DB::table('ledger_entries')
+            $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
                 ->where('account_id', $rider_account->id)
                 ->orderBy('billing_month', 'desc')
                 ->first();
@@ -574,7 +606,7 @@ class RtaFinesController extends AppBaseController
             $debit_amount = $rtaFines->amount; // Only amount (admin + service + fine), not including VAT
             $closing_balance = $opening_balance + $debit_amount;
 
-            DB::table('ledger_entries')->insert([
+            \App\Support\CompanyQuery::table('ledger_entries')->insert([
                 'account_id'      => $rider_account->id,
                 'billing_month'   => $billingMonth,
                 'opening_balance' => $opening_balance,
@@ -588,7 +620,7 @@ class RtaFinesController extends AppBaseController
             DB::commit();
             Flash::success('RTA Fine added successfully with all charges and ledger.');
 
-            return redirect(route('rtaFines.tickets', $rtaFines->rta_account_id));
+            return redirect(route('rtaFines.tickets'));
         } catch (\Exception $e) {
             DB::rollBack();
             report($e);
@@ -642,6 +674,10 @@ class RtaFinesController extends AppBaseController
 
         $rtaFines = $this->rtaFinesRepository->find($id);
         $data = Accounts::where('id', $rtaFines->rta_account_id)->first();
+        $rtaAccounts = Accounts::query()
+            ->where('parent_id', 1235)
+            ->orderBy('name', 'asc')
+            ->get();
 
         if (empty($rtaFines)) {
             Flash::error('Rta Fines not found');
@@ -649,7 +685,7 @@ class RtaFinesController extends AppBaseController
             return redirect(route('rtaFines.index'));
         }
 
-        return view('rta_fines.edit', compact('data', 'rtaFines'));
+        return view('rta_fines.edit', compact('data', 'rtaFines', 'rtaAccounts'));
     }
 
     /**
@@ -658,7 +694,7 @@ class RtaFinesController extends AppBaseController
     public function update(Request $request)
     {
         // Check if same ticket_no exists on any other record
-        $exists = DB::table('rta_fines')
+        $exists = \App\Support\CompanyQuery::table('rta_fines')
             ->where('ticket_no', $request->ticket_no)
             ->where('id', '!=', $request->id)
             ->exists();
@@ -671,14 +707,14 @@ class RtaFinesController extends AppBaseController
 
         try {
             $id = $request->id;
-            $admin_accounts   = DB::table('accounts')->where('id', 1004)->first();
-            $service_accounts = DB::table('accounts')->where('id', 1368)->first();
+            $admin_accounts   = \App\Support\CompanyQuery::table('accounts')->where('id', 1004)->first();
+            $service_accounts = \App\Support\CompanyQuery::table('accounts')->where('id', 1368)->first();
 
             $input = $request->all();
             $bike  = Bikes::findOrFail($input['bike_id']);
-            $rta_account = DB::table('rta_fines')->where('id', $request->id)->first();
+            $rta_account = \App\Support\CompanyQuery::table('rta_fines')->where('id', $request->id)->first();
             $rtaFines = RtaFines::findOrFail($id);
-            $rider = DB::table('riders')->where('id', $rtaFines->rider_id)->first();
+            $rider = \App\Support\CompanyQuery::table('riders')->where('id', $rtaFines->rider_id)->first();
 
             // Upload new file if provided
             if ($request->hasFile('attachment')) {
@@ -706,7 +742,7 @@ class RtaFinesController extends AppBaseController
         | Transactions (update only)
         |--------------------------------------------------------------------------
         */
-            $rider_account = DB::table('accounts')->where('ref_id', $rtaFines->rider_id)->first();
+            $rider_account = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $rtaFines->rider_id)->first();
             $this->upsertTransaction(
                 [
                     'account_id'     => $rider_account->id,
@@ -825,10 +861,10 @@ class RtaFinesController extends AppBaseController
                 $paidPaymentAccount = $paidVoucher->pay_account;
 
                 // Get service accounts (same as in payfine method)
-                $paidServiceAccounts = DB::table('accounts')->where('name', 'Service Charges (RTA Fine)')->where('account_type', 'Expense')->first();
+                $paidServiceAccounts = \App\Support\CompanyQuery::table('accounts')->where('name', 'Service Charges (RTA Fine)')->where('account_type', 'Expense')->first();
 
                 // Get all transactions for this paid voucher
-                $paidTransactions = DB::table('transactions')
+                $paidTransactions = \App\Support\CompanyQuery::table('transactions')
                     ->where('trans_code', $paidTransCode)
                     ->where('reference_id', $rtaFines->id)
                     ->where('reference_type', 'RTA')
@@ -876,7 +912,7 @@ class RtaFinesController extends AppBaseController
                         continue;
                     }
 
-                    DB::table('transactions')
+                    \App\Support\CompanyQuery::table('transactions')
                         ->where('id', $transaction->id)
                         ->update($updateData);
                 }
@@ -887,12 +923,12 @@ class RtaFinesController extends AppBaseController
         | Ledger Update
         |--------------------------------------------------------------------------
         */
-            DB::table('ledger_entries')
+            \App\Support\CompanyQuery::table('ledger_entries')
                 ->where('account_id', $rider_account->id)
                 ->where('billing_month', $billingMonth)
                 ->delete();
 
-            $lastLedger = DB::table('ledger_entries')
+            $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
                 ->where('account_id', $rider_account->id)
                 ->where('billing_month', '<', $billingMonth)
                 ->orderBy('billing_month', 'desc')
@@ -902,7 +938,7 @@ class RtaFinesController extends AppBaseController
             $debit_amount    = $rtaFines->total_amount;
             $closing_balance = $opening_balance + $debit_amount;
 
-            DB::table('ledger_entries')->insert([
+            \App\Support\CompanyQuery::table('ledger_entries')->insert([
                 'account_id'      => $rider_account->id,
                 'billing_month'   => $billingMonth,
                 'opening_balance' => $opening_balance,
@@ -916,7 +952,7 @@ class RtaFinesController extends AppBaseController
             DB::commit();
             Flash::success('RTA Fine updated successfully.');
 
-            return redirect(route('rtaFines.tickets', $rtaFines->rta_account_id));
+            return redirect(route('rtaFines.tickets'));
         } catch (\Exception $e) {
             DB::rollBack();
             report($e);
@@ -930,14 +966,14 @@ class RtaFinesController extends AppBaseController
      */
     private function upsertTransaction(array $data, $rider_id = null)
     {
-        $trans_account = DB::table('accounts')->where('ref_id', $rider_id)->first();
+        $trans_account = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $rider_id)->first();
 
         if (!$trans_account) {
             throw new \Exception("No account found for rider_id: {$rider_id}");
         }
 
         // Find existing transaction by reference + type + code (NOT account_id)
-        $existing = DB::table('transactions')
+        $existing = \App\Support\CompanyQuery::table('transactions')
             ->where('reference_type', $data['reference_type'])
             ->where('reference_id', $data['reference_id'])
             ->where('trans_code', $data['trans_code'])
@@ -945,7 +981,7 @@ class RtaFinesController extends AppBaseController
 
         if ($existing) {
             // Always update with new account_id (rider change bhi handle ho jayega)
-            DB::table('transactions')
+            \App\Support\CompanyQuery::table('transactions')
                 ->where('id', $existing->id)
                 ->update(array_merge($data, [
                     'account_id' => $trans_account->id,   // 👈 new rider ka account
@@ -960,13 +996,13 @@ class RtaFinesController extends AppBaseController
      */
     private function upsertTransaction2(array $data)
     {
-        $existing = DB::table('transactions')
+        $existing = \App\Support\CompanyQuery::table('transactions')
             ->where('reference_type', $data['reference_type'])
             ->where('reference_id', $data['reference_id'])
             ->where('account_id', $data['account_id'])
             ->first();
         if ($existing) {
-            DB::table('transactions')
+            \App\Support\CompanyQuery::table('transactions')
                 ->where('id', $existing->id)
                 ->update(array_merge($data, [
                     'updated_at' => now(),
@@ -976,14 +1012,14 @@ class RtaFinesController extends AppBaseController
     private function upsertTransaction3(array $data, $rta_account_id = null)
     {
         // Find existing transaction by reference + type + code (NOT account_id)
-        $existing = DB::table('transactions')
+        $existing = \App\Support\CompanyQuery::table('transactions')
             ->where('reference_type', $data['reference_type'])
             ->where('reference_id', $data['reference_id'])
             ->where('account_id', $rta_account_id)
             ->first();
         if ($existing) {
             // Update with new account_id (RTA account change)
-            DB::table('transactions')
+            \App\Support\CompanyQuery::table('transactions')
                 ->where('id', $existing->id)
                 ->update(array_merge($data, [
                     'updated_at' => now(),
@@ -1015,7 +1051,7 @@ class RtaFinesController extends AppBaseController
         DB::beginTransaction();
         try {
             $billingMonth = $rtaFines->billing_month;
-            $riderAccountId = DB::table('accounts')->where('ref_id', $rtaFines->rider_id)->value('id');
+            $riderAccountId = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $rtaFines->rider_id)->value('id');
             $ticketIdentifier = $rtaFines->ticket_no ?? "Ticket #{$id}";
 
             // Get related transactions before deletion for cascade tracking
@@ -1135,13 +1171,13 @@ class RtaFinesController extends AppBaseController
     private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
     {
         // Delete only the ledger entry for this specific billing month
-        DB::table('ledger_entries')
+        \App\Support\CompanyQuery::table('ledger_entries')
             ->where('account_id', $accountId)
             ->where('billing_month', $billingMonth)
             ->delete();
 
         // Get the last ledger entry before this billing month
-        $lastLedger = DB::table('ledger_entries')
+        $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
             ->where('account_id', $accountId)
             ->where('billing_month', '<', $billingMonth)
             ->orderBy('billing_month', 'desc')
@@ -1160,7 +1196,7 @@ class RtaFinesController extends AppBaseController
 
         // Only insert a new ledger entry if there are still transactions for this month
         if ($monthTransactions->count() > 0) {
-            DB::table('ledger_entries')->insert([
+            \App\Support\CompanyQuery::table('ledger_entries')->insert([
                 'account_id'      => $accountId,
                 'billing_month'   => $billingMonth,
                 'opening_balance' => $openingBalance,
@@ -1183,7 +1219,7 @@ class RtaFinesController extends AppBaseController
             return;
         }
         $currentRiderId = $bike->rider_id;
-        $riders = DB::table('riders')->get();
+        $riders = \App\Support\CompanyQuery::table('riders')->get();
         if ($riders->isEmpty()) {
             echo '<option value="">There is no rider</option>';
         } else {
@@ -1198,9 +1234,12 @@ class RtaFinesController extends AppBaseController
         }
     }
 
-    public function importForm($AccountId)
+    public function importForm()
     {
-        $account = Accounts::findOrFail($AccountId);
+        $selectedAccountId = request('rta_account_id')
+            ?? session('rta_selected_account_id')
+            ?? Accounts::query()->where('parent_id', 1235)->orderBy('id', 'asc')->value('id');
+        $account = Accounts::findOrFail($selectedAccountId);
         return view('rta_fines.import', compact('account'));
     }
 

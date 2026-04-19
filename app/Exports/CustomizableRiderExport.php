@@ -243,17 +243,17 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
                 return $rider->emirate_hub;
 
             case 'customer_id':
-                return DB::table('customers')->where('id', $rider->customer_id)->value('name') ?? '-';
+                return \App\Support\CompanyQuery::table('customers')->where('id', $rider->customer_id)->value('name') ?? '-';
 
             case 'designation':
                 return $rider->designation;
 
             case 'bike':
-                $bike = DB::table('bikes')->where('rider_id', $rider->id)->first();
+                $bike = \App\Support\CompanyQuery::table('bikes')->where('rider_id', $rider->id)->first();
                 return $bike ? $bike->plate : '-';
 
             case 'status':
-                $hasActiveBike = DB::table('bikes')
+                $hasActiveBike = \App\Support\CompanyQuery::table('bikes')
                     ->where('rider_id', $rider->id)
                     ->where('warehouse', 'Active')
                     ->exists();
@@ -266,14 +266,14 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
                 return $rider->attendance ?? '-';
 
             case 'orders_sum':
-                return DB::table('rider_activities')
+                return \App\Support\CompanyQuery::table('rider_activities')
                     ->where('d_rider_id', $rider->rider_id)
                     ->whereMonth('date', now()->month)
                     ->whereYear('date', now()->year)
                     ->sum('delivered_orders') ?: '-';
 
             case 'days':
-                return DB::table('rider_activities')
+                return \App\Support\CompanyQuery::table('rider_activities')
                     ->where('d_rider_id', $rider->rider_id)
                     ->whereMonth('date', now()->month)
                     ->whereYear('date', now()->year)

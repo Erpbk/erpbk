@@ -201,21 +201,22 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::post('customers/trash/{id}/restore', [\App\Http\Controllers\CustomersController::class, 'restoreTrash'])->name('customers.restore');
     Route::delete('customers/trash/{id}/force-destroy', [\App\Http\Controllers\CustomersController::class, 'forceDestroyTrash'])->name('customers.force-destroy');
 
-    Route::get('rtaFines/import/{id}', [\App\Http\Controllers\RtaFinesController::class, 'importForm'])->name('rtaFines.import.form');
+    Route::get('rtaFines/import', [\App\Http\Controllers\RtaFinesController::class, 'importForm'])->name('rtaFines.import.form');
     Route::post('rtaFines/import', [\App\Http\Controllers\RtaFinesController::class, 'import'])->name('rtaFines.import');
 
-    Route::resource('rtaFines', App\Http\Controllers\RtaFinesController::class);
+    Route::resource('rtaFines', App\Http\Controllers\RtaFinesController::class)->except(['show']);
     Route::post('rtaFines/store', [\App\Http\Controllers\RtaFinesController::class, 'store'])->name('rtaFines.store');
     Route::get('rtaFines/edit/{id}', [\App\Http\Controllers\RtaFinesController::class, 'edit'])->name('rtaFines.edit');
     Route::post('rtaFines/update', [\App\Http\Controllers\RtaFinesController::class, 'update'])->name('rtaFines.update');
-    Route::get('rtaFines/create/{id}', [\App\Http\Controllers\RtaFinesController::class, 'create'])->name('rtaFines.create');
+    Route::get('rtaFines/create', [\App\Http\Controllers\RtaFinesController::class, 'create'])->name('rtaFines.create');
     Route::any('rtaFines/attach_file/{id}', [\App\Http\Controllers\RtaFinesController::class, 'fileUpload'])->name('rtaFines.fileupload');
     Route::get('rtaFines/delete/{id}', [\App\Http\Controllers\RtaFinesController::class, 'destroy'])->name('rtaFines.delete');
 
     Route::post('rtaFines/accountcreate', [\App\Http\Controllers\RtaFinesController::class, 'accountcreate'])->name('rtaFines.accountcreate');
     Route::post('rtaFines/editaccount', [\App\Http\Controllers\RtaFinesController::class, 'editaccount'])->name('rtaFines.editaccount');
     Route::get('rtaFines/deleteaccount/{id}', [\App\Http\Controllers\RtaFinesController::class, 'deleteaccount'])->name('rtaFines.deleteaccount');
-    Route::get('rtaFines/tickets/{id}', [\App\Http\Controllers\RtaFinesController::class, 'tickets'])->name('rtaFines.tickets');
+    Route::get('rtaFines/tickets', [\App\Http\Controllers\RtaFinesController::class, 'tickets'])->name('rtaFines.tickets');
+    Route::get('rtaFines/paid', [\App\Http\Controllers\RtaFinesController::class, 'paid'])->name('rtaFines.paid');
     Route::post('rtaFines/payfine', [\App\Http\Controllers\RtaFinesController::class, 'payfine'])->name('rtaFines.payfine');
     Route::get('rtaFines/viewvoucher/{id}', [\App\Http\Controllers\RtaFinesController::class, 'viewvoucher'])->name('rtaFines.viewvoucher');
     Route::get('rtaFines/getrider/{id}', [\App\Http\Controllers\RtaFinesController::class, 'getrider']);
@@ -289,6 +290,18 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::resource('sims', App\Http\Controllers\SimsController::class);
     Route::get('sims/delete/{id}', [\App\Http\Controllers\SimsController::class, 'destroy'])->name('sims.delete');
+    Route::get('simInvoices', [\App\Http\Controllers\SimInvoicesController::class, 'index'])->name('simInvoices.index');
+    Route::get('simInvoices/create/{vendorId?}', [\App\Http\Controllers\SimInvoicesController::class, 'create'])->name('simInvoices.create');
+    Route::get('simInvoices/create-from-clone/{id}', [\App\Http\Controllers\SimInvoicesController::class, 'createFromClone'])->name('simInvoices.createFromClone');
+    Route::post('simInvoices/store', [\App\Http\Controllers\SimInvoicesController::class, 'store'])->name('simInvoices.store');
+    Route::get('simInvoices/{id}', [\App\Http\Controllers\SimInvoicesController::class, 'show'])->name('simInvoices.show');
+    Route::get('simInvoices/{id}/edit', [\App\Http\Controllers\SimInvoicesController::class, 'edit'])->name('simInvoices.edit');
+    Route::put('simInvoices/{id}', [\App\Http\Controllers\SimInvoicesController::class, 'update'])->name('simInvoices.update');
+    Route::delete('simInvoices/{id}', [\App\Http\Controllers\SimInvoicesController::class, 'destroy'])->name('simInvoices.destroy');
+    Route::post('simInvoices/{id}/clone', [\App\Http\Controllers\SimInvoicesController::class, 'clone'])->name('simInvoices.clone');
+    Route::get('simInvoices/vendor/{id}/sims', [\App\Http\Controllers\SimInvoicesController::class, 'getSims'])->name('simInvoices.getSims');
+    Route::get('simInvoices/{id}/payment-voucher/create', [\App\Http\Controllers\SimInvoicesController::class, 'createPaymentVoucher'])->name('simInvoices.paymentVoucher.create');
+    Route::post('simInvoices/{id}/payment-voucher', [\App\Http\Controllers\SimInvoicesController::class, 'storePaymentVoucher'])->name('simInvoices.paymentVoucher.store');
 
     /* Rider section starts from here */
 
@@ -399,6 +412,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('search_item_price/{RID}/{itemID}', [\App\Http\Controllers\ItemsController::class, 'search_item_price']);
     Route::get('riderInvoices/delete/{id}', [\App\Http\Controllers\RiderInvoicesController::class, 'destroy'])->name('riderInvoices.delete');
     Route::post('riderInvoices/bulk-delete', [\App\Http\Controllers\RiderInvoicesController::class, 'bulkDelete'])->name('riderInvoices.bulkDelete');
+    Route::resource('employeeInvoices', App\Http\Controllers\EmployeeInvoicesController::class);
+    Route::get('employeeInvoices/delete/{id}', [\App\Http\Controllers\EmployeeInvoicesController::class, 'destroy'])->name('employeeInvoices.delete');
+    Route::post('employeeInvoices/bulk-delete', [\App\Http\Controllers\EmployeeInvoicesController::class, 'bulkDelete'])->name('employeeInvoices.bulkDelete');
 
     Route::resource('riderAttendances', App\Http\Controllers\RiderAttendanceController::class);
     Route::any('rider/attendance-import', [\App\Http\Controllers\RiderAttendanceController::class, 'import'])->name('rider.attendance_import');

@@ -8,7 +8,6 @@ use App\Mail\CompanyRegisteredAdminMail;
 use App\Models\Company;
 use App\Models\CompanyOtpVerification;
 use App\Models\Countries;
-use App\Services\TenantService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,10 +16,6 @@ use Illuminate\Validation\Rules\Password;
 
 class CompanyRegistrationController extends Controller
 {
-    public function __construct(
-        protected TenantService $tenantService
-    ) {}
-
     /**
      * Step 1: Show registration form.
      */
@@ -138,7 +133,7 @@ class CompanyRegistrationController extends Controller
     }
 
     /**
-     * Step 3: Save company and create tenant DB.
+     * Step 3: Save company (pending approval).
      */
     public function submitDetails(Request $request)
     {

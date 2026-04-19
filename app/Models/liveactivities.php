@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
-class liveactivities extends Model
+class liveactivities extends BaseModel
 {
     use LogsActivity;
 

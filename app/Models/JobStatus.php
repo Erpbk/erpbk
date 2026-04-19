@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
-class JobStatus extends Model
+class JobStatus extends BaseModel
 {
   use HasFactory, LogsActivity;
   protected $guarded = [];

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
-class Countries extends Model
+class Countries extends BaseModel
 {
   use HasFactory, LogsActivity;
   public $table = 'countries';

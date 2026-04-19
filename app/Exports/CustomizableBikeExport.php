@@ -229,22 +229,22 @@ class CustomizableBikeExport implements FromCollection, WithHeadings, WithMappin
                 return $bike->plate;
 
             case 'rider_name':
-                $rider = DB::table('riders')->where('id', $bike->rider_id)->first();
+                $rider = \App\Support\CompanyQuery::table('riders')->where('id', $bike->rider_id)->first();
                 return $rider ? $rider->name : '-';
 
             case 'rider_id':
-                $rider = DB::table('riders')->where('id', $bike->rider_id)->first();
+                $rider = \App\Support\CompanyQuery::table('riders')->where('id', $bike->rider_id)->first();
                 return $rider ? $rider->rider_id : '-';
 
             case 'emirates':
                 return $bike->emirates;
 
             case 'company':
-                $company = DB::table('leasing_companies')->where('id', $bike->company)->first();
+                $company = \App\Support\CompanyQuery::table('leasing_companies')->where('id', $bike->company)->first();
                 return $company ? $company->name : '-';
 
             case 'customer_id':
-                $customer = DB::table('customers')->where('id', $bike->customer_id)->first();
+                $customer = \App\Support\CompanyQuery::table('customers')->where('id', $bike->customer_id)->first();
                 return $customer ? $customer->name : '-';
 
             case 'expiry_date':
@@ -257,11 +257,11 @@ class CustomizableBikeExport implements FromCollection, WithHeadings, WithMappin
                 return $bike->status == 1 ? 'Active' : 'Inactive';
 
             case 'created_by':
-                $user = DB::table('users')->where('id', $bike->created_by)->first();
+                $user = \App\Support\CompanyQuery::table('users')->where('id', $bike->created_by)->first();
                 return $user ? $user->name : '-';
 
             case 'updated_by':
-                $user = DB::table('users')->where('id', $bike->updated_by)->first();
+                $user = \App\Support\CompanyQuery::table('users')->where('id', $bike->updated_by)->first();
                 return $user ? $user->name : '-';
 
             case 'chassis_number':

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Attendance Records')
+@section('title', request('ref_type') ? ucfirst(request('ref_type')) . ' Attendance Records' : 'All Attendance Records')
 
 @section('content')
 <div class="">
@@ -40,7 +40,7 @@
                                 <div class="action-dropdown-item-desc">Last Three Months</div>
                             </div>
                         </a>
-                        <a class="action-dropdown-item" href="{{ route('attendance.summary') }}">
+                        <a class="action-dropdown-item" href="{{ route('attendance.summary', request('ref_type') ? ['user_type' => request('ref_type')] : []) }}">
                             <i class="ti ti-file"></i>
                             <span>View Summary</span>
                         </a>
@@ -110,7 +110,7 @@
         <div class="card-header d-flex justify-content-between">
             <h4>Attendance Records</h4>
             <div>
-                <a href="{{ route('attendance.export', request()->all()) }}" class="btn btn-success btn-sm"><i class="fa fa-file-csv"></i>  Export</a>
+                <a href="{{ route('attendance.export', request()->all()) }}" class="btn btn-success btn-sm"><i class="fa fa-file-csv"></i> Export</a>
                 <button class="btn btn-primary btn-sm openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
             </div>
         </div>
@@ -183,8 +183,8 @@
                             <label for="bulk_date" class="form-label fw-bold">
                                 <i class="fas fa-calendar-alt me-1"></i>Date <span class="text-danger">*</span>
                             </label>
-                            <input type="date" class="form-control" id="bulk_date" name="date" 
-                                   value="{{ date('Y-m-d') }}" required>
+                            <input type="date" class="form-control" id="bulk_date" name="date"
+                                value="{{ date('Y-m-d') }}" required>
                         </div>
                         <div class="col-md-3">
                             <label for="default_status" class="form-label fw-bold">
@@ -223,7 +223,7 @@
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <div class="table-responsive" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px;">
                                 <table class="table table-bordered mb-0" id="selectedUsersTable">
                                     <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 10;">
@@ -267,9 +267,9 @@
     </div>
     @endcan
     @cannot('attendance_view')
-        <div class="alert alert-danger" role="alert">
-            You do not have permission to view attendance records.
-        </div>
+    <div class="alert alert-danger" role="alert">
+        You do not have permission to view attendance records.
+    </div>
     @endcannot
 </div>
 
@@ -285,112 +285,112 @@
 
 @section('page-script')
 <script>
-$(document).ready(function() {
-    // Store users and selected users data
-    var allUsers = [];
-    var selectedUsers = []; // Array to store selected user objects with their data
-    var nextId = 1;
-    
-    $('.select2-2').select2({
-        dropdownParent: $('#bulkAttendanceModal')
-    });
+    $(document).ready(function() {
+        // Store users and selected users data
+        var allUsers = [];
+        var selectedUsers = []; // Array to store selected user objects with their data
+        var nextId = 1;
 
-    $('.select2-3').select2({
-        dropdownParent: $('#bulkAttendanceModal'),
-        closeOnSelect: false,
-    });
-    // Load users when type changes
-    $('#bulk_ref_type').change(function() {
-        var refType = $(this).val();
-        selectedUsers = [];
-        renderSelectedUsers();
-        if (refType) {
-            // Enable search and select
-            $('#userSearchInput').prop('disabled', false);
-            $('#userSelect').prop('disabled', false);
-            $('#addUserBtn').prop('disabled', false);
-            $('#userSelectStatus').html('<i class="fas fa-spinner fa-spin"></i> Loading users...');
-            
-            // Clear previous users
-            $('#userSelect').html('<option value="">Loading users...</option>');
-            
-            $.get('{{ route("attendance.users", "") }}/' + refType, function(users) {
-                allUsers = users;
-                $('#userSelect').html('<option value="">-- Select user to add --</option>');
-                
-                if (users.length === 0) {
-                    $('#userSelect').append('<option value="" disabled>No users found</option>');
-                    $('#userSelectStatus').html('<i class="fas fa-exclamation-triangle text-warning"></i> No users found for this type');
-                } else {
-                    $.each(users, function(index, user) {
-                        $('#userSelect').append('<option value="' + user.id + '">' + user.name + (user.email ? ' - ' + user.email : '') + '</option>');
-                    });
-                    $('#userSelectStatus').html('<i class="fas fa-check-circle text-success"></i> ' + users.length + ' users available');
-                }
-                
-                // Reset search
-                $('#userSearchInput').val('');
-            }).fail(function() {
-                $('#userSelect').html('<option value="">Error loading users</option>');
-                $('#userSelectStatus').html('<i class="fas fa-exclamation-circle text-danger"></i> Failed to load users');
-            });
-        } else {
-            // Disable and reset
-            $('#userSearchInput').prop('disabled', true).val('');
-            $('#userSelect').prop('disabled', true).html('<option value="">Select user to add</option>');
-            $('#addUserBtn').prop('disabled', true);
-            $('#userSelectStatus').html('<i class="fas fa-info-circle"></i> First select user type to load users');
-            allUsers = [];
-        }
-    });
-    
-    // Add user to table
-    $('#userSelect').change(function() {
-        var userId = $('#userSelect').val();
-        var refType = $('#bulk_ref_type').val();
-        
-        if (!userId || !refType) {
-            toastr.warning('Please select a user to add');
-            return;
-        }
-        
-        // Check if user already selected
-        if (selectedUsers.some(u => u.id == userId)) {
-            toastr.warning('This user is already in the list');
-            return;
-        }
-        
-        // Find user in allUsers
-        var user = allUsers.find(u => u.id == userId);
-        if (!user) return;
-        
-        // Add to selected users
-        var selectedUser = {
-            id: user.id,
-            name: user.name,
-            email: user.email || '',
-            refType: refType,
-            tempId: 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-            status: $('#default_status').val(),
-            checkIn: '',
-            checkOut: '',
-            notes: ''
-        };
-        
-        selectedUsers.push(selectedUser);
-        renderSelectedUsers();
-        
-        // Clear selection
-        $('#userSelect').val('');
-    });
-    
-    // Render selected users table
-    function renderSelectedUsers() {
-        var tbody = $('#selectedUsersBody');
-        tbody.empty();
-        
-        if (selectedUsers.length === 0) {
-            tbody.append(`
+        $('.select2-2').select2({
+            dropdownParent: $('#bulkAttendanceModal')
+        });
+
+        $('.select2-3').select2({
+            dropdownParent: $('#bulkAttendanceModal'),
+            closeOnSelect: false,
+        });
+        // Load users when type changes
+        $('#bulk_ref_type').change(function() {
+            var refType = $(this).val();
+            selectedUsers = [];
+            renderSelectedUsers();
+            if (refType) {
+                // Enable search and select
+                $('#userSearchInput').prop('disabled', false);
+                $('#userSelect').prop('disabled', false);
+                $('#addUserBtn').prop('disabled', false);
+                $('#userSelectStatus').html('<i class="fas fa-spinner fa-spin"></i> Loading users...');
+
+                // Clear previous users
+                $('#userSelect').html('<option value="">Loading users...</option>');
+
+                $.get('{{ route("attendance.users", "") }}/' + refType, function(users) {
+                    allUsers = users;
+                    $('#userSelect').html('<option value="">-- Select user to add --</option>');
+
+                    if (users.length === 0) {
+                        $('#userSelect').append('<option value="" disabled>No users found</option>');
+                        $('#userSelectStatus').html('<i class="fas fa-exclamation-triangle text-warning"></i> No users found for this type');
+                    } else {
+                        $.each(users, function(index, user) {
+                            $('#userSelect').append('<option value="' + user.id + '">' + user.name + (user.email ? ' - ' + user.email : '') + '</option>');
+                        });
+                        $('#userSelectStatus').html('<i class="fas fa-check-circle text-success"></i> ' + users.length + ' users available');
+                    }
+
+                    // Reset search
+                    $('#userSearchInput').val('');
+                }).fail(function() {
+                    $('#userSelect').html('<option value="">Error loading users</option>');
+                    $('#userSelectStatus').html('<i class="fas fa-exclamation-circle text-danger"></i> Failed to load users');
+                });
+            } else {
+                // Disable and reset
+                $('#userSearchInput').prop('disabled', true).val('');
+                $('#userSelect').prop('disabled', true).html('<option value="">Select user to add</option>');
+                $('#addUserBtn').prop('disabled', true);
+                $('#userSelectStatus').html('<i class="fas fa-info-circle"></i> First select user type to load users');
+                allUsers = [];
+            }
+        });
+
+        // Add user to table
+        $('#userSelect').change(function() {
+            var userId = $('#userSelect').val();
+            var refType = $('#bulk_ref_type').val();
+
+            if (!userId || !refType) {
+                toastr.warning('Please select a user to add');
+                return;
+            }
+
+            // Check if user already selected
+            if (selectedUsers.some(u => u.id == userId)) {
+                toastr.warning('This user is already in the list');
+                return;
+            }
+
+            // Find user in allUsers
+            var user = allUsers.find(u => u.id == userId);
+            if (!user) return;
+
+            // Add to selected users
+            var selectedUser = {
+                id: user.id,
+                name: user.name,
+                email: user.email || '',
+                refType: refType,
+                tempId: 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                status: $('#default_status').val(),
+                checkIn: '',
+                checkOut: '',
+                notes: ''
+            };
+
+            selectedUsers.push(selectedUser);
+            renderSelectedUsers();
+
+            // Clear selection
+            $('#userSelect').val('');
+        });
+
+        // Render selected users table
+        function renderSelectedUsers() {
+            var tbody = $('#selectedUsersBody');
+            tbody.empty();
+
+            if (selectedUsers.length === 0) {
+                tbody.append(`
                 <tr id="noUsersRow">
                     <td colspan="7" class="text-center py-5">
                         <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
@@ -399,17 +399,17 @@ $(document).ready(function() {
                     </td>
                 </tr>
             `);
-            $('#selectedUsersCount').text('0');
-            $('#totalSelectedCount').text('0');
-            $('#presentCount').text('0');
-            $('#submitBulkBtn').prop('disabled', true);
-            return;
-        }
-        
-        $('#submitBulkBtn').prop('disabled', false);
-        
-        $.each(selectedUsers, function(index, user) {
-            tbody.append(`
+                $('#selectedUsersCount').text('0');
+                $('#totalSelectedCount').text('0');
+                $('#presentCount').text('0');
+                $('#submitBulkBtn').prop('disabled', true);
+                return;
+            }
+
+            $('#submitBulkBtn').prop('disabled', false);
+
+            $.each(selectedUsers, function(index, user) {
+                tbody.append(`
                 <tr id="${user.tempId}" data-user-id="${user.id}" data-temp-id="${user.tempId}">
                     <td class="text-center align-middle">${index + 1}</td>
                     <td class="align-middle">
@@ -453,158 +453,158 @@ $(document).ready(function() {
                     </td>
                 </tr>
             `);
-        });
-        
-        updateCounts();
-    }
-    
-    // Update counts
-    function updateCounts() {
-        $('#selectedUsersCount').text(selectedUsers.length);
-        $('#totalSelectedCount').text(selectedUsers.length);
-        
-        var presentCount = selectedUsers.filter(u => u.status === 'present').length;
-        $('#presentCount').text(presentCount);
-    }
-    
-    // Update user data when form fields change
-    $(document).on('change', '.status-select', function() {
-        var tempId = $(this).data('user-temp');
-        var user = selectedUsers.find(u => u.tempId === tempId);
-        if (user) {
-            user.status = $(this).val();
+            });
+
             updateCounts();
         }
-    });
-    
-    $(document).on('change', '.check-in', function() {
-        var tempId = $(this).closest('tr').data('temp-id');
-        var user = selectedUsers.find(u => u.tempId === tempId);
-        if (user) {
-            user.checkIn = $(this).val();
-        }
-    });
-    
-    $(document).on('change', '.check-out', function() {
-        var tempId = $(this).closest('tr').data('temp-id');
-        var user = selectedUsers.find(u => u.tempId === tempId);
-        if (user) {
-            user.checkOut = $(this).val();
-        }
-    });
-    
-    $(document).on('change', '.notes', function() {
-        var tempId = $(this).closest('tr').data('temp-id');
-        var user = selectedUsers.find(u => u.tempId === tempId);
-        if (user) {
-            user.notes = $(this).val();
-        }
-    });
-    
-    // Remove user when remove button clicked
-    
-    $(document).on('click', '.remove-user', function() {
-        var tempId = $(this).data('user-temp');
-        removeUser(tempId);
-    });
-    
-    function removeUser(tempId) {
-        selectedUsers = selectedUsers.filter(u => u.tempId !== tempId);
-        $('#' + tempId).fadeOut(300, function() {
-            renderSelectedUsers();
-        });
-        toastr.info('User removed from list');
-    }
-    
-    // Set all to present
-    $('#setAllPresent').click(function() {
-        selectedUsers.forEach(user => user.status = 'present');
-        $('.status-select').val('present');
-        updateCounts();
-        toastr.success('All users set to Present');
-    });
-    
-    // Set all to absent
-    $('#setAllAbsent').click(function() {
-        selectedUsers.forEach(user => user.status = 'absent');
-        $('.status-select').val('absent');
-        updateCounts();
-        toastr.success('All users set to Absent');
-    });
 
-    // Set general time (10am - 6pm)
-    $('#setGeneral').click(function() {
-        selectedUsers.forEach(user => {
-            user.checkIn = '10:00';
-            user.checkOut = '18:00';
-        });
-        $('.check-in').val('10:00');
-        $('.check-out').val('18:00');
-        toastr.success('Check-in set to 10:00 and Check-out set to 18:00 for all users');
-    });
-    
-    // Remove all users
-    $('#removeAllUsers').click(function() {
-        if (selectedUsers.length > 0 && confirm('Are you sure you want to remove all users?')) {
-            selectedUsers = [];
-            renderSelectedUsers();
-            toastr.info('All users removed');
+        // Update counts
+        function updateCounts() {
+            $('#selectedUsersCount').text(selectedUsers.length);
+            $('#totalSelectedCount').text(selectedUsers.length);
+
+            var presentCount = selectedUsers.filter(u => u.status === 'present').length;
+            $('#presentCount').text(presentCount);
         }
-    });
-    
-    // Form submission
-    $('#bulkAttendanceForm').submit(function(e) {
-        e.preventDefault();
-        
-        if (selectedUsers.length === 0) {
-            toastr.warning('Please add at least one user');
-            return;
-        }
-        
-        var formData = $(this).serialize();
-        var submitBtn = $('#submitBulkBtn');
-        
-        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
-        
-        $.ajax({
-            url: $(this).attr('action'),
-            method: 'POST',
-            data: formData,
-            success: function(response) {
-                toastr.success(response.message || 'Attendance marked successfully');
-                setTimeout(function() {
-                    $('#bulkAttendanceModal').modal('hide');
-                    location.reload();
-                }, 1500);
-            },
-            error: function(xhr) {
-                submitBtn.prop('disabled', false).html('<i class="fas fa-save"></i> Save Attendance');
-                
-                if (xhr.status === 422) {
-                    var errors = xhr.responseJSON.errors;
-                    var errorMessages = [];
-                    $.each(errors, function(key, messages) {
-                        errorMessages.push(messages[0]);
-                    });
-                    toastr.error(errorMessages.join('<br>'));
-                } else {
-                    toastr.error('An error occurred. Please try again.' + (xhr.responseJSON ? ' ' + (xhr.responseJSON.message || '') : ''));
-                }
+
+        // Update user data when form fields change
+        $(document).on('change', '.status-select', function() {
+            var tempId = $(this).data('user-temp');
+            var user = selectedUsers.find(u => u.tempId === tempId);
+            if (user) {
+                user.status = $(this).val();
+                updateCounts();
             }
         });
+
+        $(document).on('change', '.check-in', function() {
+            var tempId = $(this).closest('tr').data('temp-id');
+            var user = selectedUsers.find(u => u.tempId === tempId);
+            if (user) {
+                user.checkIn = $(this).val();
+            }
+        });
+
+        $(document).on('change', '.check-out', function() {
+            var tempId = $(this).closest('tr').data('temp-id');
+            var user = selectedUsers.find(u => u.tempId === tempId);
+            if (user) {
+                user.checkOut = $(this).val();
+            }
+        });
+
+        $(document).on('change', '.notes', function() {
+            var tempId = $(this).closest('tr').data('temp-id');
+            var user = selectedUsers.find(u => u.tempId === tempId);
+            if (user) {
+                user.notes = $(this).val();
+            }
+        });
+
+        // Remove user when remove button clicked
+
+        $(document).on('click', '.remove-user', function() {
+            var tempId = $(this).data('user-temp');
+            removeUser(tempId);
+        });
+
+        function removeUser(tempId) {
+            selectedUsers = selectedUsers.filter(u => u.tempId !== tempId);
+            $('#' + tempId).fadeOut(300, function() {
+                renderSelectedUsers();
+            });
+            toastr.info('User removed from list');
+        }
+
+        // Set all to present
+        $('#setAllPresent').click(function() {
+            selectedUsers.forEach(user => user.status = 'present');
+            $('.status-select').val('present');
+            updateCounts();
+            toastr.success('All users set to Present');
+        });
+
+        // Set all to absent
+        $('#setAllAbsent').click(function() {
+            selectedUsers.forEach(user => user.status = 'absent');
+            $('.status-select').val('absent');
+            updateCounts();
+            toastr.success('All users set to Absent');
+        });
+
+        // Set general time (10am - 6pm)
+        $('#setGeneral').click(function() {
+            selectedUsers.forEach(user => {
+                user.checkIn = '10:00';
+                user.checkOut = '18:00';
+            });
+            $('.check-in').val('10:00');
+            $('.check-out').val('18:00');
+            toastr.success('Check-in set to 10:00 and Check-out set to 18:00 for all users');
+        });
+
+        // Remove all users
+        $('#removeAllUsers').click(function() {
+            if (selectedUsers.length > 0 && confirm('Are you sure you want to remove all users?')) {
+                selectedUsers = [];
+                renderSelectedUsers();
+                toastr.info('All users removed');
+            }
+        });
+
+        // Form submission
+        $('#bulkAttendanceForm').submit(function(e) {
+            e.preventDefault();
+
+            if (selectedUsers.length === 0) {
+                toastr.warning('Please add at least one user');
+                return;
+            }
+
+            var formData = $(this).serialize();
+            var submitBtn = $('#submitBulkBtn');
+
+            submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+
+            $.ajax({
+                url: $(this).attr('action'),
+                method: 'POST',
+                data: formData,
+                success: function(response) {
+                    toastr.success(response.message || 'Attendance marked successfully');
+                    setTimeout(function() {
+                        $('#bulkAttendanceModal').modal('hide');
+                        location.reload();
+                    }, 1500);
+                },
+                error: function(xhr) {
+                    submitBtn.prop('disabled', false).html('<i class="fas fa-save"></i> Save Attendance');
+
+                    if (xhr.status === 422) {
+                        var errors = xhr.responseJSON.errors;
+                        var errorMessages = [];
+                        $.each(errors, function(key, messages) {
+                            errorMessages.push(messages[0]);
+                        });
+                        toastr.error(errorMessages.join('<br>'));
+                    } else {
+                        toastr.error('An error occurred. Please try again.' + (xhr.responseJSON ? ' ' + (xhr.responseJSON.message || '') : ''));
+                    }
+                }
+            });
+        });
+
+        // Reset modal on close
+        $('#bulkAttendanceModal').on('hidden.bs.modal', function() {
+            selectedUsers = [];
+            allUsers = [];
+            $('#bulk_ref_type').val('');
+            $('#userSearchInput').val('').prop('disabled', true);
+            $('#userSelect').html('<option value="">Select user to add</option>').prop('disabled', true);
+            $('#addUserBtn').prop('disabled', true);
+            $('#userSelectStatus').html('<i class="fas fa-info-circle"></i> First select user type to load users');
+            renderSelectedUsers();
+        });
     });
-    
-    // Reset modal on close
-    $('#bulkAttendanceModal').on('hidden.bs.modal', function() {
-        selectedUsers = [];
-        allUsers = [];
-        $('#bulk_ref_type').val('');
-        $('#userSearchInput').val('').prop('disabled', true);
-        $('#userSelect').html('<option value="">Select user to add</option>').prop('disabled', true);
-        $('#addUserBtn').prop('disabled', true);
-        $('#userSelectStatus').html('<i class="fas fa-info-circle"></i> First select user type to load users');
-        renderSelectedUsers();
-    });
-});
 </script>
 @endsection

@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class RiderCustomField extends Model
+class RiderCustomField extends BaseModel
 {
     protected $table = 'rider_custom_fields';
 

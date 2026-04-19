@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class RiderFieldCategoryAssignment extends Model
+class RiderFieldCategoryAssignment extends BaseModel
 {
     protected $table = 'rider_field_category_assignments';
 

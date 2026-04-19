@@ -65,6 +65,17 @@ echo Creating storage symlink...
 php artisan storage:link 2>nul
 echo [SUCCESS] Storage symlink created (or already exists)
 
+REM Run central + admin migrations
+echo.
+echo Running database migrations (central + admin)...
+php artisan app:migrate-all --force
+if errorlevel 1 (
+    echo [ERROR] Migrations failed. Stopping deployment.
+    pause
+    exit /b 1
+)
+echo [SUCCESS] Migrations completed (central + admin)
+
 REM Clear caches
 echo.
 echo Clearing caches...

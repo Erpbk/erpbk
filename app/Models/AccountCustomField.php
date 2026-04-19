@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class AccountCustomField extends Model
+class AccountCustomField extends BaseModel
 {
     protected $table = 'account_custom_fields';
 

@@ -245,14 +245,14 @@ class ImportRiderInvoice implements ToCollection
     }
     if (!empty($importedInvoiceIds)) {
       $transactionService = new TransactionService();
-      $salary_account = DB::table('accounts')->where('id', 1103)->first();
+      $salary_account = \App\Support\CompanyQuery::table('accounts')->where('id', 1103)->first();
       foreach ($importedInvoiceIds as $invoiceId) {
         $invoice = RiderInvoices::find($invoiceId);
         if (!$invoice || !$salary_account) {
           continue;
         }
         // Skip if a salary debit already exists for this invoice to avoid duplicates
-        $alreadyExists = DB::table('transactions')
+        $alreadyExists = \App\Support\CompanyQuery::table('transactions')
           ->where('reference_type', 'Invoice')
           ->where('reference_id', $invoice->id)
           ->where('account_id', $salary_account->id)

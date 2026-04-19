@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
-class penalties extends Model
+class penalties extends BaseModel
 {
     use HasFactory, LogsActivity;
 

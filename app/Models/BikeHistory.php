@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
-class BikeHistory extends Model
+class BikeHistory extends BaseModel
 {
     use LogsActivity;
 

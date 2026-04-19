@@ -2,6 +2,7 @@
 
 namespace App\DataTables;
 
+use App\Models\Company;
 use App\Models\User;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
@@ -36,7 +37,14 @@ class UserDataTable extends DataTable
    */
   public function query(User $model)
   {
-    return $model->newQuery()->where('id', '!=', 1);
+    $query = $model->newQuery()->where('id', '!=', 1);
+    $companyId = $this->resolveCompanyId();
+
+    if ($companyId !== null) {
+      $query->where('company_id', $companyId);
+    }
+
+    return $query;
   }
 
   /**
@@ -95,5 +103,25 @@ class UserDataTable extends DataTable
   protected function filename(): string
   {
     return 'users_datatable_' . time();
+  }
+
+  private function resolveCompanyId(): ?int
+  {
+    $company = request()?->attributes->get('company');
+    if ($company && isset($company->id)) {
+      return (int) $company->id;
+    }
+
+    $companySlug = request()?->route('company_slug') ?? session('company_slug');
+    if (empty($companySlug)) {
+      return auth()->user()?->company_id ? (int) auth()->user()->company_id : null;
+    }
+
+    $resolvedCompany = Company::query()->where('slug', (string) $companySlug)->first();
+    if (!$resolvedCompany && is_numeric($companySlug)) {
+      $resolvedCompany = Company::query()->find((int) $companySlug);
+    }
+
+    return $resolvedCompany?->id ? (int) $resolvedCompany->id : null;
   }
 }

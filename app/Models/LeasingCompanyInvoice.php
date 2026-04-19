@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
-class LeasingCompanyInvoice extends Model
+class LeasingCompanyInvoice extends BaseModel
 {
     use SoftDeletes, LogsActivity;
 

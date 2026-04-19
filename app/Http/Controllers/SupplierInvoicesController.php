@@ -247,6 +247,54 @@ class SupplierInvoicesController extends AppBaseController
             Flash::error('Error deleting Supplier Invoice: ' . $e->getMessage());
             return redirect()->back();
         }
+        return redirect(route('supplierInvoices.index'));
+    }
+
+    /**
+     * Recalculate ledger entries after deletion
+     * This ensures ledger integrity without deleting all entries
+     */
+    private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
+    {
+        // Delete only the ledger entry for this specific billing month
+        \App\Support\CompanyQuery::table('ledger_entries')
+            ->where('account_id', $accountId)
+            ->where('billing_month', $billingMonth)
+            ->delete();
+
+        // Get the last ledger entry before this billing month
+        $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
+            ->where('account_id', $accountId)
+            ->where('billing_month', '<', $billingMonth)
+            ->orderBy('billing_month', 'desc')
+            ->first();
+
+        $openingBalance = $lastLedger ? $lastLedger->closing_balance : 0.00;
+
+        // Recalculate totals for this month after deletion
+        $monthTransactions = Transactions::where('account_id', $accountId)
+            ->where('billing_month', $billingMonth)
+            ->get();
+
+        $debitTotal = $monthTransactions->sum('debit');
+        $creditTotal = $monthTransactions->sum('credit');
+        $closingBalance = $openingBalance + $debitTotal - $creditTotal;
+
+        // Only insert a new ledger entry if there are still transactions for this month
+        if ($monthTransactions->count() > 0) {
+            \App\Support\CompanyQuery::table('ledger_entries')->insert([
+                'account_id'      => $accountId,
+                'billing_month'   => $billingMonth,
+                'opening_balance' => $openingBalance,
+                'debit_balance'   => $debitTotal,
+                'credit_balance'  => $creditTotal,
+                'closing_balance' => $closingBalance,
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+        }
+
+        \Log::info("Recalculated ledger for account {$accountId} and billing month {$billingMonth}");
     }
 
     /**

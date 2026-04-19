@@ -232,7 +232,7 @@ class AccountsController extends AppBaseController
     }
 
     // Check if account has ledger entries
-    $ledgerEntriesCount = DB::table('ledger_entries')
+    $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
       ->where('account_id', $accounts->id)
       ->count();
     if ($ledgerEntriesCount > 0) {

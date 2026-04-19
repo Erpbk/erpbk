@@ -4,18 +4,15 @@ namespace App\Http\Controllers\Company;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
-use App\Services\TenantService;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 class CompanyAuthController extends Controller
 {
-    public function __construct(
-        protected TenantService $tenantService
-    ) {}
-
     /**
      * Step 1: ask for company name, then redirect to /app/{slug}/login.
      */
@@ -108,10 +105,6 @@ class CompanyAuthController extends Controller
             }
             abort(403, 'Company access is not approved.');
         }
-        if (empty($company->database_name)) {
-            abort(503, 'Company database is not ready. Please contact support.');
-        }
-
         $this->ensureSlug($company);
 
         return view('company.login', [
@@ -121,7 +114,7 @@ class CompanyAuthController extends Controller
     }
 
     /**
-     * Handle company login. Switch to tenant DB then attempt auth.
+     * Handle company login in single ERPBK database using company_id isolation.
      */
     public function login(Request $request, string $company_slug)
     {
@@ -129,13 +122,11 @@ class CompanyAuthController extends Controller
         if (!$company && is_numeric($company_slug)) {
             $company = Company::query()->find((int) $company_slug);
         }
-        if (!$company || !$company->isApproved() || empty($company->database_name)) {
+        if (!$company || !$company->isApproved()) {
             return back()->withErrors(['email' => __('Invalid company or not approved.')]);
         }
 
         $this->ensureSlug($company);
-
-        $this->tenantService->setTenant($company);
 
         $credentials = $request->validate([
             'email' => 'required|string',
@@ -147,17 +138,22 @@ class CompanyAuthController extends Controller
         $login = $credentials['email'];
         $password = $credentials['password'];
 
-        $authenticated = Auth::attempt(['email' => $login, 'password' => $password], $remember)
-            || Auth::attempt(['username' => $login, 'password' => $password], $remember);
+        $user = User::query()
+            ->where('company_id', $company->id)
+            ->where(function ($q) use ($login) {
+                $q->where('email', $login)->orWhere('username', $login);
+            })
+            ->first();
+
+        $authenticated = $user && Hash::check($password, (string) $user->password);
 
         if ($authenticated) {
+            Auth::login($user, $remember);
             $request->session()->regenerate();
             $request->session()->put('company_slug', $company->slug);
-            $this->tenantService->clearTenant();
             return redirect()->route($this->companyHomeRouteName(), ['company_slug' => $company->slug]);
         }
 
-        $this->tenantService->clearTenant();
         return back()->withErrors(['email' => __('These credentials do not match our records.')])->onlyInput('email');
     }
 
@@ -170,15 +166,9 @@ class CompanyAuthController extends Controller
         if (!$company && is_numeric($company_slug)) {
             $company = Company::query()->find((int) $company_slug);
         }
-        if ($company) {
-            $this->tenantService->setTenant($company);
-        }
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        if ($company) {
-            $this->tenantService->clearTenant();
-        }
         return redirect()->route('company.login-form', ['company_slug' => $company?->slug ?? $company_slug]);
     }
 

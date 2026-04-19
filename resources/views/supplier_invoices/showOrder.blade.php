@@ -222,7 +222,7 @@
                 </td>
                 <td width="33.33%" style="text-align: center; border: none !important;">
                     <h2 style="margin: 0; font-weight: bold;">
-                            Supplier Invoice
+                            Purchase Order
                     </h2>
                 </td>
             </tr>
@@ -251,21 +251,18 @@
             <!-- Invoice Details Card -->
             <div class="supplier-card" style="flex: 1;">
                 <div class="card-header">
-                    <strong>Invoice Details</strong>
+                    <strong>Order Details</strong>
                 </div>
                 <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center;">
                     
-                    <div style="font-weight: 600; color: #555;">Invoice #:</div>
+                    <div style="font-weight: 600; color: #555;">Order #:</div>
                     <div>{{ $supplierInvoice->inv_id }}</div>
                     
-                    <div style="font-weight: 600; color: #555;">Invoice Date:</div>
-                    <div>{{ $supplierInvoice->inv_date?->format('d M Y') ?? '' }}</div>
-                    
-                    <div style="font-weight: 600; color: #555;">Billing Month:</div>
-                    <div>{{ date('M Y', strtotime($supplierInvoice->billing_month)) }}</div>
+                    <div style="font-weight: 600; color: #555;">Order Date:</div>
+                    <div>{{ $supplierInvoice->order_date?->format('d M Y') ?? '' }}</div>
 
                     <div style="font-weight: 600; color: #555;">Created By:</div>
-                    <div>{{ $supplierInvoice->updatedBy?->name ?? $supplierInvoice->createdBy?->name ?? ''}}</div>
+                    <div>{{ $supplierInvoice->creatorBy?->name ?? ''}}</div>
                 </div>
             </div>
         </div>

@@ -2,13 +2,6 @@
 @endpush
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
-      <tr>
-         <th colspan="11" class="text-start">
-            <div class="d-flex justify-content-between align-items-center">
-               <h5 class="mb-0">Leasing Company Billing Invoices</h5>
-            </div>
-         </th>
-      </tr>
       <tr role="row">
          <th title="Id" class="sorting" rowspan="1" colspan="1">Id</th>
          <th title="Invoice Number" class="sorting" rowspan="1" colspan="1">Invoice #</th>
@@ -21,7 +14,7 @@
          <th title="Total Amount" class="sorting" rowspan="1" colspan="1">Total Amount</th>
          <th title="Attachments" class="sorting" rowspan="1" colspan="1">Attachments</th>
          <th title="Status" class="sorting" rowspan="1" colspan="1">Status</th>
-         <th title="Action" width="150px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action"><a data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a></th>
+         <th title="Action" width="150px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
       </tr>
    </thead>
    <tbody>
@@ -46,6 +39,9 @@
          <td>
             @if($invoice->status == 1)
             <span class="badge bg-success">Paid</span>
+            @elseif($invoice->status == 3)
+            <span class="badge bg-warning">Partially Paid</span>
+            <small>AED {{ $invoice->balance }} Due</small>
             @else
             <span class="badge bg-danger">Unpaid</span>
             @endif

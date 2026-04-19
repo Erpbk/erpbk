@@ -82,7 +82,7 @@ class Supplier extends BaseModel
     public static function dropdown()
     {
         return self::select('id', 'name')
-            ->where('status', IConstants::ACTIVE)
+            ->where('status', 1)
             ->pluck('name', 'id')
             ->prepend('Select', '');
     }

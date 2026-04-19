@@ -9,6 +9,7 @@ use App\Models\SupplierInvoices;
 use App\Models\Transactions;
 use App\Repositories\BaseRepository;
 use App\Services\TransactionService;
+use DB;
 
 class SupplierInvoicesRepository extends BaseRepository
 {
@@ -43,80 +44,162 @@ class SupplierInvoicesRepository extends BaseRepository
 
     public function record($request, $id = null)
     {
-        $input = $request->except([
-            'item_id', '_method', '_token', 'qty', 'rate', 'amount', 'discount', 'tax'
-        ]);
-
-        $input['billing_month'] = $request->billing_month . "-01";
-
-        if ($id) {
-            $invoice = SupplierInvoices::where('id', $id)->first();
-            $invoice->update($input);
-            // SupplierInvoicesItem::where('inv_id', $id)->delete();
-        } else {
-            $invoice = SupplierInvoices::create($input);
+        $rules = [
+            'supplier_id' => 'required|exists:suppliers,id',
+            'descriptions' => 'required|string',
+            'notes' => 'nullable|string',
+            'item_ids' => 'required|array|min:1',
+            'item_ids.*' => 'exists:items,id',
+            'item_qty' => 'required|array|min:1',
+            'item_qty.*' => 'numeric|min:0.01',
+            'item_rate' => 'required|array|min:1',
+            'item_rate.*' => 'numeric|min:0',
+            'item_vat' => 'nullable|array',
+            'item_vat.*' => 'numeric|min:0|max:100',
+        ];
+        if($request->has('is_invoice')){
+            $rules['inv_date'] = 'required|date';
+            $rules['billing_month'] = 'required|date_format:Y-m';
+            $rules['attachment'] = 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120';
+        }else {
+            $rules['order_date'] = 'required|date';
         }
-
-        foreach ($request['item_id'] as $key => $val) {
-            if (!empty($request['item_id'][$key]) && $request['amount'][$key] > 0) {
-                $itemId = $request['item_row_id'][$key] ?? null; // Optional hidden input for existing item ID
-
-                $dta = [
-                    'item_id' => $request['item_id'][$key],
-                    'qty' => $request['qty'][$key] ?? 0,
-                    'rate' => $request['rate'][$key],
-                    'amount' => $request['amount'][$key],
-                    'tax' => $request['tax'][$key],
-                    'discount' => $request['discount'][$key],
-                    'inv_id' => $invoice->id
+        $request->validate($rules);
+        
+        try {
+            DB::beginTransaction();
+            
+            // Handle attachment
+            $attachmentPath = null;
+            if ($request->hasFile('attachment')) {
+                $file = $request->file('attachment');
+                $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+                $attachmentPath = $file->storeAs('supplier_invoices', $fileName, 'public');
+                $request['attachment'] = $attachmentPath;
+            }
+            
+            // Calculate totals
+            $subtotal = 0;
+            $vatTotal = 0;
+            $grandTotal = 0;
+            $itemsData = [];
+            
+            foreach ($request->item_ids as $index => $itemId) {
+                $item = \App\Models\Items::find($itemId);
+                $quantity = $request->item_qty[$index];
+                $rate = $request->item_rate[$index];
+                $vatPercent = $request->item_vat[$index] ?? 0;
+                
+                $itemSubtotal = $quantity * $rate;
+                $itemVat = $itemSubtotal * ($vatPercent / 100);
+                $itemTotal = $itemSubtotal + $itemVat;
+                
+                $subtotal += $itemSubtotal;
+                $vatTotal += $itemVat;
+                $grandTotal += $itemTotal;
+                
+                $itemsData[] = [
+                    'item_id' => $itemId,
+                    'item_des' => $item->name,
+                    'qty' => $quantity,
+                    'rate' => $rate,
+                    'tax' => $vatPercent,
+                    'tax_amount' => $itemVat,
+                    'total_amount' => $itemTotal,
                 ];
+            }
+            if($request->has('is_invoice'))
+                $request['billing_month'] = $request['billing_month'] . '-01';
+            $request['subtotal'] = $subtotal;
+            $request['vat'] = $vatTotal;
+            $request['total_amount'] = $grandTotal;
+            
+            if($id){
+                $request['updated_by'] = auth()->id();
+                $invoice = SupplierInvoices::find($id);
+                $invoice->update($request->all());
+                $invoice->items()->delete();
+            }else {
+                $request['created_by'] = auth()->id();
+                $invoice = SupplierInvoices::create($request->all());
+            }
+            
+            // Create invoice items
+            foreach ($itemsData as $itemData) {
+                $invoice->items()->create($itemData);
+            }
 
-                if ($itemId) {
-                    SupplierInvoicesItem::where('id', $itemId)->update($dta); // Update existing line
-                } else {
-                    SupplierInvoicesItem::create($dta); // Add new line
+            if($request->has('is_invoice') && $request['is_invoice']) {
+                
+                //Create Transactions Against Invoice
+                $transCode = null;
+                if($id) {
+                    $transCode = Transactions::where('reference_type', 'SUP')
+                        ->where('reference_id', $id)
+                        ->value('trans_code');
+                    Transactions::where('trans_code',$transCode)->delete();
+                }
+                if(!$transCode) {
+                    $transCode = \App\Helpers\Account::trans_code();
+                }
+                $invoice->load('supplier');
+                // Credit the Supplier Account
+                Transactions::create([
+                    'trans_code' => $transCode,
+                    'trans_date' => $invoice->inv_date,
+                    'reference_id' => $invoice->id,
+                    'reference_type' => 'SUP',
+                    'account_id' => $invoice->supplier->account_id,
+                    'credit' => $invoice->total_amount,
+                    'debit' => 0,
+                    'billing_month' => $invoice->billing_month,
+                    'narration' => $invoice->descriptions,
+                    'branch_id' => $invoice->supplier->branch_id,
+                ]);
+
+                //Debit Expense Account
+                Transactions::create([
+                    'trans_code' => $transCode, 
+                    'trans_date' => $invoice->inv_date,
+                    'reference_id' => $invoice->id,
+                    'reference_type' => 'SUP',
+                    'account_id' => 1176, // will change after creating expense account for suppliers
+                    'credit' => 0,
+                    'debit' => $invoice->subtotal,
+                    'billing_month' => $invoice->billing_month,
+                    'branch_id' => $invoice->supplier->branch_id,
+                    'narration' => $invoice->descriptions,
+                ]);
+
+                //Debit VAT on Purchase Account
+                if($invoice->vat > 0){
+                    Transactions::create([
+                        'trans_code' => $transCode, 
+                        'trans_date' => $invoice->inv_date,
+                        'reference_id' => $invoice->id,
+                        'reference_type' => 'SUP',
+                        'account_id' => 1023,
+                        'credit' => 0,
+                        'debit' => $invoice->vat,
+                        'billing_month' => $invoice->billing_month,
+                        'branch_id' => $invoice->supplier->branch_id,
+                        'narration' => 'Vat on supplier invoice '.$invoice->inv_id,
+                    ]);
                 }
             }
+            
+            DB::commit();
+            
+            return [
+                'success' => true
+            ];
+                            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return [
+                'success' => false, 
+                'error' => $e->getMessage() . $e->getTraceAsString(),
+            ];
         }
-        $invoice->load('supplier');
-        $trans_code = Account::trans_code();
-        $transactionService = new TransactionService();
-
-        if ($id) {
-            $trans_code = Transactions::where('reference_type', 'Invoice')
-                ->where('reference_id', $id)
-                ->value('trans_code');
-            $transactionService->deleteTransaction($trans_code);
-        }
-
-        // Credit transaction to Supplier's account
-        $transactionData = [
-            'account_id' => $invoice->supplier->account_id,
-            'reference_id' => $invoice->id,
-            'reference_type' => 'Invoice',
-            'trans_code' => $trans_code,
-            'trans_date' => $invoice->inv_date,
-            'narration' => "Supplier Invoice #{$invoice->id} - {$invoice->descriptions}",
-            'credit' => $invoice->total_amount ?? 0,
-            'billing_month' => $invoice->billing_month,
-            'branch_id' => $invoice->supplier->branch_id,
-        ];
-        $transactionService->recordTransaction($transactionData);
-
-        // Debit from Salary Account (or relevant account)
-        $transactionData = [
-            'account_id' => HeadAccount::SALARY_ACCOUNT, // Adjust if needed
-            'reference_id' => $invoice->id,
-            'reference_type' => 'Invoice',
-            'trans_code' => $trans_code,
-            'trans_date' => $invoice->inv_date,
-            'narration' => "Supplier Invoice #{$invoice->id} - {$invoice->descriptions}",
-            'debit' => $invoice->total_amount ?? 0,
-            'branch_id' => $invoice->supplier->branch_id,
-            'billing_month' => $invoice->billing_month,
-        ];
-        $transactionService->recordTransaction($transactionData);
-
-        return $invoice;
     }
 }

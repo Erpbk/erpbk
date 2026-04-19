@@ -45,7 +45,7 @@
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $receipt->id }}" style="z-index: 1050;">
                         @can('receipt_create')
-                            @if(!str_contains($receipt->reference, 'CI-'))
+                            @if(!str_contains($receipt->reference, 'CI-') && !str_contains($receipt->reference, 'LBI-'))
                             <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Add New Receipt (Cloned From RV-{{ $receipt->voucher_id }})" data-action="{{ route('receipts.clone', $receipt->id) }}">
                                 <i class="fa fa-copy my-1"></i>Clone Receipt
                             </a>

@@ -402,11 +402,11 @@
     <div class="filter-body" id="searchTopbody">
         <form id="filterForm" action="{{ route('bikes.index') }}" method="GET">
             <div class="row">
-                @if(auth()->user()->hasMultiplebranches()))
+                @if(auth()->user()->hasMultiplebranches())
                 <div class="form-group col-md-12">
                     <label for="bike_code">Filter by Branch</label>
                     <select class="form-control " id="branch_id" name="branch_id">
-                        @foreach(auth()->user()::branchDropdown() as $id => $name)
+                        @foreach(auth()->user()->branchDropdown() as $id => $name)
                         <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
                         @endforeach
                     </select>

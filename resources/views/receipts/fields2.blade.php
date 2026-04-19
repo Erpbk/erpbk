@@ -104,7 +104,8 @@
     </div>
 
     <!-- Invoice Selection Section -->
-    @if(isset($invoices) && $invoices->count() > 0)
+    @if((isset($invoices) && $invoices->count() > 0) || (isset($existingInvoices) && $existingInvoices->count() > 0))
+    <input type="hidden" value="{{ $invoiceType }}" name="invoice_type">
     <div class="row mt-4">
         <div class="col-md-12">
             <h6 class="bg-light p-2 mb-3">Select Invoices for Payment</h6>
@@ -116,7 +117,7 @@
                                 <input type="checkbox" id="select-all-invoices">
                             </th>
                             <th>Invoice #</th>
-                            <th>Customer</th>
+                            @if($invoiceType == 'customer')<th>Customer</th>@else<th>Leasing Company</th>@endif
                             <th>Billing Month</th>
                             <th>Total Amount</th>
                             <th>Paid Amount</th>
@@ -131,15 +132,15 @@
                                 data-balance="{{ $invoice->balance + $invoice->partial_paid_amount[$receipt->id] }}" 
                                 data-reference="{{ $invoice->invoice_number }}" 
                                 data-old-payment="{{ $invoice->partial_paid_amount[$receipt->id] ?? 0 }}"
-                                data-customer-id="{{ $invoice->customer->id }}"
-                                data-customer-name="{{ $invoice->customer->name }}">
+                                data-customer-id="{{ $invoice->customer->id ?? $invoice->leasingCompany->id }}"
+                                data-customer-name="{{ $invoice->customer->name ?? $invoice->leasingCompany->name }}">
                                 <td class="text-center">
                                     <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" checked>
                                 </td>
-                                <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
-                                <td>{{ $invoice->customer->name ?? '-' }}</td>
+                                <td>{{ $invoice->invoice_number }}</td>
+                                <td>{{ $invoice->customer->name ?? $invoice->leasingCompany->name ?? '-' }}</td>
                                 <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
-                                <td class="text-right">{{ number_format($invoice->total, 2) }}</td>
+                                <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                                 <td class="text-right">{{ number_format($invoice->paid_amount - $invoice->partial_paid_amount[$receipt->id], 2) }}</td>
                                 <td class="text-right text-danger">{{ number_format($invoice->balance + $invoice->partial_paid_amount[$receipt->id], 2) }}</td>
                                 <td>
@@ -147,28 +148,25 @@
                                         class="form-control payment-amount" 
                                         step="any" 
                                         placeholder="Amount"
-                                        data-max="{{ $invoice->total }}"
+                                        data-max="{{ $invoice->total ?? $invoice->total_amount }}"
                                         value="{{ $invoice->partial_paid_amount[$receipt->id] ?? 0 }}">
                                 </td> 
                             </tr>
                             @endforeach
                         @endif
                         @foreach($invoices as $invoice)
-                        @php
-                            $partialPaid = $invoice->partial_paid_amount
-                        @endphp
                         <tr data-invoice-id="{{ $invoice->id }}" 
                             data-balance="{{ $invoice->balance }}" 
                             data-reference="{{ $invoice->invoice_number }}"
-                            data-customer-id="{{ $invoice->customer->id }}"
-                            data-customer-name="{{ $invoice->customer->name }}">
+                            data-customer-id="{{ $invoice->customer->id ?? $invoice->leasingCompany->id }}"
+                            data-customer-name="{{ $invoice->customer->name ?? $invoice->leasingCompany->name }}">
                             <td class="text-center">
                                 <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox">
                             </td>
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
-                            <td>{{ $invoice->customer->name ?? '-' }}</td>
+                            <td>{{ $invoice->customer->name ?? $invoice->leasingCompany->name ?? '-' }}</td>
                             <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
-                            <td class="text-right">{{ number_format($invoice->total, 2) }}</td>
+                            <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                             <td class="text-right">{{ number_format($invoice->paid_amount ?? 0, 2) }}</td>
                             <td class="text-right text-danger">{{ number_format($invoice->balance, 2) }}</td>
                             <td>
@@ -292,7 +290,7 @@ $(document).ready(function() {
     function getSelectedCustomerName() {
         var $payerSelect = $('#payer_account_id, [name="payer_account_id"]');
         var selectedOption = $payerSelect.find('option:selected');
-        
+        if (!selectedOption.val()) return null; // placeholder has no value
         var customerName = selectedOption.data('customername') || 
                           selectedOption.data('customer-name') || 
                           selectedOption.data('customerName');
@@ -322,6 +320,8 @@ $(document).ready(function() {
                 var $row = $(this);
                 var invoiceCustomerId = $row.data('customer-id');
                 var invoiceCustomerName = $row.data('customer-name');
+                console.log('invoice Customer ID:', invoiceCustomerId);
+                console.log('invoice Customer Name:', invoiceCustomerName);
                 
                 var matches = false;
                 

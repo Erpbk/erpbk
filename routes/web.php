@@ -509,6 +509,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::post('leasingCompanies/{id}/invoices', [\App\Http\Controllers\LeasingCompaniesController::class, 'storeInvoice'])->name('leasingCompanies.storeInvoice');
     Route::get('leasingCompanies/{id}/bikes', [\App\Http\Controllers\LeasingCompaniesController::class, 'getBikes'])->name('leasingCompanies.getBikes');
     Route::get('leasingCompanies/receipts/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'receipts'])->name('leasingCompanies.receipts');
+    Route::get('leasingCompany/receipts', [\App\Http\Controllers\LeasingCompaniesController::class, 'receipt'])->name('leasingCompanies.receipt');
+    Route::get('leasingCompany/payments', [\App\Http\Controllers\LeasingCompaniesController::class, 'payment'])->name('leasingCompanies.payment');
     Route::get('leasingCompanies/payments/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'payments'])->name('leasingCompanies.payments');
     Route::get('leasingCompany/files/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'files'])->name('leasingCompany.files');
     Route::get('leasingCompany/ledger/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'ledger'])->name('leasingCompany.ledger');
@@ -721,6 +723,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     // Supplier invoices
     Route::resource('supplierInvoices', SupplierInvoicesController::class);
+    Route::get('supplier/purchase_orders', [SupplierInvoicesController::class, 'purchaseOrders'])->name('supplier.purchase_order');
+    Route::get('supplier/payments', [SupplierInvoicesController::class, 'payments'])->name('supplier.payments');
     Route::any('/supplier_invoices/import', [SupplierInvoicesController::class, 'import'])->name('supplier_invoices.import');
     Route::post('/supplier/invoice/import', [SupplierInvoicesController::class, 'import'])->name('supplier.invoice_import');
     Route::get('/supplier/ledger', [SupplierInvoicesController::class, 'ledger'])->name('supplier.ledger');

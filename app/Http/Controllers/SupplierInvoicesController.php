@@ -13,6 +13,7 @@ use App\Models\Accounts;
 use App\Models\Items;
 use App\Models\SupplierInvoices;
 use App\Models\Supplier;
+use App\Models\Payment;
 use App\Models\Transactions;
 use App\Repositories\SupplierInvoicesRepository;
 use App\Services\TransactionService;
@@ -23,6 +24,8 @@ use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\SupplierInvoiceItems;
 use App\DataTables\LedgerDataTable;
+use DB;
+use Storage;
 
 
 
@@ -45,6 +48,7 @@ class SupplierInvoicesController extends AppBaseController
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = SupplierInvoices::query()
+            ->where('is_invoice', true)
             ->orderBy('id', 'asc');
 
         $query->whereHas('supplier');
@@ -91,12 +95,10 @@ class SupplierInvoicesController extends AppBaseController
      */
     public function create()
     {
-        $supplier = Supplier::dropdown();
-        $items = Items::dropdown();
+        $suppliers = Supplier::where('status',1)->get();
+        $type = request()->input('order') ? 'order' : 'invoice';
 
-        $itemsWithPrices = Items::select('id', 'price')->get()->pluck('price', 'id');
-
-        return view('supplier_invoices.create', compact('supplier', 'itemsWithPrices', 'items'));
+        return view('supplier_invoices.create', compact('suppliers','type'));
     }
 
     /**
@@ -104,42 +106,25 @@ class SupplierInvoicesController extends AppBaseController
      */
     public function store(CreateSupplierInvoicesRequest $request)
     {
-        $input = $request->all();
-
-        $supplierInvoices = $this->supplierInvoicesRepository->record($request);
-
-        Flash::success('Supplier Invoices saved successfully.');
-
-        return redirect(route('supplier_invoices.index'));
-
-        //     // Validate the request
-        // $request->validate([
-        //     'supplier_id' => 'required|exists:suppliers,id',
-        //     'invoice_date' => 'required|date',
-        //     'items' => 'required|array',
-        //     'items.*.item_id' => 'required|exists:items,id',
-        //     'items.*.qty' => 'required|numeric|min:1',
-        //     'items.*.rate' => 'required|numeric|min:0',
-        // ]);
-
-        // $invoice = new SupplierInvoice();
-        // $invoice->fill($request->only(['supplier_id', 'date', 'total']));
-        // $invoice->save();
-
-        // if ($request->has('items')) {
-        //     foreach ($request->items as $item) {
-        //         $invoice->items()->create([
-        //             'item_id'   => $item['item_id'],
-        //             'qty'       => $item['qty'],
-        //             'rate'      => $item['rate'],
-        //             'discount'  => $item['discount'],
-        //             'tax'       => $item['tax'],
-        //             'amount'    => $item['amount'],
-        //         ]);
-        //     }
-        // }
-
-        // return redirect()->route('invoices.index')->with('success', 'Invoice created successfully.');
+        if($request->type == 'order'){
+            $request['is_order'] = true;
+        }else {
+            $request['is_invoice'] = true;
+        }
+        $result = $this->supplierInvoicesRepository->record($request);
+        if($result['success']){
+            if($request->ajax()){
+                return response()->json(['message' => 'Supplier Invoice Created Successfully', 'reload' => true], 200);
+            }
+            Flash::success('Supplier Invoice Created Successfully');
+            return redirect()->back();
+        }else {
+            if($request->ajax()){
+                return response()->json(['message' => 'Error: ' .$result['error']], 500);
+            }
+            Flash::error('Error: '.$result['error']);
+            return redirect()->back();
+        }
 
     }
 
@@ -154,10 +139,12 @@ class SupplierInvoicesController extends AppBaseController
             Flash::error('Supplier Invoice not found');
             return redirect(route('supplier_invoices.index'));
         }
+        $supplierInvoice->load(['supplier','createdBy','updatedBy']);
 
-
-
-        return view('supplier_invoices.show')->with('supplierInvoice', $supplierInvoice);
+        if(request()->input('order'))
+            return view('supplier_invoices.showOrder')->with('supplierInvoice', $supplierInvoice);
+        else
+            return view('supplier_invoices.show')->with('supplierInvoice', $supplierInvoice);
     }
 
     /**
@@ -167,17 +154,12 @@ class SupplierInvoicesController extends AppBaseController
     {
         $invoice = SupplierInvoices::with('items')->find($id);
 
-
-
-
         if (!$invoice) {
             Flash::error('Supplier Invoice not found');
             return redirect(route('supplierInvoices.index'));
         }
-
-        $supplier = Supplier::dropdown();
-        $items = Items::dropdown();
-        $itemsWithPrices = Items::select('id', 'price')->get()->pluck('price', 'id');
+        $type = request()->input('order') ? 'order' : 'invoice';
+        $suppliers = Supplier::where('status',1)->get();
 
 
 
@@ -188,7 +170,7 @@ class SupplierInvoicesController extends AppBaseController
         //     return redirect(route('supplier_invoices.index'));
         // }
 
-        return view('supplier_invoices.edit', compact('supplier', 'items',  'invoice', 'itemsWithPrices'));
+        return view('supplier_invoices.edit', compact('suppliers', 'type','invoice'));
     }
 
     /**
@@ -201,19 +183,29 @@ class SupplierInvoicesController extends AppBaseController
 
         if (empty($supplierInvoice)) {
             Flash::error('Supplier Invoice not found');
-            return redirect(route('supplier_invoices.index'));
+            return redirect()->back();
         }
-
+        if($request->type == 'order'){
+            $request['is_order'] = true;
+        }else {
+            $request['is_invoice'] = true;
+        }
         // Call the repository method to update the invoice and related data
-        $updatedInvoice = $this->supplierInvoicesRepository->record($request, $id);
+        $result = $this->supplierInvoicesRepository->record($request, $id);
 
-        if ($updatedInvoice) {
-            Flash::success('Supplier Invoice updated successfully.');
-        } else {
-            Flash::error('Failed to update the Supplier Invoice.');
+        if($result['success']){
+            if($request->ajax()){
+                return response()->json(['message' => 'Record Updated Successfully', 'reload' => true], 200);
+            }
+            Flash::success('Record Updated Successfully');
+            return redirect()->back();
+        }else {
+            if($request->ajax()){
+                return response()->json(['message' => 'Error: ' .$result['error']], 500);
+            }
+            Flash::error('Error: '.$result['error']);
+            return redirect()->back();
         }
-
-        return redirect(route('supplier_invoices.index'));
     }
 
 
@@ -222,9 +214,9 @@ class SupplierInvoicesController extends AppBaseController
      *
      * @throws \Exception
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        $supplierInvoices = $this->supplierInvoicesRepository->find($id);
+        $supplierInvoice = $this->supplierInvoicesRepository->find($id);
 
         if (empty($supplierInvoices)) {
             Flash::error('Supplier Invoice not found');
@@ -233,45 +225,28 @@ class SupplierInvoicesController extends AppBaseController
 
         DB::beginTransaction();
         try {
-            // Get billing month and affected accounts before deletion
-            $trans_code = Transactions::where('reference_type', 'Invoice')
-                ->where('reference_id', $id)
-                ->value('trans_code');
-
-            if ($trans_code) {
-                // Get all accounts involved in this invoice's transactions
-                $affectedAccountsData = Transactions::where('trans_code', $trans_code)
-                    ->select('account_id', 'billing_month')
-                    ->get();
-
-                // Delete transactions
-                $transactions = new TransactionService();
-                $transactions->deleteTransaction($trans_code);
-
-                // Delete related vouchers
-                Vouchers::where('trans_code', $trans_code)
-                    ->where('ref_id', $id)
-                    ->delete();
-
-                // ✅ FIX: Recalculate ledger for all affected accounts
-                foreach ($affectedAccountsData as $transData) {
-                    if ($transData->account_id && $transData->billing_month) {
-                        $this->recalculateLedgerAfterDeletion($transData->account_id, $transData->billing_month);
-                    }
-                }
+            if ($supplierInvoice->attachment && Storage::disk('public')->exists($supplierInvoice->attachment)) {
+                Storage::disk('public')->delete($supplierInvoice->attachment);
             }
-
-            // Delete the invoice
-            $this->supplierInvoicesRepository->delete($id);
+            Transactions::where(['reference_id' =>  $supplierInvoice->id, 'reference_type' => 'SUP'])->delete();
+            $supplierInvoice->items()->delete();
+            $supplierInvoice->delete();
 
             DB::commit();
+            if($request->ajax()){
+                return response()->json(['message' => 'Record deleted successfully.'],200);
+            }
             Flash::success('Supplier Invoice deleted successfully.');
+            return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error("Error deleting Supplier Invoice ID: {$id} - " . $e->getMessage());
+             if($request->ajax()){
+                return response()->json(['message' => 'Error: '.$e->getMessage()],500);
+            }
             Flash::error('Error deleting Supplier Invoice: ' . $e->getMessage());
+            return redirect()->back();
         }
-
         return redirect(route('supplierInvoices.index'));
     }
 
@@ -370,5 +345,70 @@ class SupplierInvoicesController extends AppBaseController
     public function ledger()
     {
         return (new LedgerDataTable('supplier'))->render('supplier.ledger');
+    }
+
+    public function purchaseOrders(Request $request)
+    {
+        // Use global pagination trait
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+        $query = SupplierInvoices::query()
+            ->where('is_order', true)
+            ->orderBy('id', 'asc');
+
+        $query->whereHas('supplier');
+        if ($request->has('inv_id') && !empty($request->inv_id)) {
+            $query->where('inv_id', 'like', '%' . $request->inv_id . '%');
+        }
+
+        if ($request->has('supplier_id') && !empty($request->supplier_id)) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+        if ($request->filled('inv_date_to')) {
+            $fromDate = \Carbon\Carbon::createFromFormat('Y-d-m', $request->inv_date_to);
+            $query->where('inv_date', '>=', $fromDate);
+        }
+
+        if ($request->filled('inv_date_to')) {
+            $toDate = \Carbon\Carbon::createFromFormat('Y-d-m', $request->inv_date_to);
+            $query->where('inv_date', '<=', $toDate);
+        }
+        if ($request->has('billing_month') && !empty($request->billing_month)) {
+            $billingMonth = \Carbon\Carbon::parse($request->billing_month);
+            $query->whereYear('billing_month', $billingMonth->year)
+                ->whereMonth('billing_month', $billingMonth->month);
+        }
+        // Apply pagination using the trait
+        $data = $this->applyPagination($query, $paginationParams);
+        if ($request->ajax()) {
+            $tableData = view('supplier_invoices.table', [
+                'data' => $data,
+            ])->render();
+            $paginationLinks = $data->links('components.global-pagination')->render();
+            return response()->json([
+                'tableData' => $tableData,
+                'paginationLinks' => $paginationLinks,
+            ]);
+        }
+        return view('supplier_invoices.orderIndex', [
+            'data' => $data,
+        ]);
+    }
+
+    public function payments(Request $request)
+    {
+        $accountIds = Supplier::pluck('account_id')->toArray();
+
+        if (empty($accountIds)) {
+        Flash::error('No Suppliers found');
+        return redirect()->back();
+        }
+
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+        $query = Payment::query()->latest('date_of_payment');
+        $query->whereIn('payee_account_id', $accountIds);
+
+        // Apply pagination using the trait
+        $data = $this->applyPagination($query, $paginationParams);
+        return view('supplier.payments', compact('data'));
     }
 }

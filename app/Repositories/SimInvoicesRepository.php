@@ -173,12 +173,12 @@ class SimInvoicesRepository extends BaseRepository
         $expenseAccountId = HeadAccount::LEASING_EXPENSE_ACCOUNT;
         $vatAccountId = HeadAccount::TAX_ACCOUNT;
 
-        $expenseAccountExists = DB::table('accounts')->where('id', $expenseAccountId)->whereNull('deleted_at')->exists();
+        $expenseAccountExists = \App\Support\CompanyQuery::table('accounts')->where('id', $expenseAccountId)->whereNull('deleted_at')->exists();
         if (!$expenseAccountExists) {
             throw new \Exception('Expense account (ID ' . $expenseAccountId . ') not found in Chart of Accounts.');
         }
 
-        $vatAccountExists = DB::table('accounts')->where('id', $vatAccountId)->whereNull('deleted_at')->exists();
+        $vatAccountExists = \App\Support\CompanyQuery::table('accounts')->where('id', $vatAccountId)->whereNull('deleted_at')->exists();
         if (!$vatAccountExists) {
             throw new \Exception('VAT account (ID ' . $vatAccountId . ') not found in Chart of Accounts.');
         }

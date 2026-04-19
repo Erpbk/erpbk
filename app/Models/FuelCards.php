@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
-class FuelCards extends Model
+class FuelCards extends BaseModel
 {
     use LogsActivity, BranchScope;
 

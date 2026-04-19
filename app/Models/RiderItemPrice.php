@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
-class RiderItemPrice extends Model
+class RiderItemPrice extends BaseModel
 {
   use HasFactory, LogsActivity, SoftDeletes;
   protected $guarded = [];

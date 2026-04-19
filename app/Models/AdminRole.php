@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class AdminRole extends Model
+class AdminRole extends BaseModel
 {
     protected $connection = 'mysql_admin';
 

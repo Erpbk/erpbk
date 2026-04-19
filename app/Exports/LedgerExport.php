@@ -151,7 +151,7 @@ class LedgerExport implements FromArray, WithHeadings, WithStyles, WithColumnWid
         $voucher_ID = '';
 
         if (in_array($row->reference_type, ['Voucher', 'RTA', 'LV', 'VL', 'INC', 'PN', 'PAY', 'COD', 'Salik Voucher', 'VC', 'AL', 'RiderInvoice', 'LeasingCompanyInvoice'])) {
-            $vouchers = DB::table('vouchers')->where('trans_code', $row->trans_code)->first();
+            $vouchers = \App\Support\CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
             if ($vouchers) {
                 $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
                 $voucher_text = $voucher_ID;
@@ -178,17 +178,17 @@ class LedgerExport implements FromArray, WithHeadings, WithStyles, WithColumnWid
         $narration = $row->narration;
 
         if ($row->reference_type == 'RTA') {
-            $vouchers = DB::table('vouchers')->where('trans_code', $row->trans_code)->first();
+            $vouchers = \App\Support\CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
             if ($vouchers) {
-                $fines = DB::table('rta_fines')->where('id', $vouchers->ref_id)->first();
+                $fines = \App\Support\CompanyQuery::table('rta_fines')->where('id', $vouchers->ref_id)->first();
                 if ($fines) {
                     $narration = $row->narration . ', Ticket Number: ' . $fines->ticket_no . ', Bike No: ' . $fines->plate_no . ', ' . \Carbon\Carbon::parse($fines->trip_date)->format('d M Y');
                 }
             }
         } elseif ($row->reference_type == 'LV') {
-            $visaex = DB::table('visa_expenses')->where('id', $row->reference_id)->first();
+            $visaex = \App\Support\CompanyQuery::table('visa_expenses')->where('id', $row->reference_id)->first();
             if ($visaex) {
-                $rider = DB::Table('accounts')->where('id', $visaex->rider_id)->first();
+                $rider = \App\Support\CompanyQuery::table('accounts')->where('id', $visaex->rider_id)->first();
                 if ($rider) {
                     $narration = 'Paid to ' . $rider->name . ' ' . $visaex->visa_status . ' Charges ' . $visaex->date;
                 }

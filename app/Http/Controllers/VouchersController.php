@@ -373,7 +373,7 @@ class VouchersController extends Controller
 
       $riderId = $request->rider_id ?? $vouchers->rider_id;
 
-      $riderAccountId = DB::table('riders')->where('id', $riderId)->value('account_id');
+      $riderAccountId = \App\Support\CompanyQuery::table('riders')->where('id', $riderId)->value('account_id');
       if (!$riderAccountId) {
         $riderAccountId = $request->account_id[0] ?? null;
         if (!$riderAccountId) {
@@ -410,7 +410,7 @@ class VouchersController extends Controller
         $vouchers->save();
 
         // Only update rider_id in rta_fines if this is the FIRST voucher with this ref_id
-        $firstVoucherId = DB::table('vouchers')
+        $firstVoucherId = \App\Support\CompanyQuery::table('vouchers')
           ->where('ref_id', $vouchers->ref_id)
           ->where('voucher_type', 'RFV')
           ->orderBy('id', 'asc')
@@ -427,10 +427,10 @@ class VouchersController extends Controller
           $fineUpdate['rider_id'] = $riderAccountId;
         }
 
-        DB::table('rta_fines')->where('id', $vouchers->ref_id)->update($fineUpdate);
+        \App\Support\CompanyQuery::table('rta_fines')->where('id', $vouchers->ref_id)->update($fineUpdate);
 
         // Update transactions only for this voucher's trans_code
-        $transactions = DB::table('transactions')
+        $transactions = \App\Support\CompanyQuery::table('transactions')
           ->where('reference_id', $vouchers->ref_id)
           ->where('reference_type', 'RTA')
           ->where('trans_code', $vouchers->trans_code)
@@ -441,7 +441,7 @@ class VouchersController extends Controller
           $accountId = $request->account_id[$i] ?? 0;
           $newAccountId = ($accountId == 0 || empty($accountId)) ? $riderAccountId : $accountId;
 
-          DB::table('transactions')
+          \App\Support\CompanyQuery::table('transactions')
             ->where('id', $txn->id)
             ->update([
               'account_id' => $newAccountId,
@@ -612,13 +612,13 @@ class VouchersController extends Controller
   private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
   {
     // Delete only the ledger entry for this specific billing month
-    DB::table('ledger_entries')
+    \App\Support\CompanyQuery::table('ledger_entries')
       ->where('account_id', $accountId)
       ->where('billing_month', $billingMonth)
       ->delete();
 
     // Get the last ledger entry before this billing month
-    $lastLedger = DB::table('ledger_entries')
+    $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
       ->where('account_id', $accountId)
       ->where('billing_month', '<', $billingMonth)
       ->orderBy('billing_month', 'desc')
@@ -637,7 +637,7 @@ class VouchersController extends Controller
 
     // Only insert a new ledger entry if there are still transactions for this month
     if ($monthTransactions->count() > 0) {
-      DB::table('ledger_entries')->insert([
+      \App\Support\CompanyQuery::table('ledger_entries')->insert([
         'account_id'      => $accountId,
         'billing_month'   => $billingMonth,
         'opening_balance' => $openingBalance,

@@ -1577,7 +1577,7 @@ class RidersController extends AppBaseController
     }
     $expectedFiles = \App\Models\RiderDocumentType::expectedFilesStructure();
 
-    $files = DB::table('files')
+    $files = \App\Support\CompanyQuery::table('files')
       ->where('type', 'rider')
       ->where('type_id', $rider_id)
       ->get();

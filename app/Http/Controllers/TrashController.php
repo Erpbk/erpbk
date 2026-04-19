@@ -285,7 +285,7 @@ class TrashController extends Controller
         }
 
         // Fetch cascade history directly from database
-        $cascadeHistory = DB::table('deletion_cascades')
+        $cascadeHistory = \App\Support\CompanyQuery::table('deletion_cascades')
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get();
@@ -340,7 +340,7 @@ class TrashController extends Controller
             $restoredItems = [];
 
             // DATABASE-DRIVEN: Fetch cascaded deletions from deletion_cascades table
-            $cascadedDeletions = DB::table('deletion_cascades')
+            $cascadedDeletions = \App\Support\CompanyQuery::table('deletion_cascades')
                 ->where('primary_model', $config['model'])
                 ->where('primary_id', $id)
                 ->where('deletion_type', 'soft')
@@ -445,7 +445,7 @@ class TrashController extends Controller
             $deletedItems = [];
 
             // DATABASE-DRIVEN: Fetch all cascaded deletions from deletion_cascades table
-            $cascadedDeletions = DB::table('deletion_cascades')
+            $cascadedDeletions = \App\Support\CompanyQuery::table('deletion_cascades')
                 ->where('primary_model', $config['model'])
                 ->where('primary_id', $id)
                 ->get();
@@ -464,7 +464,7 @@ class TrashController extends Controller
                     foreach ($foreignKeys as $foreignKey) {
                         // Check if this table and foreign key combination has any records
                         if (Schema::hasColumn($constraintTable, $foreignKey)) {
-                            $count = DB::table($constraintTable)
+                            $count = \App\Support\CompanyQuery::table($constraintTable)
                                 ->where($foreignKey, $id)
                                 ->count();
 
@@ -495,7 +495,7 @@ class TrashController extends Controller
                             foreach ($foreignKeys as $foreignKey) {
                                 try {
                                     if (Schema::hasColumn($constraintTable, $foreignKey)) {
-                                        $count = DB::table($constraintTable)
+                                        $count = \App\Support\CompanyQuery::table($constraintTable)
                                             ->where($foreignKey, $cascade->related_id)
                                             ->count();
 
@@ -555,12 +555,12 @@ class TrashController extends Controller
             }
 
             // Remove all cascade records associated with this deletion
-            DB::table('deletion_cascades')
+            \App\Support\CompanyQuery::table('deletion_cascades')
                 ->where('primary_model', $config['model'])
                 ->where('primary_id', $id)
                 ->delete();
 
-            DB::table('deletion_cascades')
+            \App\Support\CompanyQuery::table('deletion_cascades')
                 ->where('related_model', $config['model'])
                 ->where('related_id', $id)
                 ->delete();

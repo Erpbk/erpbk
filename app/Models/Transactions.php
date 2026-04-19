@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
-class Transactions extends Model
+class Transactions extends BaseModel
 {
   use SoftDeletes, LogsActivity, BranchScope;
 

@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class VatReturnEntry extends Model
+class VatReturnEntry extends BaseModel
 {
     protected $fillable = [
         'vat_return_id',

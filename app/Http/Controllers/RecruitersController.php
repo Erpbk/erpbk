@@ -198,7 +198,7 @@ class RecruitersController extends AppBaseController
 
         // Check if recruiter account has ledger entries before deletion
         if ($recruiter->account) {
-            $ledgerEntriesCount = DB::table('ledger_entries')
+            $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
                 ->where('account_id', $recruiter->account->id)
                 ->count();
 

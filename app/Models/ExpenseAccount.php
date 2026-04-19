@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ExpenseAccount extends Model
+class ExpenseAccount extends BaseModel
 {
     public $table = 'expense_accounts';
 

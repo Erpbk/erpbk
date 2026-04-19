@@ -7,7 +7,7 @@ use App\Traits\LogsActivity;
 use App\Models\Accounts;
 use Illuminate\Support\Str;
 
-class GarageItem extends Model
+class GarageItem extends BaseModel
 {
     use LogsActivity;
 

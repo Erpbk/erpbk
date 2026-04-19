@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use App\Traits\LogsActivity;
 
-class Settings extends Model
+class Settings extends BaseModel
 {
     use HasFactory, LogsActivity;
     protected $table = "settings";

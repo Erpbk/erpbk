@@ -3,6 +3,7 @@
 namespace App\DataTables;
 
 use Spatie\Permission\Models\Permission;
+use Illuminate\Support\Facades\View;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
 
@@ -17,6 +18,10 @@ class PermissionsDataTable extends DataTable
     public function dataTable($query)
     {
         $dataTable = new EloquentDataTable($query);
+
+        if (View::shared('settings_panel') ?? false) {
+            return $dataTable;
+        }
 
         return $dataTable->addColumn('action', 'permissions.datatables_actions');
     }
@@ -33,10 +38,9 @@ class PermissionsDataTable extends DataTable
      */
     public function html()
     {
-        return $this->builder()
+        $builder = $this->builder()
             ->columns($this->getColumns())
             ->minifiedAjax()
-            ->addAction(['width' => '120px', 'printable' => false])
             ->parameters([
                 'dom'       => 'Bfrtip',
                 'stateSave' => true,
@@ -50,6 +54,12 @@ class PermissionsDataTable extends DataTable
 //                    ['extend' => 'reload', 'className' => 'btn btn-default btn-sm no-corner',],
                 ],
             ]);
+
+        if (!(View::shared('settings_panel') ?? false)) {
+            $builder->addAction(['width' => '120px', 'printable' => false]);
+        }
+
+        return $builder;
     }
 
     /**

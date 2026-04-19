@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -12,7 +13,7 @@ use App\Traits\LogsActivity;
 
 class User extends Authenticatable
 {
-  use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
+  use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity, BelongsToCompany;
 
   /**
    * The attributes that are mass assignable.
@@ -44,7 +45,7 @@ class User extends Authenticatable
   public static array $rules = [
     'first_name' => 'required|string|max:255',
     'branch_ids' => 'required|array',
-    'company_id' => 'required|exists:companies,id',
+    'company_id' => 'nullable|exists:companies,id',
     'branch_ids.*' => 'required',
     'last_name' => 'nullable|string|max:255',
     'email' => 'nullable|string|max:255|email|unique:users',
@@ -75,6 +76,11 @@ class User extends Authenticatable
     'password' => 'hashed',
     'branch_ids' => 'array',
   ];
+
+  public function company()
+  {
+    return $this->belongsTo(Company::class, 'company_id');
+  }
 
 
   public function department()

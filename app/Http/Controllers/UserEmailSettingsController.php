@@ -20,7 +20,7 @@ class UserEmailSettingsController extends Controller
   {
     $user = Auth::user();
 
-    $ccRecipientIds = DB::table('user_email_cc_recipients')
+    $ccRecipientIds = \App\Support\CompanyQuery::table('user_email_cc_recipients')
       ->where('user_id', $user->id)
       ->pluck('recipient_user_id')
       ->all();
@@ -30,7 +30,7 @@ class UserEmailSettingsController extends Controller
       ->orderBy('name')
       ->get(['id', 'name', 'first_name', 'last_name', 'email', 'username']);
 
-    $setting = DB::table('user_email_settings')->where('user_id', $user->id)->first();
+    $setting = \App\Support\CompanyQuery::table('user_email_settings')->where('user_id', $user->id)->first();
     $hasAppPassword = !empty($setting?->smtp_app_password_encrypted);
 
     return view('users.email_settings', [
@@ -59,14 +59,14 @@ class UserEmailSettingsController extends Controller
     if ($request->filled('smtp_app_password')) {
       $encrypted = Crypt::encryptString($request->input('smtp_app_password'));
 
-      DB::table('user_email_settings')->updateOrInsert(
+      \App\Support\CompanyQuery::table('user_email_settings')->updateOrInsert(
         ['user_id' => $user->id],
         ['smtp_app_password_encrypted' => $encrypted, 'updated_at' => now(), 'created_at' => now()]
       );
     }
 
     // Sync CC recipients.
-    DB::table('user_email_cc_recipients')->where('user_id', $user->id)->delete();
+    \App\Support\CompanyQuery::table('user_email_cc_recipients')->where('user_id', $user->id)->delete();
     $rows = [];
     foreach ($ccRecipientIds as $recipientUserId) {
       $rows[] = [
@@ -77,7 +77,7 @@ class UserEmailSettingsController extends Controller
       ];
     }
     if (!empty($rows)) {
-      DB::table('user_email_cc_recipients')->insert($rows);
+      \App\Support\CompanyQuery::table('user_email_cc_recipients')->insert($rows);
     }
 
     Flash::success('Email settings saved.');

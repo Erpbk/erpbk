@@ -595,7 +595,7 @@ class General
    */
   public static function get_visa_no($pn = '')
   {
-    $visa_no = DB::table('agent_umrah_visitors')->where('passport', $pn)->value('visa');
+    $visa_no = \App\Support\CompanyQuery::table('agent_umrah_visitors')->where('passport', $pn)->value('visa');
     return $visa_no;
   }
   //print headers

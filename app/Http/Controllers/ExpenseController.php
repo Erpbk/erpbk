@@ -305,7 +305,7 @@ class ExpenseController extends AppBaseController
             return response()->json(['errors' => ['error' => "Cannot delete account. This account has {$transactionsCount} transaction(s). Accounts with transactions cannot be deleted."]], 422);
         }
 
-        $ledgerEntriesCount = DB::table('ledger_entries')
+        $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
             ->where('account_id', $account->id)
             ->count();
         if ($ledgerEntriesCount > 0) {

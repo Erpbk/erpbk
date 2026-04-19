@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class VoucherTypeModuleAssignment extends Model
+class VoucherTypeModuleAssignment extends BaseModel
 {
     protected $table = 'voucher_type_module_assignments';
 

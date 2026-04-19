@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
-class LeasingCompanies extends Model
+class LeasingCompanies extends BaseModel
 {
   use LogsActivity, SoftDeletes, BranchScope;
 

@@ -223,7 +223,7 @@ class VisaStatusController extends Controller
             $visaStatus = VisaStatus::findOrFail($id);
 
             // Check if this status is being used in visa_expenses
-            $isUsed = DB::table('visa_expenses')->where('visa_status', $visaStatus->name)->exists();
+            $isUsed = \App\Support\CompanyQuery::table('visa_expenses')->where('visa_status', $visaStatus->name)->exists();
 
             if ($isUsed) {
                 Flash::error('Cannot delete this visa status as it is being used in visa expenses.');

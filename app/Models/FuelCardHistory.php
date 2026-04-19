@@ -4,7 +4,7 @@ namespace App\Models;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
-class FuelCardHistory extends Model
+class FuelCardHistory extends BaseModel
 {
     use LogsActivity;
 

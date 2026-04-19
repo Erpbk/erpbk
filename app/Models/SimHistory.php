@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
-class SimHistory extends Model
+class SimHistory extends BaseModel
 {
     use LogsActivity;
     public $table = 'sim_histories';

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\BranchScope;
 
-class CustomerInvoices extends Model
+class CustomerInvoices extends BaseModel
 {
     use HasFactory, SoftDeletes, BranchScope;
 

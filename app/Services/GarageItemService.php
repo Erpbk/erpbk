@@ -59,7 +59,7 @@ class GarageItemService
     {
         Log::debug('Finding vouchers for garage item ID: ' . $garageItemId);
 
-        $vouchers = DB::table('vouchers')
+        $vouchers = \App\Support\CompanyQuery::table('vouchers')
             ->where('ref_id', $garageItemId)
             ->where('voucher_type', 'GV')
             ->get();
@@ -101,7 +101,7 @@ class GarageItemService
             Log::debug('Updating voucher with data: ' . json_encode($voucherData));
 
             // Update the voucher
-            $updated = DB::table('vouchers')
+            $updated = \App\Support\CompanyQuery::table('vouchers')
                 ->where('id', $voucherId)
                 ->update($voucherData);
 
@@ -109,7 +109,7 @@ class GarageItemService
                 Log::info('Voucher updated successfully: ' . $voucherId);
 
                 // Get the updated voucher
-                $voucher = DB::table('vouchers')->where('id', $voucherId)->first();
+                $voucher = \App\Support\CompanyQuery::table('vouchers')->where('id', $voucherId)->first();
 
                 // Update associated transactions
                 $transactionService = new TransactionService();
@@ -180,7 +180,7 @@ class GarageItemService
             ]);
 
             // 2. Credit Supplier Account
-            $supplierAccountId = DB::table('accounts')
+            $supplierAccountId = \App\Support\CompanyQuery::table('accounts')
                 ->where('ref_id', $supplier->id)
                 ->where('ref_name', 'Supplier')
                 ->value('id');
@@ -192,11 +192,11 @@ class GarageItemService
             Log::debug('Accounts table exists: ' . ($accountsTableExists ? 'Yes' : 'No'));
 
             if ($accountsTableExists) {
-                $accountsCount = DB::table('accounts')->count();
+                $accountsCount = \App\Support\CompanyQuery::table('accounts')->count();
                 Log::debug('Accounts table record count: ' . $accountsCount);
 
                 // Sample some accounts for debugging
-                $sampleAccounts = DB::table('accounts')->limit(3)->get();
+                $sampleAccounts = \App\Support\CompanyQuery::table('accounts')->limit(3)->get();
                 Log::debug('Sample accounts: ' . json_encode($sampleAccounts));
             }
 
@@ -247,9 +247,9 @@ class GarageItemService
             }
 
             try {
-                $voucherId = DB::table('vouchers')->insertGetId($voucherData);
+                $voucherId = \App\Support\CompanyQuery::table('vouchers')->insertGetId($voucherData);
                 Log::debug('Voucher created with ID: ' . $voucherId);
-                $voucher = DB::table('vouchers')->where('id', $voucherId)->first();
+                $voucher = \App\Support\CompanyQuery::table('vouchers')->where('id', $voucherId)->first();
             } catch (\Exception $e) {
                 Log::error('Error creating voucher: ' . $e->getMessage());
                 throw $e;

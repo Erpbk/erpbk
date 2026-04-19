@@ -393,7 +393,7 @@ class BanksController extends AppBaseController
 
   public function files($id, FilesDataTable $filesDataTable)
   {
-    $files = DB::table('files')->where('type', 'bank')->where('type_id', $id)->latest('id')->get();
+    $files = \App\Support\CompanyQuery::table('files')->where('type', 'bank')->where('type_id', $id)->latest('id')->get();
     $banks = Banks::find($id);
 
     return view('banks.document', compact('files'));

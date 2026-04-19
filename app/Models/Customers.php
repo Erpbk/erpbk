@@ -8,7 +8,7 @@ use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 
-class Customers extends Model
+class Customers extends BaseModel
 {
   use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
 

@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class VoucherCustomField extends Model
+class VoucherCustomField extends BaseModel
 {
     protected $table = 'voucher_custom_fields';
 

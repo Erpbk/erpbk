@@ -4,7 +4,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
-class LedgerEntry extends Model
+class LedgerEntry extends BaseModel
 {
     use LogsActivity;
 

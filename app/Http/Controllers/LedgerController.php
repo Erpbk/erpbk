@@ -205,7 +205,7 @@ class LedgerController extends Controller
   //   $voucherTypes = ['Voucher', 'RTA', 'LV', 'VL', 'INC', 'PN', 'PAY', 'COD', 'Salik Voucher', 'VC', 'AL', 'RiderInvoice'];
 
   //   if (in_array($row->reference_type, $voucherTypes)) {
-  //     $vouchers = DB::table('vouchers')->where('trans_code', $row->trans_code)->first();
+  //     $vouchers = \App\Support\CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
   //     if ($vouchers) {
   //       $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
   //       return '<span class="d-none">' . $voucher_ID . '</span><a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
@@ -228,18 +228,18 @@ class LedgerController extends Controller
   // private function getNarration($row, $view_file)
   // {
   //   if ($row->reference_type == 'RTA') {
-  //     $vouchers = DB::table('vouchers')->where('trans_code', $row->trans_code)->first();
+  //     $vouchers = \App\Support\CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
   //     if ($vouchers) {
-  //       $fines = DB::table('rta_fines')->where('id', $vouchers->ref_id)->first();
+  //       $fines = \App\Support\CompanyQuery::table('rta_fines')->where('id', $vouchers->ref_id)->first();
   //       if ($fines) {
   //         return $row->narration . ', <b>Ticket Number: </b>' . $fines->ticket_no . ', <b>Bike No: </b>' . $fines->plate_no . ', ' . \Carbon\Carbon::parse($fines->trip_date)->format('d M Y') . ', ' . $view_file;
   //       }
   //     }
   //     return $row->narration . ', ' . $view_file;
   //   } elseif ($row->reference_type == 'LV') {
-  //     $visaex = DB::table('visa_expenses')->where('id', $row->reference_id)->first();
+  //     $visaex = \App\Support\CompanyQuery::table('visa_expenses')->where('id', $row->reference_id)->first();
   //     if ($visaex) {
-  //       $rider = DB::Table('accounts')->where('id', $visaex->rider_id)->first();
+  //       $rider = \App\Support\CompanyQuery::table('accounts')->where('id', $visaex->rider_id)->first();
   //       if ($rider) {
   //         return 'Paid to <b>' . $rider->name . ' </b>' . $visaex->visa_status . ' Charges ' . $visaex->date . $view_file;
   //       }

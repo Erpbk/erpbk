@@ -75,7 +75,7 @@ trait HasTrashFunctionality
             
             // Restore cascaded deletions if any
             $restoredItems = [];
-            $cascadedDeletions = DB::table('deletion_cascades')
+            $cascadedDeletions = \App\Support\CompanyQuery::table('deletion_cascades')
                 ->where('primary_model', $modelClass)
                 ->where('primary_id', $id)
                 ->where('deletion_type', 'soft')
@@ -140,7 +140,7 @@ trait HasTrashFunctionality
             $deletedItems = [];
             
             // Get cascaded deletions
-            $cascadedDeletions = DB::table('deletion_cascades')
+            $cascadedDeletions = \App\Support\CompanyQuery::table('deletion_cascades')
                 ->where('primary_model', $modelClass)
                 ->where('primary_id', $id)
                 ->get();
@@ -165,12 +165,12 @@ trait HasTrashFunctionality
             }
 
             // Remove cascade records
-            DB::table('deletion_cascades')
+            \App\Support\CompanyQuery::table('deletion_cascades')
                 ->where('primary_model', $modelClass)
                 ->where('primary_id', $id)
                 ->delete();
 
-            DB::table('deletion_cascades')
+            \App\Support\CompanyQuery::table('deletion_cascades')
                 ->where('related_model', $modelClass)
                 ->where('related_id', $id)
                 ->delete();

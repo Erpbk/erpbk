@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class CustomerInvoiceItem extends Model
+class CustomerInvoiceItem extends BaseModel
 {
     use HasFactory, SoftDeletes;
 

@@ -6,7 +6,7 @@ use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class EmployeeInvoiceItem extends Model
+class EmployeeInvoiceItem extends BaseModel
 {
     use HasFactory, LogsActivity;
 

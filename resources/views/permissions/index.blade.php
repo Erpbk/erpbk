@@ -9,10 +9,12 @@
                     <h3>Permissions</h3>
                 </div>
                 <div class="col-sm-6">
-                    <a class="btn btn-primary float-right show-modal" style="float:right;"
-                       href="javascript:void(0);" data-action="{{ route($permissionsRoute . '.create') }}" data-title="Create New">
-                        Add New
-                    </a>
+                    @if (!(View::shared('settings_panel') ?? false))
+                        <a class="btn btn-primary float-right show-modal" style="float:right;"
+                           href="javascript:void(0);" data-action="{{ route($permissionsRoute . '.create') }}" data-title="Create New">
+                            Add New
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>

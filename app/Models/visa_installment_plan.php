@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Models\Vouchers;
 
-class visa_installment_plan extends Model
+class visa_installment_plan extends BaseModel
 {
     use HasFactory, LogsActivity, SoftDeletes;
 

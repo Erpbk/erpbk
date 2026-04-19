@@ -9,7 +9,7 @@ use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 use App\Helpers\IConstants;
 
-class Supplier extends Model
+class Supplier extends BaseModel
 {
     use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
 

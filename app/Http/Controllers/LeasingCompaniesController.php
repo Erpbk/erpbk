@@ -751,13 +751,13 @@ class LeasingCompaniesController extends AppBaseController
 
     try {
       // Delete related transactions
-      \DB::table('transactions')
+      \App\Support\CompanyQuery::table('transactions')
         ->where('reference_type', 'LeasingCompanyInvoice')
         ->where('reference_id', $id)
         ->delete();
 
       // Delete invoice items
-      \DB::table('leasing_company_invoice_items')
+      \App\Support\CompanyQuery::table('leasing_company_invoice_items')
         ->where('inv_id', $id)
         ->delete();
 
@@ -837,12 +837,12 @@ class LeasingCompaniesController extends AppBaseController
           unset($newItemData['updated_at']);
           $newItemData['inv_id'] = $newInvoice->id;
 
-          DB::table('leasing_company_invoice_items')->insert($newItemData);
+          \App\Support\CompanyQuery::table('leasing_company_invoice_items')->insert($newItemData);
         }
       }
 
       // Recalculate totals
-      $items = DB::table('leasing_company_invoice_items')
+      $items = \App\Support\CompanyQuery::table('leasing_company_invoice_items')
         ->where('inv_id', $newInvoice->id)
         ->get();
 
@@ -957,7 +957,7 @@ class LeasingCompaniesController extends AppBaseController
       return redirect(route('leasingCompanies.index'));
     }
 
-    $files = DB::table('files')->where('type', 'leasing_company')->where('type_id', $id)->latest('id')->get();
+    $files = \App\Support\CompanyQuery::table('files')->where('type', 'leasing_company')->where('type_id', $id)->latest('id')->get();
 
     return view('leasing_companies.document', compact('files', 'leasingCompany'));
   }

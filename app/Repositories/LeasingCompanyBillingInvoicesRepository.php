@@ -178,12 +178,12 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
         $bikeRentalAccountId = HeadAccount::BIKE_RENTAL_ACCOUNT;
         $vatAccountId = HeadAccount::VAT_ON_SALES;
 
-        $bikeRentalAccountExists = DB::table('accounts')->where('id', $bikeRentalAccountId)->whereNull('deleted_at')->exists();
+        $bikeRentalAccountExists = \App\Support\CompanyQuery::table('accounts')->where('id', $bikeRentalAccountId)->whereNull('deleted_at')->exists();
         if (!$bikeRentalAccountExists) {
             throw new \Exception('Bike rental account (ID ' . $bikeRentalAccountId . ') not found in Chart of Accounts.');
         }
 
-        $vatAccountExists = DB::table('accounts')->where('id', $vatAccountId)->whereNull('deleted_at')->exists();
+        $vatAccountExists = \App\Support\CompanyQuery::table('accounts')->where('id', $vatAccountId)->whereNull('deleted_at')->exists();
         if (!$vatAccountExists) {
             throw new \Exception('VAT account (ID ' . $vatAccountId . ') not found in Chart of Accounts.');
         }

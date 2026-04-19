@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
-class Riders extends Model
+class Riders extends BaseModel
 {
   use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope;
 

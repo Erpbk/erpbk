@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class CompanyOtpVerification extends Model
+class CompanyOtpVerification extends BaseModel
 {
     protected $connection = 'mysql_central';
 

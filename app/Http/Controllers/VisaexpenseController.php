@@ -141,7 +141,7 @@ class VisaexpenseController extends AppBaseController
     }
     public function accountcreate(Request $request)
     {
-        $rider = DB::Table('riders')->where('id', $request->rider_id)->first();
+        $rider = \App\Support\CompanyQuery::table('riders')->where('id', $request->rider_id)->first();
         $parent = Accounts::where('name', 'Visa Expense')->first();
         if (!$parent) {
             Flash::error('Parent account "Visa Expense" not found.');
@@ -609,7 +609,7 @@ class VisaexpenseController extends AppBaseController
                 ]);
 
                 // Create ledger entry for liability account for each installment
-                $lastLedger = DB::table('ledger_entries')
+                $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
                     ->where('account_id', $liabilityAccount->id)
                     ->orderBy('billing_month', 'desc')
                     ->first();
@@ -619,7 +619,7 @@ class VisaexpenseController extends AppBaseController
                 $credit_balance = 0.00;
                 $closing_balance = $opening_balance + $installmentAmount; // Liability increases with debit
 
-                DB::table('ledger_entries')->insert([
+                \App\Support\CompanyQuery::table('ledger_entries')->insert([
                     'account_id' => $liabilityAccount->id,
                     'billing_month' => $billingMonth,
                     'opening_balance' => $opening_balance,
@@ -817,14 +817,14 @@ class VisaexpenseController extends AppBaseController
 
             // Update ledger entry if amount changed
             if ($validated['field'] === 'amount' && $liabilityAccount) {
-                $ledgerEntry = DB::table('ledger_entries')
+                $ledgerEntry = \App\Support\CompanyQuery::table('ledger_entries')
                     ->where('account_id', $liabilityAccount->id)
                     ->where('billing_month', $billingMonth)
                     ->first();
 
                 if ($ledgerEntry) {
                     $difference = $validated['value'] - $oldValue;
-                    DB::table('ledger_entries')
+                    \App\Support\CompanyQuery::table('ledger_entries')
                         ->where('account_id', $liabilityAccount->id)
                         ->where('billing_month', $billingMonth)
                         ->update([
@@ -1010,13 +1010,13 @@ class VisaexpenseController extends AppBaseController
 
                 // Update or insert ledger entry for liability account
                 if ($liabilityAccount) {
-                    $ledgerEntry = \DB::table('ledger_entries')
+                    $ledgerEntry = \App\Support\CompanyQuery::table('ledger_entries')
                         ->where('account_id', $liabilityAccount->id)
                         ->where('billing_month', $billingMonth)
                         ->first();
 
                     if ($ledgerEntry) {
-                        \DB::table('ledger_entries')
+                        \App\Support\CompanyQuery::table('ledger_entries')
                             ->where('account_id', $liabilityAccount->id)
                             ->where('billing_month', $billingMonth)
                             ->update([
@@ -1025,12 +1025,12 @@ class VisaexpenseController extends AppBaseController
                                 'updated_at' => now(),
                             ]);
                     } else {
-                        $lastLedger = \DB::table('ledger_entries')
+                        $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
                             ->where('account_id', $liabilityAccount->id)
                             ->orderBy('billing_month', 'desc')
                             ->first();
                         $opening_balance = $lastLedger ? (float) $lastLedger->closing_balance : 0.00;
-                        \DB::table('ledger_entries')->insert([
+                        \App\Support\CompanyQuery::table('ledger_entries')->insert([
                             'account_id' => $liabilityAccount->id,
                             'billing_month' => $billingMonth,
                             'opening_balance' => $opening_balance,
@@ -1148,7 +1148,7 @@ class VisaexpenseController extends AppBaseController
                         ->first();
                     if ($liabilityAccount) {
                         // Get ledger entry before deletion
-                        $ledgerEntry = \DB::table('ledger_entries')
+                        $ledgerEntry = \App\Support\CompanyQuery::table('ledger_entries')
                             ->where('account_id', $liabilityAccount->id)
                             ->where('billing_month', $inst->billing_month)
                             ->first();
@@ -1172,7 +1172,7 @@ class VisaexpenseController extends AppBaseController
                             }
                         }
 
-                        \DB::table('ledger_entries')
+                        \App\Support\CompanyQuery::table('ledger_entries')
                             ->where('account_id', $liabilityAccount->id)
                             ->where('billing_month', $inst->billing_month)
                             ->delete();
@@ -1271,12 +1271,12 @@ class VisaexpenseController extends AppBaseController
                         ]);
 
                         // Update or insert ledger entry for liability
-                        $ledgerEntry = \DB::table('ledger_entries')
+                        $ledgerEntry = \App\Support\CompanyQuery::table('ledger_entries')
                             ->where('account_id', $liabilityAccount->id)
                             ->where('billing_month', $billingMonthFull)
                             ->first();
                         if ($ledgerEntry) {
-                            \DB::table('ledger_entries')
+                            \App\Support\CompanyQuery::table('ledger_entries')
                                 ->where('account_id', $liabilityAccount->id)
                                 ->where('billing_month', $billingMonthFull)
                                 ->update([
@@ -1285,12 +1285,12 @@ class VisaexpenseController extends AppBaseController
                                     'updated_at' => now(),
                                 ]);
                         } else {
-                            $lastLedger = \DB::table('ledger_entries')
+                            $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
                                 ->where('account_id', $liabilityAccount->id)
                                 ->orderBy('billing_month', 'desc')
                                 ->first();
                             $opening_balance = $lastLedger ? (float) $lastLedger->closing_balance : 0.00;
-                            \DB::table('ledger_entries')->insert([
+                            \App\Support\CompanyQuery::table('ledger_entries')->insert([
                                 'account_id' => $liabilityAccount->id,
                                 'billing_month' => $billingMonthFull,
                                 'opening_balance' => $opening_balance,
@@ -1554,7 +1554,7 @@ class VisaexpenseController extends AppBaseController
                     $installment->billing_month . '-01' : $installment->billing_month;
 
                 // Get ledger entry before deletion
-                $ledgerEntry = DB::table('ledger_entries')
+                $ledgerEntry = \App\Support\CompanyQuery::table('ledger_entries')
                     ->where('account_id', $liabilityAccount->id)
                     ->where('billing_month', $billingMonthForLedger)
                     ->first();
@@ -1578,7 +1578,7 @@ class VisaexpenseController extends AppBaseController
                     }
                 }
 
-                DB::table('ledger_entries')
+                \App\Support\CompanyQuery::table('ledger_entries')
                     ->where('account_id', $liabilityAccount->id)
                     ->where('billing_month', $billingMonthForLedger)
                     ->delete();
@@ -1707,7 +1707,7 @@ class VisaexpenseController extends AppBaseController
 
                 // 5. Ledger Entry (Against Payment Account)
                 $total_amount = floatval($fine->amount);
-                $lastLedger = DB::table('ledger_entries')
+                $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
                     ->where('account_id', $request->account)
                     ->orderBy('billing_month', 'desc')
                     ->first();
@@ -1725,7 +1725,7 @@ class VisaexpenseController extends AppBaseController
                     $closing_balance = $opening_balance;
                 }
 
-                DB::table('ledger_entries')->insert([
+                \App\Support\CompanyQuery::table('ledger_entries')->insert([
                     'account_id'      => $request->account,
                     'billing_month'   => $billingMonth,
                     'opening_balance' => $opening_balance,
@@ -1848,7 +1848,7 @@ class VisaexpenseController extends AppBaseController
         DB::beginTransaction();
         try {
             $billingMonth = $visaExpenses->billing_month;
-            $riderAccountId = DB::table('accounts')->where('ref_id', $visaExpenses->rider_id)->value('id');
+            $riderAccountId = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $visaExpenses->rider_id)->value('id');
             $visaExpenseIdentifier = "Visa Expense #{$id} - {$visaExpenses->visa_status} (Amount: " . number_format($visaExpenses->amount, 2) . ")";
 
             // Get related transactions before deletion
@@ -1974,7 +1974,7 @@ class VisaexpenseController extends AppBaseController
             // Recalculate ledger entries after deletion instead of deleting all
             if ($riderAccountId) {
                 // Track ledger entry deletion if it exists
-                $ledgerEntry = DB::table('ledger_entries')
+                $ledgerEntry = \App\Support\CompanyQuery::table('ledger_entries')
                     ->where('account_id', $riderAccountId)
                     ->where('billing_month', $billingMonth)
                     ->first();
@@ -2024,13 +2024,13 @@ class VisaexpenseController extends AppBaseController
     private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
     {
         // Delete only the ledger entry for this specific billing month
-        DB::table('ledger_entries')
+        \App\Support\CompanyQuery::table('ledger_entries')
             ->where('account_id', $accountId)
             ->where('billing_month', $billingMonth)
             ->delete();
 
         // Get the last ledger entry before this billing month
-        $lastLedger = DB::table('ledger_entries')
+        $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
             ->where('account_id', $accountId)
             ->where('billing_month', '<', $billingMonth)
             ->orderBy('billing_month', 'desc')
@@ -2049,7 +2049,7 @@ class VisaexpenseController extends AppBaseController
 
         // Only insert a new ledger entry if there are still transactions for this month
         if ($monthTransactions->count() > 0) {
-            DB::table('ledger_entries')->insert([
+            \App\Support\CompanyQuery::table('ledger_entries')->insert([
                 'account_id'      => $accountId,
                 'billing_month'   => $billingMonth,
                 'opening_balance' => $openingBalance,
@@ -2224,13 +2224,13 @@ class VisaexpenseController extends AppBaseController
                 $billingMonthForLedger = (strlen($installment->billing_month) <= 7) ?
                     $installment->billing_month . '-01' : $installment->billing_month;
 
-                $ledgerEntry = DB::table('ledger_entries')
+                $ledgerEntry = \App\Support\CompanyQuery::table('ledger_entries')
                     ->where('account_id', $liabilityAccount->id)
                     ->where('billing_month', $billingMonthForLedger)
                     ->first();
 
                 if ($ledgerEntry) {
-                    DB::table('ledger_entries')
+                    \App\Support\CompanyQuery::table('ledger_entries')
                         ->where('account_id', $liabilityAccount->id)
                         ->where('billing_month', $billingMonthForLedger)
                         ->update([

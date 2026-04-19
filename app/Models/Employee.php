@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Traits\BranchScope;
 
-class Employee extends Model
+class Employee extends BaseModel
 {
     use HasFactory, SoftDeletes, BranchScope;
 

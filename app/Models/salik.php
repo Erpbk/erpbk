@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
-class salik extends Model
+class salik extends BaseModel
 {
     use HasFactory, LogsActivity, SoftDeletes, BranchScope;
     

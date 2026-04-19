@@ -206,7 +206,7 @@ class SupplierController extends AppBaseController
 
     // Check if supplier account has ledger entries before deletion
     if ($supplier->account) {
-      $ledgerEntriesCount = DB::table('ledger_entries')
+      $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
         ->where('account_id', $supplier->account->id)
         ->count();
 

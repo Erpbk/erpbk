@@ -38,8 +38,8 @@ class RTAFineImport implements ToCollection
 
         try {
 
-            $adminAccount = DB::Table('accounts')->where('id', 1004)->first();
-            $serviceAccount = DB::table('accounts')->where('id', 1368)->first();
+            $adminAccount = \App\Support\CompanyQuery::table('accounts')->where('id', 1004)->first();
+            $serviceAccount = \App\Support\CompanyQuery::table('accounts')->where('id', 1368)->first();
 
             $stats = [
                 'total' => 0,

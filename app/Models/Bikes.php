@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
-class Bikes extends Model
+class Bikes extends BaseModel
 {
   use SoftDeletes, LogsActivity, BranchScope;
 

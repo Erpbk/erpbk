@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\BranchScope;
-class Cheques extends Model
+class Cheques extends BaseModel
 {
     use HasFactory, SoftDeletes, BranchScope;
     protected $table = 'cheques';

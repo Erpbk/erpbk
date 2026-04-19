@@ -13,11 +13,12 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\Schema;
 use Flash;
+use Illuminate\Validation\Rule;
 use App\Helpers\IConstants;
 
 class RolesController extends AppBaseController
 {
-    use GlobalPagination;
+  use GlobalPagination;
   /** @var RolesRepository $rolesRepository*/
   private $rolesRepository;
 
@@ -26,7 +27,7 @@ class RolesController extends AppBaseController
    */
   protected function redirectToUserManagement()
   {
-      return redirect()->route('settings-panel.users.index');
+    return redirect()->route('settings-panel.users.index');
   }
 
   public function __construct(RolesRepository $rolesRepo)
@@ -69,11 +70,17 @@ class RolesController extends AppBaseController
   public function store(Request $request)
   {
     $this->validate($request, [
-      'name' => 'required|unique:roles,name',
+      'name' => [
+        'required',
+        Rule::unique('roles', 'name')->where(function ($query) use ($request) {
+          return $query->where('company_id', $request->company_id);
+        }),
+      ],
+      'company_id' => 'nullable|exists:companies,id',
       'permission' => 'required',
     ]);
 
-    $role = Role::create(['name' => $request->input('name')]);
+    $role = Role::create(['name' => $request->input('name'), 'company_id' => $request->input('company_id')]);
     $role->syncPermissions($request->input('permission'));
 
     Flash::success('Roles saved successfully.');
@@ -109,7 +116,7 @@ class RolesController extends AppBaseController
       return $this->redirectToUserManagement();
     }
 
-    $rolePermissions = DB::table('role_has_permissions')
+    $rolePermissions = \App\Support\CompanyQuery::table('role_has_permissions')
       ->where('role_has_permissions.role_id', $role)
       ->pluck('role_has_permissions.permission_id', 'role_has_permissions.permission_id')
       ->all();
@@ -163,12 +170,12 @@ class RolesController extends AppBaseController
 
       return $this->redirectToUserManagement();
     }
-    if($role->users()->count() > 0){
-      if($request->ajax()){
+    if ($role->users()->count() > 0) {
+      if ($request->ajax()) {
         return response()->json([
           'message' => 'Role is assigned to user(s), cannot delete. Assign user(s) to other role then delete this role.',
           'reload' => true
-          ],500);
+        ], 500);
       }
 
       Flash::success('Role is assigned to user(s), cannot delete. Assign user(s) to other role then delete this role.');
@@ -178,11 +185,11 @@ class RolesController extends AppBaseController
 
     $this->rolesRepository->delete($id);
 
-    if($request->ajax()){
+    if ($request->ajax()) {
       return response()->json([
         'message' => 'Role Deleted Successfully',
         'reload' => true
-        ],200);
+      ], 200);
     }
 
     Flash::success('Roles deleted successfully.');

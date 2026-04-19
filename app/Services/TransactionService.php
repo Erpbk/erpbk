@@ -38,7 +38,7 @@ class TransactionService
       if (Schema::hasColumn('transactions', 'deleted_at')) {
         $row['deleted_at'] = null;
       }
-      $id = DB::table('transactions')->insertGetId($row);
+      $id = \App\Support\CompanyQuery::table('transactions')->insertGetId($row);
 
       Log::info('Transaction recorded successfully: ' . $id);
       return $id;
@@ -78,7 +78,7 @@ class TransactionService
     }
 
     try {
-      $query = DB::table('transactions')->whereIn($column, $identifiers);
+      $query = \App\Support\CompanyQuery::table('transactions')->whereIn($column, $identifiers);
 
       if ($column === 'reference_id' && $referenceType !== null) {
         $query->where('reference_type', $referenceType);
@@ -140,7 +140,7 @@ class TransactionService
       $garageItemsAccountId = Config::get('accounts.garage_items_account_id', 2182);
 
       // Get supplier account ID
-      $supplierAccountId = DB::table('accounts')
+      $supplierAccountId = \App\Support\CompanyQuery::table('accounts')
         ->where('ref_id', $supplier->id)
         ->where('ref_name', 'Supplier')
         ->value('id');
@@ -155,7 +155,7 @@ class TransactionService
       $narration = 'Purchase of garage item: ' . $garageItem->name . ' (Qty: ' . $garageItem->qty . ') from Supplier: ' . $supplier->name;
 
       // Update debit transaction (garage items account)
-      $debitUpdated = DB::table('transactions')
+      $debitUpdated = \App\Support\CompanyQuery::table('transactions')
         ->where('trans_code', $transCode)
         ->where('account_id', $garageItemsAccountId)
         ->update([
@@ -167,7 +167,7 @@ class TransactionService
         ]);
 
       // Update credit transaction (supplier account)
-      $creditUpdated = DB::table('transactions')
+      $creditUpdated = \App\Support\CompanyQuery::table('transactions')
         ->where('trans_code', $transCode)
         ->where('account_id', $supplierAccountId)
         ->update([
@@ -195,7 +195,7 @@ class TransactionService
   {
     try {
       // Get the last ledger entry for this account
-      $lastLedger = DB::table('ledger_entries')
+      $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
         ->where('account_id', $accountId)
         ->orderBy('billing_month', 'desc')
         ->first();
@@ -211,7 +211,7 @@ class TransactionService
         $closingBalance = $openingBalance - $amount;
       }
 
-      DB::table('ledger_entries')->insert([
+      \App\Support\CompanyQuery::table('ledger_entries')->insert([
         'account_id' => $accountId,
         'billing_month' => $billingMonth,
         'opening_balance' => $openingBalance,

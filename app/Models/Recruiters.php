@@ -9,7 +9,7 @@ use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 
-class Recruiters extends Model
+class Recruiters extends BaseModel
 {
     use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
 

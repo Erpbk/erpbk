@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
-class LeasingCompanyInvoiceItem extends Model
+class LeasingCompanyInvoiceItem extends BaseModel
 {
     use LogsActivity;
 

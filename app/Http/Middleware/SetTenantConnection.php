@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Company;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class SetTenantConnection
@@ -39,6 +40,12 @@ class SetTenantConnection
 
         $request->attributes->set('company', $company);
         view()->share('currentCompany', $company);
+
+        // Extra guardrail: authenticated users may only access their own company routes.
+        if (Auth::check() && (int) Auth::user()->company_id !== (int) $company->id) {
+            abort(403, 'You are not allowed to access this company data.');
+        }
+
         return $next($request);
     }
 }

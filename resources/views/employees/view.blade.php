@@ -221,8 +221,9 @@
 </style>
 
 @php
-// Get the account ID for the employee
-if(!request()->routeIs('employees.create')) {
+// Ledger-linked account for balance display (create form has no employee yet)
+$account = null;
+if (!request()->routeIs('employees.create') && isset($employee) && !empty($employee->account_id)) {
     $account = App\Models\Accounts::find($employee->account_id);
 }
 @endphp
@@ -403,7 +404,7 @@ if(!request()->routeIs('employees.create')) {
                 <div class="user_list_content">
                   <span>Balance:</span><br> 
                   <b class="float-right">
-                    @if($account)
+                    @if(isset($account) && $account)
                     {{  App\Helpers\Accounts::getBalance($account->id) }} AED
                     @else
                     0.00

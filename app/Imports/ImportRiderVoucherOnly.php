@@ -78,7 +78,13 @@ class ImportRiderVoucherOnly implements ToCollection
                         'file' => "Row({$rowNum}) - Rider ID {$riderExternalId} not found."
                     ]);
                 }
-                $riderAccount = Accounts::where('ref_id', $rider->id)->first();
+                $riderAccount = Accounts::where('ref_id', $rider->id)->where('ref_name', 'Rider')->where('company_id', auth()->user()->company_id)->first();
+
+                if (!$riderAccount) {
+                    throw ValidationException::withMessages([
+                        'file' => "Row({$rowNum}) - Rider account not found."
+                    ]);
+                }
 
                 $transCode = Account::trans_code();
                 $billingsMonth = Carbon::parse($billingMonth ?: date('Y-m-01'))->format('M-Y');

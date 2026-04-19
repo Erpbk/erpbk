@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
-class rider_hiring extends Model
+class rider_hiring extends BaseModel
 {
     use HasFactory, LogsActivity;
     protected $fillable = [

@@ -201,7 +201,7 @@ class VendorsController extends AppBaseController
 
     // Check if vendor account has ledger entries before deletion
     if ($vendor->account) {
-      $ledgerEntriesCount = DB::table('ledger_entries')
+      $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
         ->where('account_id', $vendor->account->id)
         ->count();
 

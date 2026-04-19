@@ -52,7 +52,7 @@
             <div class="avatar me-2">
               <span class="avatar-initial rounded bg-label-primary"><i class="ti ti-user-star ti-md"></i></span>
             </div>
-            <h4 class="ms-1 mb-0">{{ DB::table('vendors')->where('status' , 1)->get()->count() }}</h4>
+            <h4 class="ms-1 mb-0">{{ DB::table('vendors')->where('company_id', auth()->user()->company_id)->where('status' , 1)->get()->count() }}</h4>
           </div>
           <a href="" class="text-dark">
             <p class="mb-1">Active Vendors</p>
@@ -69,7 +69,7 @@
             <div class="avatar me-2">
               <span class="avatar-initial rounded bg-label-primary"><i class="ti ti-user-star ti-md"></i></span>
             </div>
-            <h4 class="ms-1 mb-0">{{ DB::table('vendors')->where('status' , 2)->get()->count() }}</h4>
+            <h4 class="ms-1 mb-0">{{ DB::table('vendors')->where('company_id', auth()->user()->company_id)->where('status' , 2)->get()->count() }}</h4>
           </div>
           <a href="" class="text-dark">
             <p class="mb-1">In Active Vendors</p>
@@ -86,7 +86,7 @@
             <div class="avatar me-2">
               <span class="avatar-initial rounded bg-label-primary"><i class="ti ti-user-star ti-md"></i></span>
             </div>
-            <h4 class="ms-1 mb-0">{{ DB::table('riders')->get()->count() }}</h4>
+            <h4 class="ms-1 mb-0">{{ DB::table('riders')->where('company_id', auth()->user()->company_id)->get()->count() }}</h4>
           </div>
           <a href="" class="text-dark">
             <p class="mb-1">Riders</p>
@@ -103,7 +103,7 @@
             <div class="avatar me-2">
               <span class="avatar-initial rounded bg-label-primary"><i class="ti ti-motorbike ti-md"></i></span>
             </div>
-            <h4 class="ms-1 mb-0">{{ DB::table('bikes')->get()->count() }}</h4>
+            <h4 class="ms-1 mb-0">{{ DB::table('bikes')->where('company_id', auth()->user()->company_id)->get()->count() }}</h4>
           </div>
           <a href="" class="text-dark">
             <p class="mb-1">Bikes</p>
@@ -120,7 +120,7 @@
             <div class="avatar me-2">
               <span class="avatar-initial rounded bg-label-primary"><i class=" ti ti-device-sim ti-md"></i></span>
             </div>
-            <h4 class="ms-1 mb-0">{{ DB::table('sims')->get()->count() }}</h4>
+            <h4 class="ms-1 mb-0">{{ DB::table('sims')->where('company_id', auth()->user()->company_id)->get()->count() }}</h4>
           </div>
           <a href="" class="text-dark">
             <p class="mb-1">Sims</p>

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
-class Sims extends Model
+class Sims extends BaseModel
 {
     use SoftDeletes, LogsActivity, BranchScope;
 

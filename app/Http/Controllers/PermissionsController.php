@@ -9,8 +9,11 @@ use App\Http\Controllers\AppBaseController;
 use App\Repositories\PermissionsRepository;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
+use Illuminate\Support\Facades\Route;
 
 use Flash;
 
@@ -30,12 +33,7 @@ class PermissionsController extends AppBaseController
      */
     public function index(PermissionsDataTable $permissionsDataTable)
     {
-        if(auth()->user()->hasAnyRole('Administrator','Super Admin')){
-            return $permissionsDataTable->render('permissions.index');
-            }
-
-        abort(403,'You dont have access to permissions resource');
-        
+        return $permissionsDataTable->render('permissions.index');
     }
 
 
@@ -44,6 +42,7 @@ class PermissionsController extends AppBaseController
      */
     public function create()
     {
+        $this->ensurePermissionWriteAllowed();
         return view('permissions.create');
     }
 
@@ -52,6 +51,8 @@ class PermissionsController extends AppBaseController
      */
     public function store(Request $request)
     {
+        $this->ensurePermissionWriteAllowed();
+
         $rules = [
             'name' => 'required',
             'extra' => 'nullable|array',
@@ -127,6 +128,8 @@ class PermissionsController extends AppBaseController
      */
     public function edit($id)
     {
+        $this->ensurePermissionWriteAllowed();
+
         $permission = $this->permissionsRepository->find($id);
 
         if (empty($permission)) {
@@ -155,6 +158,8 @@ class PermissionsController extends AppBaseController
      */
     public function update(Request $request, $id)
     {
+        $this->ensurePermissionWriteAllowed();
+
         $rules = [
             'name' => 'required',
             'extra' => 'nullable|array',
@@ -219,6 +224,8 @@ class PermissionsController extends AppBaseController
      */
     public function destroy($id)
     {
+        $this->ensurePermissionWriteAllowed();
+
         $permissions = $this->permissionsRepository->find($id);
 
         if (empty($permissions)) {
@@ -235,7 +242,7 @@ class PermissionsController extends AppBaseController
             if ($childPermissionsCount > 0) {
                 // Delete all child permissions first
                 Permission::where('parent_id', $id)->delete();
-                \Log::info("Deleted {$childPermissionsCount} child permissions for parent permission ID: {$id}");
+                Log::info("Deleted {$childPermissionsCount} child permissions for parent permission ID: {$id}");
             }
 
             // Delete the parent permission
@@ -245,10 +252,18 @@ class PermissionsController extends AppBaseController
             Flash::success('Permissions deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Error deleting Permission ID: {$id} - " . $e->getMessage());
+            Log::error("Error deleting Permission ID: {$id} - " . $e->getMessage());
             Flash::error('Error deleting Permission: ' . $e->getMessage());
         }
 
         return redirect(route('settings-panel.permissions.index'));
+    }
+
+    private function ensurePermissionWriteAllowed(): void
+    {
+        // In company settings panel, permissions are visible but managed only from admin portal.
+        if (Route::currentRouteNamed('settings-panel.permissions.*')) {
+            abort(403, 'Permission management is restricted to system administrators.');
+        }
     }
 }

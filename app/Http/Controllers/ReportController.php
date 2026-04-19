@@ -107,7 +107,7 @@ class ReportController extends Controller
 
     // Pre-load active bikes status for all riders in one query
     $riderIds = $result->pluck('id')->toArray();
-    $activeBikeRiders = DB::table('bikes')
+    $activeBikeRiders = \App\Support\CompanyQuery::table('bikes')
       ->whereIn('rider_id', $riderIds)
       ->where('warehouse', 'Active')
       ->pluck('rider_id')
@@ -310,7 +310,7 @@ class ReportController extends Controller
     $riderIds = $result->pluck('id')->filter()->all();
     $activeBikeRiders = [];
     if (!empty($riderIds)) {
-      $activeBikeRiders = DB::table('bikes')
+      $activeBikeRiders = \App\Support\CompanyQuery::table('bikes')
         ->whereIn('rider_id', $riderIds)
         ->where('warehouse', 'Active')
         ->pluck('rider_id')

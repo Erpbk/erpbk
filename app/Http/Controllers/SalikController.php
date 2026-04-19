@@ -542,7 +542,7 @@ class SalikController extends AppBaseController
             $salikTransaction->branch_id = $salik->branch_id;
             $salikTransaction->save();
             // Find and update rider debit transaction
-            $riderAccount = DB::table('accounts')->where('ref_id', $salik->rider_id)->first();
+            $riderAccount = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $salik->rider_id)->first();
             if ($riderAccount) {
                 $riderTransaction = Transactions::where('trans_code', $salikTransaction->trans_code)
                     ->where('account_id', $riderAccount->id)
@@ -773,13 +773,13 @@ class SalikController extends AppBaseController
     private function updateLedgerEntry($accountId, $billingMonth)
     {
         // Delete existing ledger entry for this month
-        DB::table('ledger_entries')
+        \App\Support\CompanyQuery::table('ledger_entries')
             ->where('account_id', $accountId)
             ->where('billing_month', $billingMonth)
             ->delete();
 
         // Get last ledger entry
-        $lastLedger = DB::table('ledger_entries')
+        $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
             ->where('account_id', $accountId)
             ->where('billing_month', '<', $billingMonth)
             ->orderBy('billing_month', 'desc')
@@ -797,7 +797,7 @@ class SalikController extends AppBaseController
         $closingBalance = $openingBalance + $debitTotal - $creditTotal;
 
         // Insert new ledger entry
-        DB::table('ledger_entries')->insert([
+        \App\Support\CompanyQuery::table('ledger_entries')->insert([
             'account_id'      => $accountId,
             'billing_month'   => $billingMonth,
             'opening_balance' => $openingBalance,
@@ -910,7 +910,7 @@ class SalikController extends AppBaseController
     private function adjustGroupVoucherForDeletion($salik, $relatedSaliks, $amount, $adminCharges, $billingMonth, $salikIdentifier = null)
     {
         $transactionService = new TransactionService();
-        $riderAccount = DB::table('accounts')->where('ref_id', $salik->rider_id)->first();
+        $riderAccount = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $salik->rider_id)->first();
 
         if (!$riderAccount) {
             \Log::error("Rider account not found for rider_id: {$salik->rider_id}");
@@ -1164,7 +1164,7 @@ class SalikController extends AppBaseController
         }
 
         // Update ledger entries using TransactionService to reverse the transactions
-        $riderAccount = DB::table('accounts')->where('ref_id', $salik->rider_id)->first();
+        $riderAccount = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $salik->rider_id)->first();
         if ($riderAccount) {
             // Reverse rider debit (credit back to rider)
             $transactionService->updateLedger($riderAccount->id, 0, $salik->amount + ($salik->admin_charges ?? 0), $billingMonth);
@@ -1262,8 +1262,8 @@ class SalikController extends AppBaseController
             ->first();
 
         if ($history && $history->rider_id) {
-            $rider = DB::table('riders')->where('id', $history->rider_id)->first();
-            $account = DB::table('accounts')->where('ref_id', $rider->id)->first();
+            $rider = \App\Support\CompanyQuery::table('riders')->where('id', $history->rider_id)->first();
+            $account = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $rider->id)->first();
             return response()->json([
                 'options' => [
                     [

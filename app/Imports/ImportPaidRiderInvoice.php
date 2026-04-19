@@ -189,7 +189,7 @@ class ImportPaidRiderInvoice implements ToCollection
             'remarks' => "Payment for Rider Invoice #" . $invoice->id,
         ];
 
-        DB::table('vouchers')->insert($voucherData);
+        \App\Support\CompanyQuery::table('vouchers')->insert($voucherData);
     }
 
     /**

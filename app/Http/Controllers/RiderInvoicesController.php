@@ -272,7 +272,7 @@ class RiderInvoicesController extends AppBaseController
       }
 
       // Delete related rider invoice items
-      DB::table('rider_invoice_items')->where('inv_id', $id)->delete();
+      \App\Support\CompanyQuery::table('rider_invoice_items')->where('inv_id', $id)->delete();
 
       // Set deleted_by and soft delete the invoice
       $riderInvoices->deleted_by = Auth::id();
@@ -297,13 +297,13 @@ class RiderInvoicesController extends AppBaseController
   private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
   {
     // Delete only the ledger entry for this specific billing month
-    DB::table('ledger_entries')
+    \App\Support\CompanyQuery::table('ledger_entries')
       ->where('account_id', $accountId)
       ->where('billing_month', $billingMonth)
       ->delete();
 
     // Get the last ledger entry before this billing month
-    $lastLedger = DB::table('ledger_entries')
+    $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
       ->where('account_id', $accountId)
       ->where('billing_month', '<', $billingMonth)
       ->orderBy('billing_month', 'desc')
@@ -322,7 +322,7 @@ class RiderInvoicesController extends AppBaseController
 
     // Only insert a new ledger entry if there are still transactions for this month
     if ($monthTransactions->count() > 0) {
-      DB::table('ledger_entries')->insert([
+      \App\Support\CompanyQuery::table('ledger_entries')->insert([
         'account_id'      => $accountId,
         'billing_month'   => $billingMonth,
         'opening_balance' => $openingBalance,
@@ -437,7 +437,7 @@ class RiderInvoicesController extends AppBaseController
             }
 
             // Delete related rider invoice items
-            DB::table('rider_invoice_items')->where('inv_id', $invoiceId)->delete();
+            \App\Support\CompanyQuery::table('rider_invoice_items')->where('inv_id', $invoiceId)->delete();
 
             // Set deleted_by and soft delete the invoice
             $riderInvoice->deleted_by = Auth::id();
@@ -673,7 +673,7 @@ class RiderInvoicesController extends AppBaseController
       'remarks' => "Manual payment for Rider Invoice #" . $invoice->id,
     ];
 
-    \DB::table('vouchers')->insert($voucherData);
+    \App\Support\CompanyQuery::table('vouchers')->insert($voucherData);
   }
 
   public function sendEmail($id, Request $request)

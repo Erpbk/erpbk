@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\LogsActivity;
 
-class UploadFile extends Model
+class UploadFile extends BaseModel
 {
     use HasFactory, LogsActivity;
 

@@ -263,8 +263,8 @@ class SimInvoicesController extends AppBaseController
         }
 
         try {
-            DB::table('transactions')->where('reference_type', 'SimInvoice')->where('reference_id', $id)->delete();
-            DB::table('sim_invoice_items')->where('inv_id', $id)->delete();
+            \App\Support\CompanyQuery::table('transactions')->where('reference_type', 'SimInvoice')->where('reference_id', $id)->delete();
+            \App\Support\CompanyQuery::table('sim_invoice_items')->where('inv_id', $id)->delete();
 
             if ($invoice->attachment && Storage::disk('public')->exists($invoice->attachment)) {
                 Storage::disk('public')->delete($invoice->attachment);
@@ -315,10 +315,10 @@ class SimInvoicesController extends AppBaseController
                 $newItemData = $item->toArray();
                 unset($newItemData['id'], $newItemData['created_at'], $newItemData['updated_at']);
                 $newItemData['inv_id'] = $newInvoice->id;
-                DB::table('sim_invoice_items')->insert($newItemData);
+                \App\Support\CompanyQuery::table('sim_invoice_items')->insert($newItemData);
             }
 
-            $items = DB::table('sim_invoice_items')->where('inv_id', $newInvoice->id)->get();
+            $items = \App\Support\CompanyQuery::table('sim_invoice_items')->where('inv_id', $newInvoice->id)->get();
             $newInvoice->subtotal = $items->sum('rental_amount');
             $newInvoice->vat = $items->sum('tax_amount');
             $newInvoice->total_amount = $items->sum('total_amount');

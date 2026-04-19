@@ -282,13 +282,13 @@ class SupplierInvoicesController extends AppBaseController
     private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
     {
         // Delete only the ledger entry for this specific billing month
-        DB::table('ledger_entries')
+        \App\Support\CompanyQuery::table('ledger_entries')
             ->where('account_id', $accountId)
             ->where('billing_month', $billingMonth)
             ->delete();
 
         // Get the last ledger entry before this billing month
-        $lastLedger = DB::table('ledger_entries')
+        $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
             ->where('account_id', $accountId)
             ->where('billing_month', '<', $billingMonth)
             ->orderBy('billing_month', 'desc')
@@ -307,7 +307,7 @@ class SupplierInvoicesController extends AppBaseController
 
         // Only insert a new ledger entry if there are still transactions for this month
         if ($monthTransactions->count() > 0) {
-            DB::table('ledger_entries')->insert([
+            \App\Support\CompanyQuery::table('ledger_entries')->insert([
                 'account_id'      => $accountId,
                 'billing_month'   => $billingMonth,
                 'opening_balance' => $openingBalance,

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
-class FailedSalikImport extends Model
+class FailedSalikImport extends BaseModel
 {
     use HasFactory, LogsActivity;
 

@@ -228,8 +228,8 @@ class AccountsController extends AppBaseController
   }
 
   /**
-   * Remove the specified Accounts from storage (soft delete with protection).
-   * Accounts with transactions CANNOT be deleted - must be protected.
+   * Remove the specified account from storage (soft delete).
+   * Soft delete is safe even when transactions exist because the row remains in DB.
    *
    * @throws \Exception
    */
@@ -245,20 +245,6 @@ class AccountsController extends AppBaseController
     $childAccountsCount = Accounts::where('parent_id', $accounts->id)->count();
     if ($childAccountsCount > 0) {
       return response()->json(['errors' => ['error' => "Cannot delete account. This account has {$childAccountsCount} sub-account(s). Please delete or reassign child accounts first."]], 422);
-    }
-
-    // CRITICAL: Check if account has transactions - MUST PROTECT
-    $transactionsCount = Transactions::where('account_id', $accounts->id)->count();
-    if ($transactionsCount > 0) {
-      return response()->json(['errors' => ['error' => "Cannot delete account. This account has {$transactionsCount} transaction(s). Accounts with transactions cannot be deleted to maintain data integrity."]], 422);
-    }
-
-    // Check if account has ledger entries
-    $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
-      ->where('account_id', $accounts->id)
-      ->count();
-    if ($ledgerEntriesCount > 0) {
-      return response()->json(['errors' => ['error' => "Cannot delete account. This account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first."]], 422);
     }
 
     // Track cascaded deletions for referenced records

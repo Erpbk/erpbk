@@ -518,7 +518,8 @@ $homeLink = auth('admin')->check()
 
 {{-- Admin Panel (global site settings) --}}
 @php($adminUser = auth('admin')->user())
-@if($adminUser)
+@php($canAccessSuperAdminPanel = $adminUser && $adminUser->hasRole('Super Admin'))
+@if($canAccessSuperAdminPanel)
 <li class="menu-header small text-uppercase mt-3">
   <span class="menu-header-text">{{ __('Admin Panel') }}</span>
 </li>
@@ -529,7 +530,7 @@ $homeLink = auth('admin')->check()
   </a>
 </li>
 @endif
-@if($adminUser && $adminUser->hasPermission('companies_view'))
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('companies_view'))
 <li class="menu-item {{ Request::is('admin/companies*') ? 'active' : '' }}">
   <a href="{{ route('admin.companies.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-building-community"></i>
@@ -538,7 +539,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasPermission('blogs_view'))
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('blogs_view'))
 <li class="menu-item {{ Request::is('admin/blogs*') ? 'active' : '' }}">
   <a href="{{ route('admin.blogs.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-pencil"></i>
@@ -547,7 +548,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasPermission('testimonials_view'))
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('testimonials_view'))
 <li class="menu-item {{ Request::is('admin/testimonials*') ? 'active' : '' }}">
   <a href="{{ route('admin.testimonials.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-message-dots"></i>
@@ -556,7 +557,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasPermission('privacy_policy_view'))
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('privacy_policy_view'))
 <li class="menu-item {{ Request::is('admin/privacy-policy*') ? 'active' : '' }}">
   <a href="{{ route('admin.privacy-policy.edit') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-file-description"></i>
@@ -565,7 +566,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasPermission('terms_conditions_view'))
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('terms_conditions_view'))
 <li class="menu-item {{ Request::is('admin/terms-conditions*') ? 'active' : '' }}">
   <a href="{{ route('admin.terms-conditions.edit') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-file-description"></i>
@@ -574,7 +575,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasPermission('users_view'))
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('users_view'))
 <li class="menu-item {{ Request::is('admin/users*') ? 'active' : '' }}">
   <a href="{{ route('admin.users.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-users-group"></i>
@@ -583,7 +584,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasRole('Super Admin'))
+@if($canAccessSuperAdminPanel)
 <li class="menu-item {{ Request::is('admin/permissions*') ? 'active' : '' }}">
   <a href="{{ route('admin.permissions.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-lock"></i>

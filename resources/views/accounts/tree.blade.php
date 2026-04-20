@@ -504,7 +504,8 @@
                 e.preventDefault();
                 e.stopPropagation();
                 var accountId = lock.getAttribute('data-account-id');
-                var url = '{{ url("accounts/accounts") }}/' + accountId + '/toggle-lock';
+                var toggleLockBaseUrl = '{{ route("accounts.toggleLock", ["id" => 0]) }}'.replace(/\/0$/, '');
+                var url = toggleLockBaseUrl + '/' + accountId;
                 fetch(url, {
                         method: 'POST',
                         headers: {

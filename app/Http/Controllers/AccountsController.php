@@ -21,6 +21,8 @@ use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use App\Models\Company;
 use Flash;
 
 class AccountsController extends AppBaseController
@@ -437,8 +439,8 @@ class AccountsController extends AppBaseController
       return $account;
     }
 
-    // Fallback: if global scope misses a row, re-check without scopes but enforce tenant safety.
-    $account = Accounts::withoutGlobalScopes()->find($id);
+    // Same row may be hidden from scoped find (e.g. legacy company_id NULL, branch edge cases).
+    $account = Accounts::withoutGlobalScopes(['company', 'branch'])->find($id);
     if (!$account) {
       return null;
     }
@@ -447,28 +449,39 @@ class AccountsController extends AppBaseController
       return $account;
     }
 
-    if ($this->isSharedParentAccount($account)) {
-      return $account;
+    if (!$this->accountMatchesUserBranches($account)) {
+      return null;
     }
 
-    $companyId = $this->resolveCurrentCompanyId();
-    if ($companyId !== null && (int) $account->company_id === $companyId) {
-      return $account;
+    $companyId = $this->resolveChartCompanyId();
+    if (!$this->passesChartCompanyRules($account, $companyId)) {
+      return null;
     }
 
-    return null;
+    return $account;
   }
 
-  private function isSharedParentAccount(Accounts $account): bool
+  /**
+   * Match BelongsToCompany::resolveScopedCompanyId + route session fallback (must stay in sync with chart listing).
+   */
+  private function resolveChartCompanyId(): ?int
   {
-    return $account->parent_id === null || (int) $account->parent_id === 0;
-  }
-
-  private function resolveCurrentCompanyId(): ?int
-  {
-    $company = request()?->attributes->get('company');
+    $request = request();
+    $company = $request?->attributes->get('company');
     if ($company && isset($company->id)) {
       return (int) $company->id;
+    }
+
+    $companySlug = $request?->route('company_slug') ?? $request?->session()->get('company_slug');
+    if (!empty($companySlug)) {
+      $resolvedCompany = Company::query()->where('slug', (string) $companySlug)->first();
+      if (!$resolvedCompany && is_numeric($companySlug)) {
+        $resolvedCompany = Company::query()->find((int) $companySlug);
+      }
+      if ($resolvedCompany) {
+        $request?->attributes->set('company', $resolvedCompany);
+        return (int) $resolvedCompany->id;
+      }
     }
 
     $authCompanyId = auth()->user()?->company_id;
@@ -477,5 +490,59 @@ class AccountsController extends AppBaseController
     }
 
     return null;
+  }
+
+  /**
+   * Mirror Accounts chart visibility for company_id (shared roots + tenant non-roots; allow NULL company_id children for legacy rows).
+   */
+  private function passesChartCompanyRules(Accounts $account, ?int $companyId): bool
+  {
+    $connection = $account->getConnectionName() ?: config('database.default');
+    if (!Schema::connection($connection)->hasColumn($account->getTable(), 'company_id')) {
+      return true;
+    }
+
+    if ($companyId === null) {
+      return true;
+    }
+
+    $isRoot = $account->parent_id === null || (int) $account->parent_id === 0;
+    if ($isRoot) {
+      return true;
+    }
+
+    $acid = $account->company_id;
+    if ($acid === null || $acid === '') {
+      return true;
+    }
+
+    return (int) $acid === (int) $companyId;
+  }
+
+  /**
+   * Mirror BranchScope: admins see all; others see own branches + NULL branch.
+   */
+  private function accountMatchesUserBranches(Accounts $account): bool
+  {
+    $user = auth()->user();
+    if (!$user) {
+      return false;
+    }
+
+    if ($user->hasAnyRole(['Administrator', 'Super Admin'])) {
+      return true;
+    }
+
+    $branches = app('user_branches');
+    if (empty($branches)) {
+      return $account->branch_id === null || $account->branch_id === '';
+    }
+
+    $bid = $account->branch_id;
+    if ($bid === null || $bid === '') {
+      return true;
+    }
+
+    return in_array((int) $bid, array_map('intval', (array) $branches), true);
   }
 }

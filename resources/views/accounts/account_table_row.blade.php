@@ -47,12 +47,10 @@ $searchText = strtolower(($account->name ?? '') . ' ' . ($account->account_code 
         @endcan
         <li><a class="dropdown-item view-ledger" href="javascript:void(0);" data-id="{{ $account->id }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
         @can('account_delete')
-        @if(!$isRoot)
         <li>
           <hr class="dropdown-divider">
         </li>
         <li><a class="dropdown-item text-danger delete-account" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.destroy', $account->id) }}"><i class="fa fa-trash me-2"></i> Delete</a></li>
-        @endif
         @endcan
       </ul>
     </div>

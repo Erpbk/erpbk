@@ -27,14 +27,16 @@
         </tr> --}}
         @php
             use Spatie\Permission\Models\Permission;
-            if (! isset($modules)) {
-                $modules = Permission::query()
-                    ->where(function ($q) {
-                        $q->whereNull('parent_id')->orWhere('parent_id', 0);
-                    })
-                    ->get();
+            $hasParentId = \Illuminate\Support\Facades\Schema::hasColumn('permissions', 'parent_id');
+            if (! isset($modules) && $hasParentId) {
+              $modules = Permission::query()
+                ->where(function ($q) {
+                  $q->whereNull('parent_id')->orWhere('parent_id', 0);
+                })
+                ->get();
             }
         @endphp
+        @if ($hasParentId)
         @foreach ($modules as $module)
 
         <tr>
@@ -62,6 +64,40 @@
         </tr>
 
         @endforeach
+        @else
+        @php
+          $groupedPermissions = Permission::query()
+            ->orderBy('name')
+            ->get()
+            ->groupBy(function ($permission) {
+              $parts = explode('_', $permission->name, 2);
+              if (count($parts) === 2) {
+                return ucwords(str_replace('_', ' ', $parts[0]));
+              }
+              return ucwords(str_replace('_', ' ', $permission->name));
+            });
+        @endphp
+        @foreach ($groupedPermissions as $moduleName => $permissions)
+        <tr>
+          <td class="text-nowrap fw-medium">{{ $moduleName }}</td>
+          <td>
+            <div class="d-flex">
+              @foreach ($permissions as $item)
+              <div class="form-check me-3 me-lg-5">
+                <input class="form-check-input" name="permission[]" id="{{ $item->id }}" value="{{ $item->name }}" type="checkbox"
+                  @isset($rolePermissions[$item->id]) checked @endisset>
+                @php
+                  $parts = explode('_', $item->name, 2);
+                  $label = count($parts) === 2 ? ucwords(str_replace('_', ' ', $parts[1])) : ucwords(str_replace('_', ' ', $item->name));
+                @endphp
+                <label class="form-check-label" for="{{ $item->id }}">{{ $label }}</label>
+              </div>
+              @endforeach
+            </div>
+          </td>
+        </tr>
+        @endforeach
+        @endif
 
       </tbody>
     </table>

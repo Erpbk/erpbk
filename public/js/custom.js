@@ -32,8 +32,15 @@ $('body').on('click', '.show-modal', function () {
     complete: function () {
       unblock();
     },
-    error: function () {
-      $('#modalTopbody').html('<div class="alert alert-danger mb-0">Failed to load modal content.</div>');
+    error: function (xhr) {
+      var errMsg = 'Failed to load modal content.';
+      if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+        errMsg = xhr.responseJSON.message;
+      }
+      $('#modalTopbody').html('<div class="alert alert-danger mb-0">' + errMsg + '</div>');
+      if (window.toastr) {
+        toastr.error(errMsg);
+      }
     }
   });
 

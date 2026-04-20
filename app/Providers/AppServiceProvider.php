@@ -10,6 +10,7 @@ use App\Models\Company;
 use App\Models\Settings;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +27,15 @@ class AppServiceProvider extends ServiceProvider
    */
   public function boot(): void
   {
+    // Company-side administrators should have full software access.
+    Gate::before(function ($user, string $ability) {
+      if ($user instanceof \App\Models\User && $user->hasAnyRole(['Administrator', 'Super Admin'])) {
+        return true;
+      }
+
+      return null;
+    });
+
     // Force HTTPS in production
     if (config('app.env') === 'production') {
       URL::forceScheme('https');

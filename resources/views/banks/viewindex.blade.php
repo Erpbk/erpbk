@@ -22,7 +22,7 @@
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
                         @can('bank_create')
-                            @if(request()->segment(1) =='banks')
+                            @if(Route::is('banks.index'))
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Bank" data-action="{{ route('banks.create') }}">
                                     <i class="ti ti-plus"></i>
                                     <div>
@@ -30,7 +30,7 @@
                                         <div class="action-dropdown-item-desc">Add a new Bank Account</div>
                                     </div>
                                 </a>
-                            @elseif(request()->segment(1) =='receipts')
+                            @elseif(Route::is('receipts.index'))
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Receipt (Cash In)" data-action="{{ route('receipts.create') }}">
                                     <i class="ti ti-plus"></i>
                                     <div>
@@ -38,7 +38,7 @@
                                         <div class="action-dropdown-item-desc">Add a new Receipt</div>
                                     </div>
                                 </a>
-                            @elseif(request()->segment(1) =='payments')
+                            @elseif(Route::is('payments.index'))
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Payment (Cash Out)" data-action="{{ route('payments.create') }}">
                                     <i class="ti ti-plus"></i>
                                     <div>

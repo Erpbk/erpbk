@@ -72,11 +72,12 @@ class Accounts extends BaseModel
       $query
         // Shared main heads for all companies
         ->where(function (Builder $rootQuery) use ($qualifiedParent): void {
-          $rootQuery->whereNull($qualifiedParent);
+          $rootQuery->whereNull($qualifiedParent)->orWhere($qualifiedParent, 0);
         })
         // OR tenant-owned non-root accounts only
         ->orWhere(function (Builder $tenantQuery) use ($qualifiedParent, $qualifiedCompany, $companyId): void {
           $tenantQuery
+            ->where($qualifiedParent, '!=', 0)
             ->whereNotNull($qualifiedParent)
             ->where($qualifiedCompany, $companyId);
         });

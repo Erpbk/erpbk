@@ -10,8 +10,31 @@ $('body').on('click', '.show-modal', function () {
     $('.modal-dialog').addClass('modal-' + size);
   }
   $('#modalTopTitle').text(title);
-  $('#modalTopbody').load(action, function () {
-    unblock();
+  $.ajax({
+    url: action,
+    type: 'GET',
+    dataType: 'html',
+    success: function (response) {
+      // Prevent duplicate global declarations (e.g., `isRtl`) from re-evaluating
+      // scripts every time modal content is loaded.
+      var $wrapper = $('<div>').html(response);
+      $wrapper.find('script').remove();
+      $('#modalTopbody').html($wrapper.html());
+
+      // Re-init select2 fields inside the modal content.
+      if ($.fn.select2) {
+        $('#modalTopbody .select2').select2({
+          dropdownParent: $('#modalTop'),
+          allowClear: true
+        });
+      }
+    },
+    complete: function () {
+      unblock();
+    },
+    error: function () {
+      $('#modalTopbody').html('<div class="alert alert-danger mb-0">Failed to load modal content.</div>');
+    }
   });
 
   if (table) {

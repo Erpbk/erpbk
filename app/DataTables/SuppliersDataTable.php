@@ -18,7 +18,7 @@ class SuppliersDataTable extends DataTable
 
         return $dataTable
             ->addColumn('action', function ($supplier) {
-                return view('suppliers.datatables_actions', compact('supplier'))->render();
+                return view('Suppliers.datatables_actions', compact('supplier'))->render();
             })
             ->addColumn('name', function ($supplier) {
             $name = '<a href="' . route('suppliers.show', $supplier->id) . '">' . e($supplier->name) . '</a><br/>';

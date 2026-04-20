@@ -2,7 +2,7 @@
 
 <div class="card-body">
     <div class="row">
-        @include('suppliers.fields')
+        @include('Suppliers.fields')
     </div>
 </div>
 

@@ -10,6 +10,7 @@ class BanksRepository extends BaseRepository
     protected $fieldSearchable = [
         'name',
         'title',
+        'company_id',
         'account_no',
         'iban',
         'swift',

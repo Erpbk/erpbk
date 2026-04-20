@@ -28,7 +28,7 @@ trait BelongsToCompany
 
             $companyId = $model->resolveScopedCompanyId();
             if ($companyId !== null) {
-                $builder->where($model->qualifyColumn('company_id'), $companyId);
+                $model->applyCompanyScopeConstraint($builder, $companyId);
             }
         });
 
@@ -99,5 +99,31 @@ trait BelongsToCompany
         self::$companyColumnCache[$cacheKey] = Schema::connection($connection)->hasColumn($table, 'company_id');
 
         return self::$companyColumnCache[$cacheKey];
+    }
+
+    /**
+     * Override in models that should see global rows (company_id NULL) + tenant rows.
+     */
+    protected function includesGlobalCompanyRows(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Apply tenant/company constraint to the builder.
+     * Models can override this for advanced behavior.
+     */
+    protected function applyCompanyScopeConstraint(Builder $builder, int $companyId): void
+    {
+        if ($this->includesGlobalCompanyRows()) {
+            $builder->where(function (Builder $query) use ($builder, $companyId): void {
+                $query
+                    ->where($builder->getModel()->qualifyColumn('company_id'), $companyId)
+                    ->orWhereNull($builder->getModel()->qualifyColumn('company_id'));
+            });
+            return;
+        }
+
+        $builder->where($builder->getModel()->qualifyColumn('company_id'), $companyId);
     }
 }

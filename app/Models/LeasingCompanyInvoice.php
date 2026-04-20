@@ -25,7 +25,8 @@ class LeasingCompanyInvoice extends BaseModel
         'total_amount',
         'notes',
         'attachment',
-        'status'
+        'status',
+        'partial_paid_amount',
     ];
 
     protected $casts = [
@@ -36,7 +37,8 @@ class LeasingCompanyInvoice extends BaseModel
         'subtotal' => 'decimal:2',
         'vat' => 'decimal:2',
         'total_amount' => 'decimal:2',
-        'status' => 'integer'
+        'status' => 'integer',
+        'partial_paid_amount' => 'array'
     ];
 
     protected $dates = ['deleted_at'];
@@ -51,7 +53,8 @@ class LeasingCompanyInvoice extends BaseModel
         'descriptions' => 'nullable|string',
         'notes' => 'nullable|string',
         'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
-        'status' => 'nullable|integer'
+        'status' => 'nullable|integer',
+        'partial_paid_amount' => 'nullable|array',
     ];
 
     public function leasingCompany()
@@ -62,5 +65,27 @@ class LeasingCompanyInvoice extends BaseModel
     public function items()
     {
         return $this->hasMany(LeasingCompanyInvoiceItem::class, 'inv_id', 'id');
+    }
+
+    public function getPaidAmountAttribute()
+    {
+        return array_sum($this->partial_paid_amount ?? []);
+    }
+
+    public function getBalanceAttribute()
+    {
+        return $this->total_amount - $this->paid_amount;
+    }
+
+    public static function getIdFromInvoiceNumber($invoiceNumber)
+    {
+        // Remove the prefix 'CI-' and get the numeric part
+        $numericPart = str_replace('LCI', '', $invoiceNumber);
+        
+        // Remove leading zeros and convert to integer
+        $id = (int) ltrim($numericPart, '0');
+        
+        // Verify the invoice exists
+        return self::where('id', $id)->exists() ? $id : null;
     }
 }

@@ -925,6 +925,21 @@ class LeasingCompaniesController extends AppBaseController
   }
 
   /**
+   * Display receipts for all leasing companies.
+   */
+  public function receipt(Request $request)
+  {
+    $accountIds = LeasingCompanies::all()->pluck('account_id')->toArray();
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Receipt::query()->with('payerAccount','payeeAccount')->latest('id');
+    $query->whereIn('payer_account_id', $accountIds);
+
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    return view('leasing_companies.receipt', compact('data'));
+  }
+
+  /**
    * Display payments for a leasing company.
    */
   public function payments(Request $request, $id)
@@ -943,6 +958,22 @@ class LeasingCompaniesController extends AppBaseController
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
     return view('leasing_companies.payments', compact('data', 'leasingCompany'));
+  }
+
+  /**
+   * Display payments for all leasing companies.
+   */
+  public function payment(Request $request)
+  {
+    $accountIds = LeasingCompanies::all()->pluck('account_id')->toArray();
+
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Payment::query()->latest('date_of_payment');
+    $query->whereIn('payee_account_id', $accountIds);
+
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    return view('leasing_companies.payment', compact('data'));
   }
 
   /**

@@ -1,6 +1,6 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
-@section('title','Supplier Invoices')
+@section('title','Purchase Orders')
 @push('third_party_stylesheets')
 <style>
     .table-responsive {
@@ -27,16 +27,12 @@
                                 <i class="ti ti-chevron-down"></i>
                             </button>
                             <div class="action-dropdown-menu" id="addBikeDropdown">
-                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Invoice" data-action="{{ route('supplier_invoices.create') }}">
+                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Order" data-action="{{ route('supplier_invoices.create') }}?order={{ true }}">
                                     <i class="ti ti-plus"></i>
                                     <div>
-                                        <div class="action-dropdown-item-text">Invoice</div>
-                                        <div class="action-dropdown-item-desc">Add a new Spplier Invoice</div>
+                                        <div class="action-dropdown-item-text">Purchse Order</div>
+                                        <div class="action-dropdown-item-desc">Add a new PO</div>
                                     </div>
-                                </a>
-                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Invoice" data-action="{{ route('supplier_invoices.import') }}">
-                                    <i class="ti ti-arrow-up"></i>
-                                     <div class="action-dropdown-item-text">Import Invoice</div>
                                 </a>
                             </div>
                         </div>
@@ -53,7 +49,7 @@
         <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
     <div class="filter-body" id="searchTopbody">
-        <form id="filterForm" action="{{ route('supplier_invoices.index') }}" method="GET">
+        <form id="filterForm" action="{{ route('supplier.purchase_order') }}" method="GET">
             <div class="row">
                 <div class="form-group col-md-12">
                     <label for="company_name">Filter by Supplier</label>

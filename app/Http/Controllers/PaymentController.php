@@ -7,9 +7,12 @@ use App\Models\Payment;
 use App\Models\Accounts;
 use App\Models\Banks;
 use App\Models\LeasingCompanies;
+use App\Models\LeasingCompanyInvoice;
+use App\Models\SupplierInvoices;
 use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Models\Customers;
+use App\Models\Supplier;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use Illuminate\Support\Facades\DB;
@@ -60,15 +63,72 @@ class PaymentController extends Controller
         $accountId = request()->input('id') ?? null;
         $leasingCompanyId = request()->input('leasing_company_id') ?? null;
         $customerId = request()->input('customer_id') ?? null;
+        $supplierId = request()->input('supplier_id') ?? null;
         $payment = null;
-
+        $accountds = null;
+        $leasingIds = null;
+        $supplierIds = null;
+        $invoiceType = null;
+        if(request()->input('leasing_payment')){
+            $leasingIds = LeasingCompanies::pluck('id')->toArray();
+            $accountIds = LeasingCompanies::pluck('account_id')->toArray();
+        }
+        if(request()->input('supplier_payment')){
+            $supplierIds = Supplier::pluck('id')->toArray();
+            $accountIds = Supplier::pluck('account_id')->toArray();
+        }
+        if($leasingCompanyId){
+            $invoices = LeasingCompanyInvoice::with('leasingCompany')
+                        ->where('leasing_company_id', $leasingCompanyId)
+                        ->where(function($q){
+                            $q->where('status', 0)
+                            ->orWhere('status', 3);
+                        })
+                        ->get();
+            $accountIds = LeasingCompanies::where('id', $leasingCompanyId)->pluck('account_id')->toArray();
+        }elseif($leasingIds){
+            $invoices = LeasingCompanyInvoice::with('leasingCompany')
+                        ->whereIn('leasing_company_id', $leasingIds)
+                        ->where(function($q){
+                            $q->where('status', 0)
+                            ->orWhere('status', 3);
+                        })
+                        ->get();
+        }elseif($supplierId){
+            $invoices = SupplierInvoices::with('supplier')
+                        ->where('is_invoice', true)
+                        ->where('supplier_id', $supplierId)
+                        ->where(function($q){
+                            $q->where('status', 'unpaid')
+                            ->orWhere('status', 'partially_paid');
+                        })
+                        ->get();
+            $accountIds = Supplier::where('id', $supplierId)->pluck('account_id')->toArray();
+        }elseif($supplierIds){
+            $invoices = SupplierInvoices::with('supplier')
+                        ->where('is_invoice', true)
+                        ->whereIn('supplier_id', $supplierIds)
+                        ->where(function($q){
+                            $q->where('status', 'unpaid')
+                            ->orWhere('status', 'partially_paid');
+                        })
+                        ->get();
+        }else{
+            $invoices = null;
+        }
         if ($accountId) {
             $bank = Banks::find($accountId);
             return view('payments.create', compact('bank','payment'));
-        } elseif ($leasingCompanyId) {
-            $leasingCompany = LeasingCompanies::find($leasingCompanyId);
+        } elseif ($leasingCompanyId || $leasingIds) {
+            $leasingCompany = LeasingCompanies::find($leasingCompanyId ?? 0);
             $banks = Banks::with('account')->active()->get();
-            return view('payments.create', compact('leasingCompany','banks','payment'));
+            $invoiceType = 'leasingCompany';
+            return view('payments.create', compact('leasingCompany','banks','payment','invoices','accountIds','invoiceType'));
+        } elseif ($supplierId || $supplierIds) {
+            $leasingCompany = Supplier::find($supplierId ?? 0);
+            $banks = Banks::with('account')->active()->get();
+            $invoiceType = 'supplier';
+            return view('payments.create', compact('leasingCompany','banks','payment','invoices','accountIds', 'invoiceType'));
         } elseif ($customerId) {
             $customer = Customers::find($customerId);
             $banks = Banks::with('account')->active()->get();
@@ -94,6 +154,10 @@ class PaymentController extends Controller
             'bank_charges_account' => 'required_if:bank_charges,>0|nullable|numeric|exists:accounts,id',
             'description' => 'required|string|max:500',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'invoice_ids' => 'nullable|array',
+            'invoice_ids.*' => 'numeric|required',
+            'payment_amounts' => 'nullable|array',
+            'payment_amounts.*' => 'numeric|min:0.01',
         ];
 
         $messages = [
@@ -106,6 +170,7 @@ class PaymentController extends Controller
             'billing_month.required' => 'Billing month is required',
             'description.required' => 'Main narration is required',
             'bank_charges_account.required_if' => 'Please select a bank charges account when bank charges are entered',
+            'payment_amounts.*.min' => 'Payment amounts must be greater than zero.',
         ];
 
         $this->validate($request, $rules, $messages);
@@ -116,53 +181,116 @@ class PaymentController extends Controller
         $totalAmount = $paymentAmount + $bankCharges;
 
         // Get the paying account (bank account)
-        $bank = null;
-        $payingAccountId = null;
-
-        if ($request->input('bank_id')) {
-            $bank = Banks::find($request->input('bank_id'));
-            if (!$bank) {
-                if ($request->ajax()) {
-                    return response()->json(['message' => 'Selected bank not found'], 422);
-                }
-                Flash::error('Selected bank not found.');
-                return redirect()->back()->withInput();
+        $bank = Banks::find($request->input('bank_id'));
+        if (!$bank) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Selected bank not found'], 422);
             }
-            $payingAccountId = $bank->account_id;
+            Flash::error('Selected bank not found.');
+            return redirect()->back()->withInput();
         }
+        $payingAccountId = $bank->account_id;
 
         $input = $request->all();
         $input['created_by'] = auth()->id();
         $input['billing_month'] = $input['billing_month'] . '-01';
+        $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
         $input['amount'] = $totalAmount;
-        $input['branch_id'] = Accounts::where('id',$input['payee_account_id'])->value('branch_id');
 
         try {
             DB::beginTransaction();
 
+            // Validate invoice payments if invoices are selected
+            if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
+                $paymentAmounts = $request->input('payment_amounts');
+                $totalPayment = array_sum($paymentAmounts);
+                
+                if ($totalPayment > $paymentAmount) {
+                    throw new \Exception('Total payment amount for selected invoices cannot exceed the payment amount.');
+                }
+            }
+
             // Create the payment record
             $payment = Payment::create($input);
-            $transCode = \App\Helpers\Account::trans_code();
 
+            // Process invoice payments if invoices are selected
+            if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
+                $invoiceIds = $request->input('invoice_ids');
+                $paymentAmounts = $request->input('payment_amounts');
+                
+                if($request->invoiceType == 'leasingCompany'){
+                    $invoices = LeasingCompanyInvoice::whereIn('id', $invoiceIds)->get();
+                    
+                    foreach ($invoices as $invoice) {
+                        $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+                        $partialAmount = $invoice->partial_paid_amount ?? [];
+                        $partialAmount[$payment->id] = $invoicePaymentAmount;
+                        
+                        if ($invoicePaymentAmount > 0) {
+                            // Update the invoice status based on the payment
+                            if ($invoicePaymentAmount >= $invoice->total_amount - ($invoice->paid_amount ?? 0)) {
+                                $invoice->update([
+                                    'status' => 1, // Paid
+                                    'partial_paid_amount' => $partialAmount,
+                                    'updated_by' => auth()->id()
+                                ]);
+                            } else {
+                                $invoice->update([
+                                    'status' => 3, // Partially Paid
+                                    'partial_paid_amount' => $partialAmount,
+                                    'updated_by' => auth()->id()
+                                ]);
+                            }
+                        }
+                    }
+                } else{
+                    $invoices = SupplierInvoices::whereIn('id', $invoiceIds)->get();
+                    
+                    foreach ($invoices as $invoice) {
+                        $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+                        $partialAmount = $invoice->partial_paid_amount ?? [];
+                        $partialAmount[$payment->id] = $invoicePaymentAmount;
+                        
+                        if ($invoicePaymentAmount > 0) {
+                            // Update the invoice status based on the payment
+                            if ($invoicePaymentAmount >= $invoice->total_amount - ($invoice->paid_amount ?? 0)) {
+                                $invoice->update([
+                                    'status' => 'paid', // Paid
+                                    'partial_paid_amount' => $partialAmount,
+                                    'updated_by' => auth()->id()
+                                ]);
+                            } else {
+                                $invoice->update([
+                                    'status' => 'partially_paid', // Partially Paid
+                                    'partial_paid_amount' => $partialAmount,
+                                    'updated_by' => auth()->id()
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            $transCode = \App\Helpers\Account::trans_code();
             $date = $input['date_of_payment'];
             $billingMonth = $input['billing_month'];
             $desc = $input['description'];
 
-            // 1. Credit the paying account (BANK) - CREDIT entry
+            // 1. Credit the paying account (BANK) - CREDIT entry (money going out)
             Transactions::create([
                 'trans_code' => $transCode,
                 'trans_date' => $date,
                 'reference_id' => $payment->id,
                 'reference_type' => 'PV',
                 'account_id' => $payingAccountId, // Bank account (credit)
-                'credit' => $totalAmount, // Money going out of bank
+                'credit' => $totalAmount,
                 'debit' => 0,
                 'billing_month' => $billingMonth,
                 'narration' => $desc,
                 'branch_id' => $payment->branch_id,
             ]);
 
-            // 2. Debit the payee account (receiving account) - DEBIT entry
+            // 2. Debit the payee account (receiving account) - DEBIT entry (money coming in)
             Transactions::create([
                 'trans_code' => $transCode,
                 'trans_date' => $date,
@@ -170,16 +298,16 @@ class PaymentController extends Controller
                 'reference_type' => 'PV',
                 'account_id' => $request->input('payee_account_id'), // Receiving account (debit)
                 'credit' => 0,
-                'debit' => $paymentAmount, // Money coming to this account
+                'debit' => $paymentAmount,
                 'billing_month' => $billingMonth,
                 'branch_id' => $payment->branch_id,
                 'narration' => $desc,
             ]);
 
             // 3. Handle bank charges if any
-            if ($bankCharges > 0 ) {
+            if ($bankCharges > 0) {
                 // Debit the bank charges expense account
-                if($request->input('bank_charges_account')) {
+                if ($request->input('bank_charges_account')) {
                     Transactions::create([
                         'trans_code' => $transCode,
                         'trans_date' => $date,
@@ -190,13 +318,13 @@ class PaymentController extends Controller
                         'debit' => $bankCharges,
                         'billing_month' => $billingMonth,
                         'branch_id' => $payment->branch_id,
-                        'narration' => 'Bank charges for ( ' . $payment->description .' )',
+                        'narration' => 'Bank charges for ( ' . $payment->description . ' )',
                     ]);
-                }else {
+                } else {
                     DB::rollBack();
                     return response()->json([
                         'message' => 'No Account Selected for Bank Charges',
-                    ],500);
+                    ], 500);
                 }
             }
 
@@ -209,7 +337,7 @@ class PaymentController extends Controller
                 return redirect()->back()->withInput();
             }
 
-            // voucher
+            // Create voucher
             $voucherData = [
                 'trans_date' => $date,
                 'trans_code' => $transCode,
@@ -287,20 +415,75 @@ class PaymentController extends Controller
             Flash::error('Payment not found');
             return redirect()->back();
         }
-
+        $invoices =null;
+        $existingInvoices = null;
+        $accountIds = null;
+        $invoiceType = null;
+        if((str_contains($payment->reference, 'LCI'))){
+            $invoice_numbers = explode(' ', $payment->reference);
+            $invoiceIds = [];
+            foreach($invoice_numbers as $invoice_number){
+                $id = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoice_number);
+                if($id){
+                    $invoiceIds[] = $id;
+                }
+            }
+            $existingInvoices = LeasingCompanyInvoice::with('leasingCompany')
+                        ->whereIn('id', $invoiceIds)
+                        ->get();
+            $invoices = LeasingCompanyInvoice::with('leasingCompany')
+                        ->whereIn('leasing_company_id', $existingInvoices->pluck('leasing_company_id'))
+                        ->where(function($query) use ($invoiceIds){
+                            $query->whereIn('status', [0, 3])
+                                  ->WhereNotIn('id', $invoiceIds);
+                        })
+                        ->get();
+            $accountIds = $existingInvoices->pluck('leasingCompany.account_id')->toArray();
+            $invoiceType = 'leasingCompany';
+        }
+        if((str_contains($payment->reference, 'SUP'))){
+            $invoice_numbers = explode(' ', $payment->reference);
+            $invoiceIds = [];
+            foreach($invoice_numbers as $invoice_number){
+                $id = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
+                if($id){
+                    $invoiceIds[] = $id;
+                }
+            }
+            $existingInvoices = SupplierInvoices::with('supplier')
+                        ->where('is_invoice', true)
+                        ->whereIn('id', $invoiceIds)
+                        ->get();
+            $invoices = SupplierInvoices::with('supplier')
+                        ->where('is_invoice', true)
+                        ->whereIn('supplier_id', $existingInvoices->pluck('supplier_id'))
+                        ->where(function($query) use ($invoiceIds){
+                            $query->whereIn('status', ['unpaid', 'partially_paid'])
+                                  ->WhereNotIn('id', $invoiceIds);
+                        })
+                        ->get();
+            $accountIds = $existingInvoices->pluck('supplier.account_id')->toArray();
+            $invoiceType = 'supplier';
+        }
         $banks = Banks::active()->get();
         $payment->billing_month = \Carbon\Carbon::parse($payment->billing_month)->format('Y-m');
 
-        return view('payments.edit', compact('payment', 'banks'));
+        return view('payments.edit', compact('payment', 'banks', 'accountIds', 'existingInvoices' ,'invoices', 'invoiceType'));
     }
 
     public function update(Request $request, $id)
     {
         $payment = Payment::find($id);
-
-        if (!$payment) {
-            return response()->json(['message' => 'Payment not found'], 404);
+        
+        if (empty($payment)) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Payment Not Found'], 500);
+            }
+            Flash::error('Payment not found!');
+            return redirect()->back();
         }
+
+        $request['billing_month'] = $request['billing_month'] . "-01";
 
         $rules = [
             'reference' => 'nullable|string|max:255',
@@ -309,132 +492,285 @@ class PaymentController extends Controller
             'payee_account_id' => 'required|numeric|exists:accounts,id',
             'date_of_payment' => 'required|date',
             'date_of_invoice' => 'nullable|date',
-            'billing_month' => 'required|date_format:Y-m',
+            'billing_month' => 'required|date',
             'amount' => 'required|numeric|min:0.01',
             'bank_charges' => 'nullable|numeric|min:0',
             'bank_charges_account' => 'required_if:bank_charges,>0|nullable|numeric|exists:accounts,id',
             'description' => 'required|string|max:500',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'invoice_ids' => 'nullable|array',
+            'invoice_ids.*' => 'numeric|required',
+            'payment_amounts' => 'nullable|array',
+            'payment_amounts.*' => 'numeric|min:0.01',
         ];
 
-        $this->validate($request, $rules);
+        $messages = [
+            'amount_type.required' => 'Payment mode is required',
+            'bank_id.required' => 'Sending account is required',
+            'payee_account_id.required' => 'Receiving account is required',
+            'amount.required' => 'Payment amount is required',
+            'amount.min' => 'Payment amount must be greater than zero',
+            'date_of_payment.required' => 'Payment date is required',
+            'billing_month.required' => 'Billing month is required',
+            'description.required' => 'Narration for Transaction is Required',
+            'bank_charges_account.required_if' => 'Please select a bank charges account when bank charges are entered',
+            'invoice_ids.*.exists' => 'One or more selected invoices are invalid.',
+            'payment_amounts.*.min' => 'Payment amounts must be greater than zero.',
+        ];
 
+        $this->validate($request, $rules, $messages);
+
+        // Calculate total debit (payment amount + bank charges)
         $paymentAmount = floatval($request->input('amount', 0));
-        $bankCharges   = floatval($request->input('bank_charges', 0));
-        $totalAmount   = $paymentAmount + $bankCharges;
+        $bankCharges = floatval($request->input('bank_charges', 0));
+        $totalAmount = $paymentAmount + $bankCharges;
 
-        // Get bank account
-        $bank = Banks::find($request->bank_id);
+        // Get the paying account (bank account)
+        $bank = Banks::find($request->input('bank_id'));
         if (!$bank) {
-            return response()->json(['message' => 'Selected bank not found'], 422);
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Selected bank not found'], 422);
+            }
+            Flash::error('Selected bank not found.');
+            return redirect()->back()->withInput();
         }
-
         $payingAccountId = $bank->account_id;
-
-        $input = $request->all();
-        $input['updated_by'] = auth()->id();
-        $input['billing_month'] = $input['billing_month'] . '-01';
-        $input['branch_id'] = Accounts::where('id',$input['payee_account_id'])->value('branch_id');
-        $input['amount'] = $totalAmount;
 
         try {
             DB::beginTransaction();
 
-            // Update payment
-            $payment->update($input);
+            // Prepare data for payment update
+            $input = $request->all();
+            $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
+            $input['amount'] = $totalAmount;
+            $input['updated_by'] = auth()->id();
+            $pending = null;
+            $partial = null;
+            $paid = null;
+            
+            // Handle existing invoice payments (remove old ones)
+            if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
+                $paymentAmounts = $request->input('payment_amounts');
+                $totalPayment = array_sum($paymentAmounts);
+                
+                if ($totalPayment > $paymentAmount) {
+                    throw new \Exception('Total payment amount for selected invoices cannot exceed the payment amount.');
+                }
+                
+                // Get existing invoice numbers from payment reference
+                $invoice_numbers = explode(' ', $payment->reference);
+                $invoiceIds = [];
+                if($input['invoice_type'] == 'leasingCompany'){
+                    foreach($invoice_numbers as $invoice_number){
+                        $id = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoice_number);
+                        if($id){
+                            $invoiceIds[] = $id;
+                        }
+                    }
+                    
+                    // Get existing invoices and revert their status
+                    $existingInvoices = LeasingCompanyInvoice::whereIn('id', $invoiceIds)->get();
+                    $partial = 3;
+                    $pending = 0;
+                } else {
+                    foreach($invoice_numbers as $invoice_number){
+                        $id = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
+                        if($id){
+                            $invoiceIds[] = $id;
+                        }
+                    }
+                    
+                    // Get existing invoices and revert their status
+                    $existingInvoices = SupplierInvoices::whereIn('id', $invoiceIds)->get();
+                    $partial = 'partially_paid';
+                    $pending = 'unpaid';
+                }
+                
+                foreach($existingInvoices as $invoice){
+                    $partialAmount = $invoice->partial_paid_amount ?? [];
+                    unset($partialAmount[$payment->id]); // Remove payment for this payment record
+                    $invoice->partial_paid_amount = $partialAmount;
+                    
+                    if(count($partialAmount) < 1){
+                        $invoice->status = $pending; // Revert to pending if no payments left
+                    } else {
+                        $invoice->status = $partial; // Otherwise, it's still partially paid
+                    }
+                    $invoice->updated_by = auth()->id();
+                    $invoice->save();
+                }
+            }
 
-            $transCode = $payment->voucher->trans_code;
+            // Fill the model with new data and check for changes
+            $payment->fill($input);
+            $paymentHasChanges = $payment->isDirty();
+            $hasNewAttachment = $request->hasFile('attachment');
 
-            $date = $input['date_of_payment'];
-            $billingMonth = $input['billing_month'];
-            $desc = $input['description'];
+            // If nothing changed, return early
+            if (!$paymentHasChanges && !$hasNewAttachment) {
+                DB::commit();
+                return response()->json([
+                    'message' => 'Nothing New Entered to Update',
+                    'reload' => true
+                ], 200);
+            }
 
-            // Delete ALL old transactions
-            Transactions::where('trans_code', $transCode)->delete();
-
-            // 1. CREDIT bank (money going out)
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $date,
-                'reference_id' => $payment->id,
-                'reference_type' => 'PV',
-                'account_id' => $payingAccountId,
-                'credit' => $totalAmount,
-                'debit' => 0,
-                'billing_month' => $billingMonth,
-                'narration' => $desc,
-                'branch_id' => $payment->branch_id,
-            ]);
-
-            // 2. DEBIT payee
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $date,
-                'reference_id' => $payment->id,
-                'reference_type' => 'PV',
-                'account_id' => $request->payee_account_id,
-                'credit' => 0,
-                'debit' => $paymentAmount,
-                'billing_month' => $billingMonth,
-                'branch_id' => $payment->branch_id,
-                'narration' => $desc,
-            ]);
-
-            // 3. Bank charges (if any)
-            if ($bankCharges > 0) {
-                if (!$request->bank_charges_account) {
-                    DB::rollBack();
-                    return response()->json(['message' => 'No Account Selected for Bank Charges'], 500);
+            // Process new invoice payments
+            if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
+                $invoiceIds = $request->input('invoice_ids');
+                $paymentAmounts = $request->input('payment_amounts');
+                if($input['invoice_type'] == 'leasingcompany'){
+                    $invoices = LeasingCompanyInvoice::whereIn('id', $invoiceIds)->get();
+                    $partial = 3;
+                    $paid = 1;
+                    
+                } else{
+                    $invoices = SupplierInvoices::whereIn('id', $invoiceIds)->get();
+                    $partial = 'partially_paid';
+                    $paid = 'paid';
                 }
 
+                foreach($invoices as $invoice){
+                    $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+                    $partialAmount = $invoice->partial_paid_amount ?? [];
+                    $partialAmount[$payment->id] = $invoicePaymentAmount;
+                    
+                    if($invoicePaymentAmount > 0){
+                        
+                        // Update the invoice status based on the payment
+                        if ($invoicePaymentAmount >= ($invoice->total_amount - ($invoice->paid_amount ?? 0))) {
+                            $invoice->status = $paid; // Paid
+                        } else {
+                            $invoice->status = $partial; // Partially Paid
+                        }
+                        $invoice->partial_paid_amount = $partialAmount;
+                        $invoice->updated_by = auth()->id();
+                        $invoice->save();
+                    }
+                }
+            }
+
+            // Save payment if it has changes
+            if ($paymentHasChanges) {
+                $payment->save();
+                
+                if (!$payment->voucher) {
+                    throw new \Exception('Voucher not found for this payment');
+                }
+
+                $transCode = $payment->voucher->trans_code;
+                $date = $request->input('date_of_payment');
+                $billingMonth = $request->input('billing_month');
+                $desc = $request->input('description');
+
+                // Delete existing transactions
+                Transactions::where('trans_code', $transCode)->delete();
+
+                // 1. CREDIT transaction (paying account - BANK - money going out)
                 Transactions::create([
                     'trans_code' => $transCode,
                     'trans_date' => $date,
                     'reference_id' => $payment->id,
                     'reference_type' => 'PV',
-                    'account_id' => $request->bank_charges_account,
-                    'credit' => 0,
-                    'debit' => $bankCharges,
+                    'account_id' => $payingAccountId,
+                    'credit' => $totalAmount,
+                    'debit' => 0,
                     'billing_month' => $billingMonth,
                     'branch_id' => $payment->branch_id,
-                    'narration' => 'Bank charges for ( ' . $desc . ' )',
+                    'narration' => $desc,
                 ]);
+
+                // 2. DEBIT transaction (receiving account - money coming in)
+                Transactions::create([
+                    'trans_code' => $transCode,
+                    'trans_date' => $date,
+                    'reference_id' => $payment->id,
+                    'reference_type' => 'PV',
+                    'account_id' => $request->input('payee_account_id'),
+                    'credit' => 0,
+                    'debit' => $paymentAmount,
+                    'billing_month' => $billingMonth,
+                    'branch_id' => $payment->branch_id,
+                    'narration' => $desc,
+                ]);
+
+                // 3. Bank charges transaction (if any)
+                if ($bankCharges > 0) {
+                    if (!$request->input('bank_charges_account')) {
+                        throw new \Exception('No Account Selected for Bank Charges');
+                    }
+                    
+                    Transactions::create([
+                        'trans_code' => $transCode,
+                        'trans_date' => $date,
+                        'reference_id' => $payment->id,
+                        'reference_type' => 'PV',
+                        'account_id' => $request->input('bank_charges_account'),
+                        'credit' => 0,
+                        'debit' => $bankCharges,
+                        'billing_month' => $billingMonth,
+                        'branch_id' => $payment->branch_id,
+                        'narration' => 'Bank charges for ( ' . $desc . ' )',
+                    ]);
+                }
+
+                // Update voucher
+                $voucherData = [
+                    'trans_date' => $date,
+                    'billing_month' => $billingMonth,
+                    'reference_number' => $payment->reference,
+                    'payment_from' => $payingAccountId,
+                    'amount' => $totalAmount,
+                    'branch_id' => $payment->branch_id,
+                    'Updated_By' => auth()->id(),
+                ];
+
+                $payment->voucher->fill($voucherData);
+                
+                // Save voucher if it has changes
+                if ($payment->voucher->isDirty()) {
+                    $payment->voucher->save();
+                }
             }
 
-            // Update voucher
-            $payment->voucher->update([
-                'trans_date' => $date,
-                'billing_month' => $billingMonth,
-                'payment_from' => $payingAccountId,
-                'reference_number' => $payment->reference,
-                'amount' => $totalAmount,
-                'branch_id' => $payment->branch_id,
-                'Updated_By' => auth()->id(),
-            ]);
-
-            // Handle attachment
-            if ($request->hasFile('attachment')) {
+            // Handle attachment if provided (can be updated independently)
+            if ($hasNewAttachment) {
                 $file = $request->file('attachment');
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $file->storeAs('public/vouchers', $fileName);
-
+                
                 $payment->update(['attachment' => $fileName]);
-                $payment->voucher->update(['attach_file' => $fileName]);
+                
+                if ($payment->voucher) {
+                    $payment->voucher->update(['attach_file' => $fileName]);
+                }
             }
 
             DB::commit();
 
+            // Determine appropriate success message
+            $message = 'Payment Updated Successfully';
+            if ($hasNewAttachment && !$paymentHasChanges) {
+                $message = 'File uploaded Successfully';
+            }
+
             return response()->json([
-                'message' => 'Payment updated successfully',
+                'message' => $message,
                 'reload' => true
-            ]);
+            ], 200);
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Payment update failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
 
-            return response()->json([
-                'message' => 'Error: ' . $e->getMessage()
-            ], 500);
+            if ($request->ajax()) {
+                return response()->json([
+                    'message' => 'Error: ' . $e->getMessage()
+                ], 500);
+            }
+
+            Flash::error('Error Occurred: ' . $e->getMessage());
+            return redirect()->back()->withInput();
         }
     }
 
@@ -460,6 +796,55 @@ class PaymentController extends Controller
                         'billing_month' => null,
                         'voucher_id' => null,
                     ]);
+                }
+            }
+            if((str_contains($payment->reference, 'LCI'))){
+                $invoice_numbers = explode(' ', $payment->reference);
+                $invoiceIds = [];
+                foreach($invoice_numbers as $invoice_number){
+                    $id = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoice_number);
+                    if($id){
+                        $invoiceIds[] = $id;
+                    }
+                }
+                $invoices = LeasingCompanyInvoice::with('leasingCompany')
+                            ->whereIn('id', $invoiceIds)
+                            ->get();
+                foreach($invoices as $invoice){
+                    $partialAmount = $invoice->partial_paid_amount ?? [];
+                    unset($partialAmount[$payment->id]); // Remove payment for this receipt
+                    $invoice->partial_paid_amount = $partialAmount;
+                    if(count($partialAmount) < 1){
+                        $invoice->status = 0; // Revert to unpaid if no payments left
+                    } else {
+                        $invoice->status = 3;
+                    }
+                    $invoice->save();
+                }
+            }
+            if((str_contains($payment->reference, 'SUP'))){
+                $invoice_numbers = explode(' ', $payment->reference);
+                $invoiceIds = [];
+                foreach($invoice_numbers as $invoice_number){
+                    $id = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
+                    if($id){
+                        $invoiceIds[] = $id;
+                    }
+                }
+                $invoices = SupplierInvoices::with('supplier')
+                            ->where('is_invoice', true)
+                            ->whereIn('id', $invoiceIds)
+                            ->get();
+                foreach($invoices as $invoice){
+                    $partialAmount = $invoice->partial_paid_amount ?? [];
+                    unset($partialAmount[$payment->id]); // Remove payment for this receipt
+                    $invoice->partial_paid_amount = $partialAmount;
+                    if(count($partialAmount) < 1){
+                        $invoice->status = 'unpaid'; // Revert to unpaid if no payments left
+                    } else {
+                        $invoice->status = 'partially_paid';
+                    }
+                    $invoice->save();
                 }
             }
             $payment->delete();

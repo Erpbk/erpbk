@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Flash;
 
@@ -145,7 +146,7 @@ class AccountsController extends AppBaseController
    */
   public function show($id)
   {
-    $accounts = $this->accountsRepository->find($id);
+    $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
       Flash::error('Accounts not found');
@@ -163,11 +164,13 @@ class AccountsController extends AppBaseController
    */
   public function edit($id)
   {
-    $accounts = $this->accountsRepository->find($id);
+    $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
+      if (request()->ajax() || request()->wantsJson()) {
+        return response()->json(['message' => 'Account not found or not accessible.'], 404);
+      }
       Flash::error('Accounts not found');
-
       return redirect(route('accounts.index'));
     }
     //$parents = Accounts::whereNot('id', $id)->whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
@@ -187,7 +190,7 @@ class AccountsController extends AppBaseController
    */
   public function update($id, UpdateAccountsRequest $request)
   {
-    $accounts = $this->accountsRepository->find($id);
+    $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
       Flash::error('Accounts not found');
@@ -235,7 +238,7 @@ class AccountsController extends AppBaseController
    */
   public function destroy($id)
   {
-    $accounts = $this->accountsRepository->find($id);
+    $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
       return response()->json(['errors' => ['error' => 'Account not found!']], 422);
@@ -425,5 +428,54 @@ class AccountsController extends AppBaseController
       'trash_view' => 'accounts.trash',
       'index_route' => 'accounts.index',
     ];
+  }
+
+  private function findAccessibleAccount($id): ?Accounts
+  {
+    $account = Accounts::query()->find($id);
+    if ($account) {
+      return $account;
+    }
+
+    // Fallback: if global scope misses a row, re-check without scopes but enforce tenant safety.
+    $account = Accounts::withoutGlobalScopes()->find($id);
+    if (!$account) {
+      return null;
+    }
+
+    if (Auth::guard('admin')->check()) {
+      return $account;
+    }
+
+    if ($this->isSharedParentAccount($account)) {
+      return $account;
+    }
+
+    $companyId = $this->resolveCurrentCompanyId();
+    if ($companyId !== null && (int) $account->company_id === $companyId) {
+      return $account;
+    }
+
+    return null;
+  }
+
+  private function isSharedParentAccount(Accounts $account): bool
+  {
+    return $account->parent_id === null || (int) $account->parent_id === 0;
+  }
+
+  private function resolveCurrentCompanyId(): ?int
+  {
+    $company = request()?->attributes->get('company');
+    if ($company && isset($company->id)) {
+      return (int) $company->id;
+    }
+
+    $authCompanyId = auth()->user()?->company_id;
+    if (!empty($authCompanyId)) {
+      return (int) $authCompanyId;
+    }
+
+    return null;
   }
 }

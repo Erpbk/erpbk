@@ -22,6 +22,7 @@ use Spatie\Permission\Models\Role;
 use App\Helpers\IConstants;
 use App\Models\Activity;
 use App\Models\Company;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class UserController extends AppBaseController
@@ -55,9 +56,19 @@ class UserController extends AppBaseController
     }*/
 
 
-    $roles = Role::where('company_id', auth()->user()->company_id)
-      ->orWhere('name', 'Super Admin')
-      ->get();
+    $rolesQuery = Role::query();
+    if (Schema::hasColumn('roles', 'company_id')) {
+      $rolesQuery->where(function ($query) {
+        $query
+          ->where('company_id', auth()->user()->company_id)
+          ->orWhere('name', 'Super Admin');
+      });
+    } else {
+      // Fallback for schemas where roles are global and don't carry company_id.
+      $rolesQuery->where('name', '!=', IConstants::ROLE_SUPER_ADMIN);
+    }
+
+    $roles = $rolesQuery->get();
     return $userDataTable->render('users.index', compact('roles'));
   }
 

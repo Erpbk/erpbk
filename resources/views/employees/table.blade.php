@@ -119,7 +119,7 @@
                         @endcan
                         
                         @can('employees_documents')
-                            <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-title="Documents - {{ $employee->name }}" data-action="{{ route('employees.documents', $employee->id) }}">
+                            <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-title="Documents - {{ $employee->name }}" data-action="{{ route('employees.show', $employee->id) }}">
                                 <i class="fa fa-file my-1"></i> Documents
                             </a>
                         @endcan

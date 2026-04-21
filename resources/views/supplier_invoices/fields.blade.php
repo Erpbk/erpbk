@@ -124,6 +124,7 @@
                                     'class' => 'form-control vatAmount',
                                     'step' => 'any',
                                     'min' => '0',
+                                'readonly' => true,
                                 ]) !!}
                             </div>
                             <div class="form-group col-md-2">
@@ -185,6 +186,7 @@
                                     'class' => 'form-control vatAmount',
                                     'step' => 'any',
                                     'min' => '0',
+                                    'readonly' => true,
                                 ]) !!}
                             </div>
                             <div class="form-group col-md-2">
@@ -251,6 +253,7 @@
                                 'class' => 'form-control vatAmount',
                                 'step' => 'any',
                                 'min' => '0',
+                                'readonly' => true,
                             ]) !!}
                         </div>
                         <div class="form-group col-md-2">
@@ -388,7 +391,7 @@ $(document).ready(function() {
                     <input type="number" name="item_vat[]" class="form-control vat" value="0" step="any" min="0" max="100">
                 </div>
                 <div class="form-group col-md-2">
-                    <input type="number" name="item_vatAmount[]" class="form-control vatAmount" value="0" step="any" min="0">
+                    <input type="number" name="item_vatAmount[]" class="form-control vatAmount" value="0" step="any" min="0" readonly>
                 </div>
                 <div class="form-group col-md-2">
                     <input type="number" name="items_total[]" class="form-control item-total" step="any" readonly>
@@ -440,17 +443,11 @@ $(document).ready(function() {
         let grandTotal = 0;
         
         $('.item-row').each(function() {
-            const quantity = parseFloat($(this).find('.quantity').val()) || 0;
-            const rate = parseFloat($(this).find('.rate').val()) || 0;
-            const vatPercent = parseFloat($(this).find('.vat').val()) || 0;
+            const rowTotals = calculateRowTotal($(this));
             
-            const subtotal = quantity * rate;
-            const vatAmount = subtotal * (vatPercent / 100);
-            const total = subtotal + vatAmount;
-            
-            grandSubtotal += subtotal;
-            grandVat += vatAmount;
-            grandTotal += total;
+            grandSubtotal += rowTotals.subtotal;
+            grandVat += rowTotals.vatAmount;
+            grandTotal += rowTotals.total;
         });
         
         $('#subtotal').val(grandSubtotal.toFixed(2));
@@ -468,7 +465,7 @@ $(document).ready(function() {
     }
     
     // Validate form before submission
-    $('#invoiceForm').on('submit', function(e) {
+    $('#formajax').on('submit', function(e) {
         let isValid = true;
         
         // Check if at least one item exists

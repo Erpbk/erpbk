@@ -32,7 +32,7 @@ return new class extends Migration
 
     public function up(): void
     {
-        $database = DB::connection('mysql_central')->getDatabaseName();
+        $database = DB::connection()->getDatabaseName();
         $fallbackCompanyId = $this->resolveFallbackCompanyId($database);
 
         foreach ($this->tenantTables($database) as $table) {
@@ -68,7 +68,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        $database = DB::connection('mysql_central')->getDatabaseName();
+        $database = DB::connection()->getDatabaseName();
 
         foreach ($this->tenantTables($database) as $table) {
             if (!Schema::hasTable($table) || !$this->columnExists($database, $table, 'company_id')) {

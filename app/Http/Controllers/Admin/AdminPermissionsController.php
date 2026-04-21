@@ -165,7 +165,7 @@ class AdminPermissionsController extends Controller
     {
         $validated = $request->validate([
             'permissions' => 'nullable|array',
-            'permissions.*' => 'exists:mysql_admin.admin_permissions,id',
+            'permissions.*' => 'exists:admin_permissions,id',
         ]);
 
         $role->permissions()->sync($validated['permissions'] ?? []);
@@ -177,7 +177,7 @@ class AdminPermissionsController extends Controller
 
     public function destroy(AdminPermission $permission)
     {
-        DB::connection('mysql_admin')->transaction(function () use ($permission) {
+        DB::transaction(function () use ($permission) {
             $childIds = AdminPermission::query()
                 ->where('parent_id', $permission->id)
                 ->pluck('id')
@@ -186,13 +186,11 @@ class AdminPermissionsController extends Controller
             $allIds = array_merge([$permission->id], $childIds);
 
             // Remove permission mappings first to avoid orphan pivot rows.
-            DB::connection('mysql_admin')
-                ->table('admin_role_has_permissions')
+            DB::table('admin_role_has_permissions')
                 ->whereIn('admin_permission_id', $allIds)
                 ->delete();
 
-            DB::connection('mysql_admin')
-                ->table('admin_model_has_permissions')
+            DB::table('admin_model_has_permissions')
                 ->whereIn('admin_permission_id', $allIds)
                 ->delete();
 

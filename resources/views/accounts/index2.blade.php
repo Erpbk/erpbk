@@ -10,7 +10,7 @@
                 </div>
                 <div class="col-sm-6">
                     <a class="btn btn-primary float-right action-btn show-modal"
-                       href="javascript:void(0);" data-action="{{ route('accounts.create') }}" data-size="lg" data-title="New Account">
+                       href="javascript:void(0);" data-action="{{ route('accounts.create', ['company_slug' => \App\Support\CompanyRouteContext::slug()]) }}" data-size="lg" data-title="New Account">
                         Add New
                     </a>
                 </div>

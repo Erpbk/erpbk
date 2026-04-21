@@ -9,8 +9,6 @@ class PolicyPage extends BaseModel
 {
     use SoftDeletes;
 
-    protected $connection = 'mysql_admin';
-
     protected $table = 'policy_pages';
 
     protected $fillable = [

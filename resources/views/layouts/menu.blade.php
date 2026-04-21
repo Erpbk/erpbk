@@ -630,7 +630,7 @@ $homeLink = auth('admin')->check()
 
     @can('account_view')
     <li class="menu-item {{ Request::is('accounts/tree') ? 'active' : '' }}">
-      <a href="{{ route('accounts.tree') }}" class="menu-link">
+      <a href="{{ route('accounts.tree', ['company_slug' => $menuCompanySlug]) }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-settings"></i>
         <div>{{ $menuLabels['chart_of_accounts'] ?? 'Chart Of Accounts' }}</div>
       </a>
@@ -640,7 +640,7 @@ $homeLink = auth('admin')->check()
     @can('gn_ledger')
 
     <li class="menu-item {{ Request::is('accounts/ledger') ? 'active' : '' }}">
-      <a href="{{ route('accounts.ledger') }}" class="menu-link">
+      <a href="{{ route('accounts.ledger', ['company_slug' => $menuCompanySlug]) }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-settings"></i>
         <div>{{ $menuLabels['ledger'] ?? 'Ledger' }}</div>
       </a>

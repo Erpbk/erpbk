@@ -6,14 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * Mirror of central {@see Company} for the admin panel DB (`mysql_admin`).
+ * Mirror of central {@see Company} for the admin panel tables.
  * `id` matches `companies.id`. Email is unique: remove stale rows with same email before upserting by id.
  */
 class AdminCompany extends BaseModel
 {
     use SoftDeletes;
-
-    protected $connection = 'mysql_admin';
 
     protected $table = 'admin_companies';
 

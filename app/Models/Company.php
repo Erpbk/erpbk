@@ -6,15 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * Company (tenant) record. Lives in central database only.
- * Each company has its own database; connection is switched at runtime.
- * Company owner credentials are stored here until approval; then first User is created in tenant DB.
+ * Company record for shared single-database tenancy.
+ * Company owner credentials are stored here until approval.
  */
 class Company extends BaseModel
 {
     use SoftDeletes;
-
-    protected $connection = 'mysql_central';
 
     protected $table = 'companies';
 
@@ -73,15 +70,6 @@ class Company extends BaseModel
     public function isRejected(): bool
     {
         return $this->status === self::STATUS_REJECTED;
-    }
-
-    /**
-     * Generate unique database name for this company.
-     */
-    public static function generateDatabaseName(int $companyId): string
-    {
-        $prefix = env('DB_DATABASE_PREFIX', 'tenant');
-        return $prefix . '_company_' . $companyId;
     }
 
     /**

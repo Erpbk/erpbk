@@ -1,5 +1,6 @@
 @php
     $accounts = $accounts ?? collect();
+    $__companySlug = \App\Support\CompanyRouteContext::slug();
 @endphp
 <table class="table table-hover table-striped mb-0 chart-table">
     <thead class="table-light">
@@ -37,7 +38,7 @@
                             <i class="fa fa-lock text-muted small" title="Locked" aria-hidden="true"></i>
                         @endif
                         @can('account_view')
-                        <a href="{{ route('accounts.show', $account->id) }}">{{ $account->name }}</a>
+                        <a href="{{ route('accounts.show', ['company_slug' => $__companySlug, 'id' => $account->id]) }}">{{ $account->name }}</a>
                         @else
                         <span>{{ $account->name }}</span>
                         @endcan
@@ -55,12 +56,12 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             @can('account_edit')
                             <li>
-                                <a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', $account->id) }}" data-size="lg" data-title="Edit Account">
+                                <a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account">
                                     <i class="fa fa-edit me-2"></i> Edit
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item toggle-lock" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', $account->id) }}">
+                                <a class="dropdown-item toggle-lock" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', ['company_slug' => $__companySlug, 'id' => $account->id]) }}">
                                     <i class="fa fa-{{ $account->is_locked ? 'unlock' : 'lock' }} me-2"></i> {{ $account->is_locked ? 'Unlock' : 'Lock' }}
                                 </a>
                             </li>
@@ -68,7 +69,7 @@
                             @can('account_delete')
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <a class="dropdown-item text-danger delete-account" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.destroy', $account->id) }}">
+                                <a class="dropdown-item text-danger delete-account" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.destroy', ['company_slug' => $__companySlug, 'id' => $account->id]) }}">
                                     <i class="fa fa-trash me-2"></i> Delete
                                 </a>
                             </li>

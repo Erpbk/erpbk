@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use App\Models\Company;
+use App\Support\CompanyRouteContext;
 use Flash;
 
 class AccountsController extends AppBaseController
@@ -153,7 +154,7 @@ class AccountsController extends AppBaseController
     if (empty($accounts)) {
       Flash::error('Accounts not found');
 
-      return redirect(route('accounts.index'));
+      return redirect(route('accounts.index', ['company_slug' => CompanyRouteContext::slug()]));
     }
 
     $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
@@ -173,7 +174,7 @@ class AccountsController extends AppBaseController
         return response()->json(['message' => 'Account not found or not accessible.'], 404);
       }
       Flash::error('Accounts not found');
-      return redirect(route('accounts.index'));
+      return redirect(route('accounts.index', ['company_slug' => CompanyRouteContext::slug()]));
     }
     //$parents = Accounts::whereNot('id', $id)->whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
     $parents = Accounts::query()
@@ -197,7 +198,7 @@ class AccountsController extends AppBaseController
     if (empty($accounts)) {
       Flash::error('Accounts not found');
 
-      return redirect(route('accounts.index'));
+      return redirect(route('accounts.index', ['company_slug' => CompanyRouteContext::slug()]));
     }
 
     $input = $request->except(['custom_field_values']);
@@ -309,7 +310,10 @@ class AccountsController extends AppBaseController
    */
   public function toggleLock(Request $request, $id)
   {
-    $account = Accounts::findOrFail($id);
+    $account = $this->findAccessibleAccount($id);
+    if (!$account) {
+      abort(404);
+    }
     $account->is_locked = !$account->is_locked;
     $account->save();
     return response()->json([
@@ -326,7 +330,10 @@ class AccountsController extends AppBaseController
    */
   public function accountDetail(Request $request, $id)
   {
-    $account = Accounts::findOrFail($id);
+    $account = $this->findAccessibleAccount($id);
+    if (!$account) {
+      abort(404);
+    }
     $currency = $request->get('currency', 'bcy');
 
     $closingBalance = (float) Transactions::where('account_id', $account->id)->sum(DB::raw('debit - credit'));
@@ -340,7 +347,7 @@ class AccountsController extends AppBaseController
       ->orderBy('id', 'desc')
       ->paginate($perPage, ['*'], 'page', 1);
 
-    $ledgerUrl = route('accounts.ledger') . '?account=' . $account->id;
+    $ledgerUrl = route('accounts.ledger', ['company_slug' => CompanyRouteContext::slug()]) . '?account=' . $account->id;
 
     $html = view('accounts.detail_panel', compact('account', 'closingBalance', 'ledgerPaginator', 'currency', 'ledgerUrl'))->render();
 
@@ -355,7 +362,10 @@ class AccountsController extends AppBaseController
    */
   public function ledgerEntries(Request $request, $id)
   {
-    $account = Accounts::findOrFail($id);
+    $account = $this->findAccessibleAccount($id);
+    if (!$account) {
+      abort(404);
+    }
     $currency = $request->get('currency', 'bcy');
     $perPage = (int) $request->get('per_page', 25);
     $perPage = max(10, min(100, $perPage));
@@ -387,7 +397,10 @@ class AccountsController extends AppBaseController
    */
   public function toggleStatus(Request $request, $id)
   {
-    $account = Accounts::findOrFail($id);
+    $account = $this->findAccessibleAccount($id);
+    if (!$account) {
+      abort(404);
+    }
     $account->status = ($account->status == 1) ? 2 : 1;
     $account->save();
     return response()->json([
@@ -434,6 +447,11 @@ class AccountsController extends AppBaseController
 
   private function findAccessibleAccount($id): ?Accounts
   {
+    if ($id === null || $id === '' || !is_numeric($id)) {
+      return null;
+    }
+    $id = (int) $id;
+
     $account = Accounts::query()->find($id);
     if ($account) {
       return $account;
@@ -449,16 +467,22 @@ class AccountsController extends AppBaseController
       return $account;
     }
 
-    if (!$this->accountMatchesUserBranches($account)) {
-      return null;
-    }
-
     $companyId = $this->resolveChartCompanyId();
-    if (!$this->passesChartCompanyRules($account, $companyId)) {
-      return null;
+    if ($companyId === null) {
+      return $account;
     }
 
-    return $account;
+    $connection = $account->getConnectionName() ?: config('database.default');
+    if (!Schema::connection($connection)->hasColumn($account->getTable(), 'company_id')) {
+      return $account;
+    }
+
+    // Allow shared/legacy rows; block only explicit cross-company records.
+    if ($account->company_id === null || $account->company_id === '') {
+      return $account;
+    }
+
+    return (int) $account->company_id === (int) $companyId ? $account : null;
   }
 
   /**
@@ -492,57 +516,4 @@ class AccountsController extends AppBaseController
     return null;
   }
 
-  /**
-   * Mirror Accounts chart visibility for company_id (shared roots + tenant non-roots; allow NULL company_id children for legacy rows).
-   */
-  private function passesChartCompanyRules(Accounts $account, ?int $companyId): bool
-  {
-    $connection = $account->getConnectionName() ?: config('database.default');
-    if (!Schema::connection($connection)->hasColumn($account->getTable(), 'company_id')) {
-      return true;
-    }
-
-    if ($companyId === null) {
-      return true;
-    }
-
-    $isRoot = $account->parent_id === null || (int) $account->parent_id === 0;
-    if ($isRoot) {
-      return true;
-    }
-
-    $acid = $account->company_id;
-    if ($acid === null || $acid === '') {
-      return true;
-    }
-
-    return (int) $acid === (int) $companyId;
-  }
-
-  /**
-   * Mirror BranchScope: admins see all; others see own branches + NULL branch.
-   */
-  private function accountMatchesUserBranches(Accounts $account): bool
-  {
-    $user = auth()->user();
-    if (!$user) {
-      return false;
-    }
-
-    if ($user->hasAnyRole(['Administrator', 'Super Admin'])) {
-      return true;
-    }
-
-    $branches = app('user_branches');
-    if (empty($branches)) {
-      return $account->branch_id === null || $account->branch_id === '';
-    }
-
-    $bid = $account->branch_id;
-    if ($bid === null || $bid === '') {
-      return true;
-    }
-
-    return in_array((int) $bid, array_map('intval', (array) $branches), true);
-  }
 }

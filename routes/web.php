@@ -73,20 +73,14 @@ Route::get('admin/login', [AdminLoginController::class, 'showLogin'])->name('adm
 Route::post('admin/login', [AdminLoginController::class, 'login'])->name('admin.login.submit')->middleware('guest:admin');
 Route::post('admin/logout', [AdminLoginController::class, 'logout'])->name('admin.logout')->middleware('auth:admin');
 
-// ---------- Company app: /app/{company_slug}/* (tenant + auth) ----------
-Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->name('company.')->group(function () {
-    Route::get('/', [HomeController::class, 'index'])->name('home');
-    Route::get('/home', [HomeController::class, 'index'])->name('home-dashboard');
-    Route::post('/logout', [CompanyAuthController::class, 'logout'])->name('logout');
-    require base_path('routes/company_app.php');
-});
+// Tenant UI lives in one Route::prefix('app/{company_slug}') group below. Avoid a second group with the same prefix (duplicate URIs break route names / matching).
 
-// Settings panel must live under /app/{company_slug}/ so tenant DB is active (same names: settings-panel.*)
+// Settings panel must live under /app/{company_slug}/ so company context is active (same names: settings-panel.*)
 Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
     require base_path('routes/settings_panel.php');
 });
 
-// ---------- Admin: companies (global; uses central DB) ----------
+// ---------- Admin: companies (global, shared DB) ----------
 Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('admin.')->group(function () {
     Route::get('dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     Route::get('companies', [AdminCompaniesController::class, 'index'])->middleware('admin.permission:companies_view')->name('companies.index');
@@ -153,6 +147,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home-dashboard');
+    Route::post('/logout', [CompanyAuthController::class, 'logout'])->name('company.logout');
 
     Route::resource('items', App\Http\Controllers\ItemsController::class);
     Route::resource('garage-items', App\Http\Controllers\GarageItemsController::class);
@@ -569,7 +564,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
         Route::get('detail/{id}', [App\Http\Controllers\AccountsController::class, 'accountDetail'])->name('accounts.detail');
         Route::get('detail/{id}/ledger-entries', [App\Http\Controllers\AccountsController::class, 'ledgerEntries'])->name('accounts.ledgerEntries');
-        Route::resource('accounts', App\Http\Controllers\AccountsController::class);
+        Route::resource('accounts', App\Http\Controllers\AccountsController::class)->parameters(['accounts' => 'id']);
         Route::get('tree', [\App\Http\Controllers\AccountsController::class, 'tree'])->name('accounts.tree');
         // Accounts Trash Routes
         Route::get('trash', [\App\Http\Controllers\AccountsController::class, 'trash'])->name('accounts.trash');
@@ -596,8 +591,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     // Expense module: expense accounts from Chart of Accounts
     Route::get('expenses/detail/{id}', [App\Http\Controllers\ExpenseController::class, 'accountDetail'])->name('expenses.detail');
     Route::get('expenses/detail/{id}/ledger-entries', [App\Http\Controllers\ExpenseController::class, 'ledgerEntries'])->name('expenses.ledgerEntries');
-    Route::post('expenses/{expense}/toggle-lock', [App\Http\Controllers\ExpenseController::class, 'toggleLock'])->name('expenses.toggleLock');
-    Route::post('expenses/{expense}/toggle-status', [App\Http\Controllers\ExpenseController::class, 'toggleStatus'])->name('expenses.toggleStatus');
+    Route::post('expenses/{id}/toggle-lock', [App\Http\Controllers\ExpenseController::class, 'toggleLock'])->name('expenses.toggleLock');
+    Route::post('expenses/{id}/toggle-status', [App\Http\Controllers\ExpenseController::class, 'toggleStatus'])->name('expenses.toggleStatus');
     Route::get('expenses/voucher/create', [App\Http\Controllers\ExpenseController::class, 'createVoucher'])->name('expenses.voucher.create');
     Route::post('expenses/voucher/store', [App\Http\Controllers\ExpenseController::class, 'storeVoucher'])->name('expenses.voucher.store');
     Route::get('expenses/voucher/{id}/edit', [App\Http\Controllers\ExpenseController::class, 'editVoucher'])->name('expenses.voucher.edit');
@@ -645,13 +640,10 @@ Route::get('/artisan-storage-unlink', function () {
     return 'storage unlink';
 });
 
-// Admin DB: only migrations in database/migrations_admin (or one file via ?path=...)
+// Admin tables: only migrations in database/migrations_admin (or one file via ?path=...)
 Route::get('/run-admin-migrate', function () {
     $path = request('path');
-    $options = [
-        '--database' => 'mysql_admin',
-        '--force' => true,
-    ];
+    $options = ['--force' => true];
 
     if ($path !== null && $path !== '') {
         $path = str_replace('\\', '/', (string) $path);
@@ -703,23 +695,17 @@ Route::prefix('settings')->group(function () {
 
 /* Suppliers section start here */
 Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
-    // Suppliers
-    Route::resource('suppliers', SupplierController::class);
-    Route::get('/suppliers/show/{id}', [SupplierController::class, 'show'])->name('suppliers.show');
-    Route::get('/suppliers/ledger/{id}', [SupplierController::class, 'ledger'])->name('suppliers.ledger');
-    Route::get('/suppliers/{id}', [SupplierController::class, 'show'])->name('suppliers.show');
-    Route::get('/suppliers/{id}/edit', [SupplierController::class, 'edit'])->name('suppliers.edit');
-    Route::delete('suppliers/delete/{id}', [\App\Http\Controllers\SupplierController::class, 'destroy'])->name('suppliers.delete');
-
-    // Suppliers
-    Route::resource('suppliers', SupplierController::class);
+    // Suppliers: explicit routes before resource (avoid clashes with {supplier})
     Route::get('suppliers/datatable', [SupplierController::class, 'datatable'])->name('suppliers.datatable');
-    Route::get('suppliers/document/{id}', [SupplierController::class, 'document'])->name('suppliers.document');
-    Route::get('suppliers/files/{id}', [SupplierController::class, 'files'])->name('suppliers.files');
-    // Suppliers Trash Routes
     Route::get('suppliers/trash', [SupplierController::class, 'trash'])->name('suppliers.trash');
     Route::post('suppliers/trash/{id}/restore', [SupplierController::class, 'restoreTrash'])->name('suppliers.restore');
     Route::delete('suppliers/trash/{id}/force-destroy', [SupplierController::class, 'forceDestroyTrash'])->name('suppliers.force-destroy');
+    Route::get('suppliers/document/{id}', [SupplierController::class, 'document'])->name('suppliers.document');
+    Route::get('suppliers/files/{id}', [SupplierController::class, 'files'])->name('suppliers.files');
+    Route::get('suppliers/ledger/{id}', [SupplierController::class, 'ledger'])->name('suppliers.ledger');
+    Route::delete('suppliers/delete/{id}', [SupplierController::class, 'destroy'])->name('suppliers.delete');
+    Route::get('suppliers/show/{id}', [SupplierController::class, 'show']);
+    Route::resource('suppliers', SupplierController::class);
 
     // Supplier invoices
     Route::resource('supplierInvoices', SupplierInvoicesController::class);

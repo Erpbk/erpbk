@@ -9,8 +9,6 @@ class AdminTestimonial extends BaseModel
 {
     use SoftDeletes;
 
-    protected $connection = 'mysql_admin';
-
     protected $table = 'testimonials';
 
     protected $fillable = [

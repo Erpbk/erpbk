@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('title', 'Ledger')
+@php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
 
 @push('page-styles')
 <style>
@@ -343,7 +344,7 @@
       <button type="button" class="btn-close" id="closeSidebar">&times;</button>
     </div>
     <div class="filter-body" id="searchTopbody">
-      <form id="filterForm" action="{{ route('accounts.ledger') }}" method="GET">
+      <form id="filterForm" action="{{ route('accounts.ledger', ['company_slug' => $__companySlug]) }}" method="GET">
         <div class="row">
           <div class="form-group col-md-12">
             <label for="account">Account</label>
@@ -359,7 +360,7 @@
           </div>
           <div class="col-md-12 form-group text-center">
             <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-            <a href="{{ route('accounts.ledger') }}" class="btn btn-secondary pull-right mt-3 mr-2"><i class="fa fa-refresh mx-2"></i> Clear Filters</a>
+            <a href="{{ route('accounts.ledger', ['company_slug' => $__companySlug]) }}" class="btn btn-secondary pull-right mt-3 mr-2"><i class="fa fa-refresh mx-2"></i> Clear Filters</a>
           </div>
         </div>
       </form>
@@ -552,13 +553,13 @@
         let formData = $.param(filteredFields);
 
         $.ajax({
-          url: "{{ route('accounts.ledger') }}",
+          url: "{{ route('accounts.ledger', ['company_slug' => $__companySlug]) }}",
           type: "GET",
           data: formData,
           success: function(data) {
             console.log('Filter response received:', data); // Debug line
             $('#table-data').html(data.tableData);
-            let newUrl = "{{ route('accounts.ledger') }}" + (formData ? '?' + formData : '');
+            let newUrl = "{{ route('accounts.ledger', ['company_slug' => $__companySlug]) }}" + (formData ? '?' + formData : '');
             history.pushState(null, '', newUrl);
             if (filteredFields.length > 0) {
               $('#clearFilterBtn').show();
@@ -637,7 +638,7 @@
 
       // Fetch all ledger data via AJAX
       $.ajax({
-        url: "{{ route('accounts.ledger') }}",
+        url: "{{ route('accounts.ledger', ['company_slug' => $__companySlug]) }}",
         type: "GET",
         data: filterParams,
         headers: {

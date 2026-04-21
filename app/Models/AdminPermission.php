@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class AdminPermission extends BaseModel
 {
-    protected $connection = 'mysql_admin';
-
     protected $table = 'admin_permissions';
 
     protected $fillable = [

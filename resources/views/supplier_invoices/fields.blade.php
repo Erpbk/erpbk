@@ -307,6 +307,7 @@
 <script>
 $(document).ready(function() {
     let rowIndex = 1;
+    const roundToTwo = (value) => Math.round((Number(value) || 0) * 100) / 100;
     
     // Initialize select2
     $('.select2').select2({
@@ -346,17 +347,20 @@ $(document).ready(function() {
     });
     
     // Auto-fill item details when item is selected
-    $(document).on('change', '.item-select', function() {
+    $(document).on('change select2:select', '.item-select', function() {
         const row = $(this).closest('.item-row');
         const selectedOption = $(this).find('option:selected');
+        const itemId = $(this).val();
         const itemPrice = parseFloat(selectedOption.data('price')) || 0;
         const itemVat = parseFloat(selectedOption.data('vat')) || 0;
         
-        if (selectedOption.val()) {
-            row.find('.rate').val(itemPrice.toFixed(2));
+        if (itemId) {
             row.find('.vat').val(itemVat);
-            calculateRowTotal(row);
-            calculateAllTotals();
+            fetchItemRate(itemId, itemPrice).then(function(rate) {
+                row.find('.rate').val(roundToTwo(rate).toFixed(2));
+                calculateRowTotal(row);
+                calculateAllTotals();
+            });
         } else {
             row.find('.rate').val(0);
             row.find('.vat').val(0);
@@ -364,6 +368,32 @@ $(document).ready(function() {
             calculateAllTotals();
         }
     });
+
+    function fetchItemRate(itemId, fallbackPrice) {
+        const supplierId = $('#customer_id').val() || 0;
+        const baseUrl = ($('#base_url').val() || '').replace(/\/$/, '');
+
+        if (!baseUrl) {
+            return Promise.resolve(fallbackPrice || 0);
+        }
+
+        return new Promise(function(resolve) {
+            $.ajax({
+                url: baseUrl + '/search_item_price/' + supplierId + '/' + itemId,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    const serverPrice = parseFloat(
+                        (data && data.price !== undefined ? data.price : (data && data.pirce !== undefined ? data.pirce : fallbackPrice)) || 0
+                    );
+                    resolve(serverPrice);
+                },
+                error: function() {
+                    resolve(fallbackPrice || 0);
+                }
+            });
+        });
+    }
     
     function addNewRow() {
         const newRow = $(`
@@ -423,9 +453,9 @@ $(document).ready(function() {
         const rate = parseFloat(row.find('.rate').val()) || 0;
         const vatPercent = parseFloat(row.find('.vat').val()) || 0;
         
-        const subtotal = quantity * rate;
-        const vatAmount = subtotal * (vatPercent / 100);
-        const total = subtotal + vatAmount;
+        const subtotal = roundToTwo(quantity * rate);
+        const vatAmount = roundToTwo(subtotal * (vatPercent / 100));
+        const total = roundToTwo(subtotal + vatAmount);
         
         row.find('.item-total').val(total.toFixed(2));
         row.find('.vatAmount').val(vatAmount.toFixed(2));
@@ -445,9 +475,9 @@ $(document).ready(function() {
         $('.item-row').each(function() {
             const rowTotals = calculateRowTotal($(this));
             
-            grandSubtotal += rowTotals.subtotal;
-            grandVat += rowTotals.vatAmount;
-            grandTotal += rowTotals.total;
+            grandSubtotal = roundToTwo(grandSubtotal + rowTotals.subtotal);
+            grandVat = roundToTwo(grandVat + rowTotals.vatAmount);
+            grandTotal = roundToTwo(grandTotal + rowTotals.total);
         });
         
         $('#subtotal').val(grandSubtotal.toFixed(2));

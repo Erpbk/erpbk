@@ -23,9 +23,9 @@ class AdminRolesController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:admin_roles,name',
+            'name' => 'required|string|max:255|unique:mysql_admin.admin_roles,name',
             'permission' => 'required|array|min:1',
-            'permission.*' => 'exists:admin_permissions,id',
+            'permission.*' => 'exists:mysql_admin.admin_permissions,id',
         ]);
 
         $role = AdminRole::query()->create([
@@ -58,10 +58,10 @@ class AdminRolesController extends Controller
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('admin_roles', 'name')->ignore($role->id),
+                Rule::unique('mysql_admin.admin_roles', 'name')->ignore($role->id),
             ],
             'permission' => 'required|array|min:1',
-            'permission.*' => 'exists:admin_permissions,id',
+            'permission.*' => 'exists:mysql_admin.admin_permissions,id',
         ]);
 
         $role->update(['name' => $validated['name']]);

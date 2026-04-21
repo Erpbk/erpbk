@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    protected $connection = 'mysql_admin';
+
     public function up(): void
     {
         Schema::create('admin_users', function (Blueprint $table) {
@@ -82,28 +84,28 @@ return new class extends Migration
 
         $now = now();
         foreach ($permissions as $permission) {
-            DB::table('admin_permissions')->insert([
+            DB::connection('mysql_admin')->table('admin_permissions')->insert([
                 'name' => $permission,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
         }
 
-        $superAdminRoleId = DB::table('admin_roles')->insertGetId([
+        $superAdminRoleId = DB::connection('mysql_admin')->table('admin_roles')->insertGetId([
             'name' => 'Super Admin',
             'created_at' => $now,
             'updated_at' => $now,
         ]);
 
-        $permissionIds = DB::table('admin_permissions')->pluck('id');
+        $permissionIds = DB::connection('mysql_admin')->table('admin_permissions')->pluck('id');
         foreach ($permissionIds as $permissionId) {
-            DB::table('admin_role_has_permissions')->insert([
+            DB::connection('mysql_admin')->table('admin_role_has_permissions')->insert([
                 'admin_role_id' => $superAdminRoleId,
                 'admin_permission_id' => $permissionId,
             ]);
         }
 
-        $adminUserId = DB::table('admin_users')->insertGetId([
+        $adminUserId = DB::connection('mysql_admin')->table('admin_users')->insertGetId([
             'name' => 'Admin',
             'email' => 'admin@admin.com',
             'username' => 'admin',
@@ -113,7 +115,7 @@ return new class extends Migration
             'updated_at' => $now,
         ]);
 
-        DB::table('admin_model_has_roles')->insert([
+        DB::connection('mysql_admin')->table('admin_model_has_roles')->insert([
             'admin_user_id' => $adminUserId,
             'admin_role_id' => $superAdminRoleId,
         ]);

@@ -9,6 +9,8 @@ class AdminUser extends Authenticatable
 {
     use Notifiable;
 
+    protected $connection = 'mysql_admin';
+
     protected $table = 'admin_users';
 
     protected $fillable = [

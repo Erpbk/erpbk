@@ -85,16 +85,16 @@ return [
             ]) : [],
         ],
 
-        // Backward-compatible alias for legacy admin-DB references.
+        // Admin database (separate from company/application database).
         'mysql_admin' => [
             'driver' => 'mysql',
-            'url' => env('DATABASE_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '3306'),
-            'database' => env('DB_DATABASE', 'forge'),
-            'username' => env('DB_USERNAME', 'forge'),
-            'password' => env('DB_PASSWORD', ''),
-            'unix_socket' => env('DB_SOCKET', ''),
+            'url' => env('ADMIN_DATABASE_URL'),
+            'host' => env('ADMIN_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('ADMIN_DB_PORT', env('DB_PORT', '3306')),
+            'database' => env('ADMIN_DB_DATABASE', env('DB_DATABASE', 'forge')),
+            'username' => env('ADMIN_DB_USERNAME', env('DB_USERNAME', 'forge')),
+            'password' => env('ADMIN_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('ADMIN_DB_SOCKET', env('DB_SOCKET', '')),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',

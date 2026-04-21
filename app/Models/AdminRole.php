@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class AdminRole extends BaseModel
 {
+    protected $connection = 'mysql_admin';
+
     protected $table = 'admin_roles';
 
     protected $fillable = [

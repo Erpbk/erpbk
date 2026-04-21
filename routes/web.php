@@ -643,7 +643,10 @@ Route::get('/artisan-storage-unlink', function () {
 // Admin tables: only migrations in database/migrations_admin (or one file via ?path=...)
 Route::get('/run-admin-migrate', function () {
     $path = request('path');
-    $options = ['--force' => true];
+    $options = [
+        '--database' => 'mysql_admin',
+        '--force' => true,
+    ];
 
     if ($path !== null && $path !== '') {
         $path = str_replace('\\', '/', (string) $path);

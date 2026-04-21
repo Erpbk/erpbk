@@ -13,6 +13,8 @@ class AdminCompany extends BaseModel
 {
     use SoftDeletes;
 
+    protected $connection = 'mysql_admin';
+
     protected $table = 'admin_companies';
 
     /**

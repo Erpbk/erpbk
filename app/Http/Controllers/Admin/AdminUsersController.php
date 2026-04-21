@@ -39,12 +39,12 @@ class AdminUsersController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:admin_users,email',
-            'username' => 'nullable|string|max:255|unique:admin_users,username',
+            'email' => 'required|string|email|max:255|unique:mysql_admin.admin_users,email',
+            'username' => 'nullable|string|max:255|unique:mysql_admin.admin_users,username',
             'password' => 'required|string|min:6|confirmed',
             'status' => 'nullable|boolean',
             'roles' => 'nullable|array',
-            'roles.*' => 'exists:admin_roles,id',
+            'roles.*' => 'exists:mysql_admin.admin_roles,id',
         ]);
 
         $user = AdminUser::query()->create([
@@ -78,18 +78,18 @@ class AdminUsersController extends Controller
                 'string',
                 'email',
                 'max:255',
-                Rule::unique('admin_users', 'email')->ignore($user->id),
+                Rule::unique('mysql_admin.admin_users', 'email')->ignore($user->id),
             ],
             'username' => [
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('admin_users', 'username')->ignore($user->id),
+                Rule::unique('mysql_admin.admin_users', 'username')->ignore($user->id),
             ],
             'password' => 'nullable|string|min:6|confirmed',
             'status' => 'nullable|boolean',
             'roles' => 'nullable|array',
-            'roles.*' => 'exists:admin_roles,id',
+            'roles.*' => 'exists:mysql_admin.admin_roles,id',
         ]);
 
         $payload = [
@@ -130,7 +130,7 @@ class AdminUsersController extends Controller
     {
         $validated = $request->validate([
             'roles' => 'required|array',
-            'roles.*' => 'exists:admin_roles,id',
+            'roles.*' => 'exists:mysql_admin.admin_roles,id',
         ]);
 
         $user->roles()->sync($validated['roles']);

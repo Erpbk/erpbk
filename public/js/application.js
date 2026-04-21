@@ -8,6 +8,21 @@ $('.amount').on('focus keyup change', function () {
   getTotal();
 });
 
+/**
+ * Tenant routes (e.g. search_item_price) are registered under app/{company_slug}/.
+ * #base_url is often the site root only, so we derive /app/{slug} from the current path.
+ */
+function resolveTenantAppBase() {
+  var base = ($('#base_url').val() || window.location.origin || '').replace(/\/$/, '');
+  var match = (window.location.pathname || '').match(/\/app\/([^/]+)/);
+  if (match && match[1]) {
+    return base + '/app/' + match[1];
+  }
+  return base;
+}
+
+window.resolveTenantAppBase = resolveTenantAppBase;
+
 function getTotal() {
   var cr_sum = 0;
   var dr_sum = 0;
@@ -81,7 +96,7 @@ function rider_price(g) {
   rider_id = $('#rider_id').val() || $('#employee_id').val();
   item_id = $(g).val();
   $.ajax({
-    url: $('#base_url').val() + '/search_item_price/' + rider_id + '/' + item_id,
+    url: resolveTenantAppBase() + '/search_item_price/' + rider_id + '/' + item_id,
     headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
     type: 'GET',
     dataType: 'JSON',
@@ -191,7 +206,6 @@ window.supplier_item_price = function (el) {
   const selectedOption = $(el).find('option:selected');
   const fallbackPrice = parseFloat(selectedOption.data('price')) || 0;
   const itemVat = parseFloat(selectedOption.data('vat')) || 0;
-  const baseUrl = ($('#base_url').val() || window.location.origin || '').replace(/\/$/, '');
 
   if (!itemId) {
     $(el).closest('.item-row').find('.rate').val('0');
@@ -202,8 +216,15 @@ window.supplier_item_price = function (el) {
 
   $(el).closest('.item-row').find('.vat').val(itemVat);
 
+  // No supplier yet: use catalog price from option data (same as AJAX fallback)
+  if (!supplierId || supplierId === '0') {
+    $(el).closest('.item-row').find('.rate').val(fallbackPrice.toFixed(2));
+    supplier_calculate_price(el);
+    return;
+  }
+
   $.ajax({
-    url: baseUrl + '/search_item_price/' + supplierId + '/' + itemId,
+    url: resolveTenantAppBase() + '/search_item_price/' + supplierId + '/' + itemId,
     headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
     type: 'GET',
     dataType: 'JSON',
@@ -218,6 +239,49 @@ window.supplier_item_price = function (el) {
     },
   });
 };
+
+/**
+ * Supplier "Add row" — delegated so it works when the form is injected later (modal/AJAX)
+ * and avoids missing direct binds when initSupplierInvoiceForm exited early.
+ */
+$(document)
+  .off('click.supplier-add-row', '#add-row, #add-new-row')
+  .on('click.supplier-add-row', '#add-row, #add-new-row', function (e) {
+    e.preventDefault();
+    const $btn = $(this);
+    const $formAjax = $btn.closest('#formajax').length ? $btn.closest('#formajax') : $('#formajax');
+    const $modalBody = $formAjax.closest('.modal-body').length ? $formAjax.closest('.modal-body') : $('#modalTopbody');
+
+    const $rc = $('#row-container');
+    if ($rc.length === 0) return;
+
+    const $firstRow = $rc.find('.item-row:first');
+    if ($firstRow.length === 0) return;
+
+    const $newRow = $firstRow.clone();
+    $newRow.find('.item-select').val('');
+    $newRow.find('.quantity').val(1);
+    $newRow.find('.rate').val(0);
+    $newRow.find('.vat').val(0);
+    $newRow.find('.vatAmount').val(0);
+    $newRow.find('.item-total').val('');
+    $newRow.find('.remove-row').show();
+
+    $newRow.find('.select2').removeClass('select2-hidden-accessible').next('.select2').remove();
+    $rc.append($newRow);
+
+    if ($.fn.select2) {
+      $newRow.find('.select2').select2({
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $modalBody.length ? $modalBody : $('body'),
+      });
+    }
+
+    if (typeof supplier_getTotal === 'function') {
+      supplier_getTotal();
+    }
+  });
 
 // Auto-bind supplier invoice events when form exists
 window.initSupplierInvoiceForm = function (rootContext) {
@@ -268,37 +332,6 @@ window.initSupplierInvoiceForm = function (rootContext) {
       if ($('#row-container .item-row').length === 1) {
         $('.remove-row').hide();
       }
-      supplier_getTotal();
-    });
-
-  // Add row (clone first row so options/markup stay consistent with blade)
-  $('#add-row')
-    .off('click.supplier-add')
-    .on('click.supplier-add', function () {
-      const $firstRow = $('#row-container .item-row:first');
-      if ($firstRow.length === 0) return;
-
-      const $newRow = $firstRow.clone();
-      $newRow.find('.item-select').val('');
-      $newRow.find('.quantity').val(1);
-      $newRow.find('.rate').val(0);
-      $newRow.find('.vat').val(0);
-      $newRow.find('.vatAmount').val(0);
-      $newRow.find('.item-total').val('');
-      $newRow.find('.remove-row').show();
-
-      // Reset previous select2 wrapper and re-init
-      $newRow.find('.select2').removeClass('select2-hidden-accessible').next('.select2').remove();
-      $('#row-container').append($newRow);
-
-      if ($.fn.select2) {
-        $newRow.find('.select2').select2({
-          allowClear: true,
-          width: '100%',
-          dropdownParent: $modalBody.length ? $modalBody : $('body'),
-        });
-      }
-
       supplier_getTotal();
     });
 

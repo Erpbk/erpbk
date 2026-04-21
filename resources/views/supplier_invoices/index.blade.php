@@ -13,11 +13,11 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 <section class="content-header">
-    <div class="container">
+    <div class="">
         <div class="row mb-2">
             <div class="col-sm-6">
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-6 text-right">
                 @can('customer_create')
                 <div class="action-buttons d-flex justify-content-end">
                     <div class="action-dropdown-container">
@@ -140,10 +140,22 @@
 
 <script>
     $(document).ready(function() {
-        console.log('test the script');
+        if (typeof initSupplierInvoiceForm === 'function') {
+            initSupplierInvoiceForm(document);
+            return;
+        }
+
+        // Fallback: bind supplier invoice behavior if shared JS is unavailable
         const $doc = $(document);
-        const baseUrl = ($('#base_url').val() || window.location.origin || '').replace(/\/$/, '');
-        let supplierObserverAttached = false;
+
+        function tenantApiBaseForFallback() {
+            if (typeof resolveTenantAppBase === 'function') {
+                return resolveTenantAppBase();
+            }
+            var base = ($('#base_url').val() || window.location.origin || '').replace(/\/$/, '');
+            var m = (window.location.pathname || '').match(/\/app\/([^/]+)/);
+            return (m && m[1]) ? base + '/app/' + m[1] : base;
+        }
 
         function calculateSupplierRow(rowEl, skipTotal) {
             const $row = $(rowEl).closest('.item-row');
@@ -191,37 +203,20 @@
             $('#total_cost').val(grandTotal.toFixed(2));
         }
 
-        function setupSupplierFormUI(scopeSelector) {
-            const $scope = scopeSelector ? $(scopeSelector) : $(document);
-            if ($scope.find('#row-container').length === 0) {
-                return;
-            }
-
-            if (typeof initSupplierInvoiceForm === 'function') {
-                initSupplierInvoiceForm(scopeSelector || document);
-                return;
-            }
-
-            if ($.fn.select2) {
-                $scope.find('.select2').each(function() {
-                    if (!$(this).hasClass('select2-hidden-accessible')) {
-                        $(this).select2({
-                            width: '100%',
-                            dropdownParent: $('#modalTop')
-                        });
-                    }
-                });
-            }
-
-            calculateSupplierTotals();
-            if ($('#row-container .item-row').length <= 1) {
-                $('.remove-row').hide();
-            } else {
-                $('.remove-row').show();
-            }
+        if ($.fn.select2) {
+            $('.select2').each(function() {
+                if (!$(this).hasClass('select2-hidden-accessible')) {
+                    $(this).select2({
+                        width: '100%'
+                    });
+                }
+            });
         }
 
-        setupSupplierFormUI(document);
+        calculateSupplierTotals();
+        if ($('#row-container .item-row').length <= 1) {
+            $('.remove-row').hide();
+        }
 
         $doc.off('change.supplier-fallback select2:select.supplier-fallback', '.item-select')
             .on('change.supplier-fallback select2:select.supplier-fallback', '.item-select', function() {
@@ -239,8 +234,16 @@
                 }
 
                 $row.find('.vat').val(fallbackVat);
+
+                var supplierId = $('#customer_id').val();
+                if (!supplierId || supplierId === '0') {
+                    $row.find('.rate').val(fallbackRate.toFixed(2));
+                    calculateSupplierRow($row);
+                    return;
+                }
+
                 $.ajax({
-                    url: baseUrl + '/search_item_price/' + ($('#customer_id').val() || 0) + '/' + itemId,
+                    url: tenantApiBaseForFallback() + '/search_item_price/' + supplierId + '/' + itemId,
                     type: 'GET',
                     dataType: 'JSON',
                     success: function(data) {
@@ -273,7 +276,7 @@
                 calculateSupplierTotals();
             });
 
-        $doc.off('click.supplier-fallback-add', '#add-row').on('click.supplier-fallback-add', '#add-row', function() {
+        $('#add-row').off('click.supplier-fallback-add').on('click.supplier-fallback-add', function() {
             const $first = $('#row-container .item-row:first');
             if (!$first.length) {
                 return;
@@ -294,30 +297,6 @@
                 });
             }
             calculateSupplierTotals();
-        });
-
-        // Re-run setup whenever modal content is injected by show-modal AJAX loader
-        if (!supplierObserverAttached) {
-            const modalBody = document.getElementById('modalTopbody');
-            if (modalBody) {
-                const observer = new MutationObserver(function() {
-                    if ($('#modalTopbody #row-container').length) {
-                        setupSupplierFormUI('#modalTopbody');
-                    }
-                });
-                observer.observe(modalBody, {
-                    childList: true,
-                    subtree: true
-                });
-                supplierObserverAttached = true;
-            }
-        }
-
-        // Extra safety for slow modal content loads
-        $doc.on('click', '.show-modal', function() {
-            setTimeout(function() {
-                setupSupplierFormUI('#modalTopbody');
-            }, 250);
         });
     });
 </script>

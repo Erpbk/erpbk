@@ -63,7 +63,7 @@ $items = \App\Models\Items::where('status', 1)->get();
             <div class="row mb-2 item-row">
                 <div class="col-md-3 form-group">
                     <label>Item Description</label>
-                    <select name="item_ids[]" class="form-select form-select-sm select2 item-select" required>
+                    <select name="item_ids[]" class="form-select form-select-sm select2 item-select" onchange="supplier_item_price(this);" required>
                         <option value="">Select Item</option>
                         @foreach($items as $item)
                         <option value="{{ $item->id }}"
@@ -77,15 +77,15 @@ $items = \App\Models\Items::where('status', 1)->get();
                 </div>
                 <div class="col-md-1 form-group">
                     <label>Qty</label>
-                    <input type="number" name="item_qty[]" value="{{ $itm->qty }}" class="form-control quantity" min="0.01" step="any" required>
+                    <input type="number" name="item_qty[]" value="{{ $itm->qty }}" class="form-control quantity" min="0.01" step="any" onkeyup="supplier_calculate_price(this);" onchange="supplier_calculate_price(this);" required>
                 </div>
                 <div class="col-md-2 form-group">
                     <label>Rate</label>
-                    <input type="number" name="item_rate[]" value="{{ $itm->rate }}" class="form-control rate" min="0" step="any" required>
+                    <input type="number" name="item_rate[]" value="{{ $itm->rate }}" class="form-control rate" min="0" step="any" onkeyup="supplier_calculate_price(this);" onchange="supplier_calculate_price(this);" required>
                 </div>
                 <div class="col-md-1 form-group">
                     <label>VAT %</label>
-                    <input type="number" name="item_vat[]" value="{{ $itm->tax }}" class="form-control vat" min="0" max="100" step="any">
+                    <input type="number" name="item_vat[]" value="{{ $itm->tax }}" class="form-control vat" min="0" max="100" step="any" onkeyup="supplier_calculate_price(this);" onchange="supplier_calculate_price(this);">
                 </div>
                 <div class="col-md-2 form-group">
                     <label>VAT Amount</label>
@@ -96,7 +96,7 @@ $items = \App\Models\Items::where('status', 1)->get();
                     <input type="number" name="items_total[]" value="{{ $itm->total_amount }}" class="form-control item-total" readonly>
                 </div>
                 <div class="form-group col-md-1 d-flex align-items-end">
-                    <a href="javascript:void(0);" class="text-danger remove-row"><i class="fa fa-trash"></i></a>
+                    <a href="javascript:void(0);" class="text-danger remove-row btn-remove-row"><i class="fa fa-trash"></i></a>
                 </div>
             </div>
             @endforeach
@@ -104,7 +104,7 @@ $items = \App\Models\Items::where('status', 1)->get();
             <div class="row mb-2 item-row">
                 <div class="col-md-3 form-group">
                     <label>Item Description</label>
-                    <select name="item_ids[]" class="form-select form-select-sm select2 item-select" required>
+                    <select name="item_ids[]" class="form-select form-select-sm select2 item-select" onchange="supplier_item_price(this);" required>
                         <option value="">Select Item</option>
                         @foreach($items as $item)
                         <option value="{{ $item->id }}"
@@ -117,15 +117,15 @@ $items = \App\Models\Items::where('status', 1)->get();
                 </div>
                 <div class="col-md-1 form-group">
                     <label>Qty</label>
-                    <input type="number" name="item_qty[]" value="1" class="form-control quantity" min="0.01" step="any" required>
+                    <input type="number" name="item_qty[]" value="1" class="form-control quantity" min="0.01" step="any" onkeyup="supplier_calculate_price(this);" onchange="supplier_calculate_price(this);" required>
                 </div>
                 <div class="col-md-2 form-group">
                     <label>Rate</label>
-                    <input type="number" name="item_rate[]" value="0" class="form-control rate" min="0" step="any" required>
+                    <input type="number" name="item_rate[]" value="0" class="form-control rate" min="0" step="any" onkeyup="supplier_calculate_price(this);" onchange="supplier_calculate_price(this);" required>
                 </div>
                 <div class="col-md-1 form-group">
                     <label>VAT %</label>
-                    <input type="number" name="item_vat[]" value="0" class="form-control vat" min="0" max="100" step="any">
+                    <input type="number" name="item_vat[]" value="0" class="form-control vat" min="0" max="100" step="any" onkeyup="supplier_calculate_price(this);" onchange="supplier_calculate_price(this);">
                 </div>
                 <div class="col-md-2 form-group">
                     <label>VAT Amount</label>
@@ -136,7 +136,7 @@ $items = \App\Models\Items::where('status', 1)->get();
                     <input type="number" name="items_total[]" value="0" class="form-control item-total" readonly>
                 </div>
                 <div class="form-group col-md-1 d-flex align-items-end">
-                    <a href="javascript:void(0);" class="text-danger remove-row"><i class="fa fa-trash"></i></a>
+                    <a href="javascript:void(0);" class="text-danger remove-row btn-remove-row"><i class="fa fa-trash"></i></a>
                 </div>
             </div>
             @endif
@@ -145,8 +145,7 @@ $items = \App\Models\Items::where('status', 1)->get();
 
     <div class="append-line"></div>
     <div class="col-md-2 form-group">
-        <label style="visibility: hidden">Add</label>
-        <button type="button" id="add-row" class="btn btn-success btn-sm mt-2 mb-2">Add New</button>
+        <button type="button" id="add-new-row" class="btn btn-success btn-sm mt-2 mb-2">Add New</button>
     </div>
 
     <div class="row">
@@ -170,3 +169,19 @@ $items = \App\Models\Items::where('status', 1)->get();
         {!! Form::submit('Save Invoice', ['class' => 'btn btn-primary']) !!}
     </div>
 </div>
+
+<script>
+    (function() {
+        if (typeof initSupplierInvoiceForm === 'function') {
+            initSupplierInvoiceForm(document);
+            return;
+        }
+
+        // Retry briefly if shared script loads after partial render
+        setTimeout(function() {
+            if (typeof initSupplierInvoiceForm === 'function') {
+                initSupplierInvoiceForm(document);
+            }
+        }, 150);
+    })();
+</script>

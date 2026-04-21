@@ -44,64 +44,64 @@
                                     </div>
                                 </a>
                             @endif
-                        @endcan
+                            @endcan
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="container mt-4">
-            @php
+            <div class="container mt-4">
+                @php
                 $netBalance = $fundsIn - $fundsOut;
                 $balanceClass = $netBalance >= 0 ? 'text-success' : 'text-danger';
                 $balanceIcon = $netBalance >= 0 ? '↑' : '↓';
-            @endphp
-            
-            <div class="row">
-                <!-- Funds In Card -->
-                <div class="col-md-4 mb-3">
-                    <div class="card border-success h-100">
-                        <div class="card-body text-center">
-                            <div class="mb-3">
-                                <i class="bi bi-arrow-down-circle fs-1 text-success"></i>
+                @endphp
+
+                <div class="row">
+                    <!-- Funds In Card -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-success h-100">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <i class="bi bi-arrow-down-circle fs-1 text-success"></i>
+                                </div>
+                                <h5 class="card-title text-success">Funds In</h5>
+                                <h3 class="card-text fw-bold">AED {{ number_format($fundsIn, 2) }}</h3>
+                                <p class="card-text text-muted">Total incoming transactions</p>
                             </div>
-                            <h5 class="card-title text-success">Funds In</h5>
-                            <h3 class="card-text fw-bold">AED {{ number_format($fundsIn, 2) }}</h3>
-                            <p class="card-text text-muted">Total incoming transactions</p>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Net Balance Card -->
-                <div class="col-md-4 mb-3">
-                    <div class="card border-primary h-100">
-                        <div class="card-body text-center">
-                            <div class="mb-3">
-                                <i class="bi bi-calculator fs-1 text-primary"></i>
+
+                    <!-- Net Balance Card -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-primary h-100">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <i class="bi bi-calculator fs-1 text-primary"></i>
+                                </div>
+                                <h5 class="card-title text-primary">Net Balance</h5>
+                                <h3 class="card-text fw-bold {{ $balanceClass }}">
+                                    {{ $balanceIcon }} AED {{ number_format(abs($netBalance), 2) }}
+                                </h3>
                             </div>
-                            <h5 class="card-title text-primary">Net Balance</h5>
-                            <h3 class="card-text fw-bold {{ $balanceClass }}">
-                                {{ $balanceIcon }} AED {{ number_format(abs($netBalance), 2) }}
-                            </h3>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Funds Out Card -->
-                <div class="col-md-4 mb-3">
-                    <div class="card border-danger h-100">
-                        <div class="card-body text-center">
-                            <div class="mb-3">
-                                <i class="bi bi-arrow-up-circle fs-1 text-danger"></i>
+
+                    <!-- Funds Out Card -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-danger h-100">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <i class="bi bi-arrow-up-circle fs-1 text-danger"></i>
+                                </div>
+                                <h5 class="card-title text-danger">Funds Out</h5>
+                                <h3 class="card-text fw-bold">AED {{ number_format($fundsOut, 2) }}</h3>
+                                <p class="card-text text-muted">Total outgoing transactions</p>
                             </div>
-                            <h5 class="card-title text-danger">Funds Out</h5>
-                            <h3 class="card-text fw-bold">AED {{ number_format($fundsOut, 2) }}</h3>
-                            <p class="card-text text-muted">Total outgoing transactions</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 </section>
 @yield('page_content')
 @endsection

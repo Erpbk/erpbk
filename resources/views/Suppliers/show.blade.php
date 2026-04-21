@@ -1,5 +1,5 @@
 <!-- resources/views/suppliers/show.blade.php -->
-@extends('suppliers.view')
+@extends('Suppliers.view')
 
 @section('page_content')
 <div class="card p-4 shadow-sm">

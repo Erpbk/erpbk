@@ -69,13 +69,13 @@ class SupplierController extends AppBaseController
 
         'type_id' => $supplier_id,   // ✅ pass 'type_id'
       ])
-      ->render('suppliers.document', compact('supplier'));
+      ->render('Suppliers.document', compact('supplier'));
   }
 
 
   public function create()
   {
-    return view('suppliers.create');
+    return view('Suppliers.create');
   }
 
   private $suppliersRepository;
@@ -156,7 +156,7 @@ class SupplierController extends AppBaseController
       return redirect(route('suppliers.index'));
     }
 
-    return view('suppliers.show', [
+    return view('Suppliers.show', [
       'supplier' => $supplier,
     ]);
   }
@@ -168,7 +168,7 @@ class SupplierController extends AppBaseController
       Flash::error('Supplier not found');
       return redirect(route('suppliers.index'));
     }
-    return view('suppliers.edit')->with('supplier', $supplier);
+    return view('Suppliers.edit')->with('supplier', $supplier);
   }
 
   public function update(Request $request, $company_slug, Supplier $supplier)
@@ -288,7 +288,7 @@ class SupplierController extends AppBaseController
     $account_id = $supplier->account_id;
 
     return $ledgerDataTable->with(['account_id' => $account_id])
-      ->render('suppliers.ledger', [
+      ->render('Suppliers.ledger', [
         'supplier' => $supplier,
         'files' => $files,
         'dataTable' => $ledgerDataTable
@@ -344,7 +344,7 @@ class SupplierController extends AppBaseController
     $files = Files::where('type_id', $supplier_id)->get();
     $supplier = Supplier::find($supplier_id);
 
-    return view('suppliers.document', compact('files', 'supplier'));
+    return view('Suppliers.document', compact('files', 'supplier'));
   }
 
   /**
@@ -363,7 +363,7 @@ class SupplierController extends AppBaseController
     return [
       'name' => 'Supplier',
       'display_columns' => ['name', 'email', 'contact_number'],
-      'trash_view' => 'suppliers.trash',
+      'trash_view' => 'Suppliers.trash',
       'index_route' => 'suppliers.index',
     ];
   }

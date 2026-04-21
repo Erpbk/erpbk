@@ -556,28 +556,29 @@ $homeLink = auth('admin')->check()
 
 {{-- Admin Panel (global site settings) --}}
 @php($adminUser = auth('admin')->user())
-@if($adminUser)
+@php($canAccessSuperAdminPanel = $adminUser && $adminUser->hasRole('Super Admin'))
+@if($canAccessSuperAdminPanel)
 <li class="menu-header small text-uppercase mt-3">
   <span class="menu-header-text">{{ __('Admin Panel') }}</span>
 </li>
-<li class="menu-item {{ Route::is('admin/dashboard') ? 'active' : '' }}">
+<li class="menu-item {{ Route::is('admin.dashboard') ? 'active' : '' }}">
   <a href="{{ route('admin.dashboard') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-layout-dashboard"></i>
     <div>{{ __('Dashboard') }}</div>
   </a>
 </li>
 @endif
-@if($adminUser && $adminUser->hasPermission('companies_view'))
-<li class="menu-item {{ Route::is('admin/companies*') ? 'active' : '' }}">
-  <a href="{{ route('admin.companies.index') }}" class="menu-link">
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('companies_view'))
+  <li class="menu-item {{ Route::is('admin.companies*') ? 'active' : '' }}">
+    <a href="{{ route('admin.companies.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-building-community"></i>
     <div>{{ __('Companies') }}</div>
   </a>
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasPermission('blogs_view'))
-<li class="menu-item {{ Route::is('admin/blogs*') ? 'active' : '' }}">
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('blogs_view'))
+<li class="menu-item {{ Route::is('admin.blogs*') ? 'active' : '' }}">
   <a href="{{ route('admin.blogs.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-pencil"></i>
     <div>{{ __('Blogs') }}</div>
@@ -585,8 +586,8 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasPermission('testimonials_view'))
-<li class="menu-item {{ Route::is('admin/testimonials*') ? 'active' : '' }}">
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('testimonials_view'))
+<li class="menu-item {{ Route::is('admin.testimonials*') ? 'active' : '' }}">
   <a href="{{ route('admin.testimonials.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-message-dots"></i>
     <div>{{ __('Testimonials') }}</div>
@@ -594,8 +595,8 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasPermission('privacy_policy_view'))
-<li class="menu-item {{ Route::is('admin/privacy-policy*') ? 'active' : '' }}">
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('privacy_policy_view'))
+<li class="menu-item {{ Route::is('admin.privacy-policy*') ? 'active' : '' }}">
   <a href="{{ route('admin.privacy-policy.edit') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-file-description"></i>
     <div>{{ __('Privacy Policy') }}</div>
@@ -603,8 +604,8 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasPermission('terms_conditions_view'))
-<li class="menu-item {{ Route::is('admin/terms-conditions*') ? 'active' : '' }}">
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('terms_conditions_view'))
+<li class="menu-item {{ Route::is('admin.terms-conditions*') ? 'active' : '' }}">
   <a href="{{ route('admin.terms-conditions.edit') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-file-description"></i>
     <div>{{ __('Terms & Conditions') }}</div>
@@ -612,8 +613,8 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasPermission('users_view'))
-<li class="menu-item {{ Route::is('admin/users*') ? 'active' : '' }}">
+@if($canAccessSuperAdminPanel && $adminUser->hasPermission('users_view'))
+<li class="menu-item {{ Route::is('admin.users*') ? 'active' : '' }}">
   <a href="{{ route('admin.users.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-users-group"></i>
     <div>{{ __('Users') }}</div>
@@ -621,8 +622,8 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($adminUser && $adminUser->hasRole('Super Admin'))
-<li class="menu-item {{ Route::is('admin/permissions*') ? 'active' : '' }}">
+@if($canAccessSuperAdminPanel)
+<li class="menu-item {{ Route::is('admin.permissions*') ? 'active' : '' }}">
   <a href="{{ route('admin.permissions.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-lock"></i>
     <div>{{ __('Permissions') }}</div>

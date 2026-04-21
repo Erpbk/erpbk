@@ -1,5 +1,5 @@
 <!-- resources/views/suppliers/ledger.blade.php -->
-@extends('suppliers.view')
+@extends('Suppliers.view')
 
 @section('page_content')
 <div class="card card-action mb-1">

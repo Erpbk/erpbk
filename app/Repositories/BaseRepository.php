@@ -2,11 +2,14 @@
 
 namespace App\Repositories;
 
+use App\Models\Company;
 use Illuminate\Container\Container as Application;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 abstract class BaseRepository
 {
@@ -102,6 +105,7 @@ abstract class BaseRepository
      */
     public function create(array $input): Model
     {
+        $input = $this->applyCompanyIdToPayload($input);
         $model = $this->model->newInstance($input);
 
         $model->save();
@@ -132,7 +136,15 @@ abstract class BaseRepository
 
         $model = $query->findOrFail($id);
 
+        $input = $this->applyCompanyIdToPayload($input, false);
         $model->fill($input);
+
+        if ($this->modelHasCompanyId() && empty($model->company_id)) {
+            $companyId = $this->resolveCurrentCompanyId();
+            if ($companyId !== null) {
+                $model->company_id = $companyId;
+            }
+        }
 
         $model->save();
 
@@ -151,5 +163,72 @@ abstract class BaseRepository
         $model = $query->findOrFail($id);
 
         return $model->delete();
+    }
+
+    protected function applyCompanyIdToPayload(array $input, bool $forceWhenMissing = true): array
+    {
+        if (!$this->modelHasCompanyId()) {
+            return $input;
+        }
+
+        $companyId = $this->resolveCurrentCompanyId();
+        if ($companyId === null) {
+            return $input;
+        }
+
+        if ($forceWhenMissing || empty($input['company_id'])) {
+            $input['company_id'] = $companyId;
+        }
+
+        return $input;
+    }
+
+    protected function modelHasCompanyId(): bool
+    {
+        if (!method_exists($this->model, 'getTable')) {
+            return false;
+        }
+
+        $connection = $this->model->getConnectionName() ?: config('database.default');
+        return Schema::connection($connection)->hasColumn($this->model->getTable(), 'company_id');
+    }
+
+    protected function resolveCurrentCompanyId(): ?int
+    {
+        if (app()->runningInConsole()) {
+            return null;
+        }
+
+        if (Auth::guard('admin')->check()) {
+            return null;
+        }
+
+        $request = request();
+        $company = $request?->attributes->get('company');
+        if ($company && isset($company->id)) {
+            return (int) $company->id;
+        }
+
+        $authUser = Auth::user();
+        if ($authUser && !empty($authUser->company_id)) {
+            return (int) $authUser->company_id;
+        }
+
+        $companySlug = $request?->route('company_slug') ?? $request?->session()->get('company_slug');
+        if (empty($companySlug)) {
+            return null;
+        }
+
+        $resolvedCompany = Company::query()->where('slug', (string) $companySlug)->first();
+        if (!$resolvedCompany && is_numeric($companySlug)) {
+            $resolvedCompany = Company::query()->find((int) $companySlug);
+        }
+
+        if (!$resolvedCompany) {
+            return null;
+        }
+
+        $request?->attributes->set('company', $resolvedCompany);
+        return (int) $resolvedCompany->id;
     }
 }

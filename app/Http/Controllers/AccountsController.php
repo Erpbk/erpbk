@@ -41,13 +41,20 @@ class AccountsController extends AppBaseController
     if (!auth()->user()->hasPermissionTo('account_view')) {
       abort(403, 'Unauthorized action.');
     }
-    $search = $request->get('search');
-    $all = Accounts::orderBy('account_code')->get()->keyBy('id');
-    $roots = $all->whereNull('parent_id')->sortBy('account_code')->values();
-    foreach ($roots as $r) {
-      $r->setRelation('children', $this->buildChildren($r->id, $all));
+    $search = trim((string) $request->get('search'));
+    $query = Accounts::query()
+      ->where(function ($q) {
+        $q->whereNull('parent_id')->orWhere('parent_id', 0);
+      })
+      ->orderBy('account_code');
+    if ($search !== '') {
+      $query->where(function ($q) use ($search) {
+        $q->where('name', 'like', '%' . $search . '%')
+          ->orWhere('account_code', 'like', '%' . $search . '%')
+          ->orWhere('account_type', 'like', '%' . $search . '%');
+      });
     }
-    $accounts = $this->flattenAccountTree($roots, $search);
+    $accounts = $query->get()->map(fn ($account) => (object) ['account' => $account, 'depth' => 0]);
     return view('accounts.index', compact('accounts'));
   }
 
@@ -87,7 +94,12 @@ class AccountsController extends AppBaseController
   }
   public function tree($company_slug, AccountsDataTable $accountsDataTable)
   {
-    $accounts = Accounts::with('children','branch')->whereNull('parent_id')->orderBy('account_code')->get();
+    $accounts = Accounts::with('branch')
+      ->where(function ($q) {
+        $q->whereNull('parent_id')->orWhere('parent_id', 0);
+      })
+      ->orderBy('account_code')
+      ->get();
     return view('accounts.tree', compact('accounts'));
   }
 
@@ -99,7 +111,12 @@ class AccountsController extends AppBaseController
   {
     //$parents = Accounts::whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
     //$parents = Accounts::with('children')->whereNull('parent_account_id')->get();
-    $parents = Accounts::all(['id', 'name', 'parent_id'])->groupBy('parent_id');
+    $parents = Accounts::query()
+      ->where(function ($q) {
+        $q->whereNull('parent_id')->orWhere('parent_id', 0);
+      })
+      ->get(['id', 'name', 'parent_id'])
+      ->groupBy('parent_id');
     $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
 
     return view('accounts.create', compact('parents', 'customFields'));
@@ -154,7 +171,12 @@ class AccountsController extends AppBaseController
       return redirect(route('accounts.index'));
     }
     //$parents = Accounts::whereNot('id', $id)->whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
-    $parents = Accounts::all(['id', 'name', 'parent_id'])->groupBy('parent_id');
+    $parents = Accounts::query()
+      ->where(function ($q) {
+        $q->whereNull('parent_id')->orWhere('parent_id', 0);
+      })
+      ->get(['id', 'name', 'parent_id'])
+      ->groupBy('parent_id');
     $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
 
     return view('accounts.edit', compact('accounts', 'parents', 'customFields'));
@@ -390,7 +412,11 @@ class AccountsController extends AppBaseController
    */
   public function getHeadAccountsByType($company_slug, $type)
   {
-    $accounts = Accounts::whereNull('parent_id')->where('account_type', $type)->pluck('name', 'id');
+    $accounts = Accounts::where('account_type', $type)
+      ->where(function ($q) {
+        $q->whereNull('parent_id')->orWhere('parent_id', 0);
+      })
+      ->pluck('name', 'id');
     return response()->json($accounts);
   }
 

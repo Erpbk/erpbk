@@ -1,6 +1,6 @@
 <!-- resources/views/suppliers/document.blade.php -->
 
-@extends('suppliers.view')
+@extends('Suppliers.view')
 
 @section('page_content')
     <!-- Main content -->

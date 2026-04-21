@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
@@ -49,6 +50,39 @@ class Accounts extends BaseModel
     'opening_balance' => 'nullable|numeric'
 
   ];
+
+  /**
+   * Chart of Accounts must show shared main heads (company_id NULL) for every tenant,
+   * along with tenant-owned accounts.
+   */
+  protected function includesGlobalCompanyRows(): bool
+  {
+    return true;
+  }
+
+  /**
+   * Main parent heads are shared; all non-parent accounts are company-isolated.
+   */
+  protected function applyCompanyScopeConstraint(Builder $builder, int $companyId): void
+  {
+    $qualifiedCompany = $this->qualifyColumn('company_id');
+    $qualifiedParent = $this->qualifyColumn('parent_id');
+
+    $builder->where(function (Builder $query) use ($qualifiedCompany, $qualifiedParent, $companyId): void {
+      $query
+        // Shared main heads for all companies
+        ->where(function (Builder $rootQuery) use ($qualifiedParent): void {
+          $rootQuery->whereNull($qualifiedParent)->orWhere($qualifiedParent, 0);
+        })
+        // OR tenant-owned non-root accounts only
+        ->orWhere(function (Builder $tenantQuery) use ($qualifiedParent, $qualifiedCompany, $companyId): void {
+          $tenantQuery
+            ->where($qualifiedParent, '!=', 0)
+            ->whereNotNull($qualifiedParent)
+            ->where($qualifiedCompany, $companyId);
+        });
+    });
+  }
 
   public function branch()
   {

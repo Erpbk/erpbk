@@ -94,4 +94,3 @@ class AdminCompany extends BaseModel
         }
     }
 }
-

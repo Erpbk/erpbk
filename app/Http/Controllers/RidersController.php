@@ -622,7 +622,7 @@ class RidersController extends AppBaseController
   /**
    * Display the specified Riders.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
     if (empty($rider) || !in_array($rider->branch_id, app('user_branches'))) {
@@ -646,7 +646,7 @@ class RidersController extends AppBaseController
   /**
    * Show the form for editing the specified Riders.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     // $riders = $this->ridersRepository->find($id);
     $riders = $this->ridersRepository->getRiderWithItemsRelations($id);
@@ -665,7 +665,7 @@ class RidersController extends AppBaseController
   /**
    * Update the specified Riders in storage.
    */
-  public function update($id, Request $request)
+  public function update($company_slug, $id, Request $request)
   {
     $riders = Riders::find($id);
     // $items = $riders->items;
@@ -716,7 +716,7 @@ class RidersController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $riders = $this->ridersRepository->find($id);
 
@@ -914,7 +914,7 @@ class RidersController extends AppBaseController
    *
    */
 
-  public function document($rider_id)
+  public function document($company_slug, $rider_id)
   {
     if (request()->post()) {
 
@@ -951,7 +951,7 @@ class RidersController extends AppBaseController
       return 1;
     }
 
-    $rider = Riders::find($rider_id);
+    $riders = Riders::find($rider_id);
     if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
@@ -959,9 +959,9 @@ class RidersController extends AppBaseController
     $files = Files::where('type_id', $rider_id)->get();
     
 
-    return view('riders.document', compact('files', 'rider'));
+    return view('riders.document', compact('files', 'riders'));
   }
-  public function timeline($id)
+  public function timeline($company_slug, $id)
   {
     $riders = Riders::find($id);
     if(empty($riders) || !in_array($riders->branch_id, app('user_branches'))){
@@ -972,16 +972,16 @@ class RidersController extends AppBaseController
     return view('riders.timeline', compact('riders', 'job_status'));
   }
 
-  public function contract($id)
+  public function contract($company_slug, $id)
   {
-    $rider = Riders::find($id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    $riders = Riders::find($id);
+    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
-    return view('riders.contract', compact('rider'));
+    return view('riders.contract', compact('riders'));
   }
-  public function contract_upload(Request $request, $id)
+  public function contract_upload(Request $request, $company_slug, $id)
   {
     if (isset($request->contract)) {
 
@@ -1001,12 +1001,12 @@ class RidersController extends AppBaseController
 
       return redirect(route('riders.index'))->with('success', $rider->name . '( ' . $rider->rider_id . ' ) Contract uploaded.');
     } else {
-      $rider = Riders::find($id);
-      return view('riders.contract-modal', compact('rider'));
+      $riders = Riders::find($id);
+      return view('riders.contract-modal', compact('riders'));
     }
   }
 
-  public function picture_upload(Request $request, $id)
+  public function picture_upload(Request $request, $company_slug, $id)
   {
     if (isset($request->image_name)) {
 
@@ -1034,9 +1034,9 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function job_status($id, Request $request)
+  public function job_status($company_slug, $id, Request $request)
   {
-    $rider = Riders::find($id);
+    $riders = Riders::find($id);
 
     if ($request->isMethod('post')) {
       $input = $request->all();
@@ -1048,7 +1048,7 @@ class RidersController extends AppBaseController
        $rider->save(); */
       return "Timeline added successfully";
     }
-    return view('riders.job_status-modal', compact('rider'));
+    return view('riders.job_status-modal', compact('riders'));
   }
 
   public function updateRider()
@@ -1075,27 +1075,27 @@ class RidersController extends AppBaseController
       $rider->save();
     }
   }
-  public function ledger($rider_id, LedgerDataTable $ledgerDataTable)
+  public function ledger($company_slug, $rider_id, LedgerDataTable $ledgerDataTable)
   {
-    $rider = Riders::find($rider_id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    $riders = Riders::find($rider_id);
+    if(empty($riders)){
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
-    $files = Transactions::where('account_id', $rider->account_id)->get();
-    $account_id = $rider->account_id;
-    return $ledgerDataTable->with(['account_id' => $account_id])->render('riders.ledger', compact('files', 'rider'));
+    $files = Transactions::where('account_id', $riders->account_id)->get();
+    $account_id = $riders->account_id;
+    return $ledgerDataTable->with(['account_id' => $account_id])->render('riders.ledger', compact('files', 'riders'));
   }
-  public function items($rider_id)
+  public function items($company_slug, $rider_id)
   {
-    $rider = $this->ridersRepository->find($rider_id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    $riders = $this->ridersRepository->find($rider_id);
+    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
-    return view('riders.items', compact('rider'));
+    return view('riders.items', compact('riders'));
   }
-  public function additems($rider_id)
+  public function additems($company_slug, $rider_id)
   {
     $rider = $this->ridersRepository->find($rider_id);
     if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
@@ -1105,7 +1105,7 @@ class RidersController extends AppBaseController
     return view('riders.additems', compact('rider'));
   }
 
-  public function storeitems(Request $request, $rider_id)
+  public function storeitems(Request $request, $company_slug, $rider_id)
   {
     $rider = $this->ridersRepository->find($rider_id);
 
@@ -1177,7 +1177,7 @@ class RidersController extends AppBaseController
   /**
    * Add a single item for a rider (inline add)
    */
-  public function additem(Request $request, $rider_id)
+  public function additem(Request $request, $company_slug, $rider_id)
   {
     try {
       $request->validate([
@@ -1231,7 +1231,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function edititem($rider_id, $item_id)
+  public function edititem($rider_id, $company_slug, $item_id)
   {
     try {
       $riderItem = RiderItemPrice::where('RID', $rider_id)
@@ -1250,7 +1250,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function updateitem(Request $request, $rider_id, $item_id)
+  public function updateitem(Request $request, $company_slug, $rider_id, $item_id)
   {
     try {
       // Check if item already exists for this rider
@@ -1286,7 +1286,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function deleteitem($rider_id, $item_id)
+  public function deleteitem($rider_id, $company_slug, $item_id)
   {
     try {
       $riderItem = RiderItemPrice::where('RID', $rider_id)
@@ -1301,19 +1301,19 @@ class RidersController extends AppBaseController
       return redirect()->back();
     }
   }
-  public function attendance($rider_id, RiderAttendanceDataTable $riderAttendanceDataTable)
+  public function attendance($company_slug, $rider_id, RiderAttendanceDataTable $riderAttendanceDataTable)
   {
-    $rider = Riders::find($rider_id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    $riders = Riders::find($rider_id);
+    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
-    return $riderAttendanceDataTable->with(['rider_id' => $rider_id])->render('riders.attendance');
+    return $riderAttendanceDataTable->with(['rider_id' => $rider_id, 'riders' => $riders])->render('riders.attendance');
   }
-  public function activities($rider_id)
+  public function activities($company_slug, $rider_id)
   {
-    $rider = Riders::find($rider_id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    $riders = Riders::find($rider_id);
+    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1350,10 +1350,10 @@ class RidersController extends AppBaseController
     // Convert average ontime to percentage
     $totals['avg_ontime'] = $totals['avg_ontime'] * 100;
 
-    return view('riders.activities', compact('data', 'filters', 'totals'));
+    return view('riders.activities', compact('data', 'filters', 'totals','riders'));
   }
 
-  public function activitiesPdf($rider_id)
+  public function activitiesPdf($company_slug, $rider_id)
   {
     $month = request('month') ?? date('Y-m');
     $filters = [
@@ -1426,7 +1426,7 @@ class RidersController extends AppBaseController
     ]);
   }
 
-  public function activitiesPrint($rider_id)
+  public function activitiesPrint($company_slug, $rider_id)
   {
     $month = request('month') ?? date('Y-m');
     $filters = [
@@ -1471,23 +1471,23 @@ class RidersController extends AppBaseController
     return view('riders.activities_print', compact('data', 'filters', 'totals', 'rider', 'month'));
   }
 
-  public function invoices($rider_id, RiderInvoicesDataTable $riderInvoicesDataTable)
+  public function invoices($company_slug, $rider_id, RiderInvoicesDataTable $riderInvoicesDataTable)
   {
-    $rider = Riders::find($rider_id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    $riders = Riders::find($rider_id);
+    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
-    return $riderInvoicesDataTable->with(['rider_id' => $rider_id])->render('riders.invoices');
+    return $riderInvoicesDataTable->with(['rider_id' => $rider_id])->render('riders.invoices', compact('riders'));
   }
-  public function emails($rider_id, RiderEmailsDataTable $riderEmailsDataTable)
+  public function emails($company_slug, $rider_id, RiderEmailsDataTable $riderEmailsDataTable)
   {
-    $rider = Riders::find($rider_id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    $riders = Riders::find($rider_id);
+    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
-    return $riderEmailsDataTable->with(['rider_id' => $rider_id])->render('riders.emails');
+    return $riderEmailsDataTable->with(['rider_id' => $rider_id])->render('riders.emails', compact('riders'));
   }
 
   /**
@@ -1546,7 +1546,7 @@ class RidersController extends AppBaseController
     return view('riders.import_rider_voucher');
   }
 
-  public function visaloan($rider_id)
+  public function visaloan($company_slug, $rider_id)
   {
     $rider = Riders::find($rider_id);
     if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
@@ -1559,7 +1559,7 @@ class RidersController extends AppBaseController
     return view('riders.visaloan-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
   }
 
-  public function advanceloan($rider_id)
+  public function advanceloan($company_slug, $rider_id)
   {
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
@@ -1568,10 +1568,10 @@ class RidersController extends AppBaseController
     return view('riders.advanceloan-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
   }
 
-  public function files($rider_id)
+  public function files($company_slug, $rider_id)
   {
-    $rider = Riders::find($rider_id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    $riders = Riders::find($rider_id);
+    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1626,10 +1626,10 @@ class RidersController extends AppBaseController
       }
     }
 
-    return view('riders.document', compact('missingFiles', 'files', 'rider'));
+    return view('riders.document', compact('missingFiles', 'files', 'riders'));
   }
 
-  public function sendEmail($id, Request $request)
+  public function sendEmail($company_slug, $id, Request $request)
   {
     if ($request->isMethod('post')) {
       $user = Auth::user();
@@ -1762,7 +1762,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function updateSection(Request $request, $id)
+  public function updateSection(Request $request, $company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
 
@@ -1789,7 +1789,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function toggleAbsconder(Request $request, $id)
+  public function toggleAbsconder(Request $request, $company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
 
@@ -1815,7 +1815,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function toggleFlowup(Request $request, $id)
+  public function toggleFlowup(Request $request, $company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
 
@@ -1841,7 +1841,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function toggleLlicense(Request $request, $id)
+  public function toggleLlicense(Request $request, $company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
 
@@ -1867,7 +1867,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function toggleWalker(Request $request, $id)
+  public function toggleWalker(Request $request, $company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
 
@@ -1939,7 +1939,7 @@ class RidersController extends AppBaseController
    * Toggle Vacation: when turning ON, set designation to Vacation, return bike automatically, and set status to inactive.
    * Similar to Walker but for vacation leave.
    */
-  public function toggleVacation(Request $request, $id)
+  public function toggleVacation(Request $request, $company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
 
@@ -2005,7 +2005,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function toggleMol(Request $request, $id)
+  public function toggleMol(Request $request, $company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
 
@@ -2030,7 +2030,7 @@ class RidersController extends AppBaseController
       ], 500);
     }
   }
-  public function togglePro(Request $request, $id)
+  public function togglePro(Request $request, $company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
 
@@ -2060,7 +2060,7 @@ class RidersController extends AppBaseController
    * Set rider status option (single-select). Only updates the status option; does not change designation or rider status.
    * No bike return. Designation remains unchanged.
    */
-  public function setRiderStatusOption(Request $request, $id)
+  public function setRiderStatusOption(Request $request, $company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
 
@@ -2146,7 +2146,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function returnBike(Request $request, $id)
+  public function returnBike(Request $request, $company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
 
@@ -2337,7 +2337,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function cod($rider_id)
+  public function cod($company_slug, $rider_id)
   {
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
@@ -2346,7 +2346,7 @@ class RidersController extends AppBaseController
     return view('riders.cod-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
   }
 
-  public function penalty($rider_id)
+  public function penalty($company_slug, $rider_id)
   {
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
@@ -2616,7 +2616,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function incentive($rider_id)
+  public function incentive($company_slug, $rider_id)
   {
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
@@ -2625,7 +2625,7 @@ class RidersController extends AppBaseController
     return view('riders.incentive-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
   }
 
-  public function payment($rider_id)
+  public function payment($company_slug, $rider_id)
   {
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
@@ -2895,7 +2895,7 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function vendorcharges($rider_id)
+  public function vendorcharges($company_slug, $rider_id)
   {
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
@@ -2908,7 +2908,7 @@ class RidersController extends AppBaseController
    * Unified voucher modal for rider: supports types AL, COD, PN, PAY, VC
    * Incentive remains separate as requested.
    */
-  public function voucher($rider_id)
+  public function voucher($company_slug, $rider_id)
   {
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();

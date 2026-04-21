@@ -60,7 +60,7 @@ class DropdownsController extends AppBaseController
   /**
    * Display the specified Dropdowns.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $dropdowns = $this->dropdownsRepository->find($id);
 
@@ -76,7 +76,7 @@ class DropdownsController extends AppBaseController
   /**
    * Show the form for editing the specified Dropdowns.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $dropdowns = $this->dropdownsRepository->find($id);
 
@@ -92,7 +92,7 @@ class DropdownsController extends AppBaseController
   /**
    * Update the specified Dropdowns in storage.
    */
-  public function update($id, UpdateDropdownsRequest $request)
+  public function update($company_slug, $id, UpdateDropdownsRequest $request)
   {
     $dropdowns = $this->dropdownsRepository->find($id);
 
@@ -114,7 +114,7 @@ class DropdownsController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $dropdowns = $this->dropdownsRepository->find($id);
 

@@ -184,7 +184,7 @@ class VisaexpenseController extends AppBaseController
         return redirect()->back();
     }
 
-    public function deleteaccount($id)
+    public function deleteaccount($company_slug, $id)
     {
         // Check if any visa_expenses exist for this account
         $hasExpenses = visa_expenses::where('rider_id', $id)->exists();
@@ -240,7 +240,7 @@ class VisaexpenseController extends AppBaseController
         return redirect()->back();
     }
 
-    public function generatentries(Request $request, $id)
+    public function generatentries(Request $request, $company_slug, $id)
     {
         // Check if user is authenticated first
         if (!auth()->check()) {
@@ -297,12 +297,14 @@ class VisaexpenseController extends AppBaseController
             ]);
         }
         $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
-
+        $riders = null;
+        \Log::info('visa expense entries',['rider_id' => $id, 'rider' => $riders]);
         return view('visa_expenses.index', [
             'data' => $data,
             'installmentData' => $installmentData,
             'account' => $account,
             'visaStatuses' => $visaStatuses,
+            'riders' => $riders,
         ]);
     }
 

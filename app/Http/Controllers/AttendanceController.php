@@ -127,7 +127,7 @@ class AttendanceController extends Controller
     /**
      * Display the specified attendance record.
      */
-    public function show(Attendance $attendance)
+    public function show($company_slug, Attendance $attendance)
     {
         $attendance->load('user');
         return view('attendance.show', compact('attendance'));
@@ -136,7 +136,7 @@ class AttendanceController extends Controller
     /**
      * Show the form for editing the specified attendance record.
      */
-    public function edit(Attendance $attendance)
+    public function edit($company_slug, Attendance $attendance)
     {
         $employees = Employee::all();
         $riders = Riders::all();
@@ -147,7 +147,7 @@ class AttendanceController extends Controller
     /**
      * Update the specified attendance record.
      */
-    public function update(Request $request, Attendance $attendance)
+    public function update(Request $request, $company_slug, Attendance $attendance)
     {
         $rules = [
             'ref_type' => 'required|in:employee,rider',
@@ -202,7 +202,7 @@ class AttendanceController extends Controller
     /**
      * Remove the specified attendance record.
      */
-    public function destroy(Attendance $attendance)
+    public function destroy($company_slug, Attendance $attendance)
     {
         try{
             $attendance->delete();
@@ -216,7 +216,7 @@ class AttendanceController extends Controller
     /**
      * Get users based on reference type (for AJAX requests)
      */
-    public function getUsers($refType)
+    public function getUsers($company_slug, $refType)
     {
         $users = null;
         if ($refType === 'employee') {

@@ -56,7 +56,7 @@ class RiderEmailsController extends AppBaseController
     /**
      * Display the specified RiderEmails.
      */
-    public function show($id)
+    public function show($company_slug, $id)
     {
         $riderEmails = $this->riderEmailsRepository->find($id);
 
@@ -72,7 +72,7 @@ class RiderEmailsController extends AppBaseController
     /**
      * Show the form for editing the specified RiderEmails.
      */
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         $riderEmails = $this->riderEmailsRepository->find($id);
 
@@ -88,7 +88,7 @@ class RiderEmailsController extends AppBaseController
     /**
      * Update the specified RiderEmails in storage.
      */
-    public function update($id, UpdateRiderEmailsRequest $request)
+    public function update($company_slug, $id, UpdateRiderEmailsRequest $request)
     {
         $riderEmails = $this->riderEmailsRepository->find($id);
 
@@ -110,7 +110,7 @@ class RiderEmailsController extends AppBaseController
      *
      * @throws \Exception
      */
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         $riderEmails = $this->riderEmailsRepository->find($id);
 

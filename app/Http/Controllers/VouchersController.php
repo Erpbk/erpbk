@@ -174,6 +174,7 @@ class VouchersController extends Controller
    */
   public function create(Request $request)
   {
+    $vouchers = null;
     $allowedTypes = VoucherType::activeCodeLabelMapForModuleWithEditAccess('vouchers');
     $vt = $request->query('vt');
     if ($vt !== null && !array_key_exists($vt, $allowedTypes)) {
@@ -190,7 +191,7 @@ class VouchersController extends Controller
    *
    * @return Response
    */
-  public function store(Request $request, VoucherService $voucherService)
+  public function store(Request $request, $company_slug, VoucherService $voucherService)
   {
     $allowedTypes = VoucherType::activeCodeLabelMapForModule('vouchers');
     if (!array_key_exists($request->voucher_type ?? '', $allowedTypes)) {
@@ -273,7 +274,7 @@ class VouchersController extends Controller
    *
    * @return Response
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     /** @var Vouchers $vouchers */
     $voucher = Vouchers::with(['transactions.account'])->find($id);
@@ -299,7 +300,7 @@ class VouchersController extends Controller
    *
    * @return Response
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     /** @var Vouchers $vouchers */
     $vouchers = Vouchers::where('trans_code', $id)->first();
@@ -341,7 +342,7 @@ class VouchersController extends Controller
    *
    * @return Response
    */
-  public function update($id, Request $request, VoucherService $voucherService)
+  public function update($company_slug, $id, Request $request, VoucherService $voucherService)
   {
     /** @var Vouchers $vouchers */
     $vouchers = Vouchers::find($id);
@@ -497,7 +498,7 @@ class VouchersController extends Controller
    *
    * @return Response
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     /** @var Vouchers $vouchers */
     DB::beginTransaction();
@@ -680,7 +681,7 @@ class VouchersController extends Controller
     }
   }
 
-  public function fetch_invoices($id, $vt)
+  public function fetch_invoices($company_slug, $id, $vt)
   {
     $date = date('Y-m-d');
     $date = date('Y-m-d', strtotime($date . ' +1 day'));
@@ -776,7 +777,7 @@ class VouchersController extends Controller
     }
   }
 
-  public function fileUpload(Request $request, $id)
+  public function fileUpload(Request $request, $company_slug, $id)
   {
     $voucher = Vouchers::find($id);
 
@@ -813,7 +814,7 @@ class VouchersController extends Controller
     return view('vouchers.import');
   }
 
-  public function cloneVoucher($id)
+  public function cloneVoucher($company_slug, $id)
   {
     /** @var Vouchers $vouchers */
     $vouchers = Vouchers::where('trans_code', $id)->first();

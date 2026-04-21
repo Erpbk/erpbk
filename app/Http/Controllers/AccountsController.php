@@ -96,7 +96,7 @@ class AccountsController extends AppBaseController
     }
     return $result;
   }
-  public function tree(AccountsDataTable $accountsDataTable)
+  public function tree($company_slug, AccountsDataTable $accountsDataTable)
   {
     $accounts = Accounts::with('branch')
       ->where(function ($q) {
@@ -147,7 +147,7 @@ class AccountsController extends AppBaseController
   /**
    * Display the specified Accounts.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $accounts = $this->findAccessibleAccount($id);
 
@@ -165,7 +165,7 @@ class AccountsController extends AppBaseController
   /**
    * Show the form for editing the specified Accounts.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $accounts = $this->findAccessibleAccount($id);
 
@@ -191,7 +191,7 @@ class AccountsController extends AppBaseController
   /**
    * Update the specified Accounts in storage.
    */
-  public function update($id, UpdateAccountsRequest $request)
+  public function update($company_slug, $id, UpdateAccountsRequest $request)
   {
     $accounts = $this->findAccessibleAccount($id);
 
@@ -239,7 +239,7 @@ class AccountsController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $accounts = $this->findAccessibleAccount($id);
 
@@ -308,7 +308,7 @@ class AccountsController extends AppBaseController
   /**
    * Toggle lock status for an account (AJAX)
    */
-  public function toggleLock(Request $request, $id)
+  public function toggleLock(Request $request, $company_slug, $id)
   {
     $account = $this->findAccessibleAccount($id);
     if (!$account) {
@@ -328,7 +328,7 @@ class AccountsController extends AppBaseController
   /**
    * Account detail panel (AJAX): ledger summary, closing balance, full ledger (paginated).
    */
-  public function accountDetail(Request $request, $id)
+  public function accountDetail(Request $request,$company_slug, $id)
   {
     $account = $this->findAccessibleAccount($id);
     if (!$account) {
@@ -360,7 +360,7 @@ class AccountsController extends AppBaseController
   /**
    * Ledger entries for an account (AJAX pagination): returns table rows + pagination meta.
    */
-  public function ledgerEntries(Request $request, $id)
+  public function ledgerEntries(Request $request, $company_slug, $id)
   {
     $account = $this->findAccessibleAccount($id);
     if (!$account) {
@@ -395,7 +395,7 @@ class AccountsController extends AppBaseController
   /**
    * Toggle account active/inactive status (AJAX)
    */
-  public function toggleStatus(Request $request, $id)
+  public function toggleStatus(Request $request, $company_slug, $id)
   {
     $account = $this->findAccessibleAccount($id);
     if (!$account) {
@@ -414,7 +414,7 @@ class AccountsController extends AppBaseController
   /**
    * Get head accounts by account type (AJAX)
    */
-  public function getHeadAccountsByType($type)
+  public function getHeadAccountsByType($company_slug, $type)
   {
     $accounts = Accounts::where('account_type', $type)
       ->where(function ($q) {

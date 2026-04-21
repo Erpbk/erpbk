@@ -90,7 +90,7 @@ class SalikController extends AppBaseController
         Flash::success('Account Updated successfully.');
         return redirect()->back();
     }
-    public function deleteaccount($id)
+    public function deleteaccount($company_slug, $id)
     {
         // Check if there are any salik entries related to this account (including soft deleted)
         $hasSalik = salik::withTrashed()->where('salik_account_id', $id)->exists();
@@ -158,7 +158,7 @@ class SalikController extends AppBaseController
             'data' => $data,
         ]);
     }
-    public function tickets(Request $request, $id)
+    public function tickets(Request $request, $company_slug, $id)
     {
         if (!auth()->user()->hasPermissionTo('salik_view')) {
             abort(403, 'Unauthorized action.');
@@ -257,7 +257,7 @@ class SalikController extends AppBaseController
     /**
      * Show the form for creating a new resource.
      */
-    public function create($id)
+    public function create($company_slug, $id)
     {
         $data = Accounts::where('id', $id)->first();
         return view('salik.create', compact('data'));
@@ -404,7 +404,7 @@ class SalikController extends AppBaseController
     /**
      * Display the specified resource.
      */
-    public function fileUpload(Request $request, $id)
+    public function fileUpload(Request $request, $company_slug, $id)
     {
         $fines = salik::find($id);
 
@@ -427,7 +427,7 @@ class SalikController extends AppBaseController
     /**
      * Display the specified RtaFines.
      */
-    public function show($id)
+    public function show($company_slug, $id)
     {
         $salik = salik::with('branch')->find($id);
         if (empty($salik)) {
@@ -442,7 +442,7 @@ class SalikController extends AppBaseController
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
 
         $salik = salik::find($id);
@@ -459,7 +459,7 @@ class SalikController extends AppBaseController
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $company_slug, $id)
     {
         // Debugging: log what we actually receive
         // Remove this after testing
@@ -812,7 +812,7 @@ class SalikController extends AppBaseController
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         \DB::beginTransaction();
         try {
@@ -1222,7 +1222,7 @@ class SalikController extends AppBaseController
             \Log::info("Updated main voucher remarks for trans_code: {$transCode}");
         }
     }
-    public function attachFile($id, Request $request)
+    public function attachFile($company_slug, $id, Request $request)
     {
         $salik = salik::findOrFail($id);
         if ($request->isMethod('post')) {
@@ -1237,7 +1237,7 @@ class SalikController extends AppBaseController
         }
         return view('salik.attach_file', ['salik' => $salik, 'id' => $id]);
     }
-    public function viewvoucher($id)
+    public function viewvoucher($company_slug, $id)
     {
         $data = salik::findOrFail($id);
         $accounts = Accounts::find($data->account_id);
@@ -1383,7 +1383,7 @@ class SalikController extends AppBaseController
     /**
      * Show import form
      */
-    public function importForm($salikAccountId)
+    public function importForm($company_slug, $salikAccountId)
     {
         $account = Accounts::findOrFail($salikAccountId);
         return view('salik.import', compact('account'));

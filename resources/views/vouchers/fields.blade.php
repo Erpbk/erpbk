@@ -66,7 +66,7 @@ $voucherType = $vt ?? request('vt');
         <div class="form-group col-md-3">
             <label for="branch_id">Branch</label>
             <select class="form-control select2" id="branch_id" name="branch_id" required >
-                @foreach(auth()->user()::branchDropdown() as $id => $name)
+                @foreach(auth()->user()->branchDropdown() as $id => $name)
                 <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }} @isset($vouchers->branch_id){{ $vouchers->branch_id == $id ? 'selected' : ''}} @endisset>{{ $name }}</option>
                 @endforeach
             </select>

@@ -180,7 +180,7 @@ class GarageItemsController extends AppBaseController
     /**
      * Display the specified GarageItem.
      */
-    public function show($id)
+    public function show($company_slug, $id)
     {
         $garageItem = GarageItem::find($id);
 
@@ -195,7 +195,7 @@ class GarageItemsController extends AppBaseController
     /**
      * Show the form for editing the specified GarageItem.
      */
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         $garageItem = GarageItem::find($id);
 
@@ -212,7 +212,7 @@ class GarageItemsController extends AppBaseController
     /**
      * Update the specified GarageItem in storage.
      */
-    public function update($id, UpdateGarageItemRequest $request)
+    public function update($company_slug, $id, UpdateGarageItemRequest $request)
     {
         $garageItem = GarageItem::find($id);
 
@@ -338,7 +338,7 @@ class GarageItemsController extends AppBaseController
     /**
      * Remove the specified GarageItem from storage.
      */
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         $garageItem = GarageItem::find($id);
 
@@ -356,7 +356,7 @@ class GarageItemsController extends AppBaseController
     /**
      * Redirect to vouchers page with filter for this garage item
      */
-    public function vouchers($id)
+    public function vouchers($company_slug, $id)
     {
         $garageItem = GarageItem::find($id);
 

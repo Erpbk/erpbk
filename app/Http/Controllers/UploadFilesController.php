@@ -16,7 +16,7 @@ class UploadFilesController extends Controller
         $this->middleware('auth');
     }
 
-    public function index(UploadFilesDataTable $dataTable)
+    public function index($company_slug, UploadFilesDataTable $dataTable)
     {
         return $dataTable->render('upload_files.index');
     }
@@ -45,19 +45,19 @@ class UploadFilesController extends Controller
         return response()->json(['success' => true, 'message' => 'File uploaded successfully.']);
     }
 
-    public function show($id)
+    public function show($company_slug, $id)
     {
         $file = UploadFile::findOrFail($id);
         return view('upload_files.show', compact('file'));
     }
 
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         $file = UploadFile::findOrFail($id);
         return view('upload_files.edit', compact('file'));
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $company_slug, $id)
     {
         $file = UploadFile::findOrFail($id);
 
@@ -68,7 +68,7 @@ class UploadFilesController extends Controller
         return response()->json(['success' => true, 'message' => 'File updated successfully.']);
     }
 
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         $file = UploadFile::findOrFail($id);
         Storage::disk('public')->delete($file->path);

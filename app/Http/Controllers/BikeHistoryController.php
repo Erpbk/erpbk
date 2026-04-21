@@ -66,7 +66,7 @@ class BikeHistoryController extends AppBaseController
   /**
    * Display the specified BikeHistory.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $bikeHistory = $this->bikeHistoryRepository->find($id);
 
@@ -82,7 +82,7 @@ class BikeHistoryController extends AppBaseController
   /**
    * Show the form for editing the specified BikeHistory.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $bikeHistory = $this->bikeHistoryRepository->find($id);
 
@@ -98,7 +98,7 @@ class BikeHistoryController extends AppBaseController
   /**
    * Update the specified BikeHistory in storage.
    */
-  public function update($id, UpdateBikeHistoryRequest $request)
+  public function update($company_slug, $id, UpdateBikeHistoryRequest $request)
   {
     $bikeHistory = $this->bikeHistoryRepository->find($id);
 
@@ -120,7 +120,7 @@ class BikeHistoryController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $bikeHistory = $this->bikeHistoryRepository->find($id);
 

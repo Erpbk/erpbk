@@ -8,9 +8,6 @@
     <div class="px-2">
         <div class="row mb-4">
             <div class="col-sm-6 d-flex gap-2">
-                <a href="{{ route('banks.index') }}" class="@if(request()->segment(3) =='banks' && !in_array(request()->segment(3), ['receipts','payments'])) btn btn-primary  @else btn btn-default @endif action-btn"><i class="fa fa-bank"></i> Banks</a>
-                <a href="{{ route('receipts.index') }}" class="@if(request()->segment(3) =='receipts') btn btn-primary @else btn btn-default @endif action-btn"><i class="fa fa-receipt"></i> Cash In</a>
-                <a href="{{ route('payments.index') }}" class="@if(request()->segment(3) =='payments') btn btn-primary @else btn btn-default @endif action-btn"><i class="ti ti-cash"></i> Cash Out</a>
             </div>
             <div class="col-sm-6">
             <div class="action-buttons d-flex justify-content-end">

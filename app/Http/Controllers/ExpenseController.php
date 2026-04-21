@@ -163,7 +163,7 @@ class ExpenseController extends AppBaseController
     /**
      * Display the specified expense voucher.
      */
-    public function showVoucher($id)
+    public function showVoucher($company_slug, $id)
     {
         if (!auth()->user()->can('expenses_view')) {
             abort(403, 'Unauthorized action.');
@@ -222,7 +222,7 @@ class ExpenseController extends AppBaseController
     /**
      * Show the form for editing the specified expense account.
      */
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         if (!auth()->user()->can('expenses_view')) {
             abort(403, 'Unauthorized action.');
@@ -247,7 +247,7 @@ class ExpenseController extends AppBaseController
     /**
      * Update the specified expense account in storage.
      */
-    public function update($id, UpdateAccountsRequest $request)
+    public function update($company_slug, $id, UpdateAccountsRequest $request)
     {
         if (!auth()->user()->can('expenses_view')) {
             abort(403, 'Unauthorized action.');
@@ -281,7 +281,7 @@ class ExpenseController extends AppBaseController
     /**
      * Remove the specified expense account (soft delete account; expense_accounts row removed by cascade or we remove it).
      */
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         if (!auth()->user()->can('expenses_view')) {
             abort(403, 'Unauthorized action.');
@@ -321,7 +321,7 @@ class ExpenseController extends AppBaseController
     /**
      * Account detail panel (AJAX) - reuse accounts detail.
      */
-    public function accountDetail(Request $request, $id)
+    public function accountDetail(Request $request, $company_slug, $id)
     {
         $expenseIds = $this->getExpenseAccountIds();
         if (!in_array((int) $id, $expenseIds, true)) {
@@ -333,7 +333,7 @@ class ExpenseController extends AppBaseController
     /**
      * Ledger entries for an expense account (AJAX).
      */
-    public function ledgerEntries(Request $request, $id)
+    public function ledgerEntries(Request $request, $company_slug, $id)
     {
         $expenseIds = $this->getExpenseAccountIds();
         if (!in_array((int) $id, $expenseIds, true)) {
@@ -345,7 +345,7 @@ class ExpenseController extends AppBaseController
     /**
      * Toggle lock status for an expense account (AJAX).
      */
-    public function toggleLock(Request $request, $id)
+    public function toggleLock(Request $request, $company_slug, $id)
     {
         $expenseIds = $this->getExpenseAccountIds();
         if (!in_array((int) $id, $expenseIds, true)) {
@@ -357,7 +357,7 @@ class ExpenseController extends AppBaseController
     /**
      * Toggle active status for an expense account (AJAX).
      */
-    public function toggleStatus(Request $request, $id)
+    public function toggleStatus(Request $request, $company_slug, $id)
     {
         $expenseIds = $this->getExpenseAccountIds();
         if (!in_array((int) $id, $expenseIds, true)) {
@@ -529,7 +529,7 @@ class ExpenseController extends AppBaseController
     /**
      * Show the form for editing an expense voucher.
      */
-    public function editVoucher($id)
+    public function editVoucher($company_slug, $id)
     {
         if (!auth()->user()->can('expenses_edit')) {
             abort(403, 'Unauthorized action.');
@@ -583,7 +583,7 @@ class ExpenseController extends AppBaseController
     /**
      * Update an expense voucher.
      */
-    public function updateVoucher(Request $request, $id)
+    public function updateVoucher(Request $request, $company_slug, $id)
     {
         if (!auth()->user()->can('expenses_edit')) {
             abort(403, 'Unauthorized action.');
@@ -697,7 +697,7 @@ class ExpenseController extends AppBaseController
     /**
      * Delete an expense voucher.
      */
-    public function destroyVoucher($id)
+    public function destroyVoucher($company_slug, $id)
     {
         if (!auth()->user()->can('expenses_delete')) {
             abort(403, 'Unauthorized action.');

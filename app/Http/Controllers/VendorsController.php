@@ -129,7 +129,7 @@ class VendorsController extends AppBaseController
   /**
    * Display the specified Vendors.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $vendors = $this->vendorsRepository->find($id);
 
@@ -145,7 +145,7 @@ class VendorsController extends AppBaseController
   /**
    * Show the form for editing the specified Vendors.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $vendors = $this->vendorsRepository->find($id);
 
@@ -161,7 +161,7 @@ class VendorsController extends AppBaseController
   /**
    * Update the specified Vendors in storage.
    */
-  public function update($id, UpdateVendorsRequest $request)
+  public function update($company_slug, $id, UpdateVendorsRequest $request)
   {
     $vendor = $this->vendorsRepository->find($id);
 
@@ -184,7 +184,7 @@ class VendorsController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $vendor = $this->vendorsRepository->find($id);
 

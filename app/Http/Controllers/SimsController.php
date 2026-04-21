@@ -109,7 +109,7 @@ class SimsController extends AppBaseController
         $filteredColumns = \Illuminate\Support\Facades\Schema::getColumnListing('sims');
 
         // Columns to exclude
-        $exclude = ['id', 'created_at', 'updated_at', 'deleted_by', 'deleted_at', 'fleet_supervisor', 'created_by', 'updated_by'];
+        $exclude = ['id', 'created_at', 'updated_at', 'deleted_by', 'deleted_at', 'fleet_supervisor', 'created_by', 'updated_by', 'company_id'];
 
         // Final filtered columns
         $dbColumns = array_diff($filteredColumns, $exclude);
@@ -230,7 +230,7 @@ class SimsController extends AppBaseController
     /**
      * Display the specified Sims.
      */
-    public function show($id)
+    public function show($company_slug, $id)
     {
         $sims = Sims::with('branch')->find($id);
 
@@ -245,26 +245,10 @@ class SimsController extends AppBaseController
         return view('sims.show')->with('sims', $sims)->with('simHistories', $simHistories);
     }
 
-    public function showTrash($id)
-    {
-        $sims = Sims::onlyTrashed()->find($id);
-
-        if (empty($sims)) {
-            Flash::error('Trash is Empty');
-
-            return redirect(route('sims.trash'));
-        }
-
-
-        $simHistories = $sims->histories;
-
-        return view('sims.show')->with('sims', $sims)->with('simHistories', $simHistories);
-    }
-
     /**
      * Show the form for editing the specified Sims.
      */
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         $sims = Sims::find($id);
 
@@ -280,7 +264,7 @@ class SimsController extends AppBaseController
     /**
      * Update the specified Sims in storage.
      */
-    public function update($id, UpdateSimsRequest $request)
+    public function update($company_slug, $id, UpdateSimsRequest $request)
     {
         $sims = Sims::find($id);
 
@@ -337,7 +321,7 @@ class SimsController extends AppBaseController
      * @throws \Exception
      */
 
-    public function assign(Request $request, $id)
+    public function assign(Request $request, $company_slug, $id)
     {
         $sims = Sims::find($id);
         if (empty($sims)) {
@@ -418,7 +402,7 @@ class SimsController extends AppBaseController
         return view('sims.assign')->with('sims', $sims);
     }
 
-    public function return(Request $request, $id)
+    public function return(Request $request, $company_slug, $id)
     {
         $sims = Sims::find($id);
         $rider = Riders::find($sims->assign_to);
@@ -486,36 +470,7 @@ class SimsController extends AppBaseController
         }
     }
 
-    public function trash(Request $request)
-    {
-        if (!auth()->user()->hasPermissionTo('sim_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        // Use global pagination trait
-        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = Sims::onlyTrashed()->orderBy('id', 'asc');
-
-        // Apply pagination using the trait
-        $trash = $this->applyPagination($query, $paginationParams);
-
-        if ($request->ajax()) {
-            $tableData = view('sims.trash_table', [
-                'data' => $trash,
-            ])->render();
-            $paginationLinks = $trash->links('components.global-pagination')->render();
-            return response()->json([
-                'tableData' => $tableData,
-                'paginationLinks' => $paginationLinks,
-            ]);
-        }
-
-        return view('sims.trash', [
-            'data' => $trash,
-        ]);
-    }
-
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         // Find including soft deleted
         //$sims = Sims::withTrashed()->find($id);
@@ -574,43 +529,6 @@ class SimsController extends AppBaseController
 
         // For regular requests
         return redirect()->back()->with('message', 'Sim moved to Recycle Bin.');
-    }
-
-    public function restore($id)
-    {
-        $sims = Sims::withTrashed()->find($id);
-
-        if (empty($sims)) {
-            return response()->json(['errors' => ['error' => 'Sim not found!']], 422);
-        }
-
-        if (!$sims->trashed()) {
-            return response()->json(['errors' => ['error' => 'Sim is not deleted!']], 422);
-        }
-
-        $sims->restore(); // Restore from soft delete
-
-        return response()->json(['message' => 'Sim restored successfully.']);
-    }
-
-    public function forceDestroy($id)
-    {
-        $sims = Sims::withTrashed()->find($id);
-
-        if (empty($sims)) {
-            return response()->json(['errors' => ['error' => 'Sim not found!']], 422);
-        }
-
-        $sims->forceDelete(); // Permanent delete
-
-        return response()->json(['message' => 'Sim permanently deleted.']);
-    }
-
-    public function emptyTrash()
-    {
-        Sims::onlyTrashed()->forceDelete();
-
-        return response()->json(['message' => 'Trash emptied successfully.']);
     }
 
     public function export()

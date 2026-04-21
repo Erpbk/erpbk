@@ -57,7 +57,7 @@ class SimInvoicesController extends AppBaseController
         return view('sim_invoices.index', compact('data', 'vendors'));
     }
 
-    public function create($vendorId = null)
+    public function create($company_slug, $vendorId = null)
     {
         $vendors = Vendors::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
         $sims = Sims::orderBy('number')->get()->mapWithKeys(function ($sim) {
@@ -68,7 +68,7 @@ class SimInvoicesController extends AppBaseController
         return view('sim_invoices.create', compact('vendors', 'sims', 'vendor'));
     }
 
-    public function createFromClone($id)
+    public function createFromClone($company_slug, $id)
     {
         $sourceInvoice = $this->simInvoicesRepository->find($id);
         if (empty($sourceInvoice)) {
@@ -164,7 +164,7 @@ class SimInvoicesController extends AppBaseController
         }
     }
 
-    public function show($id)
+    public function show($company_slug, $id)
     {
         $invoice = $this->simInvoicesRepository->find($id);
         if (empty($invoice)) {
@@ -175,7 +175,7 @@ class SimInvoicesController extends AppBaseController
         return view('sim_invoices.show')->with('invoice', $invoice);
     }
 
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         $invoice = $this->simInvoicesRepository->find($id);
         if (empty($invoice)) {
@@ -192,7 +192,7 @@ class SimInvoicesController extends AppBaseController
         return view('sim_invoices.edit', compact('invoice', 'vendors', 'sims'));
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $company_slug, $id)
     {
         try {
             $invoice = $this->simInvoicesRepository->find($id);
@@ -246,7 +246,7 @@ class SimInvoicesController extends AppBaseController
         }
     }
 
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         if (!auth()->user()->hasPermissionTo('sim_invoice_delete')) {
             abort(403, 'Unauthorized action.');
@@ -279,7 +279,7 @@ class SimInvoicesController extends AppBaseController
         return redirect(route('simInvoices.index'));
     }
 
-    public function clone(Request $request, $id)
+    public function clone(Request $request, $company_slug, $id)
     {
         try {
             $sourceInvoice = $this->simInvoicesRepository->find($id);
@@ -346,7 +346,7 @@ class SimInvoicesController extends AppBaseController
         }
     }
 
-    public function getSims($id)
+    public function getSims($company_slug, $id)
     {
         $vendor = Vendors::find($id);
         if (empty($vendor)) {
@@ -357,7 +357,7 @@ class SimInvoicesController extends AppBaseController
         return response()->json(['sims' => $sims]);
     }
 
-    public function createPaymentVoucher($id)
+    public function createPaymentVoucher($company_slug, $id)
     {
         if (!auth()->user()->hasPermissionTo('sim_invoice_payment_voucher')) {
             abort(403, 'Unauthorized action.');
@@ -380,7 +380,7 @@ class SimInvoicesController extends AppBaseController
         return view('sim_invoices.payment_voucher', compact('invoice', 'bankAccounts'));
     }
 
-    public function storePaymentVoucher(Request $request, $id)
+    public function storePaymentVoucher(Request $request, $company_slug, $id)
     {
         if (!auth()->user()->hasPermissionTo('sim_invoice_payment_voucher')) {
             abort(403, 'Unauthorized action.');

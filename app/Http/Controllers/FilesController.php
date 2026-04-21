@@ -84,7 +84,7 @@ class FilesController extends AppBaseController
   /**
    * Display the specified Files.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $files = $this->filesRepository->find($id);
 
@@ -100,7 +100,7 @@ class FilesController extends AppBaseController
   /**
    * Show the form for editing the specified Files.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $files = $this->filesRepository->find($id);
 
@@ -116,7 +116,7 @@ class FilesController extends AppBaseController
   /**
    * Update the specified Files in storage.
    */
-  public function update($id, UpdateFilesRequest $request)
+  public function update($company_slug, $id, UpdateFilesRequest $request)
   {
     $files = $this->filesRepository->find($id);
 
@@ -138,7 +138,7 @@ class FilesController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $files = $this->filesRepository->find($id);
     if (file_exists(storage_path('app/' . $files->type . '/' . $files->type_id . '/' . $files->file_name))) {

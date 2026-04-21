@@ -159,7 +159,7 @@ class VatController extends Controller
     /**
      * Show a single VAT return with its entries (both accounts) and option to make payment.
      */
-    public function returnsShow(VatReturn $vat_return)
+    public function returnsShow($company_slug, VatReturn $vat_return)
     {
         if (!auth()->user()->hasPermissionTo('gn_ledger')) {
             abort(403, 'Unauthorized action.');
@@ -382,7 +382,7 @@ class VatController extends Controller
     /**
      * Toggle VAT return status between paid and unpaid.
      */
-    public function updateReturnStatus(Request $request, VatReturn $vat_return)
+    public function updateReturnStatus(Request $request, $company_slug, VatReturn $vat_return)
     {
         if (!auth()->user()->hasPermissionTo('gn_ledger')) {
             abort(403, 'Unauthorized action.');
@@ -397,7 +397,7 @@ class VatController extends Controller
     /**
      * Remove selected entries from this return. Removed entries will show again in the VAT ledger.
      */
-    public function deleteReturnEntries(Request $request, VatReturn $vat_return)
+    public function deleteReturnEntries(Request $request, $company_slug, VatReturn $vat_return)
     {
         if (!auth()->user()->hasPermissionTo('gn_ledger')) {
             abort(403, 'Unauthorized action.');
@@ -557,7 +557,7 @@ class VatController extends Controller
      * Delete a VAT return and its entries. Transactions will show again in the VAT ledger.
      * When the return is unpaid, the associated VV voucher (ref_id + voucher_type) is also deleted.
      */
-    public function destroyReturn(VatReturn $vat_return)
+    public function destroyReturn($company_slug, VatReturn $vat_return)
     {
         if (!auth()->user()->hasPermissionTo('gn_ledger')) {
             abort(403, 'Unauthorized action.');

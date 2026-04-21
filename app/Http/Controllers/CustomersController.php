@@ -132,7 +132,7 @@ class CustomersController extends AppBaseController
   /**
    * Display the specified Customers.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $customers = $this->customersRepository->find($id);
 
@@ -148,7 +148,7 @@ class CustomersController extends AppBaseController
   /**
    * Show the form for editing the specified Customers.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $customers = $this->customersRepository->find($id);
 
@@ -164,7 +164,7 @@ class CustomersController extends AppBaseController
   /**
    * Update the specified Customers in storage.
    */
-  public function update($id, UpdateCustomersRequest $request)
+  public function update($company_slug, $id, UpdateCustomersRequest $request)
   {
     $customers = $this->customersRepository->find($id);
 
@@ -187,7 +187,7 @@ class CustomersController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $customers = $this->customersRepository->find($id);
 
@@ -250,7 +250,7 @@ class CustomersController extends AppBaseController
     return redirect(route('customers.index'));
   }
 
-  public function ledger($id, LedgerDataTable $ledgerDataTable)
+  public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
   {
     $customer = Customers::find($id);
     if(!$customer){
@@ -269,7 +269,7 @@ class CustomersController extends AppBaseController
     return $ledgerDataTable->with(['account_id' => $account_id])->render('customers.customer_ledger', compact('customer','details'));
   }
 
-  public function files($id, FilesDataTable $filesDataTable)
+  public function files($company_slug, $id, FilesDataTable $filesDataTable)
   {
     $customer = Customers::find($id);
     if(!$customer){
@@ -281,7 +281,7 @@ class CustomersController extends AppBaseController
     return view('customers.document', compact('files','details','customer'));
   }
 
-  public function payments(Request $request, $id)
+  public function payments(Request $request, $company_slug, $id)
   {
     $customer = Customers::find($id);
 
@@ -300,7 +300,7 @@ class CustomersController extends AppBaseController
     return view('customers.payments', compact('data', 'customer','details'));
   }
 
-  public function receipts(Request $request, $id)
+  public function receipts(Request $request, $company_slug, $id)
   {
     $customer = Customers::find($id);
 
@@ -329,7 +329,7 @@ class CustomersController extends AppBaseController
 
   }
 
-  public function invoices(Request $request, $id){
+  public function invoices(Request $request, $company_slug, $id){
     $customer = Customers::find($id);
     if(!$customer){
       Flash::error('customer not found');

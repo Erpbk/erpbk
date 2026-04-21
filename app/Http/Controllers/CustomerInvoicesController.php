@@ -203,7 +203,7 @@ class CustomerInvoicesController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Request $request, $id)
+    public function show(Request $request, $company_slug, $id)
     {
         $invoice = CustomerInvoices::find($id);
         if(!$invoice){
@@ -221,14 +221,14 @@ class CustomerInvoicesController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         $invoice = CustomerInvoices::find($id);
         $invoice->load('items');
         return view('customer_invoices.edit', compact('invoice'));
     }
 
-    public function clone($id)
+    public function clone($company_slug, $id)
     {
         $invoice = CustomerInvoices::find($id);
         $invoice->load('items');
@@ -238,7 +238,7 @@ class CustomerInvoicesController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $company_slug, $id)
     {
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
@@ -402,7 +402,7 @@ class CustomerInvoicesController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, $company_slug, $id)
     {
         try {
             DB::beginTransaction();

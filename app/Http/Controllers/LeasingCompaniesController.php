@@ -138,7 +138,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Display the specified LeasingCompanies.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $leasingCompanies = $this->leasingCompaniesRepository->find($id);
 
@@ -154,7 +154,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Show the form for editing the specified LeasingCompanies.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $leasingCompanies = $this->leasingCompaniesRepository->find($id);
 
@@ -170,7 +170,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Update the specified LeasingCompanies in storage.
    */
-  public function update($id, UpdateLeasingCompaniesRequest $request)
+  public function update($company_slug, $id, UpdateLeasingCompaniesRequest $request)
   {
     $leasingCompanies = $this->leasingCompaniesRepository->find($id);
 
@@ -193,7 +193,7 @@ class LeasingCompaniesController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $leasingCompanies = $this->leasingCompaniesRepository->find($id);
 
@@ -339,7 +339,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Show the form for creating a new invoice for a leasing company.
    */
-  public function createInvoice($id = null)
+  public function createInvoice($company_slug, $id = null)
   {
     // If ID is provided, use it; otherwise get from request
     $leasingCompanyId = $id ?? request('leasing_company_id');
@@ -378,7 +378,7 @@ class LeasingCompaniesController extends AppBaseController
    * Opens the same modal as Create; bikes from previous month are pre-selected.
    * Inactive/returned bikes are highlighted in red and must be removed before saving.
    */
-  public function createFromClone($id)
+  public function createFromClone($company_slug, $id)
   {
     $sourceInvoice = $this->leasingCompanyInvoicesRepository->find($id);
     if (empty($sourceInvoice)) {
@@ -481,7 +481,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Store a newly created invoice in storage.
    */
-  public function storeInvoice(Request $request, $id = null)
+  public function storeInvoice(Request $request, $company_slug, $id = null)
   {
     try {
       $leasingCompanyId = $id ?? $request->leasing_company_id;
@@ -619,7 +619,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Display the specified invoice.
    */
-  public function showInvoice($id)
+  public function showInvoice($company_slug, $id)
   {
     $invoice = $this->leasingCompanyInvoicesRepository->find($id);
 
@@ -634,7 +634,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Show the form for editing the specified invoice.
    */
-  public function editInvoice($id)
+  public function editInvoice($company_slug, $id)
   {
     $invoice = $this->leasingCompanyInvoicesRepository->find($id);
 
@@ -667,7 +667,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Update the specified invoice in storage.
    */
-  public function updateInvoice(Request $request, $id)
+  public function updateInvoice(Request $request, $company_slug, $id)
   {
     try {
       $invoice = $this->leasingCompanyInvoicesRepository->find($id);
@@ -731,7 +731,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Remove the specified invoice from storage.
    */
-  public function destroyInvoice($id)
+  public function destroyInvoice($company_slug, $id)
   {
     if (!auth()->user()->hasPermissionTo('leasing_company_invoice_delete')) {
       abort(403, 'Unauthorized action.');
@@ -780,7 +780,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Clone invoice to next month.
    */
-  public function cloneInvoice(Request $request, $id)
+  public function cloneInvoice(Request $request, $company_slug, $id)
   {
     try {
       $sourceInvoice = $this->leasingCompanyInvoicesRepository->find($id);
@@ -883,7 +883,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Get active bikes for a leasing company (AJAX endpoint).
    */
-  public function getBikes($id)
+  public function getBikes($company_slug, $id)
   {
     $leasingCompany = $this->leasingCompaniesRepository->find($id);
 
@@ -906,7 +906,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Display receipts for a leasing company.
    */
-  public function receipts(Request $request, $id)
+  public function receipts(Request $request, $company_slug, $id)
   {
     $leasingCompany = $this->leasingCompaniesRepository->find($id);
 
@@ -942,7 +942,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Display payments for a leasing company.
    */
-  public function payments(Request $request, $id)
+  public function payments(Request $request, $company_slug, $id)
   {
     $leasingCompany = $this->leasingCompaniesRepository->find($id);
 
@@ -979,7 +979,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Display files/documents for a leasing company.
    */
-  public function files($id)
+  public function files($company_slug, $id)
   {
     $leasingCompany = $this->leasingCompaniesRepository->find($id);
 
@@ -996,7 +996,7 @@ class LeasingCompaniesController extends AppBaseController
   /**
    * Display ledger for a leasing company.
    */
-  public function ledger($id, LedgerDataTable $ledgerDataTable)
+  public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
   {
     $leasingCompany = $this->leasingCompaniesRepository->find($id);
 

@@ -149,20 +149,10 @@ window.supplier_getTotal = function () {
   let grandTotal = 0;
 
   $('#row-container .item-row').each(function () {
-    const qty = parseFloat($(this).find('.quantity').val()) || 0;
-    const rate = parseFloat($(this).find('.rate').val()) || 0;
-    const vat = parseFloat($(this).find('.vat').val()) || 0;
-
-    const lineSubtotal = qty * rate;
-    const lineVat = lineSubtotal * (vat / 100);
-    const lineTotal = lineSubtotal + lineVat;
-
-    $(this).find('.vatAmount').val(lineVat.toFixed(2));
-    $(this).find('.item-total').val(lineTotal.toFixed(2));
-
-    subtotal += lineSubtotal;
-    vatTotal += lineVat;
-    grandTotal += lineTotal;
+    const rowData = supplier_calculate_price(this, true);
+    subtotal += rowData.lineSubtotal;
+    vatTotal += rowData.lineVat;
+    grandTotal += rowData.lineTotal;
   });
 
   $('#subtotal').val(subtotal.toFixed(2));
@@ -170,19 +160,29 @@ window.supplier_getTotal = function () {
   $('#total_cost').val(grandTotal.toFixed(2));
 };
 
-window.supplier_calculate_price = function (el) {
+window.supplier_calculate_price = function (el, skipTotal) {
   const row = $(el).closest('.item-row');
-  const qty = parseFloat(row.find('.quantity').val()) || 0;
+  let qty = row.find('.quantity').val();
   const rate = parseFloat(row.find('.rate').val()) || 0;
   const vat = parseFloat(row.find('.vat').val()) || 0;
 
-  const lineSubtotal = qty * rate;
-  const lineVat = lineSubtotal * (vat / 100);
-  const lineTotal = lineSubtotal + lineVat;
+  if (qty === '') {
+    qty = 1;
+    row.find('.quantity').val(qty);
+  }
+  qty = parseFloat(qty) || 0;
+
+  const lineSubtotal = Math.round((qty * rate) * 100) / 100;
+  const lineVat = Math.round((lineSubtotal * (vat / 100)) * 100) / 100;
+  const lineTotal = Math.round((lineSubtotal + lineVat) * 100) / 100;
 
   row.find('.vatAmount').val(lineVat.toFixed(2));
-  row.find('.item-total').val(lineTotal.toFixed(2));
-  supplier_getTotal();
+  row.find('.item-total').val(lineTotal.toFixed(2)).attr('data-numeric-value', lineTotal.toFixed(2));
+  if (!skipTotal) {
+    supplier_getTotal();
+  }
+
+  return { lineSubtotal, lineVat, lineTotal };
 };
 
 window.supplier_item_price = function (el) {
@@ -263,5 +263,83 @@ $(document).ready(function () {
         $('.remove-row').hide();
       }
       supplier_getTotal();
+    });
+
+  // Add row (clone first row so options/markup stay consistent with blade)
+  $('#add-row')
+    .off('click.supplier-add')
+    .on('click.supplier-add', function () {
+      const $firstRow = $('#row-container .item-row:first');
+      if ($firstRow.length === 0) return;
+
+      const $newRow = $firstRow.clone();
+      $newRow.find('.item-select').val('');
+      $newRow.find('.quantity').val(1);
+      $newRow.find('.rate').val(0);
+      $newRow.find('.vat').val(0);
+      $newRow.find('.vatAmount').val(0);
+      $newRow.find('.item-total').val('');
+      $newRow.find('.remove-row').show();
+
+      // Reset previous select2 wrapper and re-init
+      $newRow.find('.select2').removeClass('select2-hidden-accessible').next('.select2').remove();
+      $('#row-container').append($newRow);
+
+      if ($.fn.select2) {
+        $newRow.find('.select2').select2({
+          allowClear: true,
+          width: '100%',
+          dropdownParent: $modalBody.length ? $modalBody : $('body'),
+        });
+      }
+
+      supplier_getTotal();
+    });
+
+  // Supplier invoice form validation
+  $('#formajax')
+    .off('submit.supplier-validate')
+    .on('submit.supplier-validate', function (e) {
+      let isValid = true;
+
+      if ($('#row-container .item-row').length === 0) {
+        alert('Please add at least one item to the invoice.');
+        e.preventDefault();
+        return false;
+      }
+
+      if (!$('#customer_id').val()) {
+        alert('Please select a Supplier.');
+        e.preventDefault();
+        return false;
+      }
+
+      $('#row-container .item-row').each(function (index) {
+        const itemSelect = $(this).find('.item-select').val();
+        const quantity = parseFloat($(this).find('.quantity').val()) || 0;
+        const rate = parseFloat($(this).find('.rate').val()) || 0;
+
+        if (!itemSelect) {
+          alert('Item ' + (index + 1) + ': Please select an item.');
+          isValid = false;
+          return false;
+        }
+        if (quantity <= 0) {
+          alert('Item ' + (index + 1) + ': Please enter a valid quantity.');
+          isValid = false;
+          return false;
+        }
+        if (rate <= 0) {
+          alert('Item ' + (index + 1) + ': Please enter a valid rate.');
+          isValid = false;
+          return false;
+        }
+      });
+
+      if (!isValid) {
+        e.preventDefault();
+        return false;
+      }
+      return true;
     });
 });

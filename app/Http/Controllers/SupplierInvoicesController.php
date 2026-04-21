@@ -218,7 +218,7 @@ class SupplierInvoicesController extends AppBaseController
     {
         $supplierInvoice = $this->supplierInvoicesRepository->find($id);
 
-        if (empty($supplierInvoices)) {
+        if (empty($supplierInvoice)) {
             Flash::error('Supplier Invoice not found');
             return redirect(route('supplierInvoices.index'));
         }

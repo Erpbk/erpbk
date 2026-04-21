@@ -1,5 +1,3 @@
-<script src="{{ asset('js/modal_custom.js') }}"></script>
-
 <div class="alert alert-warning"> Select <b>'All'</b> option in Branch list if this account will be used by all or multiple branches</div>
 
 <!-- Account Type Field -->
@@ -119,3 +117,14 @@ $name = 'custom_field_values[' . $field->id . ']';
   <input class="form-check-input" type="checkbox" id="flexSwitchCheckDefault">
   <label class="form-check-label" for="flexSwitchCheckDefault">Default switch checkbox input</label>
 </div> --}}
+
+<script>
+  (function () {
+    if (window.jQuery && $.fn.select2) {
+      $('#modalTopbody .select2').select2({
+        dropdownParent: $('#modalTop'),
+        allowClear: true
+      });
+    }
+  })();
+</script>

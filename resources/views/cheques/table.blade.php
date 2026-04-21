@@ -40,7 +40,7 @@
             <td>
                 @if($cheque->type == 'payable')
 
-                    <a href="{{ route('accounts.ledger', ['account' => $cheque->payee_account])}}" target="_blank">
+                    <a href="{{ route('accounts.ledger', ['company_slug' => \App\Support\CompanyRouteContext::slug()]) }}?account={{ $cheque->payee_account }}" target="_blank">
                         {{ $cheque->payee_name ?? '-' }}
                     </a>
                 @else
@@ -49,7 +49,7 @@
                             {{ $cheque->payer_name ?? '-' }}
                         </a>
                     @else
-                        <a href="{{ route('accounts.ledger', ['account' => $cheque->payer_account])}}" target="_blank">
+                        <a href="{{ route('accounts.ledger', ['company_slug' => \App\Support\CompanyRouteContext::slug()]) }}?account={{ $cheque->payer_account }}" target="_blank">
                             {{ $cheque->payer_name ?? '-' }}
                         </a>
                     @endif

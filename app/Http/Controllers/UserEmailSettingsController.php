@@ -77,7 +77,7 @@ class UserEmailSettingsController extends Controller
       ];
     }
     if (!empty($rows)) {
-      \App\Support\CompanyQuery::table('user_email_cc_recipients')->insert($rows);
+      \App\Support\CompanyQuery::insert('user_email_cc_recipients', $rows);
     }
 
     Flash::success('Email settings saved.');

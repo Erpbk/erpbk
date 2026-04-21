@@ -48,8 +48,8 @@ return [
             'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
-            // Central app DB (companies, OTP, etc.). Tenant DBs are separate; use DB_DATABASE_PREFIX for naming.
-            'database' => env('CENTRAL_DB_DATABASE', env('DB_DATABASE', 'forge')),
+            // Single shared application database.
+            'database' => env('DB_DATABASE', 'forge'),
             'username' => env('DB_USERNAME', 'forge'),
             'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
@@ -64,16 +64,13 @@ return [
             ]) : [],
         ],
 
-        /*
-        | Central database: companies, subscriptions, admin notifications.
-        | Uses same credentials as default; use this connection for global/central models.
-        */
+        // Backward-compatible alias for legacy central-DB references.
         'mysql_central' => [
             'driver' => 'mysql',
             'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
-            'database' => env('CENTRAL_DB_DATABASE', env('DB_DATABASE', 'forge')),
+            'database' => env('DB_DATABASE', 'forge'),
             'username' => env('DB_USERNAME', 'forge'),
             'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
@@ -88,12 +85,7 @@ return [
             ]) : [],
         ],
 
-        /*
-         | Admin panel database (separate from tenant databases)
-         |
-         | Stores admin-only content (blogs, testimonials, policies) and a
-         | mirrored company list for the admin UI.
-         */
+        // Admin database (separate from company/application database).
         'mysql_admin' => [
             'driver' => 'mysql',
             'url' => env('ADMIN_DATABASE_URL'),

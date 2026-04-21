@@ -10,14 +10,14 @@ return new class extends Migration
 
     public function up(): void
     {
-        Schema::connection('mysql_admin')->table('admin_companies', function (Blueprint $table) {
+        Schema::table('admin_companies', function (Blueprint $table) {
             $table->json('modules_settings')->nullable()->after('secondary_color');
         });
     }
 
     public function down(): void
     {
-        Schema::connection('mysql_admin')->table('admin_companies', function (Blueprint $table) {
+        Schema::table('admin_companies', function (Blueprint $table) {
             $table->dropColumn('modules_settings');
         });
     }

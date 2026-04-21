@@ -638,7 +638,7 @@ class VouchersController extends Controller
 
     // Only insert a new ledger entry if there are still transactions for this month
     if ($monthTransactions->count() > 0) {
-      \App\Support\CompanyQuery::table('ledger_entries')->insert([
+      \App\Support\CompanyQuery::insert('ledger_entries', [
         'account_id'      => $accountId,
         'billing_month'   => $billingMonth,
         'opening_balance' => $openingBalance,

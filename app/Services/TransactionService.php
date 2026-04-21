@@ -38,7 +38,7 @@ class TransactionService
       if (Schema::hasColumn('transactions', 'deleted_at')) {
         $row['deleted_at'] = null;
       }
-      $id = \App\Support\CompanyQuery::table('transactions')->insertGetId($row);
+      $id = \App\Support\CompanyQuery::insertGetId('transactions', $row);
 
       Log::info('Transaction recorded successfully: ' . $id);
       return $id;
@@ -211,7 +211,7 @@ class TransactionService
         $closingBalance = $openingBalance - $amount;
       }
 
-      \App\Support\CompanyQuery::table('ledger_entries')->insert([
+      \App\Support\CompanyQuery::insert('ledger_entries', [
         'account_id' => $accountId,
         'billing_month' => $billingMonth,
         'opening_balance' => $openingBalance,

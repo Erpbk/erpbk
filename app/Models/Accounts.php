@@ -13,6 +13,16 @@ class Accounts extends BaseModel
 {
   use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
 
+  protected static function booted(): void
+  {
+    static::saving(function (self $account): void {
+      // Parent/root accounts are shared globally for all companies.
+      if (empty($account->parent_id) || (int) $account->parent_id === 0) {
+        $account->company_id = null;
+      }
+    });
+  }
+
   public $table = 'accounts';
 
   public $fillable = [

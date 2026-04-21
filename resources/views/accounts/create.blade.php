@@ -1,6 +1,6 @@
+@php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
 
-
-            {!! Form::open(['route' => 'accounts.store','id'=>'formajax']) !!}
+            {!! Form::open(['route' => ['accounts.store', ['company_slug' => $__companySlug]], 'id'=>'formajax']) !!}
             <input type="hidden" id="reload_page" value="1"/>
             <div class="card-body">
 

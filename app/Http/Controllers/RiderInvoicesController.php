@@ -322,7 +322,7 @@ class RiderInvoicesController extends AppBaseController
 
     // Only insert a new ledger entry if there are still transactions for this month
     if ($monthTransactions->count() > 0) {
-      \App\Support\CompanyQuery::table('ledger_entries')->insert([
+      \App\Support\CompanyQuery::insert('ledger_entries', [
         'account_id'      => $accountId,
         'billing_month'   => $billingMonth,
         'opening_balance' => $openingBalance,
@@ -673,7 +673,7 @@ class RiderInvoicesController extends AppBaseController
       'remarks' => "Manual payment for Rider Invoice #" . $invoice->id,
     ];
 
-    \App\Support\CompanyQuery::table('vouchers')->insert($voucherData);
+    \App\Support\CompanyQuery::insert('vouchers', $voucherData);
   }
 
   public function sendEmail($company_slug, $id, Request $request)

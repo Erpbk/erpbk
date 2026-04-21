@@ -50,7 +50,7 @@ class AdminCompaniesController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:mysql_central.companies,email',
+            'email' => 'required|email|max:255|unique:companies,email',
             'phone' => 'required|string|max:50',
             'country_id' => 'required|exists:countries,id',
             'city' => 'required|string|max:255',

@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Accounts;
 use App\Repositories\BaseRepository;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class AccountsRepository extends BaseRepository
 {
@@ -23,5 +24,33 @@ class AccountsRepository extends BaseRepository
     public function model(): string
     {
         return Accounts::class;
+    }
+
+    /**
+     * Update account even when company/branch global scopes hide the row (after controller authorizes access).
+     */
+    public function update(array $input, $id)
+    {
+        $model = $this->model->newQuery()->find($id);
+        if (!$model) {
+            $model = $this->model->newQuery()->withoutGlobalScopes(['company', 'branch'])->find($id);
+        }
+        if (!$model) {
+            throw (new ModelNotFoundException())->setModel($this->model(), [$id]);
+        }
+
+        $input = $this->applyCompanyIdToPayload($input, false);
+        $model->fill($input);
+
+        if ($this->modelHasCompanyId() && empty($model->company_id)) {
+            $companyId = $this->resolveCurrentCompanyId();
+            if ($companyId !== null) {
+                $model->company_id = $companyId;
+            }
+        }
+
+        $model->save();
+
+        return $model;
     }
 }

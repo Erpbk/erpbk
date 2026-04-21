@@ -407,7 +407,7 @@ class RtaFinesController extends AppBaseController
                     $closing_balance = $opening_balance;
                 }
 
-                \App\Support\CompanyQuery::table('ledger_entries')->insert([
+                \App\Support\CompanyQuery::insert('ledger_entries', [
                     'account_id'      => $request->account,
                     'billing_month'   => $billingMonth,
                     'opening_balance' => $opening_balance,
@@ -606,7 +606,7 @@ class RtaFinesController extends AppBaseController
             $debit_amount = $rtaFines->amount; // Only amount (admin + service + fine), not including VAT
             $closing_balance = $opening_balance + $debit_amount;
 
-            \App\Support\CompanyQuery::table('ledger_entries')->insert([
+            \App\Support\CompanyQuery::insert('ledger_entries', [
                 'account_id'      => $rider_account->id,
                 'billing_month'   => $billingMonth,
                 'opening_balance' => $opening_balance,
@@ -938,7 +938,7 @@ class RtaFinesController extends AppBaseController
             $debit_amount    = $rtaFines->total_amount;
             $closing_balance = $opening_balance + $debit_amount;
 
-            \App\Support\CompanyQuery::table('ledger_entries')->insert([
+            \App\Support\CompanyQuery::insert('ledger_entries', [
                 'account_id'      => $rider_account->id,
                 'billing_month'   => $billingMonth,
                 'opening_balance' => $opening_balance,
@@ -1196,7 +1196,7 @@ class RtaFinesController extends AppBaseController
 
         // Only insert a new ledger entry if there are still transactions for this month
         if ($monthTransactions->count() > 0) {
-            \App\Support\CompanyQuery::table('ledger_entries')->insert([
+            \App\Support\CompanyQuery::insert('ledger_entries', [
                 'account_id'      => $accountId,
                 'billing_month'   => $billingMonth,
                 'opening_balance' => $openingBalance,

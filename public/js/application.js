@@ -220,13 +220,14 @@ window.supplier_item_price = function (el) {
 };
 
 // Auto-bind supplier invoice events when form exists
-$(document).ready(function () {
-  if ($('#row-container').length === 0) return;
+window.initSupplierInvoiceForm = function (rootContext) {
+  const $root = rootContext ? $(rootContext) : $(document);
+  if ($root.find('#row-container').length === 0) return;
 
   // Select2 init (safe for modal + normal pages)
   const $modalBody = $('#formajax').closest('.modal-body').length ? $('#formajax').closest('.modal-body') : $('#modalTopbody');
   if ($.fn.select2) {
-    $('.select2').each(function () {
+    $root.find('.select2').each(function () {
       if (!$(this).hasClass('select2-hidden-accessible')) {
         $(this).select2({
           allowClear: true,
@@ -238,6 +239,11 @@ $(document).ready(function () {
   }
 
   supplier_getTotal();
+  if ($('#row-container .item-row').length === 1) {
+    $('.remove-row').hide();
+  } else {
+    $('.remove-row').show();
+  }
 
   $(document)
     .off('change.supplier-item select2:select.supplier-item', '.item-select')
@@ -342,4 +348,8 @@ $(document).ready(function () {
       }
       return true;
     });
+};
+
+$(document).ready(function () {
+  initSupplierInvoiceForm(document);
 });

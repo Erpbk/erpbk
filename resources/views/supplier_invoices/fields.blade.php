@@ -1,377 +1,352 @@
+<div class="row">
+    <input type="hidden" name="type" value="{{ $type }}">
+    {{-- Company Information (Read-only) --}}
+    <div class="form-group col-md-3">
+        {!! Form::label('company_info', 'Supplier') !!}
+        <select class="form-control select2" id="customer_id" name="supplier_id" required>
+            <option value="" selected>Select</option>
+            @foreach($suppliers as $supplier)
+            <option value="{{ $supplier->id }}" {{ isset($invoice) ? $invoice->supplier_id == $supplier->id ? 'selected' : '' : '' }} {{ isset($supplier_id) ? $supplier_id == $supplier->id ? 'selected' : '' : '' }}>
+                {{ $supplier->name }}
+            </option>
+            @endforeach
+        </select>
+    </div>
+    @if($type=='invoice')
+    {{-- Invoice Date --}}
+    <div class="form-group col-md-2">
+        {!! Form::label('inv_date', 'Invoice Date') !!}
+        {!! Form::date('inv_date', isset($invoice)? $invoice->inv_date?->format('Y-m-d') ?? null :null, ['class' => 'form-control', 'required' => true]) !!}
+    </div>
+    @else
+    {{-- Order Date --}}
+    <div class="form-group col-md-2">
+        {!! Form::label('inv_date', 'Order Date') !!}
+        {!! Form::date('order_date', isset($invoice)? $invoice->order_date?->format('Y-m-d') ?? '' :null, ['class' => 'form-control', 'required' => true]) !!}
+    </div>
+    @endif
+    @if($type=='invoice')
+    {{-- Billing Month --}}
+    <div class="form-group col-md-2">
+        {!! Form::label('billing_month', 'Billing Month') !!}
+        {!! Form::month('billing_month', isset($invoice)? $invoice->billing_month?->format('Y-m') ?? null :null, ['class' => 'form-control', 'required' => true]) !!}
+    </div>
+    {{-- Attachment --}}
+    <div class="form-group col-md-3">
+        {!! Form::label('attachment', 'Attachment') !!}
+        {!! Form::file('attachment', [
+        'class' => 'form-control',
+        'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx'
+        ]) !!}
+        <small class="text-muted">Max: 5MB</small>
+    </div>
+    @endif
+</div>
 
-            <div class="row">
-                <input type="hidden" name="type" value="{{ $type }}">
-                {{-- Company Information (Read-only) --}}
-                <div class="form-group col-md-3">
-                    {!! Form::label('company_info', 'Supplier') !!}
-                    <select class="form-control select2" id="customer_id" name="supplier_id" required>
-                        <option value="" selected>Select</option>
-                        @foreach($suppliers as $supplier)
-                        <option value="{{ $supplier->id }}" {{ isset($invoice) ? $invoice->supplier_id == $supplier->id ? 'selected' : '' : '' }} {{ isset($supplier_id) ? $supplier_id == $supplier->id ? 'selected' : '' : '' }}>
-                            {{ $supplier->name }}
-                        </option>
-                        @endforeach
-                    </select>
-                </div>
-                @if($type=='invoice')
-                    {{-- Invoice Date --}}
-                    <div class="form-group col-md-2">
-                        {!! Form::label('inv_date', 'Invoice Date') !!}
-                        {!! Form::date('inv_date', isset($invoice)? $invoice->inv_date?->format('Y-m-d') ?? null :null, ['class' => 'form-control', 'required' => true]) !!}
-                    </div>
-                @else
-                    {{-- Order Date --}}
-                    <div class="form-group col-md-2">
-                        {!! Form::label('inv_date', 'Order Date') !!}
-                        {!! Form::date('order_date', isset($invoice)? $invoice->order_date?->format('Y-m-d') ?? '' :null, ['class' => 'form-control', 'required' => true]) !!}
-                    </div>
-                @endif
-                @if($type=='invoice')
-                {{-- Billing Month --}}
-                <div class="form-group col-md-2">
-                    {!! Form::label('billing_month', 'Billing Month') !!}
-                    {!! Form::month('billing_month', isset($invoice)? $invoice->billing_month?->format('Y-m') ?? null :null, ['class' => 'form-control', 'required' => true]) !!}
-                </div>
-                {{-- Attachment --}}
-                <div class="form-group col-md-3">
-                    {!! Form::label('attachment', 'Attachment') !!}
-                    {!! Form::file('attachment', [
-                        'class' => 'form-control',
-                        'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx'
-                    ]) !!}
-                    <small class="text-muted">Max: 5MB</small>
-                </div>
-                @endif
-            </div>
-            
-            <div class="row">
-                {{-- Description --}}
-                <div class="form-group col-md-6">
-                    {!! Form::label('descriptions', 'Description') !!}
-                    {!! Form::textarea('descriptions', null, [
-                        'class' => 'form-control',
-                        'rows' => 3,
-                        'placeholder' => 'Enter invoice description...'
-                    ]) !!}
-                </div>
+<div class="row">
+    {{-- Description --}}
+    <div class="form-group col-md-6">
+        {!! Form::label('descriptions', 'Description') !!}
+        {!! Form::textarea('descriptions', null, [
+        'class' => 'form-control',
+        'rows' => 3,
+        'placeholder' => 'Enter invoice description...'
+        ]) !!}
+    </div>
 
-                {{-- Notes --}}
-                <div class="form-group col-md-6">
-                    {!! Form::label('notes', 'Notes') !!}
-                    {!! Form::textarea('notes', null, [
-                        'class' => 'form-control',
-                        'rows' => 3,
-                        'placeholder' => 'Additional notes or payment instructions...'
-                    ]) !!}
-                </div>
+    {{-- Notes --}}
+    <div class="form-group col-md-6">
+        {!! Form::label('notes', 'Notes') !!}
+        {!! Form::textarea('notes', null, [
+        'class' => 'form-control',
+        'rows' => 3,
+        'placeholder' => 'Additional notes or payment instructions...'
+        ]) !!}
+    </div>
+</div>
+@php
+$items = \App\Models\Items::where('status', 1)->get();
+@endphp
+{{-- Invoice Items Section --}}
+<h5 class="my-3">Invoice Items</h5>
+<div class="scrollbar p-2 border rounded">
+    <div id="row-container">
+        @if(isset($invoice))
+        @foreach($invoice->items as $index => $itm)
+        @if($index == 0)
+        <div class="row mb-2 item-row">
+            <div class="form-group col-md-3">
+                {!! Form::label('item', 'Item') !!}
+                <select name="item_ids[]" class="form-control select2 item-select" required>
+                    <option value="">Select Item</option>
+                    @foreach($items as $item)
+                    <option value="{{ $item->id }}"
+                        data-price="{{ $item->price ?? 0 }}"
+                        data-vat="{{ $item->vat ?? 0 }}"
+                        data-name="{{ $item->name }}"
+                        {{ $itm->item_id == $item->id ? 'selected' : '' }}>
+                        {{ $item->name }}
+                    </option>
+                    @endforeach
+                </select>
             </div>
-            @php
-                $items = \App\Models\Items::where('status', 1)->get();
-            @endphp
-            {{-- Invoice Items Section --}}
-            <h5 class="my-3">Invoice Items</h5>
-            <div class="scrollbar p-2 border rounded">
-                <div id="row-container">
-                    @if(isset($invoice))
-                        @foreach($invoice->items as $index =>  $itm)
-                            @if($index == 0)
-                            <div class="row mb-2 item-row">
-                            <div class="form-group col-md-3">
-                                {!! Form::label('item', 'Item') !!}
-                                <select name="item_ids[]" class="form-control select2 item-select" required>
-                                    <option value="">Select Item</option>
-                                    @foreach($items as $item)
-                                    <option value="{{ $item->id }}" 
-                                            data-price="{{ $item->price ?? 0 }}"
-                                            data-vat="{{ $item->vat ?? 0 }}"
-                                            data-name="{{ $item->name }}"
-                                            {{ $itm->item_id == $item->id ? 'selected' : '' }}>
-                                        {{ $item->name }}
-                                    </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="form-group col-md-1">
-                                {!! Form::label('quantity', 'Qty') !!}
-                                {!! Form::number('item_qty[]', $itm->qty, [
-                                    'class' => 'form-control quantity',
-                                    'step' => 'any',
-                                    'min' => '0.01',
-                                    'required' => true
-                                ]) !!}
-                            </div>
-                            <div class="form-group col-md-2">
-                                {!! Form::label('rate', 'Rate') !!}
-                                {!! Form::number('item_rate[]', $itm->rate, [
-                                    'class' => 'form-control rate',
-                                    'step' => 'any',
-                                    'min' => '0',
-                                    'required' => true
-                                ]) !!}
-                            </div>
-                            <div class="form-group col-md-1">
-                                {!! Form::label('vat', 'VAT (%)') !!}
-                                {!! Form::number('item_vat[]', $itm->tax, [
-                                    'class' => 'form-control vat',
-                                    'step' => 'any',
-                                    'min' => '0',
-                                    'max' => '100'
-                                ]) !!}
-                            </div>
-                            <div class="form-group col-md-2">
-                                {!! Form::label('vat', 'VAT Amount') !!}
-                                {!! Form::number('item_vatAmount[]', $itm->tax_amount, [
-                                    'class' => 'form-control vatAmount',
-                                    'step' => 'any',
-                                    'min' => '0',
-                                'readonly' => true,
-                                ]) !!}
-                            </div>
-                            <div class="form-group col-md-2">
-                                {!! Form::label('total', 'Total Amount') !!}
-                                {!! Form::number('items_total[]', $itm->total_amount, [
-                                    'class' => 'form-control item-total',
-                                    'step' => 'any',
-                                    'readonly' => true
-                                ]) !!}
-                            </div>
-                            <div class="form-group col-md-1 d-flex align-items-end">
-                                <button type="button" class="btn btn-danger btn-sm remove-row" style="display: none;">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        @else
-                        <div class="row mb-2 item-row">
-                            <div class="form-group col-md-3">
-                                <select name="item_ids[]" class="form-control select2 item-select" required>
-                                    <option value="">Select Item</option>
-                                    @foreach($items as $item)
-                                    <option value="{{ $item->id }}" 
-                                            data-price="{{ $item->price ?? 0 }}"
-                                            data-vat="{{ $item->vat ?? 0 }}"
-                                            data-name="{{ $item->name }}"
-                                            {{ $itm->item_id === $item->id ? 'selected' : '' }}>
-                                        {{ $item->name }}
-                                    </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="form-group col-md-1">
-                                {!! Form::number('item_qty[]', $itm->qty, [
-                                    'class' => 'form-control quantity',
-                                    'step' => 'any',
-                                    'min' => '0.01',
-                                    'required' => true
-                                ]) !!}
-                            </div>
-                            <div class="form-group col-md-2">
-                                {!! Form::number('item_rate[]', $itm->rate, [
-                                    'class' => 'form-control rate',
-                                    'step' => 'any',
-                                    'min' => '0',
-                                    'required' => true
-                                ]) !!}
-                            </div>
-                            <div class="form-group col-md-1">
-                                {!! Form::number('item_vat[]', $itm->tax, [
-                                    'class' => 'form-control vat',
-                                    'step' => 'any',
-                                    'min' => '0',
-                                    'max' => '100'
-                                ]) !!}
-                            </div>
-                            <div class="form-group col-md-2">
-                                {!! Form::number('item_vatAmount[]', $itm->tax_amount, [
-                                    'class' => 'form-control vatAmount',
-                                    'step' => 'any',
-                                    'min' => '0',
-                                    'readonly' => true,
-                                ]) !!}
-                            </div>
-                            <div class="form-group col-md-2">
-                                {!! Form::number('items_total[]', $itm->total_amount, [
-                                    'class' => 'form-control item-total',
-                                    'step' => 'any',
-                                    'readonly' => true
-                                ]) !!}
-                            </div>
-                            <div class="form-group col-md-1 d-flex align-items-end">
-                                <button type="button" class="btn btn-danger btn-sm remove-row" style="display: none;">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        @endif
-                        @endforeach
-                    @else
-                    <div class="row mb-2 item-row">
-                        <div class="form-group col-md-3">
-                            {!! Form::label('item', 'Item') !!}
-                            <select name="item_ids[]" class="form-control select2 item-select" required>
-                                <option value="">Select Item</option>
-                                @foreach($items as $item)
-                                <option value="{{ $item->id }}" 
-                                        data-price="{{ $item->price ?? 0 }}"
-                                        data-vat="{{ $item->vat ?? 0 }}"
-                                        data-name="{{ $item->name }}">
-                                    {{ $item->name }}
-                                </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group col-md-1">
-                            {!! Form::label('quantity', 'Qty') !!}
-                            {!! Form::number('item_qty[]', 1, [
-                                'class' => 'form-control quantity',
-                                'step' => 'any',
-                                'min' => '0.01',
-                                'required' => true
-                            ]) !!}
-                        </div>
-                        <div class="form-group col-md-2">
-                            {!! Form::label('rate', 'Rate') !!}
-                            {!! Form::number('item_rate[]', 0, [
-                                'class' => 'form-control rate',
-                                'step' => 'any',
-                                'min' => '0',
-                                'required' => true
-                            ]) !!}
-                        </div>
-                        <div class="form-group col-md-1">
-                            {!! Form::label('vat', 'VAT (%)') !!}
-                            {!! Form::number('item_vat[]', 0, [
-                                'class' => 'form-control vat',
-                                'step' => 'any',
-                                'min' => '0',
-                                'max' => '100'
-                            ]) !!}
-                        </div>
-                        <div class="form-group col-md-2">
-                            {!! Form::label('vat', 'VAT Amount') !!}
-                            {!! Form::number('item_vatAmount[]', 0, [
-                                'class' => 'form-control vatAmount',
-                                'step' => 'any',
-                                'min' => '0',
-                                'readonly' => true,
-                            ]) !!}
-                        </div>
-                        <div class="form-group col-md-2">
-                            {!! Form::label('total', 'Total Amount') !!}
-                            {!! Form::number('items_total[]', null, [
-                                'class' => 'form-control item-total',
-                                'step' => 'any',
-                                'readonly' => true
-                            ]) !!}
-                        </div>
-                        <div class="form-group col-md-1 d-flex align-items-end">
-                            <button type="button" class="btn btn-danger btn-sm remove-row" style="display: none;">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                    @endif
-                </div>
+            <div class="form-group col-md-1">
+                {!! Form::label('quantity', 'Qty') !!}
+                {!! Form::number('item_qty[]', $itm->qty, [
+                'class' => 'form-control quantity',
+                'step' => 'any',
+                'min' => '0.01',
+                'required' => true
+                ]) !!}
             </div>
-
-            {{-- Buttons Section --}}
-            <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
-                <div>
-                    <button type="button" id="add-row" class="btn btn-success btn-sm">
-                        <i class="fas fa-plus"></i> Add Item
-                    </button>
-                </div>
-                <div class="d-flex align-items-center gap-3">
-                    <div class="input-group">
-                        <span class="input-group-text bg-light">Subtotal</span>
-                        <input type="number" name="subtotal" class="form-control" id="subtotal" readonly style="min-width: 150px;">
-                    </div>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light">VAT Amount</span>
-                        <input type="number" name="vat_total" class="form-control" id="vat_total" readonly style="min-width: 150px;">
-                    </div>
-                    <div class="input-group">
-                        <span class="input-group-text bg-primary text-white">Total</span>
-                        <input type="number" name="total" class="form-control" id="total_cost" readonly style="min-width: 150px; font-weight: bold;">
-                    </div>
-                </div>
+            <div class="form-group col-md-2">
+                {!! Form::label('rate', 'Rate') !!}
+                {!! Form::number('item_rate[]', $itm->rate, [
+                'class' => 'form-control rate',
+                'step' => 'any',
+                'min' => '0',
+                'required' => true
+                ]) !!}
+            </div>
+            <div class="form-group col-md-1">
+                {!! Form::label('vat', 'VAT (%)') !!}
+                {!! Form::number('item_vat[]', $itm->tax, [
+                'class' => 'form-control vat',
+                'step' => 'any',
+                'min' => '0',
+                'max' => '100'
+                ]) !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::label('vat', 'VAT Amount') !!}
+                {!! Form::number('item_vatAmount[]', $itm->tax_amount, [
+                'class' => 'form-control vatAmount',
+                'step' => 'any',
+                'min' => '0',
+                'readonly' => true,
+                ]) !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::label('total', 'Total Amount') !!}
+                {!! Form::number('items_total[]', $itm->total_amount, [
+                'class' => 'form-control item-total',
+                'step' => 'any',
+                'readonly' => true
+                ]) !!}
+            </div>
+            <div class="form-group col-md-1 d-flex align-items-end">
+                <button type="button" class="btn btn-danger btn-sm remove-row" style="display: none;">
+                    <i class="fas fa-trash"></i>
+                </button>
             </div>
         </div>
-
-        <div class="card-footer">
-            <div class="action-btn">
-                {!! Form::submit('Save Invoice', ['class' => 'btn btn-primary']) !!}
+        @else
+        <div class="row mb-2 item-row">
+            <div class="form-group col-md-3">
+                <select name="item_ids[]" class="form-control select2 item-select" required>
+                    <option value="">Select Item</option>
+                    @foreach($items as $item)
+                    <option value="{{ $item->id }}"
+                        data-price="{{ $item->price ?? 0 }}"
+                        data-vat="{{ $item->vat ?? 0 }}"
+                        data-name="{{ $item->name }}"
+                        {{ $itm->item_id === $item->id ? 'selected' : '' }}>
+                        {{ $item->name }}
+                    </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group col-md-1">
+                {!! Form::number('item_qty[]', $itm->qty, [
+                'class' => 'form-control quantity',
+                'step' => 'any',
+                'min' => '0.01',
+                'required' => true
+                ]) !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::number('item_rate[]', $itm->rate, [
+                'class' => 'form-control rate',
+                'step' => 'any',
+                'min' => '0',
+                'required' => true
+                ]) !!}
+            </div>
+            <div class="form-group col-md-1">
+                {!! Form::number('item_vat[]', $itm->tax, [
+                'class' => 'form-control vat',
+                'step' => 'any',
+                'min' => '0',
+                'max' => '100'
+                ]) !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::number('item_vatAmount[]', $itm->tax_amount, [
+                'class' => 'form-control vatAmount',
+                'step' => 'any',
+                'min' => '0',
+                'readonly' => true,
+                ]) !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::number('items_total[]', $itm->total_amount, [
+                'class' => 'form-control item-total',
+                'step' => 'any',
+                'readonly' => true
+                ]) !!}
+            </div>
+            <div class="form-group col-md-1 d-flex align-items-end">
+                <button type="button" class="btn btn-danger btn-sm remove-row" style="display: none;">
+                    <i class="fas fa-trash"></i>
+                </button>
             </div>
         </div>
+        @endif
+        @endforeach
+        @else
+        <div class="row mb-2 item-row">
+            <div class="form-group col-md-3">
+                {!! Form::label('item', 'Item') !!}
+                <select name="item_ids[]" class="form-control select2 item-select" required>
+                    <option value="">Select Item</option>
+                    @foreach($items as $item)
+                    <option value="{{ $item->id }}"
+                        data-price="{{ $item->price ?? 0 }}"
+                        data-vat="{{ $item->vat ?? 0 }}"
+                        data-name="{{ $item->name }}">
+                        {{ $item->name }}
+                    </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group col-md-1">
+                {!! Form::label('quantity', 'Qty') !!}
+                {!! Form::number('item_qty[]', 1, [
+                'class' => 'form-control quantity',
+                'step' => 'any',
+                'min' => '0.01',
+                'required' => true
+                ]) !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::label('rate', 'Rate') !!}
+                {!! Form::number('item_rate[]', 0, [
+                'class' => 'form-control rate',
+                'step' => 'any',
+                'min' => '0',
+                'required' => true
+                ]) !!}
+            </div>
+            <div class="form-group col-md-1">
+                {!! Form::label('vat', 'VAT (%)') !!}
+                {!! Form::number('item_vat[]', 0, [
+                'class' => 'form-control vat',
+                'step' => 'any',
+                'min' => '0',
+                'max' => '100'
+                ]) !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::label('vat', 'VAT Amount') !!}
+                {!! Form::number('item_vatAmount[]', 0, [
+                'class' => 'form-control vatAmount',
+                'step' => 'any',
+                'min' => '0',
+                'readonly' => true,
+                ]) !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::label('total', 'Total Amount') !!}
+                {!! Form::number('items_total[]', null, [
+                'class' => 'form-control item-total',
+                'step' => 'any',
+                'readonly' => true
+                ]) !!}
+            </div>
+            <div class="form-group col-md-1 d-flex align-items-end">
+                <button type="button" class="btn btn-danger btn-sm remove-row" style="display: none;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        @endif
+    </div>
+</div>
 
+{{-- Buttons Section --}}
+<div class="d-flex justify-content-between align-items-center gap-3 mt-3">
+    <div>
+        <button type="button" id="add-row" class="btn btn-success btn-sm">
+            <i class="fas fa-plus"></i> Add Item
+        </button>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+        <div class="input-group">
+            <span class="input-group-text bg-light">Subtotal</span>
+            <input type="number" name="subtotal" class="form-control" id="subtotal" readonly style="min-width: 150px;">
+        </div>
+        <div class="input-group">
+            <span class="input-group-text bg-light">VAT Amount</span>
+            <input type="number" name="vat_total" class="form-control" id="vat_total" readonly style="min-width: 150px;">
+        </div>
+        <div class="input-group">
+            <span class="input-group-text bg-primary text-white">Total</span>
+            <input type="number" name="total" class="form-control" id="total_cost" readonly style="min-width: 150px; font-weight: bold;">
+        </div>
+    </div>
+</div>
+</div>
+
+<div class="card-footer">
+    <div class="action-btn">
+        {!! Form::submit('Save Invoice', ['class' => 'btn btn-primary']) !!}
+    </div>
+</div>
 <script>
-$(document).ready(function() {
-    let rowIndex = 1;
-    const roundToTwo = (value) => Math.round((Number(value) || 0) * 100) / 100;
-    
-    // Initialize select2
-    $('.select2').select2({
-        allowClear: true,
-        dropdownParent: $('#modalTop')
-    });
-    
-    // Calculate on load
-    calculateAllTotals();
-    
-    // Add new row
-    $('#add-row').click(function() {
-        addNewRow();
-    });
-    
-    // Remove row
-    $(document).on('click', '.remove-row', function() {
-        if ($('.item-row').length > 1) {
-            $(this).closest('.item-row').remove();
-            calculateAllTotals();
-            updateRowIndices();
-            
-            // Hide remove buttons if only one row left
-            if ($('.item-row').length === 1) {
-                $('.remove-row').hide();
-            }
-        } else {
-            alert('At least one item is required');
-        }
-    });
-    
-    // Calculate when any input changes
-    $(document).on('input change', '.quantity, .rate, .vat', function() {
-        const row = $(this).closest('.item-row');
-        calculateRowTotal(row);
-        calculateAllTotals();
-    });
-    
-    // Auto-fill item details when item is selected
-    $(document).on('change select2:select', '.item-select', function() {
-        const row = $(this).closest('.item-row');
-        const selectedOption = $(this).find('option:selected');
-        const itemId = $(this).val();
-        const itemPrice = parseFloat(selectedOption.data('price')) || 0;
-        const itemVat = parseFloat(selectedOption.data('vat')) || 0;
-        
-        if (itemId) {
-            row.find('.vat').val(itemVat);
-            fetchItemRate(itemId, itemPrice).then(function(rate) {
-                row.find('.rate').val(roundToTwo(rate).toFixed(2));
-                calculateRowTotal(row);
-                calculateAllTotals();
-            });
-        } else {
-            row.find('.rate').val(0);
-            row.find('.vat').val(0);
-            calculateRowTotal(row);
-            calculateAllTotals();
-        }
-    });
+    window.supplierRoundToTwo = function(value) {
+        return Math.round((Number(value) || 0) * 100) / 100;
+    };
 
-    function fetchItemRate(itemId, fallbackPrice) {
-        const supplierId = $('#customer_id').val() || 0;
-        const baseUrl = ($('#base_url').val() || '').replace(/\/$/, '');
+    window.supplierCalculateRow = function(rowEl) {
+        var $row = $(rowEl).closest('.item-row');
+        var qty = parseFloat($row.find('.quantity').val()) || 0;
+        var rate = parseFloat($row.find('.rate').val()) || 0;
+        var vatPct = parseFloat($row.find('.vat').val()) || 0;
+
+        var subtotal = supplierRoundToTwo(qty * rate);
+        var vatAmount = supplierRoundToTwo(subtotal * (vatPct / 100));
+        var total = supplierRoundToTwo(subtotal + vatAmount);
+
+        $row.find('.vatAmount').val(vatAmount.toFixed(2));
+        $row.find('.item-total').val(total.toFixed(2));
+
+        return {
+            subtotal: subtotal,
+            vatAmount: vatAmount,
+            total: total
+        };
+    };
+
+    window.supplierGetTotal = function() {
+        var grandSubtotal = 0;
+        var grandVat = 0;
+        var grandTotal = 0;
+
+        $('#row-container .item-row').each(function() {
+            var rowTotals = supplierCalculateRow(this);
+            grandSubtotal = supplierRoundToTwo(grandSubtotal + rowTotals.subtotal);
+            grandVat = supplierRoundToTwo(grandVat + rowTotals.vatAmount);
+            grandTotal = supplierRoundToTwo(grandTotal + rowTotals.total);
+        });
+
+        $('#subtotal').val(grandSubtotal.toFixed(2));
+        $('#vat_total').val(grandVat.toFixed(2));
+        $('#total_cost').val(grandTotal.toFixed(2));
+    };
+
+    window.supplierFetchItemRate = function(itemId, fallbackPrice) {
+        var supplierId = $('#customer_id').val() || 0;
+        var baseUrl = ($('#base_url').val() || window.location.origin || '').replace(/\/$/, '');
 
         if (!baseUrl) {
             return Promise.resolve(fallbackPrice || 0);
@@ -383,26 +358,45 @@ $(document).ready(function() {
                 type: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    const serverPrice = parseFloat(
-                        (data && data.price !== undefined ? data.price : (data && data.pirce !== undefined ? data.pirce : fallbackPrice)) || 0
-                    );
-                    resolve(serverPrice);
+                    var serverPrice = data && data.price !== undefined ? data.price : (data && data.pirce !== undefined ? data.pirce : fallbackPrice);
+                    var price = parseFloat(serverPrice || 0);
+                    resolve(price);
                 },
                 error: function() {
                     resolve(fallbackPrice || 0);
                 }
             });
         });
-    }
-    
-    function addNewRow() {
-        const newRow = $(`
+    };
+
+    window.supplierInitSelect2 = function(context) {
+        if (!$.fn.select2) {
+            return;
+        }
+        var $context = context ? $(context) : $(document);
+        var $modalBody = $('#formajax').closest('.modal-body');
+        if ($modalBody.length === 0) {
+            $modalBody = $('#modalTopbody');
+        }
+        $context.find('.select2').each(function() {
+            if (!$(this).hasClass('select2-hidden-accessible')) {
+                $(this).select2({
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $modalBody.length ? $modalBody : $('body')
+                });
+            }
+        });
+    };
+
+    window.supplierAddRow = function() {
+        var html = `
             <div class="row mb-2 item-row">
                 <div class="form-group col-md-3">
                     <select name="item_ids[]" class="form-control select2 item-select" required>
                         <option value="">Select Item</option>
                         @foreach(\App\Models\Items::where('status', 1)->get() as $item)
-                        <option value="{{ $item->id }}" 
+                        <option value="{{ $item->id }}"
                                 data-price="{{ $item->price ?? 0 }}"
                                 data-vat="{{ $item->vat ?? 0 }}"
                                 data-name="{{ $item->name }}">
@@ -432,117 +426,103 @@ $(document).ready(function() {
                     </button>
                 </div>
             </div>
-        `);
-        
-        $('#row-container').append(newRow);
-        
-        // Initialize select2 for new row
-        newRow.find('.select2').select2({
-            dropdownParent: $('#modalTop'),
-            allowClear: true
-        });
-        
-        rowIndex++;
-        
-        // Show remove buttons for all rows
+        `;
+
+        var $row = $(html);
+        $('#row-container').append($row);
+        supplierInitSelect2($row);
         $('.remove-row').show();
-    }
-    
-    function calculateRowTotal(row) {
-        const quantity = parseFloat(row.find('.quantity').val()) || 0;
-        const rate = parseFloat(row.find('.rate').val()) || 0;
-        const vatPercent = parseFloat(row.find('.vat').val()) || 0;
-        
-        const subtotal = roundToTwo(quantity * rate);
-        const vatAmount = roundToTwo(subtotal * (vatPercent / 100));
-        const total = roundToTwo(subtotal + vatAmount);
-        
-        row.find('.item-total').val(total.toFixed(2));
-        row.find('.vatAmount').val(vatAmount.toFixed(2));
-        
-        return {
-            subtotal: subtotal,
-            vatAmount: vatAmount,
-            total: total
-        };
-    }
-    
-    function calculateAllTotals() {
-        let grandSubtotal = 0;
-        let grandVat = 0;
-        let grandTotal = 0;
-        
-        $('.item-row').each(function() {
-            const rowTotals = calculateRowTotal($(this));
-            
-            grandSubtotal = roundToTwo(grandSubtotal + rowTotals.subtotal);
-            grandVat = roundToTwo(grandVat + rowTotals.vatAmount);
-            grandTotal = roundToTwo(grandTotal + rowTotals.total);
+        supplierGetTotal();
+    };
+
+    $(document).ready(function() {
+        supplierInitSelect2(document);
+        supplierGetTotal();
+
+        $('#add-row').off('click').on('click', function() {
+            supplierAddRow();
         });
-        
-        $('#subtotal').val(grandSubtotal.toFixed(2));
-        $('#vat_total').val(grandVat.toFixed(2));
-        $('#total_cost').val(grandTotal.toFixed(2));
-    }
-    
-    function updateRowIndices() {
-        // No need to update indices since we're using arrays with the same name
-        // The backend will handle array processing regardless of indices
-        $('.item-row').each(function(index) {
-            // Just ensure all inputs have the same name pattern
-            $(this).find('select[name="item_ids[]"], input[name="item_qty[]"], input[name="item_rate[]"], input[name="item_vat[]"], input[name="items_total[]"]');
+
+        $(document).off('click.supplierRemove', '.remove-row').on('click.supplierRemove', '.remove-row', function() {
+            if ($('#row-container .item-row').length <= 1) {
+                alert('At least one item is required');
+                return;
+            }
+            $(this).closest('.item-row').remove();
+            if ($('#row-container .item-row').length === 1) {
+                $('.remove-row').hide();
+            }
+            supplierGetTotal();
         });
-    }
-    
-    // Validate form before submission
-    $('#formajax').on('submit', function(e) {
-        let isValid = true;
-        
-        // Check if at least one item exists
-        if ($('.item-row').length === 0) {
-            alert('Please add at least one item to the invoice.');
-            e.preventDefault();
-            return false;
-        }
-        
-        // Check customer selection
-        if (!$('#customer_id').val()) {
-            alert('Please select a Supplier.');
-            e.preventDefault();
-            return false;
-        }
-        
-        // Check each item for required fields
-        $('.item-row').each(function(index) {
-            const itemSelect = $(this).find('.item-select').val();
-            const quantity = $(this).find('.quantity').val();
-            const rate = $(this).find('.rate').val();
-            
-            if (!itemSelect) {
-                alert(`Item ${index + 1}: Please select an item.`);
-                isValid = false;
+
+        $(document).off('input.supplierCalc change.supplierCalc', '.quantity, .rate, .vat')
+            .on('input.supplierCalc change.supplierCalc', '.quantity, .rate, .vat', function() {
+                supplierCalculateRow(this);
+                supplierGetTotal();
+            });
+
+        $(document).off('change.supplierItem select2:select.supplierItem', '.item-select')
+            .on('change.supplierItem select2:select.supplierItem', '.item-select', function() {
+                var $row = $(this).closest('.item-row');
+                var selectedOption = $(this).find('option:selected');
+                var itemId = $(this).val();
+                var fallbackRate = parseFloat(selectedOption.data('price')) || 0;
+                var vatPercent = parseFloat(selectedOption.data('vat')) || 0;
+
+                if (!itemId) {
+                    $row.find('.rate').val('0.00');
+                    $row.find('.vat').val('0');
+                    supplierGetTotal();
+                    return;
+                }
+
+                $row.find('.vat').val(vatPercent);
+                supplierFetchItemRate(itemId, fallbackRate).then(function(rate) {
+                    $row.find('.rate').val(supplierRoundToTwo(rate).toFixed(2));
+                    supplierGetTotal();
+                });
+            });
+
+        $('#formajax').off('submit.supplierValidate').on('submit.supplierValidate', function(e) {
+            var isValid = true;
+            if ($('#row-container .item-row').length === 0) {
+                alert('Please add at least one item to the invoice.');
+                e.preventDefault();
                 return false;
             }
-            
-            if (!quantity || parseFloat(quantity) <= 0) {
-                alert(`Item ${index + 1}: Please enter a valid quantity.`);
-                isValid = false;
+            if (!$('#customer_id').val()) {
+                alert('Please select a Supplier.');
+                e.preventDefault();
                 return false;
             }
-            
-            if (!rate || parseFloat(rate) <= 0) {
-                alert(`Item ${index + 1}: Please enter a valid rate.`);
-                isValid = false;
+
+            $('#row-container .item-row').each(function(index) {
+                var itemSelect = $(this).find('.item-select').val();
+                var quantity = parseFloat($(this).find('.quantity').val()) || 0;
+                var rate = parseFloat($(this).find('.rate').val()) || 0;
+
+                if (!itemSelect) {
+                    alert('Item ' + (index + 1) + ': Please select an item.');
+                    isValid = false;
+                    return false;
+                }
+                if (quantity <= 0) {
+                    alert('Item ' + (index + 1) + ': Please enter a valid quantity.');
+                    isValid = false;
+                    return false;
+                }
+                if (rate <= 0) {
+                    alert('Item ' + (index + 1) + ': Please enter a valid rate.');
+                    isValid = false;
+                    return false;
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
                 return false;
             }
+            return true;
         });
-        
-        if (!isValid) {
-            e.preventDefault();
-            return false;
-        }
-        
-        return true;
     });
-});
 </script>

@@ -1,6 +1,4 @@
-@php
-    dump($type);
-@endphp
+
             <div class="row">
                 <input type="hidden" name="type" value="{{ $type }}">
                 {{-- Company Information (Read-only) --}}

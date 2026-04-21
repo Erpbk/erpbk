@@ -230,7 +230,7 @@ class RiderActivitiesController extends AppBaseController
     /**
      * Display the specified RiderActivities.
      */
-    public function show($id)
+    public function show($company_slug, $id)
     {
         $riderActivities = $this->riderActivitiesRepository->find($id);
 
@@ -246,7 +246,7 @@ class RiderActivitiesController extends AppBaseController
     /**
      * Show the form for editing the specified RiderActivities.
      */
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         $riderActivities = $this->riderActivitiesRepository->find($id);
 
@@ -262,7 +262,7 @@ class RiderActivitiesController extends AppBaseController
     /**
      * Update the specified RiderActivities in storage.
      */
-    public function update($id, UpdateRiderActivitiesRequest $request)
+    public function update($company_slug, $id, UpdateRiderActivitiesRequest $request)
     {
         $riderActivities = $this->riderActivitiesRepository->find($id);
 
@@ -284,7 +284,7 @@ class RiderActivitiesController extends AppBaseController
      *
      * @throws \Exception
      */
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         $riderActivities = $this->riderActivitiesRepository->find($id);
 

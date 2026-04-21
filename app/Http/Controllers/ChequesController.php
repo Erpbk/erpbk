@@ -154,7 +154,7 @@ class ChequesController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show($comapny_slug, $id)
     {
         $cheque = Cheques::findOrFail($id);
         return view('cheques.show', compact('cheque'));
@@ -163,7 +163,7 @@ class ChequesController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit($comapny_slug, $id)
     {
         $cheque = Cheques::findOrFail($id);
         return view('cheques.edit', compact('cheque'));
@@ -172,7 +172,7 @@ class ChequesController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Cheques $cheque)
+    public function update(Request $request,$comapny_slug, Cheques $cheque)
     {
         $rules = [
             'cheque_number' => 'required|string|unique:cheques,cheque_number,' . $cheque->id,
@@ -283,7 +283,7 @@ class ChequesController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy($comapny_slug, $id)
     {
         $cheque = Cheques::find($id);
         $path = 'public/vouchers/'.$cheque->attachment;
@@ -326,13 +326,13 @@ class ChequesController extends Controller
     /**
      * Update the status of a cheque.
      */
-    public function statusForm(Request $request, $id)
+    public function statusForm(Request $request,$comapny_slug, $id)
     {
         $cheque = Cheques::findOrFail($id);
         return view('cheques.changeStatus', compact('cheque'));
     }
     
-    public function updateStatus(Request $request, $id)
+    public function updateStatus(Request $request, $comapny_slug, $id)
     {
         $cheque = Cheques::findOrFail($id);
         if (!$cheque) {

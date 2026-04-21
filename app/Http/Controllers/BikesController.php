@@ -353,7 +353,7 @@ class BikesController extends AppBaseController
   /**
    * Display the specified Bikes.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $bikes = $this->bikesRepository->find($id);
     $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
@@ -376,7 +376,7 @@ class BikesController extends AppBaseController
   /**
    * Show the form for editing the specified Bikes.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $bikes = $this->bikesRepository->find($id);
     $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
@@ -390,7 +390,7 @@ class BikesController extends AppBaseController
   /**
    * Update the specified Bikes in storage.
    */
-  public function update($id, UpdateBikesRequest $request)
+  public function update($company_slug, $id, UpdateBikesRequest $request)
   {
     $bikes = $this->bikesRepository->find($id);
 
@@ -436,7 +436,7 @@ class BikesController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $bikes = Bikes::find($id);
 
@@ -500,7 +500,7 @@ class BikesController extends AppBaseController
   }
 
   // Return bike
-  public function assignrider(Request $request, $id)
+  public function assignrider(Request $request, $company_slug, $id)
   {
     if ($request->isMethod('post')) {
       $rules = [
@@ -648,7 +648,7 @@ class BikesController extends AppBaseController
     ]);
   }
 
-  public function assign_rider(Request $request, $id)
+  public function assign_rider(Request $request, $company_slug, $id)
   {
     if ($request->isMethod('post')) {
       $rules = [
@@ -776,7 +776,7 @@ class BikesController extends AppBaseController
   }
 
 
-  public function assignContract($id)
+  public function assignContract($company_slug, $id)
   {
     $contract = BikeHistory::find($id);
 
@@ -784,7 +784,7 @@ class BikesController extends AppBaseController
     return view('bikes.assignContract', compact('contract'));
   }
 
-  public function returnContract($id)
+  public function returnContract($company_slug, $id)
   {
     $contract = BikeHistory::find($id);
 
@@ -1141,7 +1141,7 @@ class BikesController extends AppBaseController
     exit;
   }
 
-  public function files($bike_id)
+  public function files($company_slug, $bike_id)
   {
     $bikes = Bikes::find($bike_id);
     $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
@@ -1171,7 +1171,7 @@ class BikesController extends AppBaseController
     return view('bikes.files', compact('missingFiles', 'files', 'bikes'));
   }
 
-  public function maintenance($id)
+  public function maintenance($company_slug, $id)
   {
     $bikes = Bikes::findOrFail($id);
     $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);

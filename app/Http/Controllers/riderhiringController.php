@@ -108,18 +108,9 @@ class riderhiringController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $company_slug, $id)
     {
         $userid = Auth::user()->id;
-        // Check for duplicates
-        $exists = rider_hiring::where('contact', $request->contact)
-            ->orWhere('whatsapp_contact', $request->whatsapp_contact)
-            ->exists();
-
-        if ($exists) {
-            Flash::error('Entry with this phone or WhatsApp number already exists.');
-            return redirect()->back();
-        }
 
         $rider = rider_hiring::findOrFail($id);
 
@@ -142,7 +133,7 @@ class riderhiringController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         $lead = rider_hiring::find($id);
         if (!$lead) {

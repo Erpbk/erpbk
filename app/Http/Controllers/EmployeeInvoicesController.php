@@ -94,7 +94,7 @@ class EmployeeInvoicesController extends AppBaseController
         }
     }
 
-    public function show($id)
+    public function show($comapny_slug, $id)
     {
         $employeeInvoice = $this->employeeInvoicesRepository->find($id);
         if (empty($employeeInvoice)) {
@@ -105,7 +105,7 @@ class EmployeeInvoicesController extends AppBaseController
         return view('employee_invoices.show')->with('employeeInvoice', $employeeInvoice);
     }
 
-    public function edit($id)
+    public function edit($comapny_slug, $id)
     {
         $invoice = $this->employeeInvoicesRepository->find($id);
         if (empty($invoice)) {
@@ -118,7 +118,7 @@ class EmployeeInvoicesController extends AppBaseController
         return view('employee_invoices.edit', compact('invoice', 'employees', 'items'));
     }
 
-    public function update($id, UpdateEmployeeInvoicesRequest $request)
+    public function update($comapny_slug, $id, UpdateEmployeeInvoicesRequest $request)
     {
         try {
             $invoice = $this->employeeInvoicesRepository->find($id);
@@ -136,7 +136,7 @@ class EmployeeInvoicesController extends AppBaseController
         }
     }
 
-    public function destroy($id)
+    public function destroy($comapny_slug, $id)
     {
         $invoice = $this->employeeInvoicesRepository->find($id);
         if (empty($invoice)) {

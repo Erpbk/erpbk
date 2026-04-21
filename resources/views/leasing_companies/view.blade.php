@@ -6,7 +6,6 @@
 use Carbon\Carbon;
 use App\Models\Transactions;
 
-$leasingCompany = App\Models\LeasingCompanies::find(request()->segment(3));
 $statusColor = $leasingCompany->status == 1 ? 'success' : 'danger';
 $statusText = $leasingCompany->status == 1 ? 'Active' : 'Inactive';
 
@@ -42,28 +41,28 @@ $balance = $debit - $credit;
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(request()->segment(2) == 'files') active @endif d-flex align-items-center justify-content-center py-3"
+        <a class="nav-link @if(Route::is('leasingCompany.files')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('leasingCompany.files', $leasingCompany->id) }}">
           <i class="fas fa-file-upload fa-lg me-2"></i>
           <span class="fw-semibold">Documents</span>
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(request()->segment(2) == 'receipts') active @endif d-flex align-items-center justify-content-center py-3"
+        <a class="nav-link @if(Route::is('leasingCompanies.receipts')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('leasingCompanies.receipts', $leasingCompany->id) }}">
           <i class="fa fa-receipt fa-lg me-2"></i>
           <span class="fw-semibold">Receipts</span>
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(request()->segment(2) == 'payments') active @endif d-flex align-items-center justify-content-center py-3"
+        <a class="nav-link @if(Route::is('leasingCompanies.payments')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('leasingCompanies.payments', $leasingCompany->id) }}">
           <i class="fas fa-dollar-sign fa-lg me-2"></i>
           <span class="fw-semibold">Payments</span>
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(request()->segment(2) == 'ledger') active @endif d-flex align-items-center justify-content-center py-3"
+        <a class="nav-link @if(Route::is('leasingCompany.ledger')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('leasingCompany.ledger', $leasingCompany->id) }}">
           <i class="fas fa-book fa-lg me-2"></i>
           <span class="fw-semibold">Ledger</span>

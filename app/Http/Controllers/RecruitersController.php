@@ -123,7 +123,7 @@ class RecruitersController extends AppBaseController
     /**
      * Display the specified Recruiters.
      */
-    public function show($id)
+    public function show($company_slug, $id)
     {
         $recruiters = $this->recruitersRepository->find((int)$id);
 
@@ -139,7 +139,7 @@ class RecruitersController extends AppBaseController
     /**
      * Show the form for editing the specified Recruiters.
      */
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         $recruiters = $this->recruitersRepository->find((int)$id);
 
@@ -155,7 +155,7 @@ class RecruitersController extends AppBaseController
     /**
      * Update the specified Recruiters in storage.
      */
-    public function update($id, UpdateRecruitersRequest $request)
+    public function update($company_slug, $id, UpdateRecruitersRequest $request)
     {
         $recruiter = $this->recruitersRepository->find((int)$id);
 
@@ -177,7 +177,7 @@ class RecruitersController extends AppBaseController
      *
      * @throws \Exception
      */
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         $recruiter = $this->recruitersRepository->find((int)$id);
 
@@ -259,7 +259,7 @@ class RecruitersController extends AppBaseController
     /**
      * Show riders for a specific recruiter
      */
-    public function showRiders($id)
+    public function showRiders($company_slug, $id)
     {
         $recruiter = $this->recruitersRepository->find((int)$id);
 
@@ -280,7 +280,7 @@ class RecruitersController extends AppBaseController
     /**
      * Assign riders to a recruiter
      */
-    public function assignRiders(Request $request, $recruiterId)
+    public function assignRiders(Request $request,$company_slug,  $recruiterId)
     {
         $recruiter = $this->recruitersRepository->find((int)$recruiterId);
 
@@ -308,7 +308,7 @@ class RecruitersController extends AppBaseController
     /**
      * Remove riders from a recruiter
      */
-    public function removeRiders(Request $request, $recruiterId)
+    public function removeRiders(Request $request, $company_slug, $recruiterId)
     {
         $recruiter = $this->recruitersRepository->find((int)$recruiterId);
 
@@ -353,7 +353,7 @@ class RecruitersController extends AppBaseController
     /**
      * Show the view for assigning riders to a recruiter
      */
-    public function showAssignRidersView($recruiterId)
+    public function showAssignRidersView($company_slug, $recruiterId)
     {
         $recruiter = $this->recruitersRepository->find((int)$recruiterId);
 

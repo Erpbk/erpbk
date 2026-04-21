@@ -112,7 +112,7 @@ class GaragesController extends AppBaseController
   /**
    * Display the specified Garages.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $garages = $this->garagesRepository->find($id);
 
@@ -128,7 +128,7 @@ class GaragesController extends AppBaseController
   /**
    * Show the form for editing the specified Garages.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $garages = $this->garagesRepository->find($id);
 
@@ -144,7 +144,7 @@ class GaragesController extends AppBaseController
   /**
    * Update the specified Garages in storage.
    */
-  public function update($id, UpdateGaragesRequest $request)
+  public function update($company_slug, $id, UpdateGaragesRequest $request)
   {
     $garages = $this->garagesRepository->find($id);
 
@@ -162,7 +162,7 @@ class GaragesController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $garages = $this->garagesRepository->find($id);
 

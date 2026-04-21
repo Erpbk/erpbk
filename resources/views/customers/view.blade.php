@@ -17,35 +17,35 @@ $statusText = $customer->status == 1 ? 'Active' : 'Inactive';
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(request()->segment(2) == 'files') active @endif d-flex align-items-center justify-content-center py-3"
+        <a class="nav-link @if(Route::is('customer.files')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('customer.files', $customer->id) }}">
           <i class="fas fa-file-upload fa-lg me-2"></i>
           <span class="fw-semibold">Documents</span>
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(request()->segment(2) == 'receipts') active @endif d-flex align-items-center justify-content-center py-3"
+        <a class="nav-link @if(Route::is('customers.receipts')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('customers.receipts', $customer->id) }}">
           <i class="fa fa-receipt fa-lg me-2"></i>
           <span class="fw-semibold">Receipts</span>
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(request()->segment(2) == 'payments') active @endif d-flex align-items-center justify-content-center py-3"
+        <a class="nav-link @if(Route::is('customers.payments')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('customers.payments', $customer->id) }}">
           <i class="fas fa-dollar-sign fa-lg me-2"></i>
           <span class="fw-semibold">Payments</span>
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(request()->segment(2) == 'invoices') active @endif d-flex align-items-center justify-content-center py-3"
+        <a class="nav-link @if(Route::is(('customer.invoices'))) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('customer.invoices', $customer->id) }}">
           <i class="tf-icons ti ti-notes me-2"></i>
           <span class="fw-semibold">Invoices</span>
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(request()->segment(2) == 'ledger') active @endif d-flex align-items-center justify-content-center py-3"
+        <a class="nav-link @if(Route::is('customer.ledger')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('customer.ledger', $customer->id) }}">
           <i class="fas fa-book fa-lg me-2"></i>
           <span class="fw-semibold">Ledger</span>

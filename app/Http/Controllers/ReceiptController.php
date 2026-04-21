@@ -328,7 +328,7 @@ class ReceiptController extends Controller
         return redirect()->bacK();
     }
 
-    public function show($id)
+    public function show($comapny_slug, $id)
     {
         $receipt = $this->receiptsRepository->find($id);
         if (empty($receipt)) {
@@ -338,7 +338,7 @@ class ReceiptController extends Controller
         return view('receipts.show')->with('receipt', $receipt);
     }
 
-    public function edit(Request $request, $id)
+    public function edit(Request $request, $comapny_slug, $id)
     {
         $receipt = Receipt::find($id);
         $existingInvoices = null;
@@ -407,7 +407,7 @@ class ReceiptController extends Controller
         return view('receipts.edit', compact('receipt', 'banks','invoices','existingInvoices','customerIds', 'customerId','invoiceType'));
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $comapny_slug, $id)
     {
         $receipt = Receipt::find($id);
         if (empty($receipt)) {
@@ -663,7 +663,7 @@ class ReceiptController extends Controller
         }
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, $comapny_slug, $id)
     {
         $receipt = Receipt::find($id);
         if (empty($receipt)) {
@@ -740,7 +740,7 @@ class ReceiptController extends Controller
         return redirect()->back();
     }
 
-    public function clone(Request $request, $id)
+    public function clone(Request $request, $comapny_slug, $id)
     {
         $receipt = Receipt::find($id);
         if (empty($receipt)) {

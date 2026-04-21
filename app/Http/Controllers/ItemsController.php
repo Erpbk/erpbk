@@ -107,7 +107,7 @@ class ItemsController extends AppBaseController
   /**
    * Display the specified Items.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $items = $this->itemsRepository->find($id);
 
@@ -123,7 +123,7 @@ class ItemsController extends AppBaseController
   /**
    * Show the form for editing the specified Items.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $items = $this->itemsRepository->find($id);
 
@@ -139,7 +139,7 @@ class ItemsController extends AppBaseController
   /**
    * Update the specified Items in storage.
    */
-  public function update($id, UpdateItemsRequest $request)
+  public function update($company_slug, $id, UpdateItemsRequest $request)
   {
     $items = $this->itemsRepository->find($id);
 
@@ -159,7 +159,7 @@ class ItemsController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $item = $this->itemsRepository->find($id);
 
@@ -272,7 +272,7 @@ class ItemsController extends AppBaseController
     }
   }
 
-  public function search_item_price($rider_id, $item_id)
+  public function search_item_price($company_slug, $rider_id, $item_id)
   {
     $result = RiderItemPrice::where('item_id', $item_id)->where('RID', $rider_id)->first();
     if ($result && $result->price > 0) {
@@ -282,7 +282,7 @@ class ItemsController extends AppBaseController
       return $result;
     }
   }
-  public function get_item_price($item_id)
+  public function get_item_price($company_slug, $item_id)
   {
 
     $result = Items::where('id', $item_id)->first();

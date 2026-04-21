@@ -124,7 +124,7 @@ class BikeMaintenanceController extends Controller
         
     }
 
-    public function invoice(BikeMaintenance $maintenance)
+    public function invoice($company_slug, BikeMaintenance $maintenance)
     {
         $maintenance->load([
             'bike.rider',
@@ -140,7 +140,7 @@ class BikeMaintenanceController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(BikeMaintenance $bikeMaintenance)
+    public function show($company_slug, BikeMaintenance $bikeMaintenance)
     {
         //
     }
@@ -149,7 +149,7 @@ class BikeMaintenanceController extends Controller
      * Show the form for editing the specified Bike's Maintenance Details.
      */
 
-    public function edit(BikeMaintenance $bikeMaintenance){
+    public function edit($company_slug, BikeMaintenance $bikeMaintenance){
         $maintenance = $bikeMaintenance;
         $bike = $bikeMaintenance->bike;
         $items = $bikeMaintenance->maintenanceItems;
@@ -161,7 +161,7 @@ class BikeMaintenanceController extends Controller
     /**
      * Update the MAintenance Fields in Bikes Table.
      */
-    public function update(Request $request, BikeMaintenance $bikeMaintenance)
+    public function update(Request $request, $company_slug, BikeMaintenance $bikeMaintenance)
     {
         $validated = $this->validateRequest($request);
         $maintenance = $bikeMaintenance->load('bike');
@@ -414,7 +414,7 @@ class BikeMaintenanceController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(BikeMaintenance $bikeMaintenance)
+    public function destroy($company_slug, BikeMaintenance $bikeMaintenance)
     {
         DB::beginTransaction();
         try{
@@ -563,7 +563,7 @@ class BikeMaintenanceController extends Controller
 
     }
 
-    public function sticker(BikeMaintenance $maintenance){
+    public function sticker($company_slug, BikeMaintenance $maintenance){
 
         $maintenance->load('bike');
 

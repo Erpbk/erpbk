@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 class FuelCardHistoryController extends Controller
 {
 
-    public function assign(Request $request, $id)
+    public function assign(Request $request, $company_slug, $id)
     {
         if(!auth()->user()->hasPermissionTo('fuel_assign')) {
             abort(403, 'Unauthorized action.');
@@ -68,7 +68,7 @@ class FuelCardHistoryController extends Controller
         return redirect()->back();
     }
 
-    public function return(Request $request, $id)
+    public function return(Request $request, $company_slug, $id)
     {
         if(!auth()->user()->hasPermissionTo('fuel_assign')) {
             abort(403, 'Unauthorized action.');

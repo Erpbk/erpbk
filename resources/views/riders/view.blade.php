@@ -270,18 +270,6 @@
   }
 </style>
 @php
-if((request()->segment(2)) == 'generatentries' || request()->segment(2) == 'installmentPlan'){
-$account_id = DB::table('accounts')->where('id', request()->segment(3))->first();
-if(is_numeric(request()->segment(3))){
-session()->put('rider_id',$account_id->ref_id);
-$riders = App\Models\Riders::where('id', $account_id->ref_id)->first();
-}
-}else{
-if(is_numeric(request()->segment(3))){
-session()->put('rider_id',request()->segment(3));
-$riders = App\Models\Riders::find(request()->segment(3));
-}
-}
 if(isset($riders)){
 $result = $riders->toArray();
 }

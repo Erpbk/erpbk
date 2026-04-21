@@ -123,7 +123,7 @@ class FuelCardController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show($company_slug, string $id)
     {
         $card = FuelCards::find($id);
         $histories = $card->histories()->orderByDesc('id')->get();
@@ -134,7 +134,7 @@ class FuelCardController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit($company_slug, string $id)
     {
         $fuelCard = FuelCards::find($id);
         return view('fuel_cards.edit')->with('fuelCard', $fuelCard);
@@ -143,7 +143,7 @@ class FuelCardController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, $company_slug, string $id)
     {
         $this->validate($request, [
             'card_number' => 'required|string|min:16|unique:fuel_cards,card_number,'.$id,
@@ -184,7 +184,7 @@ class FuelCardController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy($company_slug, string $id)
     {
         $fuelCard = FuelCards::find($id);
         if(!$fuelCard){

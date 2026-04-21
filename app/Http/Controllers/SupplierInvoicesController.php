@@ -131,7 +131,7 @@ class SupplierInvoicesController extends AppBaseController
     /**
      * Display the specified SupplierInvoices.
      */
-    public function show($id)
+    public function show($company_slug, $id)
     {
         $supplierInvoice = $this->supplierInvoicesRepository->find($id);
 
@@ -150,7 +150,7 @@ class SupplierInvoicesController extends AppBaseController
     /**
      * Show the form for editing the specified SupplierInvoices.
      */
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         $invoice = SupplierInvoices::with('items')->find($id);
 
@@ -176,7 +176,7 @@ class SupplierInvoicesController extends AppBaseController
     /**
      * Update the specified SupplierInvoices in storage.
      */
-    public function update($id, UpdateSupplierInvoicesRequest $request)
+    public function update($company_slug, $id, UpdateSupplierInvoicesRequest $request)
     {
         // Try to find the invoice first
         $supplierInvoice = $this->supplierInvoicesRepository->find($id);
@@ -214,7 +214,7 @@ class SupplierInvoicesController extends AppBaseController
      *
      * @throws \Exception
      */
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, $company_slug, $id)
     {
         $supplierInvoice = $this->supplierInvoicesRepository->find($id);
 
@@ -319,7 +319,7 @@ class SupplierInvoicesController extends AppBaseController
     /**
      * Send Supplier Invoice email with attached PDF.
      */
-    public function sendEmail($id, Request $request)
+    public function sendEmail($company_slug, $id, Request $request)
     {
         if ($request->isMethod('post')) {
             $data = [

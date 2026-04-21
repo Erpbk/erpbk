@@ -5,8 +5,6 @@
 @php
   use Carbon\Carbon;
   use App\Models\Transactions;
-  
-  $banks = App\Models\Banks::find(request()->segment(3));
   $statusColor = $banks->status == 1 ? 'success' : 'danger';
   $statusText = $banks->status == 1 ? 'Active' : 'Inactive';
   

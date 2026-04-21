@@ -126,7 +126,7 @@
                         <div class="form-group col-md-12">
                             <label for="branch_id">Filter by Branch</label>
                             <select class="form-control " id="branch_id" name="branch_id">
-                                @foreach(auth()->user()::branchDropdown() as $id => $name)
+                                @foreach(auth()->user()->branchDropdown() as $id => $name)
                                 <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
                                 @endforeach
                             </select>

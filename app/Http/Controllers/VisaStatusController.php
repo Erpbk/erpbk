@@ -143,7 +143,7 @@ class VisaStatusController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         // Check permissions
         if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
@@ -161,7 +161,7 @@ class VisaStatusController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $company_slug, $id)
     {
         // Check permissions
         if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
@@ -212,7 +212,7 @@ class VisaStatusController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         // Check permissions
         if (!auth()->user()->hasPermissionTo('visaexpense_delete')) {
@@ -245,7 +245,7 @@ class VisaStatusController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function toggleActive($id)
+    public function toggleActive($company_slug, $id)
     {
         // Check permissions
         if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {

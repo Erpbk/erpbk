@@ -75,7 +75,7 @@
 <script>
     (function() {
         var csrf = "{{ csrf_token() }}";
-        var riderId = "{{ $rider->id }}";
+        var riderId = "{{ $riders->id }}";
 
         function toastError(msg) {
             if (window.toastr) {

@@ -244,7 +244,7 @@
 @section('page-script')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const detailUrl = '{{ url("accounts/detail") }}';
+        const detailUrl = '{{ route("accounts.detail", ":id") }}';
         const panel = document.getElementById('ledgerSlidePanel');
         const placeholder = document.getElementById('chartLedgerPlaceholder');
         const content = document.getElementById('chartLedgerContent');
@@ -417,7 +417,7 @@
             content.style.display = 'block';
             content.innerHTML = '<div class="text-center py-4"><i class="fa fa-spinner fa-spin fa-2x text-muted"></i></div>';
             openLedgerPanel();
-            fetch(detailUrl + '/' + id, {
+            fetch(detailUrl.replace(':id', id), {
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'

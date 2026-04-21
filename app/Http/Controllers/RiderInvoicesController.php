@@ -142,7 +142,7 @@ class RiderInvoicesController extends AppBaseController
   /**
    * Display the specified RiderInvoices.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $riderInvoice = $this->riderInvoicesRepository->find($id);
 
@@ -158,7 +158,7 @@ class RiderInvoicesController extends AppBaseController
   /**
    * Show the form for editing the specified RiderInvoices.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $invoice = $this->riderInvoicesRepository->find($id);
 
@@ -176,7 +176,7 @@ class RiderInvoicesController extends AppBaseController
   /**
    * Update the specified RiderInvoices in storage.
    */
-  public function update($id, UpdateRiderInvoicesRequest $request)
+  public function update($company_slug, $id, UpdateRiderInvoicesRequest $request)
   {
     try {
       $riderInvoices = $this->riderInvoicesRepository->find($id);
@@ -203,7 +203,7 @@ class RiderInvoicesController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $riderInvoices = $this->riderInvoicesRepository->find($id);
 
@@ -547,7 +547,7 @@ class RiderInvoicesController extends AppBaseController
   /**
    * Mark a single invoice as paid manually
    */
-  public function markAsPaid(Request $request, $id)
+  public function markAsPaid(Request $request, $company_slug, $id)
   {
     if ($request->isMethod('post')) {
       $rules = [
@@ -676,7 +676,7 @@ class RiderInvoicesController extends AppBaseController
     \App\Support\CompanyQuery::table('vouchers')->insert($voucherData);
   }
 
-  public function sendEmail($id, Request $request)
+  public function sendEmail($company_slug, $id, Request $request)
   {
 
     if ($request->isMethod('post')) {

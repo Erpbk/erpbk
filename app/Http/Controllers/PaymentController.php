@@ -395,7 +395,7 @@ class PaymentController extends Controller
         }
     }
 
-    public function show($id)
+    public function show($comapny_slug, $id)
     {
         $payment = $this->paymentsRepository->find($id);
         if (empty($payment)) {
@@ -405,7 +405,7 @@ class PaymentController extends Controller
         return view('payments.show')->with('payment', $payment);
     }
 
-    public function edit(Request $request, $id)
+    public function edit(Request $request, $comapny_slug, $id)
     {
         $payment = Payment::find($id);
         if (empty($payment)) {
@@ -471,7 +471,7 @@ class PaymentController extends Controller
         return view('payments.edit', compact('payment', 'banks', 'accountIds', 'existingInvoices' ,'invoices', 'invoiceType'));
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $comapny_slug, $id)
     {
         $payment = Payment::find($id);
         
@@ -774,7 +774,7 @@ class PaymentController extends Controller
         }
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, $comapny_slug, $id)
     {
         $payment = Payment::find($id);
         if (empty($payment)) {
@@ -856,7 +856,7 @@ class PaymentController extends Controller
         }
     }
 
-    public function clone($id){
+    public function clone($comapny_slug, $id){
 
         $payment = Payment::find($id);
         if (empty($payment)) {

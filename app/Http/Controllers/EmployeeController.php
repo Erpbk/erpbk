@@ -158,7 +158,7 @@ class EmployeeController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Employee $employee)
+    public function show($comapny_slug, Employee $employee)
     {
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
@@ -169,7 +169,7 @@ class EmployeeController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Employee $employee)
+    public function edit($comapny_slug, Employee $employee)
     {
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
@@ -180,7 +180,7 @@ class EmployeeController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Employee $employee)
+    public function update(Request $request,$comapny_slug, Employee $employee)
     {
         $validated = $request->validate([
             'employee_id' => 'required|string',
@@ -236,7 +236,7 @@ class EmployeeController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Employee $employee)
+    public function destroy($comapny_slug, Employee $employee)
     {
         if(Transactions::where('account_id', $employee->account_id)->count() > 0){
             return response()->json([
@@ -258,7 +258,7 @@ class EmployeeController extends Controller
         ],200);
     }
 
-    public function ledger($id, LedgerDataTable $ledgerDataTable)
+    public function ledger($comapny_slug, $id, LedgerDataTable $ledgerDataTable)
     {
         $employee = Employee::findOrFail($id);
         if(empty($employee) || !in_array($employee->branch_id, app('user_branches'))){
@@ -269,7 +269,7 @@ class EmployeeController extends Controller
         return $ledgerDataTable->with(['account_id' => $account])->render('employees.ledger', compact('employee'));
     }
 
-    public function updateSection(Request $request, $id)
+    public function updateSection(Request $request,$comapny_slug,  $id)
     {
         $employee = Employee::findOrFail($id);
         $section = $request->input('section');

@@ -57,7 +57,7 @@ class SupplierController extends AppBaseController
     ]);
   }
 
-  public function files($supplier_id, FilesDataTable $filesDataTable)
+  public function files($company_slug, $supplier_id, FilesDataTable $filesDataTable)
   {
     $supplier = Supplier::find($supplier_id); // Fetch supplier
     if (!$supplier) {
@@ -144,7 +144,7 @@ class SupplierController extends AppBaseController
   }
 
 
-  public function show($id)
+  public function show($company_slug, $id)
   {
     if (!auth()->user()->hasPermissionTo('supplier_view')) {
       abort(403, 'Unauthorized action.');
@@ -161,7 +161,7 @@ class SupplierController extends AppBaseController
     ]);
   }
 
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $supplier = $this->suppliersRepository->find($id);
     if (empty($supplier)) {
@@ -171,7 +171,7 @@ class SupplierController extends AppBaseController
     return view('suppliers.edit')->with('supplier', $supplier);
   }
 
-  public function update(Request $request, Supplier $supplier)
+  public function update(Request $request, $company_slug, Supplier $supplier)
   {
     $validated = $request->validate([
       'name' => 'required|string|max:255',
@@ -190,7 +190,7 @@ class SupplierController extends AppBaseController
     return redirect(route('suppliers.index'));
   }
 
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $supplier = $this->suppliersRepository->find($id);
 
@@ -267,7 +267,7 @@ class SupplierController extends AppBaseController
     ]);
   }
 
-  public function ledger($id, LedgerDataTable $ledgerDataTable)
+  public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
   {
     if (!auth()->user()->hasPermissionTo('supplier_view')) {
       abort(403, 'Unauthorized action.');
@@ -299,7 +299,7 @@ class SupplierController extends AppBaseController
   //     return $filesDataTable->with(['supplier_id' => $supplier_id])->render('suppliers.document');
   //   }
 
-  public function document($supplier_id)
+  public function document($company_slug, $supplier_id)
   {
     if (request()->post()) {
 

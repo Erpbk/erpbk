@@ -57,7 +57,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         ]);
     }
 
-    public function create($id = null)
+    public function create($company_slug, $id = null)
     {
         $leasingCompanyId = $id ?? request('leasing_company_id');
         $leasingCompany = null;
@@ -84,7 +84,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         return view('leasing_company_billing_invoices.create', compact('leasingCompany', 'bikes', 'leasingCompanies', 'rentalAmountByCompany'));
     }
 
-    public function createFromClone($id)
+    public function createFromClone($company_slug, $id)
     {
         $sourceInvoice = $this->billingInvoicesRepository->find($id);
         if (empty($sourceInvoice)) {
@@ -170,7 +170,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         ));
     }
 
-    public function store(Request $request, $id = null)
+    public function store(Request $request, $company_slug, $id = null)
     {
         try {
             $leasingCompanyId = $id ?? $request->leasing_company_id;
@@ -278,7 +278,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         }
     }
 
-    public function show($id)
+    public function show($company_slug, $id)
     {
         $invoice = $this->billingInvoicesRepository->find($id);
         if (empty($invoice)) {
@@ -288,7 +288,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         return view('leasing_company_billing_invoices.show')->with('invoice', $invoice);
     }
 
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
         $invoice = $this->billingInvoicesRepository->find($id);
         if (empty($invoice)) {
@@ -311,7 +311,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         return view('leasing_company_billing_invoices.edit', compact('invoice', 'leasingCompanies', 'bikes', 'rentalAmountByCompany'));
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $company_slug, $id)
     {
         try {
             $invoice = $this->billingInvoicesRepository->find($id);
@@ -366,7 +366,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         }
     }
 
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         if (!Gate::allows('leasing_company_invoice_delete')) {
             abort(403, 'Unauthorized action.');
@@ -406,7 +406,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         return redirect(route('leasingCompanyBillingInvoices.index'));
     }
 
-    public function clone(Request $request, $id)
+    public function clone(Request $request, $company_slug, $id)
     {
         try {
             $sourceInvoice = $this->billingInvoicesRepository->find($id);

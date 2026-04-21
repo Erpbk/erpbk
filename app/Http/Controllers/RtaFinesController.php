@@ -91,7 +91,7 @@ class RtaFinesController extends AppBaseController
         Flash::success('Account Updated successfully.');
         return redirect()->back();
     }
-    public function deleteaccount($id)
+    public function deleteaccount($company_slug, $id)
     {
         // Check if there are any rtaFines (tickets) related to this account (including soft deleted)
         $hasFines = RtaFines::withTrashed()->where('rta_account_id', $id)->exists();
@@ -433,7 +433,7 @@ class RtaFinesController extends AppBaseController
 
 
 
-    public function viewvoucher($id)
+    public function viewvoucher($company_slug, $id)
     {
         $data = RtaFines::where('id', $id)->first();
         $accounts = Accounts::where('id', $data->rta_account_id)->first();
@@ -630,7 +630,7 @@ class RtaFinesController extends AppBaseController
     }
 
 
-    public function fileUpload(Request $request, $id)
+    public function fileUpload(Request $request, $company_slug, $id)
     {
         $fines = RtaFines::find($id);
 
@@ -653,7 +653,7 @@ class RtaFinesController extends AppBaseController
     /**
      * Display the specified RtaFines.
      */
-    public function show($id)
+    public function show($company_slug, $id)
     {
         $rtaFines = $this->rtaFinesRepository->find($id);
 
@@ -669,7 +669,7 @@ class RtaFinesController extends AppBaseController
     /**
      * Show the form for editing the specified RtaFines.
      */
-    public function edit($id)
+    public function edit($company_slug, $id)
     {
 
         $rtaFines = $this->rtaFinesRepository->find($id);
@@ -1033,7 +1033,7 @@ class RtaFinesController extends AppBaseController
      *
      * @throws \Exception
      */
-    public function destroy($id)
+    public function destroy($company_slug, $id)
     {
         $rtaFines = $this->rtaFinesRepository->find($id);
 
@@ -1211,7 +1211,7 @@ class RtaFinesController extends AppBaseController
         \Log::info("Recalculated ledger for account {$accountId} and billing month {$billingMonth}");
     }
 
-    public function getrider($id)
+    public function getrider($company_slug, $id)
     {
         $bike = Bikes::find($id);
         if (!$bike) {

@@ -382,7 +382,7 @@ class BanksController extends AppBaseController
     return redirect(route('banks.trashed'));
   }
   */
-  public function ledger($id, LedgerDataTable $ledgerDataTable)
+  public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
   {
     $banks = Banks::find($id);
     $files = Transactions::where('account_id', $banks->account_id)->get();
@@ -391,15 +391,15 @@ class BanksController extends AppBaseController
     return $ledgerDataTable->with(['account_id' => $account_id])->render('banks.bank_ledger', compact('files', 'banks'));
   }
 
-  public function files($id, FilesDataTable $filesDataTable)
+  public function files($company_slug, $id, FilesDataTable $filesDataTable)
   {
     $files = \App\Support\CompanyQuery::table('files')->where('type', 'bank')->where('type_id', $id)->latest('id')->get();
     $banks = Banks::find($id);
-
-    return view('banks.document', compact('files'));
+    \Log::info('banks.files', ['bank' => $banks, 'id' => $id, 'previous' => url()->previous() , 'current' => url()->current()]);
+    return view('banks.document', compact('files','banks'));
   }
 
-  public function receipts(Request $request, $id)
+  public function receipts(Request $request, $company_slug, $id)
   {
     $banks = Banks::find($id);
     $fundIn = 0;
@@ -419,7 +419,7 @@ class BanksController extends AppBaseController
     return view('banks.receipts' , ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
   }
 
-  public function payments(Request $request, $id)
+  public function payments(Request $request, $company_slug, $id)
   {
     $banks = Banks::find($id);
     $fundIn = 0;
@@ -439,7 +439,7 @@ class BanksController extends AppBaseController
     return view('banks.payments' , ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
   }
 
-  public function cheques(Request $request, $id)
+  public function cheques(Request $request, $company_slug, $id)
   {
     $banks = Banks::find($id);
     $query = Cheques::query()->latest('issue_date');

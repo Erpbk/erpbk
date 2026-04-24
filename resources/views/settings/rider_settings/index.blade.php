@@ -607,11 +607,11 @@
             </div>
           </div>
           <div class="mb-3">
-            <label class="form-label">Select Value(s) <span class="text-danger">*</span></label>
-            <select name="selected_values[]" id="addRiderTopOptionValues" class="form-select" required>
-              <option value="">Loading values...</option>
-            </select>
-            <div class="form-text">Values are loaded from the selected category column in the rider table.</div>
+            <label class="form-label">Add Option Value(s) <span class="text-danger">*</span></label>
+            <div id="addRiderTopOptionRows" class="d-flex flex-column gap-2"></div>
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addRiderTopOptionRowBtn">Add Option</button>
+            <datalist id="addRiderTopOptionSuggestions"></datalist>
+            <div class="form-text">Values are loaded from the selected category column in the rider table. You can add one or more items.</div>
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
@@ -1168,20 +1168,58 @@
     var baseUrl = "{{ url('') }}";
     var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content') || document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value;
 
-    function setupRiderTopValuesSelect2(isMultiple) {
-      var valuesSelect = document.getElementById('addRiderTopOptionValues');
-      if (!valuesSelect) return;
-      if (!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)) return;
-      var $select = window.jQuery(valuesSelect);
-      if ($select.hasClass('select2-hidden-accessible')) {
-        $select.select2('destroy');
+    var riderTopAvailableValues = [];
+
+    function createRiderTopOptionRow(initialValue) {
+      var rowsWrap = document.getElementById('addRiderTopOptionRows');
+      if (!rowsWrap) return;
+      var row = document.createElement('div');
+      row.className = 'd-flex align-items-center gap-2';
+
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'form-control rider-top-option-row-input';
+      input.placeholder = 'Option value';
+      input.value = initialValue || '';
+      input.setAttribute('list', 'addRiderTopOptionSuggestions');
+
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn btn-sm btn-outline-danger';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', function() {
+        row.remove();
+      });
+
+      row.appendChild(input);
+      row.appendChild(removeBtn);
+      rowsWrap.appendChild(row);
+    }
+
+    function setRiderTopSelectionMode(mode) {
+      var addBtn = document.getElementById('addRiderTopOptionRowBtn');
+      var rowsWrap = document.getElementById('addRiderTopOptionRows');
+      if (!rowsWrap) return;
+      var rows = rowsWrap.querySelectorAll('.rider-top-option-row-input');
+      var isMultiple = mode === 'multiple';
+      if (addBtn) addBtn.disabled = !isMultiple;
+      if (!isMultiple && rows.length > 1) {
+        for (var i = 1; i < rows.length; i++) {
+          var rowEl = rows[i].closest('.d-flex');
+          if (rowEl) rowEl.remove();
+        }
       }
-      $select.select2({
-        width: '100%',
-        dropdownParent: window.jQuery('#addRiderTopOptionModal'),
-        placeholder: isMultiple ? 'Select one or more values' : 'Select a value',
-        multiple: !!isMultiple,
-        allowClear: true
+    }
+
+    function setRiderTopOptionSuggestions(values) {
+      riderTopAvailableValues = Array.isArray(values) ? values : [];
+      var datalist = document.getElementById('addRiderTopOptionSuggestions');
+      if (!datalist) return;
+      datalist.innerHTML = '';
+      riderTopAvailableValues.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v;
+        datalist.appendChild(opt);
       });
     }
 
@@ -1317,20 +1355,20 @@
       var categoryIdInput = document.getElementById('addRiderTopOptionCategoryId');
       var categoryNameEl = document.getElementById('addRiderTopOptionCategoryName');
       var columnNameEl = document.getElementById('addRiderTopOptionColumnName');
-      var valuesSelect = document.getElementById('addRiderTopOptionValues');
+      var rowsWrap = document.getElementById('addRiderTopOptionRows');
+      var singleModeInput = document.getElementById('riderTopOptionModeSingle');
       if (categoryIdInput) categoryIdInput.value = addOptionBtn.getAttribute('data-category-id') || '';
       if (categoryNameEl) categoryNameEl.textContent = addOptionBtn.getAttribute('data-category-name') || '-';
       if (columnNameEl) columnNameEl.textContent = '-';
-      if (valuesSelect) {
-        valuesSelect.innerHTML = '<option value="">Loading values...</option>';
-        valuesSelect.multiple = false;
-        valuesSelect.required = true;
-        valuesSelect.removeAttribute('size');
-        setupRiderTopValuesSelect2(false);
+      if (singleModeInput) singleModeInput.checked = true;
+      if (rowsWrap) {
+        rowsWrap.innerHTML = '';
+        createRiderTopOptionRow('');
       }
+      setRiderTopSelectionMode('single');
 
       var categoryId = addOptionBtn.getAttribute('data-category-id') || '';
-      if (!categoryId || !valuesSelect) return;
+      if (!categoryId) return;
       const fieldValuesUrlTemplate = "{{ route('settings-panel.rider-settings.rider-top-category-field-values', ['id' => '__CID__']) }}";
       const fieldValuesUrl = fieldValuesUrlTemplate.replace('__CID__', categoryId);
       fetch(fieldValuesUrl, {
@@ -1344,44 +1382,37 @@
         })
         .then(function(data) {
           if (!data.success) {
-            valuesSelect.innerHTML = '<option value="">No values found</option>';
+            setRiderTopOptionSuggestions([]);
             if (columnNameEl) columnNameEl.textContent = '-';
             return;
           }
           if (columnNameEl) columnNameEl.textContent = data.column || '-';
           var values = Array.isArray(data.values) ? data.values : [];
-          valuesSelect.innerHTML = '';
-          if (!values.length) {
-            valuesSelect.innerHTML = '<option value="">No values available</option>';
-            return;
+          setRiderTopOptionSuggestions(values);
+          if (values.length && rowsWrap) {
+            var firstInput = rowsWrap.querySelector('.rider-top-option-row-input');
+            if (firstInput && (!firstInput.value || firstInput.value.trim() === '')) {
+              firstInput.value = values[0];
+            }
           }
-          values.forEach(function(v) {
-            var opt = document.createElement('option');
-            opt.value = v;
-            opt.textContent = v;
-            valuesSelect.appendChild(opt);
-          });
-          setupRiderTopValuesSelect2(valuesSelect.multiple);
         })
         .catch(function() {
-          valuesSelect.innerHTML = '<option value="">Unable to load values</option>';
+          setRiderTopOptionSuggestions([]);
           if (columnNameEl) columnNameEl.textContent = '-';
-          setupRiderTopValuesSelect2(false);
         });
     });
+
+    var addRiderTopOptionRowBtn = document.getElementById('addRiderTopOptionRowBtn');
+    if (addRiderTopOptionRowBtn) {
+      addRiderTopOptionRowBtn.addEventListener('click', function() {
+        createRiderTopOptionRow('');
+      });
+    }
 
     document.addEventListener('change', function(e) {
       var modeInput = e.target.closest('input[name="selection_mode"]');
       if (!modeInput) return;
-      var valuesSelect = document.getElementById('addRiderTopOptionValues');
-      if (!valuesSelect) return;
-      if (modeInput.value === 'multiple') {
-        valuesSelect.multiple = true;
-      } else {
-        valuesSelect.multiple = false;
-      }
-      valuesSelect.removeAttribute('size');
-      setupRiderTopValuesSelect2(valuesSelect.multiple);
+      setRiderTopSelectionMode(modeInput.value || 'single');
     });
 
     document.addEventListener('click', function(e) {
@@ -1603,16 +1634,36 @@
         e.preventDefault();
         var form = this;
         var btn = document.getElementById('addRiderTopOptionSubmitBtn');
-        var valuesSelect = document.getElementById('addRiderTopOptionValues');
+        var rowsWrap = document.getElementById('addRiderTopOptionRows');
+        var modeInput = document.querySelector('input[name="selection_mode"]:checked');
+        var mode = modeInput ? modeInput.value : 'single';
         if (btn) btn.disabled = true;
         var payload = new FormData(form);
         payload.delete('selected_values[]');
-        if (valuesSelect) {
-          Array.prototype.slice.call(valuesSelect.selectedOptions || []).forEach(function(opt) {
-            if ((opt.value || '').trim() !== '') {
-              payload.append('selected_values[]', opt.value);
-            }
+        var items = [];
+        if (rowsWrap) {
+          items = Array.prototype.slice.call(rowsWrap.querySelectorAll('.rider-top-option-row-input'))
+            .map(function(el) {
+              return (el.value || '').trim();
+            })
+            .filter(function(v) {
+              return v.length > 0;
+            });
+        }
+        if (mode === 'single' && items.length > 1) {
+          items = [items[0]];
+        }
+        items.forEach(function(v) {
+          payload.append('selected_values[]', v);
+        });
+        if (items.length === 0) {
+          if (btn) btn.disabled = false;
+          if (typeof Swal !== 'undefined') Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Please add at least one option value.'
           });
+          return;
         }
         fetch("{{ route('settings-panel.rider-settings.store-rider-top-option') }}", {
             method: 'POST',

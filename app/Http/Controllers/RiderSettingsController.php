@@ -102,6 +102,7 @@ class RiderSettingsController extends Controller
                     'display_order' => $a->display_order,
                     'is_visible' => $isVisible,
                     'input_type' => $a->input_type ?: $defaultType,
+                    'input_config' => is_array($a->input_config) ? $a->input_config : [],
                 ];
             })->values()->all();
             $result[] = (object) [
@@ -151,6 +152,7 @@ class RiderSettingsController extends Controller
             'category_id' => 'required|integer|exists:rider_categories,id',
             'display_label' => 'nullable|string|max:255',
             'input_type' => 'nullable|string|max:50',
+            'config' => 'nullable|array',
         ]);
         $keys = RiderCustomField::allFixedFieldKeys();
         if (!in_array($validated['field_key'], $keys, true)) {
@@ -171,12 +173,36 @@ class RiderSettingsController extends Controller
                 return response()->json(['success' => false, 'message' => 'Invalid field type.'], 422);
             }
             $assignment->input_type = $validated['input_type'];
+            $assignment->input_config = $this->sanitizeInputTypeConfig($validated['input_type'], (array) ($validated['config'] ?? []));
         }
         $assignment->save();
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json(['success' => true, 'message' => 'Category updated.']);
         }
         return redirect()->route('settings-panel.rider-settings.index', ['tab' => 'rider-fields'])->with('success', 'Category updated.');
+    }
+
+    protected function sanitizeInputTypeConfig(string $inputType, array $config): array
+    {
+        $typeMeta = RiderCustomField::dataTypes()[$inputType] ?? null;
+        if (!$typeMeta || empty($typeMeta['config']) || !is_array($typeMeta['config'])) {
+            return [];
+        }
+
+        $sanitized = [];
+        foreach ($typeMeta['config'] as $cfg) {
+            $key = $cfg['key'] ?? null;
+            if (!$key || !array_key_exists($key, $config)) {
+                continue;
+            }
+            $value = $config[$key];
+            if (is_string($value)) {
+                $value = trim($value);
+            }
+            $sanitized[$key] = $value;
+        }
+
+        return $sanitized;
     }
 
     /**

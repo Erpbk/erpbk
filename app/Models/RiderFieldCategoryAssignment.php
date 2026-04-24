@@ -12,6 +12,7 @@ class RiderFieldCategoryAssignment extends BaseModel
         'field_key',
         'display_label',
         'input_type',
+        'input_config',
         'category_id',
         'display_order',
         'is_visible',
@@ -19,6 +20,7 @@ class RiderFieldCategoryAssignment extends BaseModel
 
     protected $casts = [
         'is_visible' => 'boolean',
+        'input_config' => 'array',
     ];
 
     public function category()

@@ -240,7 +240,7 @@
                     </thead>
                     <tbody id="rider-fields-tbody-{{ $group->category->id }}" class="rider-fields-sortable-tbody">
                       @forelse($group->fields as $rowIndex => $row)
-                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
+                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle rider-field-index">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
@@ -271,7 +271,8 @@
                             data-field-label="{{ $row->label }}"
                             data-category-id="{{ $group->category->id }}"
                             data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
-                            data-input-type="{{ $row->input_type ?? 'text' }}">
+                            data-input-type="{{ $row->input_type ?? 'text' }}"
+                            data-input-config='@json($row->input_config ?? [])'>
                             <i class="ti ti-pencil me-1"></i> Edit
                           </button>
                         </td>
@@ -519,6 +520,10 @@
                 <option value="{{ $typeKey }}">{{ $typeMeta['label'] ?? ucfirst($typeKey) }}</option>
                 @endforeach
               </select>
+            </div>
+            <div class="col-12" id="editRiderFixedConfigOptionsWrap" style="display:none;">
+              <label class="form-label small text-uppercase text-muted">Type configuration</label>
+              <div id="edit-rider-fixed-config-options-fields"></div>
             </div>
             <div class="col-md-6">
               <label class="form-label">Category</label>
@@ -1615,6 +1620,13 @@
       var categoryId = editFixedFieldBtn.getAttribute('data-category-id') || '';
       var isVisible = editFixedFieldBtn.getAttribute('data-is-visible') || '1';
       var inputType = editFixedFieldBtn.getAttribute('data-input-type') || 'text';
+      var inputConfigRaw = editFixedFieldBtn.getAttribute('data-input-config') || '{}';
+      var inputConfig = {};
+      try {
+        inputConfig = JSON.parse(inputConfigRaw);
+      } catch (e) {
+        inputConfig = {};
+      }
 
       var keyInput = document.getElementById('editRiderFixedFieldKey');
       var keyTextInput = document.getElementById('editRiderFixedFieldKeyText');
@@ -1622,6 +1634,8 @@
       var categoryInput = document.getElementById('editRiderFixedFieldCategoryId');
       var visibleInput = document.getElementById('editRiderFixedFieldVisible');
       var typeInput = document.getElementById('editRiderFixedFieldType');
+      var fixedConfigWrap = document.getElementById('editRiderFixedConfigOptionsWrap');
+      var fixedConfigContainer = document.getElementById('edit-rider-fixed-config-options-fields');
 
       if (keyInput) keyInput.value = fieldKey;
       if (keyTextInput) keyTextInput.value = fieldKey;
@@ -1629,6 +1643,12 @@
       if (categoryInput) categoryInput.value = categoryId;
       if (visibleInput) visibleInput.checked = String(isVisible) === '1';
       if (typeInput) typeInput.value = inputType;
+      if (fixedConfigWrap && fixedConfigContainer) {
+        const typeMeta = dataTypesMeta[inputType] || {};
+        const hasConfig = typeMeta.config && typeMeta.config.length;
+        fixedConfigWrap.style.display = hasConfig ? 'block' : 'none';
+        buildConfigFields(fixedConfigContainer, inputType, inputConfig);
+      }
 
       if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
         var modal = new bootstrap.Modal(document.getElementById('editRiderFixedFieldModal'));
@@ -1638,6 +1658,19 @@
 
     var formEditRiderFixedField = document.getElementById('formEditRiderFixedField');
     if (formEditRiderFixedField) {
+      var fixedTypeSelect = document.getElementById('editRiderFixedFieldType');
+      var fixedConfigWrap = document.getElementById('editRiderFixedConfigOptionsWrap');
+      var fixedConfigContainer = document.getElementById('edit-rider-fixed-config-options-fields');
+      if (fixedTypeSelect) {
+        fixedTypeSelect.addEventListener('change', function() {
+          var typeKey = this.value || '';
+          const typeMeta = dataTypesMeta[typeKey] || {};
+          const hasConfig = typeMeta.config && typeMeta.config.length;
+          if (fixedConfigWrap) fixedConfigWrap.style.display = hasConfig ? 'block' : 'none';
+          if (fixedConfigContainer) buildConfigFields(fixedConfigContainer, typeKey, {});
+        });
+      }
+
       formEditRiderFixedField.addEventListener('submit', function(e) {
         e.preventDefault();
         var form = this;
@@ -1652,6 +1685,15 @@
         assignmentFd.append('display_label', (document.getElementById('editRiderFixedFieldLabel') && document.getElementById('editRiderFixedFieldLabel').value) || '');
         assignmentFd.append('category_id', (document.getElementById('editRiderFixedFieldCategoryId') && document.getElementById('editRiderFixedFieldCategoryId').value) || '');
         assignmentFd.append('input_type', (document.getElementById('editRiderFixedFieldType') && document.getElementById('editRiderFixedFieldType').value) || 'text');
+        if (fixedConfigContainer) {
+          fixedConfigContainer.querySelectorAll('input[name^="config["], textarea[name^="config["], select[name^="config["]').forEach(function(el) {
+            if (el.type === 'checkbox') {
+              assignmentFd.append(el.name, el.checked ? '1' : '0');
+            } else {
+              assignmentFd.append(el.name, el.value || '');
+            }
+          });
+        }
 
         fetch("{{ route('settings-panel.rider-settings.update-field-assignment') }}", {
             method: 'POST',

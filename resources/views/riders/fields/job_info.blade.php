@@ -8,7 +8,7 @@
         {!! Form::date('emirate_exp', null, ['class' => 'form-control','id'=>'emirate_exp','required']) !!}
     </div>
     <div class="form-group col-sm-4">
-        {!! Form::label('fleet_supervisor', 'Fleet Supervisor:',['class'=>'required']) !!}
+        {!! Form::label('fleet_supervisor', 'Fleet Supervisor:') !!}
         {!! Form::select('fleet_supervisor', Common::Dropdowns('fleet-supervisor'), null, ['class' => 'form-select', 'placeholder' => 'Select Fleet Supervisor', 'required']) !!}
     </div>
     <div class="form-group col-sm-4">

@@ -60,6 +60,8 @@ class RiderSettingsController extends Controller
     protected function riderTopSelectableColumns(): array
     {
         $specs = RiderCustomField::fixedFieldInputSpecs();
+        $excludedDropdownSources = ['countries', 'vendors', 'recruiters', 'accounts', 'customers', 'branch'];
+        $explicitForeignKeyColumns = ['account_id', 'customer_id', 'recruiter_id', 'branch_id', 'company_id', 'rider_top_option_id'];
         $options = [];
 
         foreach ($specs as $fieldKey => $spec) {
@@ -68,12 +70,13 @@ class RiderSettingsController extends Controller
             if ($type !== 'select' || empty($dropdown)) {
                 continue;
             }
-            // Must be a direct riders table column.
+            if (in_array($dropdown, $excludedDropdownSources, true)) {
+                continue;
+            }
             if (!Schema::hasColumn('riders', $fieldKey)) {
                 continue;
             }
-            // Exclude columns that are foreign-key style.
-            if (preg_match('/_id$/i', $fieldKey) === 1) {
+            if (in_array($fieldKey, $explicitForeignKeyColumns, true) || str_ends_with($fieldKey, '_id')) {
                 continue;
             }
             $options[$fieldKey] = RiderCustomField::humanizeFieldKey($fieldKey);

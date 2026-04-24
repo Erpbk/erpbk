@@ -887,39 +887,24 @@ $tableColumns = $columns;
         sliderTrack.dataset.tickerInit = '1';
         let translateX = 0;
         let rafId = null;
-        let running = true;
-        const speed = 0.45; // px/frame for smooth continuous movement
+        const speedPxPerSecond = 42; // ad-banner like smooth run
         const firstSetWidth = cards.reduce(function(total, card) {
             return total + card.offsetWidth;
         }, 0) + ((cards.length - 1) * 16);
+        let lastTs = null;
 
-        function tick() {
-            if (!running) return;
-            translateX -= speed;
+        function tick(ts) {
+            if (lastTs === null) lastTs = ts;
+            const dt = (ts - lastTs) / 1000;
+            lastTs = ts;
+
+            // Right-to-left continuous movement.
+            translateX -= (speedPxPerSecond * dt);
             if (Math.abs(translateX) >= firstSetWidth) {
                 translateX = 0;
             }
             sliderTrack.style.transform = 'translateX(' + translateX + 'px)';
             rafId = window.requestAnimationFrame(tick);
-        }
-
-        function startTicker() {
-            if (running) return;
-            running = true;
-            rafId = window.requestAnimationFrame(tick);
-        }
-
-        function stopTicker() {
-            running = false;
-            if (rafId) {
-                window.cancelAnimationFrame(rafId);
-                rafId = null;
-            }
-        }
-
-        if (container) {
-            container.addEventListener('mouseenter', stopTicker);
-            container.addEventListener('mouseleave', startTicker);
         }
 
         rafId = window.requestAnimationFrame(tick);

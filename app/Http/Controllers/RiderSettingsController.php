@@ -59,24 +59,11 @@ class RiderSettingsController extends Controller
 
     protected function riderTopSelectableColumns(): array
     {
-        $specs = RiderCustomField::fixedFieldInputSpecs();
-        $excludedDropdownSources = ['countries', 'vendors', 'recruiters', 'accounts', 'customers', 'branch'];
-        $explicitForeignKeyColumns = ['account_id', 'customer_id', 'recruiter_id', 'branch_id', 'company_id', 'rider_top_option_id'];
+        $riderColumns = Schema::getColumnListing('riders');
         $options = [];
 
-        foreach ($specs as $fieldKey => $spec) {
-            $type = $spec['type'] ?? null;
-            $dropdown = $spec['dropdown'] ?? null;
-            if ($type !== 'select' || empty($dropdown)) {
-                continue;
-            }
-            if (in_array($dropdown, $excludedDropdownSources, true)) {
-                continue;
-            }
-            if (!Schema::hasColumn('riders', $fieldKey)) {
-                continue;
-            }
-            if (in_array($fieldKey, $explicitForeignKeyColumns, true) || str_ends_with($fieldKey, '_id')) {
+        foreach ($riderColumns as $fieldKey) {
+            if (in_array($fieldKey, ['id', 'created_at', 'updated_at', 'deleted_at'], true)) {
                 continue;
             }
             $options[$fieldKey] = RiderCustomField::humanizeFieldKey($fieldKey);

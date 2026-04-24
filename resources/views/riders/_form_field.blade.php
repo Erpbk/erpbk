@@ -19,22 +19,42 @@
     @if (($spec['type'] ?? 'text') === 'select')
       {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
       @php
+        $configuredOpts = [];
+        $assignment = \App\Models\RiderFieldCategoryAssignment::where('field_key', $item->field_key)->first();
+        $configuredRaw = $assignment?->input_config['options'] ?? null;
+        if ($configuredRaw !== null) {
+          $configuredItems = is_array($configuredRaw) ? $configuredRaw : preg_split('/\r\n|\r|\n/', (string) $configuredRaw);
+          $configuredItems = collect($configuredItems)
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
+            ->unique()
+            ->values()
+            ->all();
+          if (!empty($configuredItems)) {
+            $configuredOpts = array_combine($configuredItems, $configuredItems);
+          }
+        }
+
         $opts = [];
-        if (($spec['dropdown'] ?? '') === 'countries') {
-          $opts = \App\Models\Countries::list()->toArray();
-        } elseif (($spec['dropdown'] ?? '') === 'vendors') {
-          $opts = \App\Models\Vendors::dropdown();
-        } elseif (($spec['dropdown'] ?? '') === 'recruiters') {
-          // Use model scope so options are filtered by company_id (and active status).
-          $opts = \App\Models\Recruiters::dropdown()->toArray();
-        } elseif (($spec['dropdown'] ?? '') === 'accounts') {
-          $opts = \App\Models\Accounts::dropdown(null) ?? ['' => 'Select'];
-        } elseif (($spec['dropdown'] ?? '') === 'customers') {
-          $opts = \App\Models\Customers::pluck('name', 'id')->prepend('Select', '')->toArray();
-        } elseif (($spec['dropdown'] ?? '') === 'branch') {
-          $opts = \App\Models\Branch::active()->pluck('name', 'id')->prepend('Select', '')->toArray();
+        if (!empty($configuredOpts)) {
+          $opts = $configuredOpts;
         } else {
-          $opts = Common::Dropdowns($spec['dropdown'] ?? '');
+          if (($spec['dropdown'] ?? '') === 'countries') {
+            $opts = \App\Models\Countries::list()->toArray();
+          } elseif (($spec['dropdown'] ?? '') === 'vendors') {
+            $opts = \App\Models\Vendors::dropdown();
+          } elseif (($spec['dropdown'] ?? '') === 'recruiters') {
+            // Use model scope so options are filtered by company_id (and active status).
+            $opts = \App\Models\Recruiters::dropdown()->toArray();
+          } elseif (($spec['dropdown'] ?? '') === 'accounts') {
+            $opts = \App\Models\Accounts::dropdown(null) ?? ['' => 'Select'];
+          } elseif (($spec['dropdown'] ?? '') === 'customers') {
+            $opts = \App\Models\Customers::pluck('name', 'id')->prepend('Select', '')->toArray();
+          } elseif (($spec['dropdown'] ?? '') === 'branch') {
+            $opts = \App\Models\Branch::active()->pluck('name', 'id')->prepend('Select', '')->toArray();
+          } else {
+            $opts = Common::Dropdowns($spec['dropdown'] ?? '');
+          }
         }
       @endphp
       {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select', 'placeholder' => 'Select ' . $item->label, 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null] + ($req ? ['required' => true] : [])) !!}

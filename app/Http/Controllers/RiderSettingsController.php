@@ -8,6 +8,7 @@ use App\Models\RiderDocumentType;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\RiderTopCategory;
 use App\Models\RiderTopOption;
+use App\Models\Riders;
 use App\Models\Settings;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -669,17 +670,76 @@ class RiderSettingsController extends Controller
     {
         $validated = $request->validate([
             'category_id' => 'required|integer|exists:rider_top_categories,id',
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
+            'selected_values' => 'nullable|array',
+            'selected_values.*' => 'nullable|string|max:255',
         ]);
 
-        RiderTopOption::create([
-            'category_id' => (int) $validated['category_id'],
-            'name' => trim($validated['name']),
-            'display_order' => ((int) RiderTopOption::where('category_id', (int) $validated['category_id'])->max('display_order')) + 1,
-            'is_active' => true,
-        ]);
+        $categoryId = (int) $validated['category_id'];
+        $items = collect($validated['selected_values'] ?? [])
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
+            ->unique()
+            ->values();
+
+        if ($items->isEmpty()) {
+            $single = trim((string) ($validated['name'] ?? ''));
+            if ($single !== '') {
+                $items = collect([$single]);
+            }
+        }
+
+        if ($items->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Please select at least one value.'], 422);
+        }
+
+        $nextOrder = ((int) RiderTopOption::where('category_id', $categoryId)->max('display_order')) + 1;
+        $createdCount = 0;
+        foreach ($items as $item) {
+            $exists = RiderTopOption::where('category_id', $categoryId)->where('name', $item)->exists();
+            if ($exists) {
+                continue;
+            }
+            RiderTopOption::create([
+                'category_id' => $categoryId,
+                'name' => $item,
+                'display_order' => $nextOrder++,
+                'is_active' => true,
+            ]);
+            $createdCount++;
+        }
+
+        if ($createdCount === 0) {
+            return response()->json(['success' => false, 'message' => 'Selected values already exist as options.'], 422);
+        }
 
         return response()->json(['success' => true, 'message' => 'Rider Top option added.']);
+    }
+
+    public function riderTopCategoryFieldValues($company_slug, $id)
+    {
+        $category = RiderTopCategory::findOrFail($id);
+        $column = (string) ($category->rider_column ?? '');
+        if ($column === '' || !Schema::hasColumn('riders', $column)) {
+            return response()->json(['success' => false, 'message' => 'Category source column is invalid.', 'values' => []], 422);
+        }
+
+        $values = Riders::query()
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->distinct()
+            ->orderBy($column)
+            ->pluck($column)
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
+            ->unique()
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'column' => $column,
+            'values' => $values,
+        ]);
     }
 
     public function updateRiderTopOption(Request $request, $company_slug, $id)

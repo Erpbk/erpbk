@@ -88,6 +88,7 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::post('rider-settings/documents/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentTypes'])->name('settings-panel.rider-settings.reorder-document-types');
     Route::get('rider-settings/rider-top/accordion-body', [App\Http\Controllers\RiderSettingsController::class, 'riderTopAccordionBody'])->name('settings-panel.rider-settings.rider-top-accordion-body');
     Route::post('rider-settings/rider-top/categories', [App\Http\Controllers\RiderSettingsController::class, 'storeRiderTopCategory'])->name('settings-panel.rider-settings.store-rider-top-category');
+    Route::get('rider-settings/rider-top/categories/{id}/field-values', [App\Http\Controllers\RiderSettingsController::class, 'riderTopCategoryFieldValues'])->name('settings-panel.rider-settings.rider-top-category-field-values');
     Route::put('rider-settings/rider-top/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderTopCategory'])->name('settings-panel.rider-settings.update-rider-top-category');
     Route::delete('rider-settings/rider-top/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyRiderTopCategory'])->name('settings-panel.rider-settings.destroy-rider-top-category');
     Route::post('rider-settings/rider-top/categories/{id}/visibility', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderTopCategoryVisibility'])->name('settings-panel.rider-settings.update-rider-top-category-visibility');

@@ -590,9 +590,28 @@
           <div class="mb-2 text-muted small">
             Category: <strong id="addRiderTopOptionCategoryName">-</strong>
           </div>
+          <div class="mb-2 text-muted small">
+            Source Column: <strong id="addRiderTopOptionColumnName">-</strong>
+          </div>
           <div class="mb-3">
-            <label class="form-label">Option Name <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" maxlength="255" required>
+            <label class="form-label d-block">Selection Mode</label>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="selection_mode" id="riderTopOptionModeSingle" value="single" checked>
+                <label class="form-check-label" for="riderTopOptionModeSingle">Single Select</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="selection_mode" id="riderTopOptionModeMultiple" value="multiple">
+                <label class="form-check-label" for="riderTopOptionModeMultiple">Multiple Select</label>
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Select Value(s) <span class="text-danger">*</span></label>
+            <select name="selected_values[]" id="addRiderTopOptionValues" class="form-select" required>
+              <option value="">Loading values...</option>
+            </select>
+            <div class="form-text">Values are loaded from the selected category column in the rider table.</div>
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
@@ -1280,8 +1299,68 @@
       if (!addOptionBtn) return;
       var categoryIdInput = document.getElementById('addRiderTopOptionCategoryId');
       var categoryNameEl = document.getElementById('addRiderTopOptionCategoryName');
+      var columnNameEl = document.getElementById('addRiderTopOptionColumnName');
+      var valuesSelect = document.getElementById('addRiderTopOptionValues');
       if (categoryIdInput) categoryIdInput.value = addOptionBtn.getAttribute('data-category-id') || '';
       if (categoryNameEl) categoryNameEl.textContent = addOptionBtn.getAttribute('data-category-name') || '-';
+      if (columnNameEl) columnNameEl.textContent = '-';
+      if (valuesSelect) {
+        valuesSelect.innerHTML = '<option value="">Loading values...</option>';
+        valuesSelect.multiple = false;
+        valuesSelect.required = true;
+      }
+
+      var categoryId = addOptionBtn.getAttribute('data-category-id') || '';
+      if (!categoryId || !valuesSelect) return;
+      const fieldValuesUrlTemplate = "{{ route('settings-panel.rider-settings.rider-top-category-field-values', ['id' => '__CID__']) }}";
+      const fieldValuesUrl = fieldValuesUrlTemplate.replace('__CID__', categoryId);
+      fetch(fieldValuesUrl, {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+          }
+        })
+        .then(function(r) {
+          return r.json();
+        })
+        .then(function(data) {
+          if (!data.success) {
+            valuesSelect.innerHTML = '<option value="">No values found</option>';
+            if (columnNameEl) columnNameEl.textContent = '-';
+            return;
+          }
+          if (columnNameEl) columnNameEl.textContent = data.column || '-';
+          var values = Array.isArray(data.values) ? data.values : [];
+          valuesSelect.innerHTML = '';
+          if (!values.length) {
+            valuesSelect.innerHTML = '<option value="">No values available</option>';
+            return;
+          }
+          values.forEach(function(v) {
+            var opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = v;
+            valuesSelect.appendChild(opt);
+          });
+        })
+        .catch(function() {
+          valuesSelect.innerHTML = '<option value="">Unable to load values</option>';
+          if (columnNameEl) columnNameEl.textContent = '-';
+        });
+    });
+
+    document.addEventListener('change', function(e) {
+      var modeInput = e.target.closest('input[name="selection_mode"]');
+      if (!modeInput) return;
+      var valuesSelect = document.getElementById('addRiderTopOptionValues');
+      if (!valuesSelect) return;
+      if (modeInput.value === 'multiple') {
+        valuesSelect.multiple = true;
+        valuesSelect.setAttribute('size', '8');
+      } else {
+        valuesSelect.multiple = false;
+        valuesSelect.removeAttribute('size');
+      }
     });
 
     document.addEventListener('click', function(e) {
@@ -1503,10 +1582,20 @@
         e.preventDefault();
         var form = this;
         var btn = document.getElementById('addRiderTopOptionSubmitBtn');
+        var valuesSelect = document.getElementById('addRiderTopOptionValues');
         if (btn) btn.disabled = true;
+        var payload = new FormData(form);
+        payload.delete('selected_values[]');
+        if (valuesSelect) {
+          Array.prototype.slice.call(valuesSelect.selectedOptions || []).forEach(function(opt) {
+            if ((opt.value || '').trim() !== '') {
+              payload.append('selected_values[]', opt.value);
+            }
+          });
+        }
         fetch("{{ route('settings-panel.rider-settings.store-rider-top-option') }}", {
             method: 'POST',
-            body: new FormData(form),
+            body: payload,
             headers: {
               'X-CSRF-TOKEN': csrf,
               'Accept': 'application/json',

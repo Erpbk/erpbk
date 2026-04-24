@@ -21,38 +21,38 @@
 
                 // Helper function to toggle rider status in URL
                 if (!function_exists('toggleRiderStatus')) {
-                    function toggleRiderStatus($status) {
-                        $currentStatuses = request('rider_status', []);
-                        $newStatuses = $currentStatuses;
+                function toggleRiderStatus($status) {
+                $currentStatuses = request('rider_status', []);
+                $newStatuses = $currentStatuses;
 
-                        if (in_array($status, $currentStatuses)) {
-                            // Remove the status
-                            $newStatuses = array_diff($currentStatuses, [$status]);
-                        } else {
-                            // Add the status
-                            $newStatuses[] = $status;
-                        }
+                if (in_array($status, $currentStatuses)) {
+                // Remove the status
+                $newStatuses = array_diff($currentStatuses, [$status]);
+                } else {
+                // Add the status
+                $newStatuses[] = $status;
+                }
 
-                        $queryParams = request()->query();
-                        $queryParams['rider_status'] = array_values($newStatuses);
+                $queryParams = request()->query();
+                $queryParams['rider_status'] = array_values($newStatuses);
 
-                        return request()->fullUrlWithQuery($queryParams);
-                    }
+                return request()->fullUrlWithQuery($queryParams);
+                }
                 }
 
                 // Helper function to toggle balance filter in URL
                 if (!function_exists('toggleBalanceFilter')) {
-                    function toggleBalanceFilter() {
-                        $queryParams = request()->query();
+                function toggleBalanceFilter() {
+                $queryParams = request()->query();
 
-                        if (request('balance_filter') == 'greater_than_zero') {
-                            unset($queryParams['balance_filter']);
-                        } else {
-                            $queryParams['balance_filter'] = 'greater_than_zero';
-                        }
+                if (request('balance_filter') == 'greater_than_zero') {
+                unset($queryParams['balance_filter']);
+                } else {
+                $queryParams['balance_filter'] = 'greater_than_zero';
+                }
 
-                        return request()->fullUrlWithQuery($queryParams);
-                    }
+                return request()->fullUrlWithQuery($queryParams);
+                }
                 }
                 @endphp
 
@@ -148,7 +148,7 @@
                     </div>
                     <div class="fleet-supervisor-cards slider-track" id="sliderTrack">
                         @php
-                        $dropdown = DB::table('dropdowns')->where('label', 'Fleet Supervisor')->first();
+                        $dropdown = DB::table('dropdowns')->where('label', 'Fleet Supervisor')->where('company_id', auth()->user()->company_id)->first();
                         $fleetSupervisors = $dropdown && $dropdown->values ? json_decode($dropdown->values, true) : [];
                         @endphp
 

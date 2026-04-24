@@ -25,10 +25,8 @@
         } elseif (($spec['dropdown'] ?? '') === 'vendors') {
           $opts = \App\Models\Vendors::dropdown();
         } elseif (($spec['dropdown'] ?? '') === 'recruiters') {
-          $opts = ['' => 'Select Recruiter'];
-          foreach (DB::table('recruiters')->where('status', 1)->get() as $r) {
-            $opts[$r->id] = $r->name;
-          }
+          // Use model scope so options are filtered by company_id (and active status).
+          $opts = \App\Models\Recruiters::dropdown()->toArray();
         } elseif (($spec['dropdown'] ?? '') === 'accounts') {
           $opts = \App\Models\Accounts::dropdown(null) ?? ['' => 'Select'];
         } elseif (($spec['dropdown'] ?? '') === 'customers') {

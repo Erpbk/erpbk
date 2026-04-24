@@ -235,11 +235,12 @@
                         <th>Field</th>
                         <th class="text-center">Show in rider form</th>
                         <th>Move to category</th>
+                        <th class="text-end" style="width: 120px;">Actions</th>
                       </tr>
                     </thead>
                     <tbody id="rider-fields-tbody-{{ $group->category->id }}" class="rider-fields-sortable-tbody">
                       @forelse($group->fields as $rowIndex => $row)
-                      <tr data-field-key="{{ $row->field_key }}" class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
+                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle rider-field-index">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
@@ -264,10 +265,19 @@
                             <button type="submit" class="btn btn-sm btn-outline-primary ms-1">Move</button>
                           </form>
                         </td>
+                        <td class="align-middle text-end">
+                          <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-fixed-field"
+                            data-field-key="{{ $row->field_key }}"
+                            data-field-label="{{ $row->label }}"
+                            data-category-id="{{ $group->category->id }}"
+                            data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}">
+                            <i class="ti ti-pencil me-1"></i> Edit
+                          </button>
+                        </td>
                       </tr>
                       @empty
                       <tr>
-                        <td colspan="5" class="text-center text-muted py-3">No fields in this category. Assign fields from another category or add new assignments.</td>
+                        <td colspan="6" class="text-center text-muted py-3">No fields in this category. Assign fields from another category or add new assignments.</td>
                       </tr>
                       @endforelse
                     </tbody>
@@ -467,6 +477,53 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- Edit Fixed Rider Field modal --}}
+<div class="modal fade" id="editRiderFixedFieldModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title">Edit Fixed Rider Field</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="formEditRiderFixedField">
+        @csrf
+        <input type="hidden" name="field_key" id="editRiderFixedFieldKey">
+        <div class="modal-body pt-0">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Field Key</label>
+              <input type="text" id="editRiderFixedFieldKeyText" class="form-control" readonly>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Show in rider form</label>
+              <div class="form-check form-switch mt-2">
+                <input type="checkbox" class="form-check-input" id="editRiderFixedFieldVisible" checked>
+                <label class="form-check-label" for="editRiderFixedFieldVisible">Visible in add/edit/view</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Display Label</label>
+              <input type="text" name="display_label" id="editRiderFixedFieldLabel" class="form-control" maxlength="255" placeholder="Enter display label">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Category</label>
+              <select name="category_id" id="editRiderFixedFieldCategoryId" class="form-select" required>
+                @foreach($categories as $c)
+                <option value="{{ $c->id }}">{{ $c->label }}</option>
+                @endforeach
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="editRiderFixedFieldSubmitBtn">Update</button>
         </div>
       </form>
     </div>
@@ -1539,6 +1596,117 @@
           });
         });
     });
+
+    document.addEventListener('click', function(e) {
+      var editFixedFieldBtn = e.target.closest('.btn-edit-rider-fixed-field');
+      if (!editFixedFieldBtn) return;
+
+      var fieldKey = editFixedFieldBtn.getAttribute('data-field-key') || '';
+      var fieldLabel = editFixedFieldBtn.getAttribute('data-field-label') || '';
+      var categoryId = editFixedFieldBtn.getAttribute('data-category-id') || '';
+      var isVisible = editFixedFieldBtn.getAttribute('data-is-visible') || '1';
+
+      var keyInput = document.getElementById('editRiderFixedFieldKey');
+      var keyTextInput = document.getElementById('editRiderFixedFieldKeyText');
+      var labelInput = document.getElementById('editRiderFixedFieldLabel');
+      var categoryInput = document.getElementById('editRiderFixedFieldCategoryId');
+      var visibleInput = document.getElementById('editRiderFixedFieldVisible');
+
+      if (keyInput) keyInput.value = fieldKey;
+      if (keyTextInput) keyTextInput.value = fieldKey;
+      if (labelInput) labelInput.value = fieldLabel;
+      if (categoryInput) categoryInput.value = categoryId;
+      if (visibleInput) visibleInput.checked = String(isVisible) === '1';
+
+      if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        var modal = new bootstrap.Modal(document.getElementById('editRiderFixedFieldModal'));
+        modal.show();
+      }
+    });
+
+    var formEditRiderFixedField = document.getElementById('formEditRiderFixedField');
+    if (formEditRiderFixedField) {
+      formEditRiderFixedField.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        var submitBtn = document.getElementById('editRiderFixedFieldSubmitBtn');
+        var fieldKey = document.getElementById('editRiderFixedFieldKey') && document.getElementById('editRiderFixedFieldKey').value;
+        var isVisible = document.getElementById('editRiderFixedFieldVisible') && document.getElementById('editRiderFixedFieldVisible').checked ? 1 : 0;
+        if (!fieldKey) return;
+        if (submitBtn) submitBtn.disabled = true;
+
+        var assignmentFd = new FormData();
+        assignmentFd.append('field_key', fieldKey);
+        assignmentFd.append('display_label', (document.getElementById('editRiderFixedFieldLabel') && document.getElementById('editRiderFixedFieldLabel').value) || '');
+        assignmentFd.append('category_id', (document.getElementById('editRiderFixedFieldCategoryId') && document.getElementById('editRiderFixedFieldCategoryId').value) || '');
+
+        fetch("{{ route('settings-panel.rider-settings.update-field-assignment') }}", {
+            method: 'POST',
+            body: assignmentFd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(function(r) {
+            return r.json();
+          })
+          .then(function(data) {
+            if (!data.success) throw new Error(data.message || 'Could not update field assignment.');
+
+            return fetch('{{ route("settings-panel.rider-settings.update-field-assignment-visibility") }}', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+              },
+              body: JSON.stringify({
+                field_key: fieldKey,
+                is_visible: isVisible
+              })
+            }).then(function(r) {
+              return r.json();
+            });
+          })
+          .then(function(data) {
+            if (submitBtn) submitBtn.disabled = false;
+            if (!data.success) {
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Could not update visibility.'
+              });
+              return;
+            }
+
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+              var modal = bootstrap.Modal.getInstance(document.getElementById('editRiderFixedFieldModal'));
+              if (modal) modal.hide();
+            }
+            if (typeof window.refreshRiderFieldsTableBody === 'function') {
+              window.refreshRiderFieldsTableBody();
+            } else {
+              location.reload();
+            }
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'success',
+              title: 'Updated',
+              text: 'Field settings updated.'
+            });
+          })
+          .catch(function(err) {
+            if (submitBtn) submitBtn.disabled = false;
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: (err && err.message) ? err.message : 'Could not update field settings.'
+            });
+          });
+      });
+    }
 
     document.addEventListener('click', function(e) {
       var editBtn = e.target.closest('.btn-edit-category');

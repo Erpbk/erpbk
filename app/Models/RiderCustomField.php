@@ -269,6 +269,7 @@ class RiderCustomField extends BaseModel
     public static function fieldsByCategoryForForm(): array
     {
         $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $fallbackMap = self::fixedFieldsSlugMap();
         $assignmentsAll = RiderFieldCategoryAssignment::with('category')
             ->where(function ($q) {
                 $q->where('is_visible', '=', 1)->orWhereNull('is_visible');
@@ -285,18 +286,33 @@ class RiderCustomField extends BaseModel
         $result = [];
         foreach ($categories as $cat) {
             $fields = [];
-            foreach ($assignmentsAll->where('category_id', $cat->id)->values() as $a) {
-                $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
-                    ? trim($a->display_label)
-                    : self::humanizeFieldKey($a->field_key);
-                $spec = $specs[$a->field_key] ?? ['type' => 'text'];
-                $fields[] = (object) [
-                    'kind' => 'fixed',
-                    'field_key' => $a->field_key,
-                    'label' => $label,
-                    'spec' => $spec,
-                ];
+            $categoryAssignments = $assignmentsAll->where('category_id', $cat->id)->values();
+
+            if ($categoryAssignments->isNotEmpty()) {
+                foreach ($categoryAssignments as $a) {
+                    $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
+                        ? trim($a->display_label)
+                        : self::humanizeFieldKey($a->field_key);
+                    $spec = $specs[$a->field_key] ?? ['type' => 'text'];
+                    $fields[] = (object) [
+                        'kind' => 'fixed',
+                        'field_key' => $a->field_key,
+                        'label' => $label,
+                        'spec' => $spec,
+                    ];
+                }
+            } else {
+                // If no visible category assignments exist, fall back to built-in fixed fields map.
+                foreach ($fallbackMap[$cat->slug] ?? [] as $fieldKey) {
+                    $fields[] = (object) [
+                        'kind' => 'fixed',
+                        'field_key' => $fieldKey,
+                        'label' => self::humanizeFieldKey($fieldKey),
+                        'spec' => $specs[$fieldKey] ?? ['type' => 'text'],
+                    ];
+                }
             }
+
             foreach ($customFieldsAll->where('category_id', $cat->id)->values() as $cf) {
                 $fields[] = (object) [
                     'kind' => 'custom',

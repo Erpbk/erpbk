@@ -69,7 +69,6 @@
     </div>
   </div>
 </div>
-
 {{-- Main content: tabs General | Categories | Rider Fields --}}
 <div class="row">
   <div class="col-12">
@@ -641,7 +640,9 @@
   (function() {
     'use strict';
 
-    const dataTypesMeta = {!! json_encode($dataTypes, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!};
+    const dataTypesMeta = {
+      !!json_encode($dataTypes, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!
+    };
 
     function buildConfigFields(container, typeKey, existingConfig) {
       container.innerHTML = '';
@@ -957,14 +958,18 @@
     // Rider Documents: refresh table body
     window.refreshRiderDocumentTypesTable = function() {
       fetch("{{ route('settings-panel.rider-settings.document-types-table-body') }}", {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      })
-      .then(function(r) { return r.text(); })
-      .then(function(html) {
-        var tbody = document.getElementById('riderDocumentTypesTbody');
-        if (tbody) tbody.innerHTML = html;
-        if (typeof initRiderDocumentTypesSortable === 'function') initRiderDocumentTypesSortable();
-      });
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.text();
+        })
+        .then(function(html) {
+          var tbody = document.getElementById('riderDocumentTypesTbody');
+          if (tbody) tbody.innerHTML = html;
+          if (typeof initRiderDocumentTypesSortable === 'function') initRiderDocumentTypesSortable();
+        });
     };
 
     // Add document type: type toggle
@@ -996,44 +1001,71 @@
         var btn = document.getElementById('addRiderDocumentTypeSubmitBtn');
         if (btn) btn.disabled = true;
         fetch("{{ route('settings-panel.rider-settings.store-document-type') }}", {
-          method: 'POST',
-          body: fd,
-          headers: {
-            'X-CSRF-TOKEN': csrf,
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-        .then(function(r) {
-          if (!r.ok) return r.json().then(function(d) { return { _httpError: true, status: r.status, data: d }; }).catch(function() { return { _httpError: true, status: r.status }; });
-          return r.json();
-        })
-        .then(function(data) {
-          if (btn) btn.disabled = false;
-          if (data._httpError) {
-            var msg = (data.data && data.data.message) || 'Server error.';
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: msg });
-            return;
-          }
-          if (data.success) {
-            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-              var m = bootstrap.Modal.getInstance(document.getElementById('addRiderDocumentTypeModal'));
-              if (m) m.hide();
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
             }
-            form.reset();
-            document.getElementById('addDocTypeSingleWrap').style.display = 'block';
-            document.getElementById('addDocTypeDualWrap').style.display = 'none';
-            document.getElementById('addDocTypeActive').checked = true;
-            window.refreshRiderDocumentTypesTable();
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Saved', text: data.message || 'Document type added.' });
-          } else {
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not save.' });
-          }
-        })
-        .catch(function() {
-          if (btn) btn.disabled = false;
-          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Could not save.' });
-        });
+          })
+          .then(function(r) {
+            if (!r.ok) return r.json().then(function(d) {
+              return {
+                _httpError: true,
+                status: r.status,
+                data: d
+              };
+            }).catch(function() {
+              return {
+                _httpError: true,
+                status: r.status
+              };
+            });
+            return r.json();
+          })
+          .then(function(data) {
+            if (btn) btn.disabled = false;
+            if (data._httpError) {
+              var msg = (data.data && data.data.message) || 'Server error.';
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: msg
+              });
+              return;
+            }
+            if (data.success) {
+              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var m = bootstrap.Modal.getInstance(document.getElementById('addRiderDocumentTypeModal'));
+                if (m) m.hide();
+              }
+              form.reset();
+              document.getElementById('addDocTypeSingleWrap').style.display = 'block';
+              document.getElementById('addDocTypeDualWrap').style.display = 'none';
+              document.getElementById('addDocTypeActive').checked = true;
+              window.refreshRiderDocumentTypesTable();
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'success',
+                title: 'Saved',
+                text: data.message || 'Document type added.'
+              });
+            } else {
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Could not save.'
+              });
+            }
+          })
+          .catch(function() {
+            if (btn) btn.disabled = false;
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Could not save.'
+            });
+          });
       });
     }
 
@@ -1048,30 +1080,44 @@
         fd.set('_method', 'PUT');
         fd.set('is_active', form.querySelector('#editDocTypeActive').checked ? '1' : '0');
         fetch(baseUrl + '/settings-panel/rider-settings/documents/' + id, {
-          method: 'POST',
-          body: fd,
-          headers: {
-            'X-CSRF-TOKEN': csrf,
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.success) {
-            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-              var m = bootstrap.Modal.getInstance(document.getElementById('editRiderDocumentTypeModal'));
-              if (m) m.hide();
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
             }
-            window.refreshRiderDocumentTypesTable();
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Updated', text: data.message || 'Document type updated.' });
-          } else {
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not update.' });
-          }
-        })
-        .catch(function() {
-          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Could not update.' });
-        });
+          })
+          .then(function(r) {
+            return r.json();
+          })
+          .then(function(data) {
+            if (data.success) {
+              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var m = bootstrap.Modal.getInstance(document.getElementById('editRiderDocumentTypeModal'));
+                if (m) m.hide();
+              }
+              window.refreshRiderDocumentTypesTable();
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'success',
+                title: 'Updated',
+                text: data.message || 'Document type updated.'
+              });
+            } else {
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Could not update.'
+              });
+            }
+          })
+          .catch(function() {
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Could not update.'
+            });
+          });
       });
     }
 
@@ -1085,26 +1131,40 @@
       var action = form.getAttribute('action');
       var fd = new FormData(form);
       fetch(action, {
-        method: 'POST',
-        body: fd,
-        headers: {
-          'X-CSRF-TOKEN': csrf,
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.success) {
-          window.refreshRiderDocumentTypesTable();
-          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Deleted', text: data.message || 'Document type deleted.' });
-        } else {
-          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not delete.' });
-        }
-      })
-      .catch(function() {
-        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Could not delete.' });
-      });
+          method: 'POST',
+          body: fd,
+          headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.json();
+        })
+        .then(function(data) {
+          if (data.success) {
+            window.refreshRiderDocumentTypesTable();
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'success',
+              title: 'Deleted',
+              text: data.message || 'Document type deleted.'
+            });
+          } else {
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Could not delete.'
+            });
+          }
+        })
+        .catch(function() {
+          if (typeof Swal !== 'undefined') Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Could not delete.'
+          });
+        });
     });
 
     // Sortable for rider document types
@@ -1117,10 +1177,14 @@
         animation: 150,
         onEnd: function() {
           var order = [];
-          tbody.querySelectorAll('tr[data-id]').forEach(function(tr) { order.push(parseInt(tr.getAttribute('data-id'), 10)); });
+          tbody.querySelectorAll('tr[data-id]').forEach(function(tr) {
+            order.push(parseInt(tr.getAttribute('data-id'), 10));
+          });
           var fd = new FormData();
           fd.append('_token', csrf);
-          order.forEach(function(id) { fd.append('order[]', id); });
+          order.forEach(function(id) {
+            fd.append('order[]', id);
+          });
           fetch("{{ route('settings-panel.rider-settings.reorder-document-types') }}", {
             method: 'POST',
             body: fd,

@@ -582,8 +582,8 @@ function bodyunblock() {
   $('#bodyloader').unblock();
 }
 
-$('#edit-icon').on('click', function() {
-    $('#photo-upload-form').fadeToggle('fast');
+$(document).on('click', '#edit-icon', function () {
+  $('#photo-upload-form').fadeToggle('fast');
 });
 
 

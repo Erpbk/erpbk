@@ -13,7 +13,6 @@
         $fleetSupervisorOptions = [];
         $fleetSupervisorAssignment = \App\Models\RiderFieldCategoryAssignment::where('field_key', 'fleet_supervisor')->first();
         $configured = $fleetSupervisorAssignment?->input_config['options'] ?? null;
-        dd($configured);
         if ($configured !== null) {
         $configuredItems = is_array($configured) ? $configured : preg_split("/\r\n|\n|\r/", (string) $configured);
         $configuredItems = collect($configuredItems)

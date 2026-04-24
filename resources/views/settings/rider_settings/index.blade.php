@@ -485,8 +485,14 @@
         @csrf
         <div class="modal-body pt-0">
           <div class="mb-3">
-            <label class="form-label">Category Name <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" maxlength="255" required>
+            <label class="form-label">Rider Dropdown Column <span class="text-danger">*</span></label>
+            <select name="rider_column" class="form-select" required>
+              <option value="">Select dropdown column</option>
+              @foreach(($riderTopSelectableColumns ?? []) as $columnKey => $columnLabel)
+              <option value="{{ $columnKey }}">{{ $columnLabel }} ({{ $columnKey }})</option>
+              @endforeach
+            </select>
+            <div class="form-text">Only rider dropdown columns are available here; foreign-key and externally linked columns are excluded.</div>
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
@@ -521,6 +527,58 @@
         <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary" id="addRiderTopOptionSubmitBtn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- Edit Rider Top Category modal --}}
+<div class="modal fade" id="editRiderTopCategoryModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title">Edit Rider Top Category</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="formEditRiderTopCategory">
+        @csrf
+        <input type="hidden" name="id" id="editRiderTopCategoryId">
+        <div class="modal-body pt-0">
+          <div class="mb-3">
+            <label class="form-label">Category Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="editRiderTopCategoryName" class="form-control" maxlength="255" required>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="editRiderTopCategorySubmitBtn">Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- Edit Rider Top Option modal --}}
+<div class="modal fade" id="editRiderTopOptionModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title">Edit Rider Top Option</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="formEditRiderTopOption">
+        @csrf
+        <input type="hidden" name="id" id="editRiderTopOptionId">
+        <div class="modal-body pt-0">
+          <div class="mb-3">
+            <label class="form-label">Option Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="editRiderTopOptionName" class="form-control" maxlength="255" required>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="editRiderTopOptionSubmitBtn">Update</button>
         </div>
       </form>
     </div>
@@ -1061,8 +1119,166 @@
     });
 
     document.addEventListener('click', function(e) {
-      if (e.target.closest('.rider-top-visibility-controls')) {
+      if (
+        e.target.closest('.rider-top-visibility-controls') ||
+        e.target.closest('.btn-edit-rider-top-category') ||
+        e.target.closest('.btn-delete-rider-top-category') ||
+        e.target.closest('.btn-edit-rider-top-option') ||
+        e.target.closest('.btn-delete-rider-top-option')
+      ) {
         e.stopPropagation();
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      var editCategoryBtn = e.target.closest('.btn-edit-rider-top-category');
+      if (!editCategoryBtn) return;
+      var idInput = document.getElementById('editRiderTopCategoryId');
+      var nameInput = document.getElementById('editRiderTopCategoryName');
+      if (idInput) idInput.value = editCategoryBtn.getAttribute('data-category-id') || '';
+      if (nameInput) nameInput.value = editCategoryBtn.getAttribute('data-category-name') || '';
+      if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        var modal = new bootstrap.Modal(document.getElementById('editRiderTopCategoryModal'));
+        modal.show();
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      var editOptionBtn = e.target.closest('.btn-edit-rider-top-option');
+      if (!editOptionBtn) return;
+      var idInput = document.getElementById('editRiderTopOptionId');
+      var nameInput = document.getElementById('editRiderTopOptionName');
+      if (idInput) idInput.value = editOptionBtn.getAttribute('data-option-id') || '';
+      if (nameInput) nameInput.value = editOptionBtn.getAttribute('data-option-name') || '';
+      if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        var modal = new bootstrap.Modal(document.getElementById('editRiderTopOptionModal'));
+        modal.show();
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      var deleteCategoryBtn = e.target.closest('.btn-delete-rider-top-category');
+      if (!deleteCategoryBtn) return;
+      var categoryId = deleteCategoryBtn.getAttribute('data-category-id');
+      var categoryName = deleteCategoryBtn.getAttribute('data-category-name') || 'this category';
+      if (!categoryId) return;
+
+      var doDelete = function() {
+        var fd = new FormData();
+        fd.append('_method', 'DELETE');
+        const deleteUrlTemplate = "{{ route('settings-panel.rider-settings.destroy-rider-top-category', ['id' => '__CID__']) }}";
+        const deleteUrl = deleteUrlTemplate.replace('__CID__', categoryId);
+        fetch(deleteUrl, {
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(function(r) {
+            return r.json();
+          })
+          .then(function(data) {
+            if (data.success) {
+              window.refreshRiderTopAccordion();
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'success',
+                title: 'Deleted',
+                text: data.message || 'Category deleted.'
+              });
+            } else if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Could not delete category.'
+            });
+          })
+          .catch(function() {
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Could not delete category.'
+            });
+          });
+      };
+
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Delete category?',
+          text: 'This will also remove all options under "' + categoryName + '".',
+          showCancelButton: true,
+          confirmButtonText: 'Delete',
+          cancelButtonText: 'Cancel'
+        }).then(function(result) {
+          if (result.isConfirmed) doDelete();
+        });
+      } else if (confirm('Delete category "' + categoryName + '"?')) {
+        doDelete();
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      var deleteOptionBtn = e.target.closest('.btn-delete-rider-top-option');
+      if (!deleteOptionBtn) return;
+      var optionId = deleteOptionBtn.getAttribute('data-option-id');
+      var optionName = deleteOptionBtn.getAttribute('data-option-name') || 'this option';
+      if (!optionId) return;
+
+      var doDelete = function() {
+        var fd = new FormData();
+        fd.append('_method', 'DELETE');
+        const deleteUrlTemplate = "{{ route('settings-panel.rider-settings.destroy-rider-top-option', ['id' => '__OID__']) }}";
+        const deleteUrl = deleteUrlTemplate.replace('__OID__', optionId);
+        fetch(deleteUrl, {
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(function(r) {
+            return r.json();
+          })
+          .then(function(data) {
+            if (data.success) {
+              window.refreshRiderTopAccordion();
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'success',
+                title: 'Deleted',
+                text: data.message || 'Option deleted.'
+              });
+            } else if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Could not delete option.'
+            });
+          })
+          .catch(function() {
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Could not delete option.'
+            });
+          });
+      };
+
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Delete option?',
+          text: 'Delete "' + optionName + '"?',
+          showCancelButton: true,
+          confirmButtonText: 'Delete',
+          cancelButtonText: 'Cancel'
+        }).then(function(result) {
+          if (result.isConfirmed) doDelete();
+        });
+      } else if (confirm('Delete option "' + optionName + '"?')) {
+        doDelete();
       }
     });
 
@@ -1160,6 +1376,118 @@
               icon: 'error',
               title: 'Error',
               text: 'Could not save.'
+            });
+          });
+      });
+    }
+
+    var formEditRiderTopCategory = document.getElementById('formEditRiderTopCategory');
+    if (formEditRiderTopCategory) {
+      formEditRiderTopCategory.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        var id = document.getElementById('editRiderTopCategoryId') && document.getElementById('editRiderTopCategoryId').value;
+        var btn = document.getElementById('editRiderTopCategorySubmitBtn');
+        if (!id) return;
+        if (btn) btn.disabled = true;
+
+        var fd = new FormData(form);
+        fd.append('_method', 'PUT');
+        const updateUrlTemplate = "{{ route('settings-panel.rider-settings.update-rider-top-category', ['id' => '__CID__']) }}";
+        const updateUrl = updateUrlTemplate.replace('__CID__', id);
+        fetch(updateUrl, {
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(function(r) {
+            return r.json();
+          })
+          .then(function(data) {
+            if (btn) btn.disabled = false;
+            if (data.success) {
+              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var modal = bootstrap.Modal.getInstance(document.getElementById('editRiderTopCategoryModal'));
+                if (modal) modal.hide();
+              }
+              window.refreshRiderTopAccordion();
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'success',
+                title: 'Updated',
+                text: data.message || 'Category updated.'
+              });
+            } else if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Could not update category.'
+            });
+          })
+          .catch(function() {
+            if (btn) btn.disabled = false;
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Could not update category.'
+            });
+          });
+      });
+    }
+
+    var formEditRiderTopOption = document.getElementById('formEditRiderTopOption');
+    if (formEditRiderTopOption) {
+      formEditRiderTopOption.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        var id = document.getElementById('editRiderTopOptionId') && document.getElementById('editRiderTopOptionId').value;
+        var btn = document.getElementById('editRiderTopOptionSubmitBtn');
+        if (!id) return;
+        if (btn) btn.disabled = true;
+
+        var fd = new FormData(form);
+        fd.append('_method', 'PUT');
+        const updateUrlTemplate = "{{ route('settings-panel.rider-settings.update-rider-top-option', ['id' => '__OID__']) }}";
+        const updateUrl = updateUrlTemplate.replace('__OID__', id);
+        fetch(updateUrl, {
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(function(r) {
+            return r.json();
+          })
+          .then(function(data) {
+            if (btn) btn.disabled = false;
+            if (data.success) {
+              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var modal = bootstrap.Modal.getInstance(document.getElementById('editRiderTopOptionModal'));
+                if (modal) modal.hide();
+              }
+              window.refreshRiderTopAccordion();
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'success',
+                title: 'Updated',
+                text: data.message || 'Option updated.'
+              });
+            } else if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Could not update option.'
+            });
+          })
+          .catch(function() {
+            if (btn) btn.disabled = false;
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Could not update option.'
             });
           });
       });

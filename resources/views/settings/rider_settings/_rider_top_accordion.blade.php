@@ -7,6 +7,14 @@
           <span>{{ $category->name }}</span>
           <span class="badge bg-label-primary ms-2">{{ $category->options->count() }}</span>
         </button>
+        <div class="d-flex align-items-center gap-1 pe-1">
+          <button type="button" class="btn btn-sm btn-outline-secondary btn-edit-rider-top-category" data-category-id="{{ $category->id }}" data-category-name="{{ $category->name }}" title="Edit category">
+            <i class="ti ti-pencil"></i>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger btn-delete-rider-top-category" data-category-id="{{ $category->id }}" data-category-name="{{ $category->name }}" title="Delete category">
+            <i class="ti ti-trash"></i>
+          </button>
+        </div>
         <div class="d-flex align-items-center gap-2 pe-2 rider-top-visibility-controls" data-category-id="{{ $category->id }}">
           <div class="form-check form-switch mb-0">
             <input class="form-check-input rider-top-visibility-toggle" type="checkbox" id="riderTopBar{{ $category->id }}" data-field="show_in_top_bar" {{ ($category->show_in_top_bar ?? true) ? 'checked' : '' }}>
@@ -31,9 +39,19 @@
         @else
         <ul class="list-group list-group-flush">
           @foreach($category->options as $option)
-          <li class="list-group-item px-0 py-2 d-flex align-items-center">
-            <i class="ti ti-point-filled me-1 text-muted"></i>
-            <span>{{ $option->name }}</span>
+          <li class="list-group-item px-0 py-2 d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+              <i class="ti ti-point-filled me-1 text-muted"></i>
+              <span>{{ $option->name }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              <button type="button" class="btn btn-xs btn-outline-secondary btn-edit-rider-top-option" data-option-id="{{ $option->id }}" data-option-name="{{ $option->name }}" title="Edit option">
+                <i class="ti ti-pencil"></i>
+              </button>
+              <button type="button" class="btn btn-xs btn-outline-danger btn-delete-rider-top-option" data-option-id="{{ $option->id }}" data-option-name="{{ $option->name }}" title="Delete option">
+                <i class="ti ti-trash"></i>
+              </button>
+            </div>
           </li>
           @endforeach
         </ul>

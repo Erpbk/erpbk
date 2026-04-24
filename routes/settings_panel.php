@@ -88,8 +88,12 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::post('rider-settings/documents/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentTypes'])->name('settings-panel.rider-settings.reorder-document-types');
     Route::get('rider-settings/rider-top/accordion-body', [App\Http\Controllers\RiderSettingsController::class, 'riderTopAccordionBody'])->name('settings-panel.rider-settings.rider-top-accordion-body');
     Route::post('rider-settings/rider-top/categories', [App\Http\Controllers\RiderSettingsController::class, 'storeRiderTopCategory'])->name('settings-panel.rider-settings.store-rider-top-category');
+    Route::put('rider-settings/rider-top/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderTopCategory'])->name('settings-panel.rider-settings.update-rider-top-category');
+    Route::delete('rider-settings/rider-top/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyRiderTopCategory'])->name('settings-panel.rider-settings.destroy-rider-top-category');
     Route::post('rider-settings/rider-top/categories/{id}/visibility', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderTopCategoryVisibility'])->name('settings-panel.rider-settings.update-rider-top-category-visibility');
     Route::post('rider-settings/rider-top/options', [App\Http\Controllers\RiderSettingsController::class, 'storeRiderTopOption'])->name('settings-panel.rider-settings.store-rider-top-option');
+    Route::put('rider-settings/rider-top/options/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderTopOption'])->name('settings-panel.rider-settings.update-rider-top-option');
+    Route::delete('rider-settings/rider-top/options/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyRiderTopOption'])->name('settings-panel.rider-settings.destroy-rider-top-option');
     // Module settings (General tab only) for all ERP modules
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[A-Za-z0-9_-]+');

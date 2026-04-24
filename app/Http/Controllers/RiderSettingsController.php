@@ -10,6 +10,7 @@ use App\Models\RiderTopCategory;
 use App\Models\RiderTopOption;
 use App\Models\Settings;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -39,6 +40,7 @@ class RiderSettingsController extends Controller
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
+        $riderTopSelectableColumns = $this->riderTopSelectableColumns();
 
         return view('settings.rider_settings.index', compact(
             'categories',
@@ -50,8 +52,31 @@ class RiderSettingsController extends Controller
             'fieldAssignments',
             'fieldsByCategory',
             'documentTypes',
-            'riderTopCategories'
+            'riderTopCategories',
+            'riderTopSelectableColumns'
         ));
+    }
+
+    protected function riderTopSelectableColumns(): array
+    {
+        $specs = RiderCustomField::fixedFieldInputSpecs();
+        $excludedDropdownSources = ['countries', 'vendors', 'recruiters', 'accounts', 'customers', 'branch'];
+        $options = [];
+
+        foreach ($specs as $fieldKey => $spec) {
+            $type = $spec['type'] ?? null;
+            $dropdown = $spec['dropdown'] ?? null;
+            if ($type !== 'select' || empty($dropdown)) {
+                continue;
+            }
+            if (in_array($dropdown, $excludedDropdownSources, true)) {
+                continue;
+            }
+            $options[$fieldKey] = RiderCustomField::humanizeFieldKey($fieldKey);
+        }
+
+        asort($options);
+        return $options;
     }
 
     /**
@@ -538,12 +563,24 @@ class RiderSettingsController extends Controller
 
     public function storeRiderTopCategory(Request $request)
     {
+        $allowedColumns = array_keys($this->riderTopSelectableColumns());
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'rider_column' => ['required', 'string', Rule::in($allowedColumns)],
         ]);
 
+        $riderColumn = $validated['rider_column'];
+        $companyId = auth()->user()->company_id ?? null;
+        $existsQuery = RiderTopCategory::where('rider_column', $riderColumn);
+        if ($companyId) {
+            $existsQuery->where('company_id', $companyId);
+        }
+        if ($existsQuery->exists()) {
+            return response()->json(['success' => false, 'message' => 'This rider column is already configured as a category.'], 422);
+        }
+
         RiderTopCategory::create([
-            'name' => trim($validated['name']),
+            'name' => RiderCustomField::humanizeFieldKey($riderColumn),
+            'rider_column' => $riderColumn,
             'display_order' => ((int) RiderTopCategory::max('display_order')) + 1,
             'is_active' => true,
         ]);
@@ -575,6 +612,25 @@ class RiderSettingsController extends Controller
         ]);
     }
 
+    public function updateRiderTopCategory(Request $request, $company_slug, $id)
+    {
+        $category = RiderTopCategory::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $category->name = trim($validated['name']);
+        $category->save();
+
+        return response()->json(['success' => true, 'message' => 'Rider Top category updated.']);
+    }
+
+    public function destroyRiderTopCategory($company_slug, $id)
+    {
+        RiderTopCategory::findOrFail($id)->delete();
+        return response()->json(['success' => true, 'message' => 'Rider Top category deleted.']);
+    }
+
     public function storeRiderTopOption(Request $request)
     {
         $validated = $request->validate([
@@ -590,6 +646,25 @@ class RiderSettingsController extends Controller
         ]);
 
         return response()->json(['success' => true, 'message' => 'Rider Top option added.']);
+    }
+
+    public function updateRiderTopOption(Request $request, $company_slug, $id)
+    {
+        $option = RiderTopOption::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $option->name = trim($validated['name']);
+        $option->save();
+
+        return response()->json(['success' => true, 'message' => 'Rider Top option updated.']);
+    }
+
+    public function destroyRiderTopOption($company_slug, $id)
+    {
+        RiderTopOption::findOrFail($id)->delete();
+        return response()->json(['success' => true, 'message' => 'Rider Top option deleted.']);
     }
 
     // ---------- Rider Documents ----------

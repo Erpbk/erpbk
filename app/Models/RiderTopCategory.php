@@ -10,6 +10,7 @@ class RiderTopCategory extends BaseModel
 
     protected $fillable = [
         'name',
+        'rider_column',
         'display_order',
         'is_active',
         'show_in_top_bar',

@@ -183,15 +183,6 @@ class RidersController extends AppBaseController
         });
       }
     }
-    // Filter by balance
-    if ($request->has('balance_filter') && !empty($request->balance_filter)) {
-      if ($request->balance_filter === 'greater_than_zero') {
-        // Riders with balance greater than 0
-        $query->whereHas('account', function ($q) {
-          $q->whereRaw('(SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) FROM transactions WHERE account_id = accounts.id) > 0');
-        });
-      }
-    }
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
 
@@ -312,16 +303,6 @@ class RidersController extends AppBaseController
             });
           });
         }
-      }
-    }
-
-    // Filter by balance
-    if ($request->has('balance_filter') && !empty($request->balance_filter)) {
-      if ($request->balance_filter === 'greater_than_zero') {
-        // Riders with balance greater than 0
-        $query->whereHas('account', function ($q) {
-          $q->whereRaw('(SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) FROM transactions WHERE account_id = accounts.id) > 0');
-        });
       }
     }
 

@@ -17,7 +17,7 @@
         <div class="filter-tabs-section mb-4" id="filter-tabs-section">
             <div class="d-flex justify-content-between">
                 @php
-                $activeFiltersCount = count(request('rider_status', [])) + (request('balance_filter') ? 1 : 0);
+                $activeFiltersCount = count(request('rider_status', []));
 
                 // Helper function to toggle rider status in URL
                 if (!function_exists('toggleRiderStatus')) {
@@ -45,11 +45,6 @@
                 function toggleBalanceFilter() {
                 $queryParams = request()->query();
 
-                if (request('balance_filter') == 'greater_than_zero') {
-                unset($queryParams['balance_filter']);
-                } else {
-                $queryParams['balance_filter'] = 'greater_than_zero';
-                }
 
                 return request()->fullUrlWithQuery($queryParams);
                 }
@@ -70,7 +65,7 @@
                         </div>
                     </div>
                     @endif
-                    <a href="{{ route('riders.index') }}" class="filter-tab {{ !request('rider_status') && !request('balance_filter') ? 'active' : '' }}">
+                    <a href="{{ route('riders.index') }}" class="filter-tab {{ !request('rider_status') ? 'active' : '' }}">
                         <i class="ti ti-users"></i>
                         All Riders
                     </a>
@@ -171,40 +166,8 @@
                         @endforeach
 
                         @php
-                        // Recovery Counts (balance > 0)
-                        $recoveryActiveCountSlider = \App\Models\Riders::whereHas('account', function($q) { $q->where('company_id', auth()->user()->company_id);
-                        $q->whereRaw('(SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) FROM transactions WHERE account_id = accounts.id) > 0');
-                        })
-                        ->where('status', 1)
-                        ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
-                        ->count();
-                        $recoveryInactiveCountSlider = \App\Models\Riders::whereHas('account', function($q) { $q->where('company_id', auth()->user()->company_id);
-                        $q->whereRaw('(SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) FROM transactions WHERE account_id = accounts.id) > 0');
-                        })
-                        ->where(function($q){
-                        $q->where('status', 3)
-                        ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active')->where('company_id', auth()->user()->company_id); });
-                        })
-                        ->count();
-                        $recoveryActiveSelectedSlider = request('balance_filter') === 'greater_than_zero' && in_array('active', request('rider_status', []));
-                        $recoveryInactiveSelectedSlider = request('balance_filter') === 'greater_than_zero' && in_array('inactive', request('rider_status', []));
                         @endphp
 
-                        <div class="fleet-supervisor-card {{ request('balance_filter') === 'greater_than_zero' ? 'active filtered' : '' }}" onclick="filterRecoveryBoth()">
-                            <h3 class="fleet-supervisor-name"><i class="ti ti-cash"></i> Recovery</h3>
-                            <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active {{ $recoveryActiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterRecoveryStatus('active')">
-                                    <i class="fleet-stat-icon ti ti-user-check"></i>
-                                    <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ $recoveryActiveCountSlider }}</span>
-                                </div>
-                                <div class="fleet-stat inactive {{ $recoveryInactiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterRecoveryStatus('inactive')">
-                                    <i class="fleet-stat-icon ti ti-user-x"></i>
-                                    <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ $recoveryInactiveCountSlider }}</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -782,30 +745,6 @@ $tableColumns = $columns;
         window.location.href = url.toString();
     }
 
-    // Recovery filtering (balance_filter + active/inactive)
-    function filterRecoveryBoth() {
-        const url = new URL(window.location);
-        url.searchParams.set('balance_filter', 'greater_than_zero');
-        url.searchParams.delete('rider_status');
-        url.searchParams.delete('rider_status[]');
-        url.searchParams.append('rider_status[]', 'active');
-        url.searchParams.append('rider_status[]', 'inactive');
-        url.searchParams.delete('fleet_supervisor');
-        window.location.href = url.toString();
-    }
-
-    function filterRecoveryStatus(status) {
-        const url = new URL(window.location);
-        url.searchParams.set('balance_filter', 'greater_than_zero');
-        const currentStatuses = url.searchParams.getAll('rider_status[]');
-        const hasStatus = currentStatuses.includes(status);
-        const other = status === 'active' ? 'inactive' : 'active';
-        url.searchParams.delete('rider_status[]');
-        if (!hasStatus) url.searchParams.append('rider_status[]', status);
-        if (currentStatuses.includes(other)) url.searchParams.append('rider_status[]', other);
-        url.searchParams.delete('fleet_supervisor');
-        window.location.href = url.toString();
-    }
 </script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {

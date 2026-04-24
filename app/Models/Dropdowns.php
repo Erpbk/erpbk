@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 
 class Dropdowns extends BaseModel
 {
-    use LogsActivity;
+  use LogsActivity;
 
   public $table = 'dropdowns';
 
@@ -24,6 +24,7 @@ class Dropdowns extends BaseModel
   protected $casts = [
     'name' => 'string',
     'label' => 'string',
+    'company_id' => 'integer',
     'values' => 'string',
     'key' => 'string',
     'status' => 'boolean'
@@ -32,6 +33,7 @@ class Dropdowns extends BaseModel
   public static array $rules = [
     'name' => 'nullable|string|max:255',
     'label' => 'nullable|string|max:255',
+    'company_id' => 'nullable|integer',
     'key' => 'nullable|string|max:200|unique:dropdowns',
     'status' => 'nullable|boolean',
     'created_at' => 'nullable',
@@ -61,5 +63,4 @@ class Dropdowns extends BaseModel
 
     return null;
   }
-
 }

@@ -11,6 +11,7 @@ class DropdownsRepository extends BaseRepository
   protected $fieldSearchable = [
     'name',
     'label',
+    'company_id',
     'values',
     'key',
     'status'

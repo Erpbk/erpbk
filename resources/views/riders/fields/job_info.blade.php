@@ -11,8 +11,16 @@
         {!! Form::label('fleet_supervisor', 'Fleet Supervisor:') !!}
         @php
             $fleetSupervisorOptions = Common::Dropdowns('fleet-supervisor');
+            if ($fleetSupervisorOptions instanceof \Illuminate\Support\Collection) {
+                $fleetSupervisorOptions = $fleetSupervisorOptions->toArray();
+            }
+            if (!is_array($fleetSupervisorOptions)) {
+                $fleetSupervisorOptions = [];
+            }
+
             $fleetSupervisorAssignment = \App\Models\RiderFieldCategoryAssignment::where('field_key', 'fleet_supervisor')->first();
-            $configured = $fleetSupervisorAssignment->input_config['options'] ?? null;
+            $configured = $fleetSupervisorAssignment?->input_config['options'] ?? null;
+            $configuredMap = [];
             if ($configured !== null) {
                 $configuredItems = is_array($configured) ? $configured : preg_split("/\r\n|\n|\r/", (string) $configured);
                 $configuredItems = collect($configuredItems)
@@ -22,9 +30,25 @@
                     ->values()
                     ->all();
                 if (!empty($configuredItems)) {
-                    $fleetSupervisorOptions = array_combine($configuredItems, $configuredItems);
+                    $configuredMap = array_combine($configuredItems, $configuredItems);
                 }
             }
+
+            $dbValues = \App\Models\Riders::query()
+                ->whereNotNull('fleet_supervisor')
+                ->where('fleet_supervisor', '!=', '')
+                ->distinct()
+                ->orderBy('fleet_supervisor')
+                ->pluck('fleet_supervisor')
+                ->map(fn($v) => trim((string) $v))
+                ->filter(fn($v) => $v !== '')
+                ->unique()
+                ->values()
+                ->all();
+            $dbMap = !empty($dbValues) ? array_combine($dbValues, $dbValues) : [];
+
+            // Priority: configured options, then existing dropdown options, then distinct DB values.
+            $fleetSupervisorOptions = $configuredMap + $fleetSupervisorOptions + $dbMap;
         @endphp
         {!! Form::select('fleet_supervisor', $fleetSupervisorOptions, null, ['class' => 'form-select', 'placeholder' => 'Select Fleet Supervisor', 'required']) !!}
     </div>

@@ -889,6 +889,17 @@
         return;
       }
 
+      function parseOptionLines(rawValue) {
+        return String(rawValue || '')
+          .split(/\r?\n/)
+          .map(function(line) {
+            return line.trim();
+          })
+          .filter(function(line) {
+            return line.length > 0;
+          });
+      }
+
       typeMeta.config.forEach(function(cfg) {
         const group = document.createElement('div');
         group.className = 'form-group mb-2';
@@ -912,6 +923,43 @@
           }
           input.name = name;
           input.value = value;
+
+          if (cfg.key === 'options') {
+            const help = document.createElement('div');
+            help.className = 'form-text';
+            help.textContent = 'Each new line will be added as one option item.';
+
+            const preview = document.createElement('div');
+            preview.className = 'mt-2 d-flex flex-wrap gap-1';
+
+            const renderPreview = function() {
+              preview.innerHTML = '';
+              const items = parseOptionLines(input.value);
+              if (!items.length) {
+                const empty = document.createElement('span');
+                empty.className = 'text-muted small';
+                empty.textContent = 'No option items added yet.';
+                preview.appendChild(empty);
+                return;
+              }
+              items.forEach(function(item) {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-label-primary';
+                badge.textContent = item;
+                preview.appendChild(badge);
+              });
+            };
+
+            input.addEventListener('input', renderPreview);
+            renderPreview();
+
+            group.appendChild(label);
+            group.appendChild(input);
+            group.appendChild(help);
+            group.appendChild(preview);
+            container.appendChild(group);
+            return;
+          }
         } else if (cfg.type === 'checkbox') {
           input = document.createElement('input');
           input.type = 'checkbox';

@@ -59,38 +59,15 @@
          @endphp
          <td>{{ $account ? ($account->account_code ?? $account->name ?? $r->account_id) : '-' }}</td>
          @break
-         @case('l_license')
-         <td>{{ ($r->l_license == 1) ? 'Learning' : '-' }}</td>
-         @break
          @case('bike')
          @php $bike = DB::table('bikes')->where('rider_id', $r->id)->first(); @endphp
          <td>{{ $bike ? $bike->plate : '-' }}</td>
          @break
-         @case('emirate_hub')
-         @php $bike = DB::table('bikes')->where('rider_id', $r->id)->first(); @endphp
-         <td>{{ $bike && $bike->emirates ? $bike->emirates : '-' }}</td>
-         @break
          @case('status')
          @php
-         $statusOptionLabel = !empty($r->rider_status_option) ? $r->rider_status_option : null;
-         if (!$statusOptionLabel) {
-           if (($r->absconder ?? 0) == 1) $statusOptionLabel = 'Absconder';
-           elseif (($r->flowup ?? 0) == 1) $statusOptionLabel = 'Follow Up';
-           elseif (($r->l_license ?? 0) == 1) $statusOptionLabel = 'Learning License';
-           elseif ($r->designation === 'Walker') $statusOptionLabel = 'Walker';
-           elseif ($r->designation === 'Vacation') $statusOptionLabel = 'Vacation';
-           elseif ($r->designation === 'Cancel') $statusOptionLabel = 'Cancel';
-           elseif ($r->designation === 'PRO' || ($r->pro ?? 0) == 1) $statusOptionLabel = 'PRO';
-         }
-
-         if ($statusOptionLabel) {
-           $statusText = $statusOptionLabel;
-           $badgeClass = 'bg-label-primary';
-         } else {
-           $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
-           $statusText = $hasActiveBike ? 'Active' : 'Inactive';
-           $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
-         }
+        $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
+        $statusText = $hasActiveBike ? 'Active' : 'Inactive';
+        $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
          @endphp
          <td>
             <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
@@ -99,8 +76,8 @@
          @case('attendance')
          @php
          $rider = DB::Table('riders')->find($r->id);
-         $timeline = DB::Table('job_status')->select('id')->where('RID', $r->id)->whereDate('created_at', '=', $r->attendance_date)->first();
-         $emails = DB::Table('rider_emails')->select('id')->where('rider_id', $r->id)->whereDate('created_at', '=', $r->attendance_date)->first();
+        $timeline = DB::Table('job_status')->select('id')->where('RID', $r->id)->whereDate('created_at', today())->first();
+        $emails = DB::Table('rider_emails')->select('id')->where('rider_id', $r->id)->whereDate('created_at', today())->first();
          @endphp
          <td>
             @if($timeline)

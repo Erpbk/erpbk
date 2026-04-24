@@ -171,49 +171,6 @@
                         @endforeach
 
                         @php
-                        // Absconder Counts
-                        $absActiveCountSlider = \App\Models\Riders::where('absconder', 1) ->where('company_id', auth()->user()->company_id)
-                        ->where('status', 1)
-                        ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
-                        ->count();
-                        $absInactiveCountSlider = \App\Models\Riders::where('absconder', 1) ->where('company_id', auth()->user()->company_id)
-                        ->where(function($q){
-                        $q->where('status', 3)
-                        ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active'); });
-                        })
-                        ->count();
-                        $absFilterActive = !empty(request('absconder')) && in_array('1', (array) request('absconder'), true);
-                        $absActiveSelectedSlider = $absFilterActive && in_array('active', request('rider_status', []));
-                        $absInactiveSelectedSlider = $absFilterActive && in_array('inactive', request('rider_status', []));
-
-                        // Learning License Counts
-                        $llActiveCountSlider = \App\Models\Riders::where('l_license', 1) ->where('company_id', auth()->user()->company_id)
-                        ->where('status', 1)
-                        ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
-                        ->count();
-                        $llInactiveCountSlider = \App\Models\Riders::where('l_license', 1) ->where('company_id', auth()->user()->company_id)
-                        ->where(function($q){
-                        $q->where('status', 3)
-                        ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active'); });
-                        })
-                        ->count();
-                        $llActiveSelectedSlider = in_array('llicense', request('rider_status', [])) && in_array('active', request('rider_status', []));
-                        $llInactiveSelectedSlider = in_array('llicense', request('rider_status', [])) && in_array('inactive', request('rider_status', []));
-
-                        // Follow Up Counts
-                        $fuActiveCountSlider = \App\Models\Riders::where('flowup', 1) ->where('company_id', auth()->user()->company_id)
-                        ->where('status', 1)
-                        ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
-                        ->count();
-                        $fuInactiveCountSlider = \App\Models\Riders::where('flowup', 1) ->where('company_id', auth()->user()->company_id)
-                        ->where(function($q){
-                        $q->where('status', 3)
-                        ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active'); });
-                        })
-                        ->count();
-                        $fuActiveSelectedSlider = in_array('followup', request('rider_status', [])) && in_array('active', request('rider_status', []));
-                        $fuInactiveSelectedSlider = in_array('followup', request('rider_status', [])) && in_array('inactive', request('rider_status', []));
-
                         // Recovery Counts (balance > 0)
                         $recoveryActiveCountSlider = \App\Models\Riders::whereHas('account', function($q) { $q->where('company_id', auth()->user()->company_id);
                         $q->whereRaw('(SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) FROM transactions WHERE account_id = accounts.id) > 0');
@@ -232,54 +189,6 @@
                         $recoveryActiveSelectedSlider = request('balance_filter') === 'greater_than_zero' && in_array('active', request('rider_status', []));
                         $recoveryInactiveSelectedSlider = request('balance_filter') === 'greater_than_zero' && in_array('inactive', request('rider_status', []));
                         @endphp
-
-                        <div class="fleet-supervisor-card {{ (!empty(request('absconder')) && in_array('1', (array) request('absconder'), true)) ? 'active filtered' : '' }}" onclick="filterAbsconderBoth()">
-                            <h3 class="fleet-supervisor-name"><i class="ti ti-user-x"></i> Absconder</h3>
-                            <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active {{ $absActiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterAbsconderStatus('active')">
-                                    <i class="fleet-stat-icon ti ti-user-check"></i>
-                                    <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ $absActiveCountSlider }}</span>
-                                </div>
-                                <div class="fleet-stat inactive {{ $absInactiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterAbsconderStatus('inactive')">
-                                    <i class="fleet-stat-icon ti ti-user-x"></i>
-                                    <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ $absInactiveCountSlider }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="fleet-supervisor-card {{ (!empty(request('llicense')) && in_array('1', (array) request('llicense'), true)) ? 'active filtered' : (in_array('llicense', request('rider_status', [])) ? 'active filtered' : '') }}" onclick="filterLLicenseBoth()">
-                            <h3 class="fleet-supervisor-name"><i class="ti ti-license"></i> Learning License</h3>
-                            <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active {{ $llActiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterLLicenseStatus('active')">
-                                    <i class="fleet-stat-icon ti ti-user-check"></i>
-                                    <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ $llActiveCountSlider }}</span>
-                                </div>
-                                <div class="fleet-stat inactive {{ $llInactiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterLLicenseStatus('inactive')">
-                                    <i class="fleet-stat-icon ti ti-user-x"></i>
-                                    <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ $llInactiveCountSlider }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="fleet-supervisor-card {{ (!empty(request('followup')) && in_array('1', (array) request('followup'), true)) ? 'active filtered' : (in_array('followup', request('rider_status', [])) ? 'active filtered' : '') }}" onclick="filterFollowUpBoth()">
-                            <h3 class="fleet-supervisor-name"><i class="ti ti-phone-call"></i> Follow Up</h3>
-                            <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active {{ $fuActiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterFollowUpStatus('active')">
-                                    <i class="fleet-stat-icon ti ti-user-check"></i>
-                                    <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ $fuActiveCountSlider }}</span>
-                                </div>
-                                <div class="fleet-stat inactive {{ $fuInactiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterFollowUpStatus('inactive')">
-                                    <i class="fleet-stat-icon ti ti-user-x"></i>
-                                    <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ $fuInactiveCountSlider }}</span>
-                                </div>
-                            </div>
-                        </div>
 
                         <div class="fleet-supervisor-card {{ request('balance_filter') === 'greater_than_zero' ? 'active filtered' : '' }}" onclick="filterRecoveryBoth()">
                             <h3 class="fleet-supervisor-name"><i class="ti ti-cash"></i> Recovery</h3>
@@ -434,10 +343,6 @@
                             <input type="number" name="rider_id" class="form-control" placeholder="Filter By Rider ID" value="{{ request('rider_id') }}">
                         </div>
                         <div class="form-group col-md-12">
-                            <label for="courier_id">Courier ID</label>
-                            <input type="number" name="courier_id" class="form-control" placeholder="Filter By Courier ID" value="{{ request('courier_id') }}">
-                        </div>
-                        <div class="form-group col-md-12">
                             <label for="name">Rider Name</label>
                             <input type="text" name="name" class="form-control" placeholder="Filter By Name" value="{{ request('name') }}">
                         </div>
@@ -461,23 +366,6 @@
                             </select>
                         </div>
                         <div class="form-group col-md-12">
-                            <label for="hub">Filter by HUB</label>
-                            <select class="form-control " id="hub" name="hub">
-                                @php
-                                $emirateHubs = DB::table('riders')
-                                ->whereNotNull('designation')
-                                ->where('designation', '!=', '')
-                                ->select('designation')
-                                ->distinct()
-                                ->pluck('designation');
-                                @endphp
-                                <option value="" selected>Select</option>
-                                @foreach($emirateHubs as $hub)
-                                <option value="{{ $hub }}" {{ request('hub') == $hub ? 'selected' : '' }}>{{ $hub }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group col-md-12">
                             <label for="customer_id">Filter by Customer</label>
                             <select class="form-control " id="customer_id" name="customer_id">
                                 @php
@@ -495,27 +383,6 @@
                                 <option value="" selected>Select</option>
                                 @foreach($customers as $customer)
                                 <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group col-md-12">
-                            <label for="bike">Bike Number</label>
-                            <input type="text" name="branded_plate_no" value="{{ request('bike') }}" class="form-control" placeholder="Filter By Bike Number">
-                        </div>
-                        <div class="form-group col-md-12">
-                            <label for="designation">Filter by Designation</label>
-                            <select class="form-control " id="designation" name="designation">
-                                @php
-                                $emiratedesignation = DB::table('riders')
-                                ->whereNotNull('designation')
-                                ->where('designation', '!=', '')
-                                ->select('designation')
-                                ->distinct()
-                                ->pluck('designation');
-                                @endphp
-                                <option value="" selected>Select</option>
-                                @foreach($emiratedesignation as $des)
-                                <option value="{{ $des }}" {{ request('designation') == $des ? 'selected' : '' }}>{{ $des }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -561,7 +428,7 @@ use Illuminate\Support\Facades\Schema;
 $filteredColumns = Schema::getColumnListing('riders');
 
 // Columns to exclude
-$exclude = ['id', 'email', 'NFDID', 'cdm_deposit_id', 'DEPT', 'job_status', 'attach_documents', 'other_details', 'TAID', 'mashreq_id', 'PID', 'branded_plate_no', 'vaccine_status', 'created_at', 'updated_at', 'VID', 'noon_no', 'contract', 'image_name', 'rider_reference', 'vat', 'attendance_date'];
+$exclude = ['id', 'email', 'created_at', 'updated_at', 'image_name'];
 
 // Final filtered columns
 $dbColumns = array_diff($filteredColumns, $exclude);
@@ -569,12 +436,8 @@ $preferredOrder = [
 'rider_id',
 'name',
 'branch_id',
-'company_contact',
 'fleet_supervisor',
-'emirate_hub',
 'customer_id',
-'designation',
-'shift',
 'attendance',
 'status',
 ];
@@ -585,17 +448,10 @@ $makeTitle = function ($key) {
 $customTitles = [
 'doj' => 'Date of Joining',
 'recruiter_id' => 'Recruiter',
-'l_license' => 'Learning',
-'emirate_hub' => 'Emirates',
 'branch_id' => 'Branch',
 ];
 return $customTitles[$key] ?? ucwords(str_replace('_', ' ', $key));
 };
-
-// If Absconder filter is active, make sure 'absconder' column is prioritized
-if (in_array('absconder', (array) request('rider_status', []))) {
-array_unshift($preferredOrder, 'absconder');
-}
 
 // Add preferred DB columns first
 foreach ($preferredOrder as $key) {
@@ -702,11 +558,6 @@ $tableColumns = $columns;
             placeholder: "Filter By Fleet SuperVisor",
             allowClear: true, // ✅ cross icon enable
         });
-        $('#hub').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By HUB",
-            allowClear: true, // ✅ cross icon enable
-        });
         $('#customer_id').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Customer",
@@ -715,11 +566,6 @@ $tableColumns = $columns;
         $('#branch_id').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Branch",
-            allowClear: true, // ✅ cross icon enable
-        });
-        $('#designation').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Designation",
             allowClear: true, // ✅ cross icon enable
         });
         $('#bike_assignment_status').select2({
@@ -896,7 +742,6 @@ $tableColumns = $columns;
         url.searchParams.delete('fleet_supervisor');
         url.searchParams.delete('rider_status');
         url.searchParams.delete('rider_status[]');
-        url.searchParams.delete('absconder[]');
 
         // Set fleet supervisor filter
         url.searchParams.set('fleet_supervisor', fleetSupervisor);
@@ -934,137 +779,6 @@ $tableColumns = $columns;
         }
 
         // Redirect to filtered URL
-        window.location.href = url.toString();
-    }
-
-    // Absconder filtering: clicking the card sets absconder + both statuses
-    function filterAbsconderBoth() {
-        const url = new URL(window.location);
-        // Clear existing status params
-        url.searchParams.delete('rider_status');
-        url.searchParams.delete('rider_status[]');
-
-        // Set absconder + both active/inactive using explicit param
-        url.searchParams.append('absconder[]', '1');
-        url.searchParams.append('rider_status[]', 'active');
-        url.searchParams.append('rider_status[]', 'inactive');
-
-        // Remove fleet supervisor filter to avoid conflict
-        url.searchParams.delete('fleet_supervisor');
-
-        window.location.href = url.toString();
-    }
-
-    // Toggle specific status under Absconder (enforce AND semantics with absconder)
-    function filterAbsconderStatus(status) {
-        const url = new URL(window.location);
-        const currentStatuses = url.searchParams.getAll('rider_status[]');
-
-        // Ensure absconder explicit param is present
-        if (!url.searchParams.getAll('absconder[]').includes('1')) {
-            // Reset to only absconder + clicked status
-            url.searchParams.delete('rider_status');
-            url.searchParams.delete('rider_status[]');
-            url.searchParams.append('absconder[]', '1');
-            url.searchParams.append('rider_status[]', status);
-        } else {
-            // Toggle the clicked status while keeping absconder
-            const hasStatus = currentStatuses.includes(status);
-            url.searchParams.delete('rider_status[]');
-            // Always ensure absconder[] stays
-            url.searchParams.append('absconder[]', '1');
-            // Add the other status if present
-            const other = status === 'active' ? 'inactive' : 'active';
-            if (hasStatus) {
-                // If toggling off and no other status present, leave only absconder
-                if (currentStatuses.includes(other)) {
-                    url.searchParams.append('rider_status[]', other);
-                }
-            } else {
-                // Add clicked status
-                url.searchParams.append('rider_status[]', status);
-                // Preserve other if it existed
-                if (currentStatuses.includes(other)) {
-                    url.searchParams.append('rider_status[]', other);
-                }
-            }
-        }
-
-        // Remove fleet supervisor filter to avoid mixing contexts
-        url.searchParams.delete('fleet_supervisor');
-
-        window.location.href = url.toString();
-    }
-
-    // Learning License filtering
-    function filterLLicenseBoth() {
-        const url = new URL(window.location);
-        url.searchParams.delete('rider_status');
-        url.searchParams.delete('rider_status[]');
-        url.searchParams.delete('absconder[]');
-        url.searchParams.delete('followup[]');
-        url.searchParams.append('llicense[]', '1');
-        url.searchParams.append('rider_status[]', 'active');
-        url.searchParams.append('rider_status[]', 'inactive');
-        url.searchParams.delete('fleet_supervisor');
-        window.location.href = url.toString();
-    }
-
-    function filterLLicenseStatus(status) {
-        const url = new URL(window.location);
-        const currentStatuses = url.searchParams.getAll('rider_status[]');
-        if (!url.searchParams.getAll('llicense[]').includes('1')) {
-            url.searchParams.delete('rider_status');
-            url.searchParams.delete('rider_status[]');
-            url.searchParams.delete('absconder[]');
-            url.searchParams.delete('followup[]');
-            url.searchParams.append('llicense[]', '1');
-            url.searchParams.append('rider_status[]', status);
-        } else {
-            const hasStatus = currentStatuses.includes(status);
-            const other = status === 'active' ? 'inactive' : 'active';
-            url.searchParams.delete('rider_status[]');
-            url.searchParams.append('llicense[]', '1');
-            if (!hasStatus) url.searchParams.append('rider_status[]', status);
-            if (currentStatuses.includes(other)) url.searchParams.append('rider_status[]', other);
-        }
-        url.searchParams.delete('fleet_supervisor');
-        window.location.href = url.toString();
-    }
-
-    // Follow Up filtering
-    function filterFollowUpBoth() {
-        const url = new URL(window.location);
-        url.searchParams.delete('rider_status');
-        url.searchParams.delete('rider_status[]');
-        url.searchParams.delete('absconder[]');
-        url.searchParams.delete('llicense[]');
-        url.searchParams.append('followup[]', '1');
-        url.searchParams.append('rider_status[]', 'active');
-        url.searchParams.append('rider_status[]', 'inactive');
-        url.searchParams.delete('fleet_supervisor');
-        window.location.href = url.toString();
-    }
-
-    function filterFollowUpStatus(status) {
-        const url = new URL(window.location);
-        const currentStatuses = url.searchParams.getAll('rider_status[]');
-        if (!url.searchParams.getAll('followup[]').includes('1')) {
-            url.searchParams.delete('rider_status');
-            url.searchParams.delete('rider_status[]');
-            url.searchParams.delete('absconder[]');
-            url.searchParams.delete('llicense[]');
-            url.searchParams.append('followup[]', '1');
-            url.searchParams.append('rider_status[]', status);
-        } else {
-            const hasStatus = currentStatuses.includes(status);
-            const other = status === 'active' ? 'inactive' : 'active';
-            url.searchParams.delete('rider_status[]');
-            url.searchParams.append('followup[]', '1');
-            if (!hasStatus) url.searchParams.append('rider_status[]', status);
-            if (currentStatuses.includes(other)) url.searchParams.append('rider_status[]', other);
-        }
-        url.searchParams.delete('fleet_supervisor');
         window.location.href = url.toString();
     }
 

@@ -610,7 +610,6 @@
             <label class="form-label">Add Option Value(s) <span class="text-danger">*</span></label>
             <div id="addRiderTopOptionRows" class="d-flex flex-column gap-2"></div>
             <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addRiderTopOptionRowBtn">Add Option</button>
-            <datalist id="addRiderTopOptionSuggestions"></datalist>
             <div class="form-text">Values are loaded from the selected category column in the rider table. You can add one or more items.</div>
           </div>
         </div>
@@ -1176,12 +1175,15 @@
       var row = document.createElement('div');
       row.className = 'd-flex align-items-center gap-2';
 
-      var input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'form-control rider-top-option-row-input';
-      input.placeholder = 'Option value';
-      input.value = initialValue || '';
-      input.setAttribute('list', 'addRiderTopOptionSuggestions');
+      var input = document.createElement('select');
+      input.className = 'form-select rider-top-option-row-input';
+      input.appendChild(new Option('Select value', ''));
+      riderTopAvailableValues.forEach(function(v) {
+        input.appendChild(new Option(v, v));
+      });
+      if (initialValue) {
+        input.value = initialValue;
+      }
 
       var removeBtn = document.createElement('button');
       removeBtn.type = 'button';
@@ -1213,13 +1215,18 @@
 
     function setRiderTopOptionSuggestions(values) {
       riderTopAvailableValues = Array.isArray(values) ? values : [];
-      var datalist = document.getElementById('addRiderTopOptionSuggestions');
-      if (!datalist) return;
-      datalist.innerHTML = '';
-      riderTopAvailableValues.forEach(function(v) {
-        var opt = document.createElement('option');
-        opt.value = v;
-        datalist.appendChild(opt);
+      var rowsWrap = document.getElementById('addRiderTopOptionRows');
+      if (!rowsWrap) return;
+      rowsWrap.querySelectorAll('.rider-top-option-row-input').forEach(function(selectEl) {
+        var currentValue = selectEl.value || '';
+        selectEl.innerHTML = '';
+        selectEl.appendChild(new Option('Select value', ''));
+        riderTopAvailableValues.forEach(function(v) {
+          selectEl.appendChild(new Option(v, v));
+        });
+        if (currentValue && riderTopAvailableValues.indexOf(currentValue) !== -1) {
+          selectEl.value = currentValue;
+        }
       });
     }
 
@@ -1391,7 +1398,7 @@
           setRiderTopOptionSuggestions(values);
           if (values.length && rowsWrap) {
             var firstInput = rowsWrap.querySelector('.rider-top-option-row-input');
-            if (firstInput && (!firstInput.value || firstInput.value.trim() === '')) {
+            if (firstInput && !firstInput.value) {
               firstInput.value = values[0];
             }
           }

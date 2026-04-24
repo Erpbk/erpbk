@@ -175,113 +175,13 @@
             </div>
         </div>
 
-        <!-- Fleet Supervisor Slider Script -->
+        <!-- Fleet Supervisor Continuous Ticker Script -->
         <script>
-            // Fleet Supervisor Slider with boundary checking
             setTimeout(function() {
-                console.log('Initializing fleet supervisor slider...');
-                const sliderTrack = document.getElementById('sliderTrack');
-                const prevBtn = document.getElementById('prevBtn');
-                const nextBtn = document.getElementById('nextBtn');
-
-                if (sliderTrack && prevBtn && nextBtn) {
-                    console.log('All elements found, initializing slider...');
-
-                    const cards = sliderTrack.querySelectorAll('.fleet-supervisor-card');
-                    const totalCards = cards.length;
-                    console.log('Found', totalCards, 'cards');
-
-                    if (totalCards === 0) {
-                        console.log('No cards found');
-                        return;
-                    }
-
-                    let currentIndex = 0;
-                    const cardWidth = 296; // 280px card width + 16px gap
-                    const maxIndex = totalCards - 1;
-
-                    // Update button states based on current position
-                    function updateButtonStates() {
-                        // Disable prev button if at first card
-                        if (currentIndex === 0) {
-                            prevBtn.style.opacity = '0.5';
-                            prevBtn.style.pointerEvents = 'none';
-                            prevBtn.disabled = true;
-                        } else {
-                            prevBtn.style.opacity = '1';
-                            prevBtn.style.pointerEvents = 'auto';
-                            prevBtn.disabled = false;
-                        }
-
-                        // Disable next button if at last card
-                        if (currentIndex >= maxIndex) {
-                            nextBtn.style.opacity = '0.5';
-                            nextBtn.style.pointerEvents = 'none';
-                            nextBtn.disabled = true;
-                        } else {
-                            nextBtn.style.opacity = '1';
-                            nextBtn.style.pointerEvents = 'auto';
-                            nextBtn.disabled = false;
-                        }
-
-                        console.log('Current index:', currentIndex, 'Max index:', maxIndex);
-                    }
-
-                    // Update slider position
-                    function updateSlider() {
-                        const translateX = -currentIndex * cardWidth;
-                        sliderTrack.style.transform = `translateX(${translateX}px)`;
-                        console.log('Moving to card', currentIndex, 'translateX:', translateX);
-                        updateButtonStates();
-                    }
-
-                    // Next slide - move to next card
-                    function nextSlide() {
-                        if (currentIndex < maxIndex) {
-                            currentIndex++;
-                            updateSlider();
-                        } else {
-                            console.log('Already at last card, cannot go forward');
-                        }
-                    }
-
-                    // Previous slide - move to previous card
-                    function prevSlide() {
-                        if (currentIndex > 0) {
-                            currentIndex--;
-                            updateSlider();
-                        } else {
-                            console.log('Already at first card, cannot go backward');
-                        }
-                    }
-
-                    // Add click handlers with boundary checking
-                    nextBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        console.log('Next button clicked, current index:', currentIndex);
-                        nextSlide();
-                    });
-
-                    prevBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        console.log('Prev button clicked, current index:', currentIndex);
-                        prevSlide();
-                    });
-
-                    // Initialize slider
-                    updateSlider();
-
-                    console.log('Fleet supervisor slider initialized successfully!');
-                    console.log('Total cards:', totalCards, 'Max index:', maxIndex);
-
-                } else {
-                    console.log('Missing elements:', {
-                        sliderTrack: !!sliderTrack,
-                        prevBtn: !!prevBtn,
-                        nextBtn: !!nextBtn
-                    });
+                if (typeof initFleetSupervisorSlider === 'function') {
+                    initFleetSupervisorSlider();
                 }
-            }, 500);
+            }, 150);
         </script>
         <!-- Filter Tabs Section -->
 
@@ -968,80 +868,61 @@ $tableColumns = $columns;
         .appendTo('head');
 
     function initFleetSupervisorSlider() {
-        console.log('Initializing slider...');
-
         const sliderTrack = document.getElementById('sliderTrack');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const indicatorsContainer = document.getElementById('sliderIndicators');
+        if (!sliderTrack || sliderTrack.dataset.tickerInit === '1') return;
 
-        if (!sliderTrack) {
-            console.log('sliderTrack not found');
-            return;
+        const cards = Array.from(sliderTrack.querySelectorAll('.fleet-supervisor-card'));
+        if (!cards.length) return;
+
+        const container = sliderTrack.closest('.fleet-supervisor-slider-container');
+        if (container) container.classList.add('ticker-mode');
+
+        // Duplicate cards once so ticker appears continuous.
+        cards.forEach(function(card) {
+            const clone = card.cloneNode(true);
+            clone.classList.add('ticker-clone');
+            sliderTrack.appendChild(clone);
+        });
+
+        sliderTrack.dataset.tickerInit = '1';
+        let translateX = 0;
+        let rafId = null;
+        let running = true;
+        const speed = 0.45; // px/frame for smooth continuous movement
+        const firstSetWidth = cards.reduce(function(total, card) {
+            return total + card.offsetWidth;
+        }, 0) + ((cards.length - 1) * 16);
+
+        function tick() {
+            if (!running) return;
+            translateX -= speed;
+            if (Math.abs(translateX) >= firstSetWidth) {
+                translateX = 0;
+            }
+            sliderTrack.style.transform = 'translateX(' + translateX + 'px)';
+            rafId = window.requestAnimationFrame(tick);
         }
 
-        if (!prevBtn) {
-            console.log('prevBtn not found');
-            return;
+        function startTicker() {
+            if (running) return;
+            running = true;
+            rafId = window.requestAnimationFrame(tick);
         }
 
-        if (!nextBtn) {
-            console.log('nextBtn not found');
-            return;
-        }
-
-        if (!indicatorsContainer) {
-            console.log('indicatorsContainer not found');
-            return;
-        }
-
-        const cards = sliderTrack.querySelectorAll('.fleet-supervisor-card');
-        console.log('Found cards:', cards.length);
-
-        if (cards.length === 0) {
-            console.log('No cards found');
-            return;
-        }
-
-        let currentIndex = 0;
-
-        // Simple next function
-        function nextSlide() {
-            if (currentIndex < cards.length - 1) {
-                currentIndex++;
-                updateSlider();
+        function stopTicker() {
+            running = false;
+            if (rafId) {
+                window.cancelAnimationFrame(rafId);
+                rafId = null;
             }
         }
 
-        // Simple prev function
-        function prevSlide() {
-            if (currentIndex > 0) {
-                currentIndex--;
-                updateSlider();
-            }
+        if (container) {
+            container.addEventListener('mouseenter', stopTicker);
+            container.addEventListener('mouseleave', startTicker);
         }
 
-        // Update slider
-        function updateSlider() {
-            const translateX = -currentIndex * 300; // 300px per slide
-            sliderTrack.style.transform = `translateX(${translateX}px)`;
-
-            // Update buttons
-            prevBtn.style.opacity = currentIndex === 0 ? '0.5' : '1';
-            nextBtn.style.opacity = currentIndex >= cards.length - 1 ? '0.5' : '1';
-        }
-
-        // Event listeners
-        nextBtn.onclick = function() {
-            nextSlide();
-        };
-
-        prevBtn.onclick = function() {
-            prevSlide();
-        };
-
-        // Initialize
-        updateSlider();
+        rafId = window.requestAnimationFrame(tick);
     }
 
     // Initialize slider when DOM is loaded

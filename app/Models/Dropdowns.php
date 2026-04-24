@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
+use Illuminate\Support\Facades\Auth;
 
 class Dropdowns extends BaseModel
 {
@@ -12,6 +13,7 @@ class Dropdowns extends BaseModel
   public $table = 'dropdowns';
 
   public $fillable = [
+    'company_id',
     'name',
     'label',
     'values',
@@ -40,6 +42,24 @@ class Dropdowns extends BaseModel
   {
     $dropdown = self::where('key', $key)->first();
     return json_decode($dropdown->values);
+  }
+
+  /**
+   * Ensure dropdowns are always scoped to the current company,
+   * even on routes that do not carry company_slug.
+   */
+  protected function resolveScopedCompanyId(): ?int
+  {
+    $companyId = parent::resolveScopedCompanyId();
+    if ($companyId !== null) {
+      return $companyId;
+    }
+
+    if (Auth::check() && !empty(Auth::user()->company_id)) {
+      return (int) Auth::user()->company_id;
+    }
+
+    return null;
   }
 
 }

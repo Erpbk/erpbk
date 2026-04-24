@@ -329,9 +329,9 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
         elseif (isset($result['pro']) && $result['pro'] == 1) $activeStatusOption = 'pro';
         }
         if ($activeStatusOption) {
-          $displayStatusLabel = $statusLabels[$activeStatusOption] ?? 'Inactive';
+        $displayStatusLabel = $statusLabels[$activeStatusOption] ?? 'Inactive';
         } else {
-          $displayStatusLabel = (isset($result['status']) && (int)$result['status'] === 1) ? 'Active' : 'Inactive';
+        $displayStatusLabel = (isset($result['status']) && (int)$result['status'] === 1) ? 'Active' : 'Inactive';
         }
         @endphp
         @endisset
@@ -1160,7 +1160,10 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
 
     function setStatusBadge(statusLabel, badgeClass) {
       const statusValueBadge = document.getElementById('rider-status-value-badge');
-      if (statusValueBadge) { statusValueBadge.textContent = statusLabel; statusValueBadge.className = 'badge ' + badgeClass; }
+      if (statusValueBadge) {
+        statusValueBadge.textContent = statusLabel;
+        statusValueBadge.className = 'badge ' + badgeClass;
+      }
     }
 
     const statusCardsContainer = document.getElementById('rider-status-cards');

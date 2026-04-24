@@ -13,17 +13,18 @@
         $fleetSupervisorOptions = [];
         $fleetSupervisorAssignment = \App\Models\RiderFieldCategoryAssignment::where('field_key', 'fleet_supervisor')->first();
         $configured = $fleetSupervisorAssignment?->input_config['options'] ?? null;
+        dd($configured);
         if ($configured !== null) {
-            $configuredItems = is_array($configured) ? $configured : preg_split("/\r\n|\n|\r/", (string) $configured);
-            $configuredItems = collect($configuredItems)
-                ->map(fn($v) => trim((string) $v))
-                ->filter(fn($v) => $v !== '')
-                ->unique()
-                ->values()
-                ->all();
-            if (!empty($configuredItems)) {
-                $fleetSupervisorOptions = array_combine($configuredItems, $configuredItems);
-            }
+        $configuredItems = is_array($configured) ? $configured : preg_split("/\r\n|\n|\r/", (string) $configured);
+        $configuredItems = collect($configuredItems)
+        ->map(fn($v) => trim((string) $v))
+        ->filter(fn($v) => $v !== '')
+        ->unique()
+        ->values()
+        ->all();
+        if (!empty($configuredItems)) {
+        $fleetSupervisorOptions = array_combine($configuredItems, $configuredItems);
+        }
         }
         @endphp
         {!! Form::select('fleet_supervisor', $fleetSupervisorOptions, null, ['class' => 'form-select', 'placeholder' => 'Select Fleet Supervisor', 'required']) !!}

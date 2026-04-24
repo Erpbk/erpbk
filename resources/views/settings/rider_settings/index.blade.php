@@ -240,7 +240,7 @@
                     </thead>
                     <tbody id="rider-fields-tbody-{{ $group->category->id }}" class="rider-fields-sortable-tbody">
                       @forelse($group->fields as $rowIndex => $row)
-                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
+                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle rider-field-index">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
@@ -270,7 +270,8 @@
                             data-field-key="{{ $row->field_key }}"
                             data-field-label="{{ $row->label }}"
                             data-category-id="{{ $group->category->id }}"
-                            data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}">
+                            data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
+                            data-input-type="{{ $row->input_type ?? 'text' }}">
                             <i class="ti ti-pencil me-1"></i> Edit
                           </button>
                         </td>
@@ -510,6 +511,14 @@
             <div class="col-md-6">
               <label class="form-label">Display Label</label>
               <input type="text" name="display_label" id="editRiderFixedFieldLabel" class="form-control" maxlength="255" placeholder="Enter display label">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Field Type</label>
+              <select name="input_type" id="editRiderFixedFieldType" class="form-select" required>
+                @foreach($dataTypes as $typeKey => $typeMeta)
+                <option value="{{ $typeKey }}">{{ $typeMeta['label'] ?? ucfirst($typeKey) }}</option>
+                @endforeach
+              </select>
             </div>
             <div class="col-md-6">
               <label class="form-label">Category</label>
@@ -1605,18 +1614,21 @@
       var fieldLabel = editFixedFieldBtn.getAttribute('data-field-label') || '';
       var categoryId = editFixedFieldBtn.getAttribute('data-category-id') || '';
       var isVisible = editFixedFieldBtn.getAttribute('data-is-visible') || '1';
+      var inputType = editFixedFieldBtn.getAttribute('data-input-type') || 'text';
 
       var keyInput = document.getElementById('editRiderFixedFieldKey');
       var keyTextInput = document.getElementById('editRiderFixedFieldKeyText');
       var labelInput = document.getElementById('editRiderFixedFieldLabel');
       var categoryInput = document.getElementById('editRiderFixedFieldCategoryId');
       var visibleInput = document.getElementById('editRiderFixedFieldVisible');
+      var typeInput = document.getElementById('editRiderFixedFieldType');
 
       if (keyInput) keyInput.value = fieldKey;
       if (keyTextInput) keyTextInput.value = fieldKey;
       if (labelInput) labelInput.value = fieldLabel;
       if (categoryInput) categoryInput.value = categoryId;
       if (visibleInput) visibleInput.checked = String(isVisible) === '1';
+      if (typeInput) typeInput.value = inputType;
 
       if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
         var modal = new bootstrap.Modal(document.getElementById('editRiderFixedFieldModal'));
@@ -1639,6 +1651,7 @@
         assignmentFd.append('field_key', fieldKey);
         assignmentFd.append('display_label', (document.getElementById('editRiderFixedFieldLabel') && document.getElementById('editRiderFixedFieldLabel').value) || '');
         assignmentFd.append('category_id', (document.getElementById('editRiderFixedFieldCategoryId') && document.getElementById('editRiderFixedFieldCategoryId').value) || '');
+        assignmentFd.append('input_type', (document.getElementById('editRiderFixedFieldType') && document.getElementById('editRiderFixedFieldType').value) || 'text');
 
         fetch("{{ route('settings-panel.rider-settings.update-field-assignment') }}", {
             method: 'POST',

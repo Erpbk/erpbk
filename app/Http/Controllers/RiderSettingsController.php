@@ -86,9 +86,14 @@ class RiderSettingsController extends Controller
         $grouped = $assignments->groupBy('category_id');
         $result = [];
         foreach ($categories as $cat) {
-            $items = $grouped->get($cat->id, collect())->map(function ($a) {
+            $fixedSpecs = RiderCustomField::fixedFieldInputSpecs();
+            $items = $grouped->get($cat->id, collect())->map(function ($a) use ($fixedSpecs) {
                 $rawVisible = $a->getRawOriginal('is_visible');
                 $isVisible = $rawVisible === null ? true : (bool) (int) $rawVisible;
+                $defaultType = $fixedSpecs[$a->field_key]['type'] ?? 'text';
+                if ($defaultType === 'select') {
+                    $defaultType = 'dropdown';
+                }
                 return (object) [
                     'field_key' => $a->field_key,
                     'label' => $a->display_label !== null && trim((string) $a->display_label) !== ''
@@ -96,6 +101,7 @@ class RiderSettingsController extends Controller
                         : RiderCustomField::humanizeFieldKey($a->field_key),
                     'display_order' => $a->display_order,
                     'is_visible' => $isVisible,
+                    'input_type' => $a->input_type ?: $defaultType,
                 ];
             })->values()->all();
             $result[] = (object) [
@@ -144,6 +150,7 @@ class RiderSettingsController extends Controller
             'field_key' => 'required|string|max:80',
             'category_id' => 'required|integer|exists:rider_categories,id',
             'display_label' => 'nullable|string|max:255',
+            'input_type' => 'nullable|string|max:50',
         ]);
         $keys = RiderCustomField::allFixedFieldKeys();
         if (!in_array($validated['field_key'], $keys, true)) {
@@ -157,6 +164,13 @@ class RiderSettingsController extends Controller
         }
         if (array_key_exists('display_label', $validated)) {
             $assignment->display_label = $validated['display_label'] ? trim($validated['display_label']) : null;
+        }
+        if (array_key_exists('input_type', $validated)) {
+            $allowedInputTypes = array_keys(RiderCustomField::dataTypes());
+            if (!in_array($validated['input_type'], $allowedInputTypes, true)) {
+                return response()->json(['success' => false, 'message' => 'Invalid field type.'], 422);
+            }
+            $assignment->input_type = $validated['input_type'];
         }
         $assignment->save();
         if ($request->wantsJson() || $request->ajax()) {

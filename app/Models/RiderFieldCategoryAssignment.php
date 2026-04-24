@@ -11,6 +11,7 @@ class RiderFieldCategoryAssignment extends BaseModel
     protected $fillable = [
         'field_key',
         'display_label',
+        'input_type',
         'category_id',
         'display_order',
         'is_visible',

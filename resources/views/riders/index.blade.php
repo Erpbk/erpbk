@@ -172,11 +172,11 @@
 
                         @php
                         // Absconder Counts
-                        $absActiveCountSlider = \App\Models\Riders::where('absconder', 1)
+                        $absActiveCountSlider = \App\Models\Riders::where('absconder', 1) ->where('company_id', auth()->user()->company_id)
                         ->where('status', 1)
                         ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
                         ->count();
-                        $absInactiveCountSlider = \App\Models\Riders::where('absconder', 1)
+                        $absInactiveCountSlider = \App\Models\Riders::where('absconder', 1) ->where('company_id', auth()->user()->company_id)
                         ->where(function($q){
                         $q->where('status', 3)
                         ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active'); });
@@ -187,11 +187,11 @@
                         $absInactiveSelectedSlider = $absFilterActive && in_array('inactive', request('rider_status', []));
 
                         // Learning License Counts
-                        $llActiveCountSlider = \App\Models\Riders::where('l_license', 1)
+                        $llActiveCountSlider = \App\Models\Riders::where('l_license', 1) ->where('company_id', auth()->user()->company_id)
                         ->where('status', 1)
                         ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
                         ->count();
-                        $llInactiveCountSlider = \App\Models\Riders::where('l_license', 1)
+                        $llInactiveCountSlider = \App\Models\Riders::where('l_license', 1) ->where('company_id', auth()->user()->company_id)
                         ->where(function($q){
                         $q->where('status', 3)
                         ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active'); });
@@ -201,11 +201,11 @@
                         $llInactiveSelectedSlider = in_array('llicense', request('rider_status', [])) && in_array('inactive', request('rider_status', []));
 
                         // Follow Up Counts
-                        $fuActiveCountSlider = \App\Models\Riders::where('flowup', 1)
+                        $fuActiveCountSlider = \App\Models\Riders::where('flowup', 1) ->where('company_id', auth()->user()->company_id)
                         ->where('status', 1)
                         ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
                         ->count();
-                        $fuInactiveCountSlider = \App\Models\Riders::where('flowup', 1)
+                        $fuInactiveCountSlider = \App\Models\Riders::where('flowup', 1) ->where('company_id', auth()->user()->company_id)
                         ->where(function($q){
                         $q->where('status', 3)
                         ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active'); });
@@ -215,18 +215,18 @@
                         $fuInactiveSelectedSlider = in_array('followup', request('rider_status', [])) && in_array('inactive', request('rider_status', []));
 
                         // Recovery Counts (balance > 0)
-                        $recoveryActiveCountSlider = \App\Models\Riders::whereHas('account', function($q) {
+                        $recoveryActiveCountSlider = \App\Models\Riders::whereHas('account', function($q) { $q->where('company_id', auth()->user()->company_id);
                         $q->whereRaw('(SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) FROM transactions WHERE account_id = accounts.id) > 0');
                         })
                         ->where('status', 1)
                         ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
                         ->count();
-                        $recoveryInactiveCountSlider = \App\Models\Riders::whereHas('account', function($q) {
+                        $recoveryInactiveCountSlider = \App\Models\Riders::whereHas('account', function($q) { $q->where('company_id', auth()->user()->company_id);
                         $q->whereRaw('(SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) FROM transactions WHERE account_id = accounts.id) > 0');
                         })
                         ->where(function($q){
                         $q->where('status', 3)
-                        ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active'); });
+                        ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active')->where('company_id', auth()->user()->company_id); });
                         })
                         ->count();
                         $recoveryActiveSelectedSlider = request('balance_filter') === 'greater_than_zero' && in_array('active', request('rider_status', []));

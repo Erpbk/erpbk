@@ -55,32 +55,32 @@ $moduleIcons = [
 'ledger' => 'ti-book',
 ];
 $erpModuleMenu = [
-    ['key' => 'dashboard'],
-    ['key' => 'cash_banks', 'children' => ['cash_banks', 'cheques']],
-    ['key' => 'employees'],
-    ['key' => 'attendance', 'children' => ['attendance', 'attendance_records', 'attendance_summary']],
-    ['key' => 'items', 'children' => ['items', 'items_list', 'garage_items']],
-    ['key' => 'leads'],
-    ['key' => 'customers'],
-    ['key' => 'vendors'],
-    ['key' => 'recruiters'],
-    ['key' => 'riders', 'children' => ['riders', 'riders_list', 'invoices', 'activities', 'live_activities', 'rider_report']],
-    ['key' => 'bikes', 'children' => ['bikes', 'bike_list', 'maintenance_overview']],
-    ['key' => 'sims'],
-    ['key' => 'fuel_cards'],
-    ['key' => 'rta_fines'],
-    ['key' => 'rta_saliks'],
-    ['key' => 'inventory'],
-    ['key' => 'visa_expense'],
-    ['key' => 'expenses'],
-    ['key' => 'vat', 'children' => ['vat', 'vat_ledger', 'vat_return_file']],
-    ['key' => 'leasing_companies', 'children' => ['leasing_companies', 'leasing_companies_list', 'leasing_invoices']],
-    ['key' => 'garages'],
-    ['key' => 'supplier', 'children' => ['supplier', 'suppliers', 'supplier_invoices']],
-    ['key' => 'assets'],
-    ['key' => 'documents'],
-    ['key' => 'vouchers'],
-    ['key' => 'accounts', 'children' => ['accounts', 'chart_of_accounts', 'ledger']],
+['key' => 'dashboard'],
+['key' => 'cash_banks', 'children' => ['cash_banks', 'cheques']],
+['key' => 'employees'],
+['key' => 'attendance', 'children' => ['attendance', 'attendance_records', 'attendance_summary']],
+['key' => 'items', 'children' => ['items', 'items_list', 'garage_items']],
+['key' => 'leads'],
+['key' => 'customers'],
+['key' => 'vendors'],
+['key' => 'recruiters'],
+['key' => 'riders', 'children' => ['riders', 'riders_list', 'invoices', 'activities', 'live_activities', 'rider_report']],
+['key' => 'bikes', 'children' => ['bikes', 'bike_list', 'maintenance_overview']],
+['key' => 'sims'],
+['key' => 'fuel_cards'],
+['key' => 'rta_fines'],
+['key' => 'rta_saliks'],
+['key' => 'inventory'],
+['key' => 'visa_expense'],
+['key' => 'expenses'],
+['key' => 'vat', 'children' => ['vat', 'vat_ledger', 'vat_return_file']],
+['key' => 'leasing_companies', 'children' => ['leasing_companies', 'leasing_companies_list', 'leasing_invoices']],
+['key' => 'garages'],
+['key' => 'supplier', 'children' => ['supplier', 'suppliers', 'supplier_invoices']],
+['key' => 'assets'],
+['key' => 'documents'],
+['key' => 'vouchers'],
+['key' => 'accounts', 'children' => ['accounts', 'chart_of_accounts', 'ledger']],
 ];
 @endphp
 @extends('layouts/commonMaster')
@@ -142,14 +142,7 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
-        @can('dropdown_view')
-        <li class="menu-item {{ Request::is('settings-panel/dropdowns*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.dropdowns.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-list"></i>
-            <div>Dropdown Management</div>
-          </a>
-        </li>
-        @endcan
+
         @endcanany
 
         {{-- User Management, Activity Logs, Recycle Bin --}}
@@ -257,10 +250,10 @@ $containerNav = 'container-fluid';
         $parentRoutePattern = 'settings-panel/module-settings/' . $parentKey;
         $anyChildActive = false;
         foreach ($children as $childKey) {
-            if (Request::is('settings-panel/module-settings/' . $childKey)) {
-                $anyChildActive = true;
-                break;
-            }
+        if (Request::is('settings-panel/module-settings/' . $childKey)) {
+        $anyChildActive = true;
+        break;
+        }
         }
         $isOpen = Request::is($parentRoutePattern) || $anyChildActive;
         $isVisible = \App\Support\CompanyModuleVisibility::enabled($parentKey);

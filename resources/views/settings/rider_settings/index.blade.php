@@ -930,8 +930,10 @@
             help.textContent = 'Each option is added as a separate item.';
 
             // Keep backend payload compatible: store options as newline-separated string.
-            input.type = 'hidden';
-            input.value = Array.isArray(value) ? value.join('\n') : String(value || '');
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = name;
+            hiddenInput.value = Array.isArray(value) ? value.join('\n') : String(value || '');
 
             const optionsWrap = document.createElement('div');
             optionsWrap.className = 'mt-2';
@@ -952,7 +954,7 @@
                 .filter(function(v) {
                   return v.length > 0;
                 });
-              input.value = items.join('\n');
+              hiddenInput.value = items.join('\n');
             };
 
             const createOptionRow = function(initialValue) {
@@ -981,7 +983,7 @@
               list.appendChild(row);
             };
 
-            const existingItems = parseOptionLines(input.value);
+            const existingItems = parseOptionLines(hiddenInput.value);
             if (existingItems.length) {
               existingItems.forEach(function(item) {
                 createOptionRow(item);
@@ -996,7 +998,7 @@
             });
 
             group.appendChild(label);
-            group.appendChild(input);
+            group.appendChild(hiddenInput);
             group.appendChild(help);
             optionsWrap.appendChild(list);
             optionsWrap.appendChild(addBtn);

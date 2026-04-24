@@ -724,12 +724,37 @@ class RiderSettingsController extends Controller
             return response()->json(['success' => false, 'message' => 'Category source column is invalid.', 'values' => []], 422);
         }
 
-        $values = Riders::query()
+        // First prefer configured dropdown options from Rider field settings (input_config.options).
+        $configuredValues = collect();
+        $assignment = RiderFieldCategoryAssignment::where('field_key', $column)->first();
+        if ($assignment && is_array($assignment->input_config) && array_key_exists('options', $assignment->input_config)) {
+            $rawOptions = $assignment->input_config['options'];
+            if (is_array($rawOptions)) {
+                $configuredValues = collect($rawOptions);
+            } else {
+                $configuredValues = collect(preg_split("/\r\n|\n|\r/", (string) $rawOptions));
+            }
+            $configuredValues = $configuredValues
+                ->map(fn($v) => trim((string) $v))
+                ->filter(fn($v) => $v !== '')
+                ->unique()
+                ->values();
+        }
+
+        $tableValues = Riders::query()
             ->whereNotNull($column)
             ->where($column, '!=', '')
             ->distinct()
             ->orderBy($column)
             ->pluck($column)
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
+            ->unique()
+            ->values();
+
+        // Keep configured values first, then append any extra values present in table data.
+        $values = $configuredValues
+            ->concat($tableValues)
             ->map(fn($v) => trim((string) $v))
             ->filter(fn($v) => $v !== '')
             ->unique()

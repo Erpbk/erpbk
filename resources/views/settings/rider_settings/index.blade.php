@@ -927,37 +927,82 @@
           if (cfg.key === 'options') {
             const help = document.createElement('div');
             help.className = 'form-text';
-            help.textContent = 'Each new line will be added as one option item.';
+            help.textContent = 'Each option is added as a separate item.';
 
-            const preview = document.createElement('div');
-            preview.className = 'mt-2 d-flex flex-wrap gap-1';
+            // Keep backend payload compatible: store options as newline-separated string.
+            input.type = 'hidden';
+            input.value = Array.isArray(value) ? value.join('\n') : String(value || '');
 
-            const renderPreview = function() {
-              preview.innerHTML = '';
-              const items = parseOptionLines(input.value);
-              if (!items.length) {
-                const empty = document.createElement('span');
-                empty.className = 'text-muted small';
-                empty.textContent = 'No option items added yet.';
-                preview.appendChild(empty);
-                return;
-              }
-              items.forEach(function(item) {
-                const badge = document.createElement('span');
-                badge.className = 'badge bg-label-primary';
-                badge.textContent = item;
-                preview.appendChild(badge);
-              });
+            const optionsWrap = document.createElement('div');
+            optionsWrap.className = 'mt-2';
+
+            const list = document.createElement('div');
+            list.className = 'd-flex flex-column gap-2';
+
+            const addBtn = document.createElement('button');
+            addBtn.type = 'button';
+            addBtn.className = 'btn btn-sm btn-outline-primary mt-2';
+            addBtn.textContent = 'Add Option';
+
+            var syncHiddenOptions = function() {
+              const items = Array.prototype.slice.call(list.querySelectorAll('input[type="text"]'))
+                .map(function(el) {
+                  return (el.value || '').trim();
+                })
+                .filter(function(v) {
+                  return v.length > 0;
+                });
+              input.value = items.join('\n');
             };
 
-            input.addEventListener('input', renderPreview);
-            renderPreview();
+            const createOptionRow = function(initialValue) {
+              const row = document.createElement('div');
+              row.className = 'd-flex align-items-center gap-2';
+
+              const rowInput = document.createElement('input');
+              rowInput.type = 'text';
+              rowInput.className = 'form-control';
+              rowInput.placeholder = 'Option value';
+              rowInput.value = initialValue || '';
+
+              const removeBtn = document.createElement('button');
+              removeBtn.type = 'button';
+              removeBtn.className = 'btn btn-sm btn-outline-danger';
+              removeBtn.textContent = 'Remove';
+
+              removeBtn.addEventListener('click', function() {
+                row.remove();
+                syncHiddenOptions();
+              });
+              rowInput.addEventListener('input', syncHiddenOptions);
+
+              row.appendChild(rowInput);
+              row.appendChild(removeBtn);
+              list.appendChild(row);
+            };
+
+            const existingItems = parseOptionLines(input.value);
+            if (existingItems.length) {
+              existingItems.forEach(function(item) {
+                createOptionRow(item);
+              });
+            } else {
+              createOptionRow('');
+            }
+
+            addBtn.addEventListener('click', function() {
+              createOptionRow('');
+              syncHiddenOptions();
+            });
 
             group.appendChild(label);
             group.appendChild(input);
             group.appendChild(help);
-            group.appendChild(preview);
+            optionsWrap.appendChild(list);
+            optionsWrap.appendChild(addBtn);
+            group.appendChild(optionsWrap);
             container.appendChild(group);
+            syncHiddenOptions();
             return;
           }
         } else if (cfg.type === 'checkbox') {

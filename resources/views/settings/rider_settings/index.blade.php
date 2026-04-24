@@ -1168,6 +1168,23 @@
     var baseUrl = "{{ url('') }}";
     var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content') || document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value;
 
+    function setupRiderTopValuesSelect2(isMultiple) {
+      var valuesSelect = document.getElementById('addRiderTopOptionValues');
+      if (!valuesSelect) return;
+      if (!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)) return;
+      var $select = window.jQuery(valuesSelect);
+      if ($select.hasClass('select2-hidden-accessible')) {
+        $select.select2('destroy');
+      }
+      $select.select2({
+        width: '100%',
+        dropdownParent: window.jQuery('#addRiderTopOptionModal'),
+        placeholder: isMultiple ? 'Select one or more values' : 'Select a value',
+        multiple: !!isMultiple,
+        allowClear: true
+      });
+    }
+
     var formAddCat = document.getElementById('formAddRiderCategory');
     if (formAddCat) {
       formAddCat.addEventListener('submit', function(e) {
@@ -1308,6 +1325,8 @@
         valuesSelect.innerHTML = '<option value="">Loading values...</option>';
         valuesSelect.multiple = false;
         valuesSelect.required = true;
+        valuesSelect.removeAttribute('size');
+        setupRiderTopValuesSelect2(false);
       }
 
       var categoryId = addOptionBtn.getAttribute('data-category-id') || '';
@@ -1342,10 +1361,12 @@
             opt.textContent = v;
             valuesSelect.appendChild(opt);
           });
+          setupRiderTopValuesSelect2(valuesSelect.multiple);
         })
         .catch(function() {
           valuesSelect.innerHTML = '<option value="">Unable to load values</option>';
           if (columnNameEl) columnNameEl.textContent = '-';
+          setupRiderTopValuesSelect2(false);
         });
     });
 
@@ -1356,11 +1377,11 @@
       if (!valuesSelect) return;
       if (modeInput.value === 'multiple') {
         valuesSelect.multiple = true;
-        valuesSelect.setAttribute('size', '8');
       } else {
         valuesSelect.multiple = false;
-        valuesSelect.removeAttribute('size');
       }
+      valuesSelect.removeAttribute('size');
+      setupRiderTopValuesSelect2(valuesSelect.multiple);
     });
 
     document.addEventListener('click', function(e) {

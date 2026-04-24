@@ -31,6 +31,7 @@ return [
         ['parent' => 'Leasing', 'slug' => 'leasing', 'extras' => ['leasing_company_invoice_view']],
         ['parent' => 'Garage', 'slug' => 'garage', 'extras' => []],
         ['parent' => 'Supplier', 'slug' => 'supplier', 'extras' => []],
+        ['parent' => 'Dropdown', 'slug' => 'dropdown', 'extras' => []],
         ['parent' => 'Asset', 'slug' => 'asset', 'extras' => []],
         ['parent' => 'Documents', 'slug' => 'company_documents', 'extras' => []],
         ['parent' => 'Voucher', 'slug' => 'voucher', 'extras' => []],

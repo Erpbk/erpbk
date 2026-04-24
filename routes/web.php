@@ -359,14 +359,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
         ->name('riders.import_rider_vouchers');
     Route::post('riders/storeadvanceloan', [\App\Http\Controllers\RidersController::class, 'storeadvanceloan'])->name('riders.storeadvanceloan');
     Route::post('riders/update-section/{id}', [\App\Http\Controllers\RidersController::class, 'updateSection'])->name('riders.updateSection');
-    Route::post('riders/toggle-absconder/{id}', [\App\Http\Controllers\RidersController::class, 'toggleAbsconder'])->name('riders.toggleAbsconder');
-    Route::post('riders/toggle-flowup/{id}', [\App\Http\Controllers\RidersController::class, 'toggleFlowup'])->name('riders.toggleFlowup');
-    Route::post('riders/toggle-llicense/{id}', [\App\Http\Controllers\RidersController::class, 'toggleLlicense'])->name('riders.toggleLlicense');
     Route::post('riders/toggle-walker/{id}', [\App\Http\Controllers\RidersController::class, 'toggleWalker'])->name('riders.toggleWalker');
     Route::post('riders/toggle-vacation/{id}', [\App\Http\Controllers\RidersController::class, 'toggleVacation'])->name('riders.toggleVacation');
-    Route::post('riders/toggle-mol/{id}', [\App\Http\Controllers\RidersController::class, 'toggleMol'])->name('riders.toggleMol');
-    Route::post('riders/toggle-pro/{id}', [\App\Http\Controllers\RidersController::class, 'togglePro'])->name('riders.togglePro');
-    Route::post('riders/set-status-option/{id}', [\App\Http\Controllers\RidersController::class, 'setRiderStatusOption'])->name('riders.setStatusOption');
     Route::post('riders/return-bike/{id}', [\App\Http\Controllers\RidersController::class, 'returnBike'])->name('riders.returnBike');
     Route::post('riders/add-recruiter', [\App\Http\Controllers\RidersController::class, 'addRecruiter'])->name('riders.addRecruiter');
     Route::get('riders/vendorcharges/{id}', [\App\Http\Controllers\RidersController::class, 'vendorcharges'])->name('riders.vendorcharges');

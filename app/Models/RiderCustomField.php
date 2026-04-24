@@ -6,6 +6,50 @@ use Illuminate\Database\Eloquent\Model;
 
 class RiderCustomField extends BaseModel
 {
+    private static function removedRiderColumns(): array
+    {
+        return [
+            'courier_id',
+            'personal_contact',
+            'company_contact',
+            'NFDID',
+            'cdm_deposit_id',
+            'emirate_hub',
+            'mashreq_id',
+            'PID',
+            'DEPT',
+            'visa_status',
+            'branded_plate_no',
+            'vaccine_status',
+            'attach_documents',
+            'other_details',
+            'VID',
+            'visa_sponser',
+            'visa_sponsor',
+            'visa_occupation',
+            'TAID',
+            'passport_handover',
+            'noon_no',
+            'c3_card',
+            'contract',
+            'designation',
+            'rider_status_option',
+            'salary_model',
+            'rider_reference',
+            'job_status',
+            'insurance',
+            'insurance_expiry',
+            'policy_no',
+            'shift',
+            'vat',
+            'attendance_date',
+            'absconder',
+            'flowup',
+            'l_license',
+            'mol',
+            'pro',
+        ];
+    }
     protected $table = 'rider_custom_fields';
 
     protected $fillable = [
@@ -112,7 +156,7 @@ class RiderCustomField extends BaseModel
     /** Slug-to-field-keys map for fixed rider fields (defaults; used for seeding and fallback). */
     public static function fixedFieldsSlugMap(): array
     {
-        return [
+        $map = [
             'rider_info' => [
                 'branch_id', 'name', 'rider_id', 'courier_id', 'personal_contact', 'company_contact',
                 'personal_email', 'email', 'nationality', 'passport', 'passport_expiry', 'ethnicity', 'dob', 'image_name',
@@ -135,6 +179,13 @@ class RiderCustomField extends BaseModel
             ],
             'other' => [],
         ];
+
+        $removed = array_flip(self::removedRiderColumns());
+        foreach ($map as $slug => $keys) {
+            $map[$slug] = array_values(array_filter($keys, fn ($k) => !isset($removed[$k])));
+        }
+
+        return $map;
     }
 
     /** All fixed rider field keys (flat list from slug map). */
@@ -196,7 +247,7 @@ class RiderCustomField extends BaseModel
      */
     public static function fixedFieldInputSpecs(): array
     {
-        return [
+        $specs = [
             'rider_id' => ['type' => 'text', 'required' => true],
             'name' => ['type' => 'text', 'required' => true, 'maxlength' => 191],
             'doj' => ['type' => 'date', 'required' => true],
@@ -260,6 +311,12 @@ class RiderCustomField extends BaseModel
             'designation' => ['type' => 'text'],
             'attach_documents' => ['type' => 'text'],
         ];
+
+        foreach (self::removedRiderColumns() as $removedKey) {
+            unset($specs[$removedKey]);
+        }
+
+        return $specs;
     }
 
     /**
@@ -286,6 +343,9 @@ class RiderCustomField extends BaseModel
         foreach ($categories as $cat) {
             $fields = [];
             foreach ($assignmentsAll->where('category_id', $cat->id)->values() as $a) {
+                if (in_array($a->field_key, self::removedRiderColumns(), true)) {
+                    continue;
+                }
                 $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
                     ? trim($a->display_label)
                     : self::humanizeFieldKey($a->field_key);

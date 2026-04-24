@@ -14,10 +14,6 @@
         {!! Form::date('doj', null, ['class' => 'form-control','id'=>'doj','required']) !!}
     </div>
     <div class="form-group col-sm-4">
-        {!! Form::label('personal_contact', 'Personal Contact:') !!}
-        {!! Form::tel('personal_contact', null, ['class' => 'form-control', 'placeholder' => '05XXXXXXXX', 'maxlength' => 10]) !!}
-    </div>
-    <div class="form-group col-sm-4">
         {!! Form::label('personal_email', 'Personal Email:',['class'=>'required']) !!}
         {!! Form::email('personal_email', null, ['class' => 'form-control', 'placeholder' => 'Enter Email ID','maxlength' => 191, 'required']) !!}
     </div>

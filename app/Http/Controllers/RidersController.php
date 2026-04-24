@@ -114,14 +114,6 @@ class RidersController extends AppBaseController
     if ($request->has('branch_id') && !empty($request->branch_id)) {
       $query->where('riders.branch_id', $request->branch_id);
     }
-    if ($request->has('courier_id') && !empty($request->courier_id)) {
-      $courierIdInput = $request->courier_id;
-      // Remove 'CI-' prefix if present (case-insensitive)
-      if (stripos($courierIdInput, 'CI-') === 0) {
-        $courierIdInput = substr($courierIdInput, 3);
-      }
-      $query->where('riders.courier_id', 'like', '%' . $courierIdInput . '%');
-    }
     if ($request->has('name') && !empty($request->name)) {
       $query->where('name', 'like', '%' . $request->name . '%');
     }
@@ -134,62 +126,17 @@ class RidersController extends AppBaseController
     if ($request->has('customer_id') && !empty($request->customer_id)) {
       $query->where('customer_id', $request->customer_id);
     }
-    if ($request->has('branded_plate_no') && !empty($request->branded_plate_no)) {
-      $query->where('branded_plate_no', $request->branded_plate_no);
-    }
-    if ($request->has('designation') && !empty($request->designation)) {
-      $query->where('designation', $request->designation);
-    }
     if ($request->has('attendance') && !empty($request->attendance)) {
       $query->where('attendance', $request->attendance);
     }
-    // Explicit tag filters coming from slider cards
-    $absconderParam = (array) $request->input('absconder', []);
-    $followupParam = (array) $request->input('followup', []);
-    $llicenseParam = (array) $request->input('llicense', []);
-
-    // Absconder (expects absconder[]=1)
-    if (!empty($absconderParam) && in_array('1', $absconderParam, true)) {
-      $query->where('absconder', 1);
-    }
-    // Follow Up (expects followup[]=1)
-    if (!empty($followupParam) && in_array('1', $followupParam, true)) {
-      $query->where('flowup', 1);
-    }
-    // Learning License (expects llicense[]=1)
-    if (!empty($llicenseParam) && in_array('1', $llicenseParam, true)) {
-      $query->where('l_license', 1);
-    }
-
-    // Filter by rider status (followup, llicense, active, inactive)
+    // Filter by rider status (active, inactive)
     if ($request->has('rider_status') && !empty($request->rider_status)) {
       $statusFilters = $request->rider_status;
-
-      // If explicit tag params are present, drop corresponding tokens from rider_status[]
-      if (!empty($absconderParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'absconder';
-        }));
-      }
-      if (!empty($followupParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'followup';
-        }));
-      }
-      if (!empty($llicenseParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'llicense';
-        }));
-      }
 
       if (is_array($statusFilters)) {
         $query->where(function ($q) use ($statusFilters) {
           foreach ($statusFilters as $status) {
-            if ($status === 'followup') {
-              $q->orWhere('flowup', 1);
-            } elseif ($status === 'llicense') {
-              $q->orWhere('l_license', 1);
-            } elseif ($status === 'active') {
+            if ($status === 'active') {
               // Active riders: status = 1 (regardless of bike assignment)
               $q->orWhere('riders.status', 1);
             } elseif ($status === 'inactive') {
@@ -206,11 +153,7 @@ class RidersController extends AppBaseController
         });
       } else {
         // Handle single selection for backward compatibility
-        if ($statusFilters === 'followup') {
-          $query->where('flowup', 1);
-        } elseif ($statusFilters === 'llicense') {
-          $query->where('l_license', 1);
-        } elseif ($statusFilters === 'active') {
+        if ($statusFilters === 'active') {
           // Active riders: status = 1 AND have active bike assigned
           $query->where('riders.status', 1);
         } elseif ($statusFilters === 'inactive') {
@@ -257,12 +200,8 @@ class RidersController extends AppBaseController
         ->where(function ($q) use ($search) {
           $q->where('riders.name', 'like', "%{$search}%")
             ->orWhere('riders.rider_id', 'like', "%{$search}%")
-            ->orWhere('riders.courier_id', 'like', "%{$search}%")
-            ->orWhere('riders.branded_plate_no', 'like', "%{$search}%")
             ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
-            ->orWhere('riders.emirate_hub', 'like', "%{$search}%")
             ->orWhere('riders.customer_id', 'like', "%{$search}%")
-            ->orWhere('riders.designation', 'like', "%{$search}%")
             ->orWhere('customers.name', 'like', "%{$search}%");
           if (stripos($search, 'active') !== false) {
             $q->orWhereExists(function ($subQuery) {
@@ -322,14 +261,6 @@ class RidersController extends AppBaseController
     if ($request->has('rider_id') && !empty($request->rider_id)) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
     }
-    if ($request->has('courier_id') && !empty($request->courier_id)) {
-      $courierIdInput = $request->courier_id;
-      // Remove 'CI-' prefix if present (case-insensitive)
-      if (stripos($courierIdInput, 'CI-') === 0) {
-        $courierIdInput = substr($courierIdInput, 3);
-      }
-      $query->where('riders.courier_id', 'like', '%' . $courierIdInput . '%');
-    }
     if ($request->has('name') && !empty($request->name)) {
       $query->where('name', 'like', '%' . $request->name . '%');
     }
@@ -342,60 +273,18 @@ class RidersController extends AppBaseController
     if ($request->has('customer_id') && !empty($request->customer_id)) {
       $query->where('customer_id', $request->customer_id);
     }
-    if ($request->has('branded_plate_no') && !empty($request->branded_plate_no)) {
-      $query->where('branded_plate_no', $request->branded_plate_no);
-    }
-    if ($request->has('designation') && !empty($request->designation)) {
-      $query->where('designation', $request->designation);
-    }
     if ($request->has('attendance') && !empty($request->attendance)) {
       $query->where('attendance', $request->attendance);
     }
 
-    // Explicit tag filters coming from slider cards (AJAX)
-    $absconderParam = (array) $request->input('absconder', []);
-    $followupParam = (array) $request->input('followup', []);
-    $llicenseParam = (array) $request->input('llicense', []);
-
-    if (!empty($absconderParam) && in_array('1', $absconderParam, true)) {
-      $query->where('absconder', 1);
-    }
-    if (!empty($followupParam) && in_array('1', $followupParam, true)) {
-      $query->where('flowup', 1);
-    }
-    if (!empty($llicenseParam) && in_array('1', $llicenseParam, true)) {
-      $query->where('l_license', 1);
-    }
-
-    // Filter by rider status (followup, llicense, active, inactive)
+    // Filter by rider status (active, inactive)
     if ($request->has('rider_status') && !empty($request->rider_status)) {
       $statusFilters = $request->rider_status;
-
-      // If explicit tag params are present, drop corresponding tokens from rider_status[]
-      if (!empty($absconderParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'absconder';
-        }));
-      }
-      if (!empty($followupParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'followup';
-        }));
-      }
-      if (!empty($llicenseParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'llicense';
-        }));
-      }
 
       if (is_array($statusFilters)) {
         $query->where(function ($q) use ($statusFilters) {
           foreach ($statusFilters as $status) {
-            if ($status === 'followup') {
-              $q->orWhere('flowup', 1);
-            } elseif ($status === 'llicense') {
-              $q->orWhere('l_license', 1);
-            } elseif ($status === 'active') {
+            if ($status === 'active') {
               // Active riders: status = 1 (regardless of bike assignment)
               $q->orWhere('status', 1);
             } elseif ($status === 'inactive') {
@@ -412,13 +301,7 @@ class RidersController extends AppBaseController
         });
       } else {
         // Handle single selection for backward compatibility
-        if ($statusFilters === 'absconder') {
-          $query->where('absconder', 1);
-        } elseif ($statusFilters === 'followup') {
-          $query->where('flowup', 1);
-        } elseif ($statusFilters === 'llicense') {
-          $query->where('l_license', 1);
-        } elseif ($statusFilters === 'active') {
+        if ($statusFilters === 'active') {
           // Active riders: status = 1 AND have active bike assigned
           $query->where('status', 1);
         } elseif ($statusFilters === 'inactive') {
@@ -450,12 +333,8 @@ class RidersController extends AppBaseController
         ->where(function ($q) use ($search) {
           $q->where('riders.name', 'like', "%{$search}%")
             ->orWhere('riders.rider_id', 'like', "%{$search}%")
-            ->orWhere('riders.courier_id', 'like', "%{$search}%")
-            ->orWhere('riders.branded_plate_no', 'like', "%{$search}%")
             ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
-            ->orWhere('riders.emirate_hub', 'like', "%{$search}%")
             ->orWhere('riders.customer_id', 'like', "%{$search}%")
-            ->orWhere('riders.designation', 'like', "%{$search}%")
             ->orWhere('customers.name', 'like', "%{$search}%");
           if (stripos($search, 'active') !== false) {
             $q->orWhereExists(function ($subQuery) {
@@ -1738,7 +1617,6 @@ class RidersController extends AppBaseController
       'name' => $request->input('name') ?: session('riders_filter.name'),
       'fleet_supervisor' => $request->input('fleet_supervisor') ?: session('riders_filter.fleet_supervisor'),
       'status' => $request->input('status') ?: session('riders_filter.status'),
-      'emirate_hub' => $request->input('emirate_hub') ?: session('riders_filter.emirate_hub'),
       'quick_search' => $request->input('quick_search') ?: session('riders_filter.quick_search'),
     ];
 

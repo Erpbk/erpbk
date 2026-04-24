@@ -43,6 +43,7 @@ class Riders extends BaseModel
     'labor_card_expiry',
     'attendance',
     'customer_id',
+    'rider_top_option_id',
     'recuriter',
     'recruiter_id',
     'deleted_by',
@@ -73,6 +74,7 @@ class Riders extends BaseModel
     'labor_card_number' => 'string',
     'labor_card_expiry' => 'string',
     'attendance' => 'string',
+    'rider_top_option_id' => 'integer',
     'recuriter' => 'string',
     'recruiter_id' => 'integer',
     'deleted_at' => 'datetime'
@@ -107,6 +109,7 @@ class Riders extends BaseModel
     'created_at' => 'nullable',
     'updated_at' => 'nullable',
     'customer_id' => '',
+    'rider_top_option_id' => 'nullable|integer|exists:rider_top_options,id',
     'status' => 'nullable',
     'fleet_supervisor' => 'required|string|max:50',
     'wps' => 'nullable|string|max:100',

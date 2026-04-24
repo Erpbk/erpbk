@@ -126,6 +126,9 @@ class RidersController extends AppBaseController
     if ($request->has('customer_id') && !empty($request->customer_id)) {
       $query->where('customer_id', $request->customer_id);
     }
+    if ($request->has('rider_top_option_id') && !empty($request->rider_top_option_id)) {
+      $query->where('rider_top_option_id', $request->rider_top_option_id);
+    }
     if ($request->has('attendance') && !empty($request->attendance)) {
       $query->where('attendance', $request->attendance);
     }
@@ -263,6 +266,9 @@ class RidersController extends AppBaseController
     }
     if ($request->has('customer_id') && !empty($request->customer_id)) {
       $query->where('customer_id', $request->customer_id);
+    }
+    if ($request->has('rider_top_option_id') && !empty($request->rider_top_option_id)) {
+      $query->where('rider_top_option_id', $request->rider_top_option_id);
     }
     if ($request->has('attendance') && !empty($request->attendance)) {
       $query->where('attendance', $request->attendance);
@@ -1647,6 +1653,42 @@ class RidersController extends AppBaseController
         'message' => 'Error updating ' . $section . ' information'
       ], 500);
     }
+  }
+
+  public function setRiderTopOption(Request $request, $company_slug, $id)
+  {
+    $rider = $this->ridersRepository->find($id);
+    if (empty($rider)) {
+      return response()->json(['success' => false, 'message' => 'Rider not found'], 404);
+    }
+
+    $validated = $request->validate([
+      'option_id' => 'nullable|integer|exists:rider_top_options,id',
+    ]);
+
+    $optionId = $validated['option_id'] ?? null;
+    $option = null;
+    if (!empty($optionId)) {
+      $option = DB::table('rider_top_options as o')
+        ->join('rider_top_categories as c', 'c.id', '=', 'o.category_id')
+        ->where('o.id', $optionId)
+        ->where('c.show_in_view_cards', 1)
+        ->select('o.id', 'o.name')
+        ->first();
+      if (!$option) {
+        return response()->json(['success' => false, 'message' => 'Invalid Rider Top option for view cards.'], 422);
+      }
+    }
+
+    $rider->rider_top_option_id = $option?->id;
+    $rider->save();
+
+    return response()->json([
+      'success' => true,
+      'message' => 'Rider view card option updated successfully.',
+      'option_id' => $option?->id,
+      'option_label' => $option?->name,
+    ]);
   }
 
   public function toggleAbsconder(Request $request, $company_slug, $id)

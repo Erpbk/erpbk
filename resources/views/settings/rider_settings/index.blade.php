@@ -50,6 +50,36 @@
   .nav-tabs-rider-fields .nav-link {
     padding: 0.5rem 0.75rem;
   }
+
+  .rider-top-visibility-controls {
+    background: #f8f9fb;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+  }
+
+  .rider-top-visibility-controls .form-check {
+    min-height: auto;
+    margin-bottom: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .rider-top-visibility-controls .form-check-input {
+    width: 2rem;
+    height: 1.1rem;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .rider-top-visibility-controls .form-check-label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #5f6b7a;
+    margin-top: 0;
+    cursor: pointer;
+  }
 </style>
 @endpush
 
@@ -86,8 +116,12 @@
             <button class="nav-link" id="tab-rider-fields-btn" data-bs-toggle="tab" data-bs-target="#tab-rider-fields" type="button" role="tab">Rider Fields</button>
           </li>
           <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-rider-top-btn" data-bs-toggle="tab" data-bs-target="#tab-rider-top" type="button" role="tab">Rider Top</button>
+          </li>
+          <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-rider-documents-btn" data-bs-toggle="tab" data-bs-target="#tab-rider-documents" type="button" role="tab">Rider Documents</button>
           </li>
+
         </ul>
 
         <div class="tab-content" id="riderSettingsTabContent">
@@ -158,6 +192,19 @@
                   @include('settings.rider_settings._document_types_tbody', ['documentTypes' => $documentTypes])
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {{-- Tab 5: Rider Top --}}
+          <div class="tab-pane fade" id="tab-rider-top" role="tabpanel">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+              <p class="text-muted small mb-0">Create a Rider Top category first, then add multiple options under each category.</p>
+              <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRiderTopCategoryModal">
+                <i class="ti ti-plus me-1"></i> Add Category
+              </button>
+            </div>
+            <div id="riderTopAccordionContainer">
+              @include('settings.rider_settings._rider_top_accordion', ['riderTopCategories' => $riderTopCategories])
             </div>
           </div>
 
@@ -426,6 +473,60 @@
   </div>
 </div>
 
+{{-- Add Rider Top Category modal --}}
+<div class="modal fade" id="addRiderTopCategoryModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title">Add Rider Top Category</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="formAddRiderTopCategory">
+        @csrf
+        <div class="modal-body pt-0">
+          <div class="mb-3">
+            <label class="form-label">Category Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" maxlength="255" required>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="addRiderTopCategorySubmitBtn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- Add Rider Top Option modal --}}
+<div class="modal fade" id="addRiderTopOptionModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title">Add Rider Top Option</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="formAddRiderTopOption">
+        @csrf
+        <input type="hidden" name="category_id" id="addRiderTopOptionCategoryId">
+        <div class="modal-body pt-0">
+          <div class="mb-2 text-muted small">
+            Category: <strong id="addRiderTopOptionCategoryName">-</strong>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Option Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" maxlength="255" required>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="addRiderTopOptionSubmitBtn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 {{-- Add Rider Document Type modal --}}
 <div class="modal fade" id="addRiderDocumentTypeModal" tabindex="-1" data-bs-backdrop="static">
   <div class="modal-dialog modal-dialog-centered">
@@ -634,6 +735,7 @@
 </div>
 
 <input type="hidden" id="editRiderFieldConfigJson" value="{}">
+<input type="hidden" id="riderDataTypesMetaJson" value='@json($dataTypes)'>
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -641,7 +743,15 @@
   (function() {
     'use strict';
 
-    const dataTypesMeta = {!! json_encode($dataTypes, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!};
+    let dataTypesMeta = {};
+    const dataTypesMetaEl = document.getElementById('riderDataTypesMetaJson');
+    if (dataTypesMetaEl && dataTypesMetaEl.value) {
+      try {
+        dataTypesMeta = JSON.parse(dataTypesMetaEl.value);
+      } catch (e) {
+        dataTypesMeta = {};
+      }
+    }
 
     function buildConfigFields(container, typeKey, existingConfig) {
       container.innerHTML = '';
@@ -797,6 +907,21 @@
         });
     };
 
+    window.refreshRiderTopAccordion = function() {
+      fetch("{{ route('settings-panel.rider-settings.rider-top-accordion-body') }}", {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(resp) {
+          return resp.text();
+        })
+        .then(function(html) {
+          var container = document.getElementById('riderTopAccordionContainer');
+          if (container) container.innerHTML = html;
+        });
+    };
+
     var baseUrl = "{{ url('') }}";
     var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content') || document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value;
 
@@ -871,6 +996,170 @@
               icon: 'error',
               title: 'Error',
               text: 'Could not save. Check your connection or try again.'
+            });
+          });
+      });
+    }
+
+    var formAddRiderTopCategory = document.getElementById('formAddRiderTopCategory');
+    if (formAddRiderTopCategory) {
+      formAddRiderTopCategory.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        var btn = document.getElementById('addRiderTopCategorySubmitBtn');
+        if (btn) btn.disabled = true;
+        fetch("{{ route('settings-panel.rider-settings.store-rider-top-category') }}", {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(function(r) {
+            return r.json();
+          })
+          .then(function(data) {
+            if (btn) btn.disabled = false;
+            if (data.success) {
+              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var modal = bootstrap.Modal.getInstance(document.getElementById('addRiderTopCategoryModal'));
+                if (modal) modal.hide();
+              }
+              form.reset();
+              window.refreshRiderTopAccordion();
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'success',
+                title: 'Saved',
+                text: data.message || 'Category added.'
+              });
+            } else if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Could not save.'
+            });
+          })
+          .catch(function() {
+            if (btn) btn.disabled = false;
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Could not save.'
+            });
+          });
+      });
+    }
+
+    document.addEventListener('click', function(e) {
+      var addOptionBtn = e.target.closest('.btn-add-rider-top-option');
+      if (!addOptionBtn) return;
+      var categoryIdInput = document.getElementById('addRiderTopOptionCategoryId');
+      var categoryNameEl = document.getElementById('addRiderTopOptionCategoryName');
+      if (categoryIdInput) categoryIdInput.value = addOptionBtn.getAttribute('data-category-id') || '';
+      if (categoryNameEl) categoryNameEl.textContent = addOptionBtn.getAttribute('data-category-name') || '-';
+    });
+
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.rider-top-visibility-controls')) {
+        e.stopPropagation();
+      }
+    });
+
+    document.addEventListener('change', function(e) {
+      var toggle = e.target.closest('.rider-top-visibility-toggle');
+      if (!toggle) return;
+
+      var controls = toggle.closest('.rider-top-visibility-controls');
+      var categoryId = controls ? controls.getAttribute('data-category-id') : null;
+      if (!categoryId) return;
+
+      var topBarToggle = controls.querySelector('.rider-top-visibility-toggle[data-field="show_in_top_bar"]');
+      var viewCardsToggle = controls.querySelector('.rider-top-visibility-toggle[data-field="show_in_view_cards"]');
+      var topBarValue = topBarToggle ? (topBarToggle.checked ? 1 : 0) : 0;
+      var viewCardsValue = viewCardsToggle ? (viewCardsToggle.checked ? 1 : 0) : 0;
+
+      var fd = new FormData();
+      fd.append('show_in_top_bar', String(topBarValue));
+      fd.append('show_in_view_cards', String(viewCardsValue));
+
+      const updateVisibilityUrlTemplate = "{{ route('settings-panel.rider-settings.update-rider-top-category-visibility', ['id' => '__CID__']) }}";
+      const updateVisibilityUrl = updateVisibilityUrlTemplate.replace('__CID__', categoryId);
+      fetch(updateVisibilityUrl, {
+          method: 'POST',
+          body: fd,
+          headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.json();
+        })
+        .then(function(data) {
+          if (!data.success && typeof Swal !== 'undefined') {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Could not update display options.'
+            });
+          }
+        })
+        .catch(function() {
+          if (typeof Swal !== 'undefined') Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Could not update display options.'
+          });
+        });
+    });
+
+    var formAddRiderTopOption = document.getElementById('formAddRiderTopOption');
+    if (formAddRiderTopOption) {
+      formAddRiderTopOption.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        var btn = document.getElementById('addRiderTopOptionSubmitBtn');
+        if (btn) btn.disabled = true;
+        fetch("{{ route('settings-panel.rider-settings.store-rider-top-option') }}", {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(function(r) {
+            return r.json();
+          })
+          .then(function(data) {
+            if (btn) btn.disabled = false;
+            if (data.success) {
+              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var modal = bootstrap.Modal.getInstance(document.getElementById('addRiderTopOptionModal'));
+                if (modal) modal.hide();
+              }
+              form.reset();
+              window.refreshRiderTopAccordion();
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'success',
+                title: 'Saved',
+                text: data.message || 'Option added.'
+              });
+            } else if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Could not save.'
+            });
+          })
+          .catch(function() {
+            if (btn) btn.disabled = false;
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Could not save.'
             });
           });
       });
@@ -957,14 +1246,18 @@
     // Rider Documents: refresh table body
     window.refreshRiderDocumentTypesTable = function() {
       fetch("{{ route('settings-panel.rider-settings.document-types-table-body') }}", {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      })
-      .then(function(r) { return r.text(); })
-      .then(function(html) {
-        var tbody = document.getElementById('riderDocumentTypesTbody');
-        if (tbody) tbody.innerHTML = html;
-        if (typeof initRiderDocumentTypesSortable === 'function') initRiderDocumentTypesSortable();
-      });
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.text();
+        })
+        .then(function(html) {
+          var tbody = document.getElementById('riderDocumentTypesTbody');
+          if (tbody) tbody.innerHTML = html;
+          if (typeof initRiderDocumentTypesSortable === 'function') initRiderDocumentTypesSortable();
+        });
     };
 
     // Add document type: type toggle
@@ -996,44 +1289,71 @@
         var btn = document.getElementById('addRiderDocumentTypeSubmitBtn');
         if (btn) btn.disabled = true;
         fetch("{{ route('settings-panel.rider-settings.store-document-type') }}", {
-          method: 'POST',
-          body: fd,
-          headers: {
-            'X-CSRF-TOKEN': csrf,
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-        .then(function(r) {
-          if (!r.ok) return r.json().then(function(d) { return { _httpError: true, status: r.status, data: d }; }).catch(function() { return { _httpError: true, status: r.status }; });
-          return r.json();
-        })
-        .then(function(data) {
-          if (btn) btn.disabled = false;
-          if (data._httpError) {
-            var msg = (data.data && data.data.message) || 'Server error.';
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: msg });
-            return;
-          }
-          if (data.success) {
-            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-              var m = bootstrap.Modal.getInstance(document.getElementById('addRiderDocumentTypeModal'));
-              if (m) m.hide();
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
             }
-            form.reset();
-            document.getElementById('addDocTypeSingleWrap').style.display = 'block';
-            document.getElementById('addDocTypeDualWrap').style.display = 'none';
-            document.getElementById('addDocTypeActive').checked = true;
-            window.refreshRiderDocumentTypesTable();
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Saved', text: data.message || 'Document type added.' });
-          } else {
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not save.' });
-          }
-        })
-        .catch(function() {
-          if (btn) btn.disabled = false;
-          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Could not save.' });
-        });
+          })
+          .then(function(r) {
+            if (!r.ok) return r.json().then(function(d) {
+              return {
+                _httpError: true,
+                status: r.status,
+                data: d
+              };
+            }).catch(function() {
+              return {
+                _httpError: true,
+                status: r.status
+              };
+            });
+            return r.json();
+          })
+          .then(function(data) {
+            if (btn) btn.disabled = false;
+            if (data._httpError) {
+              var msg = (data.data && data.data.message) || 'Server error.';
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: msg
+              });
+              return;
+            }
+            if (data.success) {
+              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var m = bootstrap.Modal.getInstance(document.getElementById('addRiderDocumentTypeModal'));
+                if (m) m.hide();
+              }
+              form.reset();
+              document.getElementById('addDocTypeSingleWrap').style.display = 'block';
+              document.getElementById('addDocTypeDualWrap').style.display = 'none';
+              document.getElementById('addDocTypeActive').checked = true;
+              window.refreshRiderDocumentTypesTable();
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'success',
+                title: 'Saved',
+                text: data.message || 'Document type added.'
+              });
+            } else {
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Could not save.'
+              });
+            }
+          })
+          .catch(function() {
+            if (btn) btn.disabled = false;
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Could not save.'
+            });
+          });
       });
     }
 
@@ -1048,30 +1368,44 @@
         fd.set('_method', 'PUT');
         fd.set('is_active', form.querySelector('#editDocTypeActive').checked ? '1' : '0');
         fetch(baseUrl + '/settings-panel/rider-settings/documents/' + id, {
-          method: 'POST',
-          body: fd,
-          headers: {
-            'X-CSRF-TOKEN': csrf,
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.success) {
-            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-              var m = bootstrap.Modal.getInstance(document.getElementById('editRiderDocumentTypeModal'));
-              if (m) m.hide();
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
             }
-            window.refreshRiderDocumentTypesTable();
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Updated', text: data.message || 'Document type updated.' });
-          } else {
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not update.' });
-          }
-        })
-        .catch(function() {
-          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Could not update.' });
-        });
+          })
+          .then(function(r) {
+            return r.json();
+          })
+          .then(function(data) {
+            if (data.success) {
+              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var m = bootstrap.Modal.getInstance(document.getElementById('editRiderDocumentTypeModal'));
+                if (m) m.hide();
+              }
+              window.refreshRiderDocumentTypesTable();
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'success',
+                title: 'Updated',
+                text: data.message || 'Document type updated.'
+              });
+            } else {
+              if (typeof Swal !== 'undefined') Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Could not update.'
+              });
+            }
+          })
+          .catch(function() {
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Could not update.'
+            });
+          });
       });
     }
 
@@ -1085,26 +1419,40 @@
       var action = form.getAttribute('action');
       var fd = new FormData(form);
       fetch(action, {
-        method: 'POST',
-        body: fd,
-        headers: {
-          'X-CSRF-TOKEN': csrf,
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.success) {
-          window.refreshRiderDocumentTypesTable();
-          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Deleted', text: data.message || 'Document type deleted.' });
-        } else {
-          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not delete.' });
-        }
-      })
-      .catch(function() {
-        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Could not delete.' });
-      });
+          method: 'POST',
+          body: fd,
+          headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.json();
+        })
+        .then(function(data) {
+          if (data.success) {
+            window.refreshRiderDocumentTypesTable();
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'success',
+              title: 'Deleted',
+              text: data.message || 'Document type deleted.'
+            });
+          } else {
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Could not delete.'
+            });
+          }
+        })
+        .catch(function() {
+          if (typeof Swal !== 'undefined') Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Could not delete.'
+          });
+        });
     });
 
     // Sortable for rider document types
@@ -1117,10 +1465,14 @@
         animation: 150,
         onEnd: function() {
           var order = [];
-          tbody.querySelectorAll('tr[data-id]').forEach(function(tr) { order.push(parseInt(tr.getAttribute('data-id'), 10)); });
+          tbody.querySelectorAll('tr[data-id]').forEach(function(tr) {
+            order.push(parseInt(tr.getAttribute('data-id'), 10));
+          });
           var fd = new FormData();
           fd.append('_token', csrf);
-          order.forEach(function(id) { fd.append('order[]', id); });
+          order.forEach(function(id) {
+            fd.append('order[]', id);
+          });
           fetch("{{ route('settings-panel.rider-settings.reorder-document-types') }}", {
             method: 'POST',
             body: fd,

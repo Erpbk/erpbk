@@ -143,30 +143,32 @@
                     </div>
                     <div class="fleet-supervisor-cards slider-track" id="sliderTrack">
                         @php
-                        $dropdown = DB::table('dropdowns')->where('label', 'Fleet Supervisor')->where('company_id', auth()->user()->company_id)->first();
-                        $fleetSupervisors = $dropdown && $dropdown->values ? json_decode($dropdown->values, true) : [];
+                        $riderTopCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
+                            $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+                        }])->where('show_in_top_bar', 1)->orderBy('display_order')->orderBy('id')->get();
+                        $slideIndex = 0;
                         @endphp
 
-                        @foreach($fleetSupervisors as $index => $fleet)
-                        <div class="fleet-supervisor-card @if($fleet == request('fleet_supervisor')) active filtered @endif" data-slide="{{ $index }}" onclick="filterByFleetSupervisor('{{ $fleet }}')">
-                            <h3 class="fleet-supervisor-name">{{ $fleet }}</h3>
-                            <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active @if($fleet == request('fleet_supervisor') && in_array('active', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByStatus('{{ $fleet }}', 'active')">
-                                    <i class="fleet-stat-icon ti ti-user-check"></i>
-                                    <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ \App\Models\Riders::where('fleet_supervisor', $fleet)->where('status', 1)->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })->count() }}</span>
-                                </div>
-                                <div class="fleet-stat inactive @if($fleet == request('fleet_supervisor') && in_array('inactive', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByStatus('{{ $fleet }}', 'inactive')">
-                                    <i class="fleet-stat-icon ti ti-user-x"></i>
-                                    <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ \App\Models\Riders::where('fleet_supervisor', $fleet)->where(function($q) { $q->where('status', 3)->orWhereDoesntHave('bikes', function($bikeQuery) { $bikeQuery->where('warehouse', 'Active'); }); })->count() }}</span>
-                                </div>
-                            </div>
-                        </div>
+                        @foreach($riderTopCategories as $category)
+                          @foreach($category->options as $option)
+                          <div class="fleet-supervisor-card @if((int)request('rider_top_option_id') === (int)$option->id) active filtered @endif" data-slide="{{ $slideIndex++ }}" onclick="filterByRiderTopOption('{{ $option->id }}')">
+                              <h3 class="fleet-supervisor-name">{{ $option->name }}</h3>
+                              <div class="small text-muted mb-1">{{ $category->name }}</div>
+                              <div class="fleet-supervisor-stats">
+                                  <div class="fleet-stat active @if((int)request('rider_top_option_id') === (int)$option->id && in_array('active', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'active')">
+                                      <i class="fleet-stat-icon ti ti-user-check"></i>
+                                      <span class="fleet-stat-label">Active</span>
+                                      <span class="fleet-stat-value">{{ \App\Models\Riders::where('rider_top_option_id', $option->id)->where('status', 1)->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })->count() }}</span>
+                                  </div>
+                                  <div class="fleet-stat inactive @if((int)request('rider_top_option_id') === (int)$option->id && in_array('inactive', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'inactive')">
+                                      <i class="fleet-stat-icon ti ti-user-x"></i>
+                                      <span class="fleet-stat-label">Inactive</span>
+                                      <span class="fleet-stat-value">{{ \App\Models\Riders::where('rider_top_option_id', $option->id)->where(function($q) { $q->where('status', 3)->orWhereDoesntHave('bikes', function($bikeQuery) { $bikeQuery->where('warehouse', 'Active'); }); })->count() }}</span>
+                                  </div>
+                              </div>
+                          </div>
+                          @endforeach
                         @endforeach
-
-                        @php
-                        @endphp
 
                     </div>
                 </div>
@@ -308,25 +310,6 @@
                         <div class="form-group col-md-12">
                             <label for="name">Rider Name</label>
                             <input type="text" name="name" class="form-control" placeholder="Filter By Name" value="{{ request('name') }}">
-                        </div>
-                        <div class="form-group col-md-12">
-                            <label for="fleet_supervisor">Filter by Fleet SuperVisor</label>
-                            <select class="form-control " id="fleet_supervisor" name="fleet_supervisor">
-                                @php
-                                $supervisorRow = DB::table('dropdowns')
-                                ->where('label', 'Fleet Supervisor')
-                                ->whereNotNull('values')
-                                ->first();
-                                $fleetSupervisors = [];
-                                if ($supervisorRow && $supervisorRow->values) {
-                                $fleetSupervisors = json_decode($supervisorRow->values, true);
-                                }
-                                @endphp
-                                <option value="" selected>Select</option>
-                                @foreach($fleetSupervisors as $supervisor)
-                                <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>{{ $supervisor }}</option>
-                                @endforeach
-                            </select>
                         </div>
                         <div class="form-group col-md-12">
                             <label for="customer_id">Filter by Customer</label>
@@ -516,11 +499,6 @@ $tableColumns = $columns;
         });
     });
     $(document).ready(function() {
-        $('#fleet_supervisor').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Fleet SuperVisor",
-            allowClear: true, // ✅ cross icon enable
-        });
         $('#customer_id').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Customer",
@@ -697,17 +675,17 @@ $tableColumns = $columns;
         // Fleet supervisor and balance filter cards now use direct links - no JavaScript needed
     });
 
-    // Fleet supervisor filtering function - shows both active and inactive
-    function filterByFleetSupervisor(fleetSupervisor) {
+    // Rider top option filtering function - shows both active and inactive
+    function filterByRiderTopOption(optionId) {
         const url = new URL(window.location);
 
         // Clear existing filters
-        url.searchParams.delete('fleet_supervisor');
+        url.searchParams.delete('rider_top_option_id');
         url.searchParams.delete('rider_status');
         url.searchParams.delete('rider_status[]');
 
-        // Set fleet supervisor filter
-        url.searchParams.set('fleet_supervisor', fleetSupervisor);
+        // Set rider top option filter
+        url.searchParams.set('rider_top_option_id', optionId);
 
         // Set both active and inactive status
         url.searchParams.append('rider_status[]', 'active');
@@ -717,26 +695,26 @@ $tableColumns = $columns;
         window.location.href = url.toString();
     }
 
-    // Fleet supervisor status filtering function - toggle specific status
-    function filterByStatus(fleetSupervisor, status) {
+    // Rider top option status filtering function - toggle specific status
+    function filterByRiderTopOptionStatus(optionId, status) {
         const url = new URL(window.location);
-        const currentFleetSupervisor = url.searchParams.get('fleet_supervisor');
+        const currentOptionId = url.searchParams.get('rider_top_option_id');
         const currentStatuses = url.searchParams.getAll('rider_status[]');
 
-        // If clicking the same fleet supervisor and same status, toggle it off
-        if (currentFleetSupervisor === fleetSupervisor && currentStatuses.includes(status)) {
+        // If clicking the same rider top option and same status, toggle it off
+        if (currentOptionId === String(optionId) && currentStatuses.includes(status)) {
             // Remove this specific status
             const newStatuses = currentStatuses.filter(s => s !== status);
             url.searchParams.delete('rider_status[]');
             newStatuses.forEach(s => url.searchParams.append('rider_status[]', s));
 
-            // If no statuses left, remove fleet supervisor filter entirely
+            // If no statuses left, remove rider top option filter entirely
             if (newStatuses.length === 0) {
-                url.searchParams.delete('fleet_supervisor');
+                url.searchParams.delete('rider_top_option_id');
             }
         } else {
-            // Set fleet supervisor and specific status
-            url.searchParams.set('fleet_supervisor', fleetSupervisor);
+            // Set rider top option and specific status
+            url.searchParams.set('rider_top_option_id', optionId);
             url.searchParams.delete('rider_status[]');
             url.searchParams.set('rider_status[]', status);
         }

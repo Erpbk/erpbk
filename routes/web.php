@@ -359,6 +359,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
         ->name('riders.import_rider_vouchers');
     Route::post('riders/storeadvanceloan', [\App\Http\Controllers\RidersController::class, 'storeadvanceloan'])->name('riders.storeadvanceloan');
     Route::post('riders/update-section/{id}', [\App\Http\Controllers\RidersController::class, 'updateSection'])->name('riders.updateSection');
+    Route::post('riders/set-rider-top-option/{id}', [\App\Http\Controllers\RidersController::class, 'setRiderTopOption'])->name('riders.setRiderTopOption');
     Route::post('riders/return-bike/{id}', [\App\Http\Controllers\RidersController::class, 'returnBike'])->name('riders.returnBike');
     Route::post('riders/add-recruiter', [\App\Http\Controllers\RidersController::class, 'addRecruiter'])->name('riders.addRecruiter');
     Route::get('riders/vendorcharges/{id}', [\App\Http\Controllers\RidersController::class, 'vendorcharges'])->name('riders.vendorcharges');

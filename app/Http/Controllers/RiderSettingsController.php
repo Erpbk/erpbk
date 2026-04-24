@@ -6,6 +6,8 @@ use App\Models\RiderCategory;
 use App\Models\RiderCustomField;
 use App\Models\RiderDocumentType;
 use App\Models\RiderFieldCategoryAssignment;
+use App\Models\RiderTopCategory;
+use App\Models\RiderTopOption;
 use App\Models\Settings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +35,10 @@ class RiderSettingsController extends Controller
         $fieldAssignments = $this->buildFieldAssignmentsList($categories);
         $fieldsByCategory = $this->buildFieldsByCategory($categories);
         $documentTypes = RiderDocumentType::orderedForAdmin()->get();
+        $riderTopCategories = RiderTopCategory::with('options')
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
 
         return view('settings.rider_settings.index', compact(
             'categories',
@@ -43,7 +49,8 @@ class RiderSettingsController extends Controller
             'moduleLabel',
             'fieldAssignments',
             'fieldsByCategory',
-            'documentTypes'
+            'documentTypes',
+            'riderTopCategories'
         ));
     }
 
@@ -170,39 +177,39 @@ class RiderSettingsController extends Controller
     {
         try {
             $payload = $request->isJson() ? $request->json()->all() : $request->all();
-            
+
             $validated = validator($payload, [
                 'field_key' => 'required|string|max:80',
                 'is_visible' => 'required',
             ], [
                 'is_visible.required' => 'The visible flag is required.',
             ])->validate();
-            
+
             $isVisible = filter_var($validated['is_visible'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
             if ($isVisible === null) {
                 $isVisible = !empty($validated['is_visible']) && $validated['is_visible'] !== 'false' && $validated['is_visible'] !== '0';
             }
             $isVisible = (bool) $isVisible;
-            
+
             $keys = RiderCustomField::allFixedFieldKeys();
             if (!in_array($validated['field_key'], $keys, true)) {
                 return response()->json(['success' => false, 'message' => 'Invalid field key: ' . $validated['field_key']], 422);
             }
-            
+
             $table = (new RiderFieldCategoryAssignment)->getTable();
             if (!Schema::hasColumn($table, 'is_visible')) {
                 return response()->json(['success' => false, 'message' => 'Database migration required. Run: php artisan migrate'], 500);
             }
-            
+
             $assignment = RiderFieldCategoryAssignment::where('field_key', $validated['field_key'])->first();
             if (!$assignment) {
                 return response()->json(['success' => false, 'message' => 'Assignment not found for field: ' . $validated['field_key']], 404);
             }
-            
+
             $value = $isVisible ? 1 : 0;
             $assignment->is_visible = $value;
             $assignment->save();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => $isVisible ? 'Field will show in Rider module.' : 'Field hidden from Rider module.',
@@ -288,7 +295,7 @@ class RiderSettingsController extends Controller
         return redirect()->route('settings-panel.rider-settings.index')->with('success', 'Category added successfully.');
     }
 
-    public function updateCategory(Request $request, $id)
+    public function updateCategory(Request $request, $company_slug, $id)
     {
         $category = RiderCategory::findOrFail($id);
         $validated = $request->validate([
@@ -303,7 +310,7 @@ class RiderSettingsController extends Controller
         return redirect()->route('settings-panel.rider-settings.index')->with('success', 'Category updated successfully.');
     }
 
-    public function destroyCategory($id)
+    public function destroyCategory($company_slug, $id)
     {
         $category = RiderCategory::findOrFail($id);
         if ($category->is_system) {
@@ -391,7 +398,7 @@ class RiderSettingsController extends Controller
     /**
      * Update an existing rider custom field.
      */
-    public function updateField(Request $request, $id)
+    public function updateField(Request $request, $company_slug, $id)
     {
         $field = RiderCustomField::findOrFail($id);
 
@@ -435,7 +442,7 @@ class RiderSettingsController extends Controller
     /**
      * Delete a rider custom field.
      */
-    public function destroyField($id)
+    public function destroyField($company_slug, $id)
     {
         $field = RiderCustomField::findOrFail($id);
         $field->delete();
@@ -479,7 +486,7 @@ class RiderSettingsController extends Controller
     /**
      * Return config schema for a data type (for dynamic form).
      */
-    public function fieldConfigSchema($dataType)
+    public function fieldConfigSchema($company_slug, $dataType)
     {
         $types = RiderCustomField::dataTypes();
         if (!isset($types[$dataType])) {
@@ -504,7 +511,7 @@ class RiderSettingsController extends Controller
     /**
      * Return custom fields rows for one category (for AJAX refresh inside a category tab).
      */
-    public function tableBodyCategory($categoryId)
+    public function tableBodyCategory($company_slug, $categoryId)
     {
         $category = RiderCategory::findOrFail($categoryId);
         $customFields = RiderCustomField::where('category_id', $categoryId)
@@ -515,6 +522,74 @@ class RiderSettingsController extends Controller
         $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
 
         return view('settings.rider_settings._custom_fields_rows_category', compact('customFields', 'dataTypes', 'categories'));
+    }
+
+    // ---------- Rider Top ----------
+
+    public function riderTopAccordionBody()
+    {
+        $riderTopCategories = RiderTopCategory::with('options')
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        return view('settings.rider_settings._rider_top_accordion', compact('riderTopCategories'));
+    }
+
+    public function storeRiderTopCategory(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        RiderTopCategory::create([
+            'name' => trim($validated['name']),
+            'display_order' => ((int) RiderTopCategory::max('display_order')) + 1,
+            'is_active' => true,
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Rider Top category added.']);
+    }
+
+    public function updateRiderTopCategoryVisibility(Request $request, $company_slug, $id)
+    {
+        $category = RiderTopCategory::findOrFail($id);
+        $validated = $request->validate([
+            'show_in_top_bar' => 'nullable|boolean',
+            'show_in_view_cards' => 'nullable|boolean',
+        ]);
+
+        $category->show_in_top_bar = array_key_exists('show_in_top_bar', $validated)
+            ? (bool) $validated['show_in_top_bar']
+            : $request->boolean('show_in_top_bar');
+        $category->show_in_view_cards = array_key_exists('show_in_view_cards', $validated)
+            ? (bool) $validated['show_in_view_cards']
+            : $request->boolean('show_in_view_cards');
+        $category->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Display options updated.',
+            'show_in_top_bar' => (bool) $category->show_in_top_bar,
+            'show_in_view_cards' => (bool) $category->show_in_view_cards,
+        ]);
+    }
+
+    public function storeRiderTopOption(Request $request)
+    {
+        $validated = $request->validate([
+            'category_id' => 'required|integer|exists:rider_top_categories,id',
+            'name' => 'required|string|max:255',
+        ]);
+
+        RiderTopOption::create([
+            'category_id' => (int) $validated['category_id'],
+            'name' => trim($validated['name']),
+            'display_order' => ((int) RiderTopOption::where('category_id', (int) $validated['category_id'])->max('display_order')) + 1,
+            'is_active' => true,
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Rider Top option added.']);
     }
 
     // ---------- Rider Documents ----------
@@ -557,7 +632,7 @@ class RiderSettingsController extends Controller
         return response()->json(['success' => true, 'message' => 'Document type added.']);
     }
 
-    public function updateDocumentType(Request $request, $id)
+    public function updateDocumentType(Request $request, $company_slug, $id)
     {
         $docType = RiderDocumentType::findOrFail($id);
         $validated = $request->validate([
@@ -585,7 +660,7 @@ class RiderSettingsController extends Controller
         return response()->json(['success' => true, 'message' => 'Document type updated.']);
     }
 
-    public function destroyDocumentType($id)
+    public function destroyDocumentType($company_slug, $id)
     {
         RiderDocumentType::findOrFail($id)->delete();
         return response()->json(['success' => true, 'message' => 'Document type deleted.']);

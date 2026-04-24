@@ -313,26 +313,19 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
       <div class="card-body pt-12">
         @isset($result)
         @php
-        $statusOptionToType = ['Absconder' => 'absconder', 'Follow Up' => 'flowup', 'Learning License' => 'llicense', 'Walker' => 'walker', 'Vacation' => 'vacation', 'Cancel' => 'cancel', 'PRO' => 'pro'];
-        $statusLabels = ['absconder' => 'Absconder', 'flowup' => 'Follow Up', 'llicense' => 'Learning License', 'walker' => 'Walker', 'vacation' => 'Vacation', 'cancel' => 'Cancel', 'pro' => 'PRO'];
-        $activeStatusOption = null;
-        if (!empty($result['rider_status_option']) && isset($statusOptionToType[$result['rider_status_option']])) {
-        $activeStatusOption = $statusOptionToType[$result['rider_status_option']];
-        } else {
-        if (($result['absconder'] ?? 0) == 1) $activeStatusOption = 'absconder';
-        elseif (($result['flowup'] ?? 0) == 1) $activeStatusOption = 'flowup';
-        elseif (($result['l_license'] ?? 0) == 1) $activeStatusOption = 'llicense';
-        elseif (isset($result['designation']) && $result['designation'] === 'Walker') $activeStatusOption = 'walker';
-        elseif (isset($result['designation']) && $result['designation'] === 'Vacation') $activeStatusOption = 'vacation';
-        elseif (isset($result['designation']) && $result['designation'] === 'Cancel') $activeStatusOption = 'cancel';
-        elseif (isset($result['designation']) && $result['designation'] === 'PRO') $activeStatusOption = 'pro';
-        elseif (isset($result['pro']) && $result['pro'] == 1) $activeStatusOption = 'pro';
+        $riderTopViewCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
+          $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+        }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
+        $selectedTopOptionId = (int)($result['rider_top_option_id'] ?? 0);
+        $selectedTopOptionLabel = null;
+        foreach ($riderTopViewCategories as $cat) {
+          foreach ($cat->options as $opt) {
+            if ((int)$opt->id === $selectedTopOptionId) {
+              $selectedTopOptionLabel = $opt->name;
+            }
+          }
         }
-        if ($activeStatusOption) {
-        $displayStatusLabel = $statusLabels[$activeStatusOption] ?? 'Inactive';
-        } else {
-        $displayStatusLabel = (isset($result['status']) && (int)$result['status'] === 1) ? 'Active' : 'Inactive';
-        }
+        $displayStatusLabel = $selectedTopOptionLabel ?: ((isset($result['status']) && (int)$result['status'] === 1) ? 'Active' : 'Inactive');
         @endphp
         @endisset
         <div class="user-avatar-section">
@@ -341,7 +334,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
               <div class="d-flex align-items-baseline">
                 <div class="user-info" style="width: 100%;">
                   <div class="mt-2" style="width: 100%;display: flex;gap: 10px; margin-bottom: 10px;">
-                    <span class="badge bg-label-primary" id="rider-designation-badge">@isset($result){{ $result['designation'] ?? 'not-set' }}@endisset</span>
+                    <span class="badge bg-label-primary" id="rider-designation-badge">@isset($result){{ $selectedTopOptionLabel ?? 'not-set' }}@endisset</span>
                     <span class="badge @isset($result) @if(isset($displayStatusLabel)) @if($displayStatusLabel === 'Active') bg-label-success @elseif($displayStatusLabel === 'Inactive') bg-label-danger @else bg-label-primary @endif @else bg-label-danger @endif @endisset" id="rider-status-value-badge">@isset($result){{ $displayStatusLabel ?? 'Inactive' }}@endisset</span>
                   </div>
                   <span>{{ $result['rider_id'] ?? 'not-set' }}</span>
@@ -495,188 +488,39 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
           </ul>
           @isset($result)
           <div class="d-flex flex-wrap justify-content-start gap-2 gap-md-3" id="rider-status-cards">
-            <!-- Absconder Status Card -->
-            <div class="status-card absconder-card {{ $activeStatusOption === 'absconder' ? 'active' : '' }} {{ $activeStatusOption && $activeStatusOption !== 'absconder' ? 'disabled' : '' }}"
-              data-rider-id="{{ $result['id'] ?? '' }}"
-              data-type="absconder">
-              <div class="d-flex justify-content-between">
-                <div class="status-icon">
-                  <i class="ti ti-user-x"></i>
+            @php $cardIndex = 0; @endphp
+            @foreach($riderTopViewCategories as $category)
+              @foreach($category->options as $option)
+              @php
+                $isSelected = $selectedTopOptionId === (int)$option->id;
+                $cardKey = 'rider_top_option_' . $option->id;
+                $icons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag'];
+              @endphp
+              <div class="status-card {{ $isSelected ? 'active' : '' }}" data-rider-id="{{ $result['id'] ?? '' }}" data-option-id="{{ $option->id }}" data-type="{{ $cardKey }}">
+                <div class="d-flex justify-content-between">
+                  <div class="status-icon">
+                    <i class="{{ $icons[$cardIndex % count($icons)] }}"></i>
+                  </div>
+                  <div class="status-content">
+                    <div class="status-title">{{ $option->name }}</div>
+                    <div class="status-subtitle">{{ $isSelected ? 'Assigned to rider' : 'Not assigned' }}</div>
+                  </div>
                 </div>
-                <div class="status-content">
-                  <div class="status-title">Absconder</div>
-                  <div class="status-subtitle">{{ $activeStatusOption === 'absconder' ? 'Marked as Absconder' : 'Not Absconder' }}</div>
-                </div>
-              </div>
-              <div class="status-toggle">
-                <input type="checkbox"
-                  class="status-checkbox rider-status-option"
-                  id="absconder-{{ $result['id'] ?? '' }}"
-                  data-rider-id="{{ $result['id'] ?? '' }}"
-                  data-type="absconder"
-                  {{ $activeStatusOption === 'absconder' ? 'checked' : '' }}
-                  {{ $activeStatusOption && $activeStatusOption !== 'absconder' ? 'disabled' : '' }}>
-                <label for="absconder-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-            <!-- Follow Up Status Card -->
-            <div class="status-card flowup-card {{ $activeStatusOption === 'flowup' ? 'active' : '' }} {{ $activeStatusOption && $activeStatusOption !== 'flowup' ? 'disabled' : '' }}"
-              data-rider-id="{{ $result['id'] ?? '' }}"
-              data-type="flowup">
-              <div class="d-flex justify-content-between">
-                <div class="status-icon">
-                  <i class="ti ti-bell"></i>
-                </div>
-                <div class="status-content">
-                  <div class="status-title">Follow Up</div>
-                  <div class="status-subtitle">{{ $activeStatusOption === 'flowup' ? 'Follow Up Required' : 'No Follow Up' }}</div>
+                <div class="status-toggle">
+                  <input type="checkbox"
+                    class="status-checkbox rider-top-option-checkbox"
+                    id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
+                    data-rider-id="{{ $result['id'] ?? '' }}"
+                    data-option-id="{{ $option->id }}"
+                    {{ $isSelected ? 'checked' : '' }}>
+                  <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
+                    <span class="toggle-slider"></span>
+                  </label>
                 </div>
               </div>
-              <div class="status-toggle">
-                <input type="checkbox"
-                  class="status-checkbox rider-status-option"
-                  id="flowup-{{ $result['id'] ?? '' }}"
-                  data-rider-id="{{ $result['id'] ?? '' }}"
-                  data-type="flowup"
-                  {{ $activeStatusOption === 'flowup' ? 'checked' : '' }}
-                  {{ $activeStatusOption && $activeStatusOption !== 'flowup' ? 'disabled' : '' }}>
-                <label for="flowup-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-            <!-- Learning License Status Card -->
-            <div class="status-card llicense-card {{ $activeStatusOption === 'llicense' ? 'active' : '' }} {{ $activeStatusOption && $activeStatusOption !== 'llicense' ? 'disabled' : '' }}"
-              data-rider-id="{{ $result['id'] ?? '' }}"
-              data-type="llicense">
-              <div class="d-flex justify-content-between">
-                <div class="status-icon">
-                  <i class="ti ti-certificate"></i>
-                </div>
-                <div class="status-content">
-                  <div class="status-title">Learning License</div>
-                  <div class="status-subtitle">{{ $activeStatusOption === 'llicense' ? 'Learning License Required' : 'No Learning License' }}</div>
-                </div>
-              </div>
-              <div class="status-toggle">
-                <input type="checkbox"
-                  class="status-checkbox rider-status-option"
-                  id="llicense-{{ $result['id'] ?? '' }}"
-                  data-rider-id="{{ $result['id'] ?? '' }}"
-                  data-type="llicense"
-                  {{ $activeStatusOption === 'llicense' ? 'checked' : '' }}
-                  {{ $activeStatusOption && $activeStatusOption !== 'llicense' ? 'disabled' : '' }}>
-                <label for="llicense-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-            <!-- Walker Designation Status Card -->
-            <div class="status-card walker-card {{ $activeStatusOption === 'walker' ? 'active' : '' }} {{ $activeStatusOption && $activeStatusOption !== 'walker' ? 'disabled' : '' }}"
-              data-rider-id="{{ $result['id'] ?? '' }}"
-              data-type="walker">
-              <div class="d-flex justify-content-between">
-                <div class="status-icon">
-                  <i class="ti ti-walk"></i>
-                </div>
-                <div class="status-content">
-                  <div class="status-title">Walker</div>
-                  <div class="status-subtitle">{{ $activeStatusOption === 'walker' ? 'Designation is Walker' : 'Not Walker' }}</div>
-                </div>
-              </div>
-              <div class="status-toggle">
-                <input type="checkbox"
-                  class="status-checkbox rider-status-option"
-                  id="walker-{{ $result['id'] ?? '' }}"
-                  data-rider-id="{{ $result['id'] ?? '' }}"
-                  data-type="walker"
-                  {{ $activeStatusOption === 'walker' ? 'checked' : '' }}
-                  {{ $activeStatusOption && $activeStatusOption !== 'walker' ? 'disabled' : '' }}>
-                <label for="walker-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-            <!-- Vacation Status Card (returns bike and sets designation to Vacation) -->
-            <div class="status-card vacation-card {{ $activeStatusOption === 'vacation' ? 'active' : '' }} {{ $activeStatusOption && $activeStatusOption !== 'vacation' ? 'disabled' : '' }}"
-              data-rider-id="{{ $result['id'] ?? '' }}"
-              data-type="vacation">
-              <div class="d-flex justify-content-between">
-                <div class="status-icon">
-                  <i class="ti ti-beach"></i>
-                </div>
-                <div class="status-content">
-                  <div class="status-title">Vacation</div>
-                  <div class="status-subtitle">{{ $activeStatusOption === 'vacation' ? 'On Vacation (bike returned)' : 'Not on Vacation' }}</div>
-                </div>
-              </div>
-              <div class="status-toggle">
-                <input type="checkbox"
-                  class="status-checkbox rider-status-option"
-                  id="vacation-{{ $result['id'] ?? '' }}"
-                  data-rider-id="{{ $result['id'] ?? '' }}"
-                  data-type="vacation"
-                  {{ $activeStatusOption === 'vacation' ? 'checked' : '' }}
-                  {{ $activeStatusOption && $activeStatusOption !== 'vacation' ? 'disabled' : '' }}>
-                <label for="vacation-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-            <!-- Cancel Status Card -->
-            <div class="status-card cancel-card {{ $activeStatusOption === 'cancel' ? 'active' : '' }} {{ $activeStatusOption && $activeStatusOption !== 'cancel' ? 'disabled' : '' }}"
-              data-rider-id="{{ $result['id'] ?? '' }}"
-              data-type="cancel">
-              <div class="d-flex justify-content-between">
-                <div class="status-icon">
-                  <i class="ti ti-x"></i>
-                </div>
-                <div class="status-content">
-                  <div class="status-title">Cancel</div>
-                  <div class="status-subtitle">{{ $activeStatusOption === 'cancel' ? 'Cancelled (bike returned)' : 'Not Cancelled' }}</div>
-                </div>
-              </div>
-              <div class="status-toggle">
-                <input type="checkbox"
-                  class="status-checkbox rider-status-option"
-                  id="cancel-{{ $result['id'] ?? '' }}"
-                  data-rider-id="{{ $result['id'] ?? '' }}"
-                  data-type="cancel"
-                  {{ $activeStatusOption === 'cancel' ? 'checked' : '' }}
-                  {{ $activeStatusOption && $activeStatusOption !== 'cancel' ? 'disabled' : '' }}>
-                <label for="cancel-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-            <!-- PRO Designation Status Card -->
-            <div class="status-card pro-card {{ $activeStatusOption === 'pro' ? 'active' : '' }} {{ $activeStatusOption && $activeStatusOption !== 'pro' ? 'disabled' : '' }}"
-              data-rider-id="{{ $result['id'] ?? '' }}"
-              data-type="pro">
-              <div class="d-flex justify-content-between">
-                <div class="status-icon">
-                  <i class="ti ti-user-check"></i>
-                </div>
-                <div class="status-content">
-                  <div class="status-title">PRO</div>
-                  <div class="status-subtitle">{{ $activeStatusOption === 'pro' ? 'Designation is PRO' : 'Not PRO' }}</div>
-                </div>
-              </div>
-              <div class="status-toggle">
-                <input type="checkbox"
-                  class="status-checkbox rider-status-option"
-                  id="pro-{{ $result['id'] ?? '' }}"
-                  data-rider-id="{{ $result['id'] ?? '' }}"
-                  data-type="pro"
-                  {{ $activeStatusOption === 'pro' ? 'checked' : '' }}
-                  {{ $activeStatusOption && $activeStatusOption !== 'pro' ? 'disabled' : '' }}>
-                <label for="pro-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
+              @php $cardIndex++; @endphp
+              @endforeach
+            @endforeach
           </div>
           @endisset
         </div>
@@ -1075,86 +919,41 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
       responsiveNav.handleResize();
     }, 500);
 
-    // Single-select rider status: one option at a time, bike returned when any is selected
-    const SUBTITLE_TEXTS = {
-      absconder: {
-        on: 'Marked as Absconder',
-        off: 'Not Absconder'
-      },
-      flowup: {
-        on: 'Follow Up Required',
-        off: 'No Follow Up'
-      },
-      llicense: {
-        on: 'Learning License Required',
-        off: 'No Learning License'
-      },
-      walker: {
-        on: 'Designation is Walker',
-        off: 'Not Walker'
-      },
-      vacation: {
-        on: 'On Vacation (bike returned)',
-        off: 'Not on Vacation'
-      },
-      cancel: {
-        on: 'Cancelled (bike returned)',
-        off: 'Not Cancelled'
-      },
-      pro: {
-        on: 'Designation is PRO',
-        off: 'Not PRO'
-      }
-    };
-    const STATUS_BADGE_LABELS = {
-      absconder: 'Absconder',
-      flowup: 'Follow Up',
-      llicense: 'Learning License',
-      walker: 'Walker',
-      vacation: 'Vacation',
-      cancel: 'Cancel',
-      pro: 'PRO'
-    };
-
-    function syncStatusCards(activeType) {
+    // Single-select Rider Top view cards (assign rider_top_option_id)
+    function syncStatusCards(activeOptionId, activeOptionLabel) {
       const container = document.getElementById('rider-status-cards');
       if (!container) return;
       const cards = container.querySelectorAll('.status-card');
       cards.forEach(card => {
-        const type = card.getAttribute('data-type');
+        const optionId = parseInt(card.getAttribute('data-option-id') || '0', 10);
         const checkbox = card.querySelector('.status-checkbox');
         const subtitle = card.querySelector('.status-subtitle');
-        const isActive = type === activeType;
+        const isActive = optionId === activeOptionId && activeOptionId > 0;
         if (isActive) {
           card.classList.add('active');
-          card.classList.remove('disabled');
           if (checkbox) {
             checkbox.checked = true;
-            checkbox.disabled = false;
           }
-          if (subtitle && SUBTITLE_TEXTS[type]) subtitle.textContent = SUBTITLE_TEXTS[type].on;
+          if (subtitle) subtitle.textContent = 'Assigned to rider';
         } else {
           card.classList.remove('active');
-          card.classList.add('disabled');
           if (checkbox) {
             checkbox.checked = false;
-            checkbox.disabled = true;
           }
-          if (subtitle && SUBTITLE_TEXTS[type]) subtitle.textContent = SUBTITLE_TEXTS[type].off;
+          if (subtitle) subtitle.textContent = 'Not assigned';
         }
       });
-      if (!activeType) {
-        cards.forEach(card => {
-          card.classList.remove('disabled');
-          const checkbox = card.querySelector('.status-checkbox');
-          if (checkbox) checkbox.disabled = false;
-        });
+
+      const designationBadge = document.getElementById('rider-designation-badge');
+      if (designationBadge) {
+        designationBadge.textContent = activeOptionLabel || 'not-set';
       }
-      let statusLabel = activeType ? (STATUS_BADGE_LABELS[activeType] || 'not-set') : 'Inactive';
+
+      let statusLabel = activeOptionLabel || 'Inactive';
       const statusValueBadge = document.getElementById('rider-status-value-badge');
       if (statusValueBadge) {
         statusValueBadge.textContent = statusLabel;
-        statusValueBadge.className = 'badge ' + (statusLabel === 'Active' ? 'bg-label-success' : statusLabel === 'Inactive' ? 'bg-label-danger' : 'bg-label-primary');
+        statusValueBadge.className = 'badge ' + (activeOptionId > 0 ? 'bg-label-primary' : 'bg-label-danger');
       }
     }
 
@@ -1170,9 +969,9 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
     if (statusCardsContainer) {
       statusCardsContainer.addEventListener('change', function(e) {
         const checkbox = e.target;
-        if (!checkbox.classList.contains('rider-status-option')) return;
+        if (!checkbox.classList.contains('rider-top-option-checkbox')) return;
         const riderId = checkbox.getAttribute('data-rider-id');
-        const type = checkbox.getAttribute('data-type');
+        const optionId = parseInt(checkbox.getAttribute('data-option-id') || '0', 10);
         const card = checkbox.closest('.status-card');
 
         if (!riderId) {
@@ -1181,51 +980,50 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
         }
 
         const isChecked = checkbox.checked;
-        const requestType = isChecked ? type : 'none';
+        const requestOptionId = isChecked ? optionId : null;
         const subtitle = card.querySelector('.status-subtitle');
 
         card.classList.add('loading');
         if (subtitle) subtitle.textContent = 'Updating...';
 
-        fetch(`/riders/set-status-option/${riderId}`, {
+        const setOptionUrlTemplate = "{{ route('riders.setRiderTopOption', ['id' => '__RID__']) }}";
+        const setOptionUrl = setOptionUrlTemplate.replace('__RID__', riderId);
+        fetch(setOptionUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
             body: JSON.stringify({
-              type: requestType
+              option_id: requestOptionId
             })
           })
           .then(response => response.json())
           .then(data => {
             if (data.success) {
-              const designationToType = {
-                'Absconder': 'absconder',
-                'Follow Up': 'flowup',
-                'Learning License': 'llicense',
-                'Walker': 'walker',
-                'Vacation': 'vacation',
-                'Cancel': 'cancel',
-                'PRO': 'pro'
-              };
-              const activeType = (data.rider_status_option || data.statusLabel) ? (designationToType[data.rider_status_option || data.statusLabel] || null) : null;
-              syncStatusCards(activeType);
-              const statusLabel = data.statusLabel || (data.status === 1 ? 'Active' : 'Inactive');
-              const badgeClass = statusLabel === 'Active' ? 'bg-label-success' : statusLabel === 'Inactive' ? 'bg-label-danger' : 'bg-label-primary';
-              setStatusBadge(statusLabel, badgeClass);
+              const selectedId = parseInt(data.option_id || 0, 10);
+              const selectedLabel = data.option_label || null;
+              syncStatusCards(selectedId, selectedLabel);
               showNotification(data.message, 'success');
             } else {
               showNotification('Error: ' + (data.message || 'Unknown error'), 'error');
               checkbox.checked = !isChecked;
-              syncStatusCards(checkbox.checked ? type : null);
+              const activeCard = statusCardsContainer.querySelector('.status-card.active');
+              const rollbackId = activeCard ? parseInt(activeCard.getAttribute('data-option-id') || '0', 10) : 0;
+              const rollbackTitleEl = activeCard ? activeCard.querySelector('.status-title') : null;
+              const rollbackLabel = rollbackTitleEl ? rollbackTitleEl.textContent : null;
+              syncStatusCards(rollbackId, rollbackLabel);
             }
           })
           .catch(error => {
             console.error('Error:', error);
             showNotification('An error occurred while updating status', 'error');
             checkbox.checked = !isChecked;
-            syncStatusCards(checkbox.checked ? type : null);
+            const activeCard = statusCardsContainer.querySelector('.status-card.active');
+            const rollbackId = activeCard ? parseInt(activeCard.getAttribute('data-option-id') || '0', 10) : 0;
+            const rollbackTitleEl = activeCard ? activeCard.querySelector('.status-title') : null;
+            const rollbackLabel = rollbackTitleEl ? rollbackTitleEl.textContent : null;
+            syncStatusCards(rollbackId, rollbackLabel);
           })
           .finally(() => {
             card.classList.remove('loading');

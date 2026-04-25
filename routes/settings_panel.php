@@ -96,6 +96,15 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::post('rider-settings/rider-top/options', [App\Http\Controllers\RiderSettingsController::class, 'storeRiderTopOption'])->name('settings-panel.rider-settings.store-rider-top-option');
     Route::put('rider-settings/rider-top/options/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderTopOption'])->name('settings-panel.rider-settings.update-rider-top-option');
     Route::delete('rider-settings/rider-top/options/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyRiderTopOption'])->name('settings-panel.rider-settings.destroy-rider-top-option');
+    // Backward-compatible alias: rider-settings lives on dedicated controller page.
+    Route::get('module-settings/rider-settings', function (\Illuminate\Http\Request $request) {
+        $companySlug = (string) ($request->route('company_slug') ?? '');
+        return redirect()->route(
+            'settings-panel.rider-settings.index',
+            array_merge(['company_slug' => $companySlug], $request->query())
+        );
+    })->name('settings-panel.module-settings.rider-settings-alias');
+
     // Module settings (General tab only) for all ERP modules
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[A-Za-z0-9_-]+');

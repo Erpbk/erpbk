@@ -485,7 +485,7 @@ class RidersController extends AppBaseController
 
 
       $riders = $this->ridersRepository->create($input);
-      dd($vars);
+      dd($riders);
       if ($riders) {
 
         /* $parentAccount = Accounts::firstOrCreate(

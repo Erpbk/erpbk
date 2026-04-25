@@ -64,7 +64,7 @@ $erpModuleMenu = [
 ['key' => 'customers'],
 ['key' => 'vendors'],
 ['key' => 'recruiters'],
-['key' => 'riders', 'children' => ['riders', 'riders_list', 'invoices', 'activities', 'live_activities', 'rider_report']],
+['key' => 'riders', 'children' => ['riders', 'rider-settings', 'invoices', 'activities', 'live_activities', 'rider_report']],
 ['key' => 'bikes', 'children' => ['bikes', 'bike_list', 'maintenance_overview']],
 ['key' => 'sims'],
 ['key' => 'fuel_cards'],
@@ -220,12 +220,6 @@ $containerNav = 'container-fluid';
             <div>{{ $settingsPanelLabels['vouchers'] ?? 'Vouchers' }}</div>
           </a>
         </li>
-        <li class="menu-item {{ Request::is('settings-panel/rider-settings*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.rider-settings.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-motorbike"></i>
-            <div>{{ $settingsPanelLabels['riders'] ?? 'Riders' }}</div>
-          </a>
-        </li>
         @endcan
         @can('vat_view')
         <li class="menu-item {{ Request::is('settings-panel/vat-settings*') ? 'active' : '' }}">
@@ -250,7 +244,7 @@ $containerNav = 'container-fluid';
         $parentRoutePattern = 'settings-panel/module-settings/' . $parentKey;
         $anyChildActive = false;
         foreach ($children as $childKey) {
-        if (Request::is('settings-panel/module-settings/' . $childKey)) {
+        if (Request::is('settings-panel/module-settings/' . $childKey) || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*'))) {
         $anyChildActive = true;
         break;
         }
@@ -267,8 +261,8 @@ $containerNav = 'container-fluid';
           </a>
           <ul class="menu-sub">
             @foreach($children as $childKey)
-            <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $childKey) ? 'active' : '' }}">
-              <a href="{{ route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $childKey]) }}" class="menu-link">
+            <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $childKey) || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*')) ? 'active' : '' }}">
+              <a href="{{ $childKey === 'rider-settings' ? route('settings-panel.rider-settings.index', ['company_slug' => $settingsCompanySlug]) : route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $childKey]) }}" class="menu-link">
                 <i class="menu-icon tf-icons ti {{ $moduleIcons[$childKey] ?? 'ti-adjustments-alt' }}"></i>
                 <div>{{ $settingsPanelLabels[$childKey] ?? config('menu_labels.defaults.' . $childKey, ucwords(str_replace('_', ' ', $childKey))) }}</div>
               </a>

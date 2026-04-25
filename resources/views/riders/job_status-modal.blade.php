@@ -1,5 +1,5 @@
 
-                <form action="{{url('riders/job_status',@$rider->id)}}" method="post" enctype="multipart/form-data" id="formajax">
+                <form action="{{ route('rider.job_status', ['company_slug' => request()->route('company_slug'), 'id' => @$rider->id]) }}" method="post" enctype="multipart/form-data" id="formajax">
 @csrf
 {{-- <input type="hidden" id="reload_page" value="1" /> --}}
 <input type="hidden" name="job_status" value="1" />

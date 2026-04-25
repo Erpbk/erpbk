@@ -88,7 +88,7 @@
             @if($emails)
             <a href="{{ route('rider.emails') }}/{{ $rider->id }}"><span class="text-success cursor-pointer" title="Email Sent">●</span></a>&nbsp;
             @endif
-            <a href="javascript:void(0);" data-action="{{ url('riders/job_status', $rider->id) }}" data-size="md" data-title="Add Timeline" class="show-modal">{{ $r->attendance }}</a>
+            <a href="javascript:void(0);" data-action="{{ route('rider.job_status', ['company_slug' => request()->route('company_slug'), 'id' => $rider->id]) }}" data-size="md" data-title="Add Timeline" class="show-modal">{{ $r->attendance }}</a>
          </td>
          @break
          @case('orders_sum')

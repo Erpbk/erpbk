@@ -4,6 +4,7 @@ namespace App\DataTables;
 
 use App\Helpers\General;
 use App\Models\Riders;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
 use Carbon\Carbon;
@@ -69,7 +70,7 @@ class RidersDataTable extends DataTable
         if ($attn['emails']) {
           $job_status .= '<a href="' . route('rider.emails', $rider->id) . '"><span class="text-success cursor-pointer" title="Email Sent">●</span></a>&nbsp;';
         }
-        $job_status .= '<a href="javascript:void(0);" data-action="' . url('riders/job_status/' . $rider->id) . '" data-size="md" data-title="Add Timeline" class="show-modal">' . $rider->attendance . '</a>';
+        $job_status .= '<a href="javascript:void(0);" data-action="' . route('rider.job_status', ['company_slug' => request()->route('company_slug'), 'id' => $rider->id]) . '" data-size="md" data-title="Add Timeline" class="show-modal">' . $rider->attendance . '</a>';
         return $job_status;
       })
       // Status filter
@@ -125,8 +126,8 @@ class RidersDataTable extends DataTable
         'riders.status',
         'riders.customer_id',
         'riders.attendance',
-        \DB::raw('SUM(rider_activities.delivered_orders) as orders_sum'),
-        \DB::raw('COUNT(rider_activities.date) as days')
+        DB::raw('SUM(rider_activities.delivered_orders) as orders_sum'),
+        DB::raw('COUNT(rider_activities.date) as days')
       ]);
     if (request('fleet')) {
       $query->where('fleet_supervisor', request('fleet'));

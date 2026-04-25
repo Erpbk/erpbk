@@ -91,15 +91,18 @@
       var bsModal = (typeof bootstrap !== 'undefined' && bootstrap.Modal) ? new bootstrap.Modal(modalEl) : null;
       var csrf = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) ||
         (formEl.querySelector('input[name="_token"]') && formEl.querySelector('input[name="_token"]').value) || '';
+      var activeDropdownSelect = null;
 
-      document.addEventListener('click', function(e) {
-        var btn = e.target.closest('.js-add-dropdown-option');
-        if (!btn) return;
-        e.preventDefault();
-        document.getElementById('dropdownOptionFieldKey').value = btn.getAttribute('data-field-key') || '';
-        document.getElementById('dropdownOptionCustomFieldId').value = btn.getAttribute('data-custom-field-id') || '';
-        document.getElementById('dropdownOptionFieldLabel').textContent = (btn.getAttribute('data-label') || 'Field') + ' - add new option';
+      document.addEventListener('change', function(e) {
+        var sel = e.target.closest('.js-dropdown-with-add-option');
+        if (!sel) return;
+        if (sel.value !== '__add_option__') return;
+        activeDropdownSelect = sel;
+        document.getElementById('dropdownOptionFieldKey').value = sel.getAttribute('data-field-key') || '';
+        document.getElementById('dropdownOptionCustomFieldId').value = sel.getAttribute('data-custom-field-id') || '';
+        document.getElementById('dropdownOptionFieldLabel').textContent = (sel.getAttribute('data-label') || 'Field') + ' - add new option';
         document.getElementById('dropdownOptionValue').value = '';
+        sel.value = '';
         if (bsModal) bsModal.show();
       });
 
@@ -132,7 +135,29 @@
               });
             }
             if (bsModal) bsModal.hide();
-            window.location.reload();
+            var newOptionValue = (document.getElementById('dropdownOptionValue').value || '').trim();
+            if (activeDropdownSelect && newOptionValue) {
+              var existing = Array.from(activeDropdownSelect.options).find(function(opt) {
+                return (opt.value || '').toLowerCase() === newOptionValue.toLowerCase();
+              });
+              if (!existing) {
+                var addOpt = Array.from(activeDropdownSelect.options).find(function(opt) {
+                  return opt.value === '__add_option__';
+                });
+                var newOpt = new Option(newOptionValue, newOptionValue);
+                if (addOpt) {
+                  activeDropdownSelect.insertBefore(newOpt, addOpt);
+                } else {
+                  activeDropdownSelect.add(newOpt);
+                }
+              }
+              activeDropdownSelect.value = newOptionValue;
+              activeDropdownSelect.dispatchEvent(new Event('change', {
+                bubbles: true
+              }));
+            } else {
+              window.location.reload();
+            }
           })
           .catch(function(err) {
             if (typeof Swal !== 'undefined') {

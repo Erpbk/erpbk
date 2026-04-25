@@ -391,14 +391,13 @@ class RiderSettingsController extends Controller
     }
 
     /**
-     * Save the display name for this module (settings panel + main app menu use key 'riders').
+     * Save the display name for Rider Settings only.
      */
     public function storeModuleLabel(Request $request)
     {
         $request->validate(['module_label' => 'required|string|max:100']);
         $value = trim($request->input('module_label'));
         Settings::updateOrCreate(['name' => 'menu_label_rider_settings'], ['value' => $value]);
-        Settings::updateOrCreate(['name' => 'menu_label_riders'], ['value' => $value]);
         Settings::clearMenuLabelsCache();
         return redirect()->route('settings-panel.rider-settings.index')->with('success', 'Module name updated.');
     }

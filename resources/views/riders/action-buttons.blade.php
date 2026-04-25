@@ -4,7 +4,7 @@ $companySlug = request()->route('company_slug');
 $isRiderEditPage = request()->routeIs('riders.edit');
 @endphp
 @if(!$isRiderEditPage && isset($result))
-<div class="card-footer border-top fixed-footer mt-3">
+<div class="card-footer border-top fixed-footer mt-3" style="padding-top: 25px;">
     <div class="d-flex justify-content-start gap-2 flex-wrap">
         @can('rider_edit')
         <a href="{{ route('riders.edit', ['company_slug' => $companySlug, 'rider' => $result['id']]) }}" class="btn btn-outline-primary btn-sm waves-effect waves-light">

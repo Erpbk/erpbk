@@ -12,7 +12,7 @@ $companySlug = request()->route('company_slug');
         @endcan
         @can('email_create')
         <a href="javascript:void();" data-action="{{ route('rider.sendemail', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" data-size="md"
-            data-title="{{$result['name'] . ' (' . $result['rider_id'] }}')" class="btn btn-outline-warning btn-sm show-modal text-nowrap">
+            data-title="{{$result['name'] . ' (' . $result['rider_id'] }}')" class="btn btn-outline-warning btn-sm text-nowrap">
             <i class="fas fa-envelope"></i>&nbsp;Send Email
         </a>
         @endcan

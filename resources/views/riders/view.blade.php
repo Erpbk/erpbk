@@ -283,7 +283,7 @@ $companySlug = request()->route('company_slug');
   <div class="col-xl-3 col-md-3 col-lg-5 order-1 order-md-0">
     <!-- User Card -->
     <div class="card mb-6" style="border-radius: 25px 25px 0px 0px;">
-      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px;height: 291px;position: relative;background-image: url(http://127.0.0.1:8000/assets/img/user_back.jpg);background-size: cover;">
+      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px;height: 291px;position: relative;background-image: url(" {{ asset('assets/img/user_back.jpg') }}");background-size: cover;">
         @isset($result)
         <div class="profile-img">
           @php
@@ -315,16 +315,16 @@ $companySlug = request()->route('company_slug');
         @isset($result)
         @php
         $riderTopViewCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
-          $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+        $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
         }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
         $selectedTopOptionId = (int)($result['rider_top_option_id'] ?? 0);
         $selectedTopOptionLabel = null;
         foreach ($riderTopViewCategories as $cat) {
-          foreach ($cat->options as $opt) {
-            if ((int)$opt->id === $selectedTopOptionId) {
-              $selectedTopOptionLabel = $opt->name;
-            }
-          }
+        foreach ($cat->options as $opt) {
+        if ((int)$opt->id === $selectedTopOptionId) {
+        $selectedTopOptionLabel = $opt->name;
+        }
+        }
         }
         $displayStatusLabel = $selectedTopOptionLabel ?: ((isset($result['status']) && (int)$result['status'] === 1) ? 'Active' : 'Inactive');
         @endphp
@@ -491,36 +491,36 @@ $companySlug = request()->route('company_slug');
           <div class="d-flex flex-wrap justify-content-start gap-2 gap-md-3" id="rider-status-cards">
             @php $cardIndex = 0; @endphp
             @foreach($riderTopViewCategories as $category)
-              @foreach($category->options as $option)
-              @php
-                $isSelected = $selectedTopOptionId === (int)$option->id;
-                $cardKey = 'rider_top_option_' . $option->id;
-                $icons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag'];
-              @endphp
-              <div class="status-card {{ $isSelected ? 'active' : '' }}" data-rider-id="{{ $result['id'] ?? '' }}" data-option-id="{{ $option->id }}" data-type="{{ $cardKey }}">
-                <div class="d-flex justify-content-between">
-                  <div class="status-icon">
-                    <i class="{{ $icons[$cardIndex % count($icons)] }}"></i>
-                  </div>
-                  <div class="status-content">
-                    <div class="status-title">{{ $option->name }}</div>
-                    <div class="status-subtitle">{{ $isSelected ? 'Assigned to rider' : 'Not assigned' }}</div>
-                  </div>
+            @foreach($category->options as $option)
+            @php
+            $isSelected = $selectedTopOptionId === (int)$option->id;
+            $cardKey = 'rider_top_option_' . $option->id;
+            $icons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag'];
+            @endphp
+            <div class="status-card {{ $isSelected ? 'active' : '' }}" data-rider-id="{{ $result['id'] ?? '' }}" data-option-id="{{ $option->id }}" data-type="{{ $cardKey }}">
+              <div class="d-flex justify-content-between">
+                <div class="status-icon">
+                  <i class="{{ $icons[$cardIndex % count($icons)] }}"></i>
                 </div>
-                <div class="status-toggle">
-                  <input type="checkbox"
-                    class="status-checkbox rider-top-option-checkbox"
-                    id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
-                    data-rider-id="{{ $result['id'] ?? '' }}"
-                    data-option-id="{{ $option->id }}"
-                    {{ $isSelected ? 'checked' : '' }}>
-                  <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                    <span class="toggle-slider"></span>
-                  </label>
+                <div class="status-content">
+                  <div class="status-title">{{ $option->name }}</div>
+                  <div class="status-subtitle">{{ $isSelected ? 'Assigned to rider' : 'Not assigned' }}</div>
                 </div>
               </div>
-              @php $cardIndex++; @endphp
-              @endforeach
+              <div class="status-toggle">
+                <input type="checkbox"
+                  class="status-checkbox rider-top-option-checkbox"
+                  id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
+                  data-rider-id="{{ $result['id'] ?? '' }}"
+                  data-option-id="{{ $option->id }}"
+                  {{ $isSelected ? 'checked' : '' }}>
+                <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+            @php $cardIndex++; @endphp
+            @endforeach
             @endforeach
           </div>
           @endisset

@@ -87,16 +87,18 @@ class RidersController extends AppBaseController
   {
     $rules = [];
     $riderColumns = array_flip(Schema::getColumnListing('riders'));
+    $assignmentTable = (new RiderFieldCategoryAssignment())->getTable();
+    $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
+    $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
 
-    RiderFieldCategoryAssignment::query()
-      ->where(function ($q) {
-        $q->where('is_visible', 1)->orWhereNull('is_visible');
-      })
-      ->where(function ($q) {
-        $q->where('is_required', 1);
-      })
-      ->get(['field_key'])
-      ->each(function ($assignment) use (&$rules, $riderColumns) {
+    if ($hasRequiredColumn) {
+      $query = RiderFieldCategoryAssignment::query()->where('is_required', 1);
+      if ($hasVisibleColumn) {
+        $query->where(function ($q) {
+          $q->where('is_visible', 1)->orWhereNull('is_visible');
+        });
+      }
+      $query->get(['field_key'])->each(function ($assignment) use (&$rules, $riderColumns) {
         $fieldKey = (string) $assignment->field_key;
         if (!isset($riderColumns[$fieldKey])) {
           return;
@@ -104,6 +106,7 @@ class RidersController extends AppBaseController
         // Honor settings-required fields while allowing existing base rules to remain.
         $rules[$fieldKey] = 'required';
       });
+    }
 
     RiderCustomField::query()
       ->where('is_mandatory', 1)
@@ -122,6 +125,9 @@ class RidersController extends AppBaseController
   {
     $rules = Riders::$rules;
     $riderColumns = array_flip(Schema::getColumnListing('riders'));
+    $assignmentTable = (new RiderFieldCategoryAssignment())->getTable();
+    $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
+    $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
 
     $normalizePresenceRule = function ($rule, bool $required) {
       if (is_array($rule)) {
@@ -139,16 +145,22 @@ class RidersController extends AppBaseController
       return implode('|', $tokens);
     };
 
-    $assignments = RiderFieldCategoryAssignment::query()
-      ->get(['field_key', 'is_required', 'is_visible']);
+    $assignmentColumns = ['field_key'];
+    if ($hasRequiredColumn) {
+      $assignmentColumns[] = 'is_required';
+    }
+    if ($hasVisibleColumn) {
+      $assignmentColumns[] = 'is_visible';
+    }
+    $assignments = RiderFieldCategoryAssignment::query()->get($assignmentColumns);
 
     foreach ($assignments as $assignment) {
       $fieldKey = (string) $assignment->field_key;
       if (!isset($riderColumns[$fieldKey])) {
         continue;
       }
-      $isVisible = $assignment->is_visible === null ? true : (bool) $assignment->is_visible;
-      $isRequired = (bool) $assignment->is_required;
+      $isVisible = !$hasVisibleColumn || $assignment->is_visible === null ? true : (bool) $assignment->is_visible;
+      $isRequired = $hasRequiredColumn ? (bool) $assignment->is_required : false;
       $baseRule = $rules[$fieldKey] ?? 'nullable';
       $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
     }

@@ -23,12 +23,46 @@ class RiderSettingsController extends Controller
         $this->middleware('auth');
     }
 
+    protected function riderCategoryCompanyScoped(): bool
+    {
+        return Schema::hasColumn('rider_categories', 'company_id');
+    }
+
+    protected function riderCategoryCompanyId(): ?int
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return null;
+        }
+        return $user->company_id ? (int) $user->company_id : null;
+    }
+
+    protected function riderCategoryQuery()
+    {
+        $query = RiderCategory::query();
+        if ($this->riderCategoryCompanyScoped()) {
+            $companyId = $this->riderCategoryCompanyId();
+            if ($companyId !== null) {
+                $query->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)
+                        ->orWhereNull('company_id');
+                });
+            }
+        }
+        return $query;
+    }
+
+    protected function findScopedRiderCategory(int $id): RiderCategory
+    {
+        return $this->riderCategoryQuery()->where('id', $id)->firstOrFail();
+    }
+
     /**
      * Rider Settings: categories, fixed rider fields + rider custom fields, organized by category.
      */
     public function index()
     {
-        $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $categories = $this->riderCategoryQuery()->orderBy('display_order')->orderBy('id')->get();
         $fixedFieldsByCategory = RiderCustomField::fixedRiderFieldsByCategory();
         $customFields = RiderCustomField::with('category')->orderBy('display_order')->orderBy('id')->get();
         $customFieldsByCategory = $customFields->groupBy('category_id');
@@ -421,9 +455,12 @@ class RiderSettingsController extends Controller
             throw $e;
         }
 
-        $validated['display_order'] = (int) RiderCategory::max('display_order') + 1;
+        $validated['display_order'] = (int) $this->riderCategoryQuery()->max('display_order') + 1;
         $validated['is_system'] = false;
         $validated['slug'] = null; // User-created categories have no slug
+        if ($this->riderCategoryCompanyScoped()) {
+            $validated['company_id'] = $this->riderCategoryCompanyId();
+        }
 
         RiderCategory::create($validated);
 
@@ -435,10 +472,13 @@ class RiderSettingsController extends Controller
 
     public function updateCategory(Request $request, $company_slug, $id)
     {
-        $category = RiderCategory::findOrFail($id);
+        $category = $this->findScopedRiderCategory((int) $id);
         $validated = $request->validate([
             'label' => 'required|string|max:255',
         ]);
+        if ($this->riderCategoryCompanyScoped() && empty($category->company_id)) {
+            $category->company_id = $this->riderCategoryCompanyId();
+        }
         $category->label = $validated['label'];
         $category->save();
 
@@ -450,7 +490,7 @@ class RiderSettingsController extends Controller
 
     public function destroyCategory($company_slug, $id)
     {
-        $category = RiderCategory::findOrFail($id);
+        $category = $this->findScopedRiderCategory((int) $id);
         $request = request();
 
         $hasCustomFields = $category->customFields()->exists();
@@ -477,7 +517,17 @@ class RiderSettingsController extends Controller
             'order' => 'required|array',
             'order.*' => 'integer|exists:rider_categories,id',
         ]);
-        foreach ($request->input('order') as $position => $id) {
+        $orderIds = array_map('intval', (array) $request->input('order', []));
+        $allowedIds = $this->riderCategoryQuery()
+            ->whereIn('id', $orderIds)
+            ->pluck('id')
+            ->map(fn($v) => (int) $v)
+            ->all();
+
+        foreach ($orderIds as $position => $id) {
+            if (!in_array($id, $allowedIds, true)) {
+                continue;
+            }
             RiderCategory::where('id', $id)->update(['display_order' => $position]);
         }
         return response()->json(['success' => true, 'message' => 'Order saved.']);
@@ -485,7 +535,7 @@ class RiderSettingsController extends Controller
 
     public function categoriesTableBody()
     {
-        $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $categories = $this->riderCategoryQuery()->orderBy('display_order')->orderBy('id')->get();
         return view('settings.rider_settings._categories_tbody', compact('categories'));
     }
 

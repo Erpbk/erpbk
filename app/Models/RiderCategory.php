@@ -13,6 +13,7 @@ class RiderCategory extends BaseModel
         'label',
         'display_order',
         'is_system',
+        'company_id',
     ];
 
     protected $casts = [

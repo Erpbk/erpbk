@@ -152,15 +152,19 @@ class RidersController extends AppBaseController
     if ($hasVisibleColumn) {
       $assignmentColumns[] = 'is_visible';
     }
-    $assignments = RiderFieldCategoryAssignment::query()->get($assignmentColumns);
+    $assignments = RiderFieldCategoryAssignment::query()
+      ->get($assignmentColumns)
+      ->keyBy('field_key');
+    $fixedKeys = RiderCustomField::allFixedFieldKeys();
 
-    foreach ($assignments as $assignment) {
-      $fieldKey = (string) $assignment->field_key;
+    foreach ($fixedKeys as $fieldKey) {
       if (!isset($riderColumns[$fieldKey])) {
         continue;
       }
-      $isVisible = !$hasVisibleColumn || $assignment->is_visible === null ? true : (bool) $assignment->is_visible;
-      $isRequired = $hasRequiredColumn ? (bool) $assignment->is_required : false;
+      $assignment = $assignments->get($fieldKey);
+      // If there is no assignment row yet, default to visible + optional.
+      $isVisible = !$hasVisibleColumn || !$assignment || $assignment->is_visible === null ? true : (bool) $assignment->is_visible;
+      $isRequired = ($assignment && $hasRequiredColumn) ? (bool) $assignment->is_required : false;
       $baseRule = $rules[$fieldKey] ?? 'nullable';
       $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
     }

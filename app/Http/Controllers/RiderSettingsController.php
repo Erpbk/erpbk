@@ -123,7 +123,6 @@ class RiderSettingsController extends Controller
             ->get();
         $grouped = $assignments->groupBy('category_id');
         $assignedFieldKeys = array_flip($assignments->pluck('field_key')->all());
-        $slugMap = RiderCustomField::fixedFieldsSlugMap();
         $categoryBySlug = [];
         foreach ($categories as $catForSlug) {
             if (!empty($catForSlug->slug)) {
@@ -136,13 +135,9 @@ class RiderSettingsController extends Controller
             if (isset($assignedFieldKeys[$fieldKey]) || !isset($riderColumns[$fieldKey])) {
                 continue;
             }
+            // Keep all unassigned DB fields under one category ("Other")
+            // so users can manually move them to desired categories.
             $targetCategoryId = $defaultOtherCategoryId;
-            foreach ($slugMap as $slug => $slugFields) {
-                if (in_array($fieldKey, $slugFields, true) && isset($categoryBySlug[$slug])) {
-                    $targetCategoryId = (int) $categoryBySlug[$slug];
-                    break;
-                }
-            }
             if ($targetCategoryId > 0) {
                 $fallbackFieldsByCategory[$targetCategoryId][] = $fieldKey;
             }

@@ -417,7 +417,6 @@ class RiderCustomField extends BaseModel
             ->orderBy('id')
             ->get();
         $specs = self::fixedFieldInputSpecs();
-        $slugMap = self::fixedFieldsSlugMap();
         $categoryBySlug = [];
         foreach ($categories as $catForSlug) {
             if (!empty($catForSlug->slug)) {
@@ -434,13 +433,9 @@ class RiderCustomField extends BaseModel
             if (in_array($fieldKey, self::removedRiderColumns(), true) || !isset($riderColumns[$fieldKey])) {
                 continue;
             }
+            // Show all unassigned DB fields in one category first ("Other"),
+            // then let users move them by changing category_id from settings.
             $targetCategoryId = $defaultOtherCategoryId;
-            foreach ($slugMap as $slug => $slugKeys) {
-                if (in_array($fieldKey, $slugKeys, true) && isset($categoryBySlug[$slug])) {
-                    $targetCategoryId = (int) $categoryBySlug[$slug];
-                    break;
-                }
-            }
             if ($targetCategoryId > 0) {
                 $fallbackFieldsByCategory[$targetCategoryId][] = $fieldKey;
             }

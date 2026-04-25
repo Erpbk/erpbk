@@ -114,12 +114,40 @@ class RiderSettingsController extends Controller
     protected function buildFieldsByCategory($categories)
     {
         $riderColumns = array_flip(Schema::getColumnListing('riders'));
+        $allFixedKeys = $this->validFixedAssignableFieldKeys();
+        $allFixedKeySet = array_flip($allFixedKeys);
         $assignments = RiderFieldCategoryAssignment::with('category')
             ->orderBy('category_id')
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
         $grouped = $assignments->groupBy('category_id');
+        $assignedFieldKeys = array_flip($assignments->pluck('field_key')->all());
+        $slugMap = RiderCustomField::fixedFieldsSlugMap();
+        $categoryBySlug = [];
+        foreach ($categories as $catForSlug) {
+            if (!empty($catForSlug->slug)) {
+                $categoryBySlug[$catForSlug->slug] = (int) $catForSlug->id;
+            }
+        }
+        $defaultOtherCategoryId = $categoryBySlug['other'] ?? (int) ($categories->first()?->id ?? 0);
+        $fallbackFieldsByCategory = [];
+        foreach ($allFixedKeys as $fieldKey) {
+            if (isset($assignedFieldKeys[$fieldKey]) || !isset($riderColumns[$fieldKey])) {
+                continue;
+            }
+            $targetCategoryId = $defaultOtherCategoryId;
+            foreach ($slugMap as $slug => $slugFields) {
+                if (in_array($fieldKey, $slugFields, true) && isset($categoryBySlug[$slug])) {
+                    $targetCategoryId = (int) $categoryBySlug[$slug];
+                    break;
+                }
+            }
+            if ($targetCategoryId > 0) {
+                $fallbackFieldsByCategory[$targetCategoryId][] = $fieldKey;
+            }
+        }
+
         $result = [];
         foreach ($categories as $cat) {
             $fixedSpecs = RiderCustomField::fixedFieldInputSpecs();
@@ -147,6 +175,35 @@ class RiderSettingsController extends Controller
                     'input_config' => is_array($a->input_config) ? $a->input_config : [],
                 ];
             })->filter()->values()->all();
+
+            foreach ($fallbackFieldsByCategory[(int) $cat->id] ?? [] as $fieldKey) {
+                if (!isset($allFixedKeySet[$fieldKey])) {
+                    continue;
+                }
+                $defaultType = $fixedSpecs[$fieldKey]['type'] ?? 'text';
+                if ($defaultType === 'select') {
+                    $defaultType = 'dropdown';
+                }
+                $items[] = (object) [
+                    'field_key' => $fieldKey,
+                    'label' => RiderCustomField::humanizeFieldKey($fieldKey),
+                    'display_order' => 9999,
+                    'is_visible' => true,
+                    'is_required' => false,
+                    'input_type' => $defaultType,
+                    'input_config' => [],
+                ];
+            }
+
+            usort($items, function ($a, $b) {
+                $ao = (int) ($a->display_order ?? 9999);
+                $bo = (int) ($b->display_order ?? 9999);
+                if ($ao === $bo) {
+                    return strcmp((string) ($a->field_key ?? ''), (string) ($b->field_key ?? ''));
+                }
+                return $ao <=> $bo;
+            });
+
             $result[] = (object) [
                 'category' => $cat,
                 'fields' => $items,

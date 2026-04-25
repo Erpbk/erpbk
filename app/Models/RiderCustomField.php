@@ -7,6 +7,20 @@ use Illuminate\Support\Facades\Schema;
 
 class RiderCustomField extends BaseModel
 {
+    private static function scopedRiderCategoriesQuery()
+    {
+        $query = RiderCategory::query();
+        if (Schema::hasColumn('rider_categories', 'company_id')) {
+            $companyId = auth()->user()->company_id ?? null;
+            if ($companyId) {
+                $query->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                });
+            }
+        }
+        return $query;
+    }
+
     private static function removedRiderColumns(): array
     {
         return [
@@ -247,6 +261,19 @@ class RiderCustomField extends BaseModel
                 $keys[] = $key;
             }
         }
+        // Include all existing rider table columns so Settings -> Rider Fields
+        // always reflects real DB fields (except removed/system columns).
+        $columns = Schema::getColumnListing('riders');
+        $excluded = array_flip(array_merge(
+            ['id', 'created_at', 'updated_at', 'deleted_at'],
+            self::removedRiderColumns()
+        ));
+        foreach ($columns as $column) {
+            if (isset($excluded[$column])) {
+                continue;
+            }
+            $keys[] = $column;
+        }
         return array_values(array_unique($keys));
     }
 
@@ -256,7 +283,7 @@ class RiderCustomField extends BaseModel
      */
     public static function fixedRiderFieldsByCategory(): array
     {
-        $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $categories = self::scopedRiderCategoriesQuery()->orderBy('display_order')->orderBy('id')->get();
         $assignments = RiderFieldCategoryAssignment::with('category')->orderBy('display_order')->orderBy('id')->get()->groupBy('category_id');
 
         $result = [];
@@ -372,25 +399,57 @@ class RiderCustomField extends BaseModel
      */
     public static function fieldsByCategoryForForm(): array
     {
-        $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $categories = self::scopedRiderCategoriesQuery()->orderBy('display_order')->orderBy('id')->get();
+        $categoryIds = $categories->pluck('id')->all();
         $riderColumns = array_flip(Schema::getColumnListing('riders'));
         $assignmentsAll = RiderFieldCategoryAssignment::with('category')
-            ->where(function ($q) {
-                $q->where('is_visible', '=', 1)->orWhereNull('is_visible');
-            })
+            ->whereIn('category_id', $categoryIds)
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
+        $assignmentsVisible = $assignmentsAll->filter(function ($a) {
+            $rawVisible = $a->getRawOriginal('is_visible');
+            return $rawVisible === null || (int) $rawVisible === 1;
+        })->values();
         $customFieldsAll = self::with('category')
+            ->whereIn('category_id', $categoryIds)
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
         $specs = self::fixedFieldInputSpecs();
+        $slugMap = self::fixedFieldsSlugMap();
+        $categoryBySlug = [];
+        foreach ($categories as $catForSlug) {
+            if (!empty($catForSlug->slug)) {
+                $categoryBySlug[$catForSlug->slug] = (int) $catForSlug->id;
+            }
+        }
+        $defaultOtherCategoryId = $categoryBySlug['other'] ?? (int) ($categories->first()?->id ?? 0);
+        $assignedAllKeys = array_flip($assignmentsAll->pluck('field_key')->all());
+        $fallbackFieldsByCategory = [];
+        foreach (self::allFixedFieldKeys() as $fieldKey) {
+            if (isset($assignedAllKeys[$fieldKey])) {
+                continue;
+            }
+            if (in_array($fieldKey, self::removedRiderColumns(), true) || !isset($riderColumns[$fieldKey])) {
+                continue;
+            }
+            $targetCategoryId = $defaultOtherCategoryId;
+            foreach ($slugMap as $slug => $slugKeys) {
+                if (in_array($fieldKey, $slugKeys, true) && isset($categoryBySlug[$slug])) {
+                    $targetCategoryId = (int) $categoryBySlug[$slug];
+                    break;
+                }
+            }
+            if ($targetCategoryId > 0) {
+                $fallbackFieldsByCategory[$targetCategoryId][] = $fieldKey;
+            }
+        }
 
         $result = [];
         foreach ($categories as $cat) {
             $fields = [];
-            foreach ($assignmentsAll->where('category_id', $cat->id)->values() as $a) {
+            foreach ($assignmentsVisible->where('category_id', $cat->id)->values() as $a) {
                 if (in_array($a->field_key, self::removedRiderColumns(), true)) {
                     continue;
                 }
@@ -408,6 +467,18 @@ class RiderCustomField extends BaseModel
                     'label' => $label,
                     'spec' => $spec,
                     'is_required' => (bool) ($a->is_required ?? false),
+                ];
+            }
+            foreach ($fallbackFieldsByCategory[(int) $cat->id] ?? [] as $fieldKey) {
+                $label = self::humanizeFieldKey($fieldKey);
+                $spec = $specs[$fieldKey] ?? ['type' => 'text'];
+                $spec['required'] = false;
+                $fields[] = (object) [
+                    'kind' => 'fixed',
+                    'field_key' => $fieldKey,
+                    'label' => $label,
+                    'spec' => $spec,
+                    'is_required' => false,
                 ];
             }
             foreach ($customFieldsAll->where('category_id', $cat->id)->values() as $cf) {

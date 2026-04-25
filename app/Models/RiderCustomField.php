@@ -423,7 +423,10 @@ class RiderCustomField extends BaseModel
                 $categoryBySlug[$catForSlug->slug] = (int) $catForSlug->id;
             }
         }
-        $defaultOtherCategoryId = $categoryBySlug['other'] ?? (int) ($categories->first()?->id ?? 0);
+        $latestCustomCategoryId = (int) ($categories->where('is_system', false)->sortByDesc('id')->first()?->id ?? 0);
+        $defaultOtherCategoryId = $latestCustomCategoryId > 0
+            ? $latestCustomCategoryId
+            : ($categoryBySlug['other'] ?? (int) ($categories->first()?->id ?? 0));
         $assignedAllKeys = array_flip($assignmentsAll->pluck('field_key')->all());
         $fallbackFieldsByCategory = [];
         foreach (self::allFixedFieldKeys() as $fieldKey) {
@@ -433,7 +436,8 @@ class RiderCustomField extends BaseModel
             if (in_array($fieldKey, self::removedRiderColumns(), true) || !isset($riderColumns[$fieldKey])) {
                 continue;
             }
-            // Show all unassigned DB fields in one category first ("Other"),
+            // Show all unassigned DB fields in one category first
+            // (latest custom category if available, otherwise "Other"),
             // then let users move them by changing category_id from settings.
             $targetCategoryId = $defaultOtherCategoryId;
             if ($targetCategoryId > 0) {

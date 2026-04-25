@@ -129,13 +129,17 @@ class RiderSettingsController extends Controller
                 $categoryBySlug[$catForSlug->slug] = (int) $catForSlug->id;
             }
         }
-        $defaultOtherCategoryId = $categoryBySlug['other'] ?? (int) ($categories->first()?->id ?? 0);
+        $latestCustomCategoryId = (int) ($categories->where('is_system', false)->sortByDesc('id')->first()?->id ?? 0);
+        $defaultOtherCategoryId = $latestCustomCategoryId > 0
+            ? $latestCustomCategoryId
+            : ($categoryBySlug['other'] ?? (int) ($categories->first()?->id ?? 0));
         $fallbackFieldsByCategory = [];
         foreach ($allFixedKeys as $fieldKey) {
             if (isset($assignedFieldKeys[$fieldKey]) || !isset($riderColumns[$fieldKey])) {
                 continue;
             }
-            // Keep all unassigned DB fields under one category ("Other")
+            // Keep all unassigned DB fields under one category first
+            // (latest custom category if available, otherwise "Other"),
             // so users can manually move them to desired categories.
             $targetCategoryId = $defaultOtherCategoryId;
             if ($targetCategoryId > 0) {

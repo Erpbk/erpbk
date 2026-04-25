@@ -65,7 +65,7 @@ $erpModuleMenu = [
 ['key' => 'customers'],
 ['key' => 'vendors'],
 ['key' => 'recruiters'],
-['key' => 'riders', 'children' => ['riders', 'rider-settings', 'invoices', 'activities', 'live_activities', 'rider_report']],
+['key' => 'riders', 'children' => ['rider-settings', 'invoices', 'activities', 'live_activities', 'rider_report']],
 ['key' => 'bikes', 'children' => ['bikes', 'bike_list', 'maintenance_overview']],
 ['key' => 'sims'],
 ['key' => 'fuel_cards'],

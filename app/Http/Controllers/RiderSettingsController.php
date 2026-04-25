@@ -126,7 +126,7 @@ class RiderSettingsController extends Controller
      */
     protected function buildFieldAssignmentsList($categories)
     {
-        $keys = RiderCustomField::allFixedFieldKeys();
+        $keys = $this->validFixedAssignableFieldKeys();
         $assignments = RiderFieldCategoryAssignment::all()->keyBy('field_key');
         $slugToId = RiderCategory::whereNotNull('slug')->pluck('id', 'slug')->all();
         $map = RiderCustomField::fixedFieldsSlugMap();
@@ -150,6 +150,16 @@ class RiderSettingsController extends Controller
         return $list;
     }
 
+    protected function validFixedAssignableFieldKeys(): array
+    {
+        $keys = RiderCustomField::allFixedFieldKeys();
+        $riderColumns = array_flip(Schema::getColumnListing('riders'));
+
+        return array_values(array_filter($keys, function ($fieldKey) use ($riderColumns) {
+            return isset($riderColumns[$fieldKey]);
+        }));
+    }
+
     /**
      * Update which category a fixed rider field is assigned to.
      */
@@ -162,7 +172,7 @@ class RiderSettingsController extends Controller
             'input_type' => 'nullable|string|max:50',
             'config' => 'nullable|array',
         ]);
-        $keys = RiderCustomField::allFixedFieldKeys();
+        $keys = $this->validFixedAssignableFieldKeys();
         if (!in_array($validated['field_key'], $keys, true)) {
             return response()->json(['success' => false, 'message' => 'Invalid field.'], 422);
         }
@@ -222,7 +232,7 @@ class RiderSettingsController extends Controller
             'field_key' => 'required|string|max:80',
             'display_label' => 'nullable|string|max:255',
         ]);
-        $keys = RiderCustomField::allFixedFieldKeys();
+        $keys = $this->validFixedAssignableFieldKeys();
         if (!in_array($validated['field_key'], $keys, true)) {
             return response()->json(['success' => false, 'message' => 'Invalid field.'], 422);
         }
@@ -258,7 +268,7 @@ class RiderSettingsController extends Controller
             }
             $isVisible = (bool) $isVisible;
 
-            $keys = RiderCustomField::allFixedFieldKeys();
+            $keys = $this->validFixedAssignableFieldKeys();
             if (!in_array($validated['field_key'], $keys, true)) {
                 return response()->json(['success' => false, 'message' => 'Invalid field key: ' . $validated['field_key']], 422);
             }
@@ -321,7 +331,7 @@ class RiderSettingsController extends Controller
             }
             $isRequired = (bool) $isRequired;
 
-            $keys = RiderCustomField::allFixedFieldKeys();
+            $keys = $this->validFixedAssignableFieldKeys();
             if (!in_array($validated['field_key'], $keys, true)) {
                 return response()->json(['success' => false, 'message' => 'Invalid field key: ' . $validated['field_key']], 422);
             }
@@ -442,23 +452,28 @@ class RiderSettingsController extends Controller
     public function destroyCategory($company_slug, $id)
     {
         $category = RiderCategory::findOrFail($id);
+        $request = request();
         if ($category->is_system) {
-            if (request()->wantsJson() || request()->ajax()) {
+            if ($request->wantsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'System categories cannot be deleted.'], 422);
             }
             return redirect()->route('settings-panel.rider-settings.index')
                 ->with('error', 'System categories cannot be deleted.');
         }
-        if ($category->customFields()->exists()) {
-            if (request()->wantsJson() || request()->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Cannot delete a category that has custom fields. Move or delete the fields first.'], 422);
+
+        $hasCustomFields = $category->customFields()->exists();
+        $hasFixedFields = RiderFieldCategoryAssignment::where('category_id', $category->id)->exists();
+        if ($hasCustomFields || $hasFixedFields) {
+            $message = 'Cannot delete a category that has fields. Move or delete all fixed/custom fields first.';
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
             }
             return redirect()->route('settings-panel.rider-settings.index')
-                ->with('error', 'Cannot delete a category that has custom fields. Move or delete the fields first.');
+                ->with('error', $message);
         }
         $category->delete();
 
-        if (request()->wantsJson() || request()->ajax()) {
+        if ($request->wantsJson() || $request->ajax()) {
             return response()->json(['success' => true, 'message' => 'Category deleted.']);
         }
         return redirect()->route('settings-panel.rider-settings.index')->with('success', 'Category deleted.');

@@ -33,7 +33,7 @@
           <form method="POST"
                 action="{{ route('settings-panel.rider-settings.destroy-category', $category->id) }}"
                 class="d-inline"
-                onsubmit="return confirm('Delete this category? Custom fields in this category must be moved or deleted first.');">
+                onsubmit="return confirm('Delete this category? It can only be deleted when no fixed/custom fields exist in this category.');">
             @csrf
             @method('DELETE')
             <button type="submit" class="btn btn-outline-danger btn-icon">

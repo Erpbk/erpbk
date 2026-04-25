@@ -3,7 +3,7 @@
 $companySlug = request()->route('company_slug');
 $isRiderEditPage = request()->routeIs('riders.edit');
 @endphp
-@if(!$isRiderEditPage)
+@if(!$isRiderEditPage && isset($result))
 <div class="card-footer border-top fixed-footer mt-3">
     <div class="d-flex justify-content-start gap-2 flex-wrap">
         @can('rider_edit')

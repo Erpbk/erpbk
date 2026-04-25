@@ -2418,8 +2418,12 @@
       if (rows.length < 1) return;
       riderCategoriesSortable = new Sortable(tbody, {
         handle: '.drag-handle',
+        draggable: 'tr[data-id]',
         animation: 150,
         ghostClass: 'table-warning',
+        forceFallback: true,
+        fallbackOnBody: true,
+        fallbackTolerance: 3,
         onEnd: function() {
           var order = Array.from(tbody.querySelectorAll('tr[data-id]')).map(function(tr) {
             return parseInt(tr.getAttribute('data-id'), 10);
@@ -2744,8 +2748,12 @@
         if (!categoryId || typeof Sortable === 'undefined') return;
         var sortable = new Sortable(tbody, {
           handle: '.drag-handle',
+          draggable: 'tr[data-id]',
           animation: 150,
           ghostClass: 'table-warning',
+          forceFallback: true,
+          fallbackOnBody: true,
+          fallbackTolerance: 3,
           onEnd: function() {
             var order = Array.from(tbody.querySelectorAll('tr[data-id]')).map(function(tr) {
               return parseInt(tr.getAttribute('data-id'), 10);
@@ -2825,8 +2833,12 @@
         if (typeof Sortable === 'undefined') return;
         var sortable = new Sortable(tbody, {
           handle: '.drag-handle',
+          draggable: 'tr[data-field-key]',
           animation: 150,
           ghostClass: 'table-warning',
+          forceFallback: true,
+          fallbackOnBody: true,
+          fallbackTolerance: 3,
           onEnd: function() {
             var order = Array.from(tbody.querySelectorAll('tr[data-field-key]')).map(function(tr) {
               return tr.getAttribute('data-field-key');

@@ -215,7 +215,7 @@
               <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="rider-fields-all-tab" data-bs-toggle="tab" data-bs-target="#rider-fields-all-pane" type="button" role="tab">
                   All Fields
-                  <span class="badge bg-label-primary ms-1">{{ count($unassignedFixedFields ?? []) }}</span>
+                  <span class="badge bg-label-primary ms-1">{{ count($allFixedFieldsForStatic ?? []) }}</span>
                 </button>
               </li>
               @foreach($fieldsByCategory as $idx => $group)
@@ -244,15 +244,19 @@
                       </tr>
                     </thead>
                     <tbody id="rider-fields-tbody-all">
-                      @forelse(($unassignedFixedFields ?? []) as $rowIndex => $row)
-                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
+                      @forelse(($allFixedFieldsForStatic ?? []) as $rowIndex => $row)
+                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $row->category_id ?? '' }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
                         <td class="align-middle">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
                           <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
                         <td class="align-middle">
+                          @if(!empty($row->category_label))
+                          <span class="badge bg-label-info">{{ $row->category_label }}</span>
+                          @else
                           <span class="badge bg-label-warning">Unassigned</span>
+                          @endif
                         </td>
                         <td class="align-middle text-center">
                           <div class="form-check form-switch d-inline-block mb-0">
@@ -273,7 +277,7 @@
                             <select name="category_id" class="form-select form-select-sm" style="width: auto; min-width: 160px;">
                               <option value="">Select category</option>
                               @foreach($categories as $c)
-                              <option value="{{ $c->id }}">{{ $c->label }}</option>
+                              <option value="{{ $c->id }}" {{ (int)($row->category_id ?? 0) === (int)$c->id ? 'selected' : '' }}>{{ $c->label }}</option>
                               @endforeach
                             </select>
                             <button type="submit" class="btn btn-sm btn-outline-primary ms-1">Move</button>
@@ -283,7 +287,7 @@
                           <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-fixed-field"
                             data-field-key="{{ $row->field_key }}"
                             data-field-label="{{ $row->label }}"
-                            data-category-id=""
+                            data-category-id="{{ $row->category_id ?? '' }}"
                             data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
                             data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}"
                             data-input-type="{{ $row->input_type ?? 'text' }}"
@@ -294,7 +298,7 @@
                       </tr>
                       @empty
                       <tr>
-                        <td colspan="7" class="text-center text-muted py-3">All rider table fields are already assigned to categories.</td>
+                        <td colspan="7" class="text-center text-muted py-3">No rider fields found.</td>
                       </tr>
                       @endforelse
                     </tbody>

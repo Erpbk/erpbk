@@ -70,6 +70,7 @@ class RiderSettingsController extends Controller
         $moduleLabel = Settings::getMenuLabel('rider_settings');
         $fieldAssignments = $this->buildFieldAssignmentsList($categories);
         $fieldsByCategory = $this->buildFieldsByCategory($categories);
+        $allFixedFieldsForStatic = $this->buildAllFixedFieldsForStatic($categories);
         $unassignedFixedFields = $this->buildUnassignedFixedFields();
         $documentTypes = RiderDocumentType::orderedForAdmin()->get();
         $riderTopCategories = RiderTopCategory::with('options')
@@ -87,6 +88,7 @@ class RiderSettingsController extends Controller
             'moduleLabel',
             'fieldAssignments',
             'fieldsByCategory',
+            'allFixedFieldsForStatic',
             'unassignedFixedFields',
             'documentTypes',
             'riderTopCategories',
@@ -190,6 +192,47 @@ class RiderSettingsController extends Controller
                 'is_required' => false,
                 'input_type' => $defaultType,
                 'input_config' => [],
+            ];
+        }
+
+        usort($rows, function ($a, $b) {
+            return strcmp((string) $a->field_key, (string) $b->field_key);
+        });
+
+        return $rows;
+    }
+
+    protected function buildAllFixedFieldsForStatic($categories)
+    {
+        $keys = $this->validFixedAssignableFieldKeys();
+        $assignments = RiderFieldCategoryAssignment::all()->keyBy('field_key');
+        $specs = RiderCustomField::fixedFieldInputSpecs();
+        $categoriesById = $categories->keyBy('id');
+        $rows = [];
+
+        foreach ($keys as $fieldKey) {
+            $assignment = $assignments->get($fieldKey);
+            $categoryId = $assignment ? (int) $assignment->category_id : null;
+            $categoryLabel = $categoryId && isset($categoriesById[$categoryId]) ? $categoriesById[$categoryId]->label : null;
+            $rawVisible = $assignment ? $assignment->getRawOriginal('is_visible') : null;
+            $rawRequired = $assignment ? $assignment->getRawOriginal('is_required') : null;
+            $defaultType = $specs[$fieldKey]['type'] ?? 'text';
+            if ($defaultType === 'select') {
+                $defaultType = 'dropdown';
+            }
+
+            $rows[] = (object) [
+                'field_key' => $fieldKey,
+                'label' => $assignment && $assignment->display_label !== null && trim((string) $assignment->display_label) !== ''
+                    ? trim((string) $assignment->display_label)
+                    : RiderCustomField::humanizeFieldKey($fieldKey),
+                'category_id' => $categoryId,
+                'category_label' => $categoryLabel,
+                'is_assigned' => (bool) $assignment,
+                'is_visible' => $rawVisible === null ? true : (bool) (int) $rawVisible,
+                'is_required' => $rawRequired === null ? false : (bool) (int) $rawRequired,
+                'input_type' => $assignment && !empty($assignment->input_type) ? $assignment->input_type : $defaultType,
+                'input_config' => $assignment && is_array($assignment->input_config) ? $assignment->input_config : [],
             ];
         }
 

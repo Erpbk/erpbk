@@ -1,9 +1,9 @@
 <!-- Action Buttons Component -->
 @php
-    $companySlug = request()->route('company_slug');
+$companySlug = request()->route('company_slug');
 @endphp
 <div class="card-footer bg-light border-top fixed-footer mt-3">
-    <div class="d-flex justify-content-end gap-2 flex-wrap">
+    <div class="d-flex justify-content-start gap-2 flex-wrap">
         @isset($result)
         @can('rider_edit')
         <a href="{{ route('riders.edit', ['company_slug' => $companySlug, 'rider' => $result['id']]) }}" class="btn btn-outline-primary btn-sm waves-effect waves-light">

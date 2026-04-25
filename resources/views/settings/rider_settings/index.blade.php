@@ -211,18 +211,11 @@
           {{-- Tab 4: Rider Fields (all-fields + category tabs) --}}
           <div class="tab-pane fade" id="tab-rider-fields" role="tabpanel">
             <p class="text-muted small mb-3">Use the static <b>All Fields</b> tab to assign fields. Category tabs show assigned fields category-wise.</p>
-            @php
-            $allFixedRows = collect($fieldsByCategory)->flatMap(function ($group) {
-            return collect($group->fields)->map(function ($row) use ($group) {
-            return (object) ['group' => $group, 'row' => $row];
-            });
-            });
-            @endphp
             <ul class="nav nav-tabs nav-tabs-rider-fields mb-3" id="riderFieldsCategoryTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="rider-fields-all-tab" data-bs-toggle="tab" data-bs-target="#rider-fields-all-pane" type="button" role="tab">
                   All Fields
-                  <span class="badge bg-label-primary ms-1">{{ $allFixedRows->count() }}</span>
+                  <span class="badge bg-label-primary ms-1">{{ count($unassignedFixedFields ?? []) }}</span>
                 </button>
               </li>
               @foreach($fieldsByCategory as $idx => $group)
@@ -251,19 +244,15 @@
                       </tr>
                     </thead>
                     <tbody id="rider-fields-tbody-all">
-                      @forelse($allFixedRows as $rowIndex => $entry)
-                      @php
-                      $group = $entry->group;
-                      $row = $entry->row;
-                      @endphp
-                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
+                      @forelse(($unassignedFixedFields ?? []) as $rowIndex => $row)
+                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
                         <td class="align-middle">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
                           <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
                         <td class="align-middle">
-                          <span class="badge bg-label-info">{{ $group->category->label }}</span>
+                          <span class="badge bg-label-warning">Unassigned</span>
                         </td>
                         <td class="align-middle text-center">
                           <div class="form-check form-switch d-inline-block mb-0">
@@ -282,8 +271,9 @@
                             @csrf
                             <input type="hidden" name="field_key" value="{{ $row->field_key }}">
                             <select name="category_id" class="form-select form-select-sm" style="width: auto; min-width: 160px;">
+                              <option value="">Select category</option>
                               @foreach($categories as $c)
-                              <option value="{{ $c->id }}" {{ (int)$group->category->id === (int)$c->id ? 'selected' : '' }}>{{ $c->label }}</option>
+                              <option value="{{ $c->id }}">{{ $c->label }}</option>
                               @endforeach
                             </select>
                             <button type="submit" class="btn btn-sm btn-outline-primary ms-1">Move</button>
@@ -293,7 +283,7 @@
                           <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-fixed-field"
                             data-field-key="{{ $row->field_key }}"
                             data-field-label="{{ $row->label }}"
-                            data-category-id="{{ $group->category->id }}"
+                            data-category-id=""
                             data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
                             data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}"
                             data-input-type="{{ $row->input_type ?? 'text' }}"
@@ -304,7 +294,7 @@
                       </tr>
                       @empty
                       <tr>
-                        <td colspan="7" class="text-center text-muted py-3">No rider fields found.</td>
+                        <td colspan="7" class="text-center text-muted py-3">All rider table fields are already assigned to categories.</td>
                       </tr>
                       @endforelse
                     </tbody>

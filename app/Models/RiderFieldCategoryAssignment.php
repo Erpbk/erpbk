@@ -16,10 +16,12 @@ class RiderFieldCategoryAssignment extends BaseModel
         'category_id',
         'display_order',
         'is_visible',
+        'is_required',
     ];
 
     protected $casts = [
         'is_visible' => 'boolean',
+        'is_required' => 'boolean',
         'input_config' => 'array',
     ];
 

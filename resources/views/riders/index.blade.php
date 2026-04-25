@@ -627,8 +627,10 @@ $tableColumns = $columns;
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const table = document.querySelector('#dataTableBuilder');
+        if (!table) return;
         const headers = table.querySelectorAll('th.sorting');
         const tbody = table.querySelector('tbody');
+        if (!tbody) return;
 
         headers.forEach((header, colIndex) => {
             header.addEventListener('click', () => {
@@ -659,22 +661,25 @@ $tableColumns = $columns;
             });
         });
     });
-    document.querySelector('.copy-text').addEventListener('click', function() {
-        const value = this.querySelector('.copy-value').textContent.trim();
-        const icon = this.querySelector('i');
+    const copyTextEl = document.querySelector('.copy-text');
+    if (copyTextEl) {
+        copyTextEl.addEventListener('click', function() {
+            const valueEl = this.querySelector('.copy-value');
+            const icon = this.querySelector('i');
+            if (!valueEl) return;
+            const value = valueEl.textContent.trim();
 
-        navigator.clipboard.writeText(value).then(() => {
-            // Icon ko tick mark me change karo
-            icon.classList.remove('fa-copy');
-            icon.classList.add('fa-check');
-
-            // 1.5 sec baad wapas copy icon me badal do
-            setTimeout(() => {
-                icon.classList.remove('fa-check');
-                icon.classList.add('fa-copy');
-            }, 1500);
+            navigator.clipboard.writeText(value).then(() => {
+                if (!icon) return;
+                icon.classList.remove('fa-copy');
+                icon.classList.add('fa-check');
+                setTimeout(() => {
+                    icon.classList.remove('fa-check');
+                    icon.classList.add('fa-copy');
+                }, 1500);
+            });
         });
-    });
+    }
 
     // Status filter functionality is now handled by direct URL links
 

@@ -91,6 +91,8 @@ class RiderSettingsController extends Controller
             $items = $grouped->get($cat->id, collect())->map(function ($a) use ($fixedSpecs) {
                 $rawVisible = $a->getRawOriginal('is_visible');
                 $isVisible = $rawVisible === null ? true : (bool) (int) $rawVisible;
+                $rawRequired = $a->getRawOriginal('is_required');
+                $isRequired = $rawRequired === null ? false : (bool) (int) $rawRequired;
                 $defaultType = $fixedSpecs[$a->field_key]['type'] ?? 'text';
                 if ($defaultType === 'select') {
                     $defaultType = 'dropdown';
@@ -102,6 +104,7 @@ class RiderSettingsController extends Controller
                         : RiderCustomField::humanizeFieldKey($a->field_key),
                     'display_order' => $a->display_order,
                     'is_visible' => $isVisible,
+                    'is_required' => $isRequired,
                     'input_type' => $a->input_type ?: $defaultType,
                     'input_config' => is_array($a->input_config) ? $a->input_config : [],
                 ];
@@ -283,6 +286,68 @@ class RiderSettingsController extends Controller
             ], 422);
         } catch (\Exception $e) {
             Log::error('Error updating field visibility: ' . $e->getMessage(), [
+                'field_key' => $validated['field_key'] ?? 'unknown',
+                'exception' => $e,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Toggle required flag of a fixed field in the Rider module (Add/Edit).
+     */
+    public function updateFieldAssignmentRequired(Request $request)
+    {
+        try {
+            $payload = $request->isJson() ? $request->json()->all() : $request->all();
+
+            $validated = validator($payload, [
+                'field_key' => 'required|string|max:80',
+                'is_required' => 'required',
+            ], [
+                'is_required.required' => 'The required flag is required.',
+            ])->validate();
+
+            $isRequired = filter_var($validated['is_required'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($isRequired === null) {
+                $isRequired = !empty($validated['is_required']) && $validated['is_required'] !== 'false' && $validated['is_required'] !== '0';
+            }
+            $isRequired = (bool) $isRequired;
+
+            $keys = RiderCustomField::allFixedFieldKeys();
+            if (!in_array($validated['field_key'], $keys, true)) {
+                return response()->json(['success' => false, 'message' => 'Invalid field key: ' . $validated['field_key']], 422);
+            }
+
+            $table = (new RiderFieldCategoryAssignment)->getTable();
+            if (!Schema::hasColumn($table, 'is_required')) {
+                return response()->json(['success' => false, 'message' => 'Database migration required. Run: php artisan migrate'], 500);
+            }
+
+            $assignment = RiderFieldCategoryAssignment::where('field_key', $validated['field_key'])->first();
+            if (!$assignment) {
+                return response()->json(['success' => false, 'message' => 'Assignment not found for field: ' . $validated['field_key']], 404);
+            }
+
+            $assignment->is_required = $isRequired ? 1 : 0;
+            $assignment->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => $isRequired ? 'Field marked as required.' : 'Field marked as optional.',
+                'is_required' => $isRequired,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error: ' . $e->getMessage(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error updating field required flag: ' . $e->getMessage(), [
                 'field_key' => $validated['field_key'] ?? 'unknown',
                 'exception' => $e,
             ]);

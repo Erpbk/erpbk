@@ -233,6 +233,7 @@
                         <th style="width: 36px;"></th>
                         <th>#</th>
                         <th>Field</th>
+                        <th class="text-center">Required</th>
                         <th class="text-center">Show in rider form</th>
                         <th>Move to category</th>
                         <th class="text-end" style="width: 120px;">Actions</th>
@@ -240,12 +241,18 @@
                     </thead>
                     <tbody id="rider-fields-tbody-{{ $group->category->id }}" class="rider-fields-sortable-tbody">
                       @forelse($group->fields as $rowIndex => $row)
-                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
+                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle rider-field-index">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
                           <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
+                        </td>
+                        <td class="align-middle text-center">
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox" class="form-check-input rider-field-required-toggle" id="req-{{ $group->category->id }}-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_required ?? false) ? 'checked' : '' }} title="Require this field in rider add/edit forms">
+                            <label class="form-check-label visually-hidden" for="req-{{ $group->category->id }}-{{ $row->field_key }}">Mark as required</label>
+                          </div>
                         </td>
                         <td class="align-middle text-center">
                           <div class="form-check form-switch d-inline-block mb-0">
@@ -271,15 +278,16 @@
                             data-field-label="{{ $row->label }}"
                             data-category-id="{{ $group->category->id }}"
                             data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
+                            data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}"
                             data-input-type="{{ $row->input_type ?? 'text' }}"
                             data-input-config='@json($row->input_config ?? [])'>
-                            <i class="ti ti-pencil me-1"></i> Edit
+                            <i class="ti ti-pencil"></i>
                           </button>
                         </td>
                       </tr>
                       @empty
                       <tr>
-                        <td colspan="6" class="text-center text-muted py-3">No fields in this category. Assign fields from another category or add new assignments.</td>
+                        <td colspan="7" class="text-center text-muted py-3">No fields in this category. Assign fields from another category or add new assignments.</td>
                       </tr>
                       @endforelse
                     </tbody>
@@ -2764,6 +2772,78 @@
           console.error('Error:', err);
           toggle.checked = !toggle.checked;
           if (row) row.classList.toggle('table-secondary', !toggle.checked);
+
+          var errorMsg = 'Could not update.';
+          if (err && err.message) {
+            errorMsg = err.message;
+          } else if (err && typeof err === 'object') {
+            errorMsg = JSON.stringify(err);
+          }
+
+          if (typeof Swal !== 'undefined') Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: errorMsg,
+            showConfirmButton: false,
+            timer: 5000
+          });
+        });
+    });
+
+    document.addEventListener('change', function(e) {
+      var toggle = e.target.closest('.rider-field-required-toggle');
+      if (!toggle) return;
+
+      var fieldKey = toggle.getAttribute('data-field-key');
+      var isRequired = toggle.checked ? 1 : 0;
+      var csrf = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) || (document.querySelector('.rider-field-assignment-form input[name="_token"]') && document.querySelector('.rider-field-assignment-form input[name="_token"]').value);
+
+      if (!csrf) {
+        if (typeof Swal !== 'undefined') Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'error',
+          title: 'CSRF token missing.',
+          showConfirmButton: false,
+          timer: 3000
+        });
+        toggle.checked = !toggle.checked;
+        return;
+      }
+
+      var formBody = new URLSearchParams();
+      formBody.append('_token', csrf);
+      formBody.append('field_key', fieldKey);
+      formBody.append('is_required', String(isRequired));
+
+      fetch('{{ route("settings-panel.rider-settings.update-field-assignment-required") }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: formBody.toString()
+        })
+        .then(function(r) {
+          return r.json().then(function(data) {
+            return r.ok ? data : Promise.reject(data);
+          });
+        })
+        .then(function(data) {
+          if (typeof Swal !== 'undefined') Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: data.message || 'Saved.',
+            showConfirmButton: false,
+            timer: 2000
+          });
+        })
+        .catch(function(err) {
+          toggle.checked = !toggle.checked;
 
           var errorMsg = 'Could not update.';
           if (err && err.message) {

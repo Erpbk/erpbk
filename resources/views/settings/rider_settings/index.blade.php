@@ -1252,6 +1252,7 @@
         .then(function(html) {
           const tbody = document.getElementById('riderCategoriesTbody');
           if (tbody) tbody.innerHTML = html;
+          if (typeof initRiderCategoriesSortable === 'function') initRiderCategoriesSortable();
         });
     };
 
@@ -2406,6 +2407,78 @@
       });
     }
     if (document.getElementById('riderDocumentTypesTbody')) initRiderDocumentTypesSortable();
+
+    // Sortable for rider categories (manual reorder)
+    var riderCategoriesSortable = null;
+    function initRiderCategoriesSortable() {
+      var tbody = document.getElementById('riderCategoriesTbody');
+      if (!tbody || typeof Sortable === 'undefined') return;
+      if (riderCategoriesSortable) riderCategoriesSortable.destroy();
+      var rows = tbody.querySelectorAll('tr[data-id]');
+      if (rows.length < 1) return;
+      riderCategoriesSortable = new Sortable(tbody, {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'table-warning',
+        onEnd: function() {
+          var order = Array.from(tbody.querySelectorAll('tr[data-id]')).map(function(tr) {
+            return parseInt(tr.getAttribute('data-id'), 10);
+          });
+          fetch("{{ route('settings-panel.rider-settings.reorder-categories') }}", {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+              },
+              body: JSON.stringify({
+                order: order
+              })
+            })
+            .then(function(r) {
+              return r.json().catch(function() {
+                return {
+                  success: false
+                };
+              });
+            })
+            .then(function(data) {
+              if (data.success) {
+                tbody.querySelectorAll('tr[data-id] td:nth-child(2)').forEach(function(td, i) {
+                  td.textContent = i + 1;
+                });
+                if (typeof Swal !== 'undefined') Swal.fire({
+                  toast: true,
+                  position: 'top-end',
+                  icon: 'success',
+                  title: 'Category order saved.',
+                  showConfirmButton: false,
+                  timer: 2000
+                });
+              } else if (typeof Swal !== 'undefined') Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: data.message || 'Could not save category order.',
+                showConfirmButton: false,
+                timer: 3000
+              });
+            })
+            .catch(function() {
+              if (typeof Swal !== 'undefined') Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'Could not save category order.',
+                showConfirmButton: false,
+                timer: 3000
+              });
+            });
+        }
+      });
+    }
+    if (document.getElementById('riderCategoriesTbody')) initRiderCategoriesSortable();
 
     // Open tab from URL ?tab=rider-fields
     (function() {

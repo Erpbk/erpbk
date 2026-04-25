@@ -63,7 +63,6 @@ class RiderSettingsController extends Controller
     public function index()
     {
         $categories = $this->riderCategoryQuery()->orderBy('display_order')->orderBy('id')->get();
-        $this->ensureCoreFieldAssignments($categories);
         $fixedFieldsByCategory = RiderCustomField::fixedRiderFieldsByCategory();
         $customFields = RiderCustomField::with('category')->orderBy('display_order')->orderBy('id')->get();
         $customFieldsByCategory = $customFields->groupBy('category_id');
@@ -100,38 +99,6 @@ class RiderSettingsController extends Controller
             'riderTopCategories',
             'riderTopSelectableColumns'
         ));
-    }
-
-    protected function ensureCoreFieldAssignments($categories): void
-    {
-        $riderColumns = array_flip(Schema::getColumnListing('riders'));
-        $categoryBySlug = [];
-        foreach ($categories as $cat) {
-            if (!empty($cat->slug)) {
-                $categoryBySlug[$cat->slug] = (int) $cat->id;
-            }
-        }
-        $defaultCategoryId = $categoryBySlug['job_info'] ?? $categoryBySlug['other'] ?? (int) ($categories->first()?->id ?? 0);
-        if ($defaultCategoryId <= 0) {
-            return;
-        }
-
-        foreach (['status', 'attendance'] as $fieldKey) {
-            if (!isset($riderColumns[$fieldKey])) {
-                continue;
-            }
-            $exists = RiderFieldCategoryAssignment::where('field_key', $fieldKey)->exists();
-            if ($exists) {
-                continue;
-            }
-            RiderFieldCategoryAssignment::create([
-                'field_key' => $fieldKey,
-                'category_id' => $defaultCategoryId,
-                'display_order' => (int) RiderFieldCategoryAssignment::where('category_id', $defaultCategoryId)->max('display_order') + 1,
-                'is_visible' => 1,
-                'is_required' => 0,
-            ]);
-        }
     }
 
     protected function riderTopSelectableColumns(): array

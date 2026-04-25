@@ -7,6 +7,42 @@ use Illuminate\Support\Facades\Schema;
 
 class RiderCustomField extends BaseModel
 {
+    private static function ensureDefaultFixedAssignments(array $fieldKeys): void
+    {
+        $columns = Schema::getColumnListing('riders');
+        $categories = self::scopedRiderCategoriesQuery()->orderBy('display_order')->orderBy('id')->get();
+        if ($categories->isEmpty()) {
+            return;
+        }
+
+        $jobInfoCategoryId = (int) ($categories->firstWhere('slug', 'job_info')->id ?? 0);
+        $fallbackCategoryId = (int) ($categories->firstWhere('slug', 'other')->id ?? $categories->first()->id);
+        $targetCategoryId = $jobInfoCategoryId > 0 ? $jobInfoCategoryId : $fallbackCategoryId;
+        if ($targetCategoryId <= 0) {
+            return;
+        }
+
+        foreach ($fieldKeys as $fieldKey) {
+            if (!in_array($fieldKey, $columns, true)) {
+                continue;
+            }
+            if (in_array($fieldKey, self::removedRiderColumns(), true)) {
+                continue;
+            }
+            $existing = RiderFieldCategoryAssignment::where('field_key', $fieldKey)->first();
+            if ($existing) {
+                continue;
+            }
+            RiderFieldCategoryAssignment::create([
+                'field_key' => $fieldKey,
+                'category_id' => $targetCategoryId,
+                'display_order' => (int) RiderFieldCategoryAssignment::where('category_id', $targetCategoryId)->max('display_order') + 1,
+                'is_visible' => true,
+                'is_required' => false,
+            ]);
+        }
+    }
+
     private static function scopedRiderCategoriesQuery()
     {
         $query = RiderCategory::query();
@@ -210,7 +246,6 @@ class RiderCustomField extends BaseModel
                 'salary_model',
                 'fleet_supervisor',
                 'rider_reference',
-                'status',
                 'DEPT',
                 'PID',
                 'job_status',
@@ -280,7 +315,7 @@ class RiderCustomField extends BaseModel
         }
         // Keep these rider table fields visible in Rider Settings field list
         // so they can be assigned and shown in Rider create/edit modules.
-        foreach (['status', 'attendance', 'rider_top_option_id', 'custom_field_values', 'image_name'] as $mustHaveKey) {
+        foreach (['rider_top_option_id', 'custom_field_values', 'image_name', 'status', 'attendance'] as $mustHaveKey) {
             if (in_array($mustHaveKey, $columns, true)) {
                 $keys[] = $mustHaveKey;
             }
@@ -351,6 +386,7 @@ class RiderCustomField extends BaseModel
             'image_name' => ['type' => 'text'],
             'rider_top_option_id' => ['type' => 'text'],
             'custom_field_values' => ['type' => 'textarea', 'rows' => 2],
+            'status' => ['type' => 'text'],
             'emirate_hub' => ['type' => 'text'],
             'emirate_id' => ['type' => 'text', 'required' => true, 'maxlength' => 18, 'placeholder' => '784-2000-6871718-8'],
             'emirate_exp' => ['type' => 'date', 'required' => true],
@@ -366,7 +402,6 @@ class RiderCustomField extends BaseModel
             'salary_model' => ['type' => 'select', 'dropdown' => 'salary-model', 'required' => true],
             'fleet_supervisor' => ['type' => 'select', 'dropdown' => 'fleet-supervisor', 'required' => true],
             'rider_reference' => ['type' => 'text', 'required' => true],
-            'status' => ['type' => 'select', 'dropdown' => 'rider-status'],
             'recruiter_id' => ['type' => 'select', 'dropdown' => 'recruiters'],
             'DEPT' => ['type' => 'text'],
             'PID' => ['type' => 'text'],
@@ -413,6 +448,8 @@ class RiderCustomField extends BaseModel
      */
     public static function fieldsByCategoryForForm(): array
     {
+        self::ensureDefaultFixedAssignments(['status', 'attendance']);
+
         $categories = self::scopedRiderCategoriesQuery()->orderBy('display_order')->orderBy('id')->get();
         $categoryIds = $categories->pluck('id')->all();
         $riderColumns = array_flip(Schema::getColumnListing('riders'));

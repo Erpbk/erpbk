@@ -4,6 +4,7 @@
 @php
 $configData = Helper::appClasses();
 $settingsPanelLabels = \App\Models\Settings::getMenuLabels();
+$settingsPanelRidersLabel = \App\Models\Settings::getMenuLabel('rider_settings');
 $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug');
 $moduleIcons = [
 'dashboard' => 'ti-layout-dashboard',
@@ -257,14 +258,14 @@ $containerNav = 'container-fluid';
         <li class="menu-item {{ $isOpen ? 'open' : '' }}">
           <a href="javascript:void(0);" class="menu-link menu-toggle">
             <i class="menu-icon tf-icons ti {{ $moduleIcons[$parentKey] ?? 'ti-adjustments-alt' }}"></i>
-            <div>{{ $settingsPanelLabels[$parentKey] ?? config('menu_labels.defaults.' . $parentKey, ucwords(str_replace('_', ' ', $parentKey))) }}</div>
+            <div>{{ $parentKey === 'riders' ? $settingsPanelRidersLabel : ($settingsPanelLabels[$parentKey] ?? config('menu_labels.defaults.' . $parentKey, ucwords(str_replace('_', ' ', $parentKey)))) }}</div>
           </a>
           <ul class="menu-sub">
             @foreach($children as $childKey)
             <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $childKey) || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*')) ? 'active' : '' }}">
               <a href="{{ $childKey === 'rider-settings' ? route('settings-panel.rider-settings.index', ['company_slug' => $settingsCompanySlug]) : route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $childKey]) }}" class="menu-link">
                 <i class="menu-icon tf-icons ti {{ $moduleIcons[$childKey] ?? 'ti-adjustments-alt' }}"></i>
-                <div>{{ $settingsPanelLabels[$childKey] ?? config('menu_labels.defaults.' . $childKey, ucwords(str_replace('_', ' ', $childKey))) }}</div>
+                <div>{{ $childKey === 'rider-settings' ? $settingsPanelRidersLabel : ($settingsPanelLabels[$childKey] ?? config('menu_labels.defaults.' . $childKey, ucwords(str_replace('_', ' ', $childKey)))) }}</div>
               </a>
             </li>
             @endforeach

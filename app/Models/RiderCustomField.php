@@ -483,6 +483,17 @@ class RiderCustomField extends BaseModel
                     ? trim($a->display_label)
                     : self::humanizeFieldKey($a->field_key);
                 $spec = $specs[$a->field_key] ?? ['type' => 'text'];
+                if (!empty($a->input_type)) {
+                    $spec['type'] = $a->input_type === 'dropdown' ? 'select' : $a->input_type;
+                }
+                if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
+                    $raw = $a->input_config['options'];
+                    if (is_array($raw)) {
+                        $spec['options_lines'] = array_values(array_filter(array_map(fn($v) => trim((string) $v), $raw), fn($v) => $v !== ''));
+                    } else {
+                        $spec['options_lines'] = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) $raw)), fn($v) => $v !== ''));
+                    }
+                }
                 $spec['required'] = (bool) ($a->is_required ?? false);
                 $fields[] = (object) [
                     'kind' => 'fixed',

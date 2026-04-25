@@ -16,11 +16,16 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
 <div class="form-group col-sm-4">
   @if ($item->kind === 'fixed')
   @php $spec = $item->spec; $req = !empty($spec['required']); @endphp
-  @if (($spec['type'] ?? 'text') === 'select')
+  @if (in_array(($spec['type'] ?? 'text'), ['select', 'dropdown'], true))
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
   @php
   $opts = [];
-  if (($spec['dropdown'] ?? '') === 'countries') {
+  if (!empty($spec['options_lines']) && is_array($spec['options_lines'])) {
+  $opts = ['' => 'Select'];
+  foreach ($spec['options_lines'] as $line) {
+  $opts[$line] = $line;
+  }
+  } elseif (($spec['dropdown'] ?? '') === 'countries') {
   $opts = \App\Models\Countries::list()->toArray();
   } elseif (($spec['dropdown'] ?? '') === 'vendors') {
   $opts = \App\Models\Vendors::dropdown();
@@ -38,6 +43,12 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   }
   @endphp
   {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select', 'placeholder' => 'Select ' . $item->label, 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null] + ($req ? ['required' => true] : [])) !!}
+  <button type="button"
+    class="btn btn-link btn-sm p-0 mt-1 js-add-dropdown-option"
+    data-field-key="{{ $item->field_key }}"
+    data-label="{{ $item->label }}">
+    + Add Option
+  </button>
   @if ($item->field_key === 'rider_id')
   <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
   @endif
@@ -90,6 +101,12 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   }
   @endphp
   {!! Form::select($name, $dd, $value, ['class' => 'form-select', 'placeholder' => 'Select'] + ($req ? ['required' => true] : [])) !!}
+  <button type="button"
+    class="btn btn-link btn-sm p-0 mt-1 js-add-dropdown-option"
+    data-custom-field-id="{{ $f->id }}"
+    data-label="{{ $f->label }}">
+    + Add Option
+  </button>
   @break
   @case('checkbox')
   <div class="form-check mt-2">

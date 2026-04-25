@@ -57,6 +57,11 @@ class RiderSettingsController extends Controller
         return $this->riderCategoryQuery()->where('id', $id)->firstOrFail();
     }
 
+    protected function scopedCategoryIds(): array
+    {
+        return $this->riderCategoryQuery()->pluck('id')->map(fn($id) => (int) $id)->all();
+    }
+
     /**
      * Rider Settings: categories, fixed rider fields + rider custom fields, organized by category.
      */
@@ -294,7 +299,7 @@ class RiderSettingsController extends Controller
     {
         $validated = $request->validate([
             'field_key' => 'required|string|max:80',
-            'category_id' => 'required|integer|exists:rider_categories,id',
+            'category_id' => ['required', 'integer', Rule::in($this->scopedCategoryIds())],
             'display_label' => 'nullable|string|max:255',
             'input_type' => 'nullable|string|max:50',
             'config' => 'nullable|array',
@@ -506,7 +511,7 @@ class RiderSettingsController extends Controller
     {
         $payload = $request->isJson() ? $request->json()->all() : $request->all();
         $validated = validator($payload, [
-            'category_id' => 'required|integer|exists:rider_categories,id',
+            'category_id' => ['required', 'integer', Rule::in($this->scopedCategoryIds())],
             'order' => 'required|array',
             'order.*' => 'string|max:80',
         ])->validate();
@@ -646,7 +651,7 @@ class RiderSettingsController extends Controller
             'default_value' => 'nullable|string|max:500',
             'input_format' => 'nullable|string|max:100',
             'config' => 'nullable',
-            'category_id' => 'nullable|integer|exists:rider_categories,id',
+            'category_id' => ['nullable', 'integer', Rule::in($this->scopedCategoryIds())],
         ]);
 
         $validated['is_mandatory'] = $request->boolean('is_mandatory');
@@ -679,7 +684,7 @@ class RiderSettingsController extends Controller
     public function assignCustomFieldCategory(Request $request, $company_slug, $id)
     {
         $validated = $request->validate([
-            'category_id' => 'required|integer|exists:rider_categories,id',
+            'category_id' => ['required', 'integer', Rule::in($this->scopedCategoryIds())],
         ]);
 
         $field = RiderCustomField::findOrFail($id);
@@ -712,7 +717,7 @@ class RiderSettingsController extends Controller
             'default_value' => 'nullable|string|max:500',
             'input_format' => 'nullable|string|max:100',
             'config' => 'nullable',
-            'category_id' => 'required|integer|exists:rider_categories,id',
+            'category_id' => ['required', 'integer', Rule::in($this->scopedCategoryIds())],
         ]);
 
         $field->label = $validated['label'];
@@ -766,7 +771,7 @@ class RiderSettingsController extends Controller
         $validated = validator($payload, [
             'order' => 'required|array',
             'order.*' => 'integer|exists:rider_custom_fields,id',
-            'category_id' => 'nullable|integer|exists:rider_categories,id',
+            'category_id' => ['nullable', 'integer', Rule::in($this->scopedCategoryIds())],
         ])->validate();
 
         $order = $validated['order'];

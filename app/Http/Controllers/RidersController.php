@@ -19,6 +19,7 @@ use App\Http\Requests\CreateAccountsRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Accounts;
 use App\Models\RiderEmails;
+use App\Models\RiderCategory;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\RiderItemPrice;
 use App\Models\JobStatus;
@@ -3085,6 +3086,88 @@ class RidersController extends AppBaseController
         ]
       ], 500);
     }
+  }
+
+  public function storeDropdownOption($company_slug, Request $request)
+  {
+    $validated = $request->validate([
+      'option_value' => 'required|string|max:255',
+      'field_key' => 'nullable|string|max:80',
+      'custom_field_id' => 'nullable|integer|exists:rider_custom_fields,id',
+    ]);
+
+    $optionValue = trim((string) $validated['option_value']);
+    if ($optionValue === '') {
+      return response()->json(['success' => false, 'message' => 'Option value is required.'], 422);
+    }
+
+    if (empty($validated['field_key']) && empty($validated['custom_field_id'])) {
+      return response()->json(['success' => false, 'message' => 'Field target is required.'], 422);
+    }
+
+    $companyId = auth()->user()->company_id ?? null;
+
+    if (!empty($validated['field_key'])) {
+      $assignment = RiderFieldCategoryAssignment::where('field_key', $validated['field_key'])->first();
+      if (!$assignment) {
+        return response()->json(['success' => false, 'message' => 'Field assignment not found.'], 404);
+      }
+
+      if (Schema::hasColumn('rider_categories', 'company_id') && $companyId) {
+        $category = RiderCategory::where('id', $assignment->category_id)
+          ->where(function ($q) use ($companyId) {
+            $q->where('company_id', $companyId)->orWhereNull('company_id');
+          })
+          ->first();
+        if (!$category) {
+          return response()->json(['success' => false, 'message' => 'Field is outside your company scope.'], 403);
+        }
+      }
+
+      $config = is_array($assignment->input_config) ? $assignment->input_config : [];
+      $raw = $config['options'] ?? '';
+      $lines = is_array($raw) ? $raw : preg_split('/\r\n|\r|\n/', (string) $raw);
+      $lines = array_values(array_filter(array_map(fn($v) => trim((string) $v), $lines), fn($v) => $v !== ''));
+      $exists = collect($lines)->contains(fn($v) => mb_strtolower($v) === mb_strtolower($optionValue));
+      if (!$exists) {
+        $lines[] = $optionValue;
+      }
+      $config['options'] = implode("\n", $lines);
+      $assignment->input_type = $assignment->input_type ?: 'dropdown';
+      $assignment->input_config = $config;
+      $assignment->save();
+
+      return response()->json(['success' => true, 'message' => 'Option added successfully.']);
+    }
+
+    $field = RiderCustomField::findOrFail((int) $validated['custom_field_id']);
+    if (Schema::hasColumn('rider_categories', 'company_id') && $companyId && $field->category_id) {
+      $category = RiderCategory::where('id', $field->category_id)
+        ->where(function ($q) use ($companyId) {
+          $q->where('company_id', $companyId)->orWhereNull('company_id');
+        })
+        ->first();
+      if (!$category) {
+        return response()->json(['success' => false, 'message' => 'Custom field is outside your company scope.'], 403);
+      }
+    }
+
+    $config = is_array($field->config) ? $field->config : [];
+    $raw = $config['options'] ?? '';
+    $lines = is_array($raw) ? $raw : preg_split('/\r\n|\r|\n/', (string) $raw);
+    $lines = array_values(array_filter(array_map(fn($v) => trim((string) $v), $lines), fn($v) => $v !== ''));
+    $exists = collect($lines)->contains(fn($v) => mb_strtolower($v) === mb_strtolower($optionValue));
+    if (!$exists) {
+      $lines[] = $optionValue;
+    }
+    $config['options'] = implode("\n", $lines);
+    $field->config = $config;
+    if (!$field->data_type) {
+      $field->data_type = 'dropdown';
+    }
+    $field->save();
+
+    return response()->json(['success' => true, 'message' => 'Option added successfully.']);
   }
 
   /**

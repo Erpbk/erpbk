@@ -1387,7 +1387,7 @@
 .slider-track {
   display: flex;
   gap: 16px;
-  transition: none;
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
   width: fit-content;
   transform: translateX(0);
   will-change: transform;
@@ -1472,16 +1472,6 @@
   transform: translateY(-8px);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
   background: #fff;
-}
-
-/* Continuous ticker mode for rider top options */
-.fleet-supervisor-slider-container.ticker-mode .slider-controls,
-.fleet-supervisor-slider-container.ticker-mode .slider-indicators {
-  display: none !important;
-}
-
-.fleet-supervisor-slider-container.ticker-mode .fleet-supervisor-cards {
-  overflow: visible;
 }
 
 .fleet-supervisor-card.active {

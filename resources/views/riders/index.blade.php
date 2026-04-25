@@ -846,45 +846,83 @@ $tableColumns = $columns;
 
     function initFleetSupervisorSlider() {
         const sliderTrack = document.getElementById('sliderTrack');
-        if (!sliderTrack || sliderTrack.dataset.tickerInit === '1') return;
+        if (!sliderTrack || sliderTrack.dataset.sliderInit === '1') return;
 
         const cards = Array.from(sliderTrack.querySelectorAll('.fleet-supervisor-card'));
         if (!cards.length) return;
 
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const indicatorsWrap = document.getElementById('sliderIndicators');
         const container = sliderTrack.closest('.fleet-supervisor-slider-container');
-        if (container) container.classList.add('ticker-mode');
 
-        // Duplicate cards once so ticker appears continuous.
-        cards.forEach(function(card) {
-            const clone = card.cloneNode(true);
-            clone.classList.add('ticker-clone');
-            sliderTrack.appendChild(clone);
-        });
+        sliderTrack.dataset.sliderInit = '1';
 
-        sliderTrack.dataset.tickerInit = '1';
-        let translateX = 0;
-        let rafId = null;
-        const speedPxPerSecond = 42; // ad-banner like smooth run
-        const firstSetWidth = cards.reduce(function(total, card) {
-            return total + card.offsetWidth;
-        }, 0) + ((cards.length - 1) * 16);
-        let lastTs = null;
+        let currentIndex = Math.max(0, cards.findIndex(function(card) {
+            return card.classList.contains('filtered') || card.classList.contains('active');
+        }));
 
-        function tick(ts) {
-            if (lastTs === null) lastTs = ts;
-            const dt = (ts - lastTs) / 1000;
-            lastTs = ts;
-
-            // Right-to-left continuous movement.
-            translateX -= (speedPxPerSecond * dt);
-            if (Math.abs(translateX) >= firstSetWidth) {
-                translateX = 0;
-            }
-            sliderTrack.style.transform = 'translateX(' + translateX + 'px)';
-            rafId = window.requestAnimationFrame(tick);
+        function clampIndex(index) {
+            if (index < 0) return cards.length - 1;
+            if (index >= cards.length) return 0;
+            return index;
         }
 
-        rafId = window.requestAnimationFrame(tick);
+        function renderIndicators() {
+            if (!indicatorsWrap) return;
+            indicatorsWrap.innerHTML = '';
+            cards.forEach(function(_, idx) {
+                const dot = document.createElement('button');
+                dot.type = 'button';
+                dot.className = 'slider-indicator' + (idx === currentIndex ? ' active' : '');
+                dot.setAttribute('aria-label', 'Go to slide ' + (idx + 1));
+                dot.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    goToSlide(idx);
+                });
+                indicatorsWrap.appendChild(dot);
+            });
+        }
+
+        function goToSlide(index) {
+            currentIndex = clampIndex(index);
+            const targetCard = cards[currentIndex];
+            if (!targetCard) return;
+
+            // Move track so selected card enters from right and exits to left.
+            sliderTrack.style.transform = 'translateX(' + (-targetCard.offsetLeft) + 'px)';
+            renderIndicators();
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                goToSlide(currentIndex - 1);
+            });
+        }
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                goToSlide(currentIndex + 1);
+            });
+        }
+
+        if (container) {
+            container.addEventListener('mouseenter', function() {
+                container.dataset.pauseAuto = '1';
+            });
+            container.addEventListener('mouseleave', function() {
+                container.dataset.pauseAuto = '0';
+            });
+        }
+
+        setInterval(function() {
+            if (container && container.dataset.pauseAuto === '1') return;
+            goToSlide(currentIndex + 1);
+        }, 3500);
+
+        renderIndicators();
+        goToSlide(currentIndex);
     }
 
     // Initialize slider when DOM is loaded

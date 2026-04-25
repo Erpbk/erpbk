@@ -420,33 +420,6 @@ class RiderCustomField extends BaseModel
             ->orderBy('id')
             ->get();
         $specs = self::fixedFieldInputSpecs();
-        $categoryBySlug = [];
-        foreach ($categories as $catForSlug) {
-            if (!empty($catForSlug->slug)) {
-                $categoryBySlug[$catForSlug->slug] = (int) $catForSlug->id;
-            }
-        }
-        $latestCustomCategoryId = (int) ($categories->where('is_system', false)->sortByDesc('id')->first()?->id ?? 0);
-        $defaultOtherCategoryId = $latestCustomCategoryId > 0
-            ? $latestCustomCategoryId
-            : ($categoryBySlug['other'] ?? (int) ($categories->first()?->id ?? 0));
-        $assignedAllKeys = array_flip($assignmentsAll->pluck('field_key')->all());
-        $fallbackFieldsByCategory = [];
-        foreach (self::allFixedFieldKeys() as $fieldKey) {
-            if (isset($assignedAllKeys[$fieldKey])) {
-                continue;
-            }
-            if (in_array($fieldKey, self::removedRiderColumns(), true) || !isset($riderColumns[$fieldKey])) {
-                continue;
-            }
-            // Show all unassigned DB fields in one category first
-            // (latest custom category if available, otherwise "Other"),
-            // then let users move them by changing category_id from settings.
-            $targetCategoryId = $defaultOtherCategoryId;
-            if ($targetCategoryId > 0) {
-                $fallbackFieldsByCategory[$targetCategoryId][] = $fieldKey;
-            }
-        }
 
         $result = [];
         foreach ($categories as $cat) {
@@ -469,18 +442,6 @@ class RiderCustomField extends BaseModel
                     'label' => $label,
                     'spec' => $spec,
                     'is_required' => (bool) ($a->is_required ?? false),
-                ];
-            }
-            foreach ($fallbackFieldsByCategory[(int) $cat->id] ?? [] as $fieldKey) {
-                $label = self::humanizeFieldKey($fieldKey);
-                $spec = $specs[$fieldKey] ?? ['type' => 'text'];
-                $spec['required'] = false;
-                $fields[] = (object) [
-                    'kind' => 'fixed',
-                    'field_key' => $fieldKey,
-                    'label' => $label,
-                    'spec' => $spec,
-                    'is_required' => false,
                 ];
             }
             foreach ($customFieldsAll->where('category_id', $cat->id)->values() as $cf) {

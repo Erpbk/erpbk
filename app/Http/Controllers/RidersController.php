@@ -187,7 +187,13 @@ class RidersController extends AppBaseController
     if ($ignoreRiderId !== null) {
       $rules['rider_id'] = ['required', Rule::unique('riders', 'rider_id')->ignore($ignoreRiderId)];
       $rules['name'] = ['required', 'string', 'max:191', Rule::unique('riders', 'name')->ignore($ignoreRiderId)];
-      $rules['passport'] = ['required', 'string', 'max:191', Rule::unique('riders', 'passport')->ignore($ignoreRiderId)];
+      $passportRule = $rules['passport'] ?? 'nullable|string|max:191';
+      $passportTokens = is_array($passportRule) ? $passportRule : explode('|', (string) $passportRule);
+      $passportTokens = array_values(array_filter($passportTokens, function ($token) {
+        return !(is_string($token) && str_starts_with($token, 'unique:'));
+      }));
+      $passportTokens[] = Rule::unique('riders', 'passport')->ignore($ignoreRiderId);
+      $rules['passport'] = $passportTokens;
     }
 
     return array_merge($rules, $this->dynamicFieldRules());

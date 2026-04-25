@@ -508,14 +508,6 @@ $tableColumns = $columns;
             if (dropdown.hasClass('show')) {
                 dropdown.removeClass('show');
                 btn.removeClass('open');
-                // Reset inline styles when closing
-                dropdown.css({
-                    position: '',
-                    top: '',
-                    left: '',
-                    right: '',
-                    width: ''
-                });
             } else {
                 // Close other dropdowns
                 $('.action-dropdown-menu').removeClass('show');
@@ -523,23 +515,6 @@ $tableColumns = $columns;
                 // Show this dropdown
                 dropdown.addClass('show');
                 btn.addClass('open');
-
-                // Reposition menu to be outside containers (viewport-level)
-                const rect = btn[0].getBoundingClientRect();
-                const menuWidth = Math.max(260, dropdown.outerWidth());
-                const viewportWidth = window.innerWidth;
-                const left = Math.min(rect.right - menuWidth, viewportWidth - menuWidth - 12);
-                const top = rect.bottom + 8;
-
-                // Use fixed positioning to escape any overflow:hidden ancestors
-                dropdown.css({
-                    position: 'fixed',
-                    top: `${top}px`,
-                    left: `${Math.max(12, left)}px`,
-                    right: '',
-                    width: `${menuWidth}px`,
-                    'z-index': 3000
-                });
             }
         });
 
@@ -561,13 +536,7 @@ $tableColumns = $columns;
         $(window).on('scroll resize', function() {
             const dropdown = $('#addRiderDropdown');
             if (dropdown.hasClass('show')) {
-                dropdown.removeClass('show').css({
-                    position: '',
-                    top: '',
-                    left: '',
-                    right: '',
-                    width: ''
-                });
+                dropdown.removeClass('show');
                 $('#addRiderDropdownBtn').removeClass('open');
             }
         });
@@ -850,11 +819,14 @@ $tableColumns = $columns;
 
             /* Fix Add Rider dropdown positioning in header */
             .fleet-supervisor-header-right { position: relative; overflow: visible; }
-            .action-dropdown-container { position: static; }
+            .action-dropdown-container { position: relative; display: inline-block; }
             .action-dropdown-btn { display: inline-flex; align-items: center; gap: 8px; }
             .action-dropdown-menu {
-                position: fixed; /* switched to fixed in JS when opened */
+                position: absolute;
+                top: calc(100% + 8px);
+                right: 0;
                 min-width: 260px;
+                max-width: 320px;
                 background: #ffffff;
                 border: 1px solid #e5e7eb;
                 border-radius: 8px;

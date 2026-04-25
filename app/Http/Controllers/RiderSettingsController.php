@@ -452,13 +452,6 @@ class RiderSettingsController extends Controller
     {
         $category = RiderCategory::findOrFail($id);
         $request = request();
-        if ($category->is_system) {
-            if ($request->wantsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'System categories cannot be deleted.'], 422);
-            }
-            return redirect()->route('settings-panel.rider-settings.index')
-                ->with('error', 'System categories cannot be deleted.');
-        }
 
         $hasCustomFields = $category->customFields()->exists();
         $hasFixedFields = RiderFieldCategoryAssignment::where('category_id', $category->id)->exists();

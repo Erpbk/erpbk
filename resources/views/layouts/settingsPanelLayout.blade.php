@@ -312,6 +312,55 @@ $containerNav = 'container-fluid';
 
       <div class="content-wrapper">
         <div class="container-fluid flex-grow-1 container-p-y">
+          @php
+          $settingsPanelAlerts = [];
+          if (session('success')) {
+          $settingsPanelAlerts[] = ['icon' => 'success', 'title' => 'Success', 'text' => session('success')];
+          }
+          if (session('error')) {
+          $settingsPanelAlerts[] = ['icon' => 'error', 'title' => 'Error', 'text' => session('error')];
+          }
+          if (session('warning')) {
+          $settingsPanelAlerts[] = ['icon' => 'warning', 'title' => 'Warning', 'text' => session('warning')];
+          }
+          if (session('info')) {
+          $settingsPanelAlerts[] = ['icon' => 'info', 'title' => 'Info', 'text' => session('info')];
+          }
+          if ($errors->any()) {
+          $settingsPanelAlerts[] = ['icon' => 'error', 'title' => 'Validation Error', 'text' => $errors->first()];
+          }
+          @endphp
+          @if(!empty($settingsPanelAlerts))
+          <div id="settings-panel-alert-data" data-alerts='@json($settingsPanelAlerts)' hidden></div>
+          <script>
+            document.addEventListener('DOMContentLoaded', function() {
+              var alerts = [];
+              var alertDataEl = document.getElementById('settings-panel-alert-data');
+              if (alertDataEl) {
+                try {
+                  alerts = JSON.parse(alertDataEl.getAttribute('data-alerts') || '[]');
+                } catch (e) {
+                  alerts = [];
+                }
+              }
+
+              alerts.forEach(function(item) {
+                if (typeof Swal !== 'undefined') {
+                  Swal.fire({
+                    icon: item.icon,
+                    title: item.title,
+                    text: item.text
+                  });
+                } else if (typeof toastr !== 'undefined') {
+                  var fn = toastr[item.icon] || toastr.info;
+                  fn(item.text);
+                } else {
+                  alert(item.text);
+                }
+              });
+            });
+          </script>
+          @endif
           @yield('content')
         </div>
         <div class="content-backdrop fade"></div>

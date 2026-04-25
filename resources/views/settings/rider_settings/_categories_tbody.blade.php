@@ -40,9 +40,6 @@
         </button>
       </form>
     </div>
-    @if($category->is_system)
-    <span class="text-muted small ms-1">(system)</span>
-    @endif
   </td>
 </tr>
 @empty

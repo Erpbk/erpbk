@@ -11,8 +11,10 @@ $companySlug = request()->route('company_slug');
         </a>
         @endcan
         @can('email_create')
-        <a href="javascript:void();" data-action="{{ route('rider.sendemail', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" data-size="md"
-            data-title="{{$result['name'] . ' (' . $result['rider_id'] }}')" class="btn btn-outline-warning btn-sm text-nowrap">
+        <a href="javascript:void(0);" data-action="{{ route('rider.sendemail', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" data-size="md"
+            data-title="{{ $result['name'] . ' (' . $result['rider_id'] . ')' }}"
+            onclick="event.preventDefault(); event.stopPropagation();"
+            class="btn btn-outline-warning btn-sm show-modal text-nowrap">
             <i class="fas fa-envelope"></i>&nbsp;Send Email
         </a>
         @endcan

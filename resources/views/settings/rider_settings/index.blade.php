@@ -208,9 +208,9 @@
             </div>
           </div>
 
-          {{-- Tab 4: Rider Fields (single static list) --}}
+          {{-- Tab 4: Rider Fields (all-fields + category tabs) --}}
           <div class="tab-pane fade" id="tab-rider-fields" role="tabpanel">
-            <p class="text-muted small mb-3">All rider table fields are listed in one place. Use "Move to category" to assign each field to its target category.</p>
+            <p class="text-muted small mb-3">Use the static <b>All Fields</b> tab to assign fields. Category tabs show assigned fields category-wise.</p>
             @php
             $allFixedRows = collect($fieldsByCategory)->flatMap(function ($group) {
             return collect($group->fields)->map(function ($row) use ($group) {
@@ -218,78 +218,171 @@
             });
             });
             @endphp
-            <div class="table-responsive">
-              <table class="table table-hover rider-settings-table mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>#</th>
-                    <th>Field</th>
-                    <th>Current category</th>
-                    <th class="text-center">Required</th>
-                    <th class="text-center">Show in rider form</th>
-                    <th>Move to category</th>
-                    <th class="text-end" style="width: 120px;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="rider-fields-tbody-all">
-                  @forelse($allFixedRows as $rowIndex => $entry)
-                  @php
-                  $group = $entry->group;
-                  $row = $entry->row;
-                  @endphp
-                  <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
-                    <td class="align-middle">{{ $rowIndex + 1 }}</td>
-                    <td class="align-middle">
-                      <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
-                      <span class="text-muted ms-1">({{ $row->field_key }})</span>
-                    </td>
-                    <td class="align-middle">
-                      <span class="badge bg-label-info">{{ $group->category->label }}</span>
-                    </td>
-                    <td class="align-middle text-center">
-                      <div class="form-check form-switch d-inline-block mb-0">
-                        <input type="checkbox" class="form-check-input rider-field-required-toggle" id="req-all-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_required ?? false) ? 'checked' : '' }} title="Require this field in rider add/edit forms">
-                        <label class="form-check-label visually-hidden" for="req-all-{{ $row->field_key }}">Mark as required</label>
-                      </div>
-                    </td>
-                    <td class="align-middle text-center">
-                      <div class="form-check form-switch d-inline-block mb-0">
-                        <input type="checkbox" class="form-check-input rider-field-visibility-toggle" id="vis-all-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_visible ?? true) ? 'checked' : '' }} title="Hide from Rider Add/Edit/View when unchecked">
-                        <label class="form-check-label visually-hidden" for="vis-all-{{ $row->field_key }}">Show in rider form</label>
-                      </div>
-                    </td>
-                    <td class="align-middle">
-                      <form action="{{ route('settings-panel.rider-settings.update-field-assignment') }}" method="POST" class="d-flex justify-content-center rider-field-assignment-form">
-                        @csrf
-                        <input type="hidden" name="field_key" value="{{ $row->field_key }}">
-                        <select name="category_id" class="form-select form-select-sm" style="width: auto; min-width: 160px;">
-                          @foreach($categories as $c)
-                          <option value="{{ $c->id }}" {{ (int)$group->category->id === (int)$c->id ? 'selected' : '' }}>{{ $c->label }}</option>
-                          @endforeach
-                        </select>
-                        <button type="submit" class="btn btn-sm btn-outline-primary ms-1">Move</button>
-                      </form>
-                    </td>
-                    <td class="align-middle text-end">
-                      <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-fixed-field"
-                        data-field-key="{{ $row->field_key }}"
-                        data-field-label="{{ $row->label }}"
-                        data-category-id="{{ $group->category->id }}"
-                        data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
-                        data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}"
-                        data-input-type="{{ $row->input_type ?? 'text' }}"
-                        data-input-config='@json($row->input_config ?? [])'>
-                        <i class="ti ti-pencil"></i>
-                      </button>
-                    </td>
-                  </tr>
-                  @empty
-                  <tr>
-                    <td colspan="7" class="text-center text-muted py-3">No rider fields found.</td>
-                  </tr>
-                  @endforelse
-                </tbody>
-              </table>
+            <ul class="nav nav-tabs nav-tabs-rider-fields mb-3" id="riderFieldsCategoryTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="rider-fields-all-tab" data-bs-toggle="tab" data-bs-target="#rider-fields-all-pane" type="button" role="tab">
+                  All Fields
+                  <span class="badge bg-label-primary ms-1">{{ $allFixedRows->count() }}</span>
+                </button>
+              </li>
+              @foreach($fieldsByCategory as $idx => $group)
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="rider-cat-{{ $group->category->id }}-tab" data-bs-toggle="tab" data-bs-target="#rider-field-cat-{{ $group->category->id }}" type="button" role="tab">
+                  {{ $group->category->label }}
+                  <span class="badge bg-label-info ms-1 rider-cat-badge-custom">{{ count($group->fields) }}</span>
+                </button>
+              </li>
+              @endforeach
+            </ul>
+
+            <div class="tab-content" id="riderFieldsCategoryTabContent">
+              <div class="tab-pane fade show active" id="rider-fields-all-pane" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-hover rider-settings-table mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>#</th>
+                        <th>Field</th>
+                        <th>Current category</th>
+                        <th class="text-center">Required</th>
+                        <th class="text-center">Show in rider form</th>
+                        <th>Move to category</th>
+                        <th class="text-end" style="width: 120px;">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rider-fields-tbody-all">
+                      @forelse($allFixedRows as $rowIndex => $entry)
+                      @php
+                      $group = $entry->group;
+                      $row = $entry->row;
+                      @endphp
+                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
+                        <td class="align-middle">{{ $rowIndex + 1 }}</td>
+                        <td class="align-middle">
+                          <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
+                          <span class="text-muted ms-1">({{ $row->field_key }})</span>
+                        </td>
+                        <td class="align-middle">
+                          <span class="badge bg-label-info">{{ $group->category->label }}</span>
+                        </td>
+                        <td class="align-middle text-center">
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox" class="form-check-input rider-field-required-toggle" id="req-all-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_required ?? false) ? 'checked' : '' }} title="Require this field in rider add/edit forms">
+                            <label class="form-check-label visually-hidden" for="req-all-{{ $row->field_key }}">Mark as required</label>
+                          </div>
+                        </td>
+                        <td class="align-middle text-center">
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox" class="form-check-input rider-field-visibility-toggle" id="vis-all-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_visible ?? true) ? 'checked' : '' }} title="Hide from Rider Add/Edit/View when unchecked">
+                            <label class="form-check-label visually-hidden" for="vis-all-{{ $row->field_key }}">Show in rider form</label>
+                          </div>
+                        </td>
+                        <td class="align-middle">
+                          <form action="{{ route('settings-panel.rider-settings.update-field-assignment') }}" method="POST" class="d-flex justify-content-center rider-field-assignment-form">
+                            @csrf
+                            <input type="hidden" name="field_key" value="{{ $row->field_key }}">
+                            <select name="category_id" class="form-select form-select-sm" style="width: auto; min-width: 160px;">
+                              @foreach($categories as $c)
+                              <option value="{{ $c->id }}" {{ (int)$group->category->id === (int)$c->id ? 'selected' : '' }}>{{ $c->label }}</option>
+                              @endforeach
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary ms-1">Move</button>
+                          </form>
+                        </td>
+                        <td class="align-middle text-end">
+                          <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-fixed-field"
+                            data-field-key="{{ $row->field_key }}"
+                            data-field-label="{{ $row->label }}"
+                            data-category-id="{{ $group->category->id }}"
+                            data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
+                            data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}"
+                            data-input-type="{{ $row->input_type ?? 'text' }}"
+                            data-input-config='@json($row->input_config ?? [])'>
+                            <i class="ti ti-pencil"></i>
+                          </button>
+                        </td>
+                      </tr>
+                      @empty
+                      <tr>
+                        <td colspan="7" class="text-center text-muted py-3">No rider fields found.</td>
+                      </tr>
+                      @endforelse
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              @foreach($fieldsByCategory as $idx => $group)
+              <div class="tab-pane fade" id="rider-field-cat-{{ $group->category->id }}" role="tabpanel" data-category-id="{{ $group->category->id }}">
+                <div class="table-responsive">
+                  <table class="table table-hover rider-settings-table mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width: 36px;"></th>
+                        <th>#</th>
+                        <th>Field</th>
+                        <th class="text-center">Required</th>
+                        <th class="text-center">Show in rider form</th>
+                        <th>Move to category</th>
+                        <th class="text-end" style="width: 120px;">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rider-fields-tbody-{{ $group->category->id }}" class="rider-fields-sortable-tbody">
+                      @forelse($group->fields as $rowIndex => $row)
+                      <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
+                        <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
+                        <td class="align-middle rider-field-index">{{ $rowIndex + 1 }}</td>
+                        <td class="align-middle">
+                          <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
+                          <span class="text-muted ms-1">({{ $row->field_key }})</span>
+                        </td>
+                        <td class="align-middle text-center">
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox" class="form-check-input rider-field-required-toggle" id="req-{{ $group->category->id }}-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_required ?? false) ? 'checked' : '' }}>
+                            <label class="form-check-label visually-hidden" for="req-{{ $group->category->id }}-{{ $row->field_key }}">Mark as required</label>
+                          </div>
+                        </td>
+                        <td class="align-middle text-center">
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox" class="form-check-input rider-field-visibility-toggle" id="vis-{{ $group->category->id }}-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_visible ?? true) ? 'checked' : '' }}>
+                            <label class="form-check-label visually-hidden" for="vis-{{ $group->category->id }}-{{ $row->field_key }}">Show in rider form</label>
+                          </div>
+                        </td>
+                        <td class="align-middle">
+                          <form action="{{ route('settings-panel.rider-settings.update-field-assignment') }}" method="POST" class="d-flex justify-content-center rider-field-assignment-form">
+                            @csrf
+                            <input type="hidden" name="field_key" value="{{ $row->field_key }}">
+                            <select name="category_id" class="form-select form-select-sm" style="width: auto; min-width: 160px;">
+                              @foreach($categories as $c)
+                              <option value="{{ $c->id }}" {{ (int)$group->category->id === (int)$c->id ? 'selected' : '' }}>{{ $c->label }}</option>
+                              @endforeach
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary ms-1">Move</button>
+                          </form>
+                        </td>
+                        <td class="align-middle text-end">
+                          <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-fixed-field"
+                            data-field-key="{{ $row->field_key }}"
+                            data-field-label="{{ $row->label }}"
+                            data-category-id="{{ $group->category->id }}"
+                            data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
+                            data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}"
+                            data-input-type="{{ $row->input_type ?? 'text' }}"
+                            data-input-config='@json($row->input_config ?? [])'>
+                            <i class="ti ti-pencil"></i>
+                          </button>
+                        </td>
+                      </tr>
+                      @empty
+                      <tr>
+                        <td colspan="7" class="text-center text-muted py-3">No fields in this category.</td>
+                      </tr>
+                      @endforelse
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              @endforeach
             </div>
           </div>
         </div>

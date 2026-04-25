@@ -16,13 +16,13 @@ use App\Helpers\Common;
 use App\Helpers\General;
 use App\Helpers\HeadAccount;
 use App\Http\Requests\CreateAccountsRequest;
-use App\Http\Requests\CreateRidersRequest;
-use App\Http\Requests\UpdateRidersRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Accounts;
 use App\Models\RiderEmails;
+use App\Models\RiderFieldCategoryAssignment;
 use App\Models\RiderItemPrice;
 use App\Models\JobStatus;
+use App\Models\RiderCustomField;
 use App\Models\Riders;
 use App\Models\Files;
 use App\Models\Transactions;
@@ -44,6 +44,7 @@ use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Flash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -77,6 +78,88 @@ class RidersController extends AppBaseController
     }
     // Fallback to current month start
     return date('Y-m-01');
+  }
+
+  /**
+   * Build validation rules for dynamic rider fields based on settings.
+   */
+  private function dynamicFieldRules(): array
+  {
+    $rules = [];
+    $riderColumns = array_flip(Schema::getColumnListing('riders'));
+
+    RiderFieldCategoryAssignment::query()
+      ->where(function ($q) {
+        $q->where('is_visible', 1)->orWhereNull('is_visible');
+      })
+      ->where(function ($q) {
+        $q->where('is_required', 1);
+      })
+      ->get(['field_key'])
+      ->each(function ($assignment) use (&$rules, $riderColumns) {
+        $fieldKey = (string) $assignment->field_key;
+        if (!isset($riderColumns[$fieldKey])) {
+          return;
+        }
+        // Honor settings-required fields while allowing existing base rules to remain.
+        $rules[$fieldKey] = 'required';
+      });
+
+    RiderCustomField::query()
+      ->where('is_mandatory', 1)
+      ->get(['id'])
+      ->each(function ($field) use (&$rules) {
+        $rules['custom_field_values.' . $field->id] = 'required';
+      });
+
+    return $rules;
+  }
+
+  /**
+   * Build rider create/update validation rules from settings + rider table columns.
+   */
+  private function riderValidationRules(?int $ignoreRiderId = null): array
+  {
+    $rules = Riders::$rules;
+    $riderColumns = array_flip(Schema::getColumnListing('riders'));
+
+    $normalizePresenceRule = function ($rule, bool $required) {
+      if (is_array($rule)) {
+        $tokens = array_values(array_filter($rule, function ($item) {
+          return !is_string($item) || ($item !== 'required' && $item !== 'nullable');
+        }));
+        array_unshift($tokens, $required ? 'required' : 'nullable');
+        return $tokens;
+      }
+
+      $tokens = array_values(array_filter(explode('|', (string) $rule), function ($item) {
+        return $item !== '' && $item !== 'required' && $item !== 'nullable';
+      }));
+      array_unshift($tokens, $required ? 'required' : 'nullable');
+      return implode('|', $tokens);
+    };
+
+    $assignments = RiderFieldCategoryAssignment::query()
+      ->get(['field_key', 'is_required', 'is_visible']);
+
+    foreach ($assignments as $assignment) {
+      $fieldKey = (string) $assignment->field_key;
+      if (!isset($riderColumns[$fieldKey])) {
+        continue;
+      }
+      $isVisible = $assignment->is_visible === null ? true : (bool) $assignment->is_visible;
+      $isRequired = (bool) $assignment->is_required;
+      $baseRule = $rules[$fieldKey] ?? 'nullable';
+      $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
+    }
+
+    if ($ignoreRiderId !== null) {
+      $rules['rider_id'] = ['required', Rule::unique('riders', 'rider_id')->ignore($ignoreRiderId)];
+      $rules['name'] = ['required', 'string', 'max:191', Rule::unique('riders', 'name')->ignore($ignoreRiderId)];
+      $rules['passport'] = ['required', 'string', 'max:191', Rule::unique('riders', 'passport')->ignore($ignoreRiderId)];
+    }
+
+    return array_merge($rules, $this->dynamicFieldRules());
   }
 
   public function __construct(RidersRepository $ridersRepo)
@@ -379,10 +462,11 @@ class RidersController extends AppBaseController
   /**
    * Store a newly created Riders in storage.
    */
-  public function store(CreateRidersRequest $request)
+  public function store(Request $request)
   {
     try {
       DB::beginTransaction();
+      $request->validate($this->riderValidationRules());
 
       $input = $request->all();
       $items = $request->get('items');
@@ -534,6 +618,7 @@ class RidersController extends AppBaseController
    */
   public function update($company_slug, $id, Request $request)
   {
+    $request->validate($this->riderValidationRules((int) $id));
     $riders = Riders::find($id);
     // $items = $riders->items;
     $items = $request->get('items');

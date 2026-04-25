@@ -79,6 +79,7 @@ class RiderSettingsController extends Controller
      */
     protected function buildFieldsByCategory($categories)
     {
+        $riderColumns = array_flip(Schema::getColumnListing('riders'));
         $assignments = RiderFieldCategoryAssignment::with('category')
             ->orderBy('category_id')
             ->orderBy('display_order')
@@ -88,7 +89,10 @@ class RiderSettingsController extends Controller
         $result = [];
         foreach ($categories as $cat) {
             $fixedSpecs = RiderCustomField::fixedFieldInputSpecs();
-            $items = $grouped->get($cat->id, collect())->map(function ($a) use ($fixedSpecs) {
+            $items = $grouped->get($cat->id, collect())->map(function ($a) use ($fixedSpecs, $riderColumns) {
+                if (!isset($riderColumns[$a->field_key])) {
+                    return null;
+                }
                 $rawVisible = $a->getRawOriginal('is_visible');
                 $isVisible = $rawVisible === null ? true : (bool) (int) $rawVisible;
                 $rawRequired = $a->getRawOriginal('is_required');
@@ -108,7 +112,7 @@ class RiderSettingsController extends Controller
                     'input_type' => $a->input_type ?: $defaultType,
                     'input_config' => is_array($a->input_config) ? $a->input_config : [],
                 ];
-            })->values()->all();
+            })->filter()->values()->all();
             $result[] = (object) [
                 'category' => $cat,
                 'fields' => $items,

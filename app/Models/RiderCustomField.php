@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class RiderCustomField extends BaseModel
 {
@@ -158,31 +159,80 @@ class RiderCustomField extends BaseModel
     {
         $map = [
             'rider_info' => [
-                'branch_id', 'name', 'rider_id', 'courier_id', 'personal_contact', 'company_contact',
-                'personal_email', 'email', 'nationality', 'passport', 'passport_expiry', 'ethnicity', 'dob', 'image_name',
+                'branch_id',
+                'name',
+                'rider_id',
+                'courier_id',
+                'personal_contact',
+                'company_contact',
+                'personal_email',
+                'email',
+                'nationality',
+                'passport',
+                'passport_expiry',
+                'ethnicity',
+                'dob',
+                'image_name',
             ],
             'visa_info' => [
-                'emirate_hub', 'emirate_id', 'emirate_exp', 'visa_status', 'passport_handover', 'visa_sponsor',
-                'visa_occupation', 'license_no', 'license_expiry', 'road_permit', 'road_permit_expiry',
+                'emirate_hub',
+                'emirate_id',
+                'emirate_exp',
+                'visa_status',
+                'passport_handover',
+                'visa_sponsor',
+                'visa_occupation',
+                'license_no',
+                'license_expiry',
+                'road_permit',
+                'road_permit_expiry',
             ],
             'job_info' => [
-                'VID', 'account_id', 'salary_model', 'fleet_supervisor', 'rider_reference', 'DEPT', 'PID',
-                'job_status', 'customer_id', 'recruiter_id', 'recuriter', 'shift', 'attendance',
+                'VID',
+                'account_id',
+                'salary_model',
+                'fleet_supervisor',
+                'rider_reference',
+                'DEPT',
+                'PID',
+                'job_status',
+                'customer_id',
+                'recruiter_id',
+                'recuriter',
+                'shift',
+                'attendance',
             ],
             'labor_info' => [
-                'person_code', 'labor_card_number', 'labor_card_expiry', 'insurance', 'insurance_expiry',
-                'policy_no', 'wps', 'c3_card', 'contract',
+                'person_code',
+                'labor_card_number',
+                'labor_card_expiry',
+                'insurance',
+                'insurance_expiry',
+                'policy_no',
+                'wps',
+                'c3_card',
+                'contract',
             ],
             'additional_info' => [
-                'NFDID', 'cdm_deposit_id', 'mashreq_id', 'branded_plate_no', 'vaccine_status', 'absconder',
-                'flowup', 'l_license', 'TAID', 'noon_no', 'vat', 'other_details',
+                'NFDID',
+                'cdm_deposit_id',
+                'mashreq_id',
+                'branded_plate_no',
+                'vaccine_status',
+                'absconder',
+                'flowup',
+                'l_license',
+                'TAID',
+                'noon_no',
+                'vat',
+                'other_details',
             ],
             'other' => [],
         ];
 
         $removed = array_flip(self::removedRiderColumns());
         foreach ($map as $slug => $keys) {
-            $map[$slug] = array_values(array_filter($keys, fn ($k) => !isset($removed[$k])));
+            $map[$slug] = array_values(array_filter($keys, fn($k) => !isset($removed[$k])));
         }
 
         return $map;
@@ -326,6 +376,7 @@ class RiderCustomField extends BaseModel
     public static function fieldsByCategoryForForm(): array
     {
         $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $riderColumns = array_flip(Schema::getColumnListing('riders'));
         $assignmentsAll = RiderFieldCategoryAssignment::with('category')
             ->where(function ($q) {
                 $q->where('is_visible', '=', 1)->orWhereNull('is_visible');
@@ -346,15 +397,20 @@ class RiderCustomField extends BaseModel
                 if (in_array($a->field_key, self::removedRiderColumns(), true)) {
                     continue;
                 }
+                if (!isset($riderColumns[$a->field_key])) {
+                    continue;
+                }
                 $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
                     ? trim($a->display_label)
                     : self::humanizeFieldKey($a->field_key);
                 $spec = $specs[$a->field_key] ?? ['type' => 'text'];
+                $spec['required'] = (bool) ($a->is_required ?? false);
                 $fields[] = (object) [
                     'kind' => 'fixed',
                     'field_key' => $a->field_key,
                     'label' => $label,
                     'spec' => $spec,
+                    'is_required' => (bool) ($a->is_required ?? false),
                 ];
             }
             foreach ($customFieldsAll->where('category_id', $cat->id)->values() as $cf) {
@@ -371,4 +427,3 @@ class RiderCustomField extends BaseModel
         return $result;
     }
 }
-

@@ -2834,8 +2834,11 @@
         var sortable = new Sortable(tbody, {
           handle: '.drag-handle',
           draggable: 'tr[data-field-key]',
+          filter: 'input,select,textarea,button,a,label,.form-check-input,.form-check-label',
+          preventOnFilter: false,
           animation: 150,
           ghostClass: 'table-warning',
+          chosenClass: 'table-active',
           forceFallback: true,
           fallbackOnBody: true,
           fallbackTolerance: 3,
@@ -3061,6 +3064,12 @@
     document.getElementById('tab-rider-fields-btn') && document.getElementById('tab-rider-fields-btn').addEventListener('shown.bs.tab', function() {
       setTimeout(initRiderFieldSortables, 50);
       setTimeout(initRiderCustomFieldsSortables, 80);
+    });
+    document.querySelectorAll('#riderFieldsCategoryTabs [data-bs-toggle="tab"]').forEach(function(tabBtn) {
+      tabBtn.addEventListener('shown.bs.tab', function() {
+        setTimeout(initRiderFieldSortables, 40);
+        setTimeout(initRiderCustomFieldsSortables, 70);
+      });
     });
     if (document.getElementById('tab-rider-fields').classList.contains('show')) {
       setTimeout(initRiderFieldSortables, 100);

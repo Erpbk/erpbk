@@ -264,7 +264,7 @@ use Illuminate\Support\Facades\Schema;
 $filteredColumns = Schema::getColumnListing('riders');
 
 // Columns to exclude
-$exclude = ['id', 'email', 'created_at', 'updated_at', 'image_name', 'branch_id', 'company_id', 'account_id'];
+$exclude = ['id', 'email', 'created_at', 'updated_at', 'branch_id', 'company_id', 'account_id'];
 
 // Final filtered columns
 $dbColumns = array_diff($filteredColumns, $exclude);

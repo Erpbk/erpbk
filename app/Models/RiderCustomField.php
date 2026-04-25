@@ -210,6 +210,7 @@ class RiderCustomField extends BaseModel
                 'salary_model',
                 'fleet_supervisor',
                 'rider_reference',
+                'status',
                 'DEPT',
                 'PID',
                 'job_status',
@@ -277,6 +278,13 @@ class RiderCustomField extends BaseModel
             }
             $keys[] = $column;
         }
+        // Keep these rider table fields visible in Rider Settings field list
+        // so they can be assigned and shown in Rider create/edit modules.
+        foreach (['status', 'attendance', 'rider_top_option_id', 'custom_field_values', 'image_name'] as $mustHaveKey) {
+            if (in_array($mustHaveKey, $columns, true)) {
+                $keys[] = $mustHaveKey;
+            }
+        }
         return array_values(array_unique($keys));
     }
 
@@ -341,6 +349,8 @@ class RiderCustomField extends BaseModel
             'email' => ['type' => 'email'],
             'courier_id' => ['type' => 'text'],
             'image_name' => ['type' => 'text'],
+            'rider_top_option_id' => ['type' => 'text'],
+            'custom_field_values' => ['type' => 'textarea', 'rows' => 2],
             'emirate_hub' => ['type' => 'text'],
             'emirate_id' => ['type' => 'text', 'required' => true, 'maxlength' => 18, 'placeholder' => '784-2000-6871718-8'],
             'emirate_exp' => ['type' => 'date', 'required' => true],
@@ -356,6 +366,7 @@ class RiderCustomField extends BaseModel
             'salary_model' => ['type' => 'select', 'dropdown' => 'salary-model', 'required' => true],
             'fleet_supervisor' => ['type' => 'select', 'dropdown' => 'fleet-supervisor', 'required' => true],
             'rider_reference' => ['type' => 'text', 'required' => true],
+            'status' => ['type' => 'select', 'dropdown' => 'rider-status'],
             'recruiter_id' => ['type' => 'select', 'dropdown' => 'recruiters'],
             'DEPT' => ['type' => 'text'],
             'PID' => ['type' => 'text'],

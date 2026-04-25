@@ -210,7 +210,12 @@
 
           {{-- Tab 4: Rider Fields (all-fields + category tabs) --}}
           <div class="tab-pane fade" id="tab-rider-fields" role="tabpanel">
-            <p class="text-muted small mb-3">Use the static <b>All Fields</b> tab to assign fields. Category tabs show assigned fields category-wise.</p>
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+              <p class="text-muted small mb-0">Use the static <b>All Fields</b> tab to assign fields. Category tabs show assigned fields category-wise.</p>
+              <button type="button" class="btn btn-primary btn-sm" id="btnAddCustomFieldFromTop" data-bs-toggle="modal" data-bs-target="#addRiderFieldModal">
+                <i class="ti ti-plus me-1"></i> Add Custom Field
+              </button>
+            </div>
             <ul class="nav nav-tabs nav-tabs-rider-fields mb-3" id="riderFieldsCategoryTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="rider-fields-all-tab" data-bs-toggle="tab" data-bs-target="#rider-fields-all-pane" type="button" role="tab">
@@ -301,6 +306,48 @@
                         <td colspan="7" class="text-center text-muted py-3">No rider fields found.</td>
                       </tr>
                       @endforelse
+                      @foreach(($unassignedCustomFields ?? collect()) as $customIndex => $customField)
+                      <tr class="table-light">
+                        <td class="align-middle">{{ count($allFixedFieldsForStatic ?? []) + $customIndex + 1 }}</td>
+                        <td class="align-middle">
+                          <span class="fw-semibold">{{ $customField->label }}</span>
+                          <span class="badge bg-label-secondary ms-1">Custom</span>
+                        </td>
+                        <td class="align-middle">
+                          <span class="badge bg-label-warning">Unassigned</span>
+                        </td>
+                        <td class="align-middle text-center">-</td>
+                        <td class="align-middle text-center">-</td>
+                        <td class="align-middle">
+                          <form action="{{ route('settings-panel.rider-settings.assign-custom-field-category', ['id' => $customField->id]) }}" method="POST" class="d-flex justify-content-center">
+                            @csrf
+                            <select name="category_id" class="form-select form-select-sm" style="width: auto; min-width: 160px;" required>
+                              <option value="">Select category</option>
+                              @foreach($categories as $c)
+                              <option value="{{ $c->id }}">{{ $c->label }}</option>
+                              @endforeach
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary ms-1">Move</button>
+                          </form>
+                        </td>
+                        <td class="align-middle text-end">
+                          <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-field"
+                            data-id="{{ $customField->id }}"
+                            data-label="{{ $customField->label }}"
+                            data-help_text="{{ $customField->help_text }}"
+                            data-data_type="{{ $customField->data_type }}"
+                            data-is_mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
+                            data-prevent_duplicate_values="{{ $customField->prevent_duplicate_values ? 1 : 0 }}"
+                            data-default_value="{{ $customField->default_value }}"
+                            data-input_format="{{ $customField->input_format }}"
+                            data-config='@json($customField->config)'
+                            data-category_id=""
+                            data-bs-toggle="modal" data-bs-target="#editRiderFieldModal">
+                            <i class="ti ti-pencil"></i>
+                          </button>
+                        </td>
+                      </tr>
+                      @endforeach
                     </tbody>
                   </table>
                 </div>
@@ -402,9 +449,9 @@
               <input type="text" name="label" class="form-control" placeholder="e.g. Emergency Contact" required>
             </div>
             <div class="mb-3">
-              <label class="form-label">Category <span class="text-danger">*</span></label>
-              <select name="category_id" class="form-select" required>
-                <option value="">Select category</option>
+              <label class="form-label">Category</label>
+              <select name="category_id" class="form-select">
+                <option value="">Unassigned (show in static tab)</option>
                 @foreach($categories as $cat)
                 <option value="{{ $cat->id }}">{{ $cat->label }}</option>
                 @endforeach
@@ -2378,6 +2425,13 @@
         if (sel && catId) sel.value = catId;
       });
     });
+    var btnAddCustomFieldFromTop = document.getElementById('btnAddCustomFieldFromTop');
+    if (btnAddCustomFieldFromTop) {
+      btnAddCustomFieldFromTop.addEventListener('click', function() {
+        var sel = document.querySelector('#addRiderFieldModal select[name="category_id"]');
+        if (sel) sel.value = '';
+      });
+    }
 
     // Add custom field form: submit via AJAX and refresh the category tbody
     var formAddRiderField = document.getElementById('formAddRiderField');
@@ -2409,7 +2463,12 @@
                 if (modal) modal.hide();
               }
               form.reset();
-              if (categoryId) window.refreshRiderCustomFieldsCategory(categoryId);
+              if (categoryId) {
+                window.refreshRiderCustomFieldsCategory(categoryId);
+              } else {
+                window.location.href = "{{ route('settings-panel.rider-settings.index') }}?tab=rider-fields";
+                return;
+              }
               if (typeof Swal !== 'undefined') Swal.fire({
                 toast: true,
                 position: 'top-end',

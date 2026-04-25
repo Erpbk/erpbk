@@ -63,6 +63,7 @@ class RiderSettingsController extends Controller
     public function index()
     {
         $categories = $this->riderCategoryQuery()->orderBy('display_order')->orderBy('id')->get();
+        $this->ensureCoreFieldAssignments($categories);
         $fixedFieldsByCategory = RiderCustomField::fixedRiderFieldsByCategory();
         $customFields = RiderCustomField::with('category')->orderBy('display_order')->orderBy('id')->get();
         $customFieldsByCategory = $customFields->groupBy('category_id');
@@ -72,6 +73,10 @@ class RiderSettingsController extends Controller
         $fieldsByCategory = $this->buildFieldsByCategory($categories);
         $allFixedFieldsForStatic = $this->buildAllFixedFieldsForStatic($categories);
         $unassignedFixedFields = $this->buildUnassignedFixedFields();
+        $unassignedCustomFields = RiderCustomField::whereNull('category_id')
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
         $documentTypes = RiderDocumentType::orderedForAdmin()->get();
         $riderTopCategories = RiderTopCategory::with('options')
             ->orderBy('display_order')
@@ -90,10 +95,43 @@ class RiderSettingsController extends Controller
             'fieldsByCategory',
             'allFixedFieldsForStatic',
             'unassignedFixedFields',
+            'unassignedCustomFields',
             'documentTypes',
             'riderTopCategories',
             'riderTopSelectableColumns'
         ));
+    }
+
+    protected function ensureCoreFieldAssignments($categories): void
+    {
+        $riderColumns = array_flip(Schema::getColumnListing('riders'));
+        $categoryBySlug = [];
+        foreach ($categories as $cat) {
+            if (!empty($cat->slug)) {
+                $categoryBySlug[$cat->slug] = (int) $cat->id;
+            }
+        }
+        $defaultCategoryId = $categoryBySlug['job_info'] ?? $categoryBySlug['other'] ?? (int) ($categories->first()?->id ?? 0);
+        if ($defaultCategoryId <= 0) {
+            return;
+        }
+
+        foreach (['status', 'attendance'] as $fieldKey) {
+            if (!isset($riderColumns[$fieldKey])) {
+                continue;
+            }
+            $exists = RiderFieldCategoryAssignment::where('field_key', $fieldKey)->exists();
+            if ($exists) {
+                continue;
+            }
+            RiderFieldCategoryAssignment::create([
+                'field_key' => $fieldKey,
+                'category_id' => $defaultCategoryId,
+                'display_order' => (int) RiderFieldCategoryAssignment::where('category_id', $defaultCategoryId)->max('display_order') + 1,
+                'is_visible' => 1,
+                'is_required' => 0,
+            ]);
+        }
     }
 
     protected function riderTopSelectableColumns(): array
@@ -641,7 +679,7 @@ class RiderSettingsController extends Controller
             'default_value' => 'nullable|string|max:500',
             'input_format' => 'nullable|string|max:100',
             'config' => 'nullable',
-            'category_id' => 'required|integer|exists:rider_categories,id',
+            'category_id' => 'nullable|integer|exists:rider_categories,id',
         ]);
 
         $validated['is_mandatory'] = $request->boolean('is_mandatory');
@@ -649,14 +687,16 @@ class RiderSettingsController extends Controller
         $validated['help_text'] = $request->input('help_text');
         $validated['default_value'] = $request->input('default_value');
         $validated['input_format'] = $request->input('input_format');
-        $validated['category_id'] = (int) $request->input('category_id');
+        $validated['category_id'] = $request->filled('category_id') ? (int) $request->input('category_id') : null;
         $validated['data_privacy'] = [
             'pii' => $request->boolean('data_privacy_pii'),
             'ephi' => $request->boolean('data_privacy_ephi'),
         ];
         $config = $request->input('config');
         $validated['config'] = is_string($config) ? (json_decode($config, true) ?? []) : (is_array($config) ? $config : []);
-        $validated['display_order'] = (int) RiderCustomField::where('category_id', $validated['category_id'])->max('display_order') + 1;
+        $validated['display_order'] = $validated['category_id'] !== null
+            ? ((int) RiderCustomField::where('category_id', $validated['category_id'])->max('display_order') + 1)
+            : ((int) RiderCustomField::max('display_order') + 1);
 
         RiderCustomField::create($validated);
 
@@ -667,6 +707,26 @@ class RiderSettingsController extends Controller
         return redirect()
             ->route('settings-panel.rider-settings.index')
             ->with('success', 'Custom field added successfully.');
+    }
+
+    public function assignCustomFieldCategory(Request $request, $company_slug, $id)
+    {
+        $validated = $request->validate([
+            'category_id' => 'required|integer|exists:rider_categories,id',
+        ]);
+
+        $field = RiderCustomField::findOrFail($id);
+        $field->category_id = (int) $validated['category_id'];
+        $field->display_order = (int) RiderCustomField::where('category_id', $field->category_id)->max('display_order') + 1;
+        $field->save();
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Custom field assigned to category.']);
+        }
+
+        return redirect()
+            ->route('settings-panel.rider-settings.index')
+            ->with('success', 'Custom field assigned to category.');
     }
 
     /**

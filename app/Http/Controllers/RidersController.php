@@ -1688,8 +1688,8 @@ class RidersController extends AppBaseController
       ];
       RiderEmails::create($email_data);
     }
-    $rider = Riders::find($id);
-    if (empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)) {
+    $rider = $this->findAccessibleRider((int) $id);
+    if (empty($rider) || (!empty($rider->branch_id) && !in_array($rider->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }

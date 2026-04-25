@@ -1,3 +1,24 @@
+function toggleModalTop(action) {
+  var modalEl = document.getElementById('modalTop');
+  if (!modalEl) return;
+
+  // Bootstrap 5 no longer exposes jQuery modal plugin by default.
+  if (window.bootstrap && window.bootstrap.Modal) {
+    var instance = bootstrap.Modal.getOrCreateInstance(modalEl);
+    if (action === 'show') {
+      instance.show();
+    } else {
+      instance.hide();
+    }
+    return;
+  }
+
+  // Fallback for older pages that still include bootstrap jQuery plugin.
+  if (window.jQuery && typeof jQuery.fn.modal === 'function') {
+    jQuery(modalEl).modal(action);
+  }
+}
+
 $('body').on('click', '.show-modal', function () {
   var action = $(this).data('action');
   var title = $(this).data('title');
@@ -52,7 +73,7 @@ $('body').on('click', '.show-modal', function () {
     $('.layout-wrapper').addClass('layout-menu-collapsed');
   }
 
-  $('#modalTop').modal('show');
+  toggleModalTop('show');
   block();
 });
 
@@ -203,7 +224,7 @@ $(document).on('submit', '#formajax', function (e) {
       if ($('#reload_page').val() == 1) {
         location.reload();
       }
-      $('#modalTop').modal('hide');
+      toggleModalTop('hide');
       reloadDataTable();
     },
     error: function (ajaxcontent) {

@@ -144,30 +144,30 @@
                     <div class="fleet-supervisor-cards slider-track" id="sliderTrack">
                         @php
                         $riderTopCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
-                            $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+                        $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
                         }])->where('show_in_top_bar', 1)->orderBy('display_order')->orderBy('id')->get();
                         $slideIndex = 0;
                         @endphp
 
                         @foreach($riderTopCategories as $category)
-                          @foreach($category->options as $option)
-                          <div class="fleet-supervisor-card @if((int)request('rider_top_option_id') === (int)$option->id) active filtered @endif" data-slide="{{ $slideIndex++ }}" onclick="filterByRiderTopOption('{{ $option->id }}')">
-                              <h3 class="fleet-supervisor-name">{{ $option->name }}</h3>
-                              <div class="small text-muted mb-1">{{ $category->name }}</div>
-                              <div class="fleet-supervisor-stats">
-                                  <div class="fleet-stat active @if((int)request('rider_top_option_id') === (int)$option->id && in_array('active', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'active')">
-                                      <i class="fleet-stat-icon ti ti-user-check"></i>
-                                      <span class="fleet-stat-label">Active</span>
-                                      <span class="fleet-stat-value">{{ \App\Models\Riders::where('rider_top_option_id', $option->id)->where('status', 1)->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })->count() }}</span>
-                                  </div>
-                                  <div class="fleet-stat inactive @if((int)request('rider_top_option_id') === (int)$option->id && in_array('inactive', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'inactive')">
-                                      <i class="fleet-stat-icon ti ti-user-x"></i>
-                                      <span class="fleet-stat-label">Inactive</span>
-                                      <span class="fleet-stat-value">{{ \App\Models\Riders::where('rider_top_option_id', $option->id)->where(function($q) { $q->where('status', 3)->orWhereDoesntHave('bikes', function($bikeQuery) { $bikeQuery->where('warehouse', 'Active'); }); })->count() }}</span>
-                                  </div>
-                              </div>
-                          </div>
-                          @endforeach
+                        @foreach($category->options as $option)
+                        <div class="fleet-supervisor-card @if((int)request('rider_top_option_id') === (int)$option->id) active filtered @endif" data-slide="{{ $slideIndex++ }}" onclick="filterByRiderTopOption('{{ $option->id }}')">
+                            <h3 class="fleet-supervisor-name">{{ $option->name }}</h3>
+                            <div class="small text-muted mb-1">{{ $category->name }}</div>
+                            <div class="fleet-supervisor-stats">
+                                <div class="fleet-stat active @if((int)request('rider_top_option_id') === (int)$option->id && in_array('active', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'active')">
+                                    <i class="fleet-stat-icon ti ti-user-check"></i>
+                                    <span class="fleet-stat-label">Active</span>
+                                    <span class="fleet-stat-value">{{ \App\Models\Riders::where('rider_top_option_id', $option->id)->where('status', 1)->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })->count() }}</span>
+                                </div>
+                                <div class="fleet-stat inactive @if((int)request('rider_top_option_id') === (int)$option->id && in_array('inactive', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'inactive')">
+                                    <i class="fleet-stat-icon ti ti-user-x"></i>
+                                    <span class="fleet-stat-label">Inactive</span>
+                                    <span class="fleet-stat-value">{{ \App\Models\Riders::where('rider_top_option_id', $option->id)->where(function($q) { $q->where('status', 3)->orWhereDoesntHave('bikes', function($bikeQuery) { $bikeQuery->where('warehouse', 'Active'); }); })->count() }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
                         @endforeach
 
                     </div>
@@ -591,7 +591,6 @@ $tableColumns = $columns;
         // Redirect to filtered URL
         window.location.href = url.toString();
     }
-
 </script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -846,83 +845,44 @@ $tableColumns = $columns;
 
     function initFleetSupervisorSlider() {
         const sliderTrack = document.getElementById('sliderTrack');
-        if (!sliderTrack || sliderTrack.dataset.sliderInit === '1') return;
+        if (!sliderTrack || sliderTrack.dataset.tickerInit === '1') return;
 
         const cards = Array.from(sliderTrack.querySelectorAll('.fleet-supervisor-card'));
         if (!cards.length) return;
 
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const indicatorsWrap = document.getElementById('sliderIndicators');
         const container = sliderTrack.closest('.fleet-supervisor-slider-container');
+        if (container) container.classList.add('ticker-mode');
 
-        sliderTrack.dataset.sliderInit = '1';
+        sliderTrack.dataset.tickerInit = '1';
+        if (cards.length < 2) return;
 
-        let currentIndex = Math.max(0, cards.findIndex(function(card) {
-            return card.classList.contains('filtered') || card.classList.contains('active');
-        }));
+        let intervalId = null;
+        let isAnimating = false;
+        const computedTrackStyle = window.getComputedStyle(sliderTrack);
+        const gap = parseFloat(computedTrackStyle.columnGap || computedTrackStyle.gap || '16') || 16;
 
-        function clampIndex(index) {
-            if (index < 0) return cards.length - 1;
-            if (index >= cards.length) return 0;
-            return index;
+        function slideNextCard() {
+            if (isAnimating) return;
+            const firstCard = sliderTrack.querySelector('.fleet-supervisor-card');
+            if (!firstCard) return;
+            isAnimating = true;
+
+            const shiftAmount = firstCard.offsetWidth + gap;
+            sliderTrack.style.transition = 'transform 520ms ease';
+            sliderTrack.style.transform = 'translateX(-' + shiftAmount + 'px)';
+
+            window.setTimeout(function() {
+                sliderTrack.style.transition = 'none';
+                sliderTrack.style.transform = 'translateX(0)';
+                sliderTrack.appendChild(firstCard);
+                // Force reflow so next animation starts cleanly.
+                void sliderTrack.offsetWidth;
+                isAnimating = false;
+            }, 540);
         }
 
-        function renderIndicators() {
-            if (!indicatorsWrap) return;
-            indicatorsWrap.innerHTML = '';
-            cards.forEach(function(_, idx) {
-                const dot = document.createElement('button');
-                dot.type = 'button';
-                dot.className = 'slider-indicator' + (idx === currentIndex ? ' active' : '');
-                dot.setAttribute('aria-label', 'Go to slide ' + (idx + 1));
-                dot.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    goToSlide(idx);
-                });
-                indicatorsWrap.appendChild(dot);
-            });
-        }
-
-        function goToSlide(index) {
-            currentIndex = clampIndex(index);
-            const targetCard = cards[currentIndex];
-            if (!targetCard) return;
-
-            // Move track so selected card enters from right and exits to left.
-            sliderTrack.style.transform = 'translateX(' + (-targetCard.offsetLeft) + 'px)';
-            renderIndicators();
-        }
-
-        if (prevBtn) {
-            prevBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                goToSlide(currentIndex - 1);
-            });
-        }
-        if (nextBtn) {
-            nextBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                goToSlide(currentIndex + 1);
-            });
-        }
-
-        if (container) {
-            container.addEventListener('mouseenter', function() {
-                container.dataset.pauseAuto = '1';
-            });
-            container.addEventListener('mouseleave', function() {
-                container.dataset.pauseAuto = '0';
-            });
-        }
-
-        setInterval(function() {
-            if (container && container.dataset.pauseAuto === '1') return;
-            goToSlide(currentIndex + 1);
-        }, 3500);
-
-        renderIndicators();
-        goToSlide(currentIndex);
+        intervalId = window.setInterval(slideNextCard, 2600);
+        sliderTrack.dataset.tickerIntervalId = String(intervalId);
     }
 
     // Initialize slider when DOM is loaded

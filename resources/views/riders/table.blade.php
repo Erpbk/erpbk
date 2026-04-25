@@ -7,7 +7,9 @@
          $tableCols = $tableColumns ?? [];
          $dataColumns = array_values(array_filter($tableCols, function($c){
          $k = $c['data'] ?? ($c['key'] ?? null);
-         return $k !== 'search' && $k !== 'control';
+         return $k !== 'search'
+            && $k !== 'control'
+            && !in_array($k, ['branch_id', 'company_id', 'account_id'], true);
          }));
          @endphp
          @foreach($dataColumns as $col)

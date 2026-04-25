@@ -58,6 +58,21 @@ class RidersController extends AppBaseController
   /** @var RidersRepository $ridersRepository*/
   private $ridersRepository;
 
+  private function applyCompanyScope($query)
+  {
+    if (Schema::hasColumn('riders', 'company_id')) {
+      $query->where('riders.company_id', auth()->user()->company_id);
+    }
+    return $query;
+  }
+
+  private function findAccessibleRider(int $id): ?Riders
+  {
+    $query = Riders::query()->where('id', $id);
+    $this->applyCompanyScope($query);
+    return $query->first();
+  }
+
   /**
    * Normalize billing month input to first day of month (Y-m-01).
    */
@@ -207,6 +222,7 @@ class RidersController extends AppBaseController
       ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
       ->orderBy('days_count', 'asc')
       ->with('branch');
+    $this->applyCompanyScope($query);
     if ($request->has('rider_id') && !empty($request->rider_id)) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
     }
@@ -350,6 +366,7 @@ class RidersController extends AppBaseController
       ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
       ->orderBy('days_count', 'desc')
       ->orderBy('riders.id', 'desc');
+    $this->applyCompanyScope($query);
 
     if ($request->has('rider_id') && !empty($request->rider_id)) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
@@ -485,6 +502,9 @@ class RidersController extends AppBaseController
     $request->validate($this->riderValidationRules());
 
     $input = $request->all();
+    if (Schema::hasColumn('riders', 'company_id')) {
+      $input['company_id'] = auth()->user()->company_id;
+    }
     $items = $request->get('items');
 
 
@@ -577,9 +597,13 @@ class RidersController extends AppBaseController
    */
   public function show($company_slug, $id)
   {
-    $rider = $this->ridersRepository->find($id);
-    if (empty($rider) || !in_array($rider->branch_id, app('user_branches'))) {
+    $rider = $this->findAccessibleRider((int) $id);
+    if (empty($rider)) {
 
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
+    if (!empty($rider->branch_id) && !in_array($rider->branch_id, app('user_branches'))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -601,8 +625,10 @@ class RidersController extends AppBaseController
    */
   public function edit($company_slug, $id)
   {
-    // $riders = $this->ridersRepository->find($id);
-    $riders = $this->ridersRepository->getRiderWithItemsRelations($id);
+    $riders = $this->findAccessibleRider((int) $id);
+    if ($riders) {
+      $riders->load('items');
+    }
 
     if (empty($riders)) {
       Flash::error('Riders not found');
@@ -621,7 +647,7 @@ class RidersController extends AppBaseController
   public function update($company_slug, $id, Request $request)
   {
     $request->validate($this->riderValidationRules((int) $id));
-    $riders = Riders::find($id);
+    $riders = $this->findAccessibleRider((int) $id);
     // $items = $riders->items;
     $items = $request->get('items');
     if (empty($riders)) {
@@ -630,6 +656,9 @@ class RidersController extends AppBaseController
       return redirect(route('riders.index'));
     }
     $data = $request->except(['_token', 'items']);
+    if (Schema::hasColumn('riders', 'company_id')) {
+      $data['company_id'] = auth()->user()->company_id;
+    }
 
     $riders->update($data);
     if ($riders) {
@@ -672,7 +701,7 @@ class RidersController extends AppBaseController
    */
   public function destroy($company_slug, $id)
   {
-    $riders = $this->ridersRepository->find($id);
+    $riders = $this->findAccessibleRider((int) $id);
 
     if (empty($riders)) {
       Flash::error('Riders not found');

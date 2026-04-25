@@ -393,7 +393,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                   <i class="ti ti-mail ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Email:</span><br> <b class="float-right">@isset($result){{$result['personal_email']??'not-set'}}@endisset</b>
+                  <span>Email:</span><br> <b class="float-right">@isset($result){{$result['email']??'not-set'}}@endisset</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">

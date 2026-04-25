@@ -10,7 +10,6 @@ class RidersRepository extends BaseRepository
     protected $fieldSearchable = [
         'name',
         'rider_id',
-        'personal_email',
         'email',
         'nationality',
         'doj',

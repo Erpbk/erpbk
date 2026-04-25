@@ -43,8 +43,8 @@
         </div>
         <!--col-->
         <div class="col-md-3 form-group col-3">
-            <label>Personal Email ID </label>
-            <p>{{@$result['personal_email']}}</p>
+            <label>Email ID </label>
+            <p>{{@$result['email']}}</p>
         </div>
         <!--col-->
         <div class="col-md-3 form-group col-3">
@@ -97,8 +97,8 @@
             <input type="date" class="form-control form-control-sm" name="doj" value="{{@$result['doj']}}">
         </div>
         <div class="col-md-3 form-group col-3">
-            <label>Personal Email ID</label>
-            <input type="email" class="form-control form-control-sm" name="personal_email" value="{{@$result['personal_email']}}">
+            <label>Email ID</label>
+            <input type="email" class="form-control form-control-sm" name="email" value="{{@$result['email']}}">
         </div>
         <div class="col-md-3 form-group col-3">
             <label>Nationality</label>
@@ -537,7 +537,7 @@
     <b>Nationality</b><br /> {{@$rider->nationality}}
 </div>
 <div class="col-md-4 border-right border-bottom" style="height: 45px;">
-    <b>Personal Email ID</b><br /> {{@$rider->personal_email}}
+    <b>Email ID</b><br /> {{@$rider->email}}
 </div>
 <div class="col-md-4 border-right border-bottom" style="height: 45px;">
     <b>Email ID</b><br /> {{@$rider->email}}

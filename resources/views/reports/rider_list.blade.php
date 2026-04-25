@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 @section('content')
 <style>
     .table tr:first-child>td {
@@ -113,7 +113,7 @@
                                 <td class="d-none">{{$row->passport_expiry}}</td>
                                 <td class="d-none">{{$row->passport_handover}}</td>
                                 <td class="d-none">{{$row->cdm_deposit_id}}</td>
-                                <td class="d-none">{{$row->personal_email}}</td>
+                                <td class="d-none">{{$row->email}}</td>
                                 <td class="d-none">{{$row->fleet_supervisor}}</td>
                                 <td class="d-none">{{$row->wps}}</td>
                                 <td class="d-none">{{$row->c3_card}}</td>

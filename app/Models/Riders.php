@@ -4,9 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
+
 class Riders extends BaseModel
 {
   use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope;
@@ -15,10 +17,10 @@ class Riders extends BaseModel
 
   public $fillable = [
     'branch_id',
+    'company_id',
     'name',
     'rider_id',
     'account_id',
-    'personal_email',
     'email',
     'nationality',
     'doj',
@@ -52,8 +54,8 @@ class Riders extends BaseModel
 
   protected $casts = [
     'custom_field_values' => 'array',
+    'company_id' => 'integer',
     'name' => 'string',
-    'personal_email' => 'string',
     'email' => 'string',
     'doj' => 'string',
     'emirate_id' => 'string',
@@ -88,9 +90,9 @@ class Riders extends BaseModel
   protected $dates = ['deleted_at'];
 
   public static array $rules = [
+    'company_id' => 'nullable|integer|exists:companies,id',
     'name' => 'nullable|string|max:191|unique:riders,name',
     'rider_id' => 'nullable|unique:riders,rider_id',
-    'personal_email' => 'nullable|string|max:191',
     'email' => 'nullable|string|max:191',
     'nationality' => 'nullable',
     'doj' => 'nullable',
@@ -137,7 +139,7 @@ class Riders extends BaseModel
   }
   public static function dropdown()
   {
-    return self::select('id', \DB::raw("CONCAT(rider_id, '-', name) as full_name"))->pluck('full_name', 'id')->prepend('Select', '');
+    return self::select('id', DB::raw("CONCAT(rider_id, '-', name) as full_name"))->pluck('full_name', 'id')->prepend('Select', '');
     //return self::select('id', 'name')->pluck('name', 'id')->prepend('Select', '');
 
 
@@ -177,7 +179,7 @@ class Riders extends BaseModel
   }
   function activity()
   {
-    return $this->hasMany(RiderActivities::class, 'rider_id', 'id')->where(\DB::raw('DATE_FORMAT(date, "%Y-%m")'), '=', date('Y-m'));
+    return $this->hasMany(RiderActivities::class, 'rider_id', 'id')->where(DB::raw('DATE_FORMAT(date, "%Y-%m")'), '=', date('Y-m'));
   }
 
   function recruiter()

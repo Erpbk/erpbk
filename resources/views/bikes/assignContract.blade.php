@@ -328,7 +328,7 @@
                </tr>
                <tr>
                   <td><p class="s3 mb-0">Email I.D.</p></td>
-                  <td><input type="text" class="editable-field form-control-sm" id="email" value="{{@$contract->rider->personal_email}}"></td>
+                  <td><input type="text" class="editable-field form-control-sm" id="email" value="{{@$contract->rider->email}}"></td>
                   <td><p class="s3 mb-0">Emirate.</p></td>
                   <td><input type="text" class="editable-field form-control-sm" id="emirate" value="{{@$contract->rider->emirate_hub}}"></td>
                </tr>

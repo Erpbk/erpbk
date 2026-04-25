@@ -10,6 +10,9 @@ class RiderCustomField extends BaseModel
     private static function removedRiderColumns(): array
     {
         return [
+            'branch_id',
+            'company_id',
+            'account_id',
             'courier_id',
             'personal_contact',
             'company_contact',
@@ -159,13 +162,11 @@ class RiderCustomField extends BaseModel
     {
         $map = [
             'rider_info' => [
-                'branch_id',
                 'name',
                 'rider_id',
                 'courier_id',
                 'personal_contact',
                 'company_contact',
-                'personal_email',
                 'email',
                 'nationality',
                 'passport',
@@ -189,7 +190,6 @@ class RiderCustomField extends BaseModel
             ],
             'job_info' => [
                 'VID',
-                'account_id',
                 'salary_model',
                 'fleet_supervisor',
                 'rider_reference',
@@ -302,7 +302,6 @@ class RiderCustomField extends BaseModel
             'name' => ['type' => 'text', 'required' => true, 'maxlength' => 191],
             'doj' => ['type' => 'date', 'required' => true],
             'personal_contact' => ['type' => 'tel', 'maxlength' => 10, 'placeholder' => '05XXXXXXXX'],
-            'personal_email' => ['type' => 'email', 'required' => true, 'maxlength' => 191],
             'nationality' => ['type' => 'select', 'dropdown' => 'countries', 'required' => true],
             'passport' => ['type' => 'text', 'maxlength' => 50],
             'passport_expiry' => ['type' => 'date'],
@@ -310,7 +309,6 @@ class RiderCustomField extends BaseModel
             'dob' => ['type' => 'date'],
             'company_contact' => ['type' => 'tel'],
             'email' => ['type' => 'email'],
-            'branch_id' => ['type' => 'select', 'dropdown' => 'branch'],
             'courier_id' => ['type' => 'text'],
             'image_name' => ['type' => 'text'],
             'emirate_hub' => ['type' => 'text'],
@@ -325,7 +323,6 @@ class RiderCustomField extends BaseModel
             'visa_sponsor' => ['type' => 'text', 'maxlength' => 50],
             'visa_occupation' => ['type' => 'text', 'required' => true, 'maxlength' => 50],
             'VID' => ['type' => 'select', 'dropdown' => 'vendors', 'required' => true],
-            'account_id' => ['type' => 'select', 'dropdown' => 'accounts'],
             'salary_model' => ['type' => 'select', 'dropdown' => 'salary-model', 'required' => true],
             'fleet_supervisor' => ['type' => 'select', 'dropdown' => 'fleet-supervisor', 'required' => true],
             'rider_reference' => ['type' => 'text', 'required' => true],

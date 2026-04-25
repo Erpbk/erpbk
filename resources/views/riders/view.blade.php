@@ -276,6 +276,7 @@ $result = $riders->toArray();
 if(isset($result)){
 $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_type', 'expense')->first();
 }
+$companySlug = request()->route('company_slug');
 
 @endphp
 <div class="row" style="">
@@ -537,7 +538,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                 <!-- Priority navigation items (always visible when possible) -->
                 <li class="nav-item nav-priority-1">
                   <a class="nav-link @if(is_numeric(request()->segment(2)) || request()->segment(2) == 'create') active @endif"
-                    href="@isset($result['id']){{route('riders.show',$result['id'])}}@else#@endif">
+                    href="@isset($result['id']){{route('riders.show',['company_slug' => $companySlug, $result['id']])}}@else#@endif">
                     <i class="ti ti-user-check ti-sm me-1_5"></i>Information
                   </a>
                 </li>
@@ -546,7 +547,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                 @can('timeline_view')
                 <li class="nav-item nav-priority-2">
                   <a class="nav-link @if(request()->segment(2) == 'timeline') active @endif"
-                    href="{{route('rider.timeline',$result['id'])}}">
+                    href="{{route('rider.timeline',['company_slug' => $companySlug, $result['id']])}}">
                     <i class="ti ti-timeline ti-sm me-1_5"></i>Timeline
                   </a>
                 </li>
@@ -555,7 +556,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                 @can('rider_document')
                 <li class="nav-item nav-priority-3">
                   <a class="nav-link @if(request()->segment(2) == 'files') active @endif"
-                    href="{{route('rider.files',$result['id'])}}">
+                    href="{{route('rider.files',['company_slug' => $companySlug, $result['id']])}}">
                     <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
                   </a>
                 </li>
@@ -564,7 +565,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                 @can('riderinvoice_view')
                 <li class="nav-item nav-priority-4">
                   <a class="nav-link @if(request()->segment(2) == 'invoices') active @endif"
-                    href="{{route('rider.invoices',$result['id'])}}">
+                    href="{{route('rider.invoices',['company_slug' => $companySlug, $result['id']])}}">
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Invoices
                   </a>
                 </li>
@@ -584,7 +585,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                 @can('item_view')
                 <li class="nav-item nav-priority-6">
                   <a class="nav-link @if(request()->segment(2) == 'items') active @endif"
-                    href="{{route('rider.items',$result['id'])}}">
+                    href="{{route('rider.items',['company_slug' => $companySlug, $result['id']])}}">
                     <i class="ti ti-cash-banknote ti-sm me-1"></i>Salary
                   </a>
                 </li>
@@ -593,7 +594,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                 @can('gn_ledger')
                 <li class="nav-item nav-priority-7">
                   <a class="nav-link @if(request()->segment(2) == 'ledger') active @endif"
-                    href="{{route('rider.ledger',$result['id'])}}">
+                    href="{{route('rider.ledger',['company_slug' => $companySlug, $result['id']])}}">
                     <i class="ti ti-file ti-sm me-1_5"></i>Ledger
                   </a>
                 </li>
@@ -602,7 +603,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                 @can('activity_view')
                 <li class="nav-item nav-priority-8">
                   <a class="nav-link @if(request()->segment(2) == 'activities') active @endif"
-                    href="{{route('rider.activities',$result['id'])}}">
+                    href="{{route('rider.activities',['company_slug' => $companySlug, $result['id']])}}">
                     <i class="ti ti-motorbike ti-sm me-1_5"></i>Activities
                   </a>
                 </li>
@@ -611,7 +612,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                 @can('email_view')
                 <li class="nav-item nav-priority-9">
                   <a class="nav-link @if(request()->segment(2) == 'emails') active @endif"
-                    href="{{route('rider.emails',$result['id'])}}">
+                    href="{{route('rider.emails',['company_slug' => $companySlug, $result['id']])}}">
                     <i class="ti ti-mail ti-sm me-1_5"></i>Emails
                   </a>
                 </li>
@@ -621,7 +622,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                 @canany(['advanceloan_create','cod_create','penality_create','payment_create','vendorcharges_create'])
                 <li class="nav-item nav-priority-10">
                   <a href="javascript:void(0);"
-                    data-action="{{ route('riders.voucher', ['id' => $result['id']]) }}"
+                    data-action="{{ route('riders.voucher', ['company_slug' => $companySlug, 'id' => $result['id']]) }}"
                     data-size="xl" data-title="Voucher"
                     class='nav-link show-modal'>
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Voucher
@@ -632,7 +633,7 @@ $account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_t
                 @can('incentives_create')
                 <li class="nav-item nav-priority-11">
                   <a href="javascript:void(0);"
-                    data-action="{{ route('riders.incentive' , $result['id']) }}"
+                    data-action="{{ route('riders.incentive', ['company_slug' => $companySlug, 'id' => $result['id']]) }}"
                     class='nav-link show-modal'
                     data-size="xl" data-title="Incentive">
                     <i class="ti ti-award ti-sm me-1_5"></i>Incentive

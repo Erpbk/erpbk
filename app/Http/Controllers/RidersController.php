@@ -952,8 +952,8 @@ class RidersController extends AppBaseController
   }
   public function timeline($company_slug, $id)
   {
-    $riders = Riders::find($id);
-    if (empty($riders) || !in_array($riders->branch_id, app('user_branches'))) {
+    $riders = $this->findAccessibleRider((int) $id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1066,7 +1066,7 @@ class RidersController extends AppBaseController
   }
   public function ledger($company_slug, $rider_id, LedgerDataTable $ledgerDataTable)
   {
-    $riders = Riders::find($rider_id);
+    $riders = $this->findAccessibleRider((int) $rider_id);
     if (empty($riders)) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
@@ -1077,8 +1077,8 @@ class RidersController extends AppBaseController
   }
   public function items($company_slug, $rider_id)
   {
-    $riders = $this->ridersRepository->find($rider_id);
-    if (empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)) {
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1086,8 +1086,8 @@ class RidersController extends AppBaseController
   }
   public function additems($company_slug, $rider_id)
   {
-    $rider = $this->ridersRepository->find($rider_id);
-    if (empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)) {
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider) || (!empty($rider->branch_id) && !in_array($rider->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1096,7 +1096,7 @@ class RidersController extends AppBaseController
 
   public function storeitems(Request $request, $company_slug, $rider_id)
   {
-    $rider = $this->ridersRepository->find($rider_id);
+    $rider = $this->findAccessibleRider((int) $rider_id);
 
     if (empty($rider)) {
       return response()->json([
@@ -1292,8 +1292,8 @@ class RidersController extends AppBaseController
   }
   public function attendance($company_slug, $rider_id, RiderAttendanceDataTable $riderAttendanceDataTable)
   {
-    $riders = Riders::find($rider_id);
-    if (empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)) {
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1301,8 +1301,8 @@ class RidersController extends AppBaseController
   }
   public function activities($company_slug, $rider_id)
   {
-    $riders = Riders::find($rider_id);
-    if (empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)) {
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1344,6 +1344,11 @@ class RidersController extends AppBaseController
 
   public function activitiesPdf($company_slug, $rider_id)
   {
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider)) {
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $month = request('month') ?? date('Y-m');
     $filters = [
       'rider_id' => $rider_id,
@@ -1382,8 +1387,6 @@ class RidersController extends AppBaseController
     $totals['avg_ontime'] = $totals['avg_ontime'] * 100;
 
     // Get rider info
-    $rider = Riders::find($rider_id);
-
     // Use dompdf directly (dompdf/dompdf package is installed)
     $dompdf = new \Dompdf\Dompdf();
     $html = view('riders.activities_pdf', compact('data', 'filters', 'totals', 'rider', 'month'))->render();
@@ -1417,6 +1420,11 @@ class RidersController extends AppBaseController
 
   public function activitiesPrint($company_slug, $rider_id)
   {
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider)) {
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $month = request('month') ?? date('Y-m');
     $filters = [
       'rider_id' => $rider_id,
@@ -1455,15 +1463,13 @@ class RidersController extends AppBaseController
     $totals['avg_ontime'] = $totals['avg_ontime'] * 100;
 
     // Get rider info
-    $rider = Riders::find($rider_id);
-
     return view('riders.activities_print', compact('data', 'filters', 'totals', 'rider', 'month'));
   }
 
   public function invoices($company_slug, $rider_id, RiderInvoicesDataTable $riderInvoicesDataTable)
   {
-    $riders = Riders::find($rider_id);
-    if (empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)) {
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1471,8 +1477,8 @@ class RidersController extends AppBaseController
   }
   public function emails($company_slug, $rider_id, RiderEmailsDataTable $riderEmailsDataTable)
   {
-    $riders = Riders::find($rider_id);
-    if (empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)) {
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1559,8 +1565,8 @@ class RidersController extends AppBaseController
 
   public function files($company_slug, $rider_id)
   {
-    $riders = Riders::find($rider_id);
-    if (empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)) {
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -2642,7 +2648,11 @@ class RidersController extends AppBaseController
 
   public function incentive($company_slug, $rider_id)
   {
-    $rider = Riders::find($rider_id);
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider)) {
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
@@ -2934,7 +2944,11 @@ class RidersController extends AppBaseController
    */
   public function voucher($company_slug, $rider_id)
   {
-    $rider = Riders::find($rider_id);
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider)) {
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();

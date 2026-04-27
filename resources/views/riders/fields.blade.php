@@ -58,66 +58,35 @@
 
 @once
   <style>
-    .select2-add-option-action {
+    .js-dropdown-with-add-option {
       color: #ff6f00;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 8px 12px;
-      border-top: 1px solid #e9ecef;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .select2-add-option-action:hover {
-      background: #fff3e0;
     }
   </style>
-  <div class="modal fade" id="addRiderDropdownOptionModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Add Dropdown Option</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <form id="addRiderDropdownOptionForm">
-          @csrf
-          <div class="modal-body">
-            <input type="hidden" name="field_key" id="dropdownOptionFieldKey">
-            <input type="hidden" name="custom_field_id" id="dropdownOptionCustomFieldId">
-            <div class="mb-2 text-muted small" id="dropdownOptionFieldLabel"></div>
-            <label class="form-label">Option value</label>
-            <input type="text" class="form-control" name="option_value" id="dropdownOptionValue" required maxlength="255">
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
 
   <script>
     (function() {
-      var modalEl = document.getElementById('addRiderDropdownOptionModal');
-      var formEl = document.getElementById('addRiderDropdownOptionForm');
-      if (!modalEl || !formEl) return;
-
-      var bsModal = (typeof bootstrap !== 'undefined' && bootstrap.Modal) ? new bootstrap.Modal(modalEl) : null;
-      var csrf = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) ||
-        (formEl.querySelector('input[name="_token"]') && formEl.querySelector('input[name="_token"]').value) || '';
-      var activeDropdownSelect = null;
-
       function openAddOptionModalFromSelect(sel) {
         if (!sel) return;
-        activeDropdownSelect = sel;
-        document.getElementById('dropdownOptionFieldKey').value = sel.getAttribute('data-field-key') || '';
-        document.getElementById('dropdownOptionCustomFieldId').value = sel.getAttribute('data-custom-field-id') || '';
-        document.getElementById('dropdownOptionFieldLabel').textContent = (sel.getAttribute('data-label') || 'Field') + ' - add new option';
-        document.getElementById('dropdownOptionValue').value = '';
         sel.value = '';
         sel.blur();
-        if (bsModal) bsModal.show();
+        var params = new URLSearchParams();
+        var fieldKey = sel.getAttribute('data-field-key') || '';
+        var customFieldId = sel.getAttribute('data-custom-field-id') || '';
+        var label = sel.getAttribute('data-label') || 'Field';
+        if (fieldKey) params.set('field_key', fieldKey);
+        if (customFieldId) params.set('custom_field_id', customFieldId);
+        params.set('label', label);
+
+        var action = "{{ route('riders.dropdown-options.modal', ['company_slug' => request()->route('company_slug')]) }}" + "?" + params.toString();
+        var trigger = document.createElement('a');
+        trigger.href = 'javascript:void(0);';
+        trigger.className = 'show-modal';
+        trigger.setAttribute('data-action', action);
+        trigger.setAttribute('data-size', 'md');
+        trigger.setAttribute('data-title', 'Add New Option');
+        document.body.appendChild(trigger);
+        trigger.click();
+        document.body.removeChild(trigger);
       }
 
       document.addEventListener('change', function(e) {
@@ -138,92 +107,7 @@
             openAddOptionModalFromSelect(this);
           }
         });
-
-        jQuery(document).on('select2:open', '.js-dropdown-with-add-option', function() {
-          activeDropdownSelect = this;
-          var dropdown = document.querySelector('.select2-container--open .select2-dropdown');
-          if (!dropdown) return;
-          if (dropdown.querySelector('.select2-add-option-action')) return;
-          var addBtn = document.createElement('div');
-          addBtn.className = 'select2-add-option-action';
-          addBtn.innerHTML = '<span>+</span><span>Add Option</span>';
-          addBtn.addEventListener('mousedown', function(ev) {
-            ev.preventDefault();
-          });
-          addBtn.addEventListener('click', function(ev) {
-            ev.preventDefault();
-            if (window.jQuery) {
-              jQuery(activeDropdownSelect).select2('close');
-            }
-            openAddOptionModalFromSelect(activeDropdownSelect);
-          });
-          dropdown.appendChild(addBtn);
-        });
       }
-
-      formEl.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var fd = new FormData(formEl);
-        fetch("{{ route('riders.dropdown-options.store') }}", {
-            method: 'POST',
-            body: fd,
-            headers: {
-              'X-CSRF-TOKEN': csrf,
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          })
-          .then(function(r) {
-            return r.json().then(function(data) {
-              return r.ok ? data : Promise.reject(data);
-            });
-          })
-          .then(function(data) {
-            if (typeof Swal !== 'undefined') {
-              Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'success',
-                title: data.message || 'Option added.',
-                showConfirmButton: false,
-                timer: 1800
-              });
-            }
-            if (bsModal) bsModal.hide();
-            var newOptionValue = (document.getElementById('dropdownOptionValue').value || '').trim();
-            if (activeDropdownSelect && newOptionValue) {
-              var existing = Array.from(activeDropdownSelect.options).find(function(opt) {
-                return (opt.value || '').toLowerCase() === newOptionValue.toLowerCase();
-              });
-              if (!existing) {
-                var addOpt = Array.from(activeDropdownSelect.options).find(function(opt) {
-                  return opt.value === '__add_option__';
-                });
-                var newOpt = new Option(newOptionValue, newOptionValue);
-                if (addOpt) {
-                  activeDropdownSelect.insertBefore(newOpt, addOpt);
-                } else {
-                  activeDropdownSelect.add(newOpt);
-                }
-              }
-              activeDropdownSelect.value = newOptionValue;
-              activeDropdownSelect.dispatchEvent(new Event('change', {
-                bubbles: true
-              }));
-            } else {
-              window.location.reload();
-            }
-          })
-          .catch(function(err) {
-            if (typeof Swal !== 'undefined') {
-              Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: (err && err.message) ? err.message : 'Could not add option.'
-              });
-            }
-          });
-      });
     })();
   </script>
 @endonce

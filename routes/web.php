@@ -302,6 +302,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::resource('riders', App\Http\Controllers\RidersController::class);
     Route::post('riders/filter-ajax', [\App\Http\Controllers\RidersController::class, 'filterAjax'])->name('riders.filterAjax');
+    Route::get('riders/dropdown-options/modal', [\App\Http\Controllers\RidersController::class, 'dropdownOptionModal'])->name('riders.dropdown-options.modal');
     Route::post('riders/dropdown-options', [\App\Http\Controllers\RidersController::class, 'storeDropdownOption'])->name('riders.dropdown-options.store');
     Route::any('riders/job_status/{id?}', [\App\Http\Controllers\RidersController::class, 'job_status'])->name('rider.job_status');
 

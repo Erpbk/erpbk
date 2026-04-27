@@ -3137,7 +3137,7 @@ class RidersController extends AppBaseController
       $assignment->input_config = $config;
       $assignment->save();
 
-      return response()->json(['success' => true, 'message' => 'Option added successfully.']);
+      return response()->json(['success' => true, 'message' => 'Option added successfully.', 'reload' => true]);
     }
 
     $field = RiderCustomField::findOrFail((int) $validated['custom_field_id']);
@@ -3167,7 +3167,20 @@ class RidersController extends AppBaseController
     }
     $field->save();
 
-    return response()->json(['success' => true, 'message' => 'Option added successfully.']);
+    return response()->json(['success' => true, 'message' => 'Option added successfully.', 'reload' => true]);
+  }
+
+  public function dropdownOptionModal($company_slug, Request $request)
+  {
+    $fieldKey = trim((string) $request->query('field_key', ''));
+    $customFieldId = trim((string) $request->query('custom_field_id', ''));
+    $fieldLabel = trim((string) $request->query('label', 'Field'));
+
+    return view('riders.dropdown_option_modal', [
+      'fieldKey' => $fieldKey,
+      'customFieldId' => $customFieldId,
+      'fieldLabel' => $fieldLabel,
+    ]);
   }
 
   /**

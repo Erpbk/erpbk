@@ -14,12 +14,6 @@
                 {!! Form::label('card_type', 'Card type:') !!}
                 {!! Form::text('card_type', null, ['class' => 'form-control']) !!}
             </div>
-
-            <!-- Branch Field -->
-            <div class="form-group col-sm-6">
-                {!! Form::label('branch_id', 'Branch:',['class'=>'required']) !!}
-                {!! Form::select('branch_id', App\Models\Branch::dropdown(),null, ['class' => 'form-select select2', 'required']) !!}
-            </div>
         </div>
     </div>
 

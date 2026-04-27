@@ -12,7 +12,18 @@
         <!-- Rider Field -->
         <div class="form-group col-sm-6">
             {!! Form::label('assigned_to', 'Assign To:') !!}
-            {!! Form::select('assigned_to', \App\Models\Riders::dropdown(), null, ['class' => 'form-select select2']) !!}
+            <select name="assigned_to" class="form-control account-select select2">
+                <option value="">Select</option>
+                @foreach(\App\Models\Bikes::where('status', 1)->whereNotNull('rider_id')->get() as $bike)
+                @php
+                    $bike->load('rider');
+                @endphp
+                <option value="{{ $bike->rider->id }}" 
+                    {{ old('assigned_to', isset($fuelCard) ? $fuelCard->assigned_to : '') == $bike->rider->id ? 'selected' : '' }}>
+                    {{ 'Bike: '.$bike->plate.', Rider: '. ($bike->rider?->name ?? 'N/A') }}
+                </option>
+                @endforeach
+            </select>
         </div>
         
         <div class="form-group col-md-6">

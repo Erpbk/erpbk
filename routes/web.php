@@ -469,13 +469,17 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::resource('bikeHistories', App\Http\Controllers\BikeHistoryController::class);
 
     Route::resource('simHistories', App\Http\Controllers\SimHistoryController::class);
-
+    Route::any('fuel_transactions/import', [\App\Http\Controllers\FuelDataController::class, 'import'])->name('fuel_data.import');
+    Route::get('fuel_data/summary', [\App\Http\Controllers\FuelDataController::class, 'monthlySummary'])->name('fuel_data.summary');
+    Route::get('fuel_invoice/{rider_id}/{billing_month}', [\App\Http\Controllers\FuelDataController::class, 'show2'])->name('fuel_data.rider_monthly_summary');
+    Route::resource('fuel_data', App\Http\Controllers\FuelDataController::class);
     Route::resource('fuelCards', App\Http\Controllers\FuelCardController::class);
     Route::any('fuelcards/import', [\App\Http\Controllers\FuelCardController::class, 'import'])->name('fuelCards.import');
     Route::get('fuelcards/export', [\App\Http\Controllers\FuelCardController::class, 'export'])->name('fuelCards.export');
 
     Route::any('fuelcards/assign/{id}', [\App\Http\Controllers\FuelCardHistoryController::class, 'assign'])->name('fuelCards.assign');
     Route::any('fuelcards/return/{id}', [\App\Http\Controllers\FuelCardHistoryController::class, 'return'])->name('fuelCards.return');
+    Route::any('fuelcards/update_assignment/{id}', [\App\Http\Controllers\FuelCardHistoryController::class, 'updateAssignment'])->name('fuelCards.update_assignment');
 
     Route::resource('leasingCompanies', App\Http\Controllers\LeasingCompaniesController::class);
     Route::delete('leasingCompanies/delete/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroy'])->name('leasingCompanies.delete');

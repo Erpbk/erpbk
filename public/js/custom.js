@@ -1,3 +1,302 @@
+// Right Side Modal Handler - Slide in from right
+$(document).ready(function() {
+    // Create modal HTML if not exists
+    if ($('#rightSideModal').length === 0) {
+        $('body').append(`
+            <div class="modal fade right-side-modal" id="rightSideModal" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-slide-right" role="document">
+                    <div class="modal-content">
+                        <div class="modal-body" id="rightSideModalBody" style="padding: 0;">
+                            <div class="text-center p-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="sr-only">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading content...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+        
+        // Add custom CSS for right side slide animation
+        $('head').append(`
+            <style>
+                /* Right side modal slide animation */
+                .right-side-modal .modal-dialog.modal-slide-right {
+                    position: fixed;
+                    margin: 0;
+                    top: 0;
+                    right: 0;
+                    bottom: 0;
+                    left: auto;
+                    width: 70%;
+                    max-width: 900px;
+                    height: 100%;
+                    transform: translateX(100%);
+                    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+                }
+                
+                .right-side-modal.show .modal-dialog.modal-slide-right {
+                    transform: translateX(0);
+                }
+                
+                .right-side-modal .modal-content {
+                    height: 100%;
+                    border-radius: 0;
+                    border: none;
+                }
+                
+                .right-side-modal .modal-body {
+                    overflow-y: auto;
+                    flex: 1;
+                }
+                
+                .right-side-modal .modal-header {
+                    border-radius: 0;
+                    padding: 15px 20px;
+                }
+                
+                .right-side-modal .close {
+                    font-size: 28px;
+                    font-weight: 300;
+                    text-shadow: none;
+                    opacity: 1;
+                    transition: all 0.3s ease;
+                }
+                
+                .right-side-modal .close:hover {
+                    transform: rotate(90deg);
+                    opacity: 0.8;
+                }
+                
+                /* Overlay animation */
+                .right-side-modal.fade .modal-backdrop {
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                }
+                
+                .right-side-modal.fade.show .modal-backdrop {
+                    opacity: 0.5;
+                }
+                
+                /* Responsive */
+                @media (max-width: 768px) {
+                    .right-side-modal .modal-dialog.modal-slide-right {
+                        width: 100%;
+                    }
+                }
+                
+                /* Print styles */
+                @media print {
+                    .right-side-modal .modal-dialog.modal-slide-right {
+                        position: absolute;
+                        transform: none;
+                        width: 100%;
+                    }
+                    .modal-header, .close {
+                        display: none !important;
+                    }
+                }
+            </style>
+        `);
+    }
+});
+
+// Centralized function to open right side modal
+function openRightSideModal(action, title, size = 'lg', callback = null) {
+    // Reset modal size classes
+    $('#rightSideModal .modal-dialog').removeClass('modal-sm modal-md modal-lg modal-xl');
+    
+    // Add size class if specified
+    if (size) {
+        $('#rightSideModal .modal-dialog').addClass('modal-' + size);
+    }
+    
+    // Set title
+    $('#rightSideModalTitle').text(title);
+    
+    // Show loading state
+    $('#rightSideModalBody').html(`
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+            <p class="mt-2">Loading content...</p>
+        </div>
+    `);
+    
+    // Load content
+    $('#rightSideModalBody').load(action, function(response, status, xhr) {
+        if (status === 'error') {
+            $('#rightSideModalBody').html(`
+                <div class="text-center p-5 text-danger">
+                    <i class="fas fa-exclamation-circle fa-3x"></i>
+                    <p class="mt-2">Error loading content. Please try again.</p>
+                    <button class="btn btn-primary" onclick="location.reload()">Refresh</button>
+                </div>
+            `);
+        }
+        
+        // Execute callback if provided
+        if (callback && typeof callback === 'function') {
+            callback();
+        }
+        
+        // Re-initialize any components in the loaded content
+        if (typeof initializeModalContent === 'function') {
+            initializeModalContent();
+        }
+    });
+    
+    // Show modal
+    $('#rightSideModal').modal('show');
+}
+
+// Close right side modal function
+function closeRightSideModal() {
+    $('#rightSideModal').modal('hide');
+}
+
+// Enhanced click handler with more options
+$('body').on('click', '.show-modal-right', function() {
+    var action = $(this).data('action');
+    var title = $(this).data('title');
+    var size = $(this).data('size') || 'lg';
+    var reloadTable = $(this).data('reload-table');
+    var collapseSidebar = $(this).data('collapse-sidebar');
+    var onLoadCallback = $(this).data('callback');
+    
+    // Open modal
+    openRightSideModal(action, title, size, function() {
+        // Reload table if specified
+        if (reloadTable && $.fn.DataTable.isDataTable('#dataTableBuilder')) {
+            $('#dataTableBuilder').DataTable().ajax.reload(null, false);
+        }
+        
+        // Collapse sidebar if specified
+        if (collapseSidebar) {
+            $('.layout-wrapper').addClass('layout-menu-collapsed');
+        }
+        
+        // Execute custom callback if defined in data-callback attribute
+        if (onLoadCallback && window[onLoadCallback]) {
+            window[onLoadCallback]();
+        }
+    });
+});
+
+// Reset sidebar when modal closes
+$('#rightSideModal').on('hidden.bs.modal', function() {
+    $('.layout-wrapper').removeClass('layout-menu-collapsed');
+    
+    // Clear modal content to free memory
+    setTimeout(function() {
+        if (!$('#rightSideModal').hasClass('show')) {
+            $('#rightSideModalBody').html(`
+                <div class="text-center p-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading content...</p>
+                </div>
+            `);
+        }
+    }, 300);
+});
+
+// Handle Escape key
+$(document).on('keydown', function(e) {
+    if (e.key === 'Escape' && $('#rightSideModal').hasClass('show')) {
+        closeRightSideModal();
+    }
+});
+
+// Prevent modal close when clicking inside modal content
+$('#rightSideModal').on('click', '.modal-content', function(e) {
+    e.stopPropagation();
+});
+
+// Function to print modal content
+function printModalContent() {
+    // Get the modal content
+    var modalContent = $('#rightSideModalBody').html();
+    
+    // Create a new print window
+    var printWindow = window.open('', '_blank');
+    
+    // Write content to the new window
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${$('#rightSideModalTitle').text()}</title>
+            <meta charset="utf-8">
+            <style>
+                body {
+                    font-family: Calibri, Arial, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    color: #000;
+                }
+                .no-print {
+                    display: none;
+                }
+                .invoice-box {
+                    max-width: 100%;
+                    margin: 0 auto;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 10px;
+                }
+                th, td {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    text-align: left;
+                }
+                th {
+                    background: #004aad;
+                    color: white;
+                }
+                .text-center {
+                    text-align: center;
+                }
+                @media print {
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .no-print {
+                      display: none !important;
+                  }
+                }
+            </style>
+        </head>
+        <body>
+            ${modalContent}
+        </body>
+        </html>
+    `);
+    
+    // Close the document to finish writing
+    printWindow.document.close();
+    
+    // Wait for content to load then print
+    printWindow.onload = function() {
+        printWindow.print();
+        printWindow.onafterprint = function() {
+            printWindow.close();
+        };
+    };
+}
+
+
+
+
+
+
 $('body').on('click', '.show-modal', function () {
   var action = $(this).data('action');
   var title = $(this).data('title');

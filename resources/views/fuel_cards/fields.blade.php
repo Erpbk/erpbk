@@ -10,21 +10,18 @@
     {!! Form::text('card_type', null, ['class' => 'form-control']) !!}
 </div>
 
-<!-- Branch Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('branch_id', 'Branch:',['class'=>'required']) !!}
-    {!! Form::select('branch_id', App\Models\Branch::dropdown(),null, ['class' => 'form-select select2', 'required']) !!}
-</div>
-
 <!-- Assigned To -->
 <div class="form-group col-sm-6">
     {!! Form::label('assigned_to', 'Assigned To:') !!}
     <select name="assigned_to" class="form-control account-select select2">
         <option value="">Select</option>
-        @foreach(\App\Models\Riders::where('status', 1)->get() as $user)
-        <option value="{{ $user->id }}" 
-            {{ old('assigned_to', isset($fuelCard) ? $fuelCard->assigned_to : '') == $user->id ? 'selected' : '' }}>
-            {{ $user->rider_id.'-'.$user->name }}
+        @foreach(\App\Models\Bikes::where('status', 1)->whereNotNull('rider_id')->get() as $bike)
+        @php
+            $bike->load('rider');
+        @endphp
+        <option value="{{ $bike->rider->id }}" 
+            {{ old('assigned_to', isset($fuelCard) ? $fuelCard->assigned_to : '') == $bike->rider->id ? 'selected' : '' }}>
+            {{ 'Bike: '.$bike->plate.', Rider: '. ($bike->rider?->name ?? 'N/A') }}
         </option>
         @endforeach
     </select>

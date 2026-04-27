@@ -65,7 +65,6 @@
     </div>
 </div> --}}
 
-
 @extends('layouts.app')
 @section('title', 'SIM Details')
 @push('third_party_stylesheets')
@@ -176,20 +175,14 @@
                     <div class="row mb-2">
                         <div class="col-5 font-weight-bold text-muted">Created By:</div>
                         <div class="col-7">
-                            @php
-                            $createdBy = App\Models\User::where('id', $card->created_by)->first();
-                            @endphp
-                            {{ $createdBy ? $createdBy->name : 'N/A' }}
+                            {{ $card->createdBy?->name ?? 'N/A' }}
                         </div>
                     </div>
 
                     <div class="row mb-2">
                         <div class="col-5 font-weight-bold text-muted">Updated By:</div>
                         <div class="col-7">
-                            @php
-                            $updatedBy = App\Models\User::where('id', $card->updated_by)->first();
-                            @endphp
-                            {{ $updatedBy ? $updatedBy->name : 'N/A' }}
+                            {{ $card->updatedBy?->name ?? 'N/A' }}
                         </div>
                     </div>
 

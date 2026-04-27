@@ -58,8 +58,18 @@
 
 @once
   <style>
-    .js-dropdown-with-add-option {
+    .select2-add-option-action {
       color: #ff6f00;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-top: 1px solid #e9ecef;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .select2-add-option-action:hover {
+      background: #fff3e0;
     }
   </style>
   <div class="modal fade" id="addRiderDropdownOptionModal" tabindex="-1" aria-hidden="true">
@@ -99,7 +109,7 @@
       var activeDropdownSelect = null;
 
       function openAddOptionModalFromSelect(sel) {
-        if (!sel || sel.value !== '__add_option__') return;
+        if (!sel) return;
         activeDropdownSelect = sel;
         document.getElementById('dropdownOptionFieldKey').value = sel.getAttribute('data-field-key') || '';
         document.getElementById('dropdownOptionCustomFieldId').value = sel.getAttribute('data-custom-field-id') || '';
@@ -112,17 +122,42 @@
 
       document.addEventListener('change', function(e) {
         var sel = e.target.closest('.js-dropdown-with-add-option');
+        if (!sel || sel.value !== '__add_option__') return;
         openAddOptionModalFromSelect(sel);
       });
 
       document.addEventListener('input', function(e) {
         var sel = e.target.closest('.js-dropdown-with-add-option');
+        if (!sel || sel.value !== '__add_option__') return;
         openAddOptionModalFromSelect(sel);
       });
 
       if (window.jQuery) {
-        jQuery(document).on('select2:select', '.js-dropdown-with-add-option', function() {
-          openAddOptionModalFromSelect(this);
+        jQuery(document).on('select2:select', '.js-dropdown-with-add-option', function(e) {
+          if (e.params && e.params.data && e.params.data.id === '__add_option__') {
+            openAddOptionModalFromSelect(this);
+          }
+        });
+
+        jQuery(document).on('select2:open', '.js-dropdown-with-add-option', function() {
+          activeDropdownSelect = this;
+          var dropdown = document.querySelector('.select2-container--open .select2-dropdown');
+          if (!dropdown) return;
+          if (dropdown.querySelector('.select2-add-option-action')) return;
+          var addBtn = document.createElement('div');
+          addBtn.className = 'select2-add-option-action';
+          addBtn.innerHTML = '<span>+</span><span>Add Option</span>';
+          addBtn.addEventListener('mousedown', function(ev) {
+            ev.preventDefault();
+          });
+          addBtn.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            if (window.jQuery) {
+              jQuery(activeDropdownSelect).select2('close');
+            }
+            openAddOptionModalFromSelect(activeDropdownSelect);
+          });
+          dropdown.appendChild(addBtn);
         });
       }
 

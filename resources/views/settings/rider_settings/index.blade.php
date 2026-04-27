@@ -309,7 +309,7 @@
                         <td colspan="7" class="text-center text-muted py-3">No rider fields found.</td>
                       </tr>
                       @endforelse
-                      @foreach(($unassignedCustomFields ?? collect()) as $customIndex => $customField)
+                      @foreach(($customFields ?? collect()) as $customIndex => $customField)
                       <tr class="table-light">
                         <td class="align-middle">{{ count($allFixedFieldsForStatic ?? []) + $customIndex + 1 }}</td>
                         <td class="align-middle">
@@ -317,9 +317,13 @@
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
                         <td class="align-middle">
+                          @if(!empty($customField->category?->label))
+                          <span class="badge bg-label-info">{{ $customField->category->label }}</span>
+                          @else
                           <span class="badge bg-label-warning">Unassigned</span>
+                          @endif
                         </td>
-                        <td class="align-middle text-center">-</td>
+                        <td class="align-middle text-center">{{ $customField->is_mandatory ? 'Yes' : 'No' }}</td>
                         <td class="align-middle text-center">-</td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.rider-settings.assign-custom-field-category', ['id' => $customField->id]) }}" method="POST" class="d-flex justify-content-center">
@@ -327,7 +331,7 @@
                             <select name="category_id" class="form-select form-select-sm" style="width: auto; min-width: 160px;" required>
                               <option value="">Select category</option>
                               @foreach($categories as $c)
-                              <option value="{{ $c->id }}">{{ $c->label }}</option>
+                              <option value="{{ $c->id }}" {{ (int)($customField->category_id ?? 0) === (int)$c->id ? 'selected' : '' }}>{{ $c->label }}</option>
                               @endforeach
                             </select>
                             <button type="submit" class="btn btn-sm btn-outline-primary ms-1">Move</button>
@@ -344,7 +348,7 @@
                             data-default_value="{{ $customField->default_value }}"
                             data-input_format="{{ $customField->input_format }}"
                             data-config='@json($customField->config)'
-                            data-category_id=""
+                            data-category_id="{{ $customField->category_id ?? '' }}"
                             data-bs-toggle="modal" data-bs-target="#editRiderFieldModal">
                             <i class="ti ti-pencil"></i>
                           </button>

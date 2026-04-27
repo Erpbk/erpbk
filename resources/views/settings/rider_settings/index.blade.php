@@ -80,6 +80,11 @@
     margin-top: 0;
     cursor: pointer;
   }
+
+  /* Keep Select2 dropdown above Bootstrap modal/backdrop. */
+  .select2-container--open {
+    z-index: 2000 !important;
+  }
 </style>
 @endpush
 
@@ -1329,16 +1334,28 @@
     var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content') || document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value;
 
     // Select2 inside Rider Top modal (with correct dropdown parent).
-    if (window.jQuery && jQuery.fn && jQuery.fn.select2) {
+    function initTopCategoryColumnSelect2() {
+      if (!(window.jQuery && jQuery.fn && jQuery.fn.select2)) return;
       var $topCategoryColumn = jQuery('#addRiderTopCategoryColumn');
-      if ($topCategoryColumn.length) {
-        $topCategoryColumn.select2({
-          width: '100%',
-          dropdownParent: jQuery('#addRiderTopCategoryModal'),
-          placeholder: $topCategoryColumn.data('placeholder') || 'Select dropdown column',
-          allowClear: true
-        });
+      var $modal = jQuery('#addRiderTopCategoryModal');
+      if (!$topCategoryColumn.length || !$modal.length) return;
+
+      // Re-init to avoid older global select2 init keeping dropdown in <body>.
+      if ($topCategoryColumn.hasClass('select2-hidden-accessible')) {
+        $topCategoryColumn.select2('destroy');
       }
+      $topCategoryColumn.select2({
+        width: '100%',
+        dropdownParent: $modal,
+        placeholder: $topCategoryColumn.data('placeholder') || 'Select dropdown column',
+        allowClear: true
+      });
+    }
+    initTopCategoryColumnSelect2();
+    if (window.jQuery) {
+      jQuery('#addRiderTopCategoryModal').on('shown.bs.modal', function() {
+        initTopCategoryColumnSelect2();
+      });
     }
 
     var riderTopAvailableValues = [];

@@ -349,6 +349,7 @@
                             data-input_format="{{ $customField->input_format }}"
                             data-config='@json($customField->config)'
                             data-category_id="{{ $customField->category_id ?? '' }}"
+                            data-update-url="{{ route('settings-panel.rider-settings.update-field', ['id' => $customField->id]) }}"
                             data-bs-toggle="modal" data-bs-target="#editRiderFieldModal">
                             <i class="ti ti-pencil"></i>
                           </button>
@@ -459,6 +460,7 @@
                             data-input_format="{{ $customField->input_format }}"
                             data-config='@json($customField->config)'
                             data-category_id="{{ $group->category->id }}"
+                            data-update-url="{{ route('settings-panel.rider-settings.update-field', ['id' => $customField->id]) }}"
                             data-bs-toggle="modal" data-bs-target="#editRiderFieldModal">
                             <i class="ti ti-pencil"></i>
                           </button>
@@ -936,15 +938,15 @@
 </div>
 
 {{-- Edit Rider Field modal --}}
-<div class="modal fade" id="editRiderFieldModal" tabindex="-1">
-  <div class="modal-dialog">
+<div class="modal fade" id="editRiderFieldModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-header">
+      <div class="modal-header border-0 pb-0">
         <h5 class="modal-title">Edit rider custom field</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form id="formEditRiderField" method="POST" action="">
-        <div class="modal-body">
+        <div class="modal-body pt-0">
           <input type="hidden" name="id" id="editRiderFieldId">
           <input type="hidden" id="editRiderFieldPreviousCategoryId" value="">
           @csrf
@@ -1026,7 +1028,7 @@
             <div id="edit-rider-config-options-fields"></div>
           </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary">Update</button>
         </div>
@@ -2071,6 +2073,51 @@
       if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
         var modal = new bootstrap.Modal(document.getElementById('editRiderFixedFieldModal'));
         modal.show();
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      var editCustomFieldBtn = e.target.closest('.btn-edit-rider-field');
+      if (!editCustomFieldBtn) return;
+
+      var editForm = document.getElementById('formEditRiderField');
+      if (editForm && editCustomFieldBtn.dataset.updateUrl) {
+        editForm.action = editCustomFieldBtn.dataset.updateUrl;
+      }
+      var idInput = document.getElementById('editRiderFieldId');
+      if (idInput) idInput.value = editCustomFieldBtn.dataset.id || '';
+      var prevCatInput = document.getElementById('editRiderFieldPreviousCategoryId');
+      if (prevCatInput) prevCatInput.value = editCustomFieldBtn.dataset.category_id || '';
+      var labelInput = document.getElementById('editRiderFieldLabel');
+      if (labelInput) labelInput.value = editCustomFieldBtn.dataset.label || '';
+      var categoryInput = document.getElementById('editRiderFieldCategory');
+      if (categoryInput) categoryInput.value = editCustomFieldBtn.dataset.category_id || '';
+      var typeInput = document.getElementById('editRiderFieldDataType');
+      if (typeInput) typeInput.value = editCustomFieldBtn.dataset.data_type || 'text';
+      var helpTextInput = document.getElementById('editRiderFieldHelpText');
+      if (helpTextInput) helpTextInput.value = editCustomFieldBtn.dataset.help_text || '';
+      var defaultValueInput = document.getElementById('editRiderFieldDefaultValue');
+      if (defaultValueInput) defaultValueInput.value = editCustomFieldBtn.dataset.default_value || '';
+      var inputFormatInput = document.getElementById('editRiderFieldInputFormat');
+      if (inputFormatInput) inputFormatInput.value = editCustomFieldBtn.dataset.input_format || '';
+      var mandatoryYes = document.getElementById('editRiderMandatoryYes');
+      var mandatoryNo = document.getElementById('editRiderMandatoryNo');
+      if (mandatoryYes && mandatoryNo) {
+        var isMandatory = String(editCustomFieldBtn.dataset.is_mandatory || '0') === '1';
+        mandatoryYes.checked = isMandatory;
+        mandatoryNo.checked = !isMandatory;
+      }
+      var dupYes = document.getElementById('editRiderPreventDupYes');
+      var dupNo = document.getElementById('editRiderPreventDupNo');
+      if (dupYes && dupNo) {
+        var preventDup = String(editCustomFieldBtn.dataset.prevent_duplicate_values || '0') === '1';
+        dupYes.checked = preventDup;
+        dupNo.checked = !preventDup;
+      }
+      var configInput = document.getElementById('editRiderFieldConfigJson');
+      if (configInput) configInput.value = editCustomFieldBtn.dataset.config || '{}';
+      if (typeInput && typeof typeInput.dispatchEvent === 'function') {
+        typeInput.dispatchEvent(new Event('change'));
       }
     });
 

@@ -224,10 +224,13 @@
                 </button>
               </li>
               @foreach($fieldsByCategory as $idx => $group)
+              @php
+                $categoryCustomFields = ($customFieldsByCategory ?? collect())->get($group->category->id, collect());
+              @endphp
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="rider-cat-{{ $group->category->id }}-tab" data-bs-toggle="tab" data-bs-target="#rider-field-cat-{{ $group->category->id }}" type="button" role="tab">
                   {{ $group->category->label }}
-                  <span class="badge bg-label-info ms-1 rider-cat-badge-custom">{{ count($group->fields) }}</span>
+                  <span class="badge bg-label-info ms-1 rider-cat-badge-custom">{{ count($group->fields) + $categoryCustomFields->count() }}</span>
                 </button>
               </li>
               @endforeach
@@ -354,6 +357,10 @@
               </div>
 
               @foreach($fieldsByCategory as $idx => $group)
+              @php
+                $categoryCustomFields = ($customFieldsByCategory ?? collect())->get($group->category->id, collect());
+                $fixedCount = count($group->fields);
+              @endphp
               <div class="tab-pane fade" id="rider-field-cat-{{ $group->category->id }}" role="tabpanel" data-category-id="{{ $group->category->id }}">
                 <div class="table-responsive">
                   <table class="table table-hover rider-settings-table mb-0">
@@ -369,7 +376,7 @@
                       </tr>
                     </thead>
                     <tbody id="rider-fields-tbody-{{ $group->category->id }}" class="rider-fields-sortable-tbody">
-                      @forelse($group->fields as $rowIndex => $row)
+                      @foreach($group->fields as $rowIndex => $row)
                       <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $group->category->id }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle rider-field-index">{{ $rowIndex + 1 }}</td>
@@ -414,11 +421,51 @@
                           </button>
                         </td>
                       </tr>
-                      @empty
+                      @endforeach
+                      @foreach($categoryCustomFields as $customIndex => $customField)
+                      <tr class="table-light" data-id="{{ $customField->id }}">
+                        <td class="align-middle"><span class="text-muted">-</span></td>
+                        <td class="align-middle rider-custom-field-index">{{ $fixedCount + $customIndex + 1 }}</td>
+                        <td class="align-middle">
+                          <span class="fw-semibold">{{ $customField->label }}</span>
+                          <span class="badge bg-label-secondary ms-1">Custom</span>
+                        </td>
+                        <td class="align-middle text-center">{{ $customField->is_mandatory ? 'Yes' : 'No' }}</td>
+                        <td class="align-middle text-center">-</td>
+                        <td class="align-middle">
+                          <form action="{{ route('settings-panel.rider-settings.assign-custom-field-category', ['id' => $customField->id]) }}" method="POST" class="d-flex justify-content-center">
+                            @csrf
+                            <select name="category_id" class="form-select form-select-sm" style="width: auto; min-width: 160px;" required>
+                              @foreach($categories as $c)
+                              <option value="{{ $c->id }}" {{ (int)$group->category->id === (int)$c->id ? 'selected' : '' }}>{{ $c->label }}</option>
+                              @endforeach
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary ms-1">Move</button>
+                          </form>
+                        </td>
+                        <td class="align-middle text-end">
+                          <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-field"
+                            data-id="{{ $customField->id }}"
+                            data-label="{{ $customField->label }}"
+                            data-help_text="{{ $customField->help_text }}"
+                            data-data_type="{{ $customField->data_type }}"
+                            data-is_mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
+                            data-prevent_duplicate_values="{{ $customField->prevent_duplicate_values ? 1 : 0 }}"
+                            data-default_value="{{ $customField->default_value }}"
+                            data-input_format="{{ $customField->input_format }}"
+                            data-config='@json($customField->config)'
+                            data-category_id="{{ $group->category->id }}"
+                            data-bs-toggle="modal" data-bs-target="#editRiderFieldModal">
+                            <i class="ti ti-pencil"></i>
+                          </button>
+                        </td>
+                      </tr>
+                      @endforeach
+                      @if($fixedCount === 0 && $categoryCustomFields->isEmpty())
                       <tr>
                         <td colspan="7" class="text-center text-muted py-3">No fields in this category.</td>
                       </tr>
-                      @endforelse
+                      @endif
                     </tbody>
                   </table>
                 </div>

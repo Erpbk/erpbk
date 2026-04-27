@@ -432,6 +432,7 @@ class RiderCustomField extends BaseModel
             'noon_no' => ['type' => 'text'],
             'other_details' => ['type' => 'textarea', 'rows' => 2],
             'designation' => ['type' => 'text'],
+            'rider_status' => ['type' => 'text'],
             'attach_documents' => ['type' => 'text'],
         ];
 

@@ -87,6 +87,11 @@ class RiderSettingsController extends Controller
             ->orderBy('id')
             ->get();
         $riderTopSelectableColumns = $this->riderTopSelectableColumns();
+        $riderStatusCategory = $this->riderStatusTopCategory();
+        $riderStatusOptions = RiderTopOption::where('category_id', $riderStatusCategory->id)
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
 
         return view('settings.rider_settings.index', compact(
             'categories',
@@ -102,7 +107,9 @@ class RiderSettingsController extends Controller
             'unassignedCustomFields',
             'documentTypes',
             'riderTopCategories',
-            'riderTopSelectableColumns'
+            'riderTopSelectableColumns',
+            'riderStatusCategory',
+            'riderStatusOptions'
         ));
     }
 
@@ -120,6 +127,27 @@ class RiderSettingsController extends Controller
 
         asort($options);
         return $options;
+    }
+
+    protected function riderStatusTopCategory(): RiderTopCategory
+    {
+        $category = RiderTopCategory::where('rider_column', 'rider_status')->first();
+        if ($category) {
+            if (trim((string) $category->name) === '') {
+                $category->name = 'Rider Status';
+                $category->save();
+            }
+            return $category;
+        }
+
+        return RiderTopCategory::create([
+            'name' => 'Rider Status',
+            'rider_column' => 'rider_status',
+            'display_order' => ((int) RiderTopCategory::max('display_order')) + 1,
+            'is_active' => true,
+            'show_in_top_bar' => true,
+            'show_in_view_cards' => true,
+        ]);
     }
 
     /**
@@ -1016,20 +1044,119 @@ class RiderSettingsController extends Controller
     public function updateRiderTopOption(Request $request, $company_slug, $id)
     {
         $option = RiderTopOption::findOrFail($id);
+        $oldName = trim((string) $option->name);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
         ]);
 
-        $option->name = trim($validated['name']);
+        $newName = trim($validated['name']);
+        $option->name = $newName;
         $option->save();
+        if ($oldName !== '' && $newName !== '' && strcasecmp($oldName, $newName) !== 0) {
+            Riders::where('rider_status', $oldName)->update(['rider_status' => $newName]);
+        }
 
         return response()->json(['success' => true, 'message' => 'Rider Top option updated.']);
     }
 
     public function destroyRiderTopOption($company_slug, $id)
     {
-        RiderTopOption::findOrFail($id)->delete();
+        $option = RiderTopOption::findOrFail($id);
+        $oldName = trim((string) $option->name);
+        $option->delete();
+        if ($oldName !== '') {
+            Riders::where('rider_status', $oldName)->update(['rider_status' => null]);
+        }
         return response()->json(['success' => true, 'message' => 'Rider Top option deleted.']);
+    }
+
+    public function storeRiderStatus(Request $request)
+    {
+        $category = $this->riderStatusTopCategory();
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'show_in_top_bar' => 'nullable|boolean',
+            'show_in_view_cards' => 'nullable|boolean',
+        ]);
+
+        $name = trim((string) $validated['name']);
+        $exists = RiderTopOption::where('category_id', $category->id)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->exists();
+        if ($exists) {
+            return redirect()->route('settings-panel.rider-settings.index', ['tab' => 'rider-status'])
+                ->with('error', 'This status already exists.');
+        }
+
+        RiderTopOption::create([
+            'category_id' => $category->id,
+            'name' => $name,
+            'display_order' => ((int) RiderTopOption::where('category_id', $category->id)->max('display_order')) + 1,
+            'is_active' => true,
+            'show_in_top_bar' => $request->boolean('show_in_top_bar', true),
+            'show_in_view_cards' => $request->boolean('show_in_view_cards', true),
+        ]);
+
+        return redirect()->route('settings-panel.rider-settings.index', ['tab' => 'rider-status'])
+            ->with('success', 'Rider status added.');
+    }
+
+    public function updateRiderStatus(Request $request, $company_slug, $id)
+    {
+        $option = RiderTopOption::findOrFail($id);
+        $category = $this->riderStatusTopCategory();
+        if ((int) $option->category_id !== (int) $category->id) {
+            return redirect()->route('settings-panel.rider-settings.index', ['tab' => 'rider-status'])
+                ->with('error', 'Invalid status option.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'show_in_top_bar' => 'nullable|boolean',
+            'show_in_view_cards' => 'nullable|boolean',
+        ]);
+
+        $oldName = trim((string) $option->name);
+        $newName = trim((string) $validated['name']);
+        $dupExists = RiderTopOption::where('category_id', $category->id)
+            ->where('id', '!=', $option->id)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($newName)])
+            ->exists();
+        if ($dupExists) {
+            return redirect()->route('settings-panel.rider-settings.index', ['tab' => 'rider-status'])
+                ->with('error', 'Another status with this name already exists.');
+        }
+
+        $option->name = $newName;
+        $option->show_in_top_bar = $request->boolean('show_in_top_bar');
+        $option->show_in_view_cards = $request->boolean('show_in_view_cards');
+        $option->save();
+
+        if ($oldName !== '' && $newName !== '' && strcasecmp($oldName, $newName) !== 0) {
+            Riders::where('rider_status', $oldName)->update(['rider_status' => $newName]);
+        }
+
+        return redirect()->route('settings-panel.rider-settings.index', ['tab' => 'rider-status'])
+            ->with('success', 'Rider status updated.');
+    }
+
+    public function destroyRiderStatus($company_slug, $id)
+    {
+        $option = RiderTopOption::findOrFail($id);
+        $category = $this->riderStatusTopCategory();
+        if ((int) $option->category_id !== (int) $category->id) {
+            return redirect()->route('settings-panel.rider-settings.index', ['tab' => 'rider-status'])
+                ->with('error', 'Invalid status option.');
+        }
+
+        $statusName = trim((string) $option->name);
+        $option->delete();
+        if ($statusName !== '') {
+            Riders::where('rider_status', $statusName)->update(['rider_status' => null]);
+        }
+
+        return redirect()->route('settings-panel.rider-settings.index', ['tab' => 'rider-status'])
+            ->with('success', 'Rider status deleted and unassigned from riders.');
     }
 
     // ---------- Rider Documents ----------

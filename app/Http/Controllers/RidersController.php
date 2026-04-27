@@ -1830,13 +1830,13 @@ class RidersController extends AppBaseController
 
     try {
       // Toggle the absconder status
-      $rider->absconder = $rider->absconder ? 0 : 1;
+      $rider->rider_status = ($rider->rider_status === 'Absconder') ? null : 'Absconder';
       $rider->save();
 
       return response()->json([
         'success' => true,
         'message' => 'Absconder status updated successfully',
-        'absconder' => $rider->absconder
+        'rider_status' => $rider->rider_status
       ]);
     } catch (\Exception $e) {
       return response()->json([
@@ -1856,13 +1856,13 @@ class RidersController extends AppBaseController
 
     try {
       // Toggle the flowup status
-      $rider->flowup = $rider->flowup ? 0 : 1;
+      $rider->rider_status = ($rider->rider_status === 'Follow Up') ? null : 'Follow Up';
       $rider->save();
 
       return response()->json([
         'success' => true,
         'message' => 'Flowup status updated successfully',
-        'flowup' => $rider->flowup
+        'rider_status' => $rider->rider_status
       ]);
     } catch (\Exception $e) {
       return response()->json([
@@ -1882,13 +1882,13 @@ class RidersController extends AppBaseController
 
     try {
       // Toggle the l_license status
-      $rider->l_license = $rider->l_license ? 0 : 1;
+      $rider->rider_status = ($rider->rider_status === 'Learning License') ? null : 'Learning License';
       $rider->save();
 
       return response()->json([
         'success' => true,
         'message' => 'Learning license status updated successfully',
-        'l_license' => $rider->l_license
+        'rider_status' => $rider->rider_status
       ]);
     } catch (\Exception $e) {
       return response()->json([
@@ -1919,9 +1919,7 @@ class RidersController extends AppBaseController
       } else {
         $rider->status = 3;
       }
-      if (Schema::hasColumn($rider->getTable(), 'walker')) {
-        $rider->walker = $isSettingWalker ? 1 : 0;
-      }
+      $rider->rider_status = $isSettingWalker ? 'Walker' : null;
 
       $rider->save();
 
@@ -1990,9 +1988,7 @@ class RidersController extends AppBaseController
       } else {
         $rider->status = 1; // Active when vacation is turned off
       }
-      if (Schema::hasColumn($rider->getTable(), 'vacation')) {
-        $rider->vacation = $isSettingVacation ? 1 : 0;
-      }
+      $rider->rider_status = $isSettingVacation ? 'Vacation' : null;
 
       $rider->save();
 
@@ -2077,13 +2073,13 @@ class RidersController extends AppBaseController
 
     try {
       // Toggle the PRO status
-      $rider->pro = $rider->pro ? 0 : 1;
+      $rider->rider_status = ($rider->rider_status === 'PRO') ? null : 'PRO';
       $rider->save();
 
       return response()->json([
         'success' => true,
         'message' => 'PRO status updated successfully',
-        'pro' => $rider->pro
+        'rider_status' => $rider->rider_status
       ]);
     } catch (\Exception $e) {
       return response()->json([
@@ -2105,33 +2101,11 @@ class RidersController extends AppBaseController
       return response()->json(['error' => 'Rider not found'], 404);
     }
 
-    $validTypes = ['absconder', 'flowup', 'llicense', 'walker', 'vacation', 'cancel', 'pro', 'none'];
-    $type = $request->input('type', 'none');
-    if (!in_array($type, $validTypes, true)) {
-      return response()->json(['success' => false, 'message' => 'Invalid status type'], 400);
-    }
+    $type = trim((string) $request->input('type', 'none'));
 
     try {
-      // Clear all status option flags and rider_status_option only (do not touch designation or status)
-      $rider->absconder = 0;
-      $rider->flowup = 0;
-      $rider->l_license = 0;
-      if (Schema::hasColumn($rider->getTable(), 'walker')) {
-        $rider->walker = 0;
-      }
-      if (Schema::hasColumn($rider->getTable(), 'vacation')) {
-        $rider->vacation = 0;
-      }
-      if (Schema::hasColumn($rider->getTable(), 'cancel')) {
-        $rider->cancel = 0;
-      }
-      $rider->rider_status_option = null;
-      if (Schema::hasColumn($rider->getTable(), 'pro')) {
-        $rider->pro = 0;
-      }
-      if (Schema::hasColumn($rider->getTable(), 'mol')) {
-        $rider->mol = 0;
-      }
+      // Single status column only.
+      $rider->rider_status = null;
 
       if ($type !== 'none') {
         $labels = [
@@ -2143,55 +2117,39 @@ class RidersController extends AppBaseController
           'cancel' => 'Cancel',
           'pro' => 'PRO',
         ];
-        $rider->rider_status_option = $labels[$type] ?? null;
-        switch ($type) {
-          case 'absconder':
-            $rider->absconder = 1;
-            break;
-          case 'flowup':
-            $rider->flowup = 1;
-            break;
-          case 'llicense':
-            $rider->l_license = 1;
-            break;
-          case 'walker':
-            if (Schema::hasColumn($rider->getTable(), 'walker')) {
-              $rider->walker = 1;
-            }
-            break;
-          case 'vacation':
-            if (Schema::hasColumn($rider->getTable(), 'vacation')) {
-              $rider->vacation = 1;
-            }
-            break;
-          case 'cancel':
-            if (Schema::hasColumn($rider->getTable(), 'cancel')) {
-              $rider->cancel = 1;
-            }
-            break;
-          case 'pro':
-            if (Schema::hasColumn($rider->getTable(), 'pro')) {
-              $rider->pro = 1;
-            }
-            break;
+        $statusLabel = $labels[$type] ?? $type;
+        $statusLabel = trim((string) $statusLabel);
+
+        $statusCategory = \App\Models\RiderTopCategory::where('rider_column', 'rider_status')->first();
+        if ($statusCategory) {
+          $configuredStatuses = \App\Models\RiderTopOption::where('category_id', $statusCategory->id)
+            ->pluck('name')
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
+            ->values()
+            ->all();
+          if (!in_array($statusLabel, $configuredStatuses, true)) {
+            return response()->json(['success' => false, 'message' => 'Status is not configured in Rider Settings.'], 422);
+          }
         }
+        $rider->rider_status = $statusLabel;
       }
 
       $rider->save();
 
-      $statusLabel = $type === 'none' ? (null) : $rider->rider_status_option;
+      $statusLabel = $type === 'none' ? null : $rider->rider_status;
 
       return response()->json([
         'success' => true,
         'message' => $type === 'none' ? 'Status option cleared.' : 'Status option updated.',
         'statusLabel' => $statusLabel,
-        'rider_status_option' => $rider->rider_status_option,
+        'rider_status' => $rider->rider_status,
         'designation' => $rider->designation,
         'status' => $rider->status,
-        'absconder' => $rider->absconder,
-        'flowup' => $rider->flowup,
-        'l_license' => $rider->l_license,
-        'pro' => $rider->pro ?? 0,
+        'absconder' => $rider->rider_status === 'Absconder' ? 1 : 0,
+        'flowup' => $rider->rider_status === 'Follow Up' ? 1 : 0,
+        'l_license' => $rider->rider_status === 'Learning License' ? 1 : 0,
+        'pro' => $rider->rider_status === 'PRO' ? 1 : 0,
       ]);
     } catch (\Exception $e) {
       return response()->json([

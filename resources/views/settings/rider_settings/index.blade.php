@@ -124,6 +124,9 @@
             <button class="nav-link" id="tab-rider-top-btn" data-bs-toggle="tab" data-bs-target="#tab-rider-top" type="button" role="tab">Rider Top</button>
           </li>
           <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-rider-status-btn" data-bs-toggle="tab" data-bs-target="#tab-rider-status" type="button" role="tab">Rider Status</button>
+          </li>
+          <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-rider-documents-btn" data-bs-toggle="tab" data-bs-target="#tab-rider-documents" type="button" role="tab">Rider Documents</button>
           </li>
 
@@ -210,6 +213,93 @@
             </div>
             <div id="riderTopAccordionContainer">
               @include('settings.rider_settings._rider_top_accordion', ['riderTopCategories' => $riderTopCategories])
+            </div>
+          </div>
+
+          {{-- Tab 6: Rider Status --}}
+          <div class="tab-pane fade" id="tab-rider-status" role="tabpanel">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+              <p class="text-muted small mb-0">Manage rider statuses in one place. Changes here stay synced with rider records (`rider_status`).</p>
+            </div>
+            <form action="{{ route('settings-panel.rider-settings.store-rider-status') }}" method="POST" class="row g-2 align-items-end mb-3">
+              @csrf
+              <div class="col-md-5">
+                <label class="form-label">Status Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Absconder" required maxlength="255">
+              </div>
+              <div class="col-md-2">
+                <div class="form-check form-switch mt-4">
+                  <input class="form-check-input" type="checkbox" name="show_in_top_bar" id="newRiderStatusTopBar" value="1" checked>
+                  <label class="form-check-label" for="newRiderStatusTopBar">Top Bar</label>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="form-check form-switch mt-4">
+                  <input class="form-check-input" type="checkbox" name="show_in_view_cards" id="newRiderStatusViewCard" value="1" checked>
+                  <label class="form-check-label" for="newRiderStatusViewCard">View Card</label>
+                </div>
+              </div>
+              <div class="col-md-3 text-md-end">
+                <button type="submit" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Add Status</button>
+              </div>
+            </form>
+
+            <div class="table-responsive">
+              <table class="table table-hover rider-settings-table mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>#</th>
+                    <th>Status</th>
+                    <th class="text-center">Top Bar</th>
+                    <th class="text-center">View Card</th>
+                    <th class="text-end" style="width: 280px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @forelse(($riderStatusOptions ?? collect()) as $idx => $statusOption)
+                  <tr>
+                    <td class="align-middle">{{ $idx + 1 }}</td>
+                    <td class="align-middle">
+                      <form action="{{ route('settings-panel.rider-settings.update-rider-status', ['id' => $statusOption->id]) }}" method="POST" class="row g-2 align-items-center">
+                        @csrf
+                        @method('PUT')
+                        <div class="col-12 col-lg-7">
+                          <input type="text" name="name" class="form-control form-control-sm" value="{{ $statusOption->name }}" maxlength="255" required>
+                        </div>
+                        <div class="col-6 col-lg-2 text-center">
+                          <input type="hidden" name="show_in_top_bar" value="0">
+                          <div class="form-check form-switch d-inline-block">
+                            <input class="form-check-input" type="checkbox" name="show_in_top_bar" value="1" {{ ($statusOption->show_in_top_bar ?? true) ? 'checked' : '' }}>
+                          </div>
+                        </div>
+                        <div class="col-6 col-lg-2 text-center">
+                          <input type="hidden" name="show_in_view_cards" value="0">
+                          <div class="form-check form-switch d-inline-block">
+                            <input class="form-check-input" type="checkbox" name="show_in_view_cards" value="1" {{ ($statusOption->show_in_view_cards ?? true) ? 'checked' : '' }}>
+                          </div>
+                        </div>
+                        <div class="col-12 col-lg-1 text-end">
+                          <button type="submit" class="btn btn-sm btn-outline-primary"><i class="ti ti-device-floppy"></i></button>
+                        </div>
+                      </form>
+                    </td>
+                    <td class="align-middle text-center">{{ ($statusOption->show_in_top_bar ?? true) ? 'Yes' : 'No' }}</td>
+                    <td class="align-middle text-center">{{ ($statusOption->show_in_view_cards ?? true) ? 'Yes' : 'No' }}</td>
+                    <td class="align-middle text-end">
+                      <form action="{{ route('settings-panel.rider-settings.destroy-rider-status', ['id' => $statusOption->id]) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this status? It will be removed from riders too.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="ti ti-trash"></i></button>
+                      </form>
+                    </td>
+                  </tr>
+                  @empty
+                  <tr>
+                    <td colspan="5" class="text-center text-muted py-3">No rider statuses configured yet.</td>
+                  </tr>
+                  @endforelse
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -2620,6 +2710,9 @@
       if (tab === 'rider-fields' && document.getElementById('tab-rider-fields-btn')) {
         var tabEl = new bootstrap.Tab(document.getElementById('tab-rider-fields-btn'));
         tabEl.show();
+      } else if (tab === 'rider-status' && document.getElementById('tab-rider-status-btn')) {
+        var statusTabEl = new bootstrap.Tab(document.getElementById('tab-rider-status-btn'));
+        statusTabEl.show();
       }
     })();
 

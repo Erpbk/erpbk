@@ -97,6 +97,9 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::post('rider-settings/rider-top/options', [App\Http\Controllers\RiderSettingsController::class, 'storeRiderTopOption'])->name('settings-panel.rider-settings.store-rider-top-option');
     Route::put('rider-settings/rider-top/options/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderTopOption'])->name('settings-panel.rider-settings.update-rider-top-option');
     Route::delete('rider-settings/rider-top/options/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyRiderTopOption'])->name('settings-panel.rider-settings.destroy-rider-top-option');
+    Route::post('rider-settings/statuses', [App\Http\Controllers\RiderSettingsController::class, 'storeRiderStatus'])->name('settings-panel.rider-settings.store-rider-status');
+    Route::put('rider-settings/statuses/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderStatus'])->name('settings-panel.rider-settings.update-rider-status');
+    Route::delete('rider-settings/statuses/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyRiderStatus'])->name('settings-panel.rider-settings.destroy-rider-status');
     // Backward-compatible alias: rider-settings lives on dedicated controller page.
     Route::get('module-settings/rider-settings', function (\Illuminate\Http\Request $request) {
         $companySlug = (string) ($request->route('company_slug') ?? '');

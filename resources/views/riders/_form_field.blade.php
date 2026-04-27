@@ -41,6 +41,10 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   } else {
   $opts = Common::Dropdowns($spec['dropdown'] ?? '');
   }
+  // Keep only one "Select" prompt via Select2 placeholder.
+  if (is_array($opts) && array_key_exists('', $opts)) {
+  unset($opts['']);
+  }
   @endphp
   {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select select2 js-dropdown-with-add-option', 'placeholder' => 'Select ' . $item->label, 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null, 'data-field-key' => $item->field_key, 'data-label' => $item->label] + ($req ? ['required' => true] : [])) !!}
   @if ($item->field_key === 'rider_id')
@@ -93,6 +97,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   $line = trim($line);
   if ($line !== '') $dd[$line] = $line;
   }
+  if (array_key_exists('', $dd)) unset($dd['']);
   @endphp
   {!! Form::select($name, $dd, $value, ['class' => 'form-select select2 js-dropdown-with-add-option', 'placeholder' => 'Select', 'data-custom-field-id' => $f->id, 'data-label' => $f->label] + ($req ? ['required' => true] : [])) !!}
   @break

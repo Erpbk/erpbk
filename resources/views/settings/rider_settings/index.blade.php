@@ -427,9 +427,16 @@
                         </td>
                       </tr>
                       @endforeach
+                      @if($fixedCount === 0 && $categoryCustomFields->isEmpty())
+                      <tr>
+                        <td colspan="7" class="text-center text-muted py-3">No fields in this category.</td>
+                      </tr>
+                      @endif
+                    </tbody>
+                    <tbody id="rider-custom-fields-tbody-{{ $group->category->id }}" class="rider-custom-fields-sortable-tbody" data-category-id="{{ $group->category->id }}">
                       @foreach($categoryCustomFields as $customIndex => $customField)
                       <tr class="table-light" data-id="{{ $customField->id }}">
-                        <td class="align-middle"><span class="text-muted">-</span></td>
+                        <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle rider-custom-field-index">{{ $fixedCount + $customIndex + 1 }}</td>
                         <td class="align-middle">
                           <span class="fw-semibold">{{ $customField->label }}</span>
@@ -467,11 +474,6 @@
                         </td>
                       </tr>
                       @endforeach
-                      @if($fixedCount === 0 && $categoryCustomFields->isEmpty())
-                      <tr>
-                        <td colspan="7" class="text-center text-muted py-3">No fields in this category.</td>
-                      </tr>
-                      @endif
                     </tbody>
                   </table>
                 </div>

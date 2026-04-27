@@ -260,14 +260,34 @@
 {{-- Include Column Control Panel --}}
 @php
 use Illuminate\Support\Facades\Schema;
-// Get all columns from riders table
-$filteredColumns = Schema::getColumnListing('riders');
+// Build column-control list from Rider Settings assignments only.
+$riderColumns = Schema::getColumnListing('riders');
+$riderColumnsSet = array_flip($riderColumns);
 
-// Columns to exclude
+// Columns to always exclude from manual column control.
 $exclude = ['id', 'email', 'created_at', 'updated_at', 'branch_id', 'company_id', 'account_id'];
+$excludedSet = array_flip($exclude);
 
-// Final filtered columns
-$dbColumns = array_diff($filteredColumns, $exclude);
+// Assigned fixed fields (from Rider Settings -> Rider Fields).
+$assignedFixedColumns = \App\Models\RiderFieldCategoryAssignment::query()
+->orderBy('display_order')
+->orderBy('id')
+->pluck('field_key')
+->filter(function ($key) use ($riderColumnsSet, $excludedSet) {
+return isset($riderColumnsSet[$key]) && !isset($excludedSet[$key]);
+})
+->values()
+->all();
+
+// Assigned custom fields (category-wise moved from settings).
+$assignedCustomFields = \App\Models\RiderCustomField::query()
+->whereNotNull('category_id')
+->orderBy('display_order')
+->orderBy('id')
+->get(['id', 'label']);
+
+// Merge only assigned DB-backed fields (unique, ordered).
+$dbColumns = array_values(array_unique($assignedFixedColumns));
 $preferredOrder = [
 'rider_id',
 'name',
@@ -300,6 +320,14 @@ foreach ($dbColumns as $key) {
 if (empty($added[$key])) {
 $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
 }
+}
+
+// Add assigned custom fields (stored in riders.custom_field_values JSON).
+foreach ($assignedCustomFields as $cf) {
+$columns[] = [
+'data' => 'custom_field_values.' . $cf->id,
+'title' => trim((string) $cf->label) !== '' ? $cf->label : ('Custom Field #' . $cf->id),
+];
 }
 
 // 3) Append special/computed columns used in UI

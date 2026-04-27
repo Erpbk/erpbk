@@ -92,43 +92,27 @@
         document.body.removeChild(trigger);
       }
 
-      document.addEventListener('change', function(e) {
-        var sel = e.target.closest('.js-dropdown-with-add-option');
-        if (!sel || sel.value !== '__add_option__') return;
-        openAddOptionModalFromSelect(sel);
-      });
-
-      document.addEventListener('input', function(e) {
-        var sel = e.target.closest('.js-dropdown-with-add-option');
-        if (!sel || sel.value !== '__add_option__') return;
-        openAddOptionModalFromSelect(sel);
-      });
-
       if (window.jQuery) {
         jQuery(document).on('select2:opening', '.js-dropdown-with-add-option', function() {
           openedSelectEl = this;
         });
 
-        jQuery(document).on('select2:select', '.js-dropdown-with-add-option', function(e) {
-          if (e.params && e.params.data && e.params.data.id === '__add_option__') {
-            openAddOptionModalFromSelect(this);
-          }
+        jQuery(document).on('select2:open', function() {
+          if (!openedSelectEl || !jQuery(openedSelectEl).hasClass('js-dropdown-with-add-option')) return;
+
+          window.setTimeout(function() {
+            var $dropdown = jQuery('.select2-container--open .select2-results__options').last();
+            if (!$dropdown.length || $dropdown.find('.select2-add-new-option').length) return;
+            $dropdown.append('<li class="select2-results__option select2-add-new-option" role="option" aria-selected="false">+ Add New</li>');
+          }, 0);
         });
 
-        jQuery(document).on('select2:open', '.js-dropdown-with-add-option', function() {
-          var selectEl = openedSelectEl || this;
-          var $dropdown = jQuery('.select2-container--open .select2-results__options').last();
-          if (!$dropdown.length || $dropdown.find('.select2-add-new-option').length) return;
-
-          var $addNew = jQuery('<li class="select2-results__option select2-add-new-option" role="option" aria-selected="false">+ Add New</li>');
-          $dropdown.append($addNew);
-
-          $addNew.on('mousedown', function(evt) {
-            evt.preventDefault();
-            evt.stopPropagation();
-            openAddOptionModalFromSelect(selectEl);
-            jQuery(selectEl).select2('close');
-          });
+        jQuery(document).on('mousedown', '.select2-add-new-option', function(evt) {
+          evt.preventDefault();
+          evt.stopPropagation();
+          if (!openedSelectEl) return;
+          openAddOptionModalFromSelect(openedSelectEl);
+          jQuery(openedSelectEl).select2('close');
         });
       }
     })();

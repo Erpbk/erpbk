@@ -10,24 +10,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $databaseName = DB::connection()->getDatabaseName();
+        $databaseName = DB::getDatabaseName();
 
-        $tables = DB::select(
-            "SELECT TABLE_NAME
-             FROM INFORMATION_SCHEMA.COLUMNS
-             WHERE TABLE_SCHEMA = ?
-               AND COLUMN_NAME = 'company_id'
-             ORDER BY TABLE_NAME",
-            [$databaseName]
-        );
+        $tables = DB::table('information_schema.columns')
+            ->select('table_name')
+            ->where('table_schema', $databaseName)
+            ->where('column_name', 'company_id')
+            ->pluck('table_name');
 
-        foreach ($tables as $table) {
-            DB::table($table->TABLE_NAME)
-                ->where(function ($query) {
-                    $query->whereNull('company_id')
-                        ->orWhere('company_id', '<>', 5);
-                })
-                ->update(['company_id' => 5]);
+        foreach ($tables as $tableName) {
+            DB::table($tableName)->update(['company_id' => 5]);
         }
     }
 
@@ -36,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // This is a one-way data normalization migration.
+        // This data migration is intentionally irreversible.
     }
 };

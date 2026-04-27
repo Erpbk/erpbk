@@ -44,7 +44,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   @endphp
   @php
   $optsWithAdd = $opts;
-  $optsWithAdd['__add_option__'] = '➕ ADD OPTION...';
+  $optsWithAdd['__add_option__'] = '+ Add Option...';
   @endphp
   {!! Form::select($item->field_key, $optsWithAdd, $value, ['class' => 'form-select js-dropdown-with-add-option', 'placeholder' => 'Select ' . $item->label, 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null, 'data-field-key' => $item->field_key, 'data-label' => $item->label] + ($req ? ['required' => true] : [])) !!}
   @if ($item->field_key === 'rider_id')
@@ -100,7 +100,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   @endphp
   @php
   $ddWithAdd = $dd;
-  $ddWithAdd['__add_option__'] = '➕ ADD OPTION...';
+  $ddWithAdd['__add_option__'] = '+ Add Option...';
   @endphp
   {!! Form::select($name, $ddWithAdd, $value, ['class' => 'form-select js-dropdown-with-add-option', 'placeholder' => 'Select', 'data-custom-field-id' => $f->id, 'data-label' => $f->label] + ($req ? ['required' => true] : [])) !!}
   @break

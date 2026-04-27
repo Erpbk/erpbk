@@ -59,8 +59,7 @@
 @once
   <style>
     .js-dropdown-with-add-option {
-      font-weight: 600;
-      color: #0d6efd;
+      color: #ff6f00;
     }
   </style>
   <div class="modal fade" id="addRiderDropdownOptionModal" tabindex="-1" aria-hidden="true">
@@ -120,6 +119,12 @@
         var sel = e.target.closest('.js-dropdown-with-add-option');
         openAddOptionModalFromSelect(sel);
       });
+
+      if (window.jQuery) {
+        jQuery(document).on('select2:select', '.js-dropdown-with-add-option', function() {
+          openAddOptionModalFromSelect(this);
+        });
+      }
 
       formEl.addEventListener('submit', function(e) {
         e.preventDefault();

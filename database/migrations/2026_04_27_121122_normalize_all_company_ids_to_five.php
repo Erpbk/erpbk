@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -10,17 +11,23 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $databaseName = DB::getDatabaseName();
+        DB::transaction(function () {
+            $targetCompanyId = 5;
+            $tables = Schema::getTableListing();
 
-        $tables = DB::table('information_schema.columns')
-            ->select('table_name')
-            ->where('table_schema', $databaseName)
-            ->where('column_name', 'company_id')
-            ->pluck('table_name');
+            foreach ($tables as $table) {
+                if (! Schema::hasColumn($table, 'company_id')) {
+                    continue;
+                }
 
-        foreach ($tables as $tableName) {
-            DB::table($tableName)->update(['company_id' => 5]);
-        }
+                DB::table($table)
+                    ->where(function ($query) use ($targetCompanyId) {
+                        $query->whereNull('company_id')
+                            ->orWhere('company_id', '!=', $targetCompanyId);
+                    })
+                    ->update(['company_id' => $targetCompanyId]);
+            }
+        });
     }
 
     /**
@@ -28,6 +35,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // This data migration is intentionally irreversible.
+        // This migration is intentionally not reversible because previous
+        // company_id values are overwritten globally.
     }
 };

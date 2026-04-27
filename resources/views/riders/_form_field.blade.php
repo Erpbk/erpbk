@@ -42,11 +42,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   $opts = Common::Dropdowns($spec['dropdown'] ?? '');
   }
   @endphp
-  @php
-  $optsWithAdd = $opts;
-  $optsWithAdd['__add_option__'] = '+ Add New';
-  @endphp
-  {!! Form::select($item->field_key, $optsWithAdd, $value, ['class' => 'form-select select2 js-dropdown-with-add-option', 'placeholder' => 'Select ' . $item->label, 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null, 'data-field-key' => $item->field_key, 'data-label' => $item->label] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select select2 js-dropdown-with-add-option', 'placeholder' => 'Select ' . $item->label, 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null, 'data-field-key' => $item->field_key, 'data-label' => $item->label] + ($req ? ['required' => true] : [])) !!}
   @if ($item->field_key === 'rider_id')
   <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
   @endif
@@ -98,11 +94,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   if ($line !== '') $dd[$line] = $line;
   }
   @endphp
-  @php
-  $ddWithAdd = $dd;
-  $ddWithAdd['__add_option__'] = '+ Add New';
-  @endphp
-  {!! Form::select($name, $ddWithAdd, $value, ['class' => 'form-select select2 js-dropdown-with-add-option', 'placeholder' => 'Select', 'data-custom-field-id' => $f->id, 'data-label' => $f->label] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::select($name, $dd, $value, ['class' => 'form-select select2 js-dropdown-with-add-option', 'placeholder' => 'Select', 'data-custom-field-id' => $f->id, 'data-label' => $f->label] + ($req ? ['required' => true] : [])) !!}
   @break
   @case('checkbox')
   <div class="form-check mt-2">

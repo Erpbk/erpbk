@@ -58,13 +58,16 @@
 
 @once
   <style>
-    .js-dropdown-with-add-option {
+    .select2-results__option.select2-add-new-option {
       color: #ff6f00;
+      font-weight: 600;
     }
   </style>
 
   <script>
     (function() {
+      var openedSelectEl = null;
+
       function openAddOptionModalFromSelect(sel) {
         if (!sel) return;
         sel.value = '';
@@ -102,10 +105,30 @@
       });
 
       if (window.jQuery) {
+        jQuery(document).on('select2:opening', '.js-dropdown-with-add-option', function() {
+          openedSelectEl = this;
+        });
+
         jQuery(document).on('select2:select', '.js-dropdown-with-add-option', function(e) {
           if (e.params && e.params.data && e.params.data.id === '__add_option__') {
             openAddOptionModalFromSelect(this);
           }
+        });
+
+        jQuery(document).on('select2:open', '.js-dropdown-with-add-option', function() {
+          var selectEl = openedSelectEl || this;
+          var $dropdown = jQuery('.select2-container--open .select2-results__options').last();
+          if (!$dropdown.length || $dropdown.find('.select2-add-new-option').length) return;
+
+          var $addNew = jQuery('<li class="select2-results__option select2-add-new-option" role="option" aria-selected="false">+ Add New</li>');
+          $dropdown.append($addNew);
+
+          $addNew.on('mousedown', function(evt) {
+            evt.preventDefault();
+            evt.stopPropagation();
+            openAddOptionModalFromSelect(selectEl);
+            jQuery(selectEl).select2('close');
+          });
         });
       }
     })();

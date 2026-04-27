@@ -450,12 +450,9 @@
             </div>
             <div class="mb-3">
               <label class="form-label">Category</label>
-              <select name="category_id" class="form-select">
-                <option value="">Unassigned (show in static tab)</option>
-                @foreach($categories as $cat)
-                <option value="{{ $cat->id }}">{{ $cat->label }}</option>
-                @endforeach
-              </select>
+              <input type="text" class="form-control" value="Unassigned (set from Rider Fields tab after creation)" disabled>
+              <input type="hidden" name="category_id" value="">
+              <p class="form-text mb-0">New custom fields are created as unassigned and can be moved category-wise from the Rider Fields tab.</p>
             </div>
             <div class="mb-3">
               <label class="form-label d-flex align-items-center gap-1">
@@ -2494,21 +2491,7 @@
       }
     })();
 
-    // When opening Add custom field from a category tab, preselect that category
-    document.querySelectorAll('.btn-add-custom-field-in-category').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var catId = this.getAttribute('data-category-id');
-        var sel = document.querySelector('#addRiderFieldModal select[name="category_id"]');
-        if (sel && catId) sel.value = catId;
-      });
-    });
-    var btnAddCustomFieldFromTop = document.getElementById('btnAddCustomFieldFromTop');
-    if (btnAddCustomFieldFromTop) {
-      btnAddCustomFieldFromTop.addEventListener('click', function() {
-        var sel = document.querySelector('#addRiderFieldModal select[name="category_id"]');
-        if (sel) sel.value = '';
-      });
-    }
+    // New custom fields always start as unassigned.
 
     // Add custom field form: submit via AJAX and refresh the category tbody
     var formAddRiderField = document.getElementById('formAddRiderField');

@@ -659,16 +659,16 @@ class RiderSettingsController extends Controller
         $validated['help_text'] = $request->input('help_text');
         $validated['default_value'] = $request->input('default_value');
         $validated['input_format'] = $request->input('input_format');
-        $validated['category_id'] = $request->filled('category_id') ? (int) $request->input('category_id') : null;
+        // New custom fields must start as unassigned and only appear in Rider module
+        // after explicit category assignment from Rider Fields settings.
+        $validated['category_id'] = null;
         $validated['data_privacy'] = [
             'pii' => $request->boolean('data_privacy_pii'),
             'ephi' => $request->boolean('data_privacy_ephi'),
         ];
         $config = $request->input('config');
         $validated['config'] = is_string($config) ? (json_decode($config, true) ?? []) : (is_array($config) ? $config : []);
-        $validated['display_order'] = $validated['category_id'] !== null
-            ? ((int) RiderCustomField::where('category_id', $validated['category_id'])->max('display_order') + 1)
-            : ((int) RiderCustomField::max('display_order') + 1);
+        $validated['display_order'] = (int) RiderCustomField::max('display_order') + 1;
 
         RiderCustomField::create($validated);
 

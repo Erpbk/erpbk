@@ -1810,11 +1810,11 @@ class RidersController extends AppBaseController
     }
 
     $rider->rider_top_option_id = $option?->id;
-    // Keep rider_status synced when the selected view-card option is from Rider Status category.
-    if ($option && ($option->rider_column ?? null) === 'rider_status') {
-      $rider->rider_status = $option->name;
-    } elseif (empty($optionId)) {
-      $rider->rider_status = null;
+    // Keep rider status synced directly with selected view-card option.
+    $rider->rider_status = $option ? (string) $option->name : null;
+    if ($rider->rider_status !== null) {
+      $inactiveStatuses = ['Absconder', 'Vacation', 'Cancel'];
+      $rider->status = in_array($rider->rider_status, $inactiveStatuses, true) ? 3 : 1;
     }
     $rider->save();
 
@@ -2140,6 +2140,10 @@ class RidersController extends AppBaseController
           }
         }
         $rider->rider_status = $statusLabel;
+      }
+      if ($rider->rider_status !== null) {
+        $inactiveStatuses = ['Absconder', 'Vacation', 'Cancel'];
+        $rider->status = in_array($rider->rider_status, $inactiveStatuses, true) ? 3 : 1;
       }
 
       $rider->save();

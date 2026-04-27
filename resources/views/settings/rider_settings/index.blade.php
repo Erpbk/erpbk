@@ -433,21 +433,33 @@
                           </form>
                         </td>
                         <td class="align-middle text-end">
-                          <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-field"
-                            data-id="{{ $customField->id }}"
-                            data-label="{{ $customField->label }}"
-                            data-help_text="{{ $customField->help_text }}"
-                            data-data_type="{{ $customField->data_type }}"
-                            data-is_mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
-                            data-prevent_duplicate_values="{{ $customField->prevent_duplicate_values ? 1 : 0 }}"
-                            data-default_value="{{ $customField->default_value }}"
-                            data-input_format="{{ $customField->input_format }}"
-                            data-config='@json($customField->config)'
-                            data-category_id="{{ $customField->category_id ?? '' }}"
-                            data-update-url="{{ route('settings-panel.rider-settings.update-field', ['id' => $customField->id]) }}"
-                            data-bs-toggle="modal" data-bs-target="#editRiderFieldModal">
-                            <i class="ti ti-pencil"></i>
-                          </button>
+                          <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-field"
+                              data-id="{{ $customField->id }}"
+                              data-label="{{ $customField->label }}"
+                              data-help_text="{{ $customField->help_text }}"
+                              data-data_type="{{ $customField->data_type }}"
+                              data-is_mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
+                              data-prevent_duplicate_values="{{ $customField->prevent_duplicate_values ? 1 : 0 }}"
+                              data-default_value="{{ $customField->default_value }}"
+                              data-input_format="{{ $customField->input_format }}"
+                              data-config='@json($customField->config)'
+                              data-category_id="{{ $customField->category_id ?? '' }}"
+                              data-update-url="{{ route('settings-panel.rider-settings.update-field', ['id' => $customField->id]) }}"
+                              data-bs-toggle="modal" data-bs-target="#editRiderFieldModal">
+                              <i class="ti ti-pencil"></i>
+                            </button>
+                            <form method="POST"
+                              class="d-inline rider-destroy-field-form"
+                              action="{{ route('settings-panel.rider-settings.destroy-field', ['id' => $customField->id]) }}"
+                              data-category-id="{{ $customField->category_id ?? '' }}">
+                              @csrf
+                              @method('DELETE')
+                              <button type="submit" class="btn btn-sm btn-outline-danger btn-destroy-rider-field">
+                                <i class="ti ti-trash"></i>
+                              </button>
+                            </form>
+                          </div>
                         </td>
                       </tr>
                       @endforeach
@@ -551,21 +563,33 @@
                           </form>
                         </td>
                         <td class="align-middle text-end">
-                          <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-field"
-                            data-id="{{ $customField->id }}"
-                            data-label="{{ $customField->label }}"
-                            data-help_text="{{ $customField->help_text }}"
-                            data-data_type="{{ $customField->data_type }}"
-                            data-is_mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
-                            data-prevent_duplicate_values="{{ $customField->prevent_duplicate_values ? 1 : 0 }}"
-                            data-default_value="{{ $customField->default_value }}"
-                            data-input_format="{{ $customField->input_format }}"
-                            data-config='@json($customField->config)'
-                            data-category_id="{{ $group->category->id }}"
-                            data-update-url="{{ route('settings-panel.rider-settings.update-field', ['id' => $customField->id]) }}"
-                            data-bs-toggle="modal" data-bs-target="#editRiderFieldModal">
-                            <i class="ti ti-pencil"></i>
-                          </button>
+                          <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rider-field"
+                              data-id="{{ $customField->id }}"
+                              data-label="{{ $customField->label }}"
+                              data-help_text="{{ $customField->help_text }}"
+                              data-data_type="{{ $customField->data_type }}"
+                              data-is_mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
+                              data-prevent_duplicate_values="{{ $customField->prevent_duplicate_values ? 1 : 0 }}"
+                              data-default_value="{{ $customField->default_value }}"
+                              data-input_format="{{ $customField->input_format }}"
+                              data-config='@json($customField->config)'
+                              data-category_id="{{ $group->category->id }}"
+                              data-update-url="{{ route('settings-panel.rider-settings.update-field', ['id' => $customField->id]) }}"
+                              data-bs-toggle="modal" data-bs-target="#editRiderFieldModal">
+                              <i class="ti ti-pencil"></i>
+                            </button>
+                            <form method="POST"
+                              class="d-inline rider-destroy-field-form"
+                              action="{{ route('settings-panel.rider-settings.destroy-field', ['id' => $customField->id]) }}"
+                              data-category-id="{{ $group->category->id }}">
+                              @csrf
+                              @method('DELETE')
+                              <button type="submit" class="btn btn-sm btn-outline-danger btn-destroy-rider-field">
+                                <i class="ti ti-trash"></i>
+                              </button>
+                            </form>
+                          </div>
                         </td>
                       </tr>
                       @endforeach
@@ -2857,7 +2881,12 @@
           return r.json();
         })
         .then(function(data) {
-          if (data.success && categoryId) window.refreshRiderCustomFieldsCategory(categoryId);
+          if (data.success && categoryId) {
+            window.refreshRiderCustomFieldsCategory(categoryId);
+          } else if (data.success) {
+            window.location.href = "{{ route('settings-panel.rider-settings.index') }}?tab=rider-fields";
+            return;
+          }
           if (typeof Swal !== 'undefined') Swal.fire({
             toast: true,
             position: 'top-end',

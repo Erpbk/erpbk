@@ -58,6 +58,29 @@
 
 @once
   <style>
+    .select2-add-new-footer {
+      border-top: 1px solid #e9ecef;
+      background: #fff;
+      padding: 6px 8px;
+    }
+
+    .select2-add-new-footer-button {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: #ff6f00;
+      font-weight: 600;
+      text-align: left;
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .select2-add-new-footer-button:hover {
+      background: #fff4e8;
+    }
+
     .select2-results__option.select2-add-new-option {
       color: #ff6f00;
       font-weight: 600;
@@ -101,13 +124,18 @@
           if (!openedSelectEl || !jQuery(openedSelectEl).hasClass('js-dropdown-with-add-option')) return;
 
           window.setTimeout(function() {
-            var $dropdown = jQuery('.select2-container--open .select2-results__options').last();
-            if (!$dropdown.length || $dropdown.find('.select2-add-new-option').length) return;
-            $dropdown.append('<li class="select2-results__option select2-add-new-option" role="option" aria-selected="false">+ Add New</li>');
+            var $results = jQuery('.select2-container--open .select2-results').last();
+            if (!$results.length) return;
+            $results.find('.select2-add-new-footer').remove();
+            $results.append(
+              '<div class="select2-add-new-footer">' +
+              '<button type="button" class="select2-add-new-footer-button">+ Add New</button>' +
+              '</div>'
+            );
           }, 0);
         });
 
-        jQuery(document).on('mousedown', '.select2-add-new-option', function(evt) {
+        jQuery(document).on('mousedown', '.select2-add-new-footer-button', function(evt) {
           evt.preventDefault();
           evt.stopPropagation();
           if (!openedSelectEl) return;

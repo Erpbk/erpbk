@@ -446,7 +446,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                     $newItemData = $item->toArray();
                     unset($newItemData['id'], $newItemData['created_at'], $newItemData['updated_at']);
                     $newItemData['inv_id'] = $newInvoice->id;
-                    \App\Support\CompanyQuery::table('leasing_company_billing_invoice_items')->insert($newItemData);
+                    \App\Support\CompanyQuery::insert('leasing_company_billing_invoice_items', $newItemData);
                 }
             }
 

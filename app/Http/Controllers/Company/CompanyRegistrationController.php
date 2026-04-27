@@ -36,7 +36,7 @@ class CompanyRegistrationController extends Controller
                 'required',
                 'email',
                 function ($attribute, $value, $fail) {
-                    if (Company::on('mysql_central')->where('email', $value)->exists()) {
+                    if (Company::query()->where('email', $value)->exists()) {
                         $fail(__('The email has already been taken.'));
                     }
                 },
@@ -163,7 +163,7 @@ class CompanyRegistrationController extends Controller
         $validated['ntn_number'] = $validated['ntn_number'] ?? null;
         $validated['tax_registration_date'] = $validated['tax_registration_date'] ?? null;
 
-        DB::connection('mysql_central')->transaction(function () use ($step1, $validated) {
+        DB::transaction(function () use ($step1, $validated) {
             $company = Company::query()->create([
                 'name' => $step1['name'],
                 'slug' => Company::generateUniqueSlug($step1['name']),
@@ -193,7 +193,7 @@ class CompanyRegistrationController extends Controller
 
     protected function notifyAdminNewCompany(Company $company): void
     {
-        DB::connection('mysql_central')->table('admin_notifications')->insert([
+        DB::table('admin_notifications')->insert([
             'type' => 'company_registered',
             'title' => __('New company registered'),
             'data' => json_encode([

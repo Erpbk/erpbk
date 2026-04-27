@@ -797,7 +797,7 @@ class SalikController extends AppBaseController
         $closingBalance = $openingBalance + $debitTotal - $creditTotal;
 
         // Insert new ledger entry
-        \App\Support\CompanyQuery::table('ledger_entries')->insert([
+        \App\Support\CompanyQuery::insert('ledger_entries', [
             'account_id'      => $accountId,
             'billing_month'   => $billingMonth,
             'opening_balance' => $openingBalance,

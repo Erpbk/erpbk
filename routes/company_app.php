@@ -1,9 +1,8 @@
 <?php
 
 /**
- * Company-scoped app routes. Loaded inside Route::prefix('app/{company_id}') with tenant + auth.
- * Paths here are relative to /app/{company_id}/. Same controllers as main app; they use default DB (tenant).
- * Copy additional routes from the main auth group in web.php as needed.
+ * Company-scoped route subset (reference only). The live tenant routes are registered in routes/web.php
+ * under Route::prefix('app/{company_slug}') — this file is not required from web.php by default.
  */
 
 use App\Http\Controllers\HomeController;

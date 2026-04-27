@@ -34,6 +34,28 @@ class CompanyQuery
         return $query->where(self::qualifiedCompanyColumn($table), $companyId);
     }
 
+    public static function insert(string $table, array $values, ?string $connection = null): bool
+    {
+        $query = $connection
+            ? DB::connection($connection)->table($table)
+            : DB::table($table);
+
+        $payload = self::prepareInsertPayload($table, $values, $connection);
+
+        return $query->insert($payload);
+    }
+
+    public static function insertGetId(string $table, array $values, ?string $connection = null, ?string $sequence = null): int
+    {
+        $query = $connection
+            ? DB::connection($connection)->table($table)
+            : DB::table($table);
+
+        $payload = self::prepareInsertPayload($table, $values, $connection);
+
+        return $query->insertGetId($payload, $sequence);
+    }
+
     private static function shouldApplyScope(): bool
     {
         if (app()->runningInConsole()) {
@@ -100,6 +122,56 @@ class CompanyQuery
         self::$companyColumnCache[$cacheKey] = Schema::connection($connection)->hasColumn($tableName, 'company_id');
 
         return self::$companyColumnCache[$cacheKey];
+    }
+
+    private static function prepareInsertPayload(string $table, array $values, ?string $connection): array
+    {
+        if (!self::shouldAttachCompanyIdToInsert($table, $connection)) {
+            return $values;
+        }
+
+        $companyId = self::resolveCompanyId();
+        if ($companyId === null) {
+            return $values;
+        }
+
+        if (!self::isListOfRows($values)) {
+            if (empty($values['company_id'])) {
+                $values['company_id'] = $companyId;
+            }
+
+            return $values;
+        }
+
+        foreach ($values as &$row) {
+            if (is_array($row) && empty($row['company_id'])) {
+                $row['company_id'] = $companyId;
+            }
+        }
+        unset($row);
+
+        return $values;
+    }
+
+    private static function shouldAttachCompanyIdToInsert(string $table, ?string $connection): bool
+    {
+        $companyId = self::resolveCompanyId();
+        if ($companyId === null || !self::shouldApplyScope()) {
+            return false;
+        }
+
+        $connectionName = $connection ?: (DB::getDefaultConnection() ?: config('database.default'));
+
+        return self::hasCompanyIdColumn($table, $connectionName);
+    }
+
+    private static function isListOfRows(array $values): bool
+    {
+        if ($values === []) {
+            return false;
+        }
+
+        return isset($values[0]) && is_array($values[0]);
     }
 
     private static function qualifiedCompanyColumn(string $table): string

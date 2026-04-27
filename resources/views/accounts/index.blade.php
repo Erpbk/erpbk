@@ -2,6 +2,7 @@
 
 @section('title', 'Chart of Accounts')
 @section('content')
+@php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
 @push('third_party_stylesheets')
 <style>
   .chart-of-accounts-table {
@@ -120,10 +121,10 @@
       </div>
       <div class="col-sm-6">
         @can('account_create')
-        <a class="btn btn-primary float-end action-btn show-modal" href="javascript:void(0);" data-action="{{ route('accounts.create') }}" data-size="lg" data-title="New Account"><i class="fa fa-plus me-1"></i> Add New</a>
+        <a class="btn btn-primary float-end action-btn show-modal" href="javascript:void(0);" data-action="{{ route('accounts.create', ['company_slug' => $__companySlug]) }}" data-size="lg" data-title="New Account"><i class="fa fa-plus me-1"></i> Add New</a>
         @endcan
         @can('trash_view')
-        <a class="btn btn-outline-secondary float-end me-2" href="{{ route('accounts.trash') }}"><i class="fa fa-trash-o"></i> View Trash</a>
+        <a class="btn btn-outline-secondary float-end me-2" href="{{ route('accounts.trash', ['company_slug' => $__companySlug]) }}"><i class="fa fa-trash-o"></i> View Trash</a>
         @endcan
       </div>
     </div>
@@ -152,15 +153,15 @@
             </div>
           </form>
           @can('account_create')
-          <a class="btn btn-primary btn-sm action-btn show-modal" href="javascript:void(0);" data-action="{{ route('accounts.create') }}" data-size="lg" data-title="New Account"><i class="fa fa-plus me-1"></i> New</a>
+          <a class="btn btn-primary btn-sm action-btn show-modal" href="javascript:void(0);" data-action="{{ route('accounts.create', ['company_slug' => $__companySlug]) }}" data-size="lg" data-title="New Account"><i class="fa fa-plus me-1"></i> New</a>
           @endcan
           <div class="dropdown">
             <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa fa-ellipsis-v"></i></button>
             <ul class="dropdown-menu dropdown-menu-end">
               @can('trash_view')
-              <li><a class="dropdown-item" href="{{ route('accounts.trash') }}"><i class="fa fa-trash-o me-2"></i> View Trash</a></li>
+              <li><a class="dropdown-item" href="{{ route('accounts.trash', ['company_slug' => $__companySlug]) }}"><i class="fa fa-trash-o me-2"></i> View Trash</a></li>
               @endcan
-              <li><a class="dropdown-item" href="{{ route('accounts.ledger') }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
+              <li><a class="dropdown-item" href="{{ route('accounts.ledger', ['company_slug' => $__companySlug]) }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
             </ul>
           </div>
         </div>
@@ -186,8 +187,8 @@
             $account = $row->account;
             $depth = $row->depth ?? 0;
             $hasChildren = $account->relationLoaded('children') ? $account->children->isNotEmpty() : $account->children()->exists();
-            $isMainParent = $account->parent_id === null;
-            $isLocked = ($account->is_locked ?? false) || $isMainParent;
+            $isMainParent = $account->parent_id === null || (int) $account->parent_id === 0;
+            $isLocked = (bool) ($account->is_locked ?? false);
             @endphp
             <tr class="{{ $depth > 0 ? 'child-row' : '' }}" data-account-id="{{ $account->id }}" data-parent-id="{{ $account->parent_id ?? '' }}" data-depth="{{ $depth }}" data-has-children="{{ $hasChildren ? '1' : '0' }}">
               <td class="ps-3 align-middle">
@@ -203,8 +204,8 @@
                     @else
                     <span class="indent" style="width: 20px; display: inline-block;"></span>
                     @endif
-                    @if ($isLocked)
-                    <i class="fa fa-lock lock-icon" title="Locked / Main parent"></i>
+                    @if ($isLocked || $isMainParent)
+                    <i class="fa fa-lock lock-icon" title="{{ $isMainParent ? 'Main parent account' : 'Locked account' }}"></i>
                     @endif
                     <a href="javascript:void(0);" class="account-link chart-account-name" data-id="{{ $account->id }}">{{ $account->name }}</a>
                 </div>
@@ -214,16 +215,13 @@
               <td class="text-nowrap align-middle text-muted">—</td>
               <td class="text-nowrap align-middle text-muted">{{ $account->parent->name ?? '—' }}</td>
               <td class="text-end pe-3 align-middle">
-                @if (!$isLocked)
                 <div class="dropdown">
                   <button type="button" class="btn btn-sm btn-icon btn-outline-secondary btn-actions dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Actions" onclick="event.stopPropagation();"><i class="fa fa-cog"></i></button>
                   <ul class="dropdown-menu dropdown-menu-end">
                     @can('account_edit')
-                    <li><a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', $account->id) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-edit me-2"></i> Edit</a></li>
-                    @if($account->is_locked)
-                    <li><a class="dropdown-item toggle-lock" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', $account->id) }}"><i class="fa fa-unlock me-2"></i> Unlock</a></li>
-                    @endif
-                    <li><a class="dropdown-item toggle-status" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleStatus', $account->id) }}" data-active="{{ $account->status == 1 ? '1' : '0' }}"><i class="fa fa-{{ $account->status == 1 ? 'pause-circle-o' : 'play-circle-o' }} me-2"></i> {{ $account->status == 1 ? 'Mark as Inactive' : 'Mark as Active' }}</a></li>
+                    <li><a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-edit me-2"></i> Edit</a></li>
+                    <li><a class="dropdown-item toggle-lock" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-{{ $account->is_locked ? 'unlock' : 'lock' }} me-2"></i> {{ $account->is_locked ? 'Unlock' : 'Lock' }}</a></li>
+                    <li><a class="dropdown-item toggle-status" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleStatus', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-active="{{ $account->status == 1 ? '1' : '0' }}"><i class="fa fa-{{ $account->status == 1 ? 'pause-circle-o' : 'play-circle-o' }} me-2"></i> {{ $account->status == 1 ? 'Mark as Inactive' : 'Mark as Active' }}</a></li>
                     @endcan
                     <li><a class="dropdown-item view-ledger" href="javascript:void(0);" data-id="{{ $account->id }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
                     @can('account_delete')
@@ -231,14 +229,11 @@
                     <li>
                       <hr class="dropdown-divider">
                     </li>
-                    <li><a class="dropdown-item text-danger delete-account" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.destroy', $account->id) }}"><i class="fa fa-trash me-2"></i> Delete</a></li>
+                    <li><a class="dropdown-item text-danger delete-account" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.destroy', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-trash me-2"></i> Delete</a></li>
                     @endif
                     @endcan
                   </ul>
                 </div>
-                @else
-                <a href="javascript:void(0);" class="view-ledger btn btn-sm btn-link text-primary p-0" data-id="{{ $account->id }}">Ledger</a>
-                @endif
               </td>
             </tr>
             @empty
@@ -263,7 +258,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
   (function() {
-    var detailUrl = '{{ route("accounts.detail", ["id" => 0]) }}'.replace(/\/0$/, '');
+    var detailUrl = '{{ route("accounts.detail", ["company_slug" => $__companySlug, "id" => 0]) }}'.replace(/\/0(\?.*)?$/, '');
     var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     var tbody = document.getElementById('chartAccountsTbody');
     var ledgerPlaceholder = document.getElementById('chartLedgerPlaceholder');
@@ -367,7 +362,7 @@
     }
 
     // Ledger AJAX pagination (no page reload)
-    var ledgerEntriesBaseUrl = '{{ url("accounts/detail") }}';
+    var ledgerEntriesBaseUrl = '{{ route("accounts.detail", ["company_slug" => $__companySlug, "id" => 0]) }}'.replace(/\/0(\?.*)?$/, '');
     document.addEventListener('click', function(e) {
       var prevBtn = e.target.closest('#chartLedgerContent .ledger-page-prev');
       var nextBtn = e.target.closest('#chartLedgerContent .ledger-page-next');

@@ -1,6 +1,6 @@
+@php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
 
-
-            {!! Form::model($accounts, ['route' => ['accounts.update', $accounts->id], 'method' => 'patch','id'=>'formajax']) !!}
+            {!! Form::model($accounts, ['route' => ['accounts.update', ['company_slug' => $__companySlug, 'id' => $accounts->id]], 'method' => 'patch','id'=>'formajax']) !!}
             <input type="hidden" id="reload_page" value="1"/>
             <div class="card-body">
                 <div class="row">

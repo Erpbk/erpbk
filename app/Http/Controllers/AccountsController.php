@@ -19,7 +19,11 @@ use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use App\Models\Company;
+use App\Support\CompanyRouteContext;
 use Flash;
 
 class AccountsController extends AppBaseController
@@ -145,12 +149,12 @@ class AccountsController extends AppBaseController
    */
   public function show($company_slug, $id)
   {
-    $accounts = $this->accountsRepository->find($id);
+    $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
       Flash::error('Accounts not found');
 
-      return redirect(route('accounts.index'));
+      return redirect(route('accounts.index', ['company_slug' => CompanyRouteContext::slug()]));
     }
 
     $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
@@ -163,12 +167,14 @@ class AccountsController extends AppBaseController
    */
   public function edit($company_slug, $id)
   {
-    $accounts = $this->accountsRepository->find($id);
+    $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
+      if (request()->ajax() || request()->wantsJson()) {
+        return response()->json(['message' => 'Account not found or not accessible.'], 404);
+      }
       Flash::error('Accounts not found');
-
-      return redirect(route('accounts.index'));
+      return redirect(route('accounts.index', ['company_slug' => CompanyRouteContext::slug()]));
     }
     //$parents = Accounts::whereNot('id', $id)->whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
     $parents = Accounts::query()
@@ -187,12 +193,12 @@ class AccountsController extends AppBaseController
    */
   public function update($company_slug, $id, UpdateAccountsRequest $request)
   {
-    $accounts = $this->accountsRepository->find($id);
+    $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
       Flash::error('Accounts not found');
 
-      return redirect(route('accounts.index'));
+      return redirect(route('accounts.index', ['company_slug' => CompanyRouteContext::slug()]));
     }
 
     $input = $request->except(['custom_field_values']);
@@ -228,14 +234,14 @@ class AccountsController extends AppBaseController
   }
 
   /**
-   * Remove the specified Accounts from storage (soft delete with protection).
-   * Accounts with transactions CANNOT be deleted - must be protected.
+   * Remove the specified account from storage (soft delete).
+   * Soft delete is safe even when transactions exist because the row remains in DB.
    *
    * @throws \Exception
    */
   public function destroy($company_slug, $id)
   {
-    $accounts = $this->accountsRepository->find($id);
+    $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
       return response()->json(['errors' => ['error' => 'Account not found!']], 422);
@@ -245,20 +251,6 @@ class AccountsController extends AppBaseController
     $childAccountsCount = Accounts::where('parent_id', $accounts->id)->count();
     if ($childAccountsCount > 0) {
       return response()->json(['errors' => ['error' => "Cannot delete account. This account has {$childAccountsCount} sub-account(s). Please delete or reassign child accounts first."]], 422);
-    }
-
-    // CRITICAL: Check if account has transactions - MUST PROTECT
-    $transactionsCount = Transactions::where('account_id', $accounts->id)->count();
-    if ($transactionsCount > 0) {
-      return response()->json(['errors' => ['error' => "Cannot delete account. This account has {$transactionsCount} transaction(s). Accounts with transactions cannot be deleted to maintain data integrity."]], 422);
-    }
-
-    // Check if account has ledger entries
-    $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
-      ->where('account_id', $accounts->id)
-      ->count();
-    if ($ledgerEntriesCount > 0) {
-      return response()->json(['errors' => ['error' => "Cannot delete account. This account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first."]], 422);
     }
 
     // Track cascaded deletions for referenced records
@@ -318,7 +310,10 @@ class AccountsController extends AppBaseController
    */
   public function toggleLock(Request $request, $company_slug, $id)
   {
-    $account = Accounts::findOrFail($id);
+    $account = $this->findAccessibleAccount($id);
+    if (!$account) {
+      abort(404);
+    }
     $account->is_locked = !$account->is_locked;
     $account->save();
     return response()->json([
@@ -335,7 +330,10 @@ class AccountsController extends AppBaseController
    */
   public function accountDetail(Request $request,$company_slug, $id)
   {
-    $account = Accounts::findOrFail($id);
+    $account = $this->findAccessibleAccount($id);
+    if (!$account) {
+      abort(404);
+    }
     $currency = $request->get('currency', 'bcy');
 
     $closingBalance = (float) Transactions::where('account_id', $account->id)->sum(DB::raw('debit - credit'));
@@ -349,7 +347,7 @@ class AccountsController extends AppBaseController
       ->orderBy('id', 'desc')
       ->paginate($perPage, ['*'], 'page', 1);
 
-    $ledgerUrl = route('accounts.ledger') . '?account=' . $account->id;
+    $ledgerUrl = route('accounts.ledger', ['company_slug' => CompanyRouteContext::slug()]) . '?account=' . $account->id;
 
     $html = view('accounts.detail_panel', compact('account', 'closingBalance', 'ledgerPaginator', 'currency', 'ledgerUrl'))->render();
 
@@ -364,7 +362,10 @@ class AccountsController extends AppBaseController
    */
   public function ledgerEntries(Request $request, $company_slug, $id)
   {
-    $account = Accounts::findOrFail($id);
+    $account = $this->findAccessibleAccount($id);
+    if (!$account) {
+      abort(404);
+    }
     $currency = $request->get('currency', 'bcy');
     $perPage = (int) $request->get('per_page', 25);
     $perPage = max(10, min(100, $perPage));
@@ -396,7 +397,10 @@ class AccountsController extends AppBaseController
    */
   public function toggleStatus(Request $request, $company_slug, $id)
   {
-    $account = Accounts::findOrFail($id);
+    $account = $this->findAccessibleAccount($id);
+    if (!$account) {
+      abort(404);
+    }
     $account->status = ($account->status == 1) ? 2 : 1;
     $account->save();
     return response()->json([
@@ -440,4 +444,76 @@ class AccountsController extends AppBaseController
       'index_route' => 'accounts.index',
     ];
   }
+
+  private function findAccessibleAccount($id): ?Accounts
+  {
+    if ($id === null || $id === '' || !is_numeric($id)) {
+      return null;
+    }
+    $id = (int) $id;
+
+    $account = Accounts::query()->find($id);
+    if ($account) {
+      return $account;
+    }
+
+    // Same row may be hidden from scoped find (e.g. legacy company_id NULL, branch edge cases).
+    $account = Accounts::withoutGlobalScopes(['company', 'branch'])->find($id);
+    if (!$account) {
+      return null;
+    }
+
+    if (Auth::guard('admin')->check()) {
+      return $account;
+    }
+
+    $companyId = $this->resolveChartCompanyId();
+    if ($companyId === null) {
+      return $account;
+    }
+
+    $connection = $account->getConnectionName() ?: config('database.default');
+    if (!Schema::connection($connection)->hasColumn($account->getTable(), 'company_id')) {
+      return $account;
+    }
+
+    // Allow shared/legacy rows; block only explicit cross-company records.
+    if ($account->company_id === null || $account->company_id === '') {
+      return $account;
+    }
+
+    return (int) $account->company_id === (int) $companyId ? $account : null;
+  }
+
+  /**
+   * Match BelongsToCompany::resolveScopedCompanyId + route session fallback (must stay in sync with chart listing).
+   */
+  private function resolveChartCompanyId(): ?int
+  {
+    $request = request();
+    $company = $request?->attributes->get('company');
+    if ($company && isset($company->id)) {
+      return (int) $company->id;
+    }
+
+    $companySlug = $request?->route('company_slug') ?? $request?->session()->get('company_slug');
+    if (!empty($companySlug)) {
+      $resolvedCompany = Company::query()->where('slug', (string) $companySlug)->first();
+      if (!$resolvedCompany && is_numeric($companySlug)) {
+        $resolvedCompany = Company::query()->find((int) $companySlug);
+      }
+      if ($resolvedCompany) {
+        $request?->attributes->set('company', $resolvedCompany);
+        return (int) $resolvedCompany->id;
+      }
+    }
+
+    $authCompanyId = auth()->user()?->company_id;
+    if (!empty($authCompanyId)) {
+      return (int) $authCompanyId;
+    }
+
+    return null;
+  }
+
 }

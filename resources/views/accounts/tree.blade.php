@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title','Chart of Accounts')
 @section('content')
+@php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
 @push('third_party_stylesheets')
 <style>
     /* Right-side sliding ledger panel */
@@ -157,7 +158,7 @@
             </div>
             <div class="col-sm-6">
                 <a class="btn btn-primary float-end action-btn show-modal"
-                    href="javascript:void(0);" data-action="{{ route('accounts.create') }}" data-size="lg" data-title="New Account">
+                    href="javascript:void(0);" data-action="{{ route('accounts.create', ['company_slug' => $__companySlug]) }}" data-size="lg" data-title="New Account">
                     Add New
                 </a>
             </div>
@@ -448,7 +449,7 @@
         });
 
         // Ledger AJAX pagination (no page reload)
-        var ledgerEntriesUrl = '{{ url("accounts/detail") }}';
+        var ledgerEntriesUrl = '{{ route("accounts.detail", ["company_slug" => $__companySlug, "id" => 0]) }}'.replace(/\/0(\?.*)?$/, '');
         document.addEventListener('click', function(e) {
             var prevBtn = e.target.closest('#chartLedgerContent .ledger-page-prev');
             var nextBtn = e.target.closest('#chartLedgerContent .ledger-page-next');
@@ -504,7 +505,11 @@
                 e.preventDefault();
                 e.stopPropagation();
                 var accountId = lock.getAttribute('data-account-id');
-                var url = '{{ url("accounts/accounts") }}/' + accountId + '/toggle-lock';
+                var url = lock.getAttribute('data-url');
+                if (!url && accountId) {
+                    url = '{{ route("accounts.toggleLock", ["company_slug" => $__companySlug, "id" => 0]) }}'.replace('/0/toggle-lock', '/' + accountId + '/toggle-lock');
+                }
+                if (!url) return;
                 fetch(url, {
                         method: 'POST',
                         headers: {

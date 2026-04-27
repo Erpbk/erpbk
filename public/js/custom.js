@@ -309,8 +309,38 @@ $('body').on('click', '.show-modal', function () {
     $('.modal-dialog').addClass('modal-' + size);
   }
   $('#modalTopTitle').text(title);
-  $('#modalTopbody').load(action, function () {
-    unblock();
+  $.ajax({
+    url: action,
+    type: 'GET',
+    dataType: 'html',
+    success: function (response) {
+      // Prevent duplicate global declarations (e.g., `isRtl`) from re-evaluating
+      // scripts every time modal content is loaded.
+      var $wrapper = $('<div>').html(response);
+      $wrapper.find('script').remove();
+      $('#modalTopbody').html($wrapper.html());
+
+      // Re-init select2 fields inside the modal content.
+      if ($.fn.select2) {
+        $('#modalTopbody .select2').select2({
+          dropdownParent: $('#modalTop'),
+          allowClear: true
+        });
+      }
+    },
+    complete: function () {
+      unblock();
+    },
+    error: function (xhr) {
+      var errMsg = 'Failed to load modal content.';
+      if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+        errMsg = xhr.responseJSON.message;
+      }
+      $('#modalTopbody').html('<div class="alert alert-danger mb-0">' + errMsg + '</div>');
+      if (window.toastr) {
+        toastr.error(errMsg);
+      }
+    }
   });
 
   if (table) {
@@ -851,8 +881,8 @@ function bodyunblock() {
   $('#bodyloader').unblock();
 }
 
-$('#edit-icon').on('click', function() {
-    $('#photo-upload-form').fadeToggle('fast');
+$(document).on('click', '#edit-icon', function () {
+  $('#photo-upload-form').fadeToggle('fast');
 });
 
 

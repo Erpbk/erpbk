@@ -182,12 +182,16 @@ class CompanyAuthController extends Controller
 
     protected function companyHomeRouteName(): string
     {
-        if (Route::has('company.home')) {
-            return 'company.home';
-        }
-
         if (Route::has('home')) {
             return 'home';
+        }
+
+        if (Route::has('home-dashboard')) {
+            return 'home-dashboard';
+        }
+
+        if (Route::has('company.home')) {
+            return 'company.home';
         }
 
         if (Route::has('company.home-dashboard')) {

@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class CompanyOtpVerification extends BaseModel
 {
-    protected $connection = 'mysql_central';
-
     protected $table = 'company_otp_verifications';
 
     protected $fillable = ['email', 'otp', 'expires_at', 'verified'];

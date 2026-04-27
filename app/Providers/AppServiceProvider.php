@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use App\Models\Company;
 use App\Models\Settings;
+use App\Support\CompanyRouteContext;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -52,7 +53,12 @@ class AppServiceProvider extends ServiceProvider
           $labels = array_merge($labels, array_filter($overrides, fn($v) => $v !== null && $v !== ''));
         }
       }
-      $view->with('menuLabels', $labels);
+      $fallbackSlug = request()->route('company_slug') ?? session('company_slug');
+      $menuCompanySlug = CompanyRouteContext::slug() ?? $fallbackSlug;
+      $view->with([
+        'menuLabels' => $labels,
+        'menuCompanySlug' => $menuCompanySlug,
+      ]);
     });
 
     // Make company branding available across all Blade views.

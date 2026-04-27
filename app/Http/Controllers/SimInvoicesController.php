@@ -315,7 +315,7 @@ class SimInvoicesController extends AppBaseController
                 $newItemData = $item->toArray();
                 unset($newItemData['id'], $newItemData['created_at'], $newItemData['updated_at']);
                 $newItemData['inv_id'] = $newInvoice->id;
-                \App\Support\CompanyQuery::table('sim_invoice_items')->insert($newItemData);
+                \App\Support\CompanyQuery::insert('sim_invoice_items', $newItemData);
             }
 
             $items = \App\Support\CompanyQuery::table('sim_invoice_items')->where('inv_id', $newInvoice->id)->get();

@@ -247,7 +247,7 @@ class GarageItemService
             }
 
             try {
-                $voucherId = \App\Support\CompanyQuery::table('vouchers')->insertGetId($voucherData);
+                $voucherId = \App\Support\CompanyQuery::insertGetId('vouchers', $voucherData);
                 Log::debug('Voucher created with ID: ' . $voucherId);
                 $voucher = \App\Support\CompanyQuery::table('vouchers')->where('id', $voucherId)->first();
             } catch (\Exception $e) {

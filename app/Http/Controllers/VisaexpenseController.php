@@ -621,7 +621,7 @@ class VisaexpenseController extends AppBaseController
                 $credit_balance = 0.00;
                 $closing_balance = $opening_balance + $installmentAmount; // Liability increases with debit
 
-                \App\Support\CompanyQuery::table('ledger_entries')->insert([
+                \App\Support\CompanyQuery::insert('ledger_entries', [
                     'account_id' => $liabilityAccount->id,
                     'billing_month' => $billingMonth,
                     'opening_balance' => $opening_balance,
@@ -1032,7 +1032,7 @@ class VisaexpenseController extends AppBaseController
                             ->orderBy('billing_month', 'desc')
                             ->first();
                         $opening_balance = $lastLedger ? (float) $lastLedger->closing_balance : 0.00;
-                        \App\Support\CompanyQuery::table('ledger_entries')->insert([
+                        \App\Support\CompanyQuery::insert('ledger_entries', [
                             'account_id' => $liabilityAccount->id,
                             'billing_month' => $billingMonth,
                             'opening_balance' => $opening_balance,
@@ -1292,7 +1292,7 @@ class VisaexpenseController extends AppBaseController
                                 ->orderBy('billing_month', 'desc')
                                 ->first();
                             $opening_balance = $lastLedger ? (float) $lastLedger->closing_balance : 0.00;
-                            \App\Support\CompanyQuery::table('ledger_entries')->insert([
+                            \App\Support\CompanyQuery::insert('ledger_entries', [
                                 'account_id' => $liabilityAccount->id,
                                 'billing_month' => $billingMonthFull,
                                 'opening_balance' => $opening_balance,
@@ -1727,7 +1727,7 @@ class VisaexpenseController extends AppBaseController
                     $closing_balance = $opening_balance;
                 }
 
-                \App\Support\CompanyQuery::table('ledger_entries')->insert([
+                \App\Support\CompanyQuery::insert('ledger_entries', [
                     'account_id'      => $request->account,
                     'billing_month'   => $billingMonth,
                     'opening_balance' => $opening_balance,
@@ -2051,7 +2051,7 @@ class VisaexpenseController extends AppBaseController
 
         // Only insert a new ledger entry if there are still transactions for this month
         if ($monthTransactions->count() > 0) {
-            \App\Support\CompanyQuery::table('ledger_entries')->insert([
+            \App\Support\CompanyQuery::insert('ledger_entries', [
                 'account_id'      => $accountId,
                 'billing_month'   => $billingMonth,
                 'opening_balance' => $openingBalance,

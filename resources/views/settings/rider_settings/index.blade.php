@@ -953,81 +953,83 @@
           <input type="hidden" id="editRiderFieldPreviousCategoryId" value="">
           @csrf
           @method('PUT')
-          <div class="mb-3">
-            <label class="form-label">Label name <span class="text-danger">*</span></label>
-            <input type="text" name="label" id="editRiderFieldLabel" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Category <span class="text-danger">*</span></label>
-            <select name="category_id" id="editRiderFieldCategory" class="form-select" required>
-              <option value="">Select category</option>
-              @foreach($categories as $cat)
-              <option value="{{ $cat->id }}">{{ $cat->label }}</option>
-              @endforeach
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Data type <span class="text-danger">*</span></label>
-            <select name="data_type" id="editRiderFieldDataType" class="form-select" required>
-              @foreach($dataTypes as $typeKey => $typeMeta)
-              <option value="{{ $typeKey }}">{{ $typeMeta['label'] }}</option>
-              @endforeach
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Help text</label>
-            <input type="text" name="help_text" id="editRiderFieldHelpText" class="form-control">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Default value</label>
-            <input type="text" name="default_value" id="editRiderFieldDefaultValue" class="form-control">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Input format</label>
-            <input type="text" name="input_format" id="editRiderFieldInputFormat" class="form-control">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Data Privacy</label>
-            <div class="d-flex gap-4">
-              <div class="form-check">
-                <input type="checkbox" name="data_privacy_pii" value="1" class="form-check-input" id="editRiderFieldPii">
-                <label class="form-check-label" for="editRiderFieldPii">PII</label>
-              </div>
-              <div class="form-check">
-                <input type="checkbox" name="data_privacy_ephi" value="1" class="form-check-input" id="editRiderFieldEphi">
-                <label class="form-check-label" for="editRiderFieldEphi">ePHI</label>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Label Name <span class="text-danger">*</span></label>
+              <input type="text" name="label" id="editRiderFieldLabel" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Category <span class="text-danger">*</span></label>
+              <select name="category_id" id="editRiderFieldCategory" class="form-select" required>
+                <option value="">Select category</option>
+                @foreach($categories as $cat)
+                <option value="{{ $cat->id }}">{{ $cat->label }}</option>
+                @endforeach
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Data Type <span class="text-danger">*</span></label>
+              <select name="data_type" id="editRiderFieldDataType" class="form-select" required>
+                @foreach($dataTypes as $typeKey => $typeMeta)
+                <option value="{{ $typeKey }}">{{ $typeMeta['label'] }}</option>
+                @endforeach
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Help Text</label>
+              <input type="text" name="help_text" id="editRiderFieldHelpText" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Default Value</label>
+              <input type="text" name="default_value" id="editRiderFieldDefaultValue" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Input Format</label>
+              <input type="text" name="input_format" id="editRiderFieldInputFormat" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Data Privacy</label>
+              <div class="d-flex gap-4 mt-2">
+                <div class="form-check">
+                  <input type="checkbox" name="data_privacy_pii" value="1" class="form-check-input" id="editRiderFieldPii">
+                  <label class="form-check-label" for="editRiderFieldPii">PII</label>
+                </div>
+                <div class="form-check">
+                  <input type="checkbox" name="data_privacy_ephi" value="1" class="form-check-input" id="editRiderFieldEphi">
+                  <label class="form-check-label" for="editRiderFieldEphi">ePHI</label>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Prevent Duplicate Values</label>
-            <div class="d-flex gap-3">
-              <div class="form-check">
-                <input type="radio" name="prevent_duplicate_values" value="1" class="form-check-input" id="editRiderPreventDupYes">
-                <label class="form-check-label" for="editRiderPreventDupYes">Yes</label>
-              </div>
-              <div class="form-check">
-                <input type="radio" name="prevent_duplicate_values" value="0" class="form-check-input" id="editRiderPreventDupNo">
-                <label class="form-check-label" for="editRiderPreventDupNo">No</label>
-              </div>
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Is Mandatory</label>
-            <div class="d-flex gap-3">
-              <div class="form-check">
-                <input type="radio" name="is_mandatory" value="1" class="form-check-input" id="editRiderMandatoryYes">
-                <label class="form-check-label" for="editRiderMandatoryYes">Yes</label>
-              </div>
-              <div class="form-check">
-                <input type="radio" name="is_mandatory" value="0" class="form-check-input" id="editRiderMandatoryNo">
-                <label class="form-check-label" for="editRiderMandatoryNo">No</label>
+            <div class="col-md-6">
+              <label class="form-label">Prevent Duplicate Values</label>
+              <div class="d-flex gap-3 mt-2">
+                <div class="form-check">
+                  <input type="radio" name="prevent_duplicate_values" value="1" class="form-check-input" id="editRiderPreventDupYes">
+                  <label class="form-check-label" for="editRiderPreventDupYes">Yes</label>
+                </div>
+                <div class="form-check">
+                  <input type="radio" name="prevent_duplicate_values" value="0" class="form-check-input" id="editRiderPreventDupNo">
+                  <label class="form-check-label" for="editRiderPreventDupNo">No</label>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="mb-3" id="editRiderConfigOptionsWrap" style="display: none;">
-            <label class="form-label small text-uppercase text-muted">Configuration options</label>
-            <div id="edit-rider-config-options-fields"></div>
+            <div class="col-md-6">
+              <label class="form-label">Is Mandatory</label>
+              <div class="d-flex gap-3 mt-2">
+                <div class="form-check">
+                  <input type="radio" name="is_mandatory" value="1" class="form-check-input" id="editRiderMandatoryYes">
+                  <label class="form-check-label" for="editRiderMandatoryYes">Yes</label>
+                </div>
+                <div class="form-check">
+                  <input type="radio" name="is_mandatory" value="0" class="form-check-input" id="editRiderMandatoryNo">
+                  <label class="form-check-label" for="editRiderMandatoryNo">No</label>
+                </div>
+              </div>
+            </div>
+            <div class="col-12" id="editRiderConfigOptionsWrap" style="display: none;">
+              <label class="form-label small text-uppercase text-muted">Configuration options</label>
+              <div id="edit-rider-config-options-fields"></div>
+            </div>
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">

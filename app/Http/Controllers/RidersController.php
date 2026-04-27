@@ -1802,7 +1802,7 @@ class RidersController extends AppBaseController
         ->join('rider_top_categories as c', 'c.id', '=', 'o.category_id')
         ->where('o.id', $optionId)
         ->where('c.show_in_view_cards', 1)
-        ->select('o.id', 'o.name')
+        ->select('o.id', 'o.name', 'c.rider_column')
         ->first();
       if (!$option) {
         return response()->json(['success' => false, 'message' => 'Invalid Rider Top option for view cards.'], 422);
@@ -1810,13 +1810,20 @@ class RidersController extends AppBaseController
     }
 
     $rider->rider_top_option_id = $option?->id;
+    // Keep rider_status synced when the selected view-card option is from Rider Status category.
+    if ($option && ($option->rider_column ?? null) === 'rider_status') {
+      $rider->rider_status = $option->name;
+    } elseif (empty($optionId)) {
+      $rider->rider_status = null;
+    }
     $rider->save();
 
     return response()->json([
       'success' => true,
-      'message' => 'Rider view card option updated successfully.',
+      'message' => 'Rider view card option and status updated successfully.',
       'option_id' => $option?->id,
       'option_label' => $option?->name,
+      'rider_status' => $rider->rider_status,
     ]);
   }
 

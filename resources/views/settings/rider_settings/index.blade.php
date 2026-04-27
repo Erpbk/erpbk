@@ -2834,15 +2834,23 @@
         var sortable = new Sortable(tbody, {
           handle: '.drag-handle',
           draggable: 'tr[data-id]',
+          filter: 'input,select,textarea,button,a,label,.form-check-input,.form-check-label',
+          preventOnFilter: false,
           animation: 150,
           ghostClass: 'table-warning',
+          chosenClass: 'table-active',
           forceFallback: true,
           fallbackOnBody: true,
           fallbackTolerance: 3,
           onEnd: function() {
-            var order = Array.from(tbody.querySelectorAll('tr[data-id]')).map(function(tr) {
-              return parseInt(tr.getAttribute('data-id'), 10);
-            });
+            var order = Array.from(tbody.querySelectorAll('tr[data-id]'))
+              .map(function(tr) {
+                return parseInt(tr.getAttribute('data-id'), 10);
+              })
+              .filter(function(id) {
+                return Number.isFinite(id) && id > 0;
+              });
+            if (!order.length) return;
             fetch("{{ route('settings-panel.rider-settings.reorder-fields') }}", {
                 method: 'POST',
                 headers: {

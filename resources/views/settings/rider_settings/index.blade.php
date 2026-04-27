@@ -715,7 +715,7 @@
         <div class="modal-body pt-0">
           <div class="mb-3">
             <label class="form-label">Rider Dropdown Column <span class="text-danger">*</span></label>
-            <select name="rider_column" class="form-select" required>
+            <select name="rider_column" id="addRiderTopCategoryColumn" class="form-select select2" data-placeholder="Select dropdown column" required>
               <option value="">Select dropdown column</option>
               @foreach(($riderTopSelectableColumns ?? []) as $columnKey => $columnLabel)
               <option value="{{ $columnKey }}">{{ $columnLabel }} ({{ $columnKey }})</option>
@@ -1327,6 +1327,19 @@
 
     var baseUrl = "{{ url('') }}";
     var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content') || document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value;
+
+    // Select2 inside Rider Top modal (with correct dropdown parent).
+    if (window.jQuery && jQuery.fn && jQuery.fn.select2) {
+      var $topCategoryColumn = jQuery('#addRiderTopCategoryColumn');
+      if ($topCategoryColumn.length) {
+        $topCategoryColumn.select2({
+          width: '100%',
+          dropdownParent: jQuery('#addRiderTopCategoryModal'),
+          placeholder: $topCategoryColumn.data('placeholder') || 'Select dropdown column',
+          allowClear: true
+        });
+      }
+    }
 
     var riderTopAvailableValues = [];
 

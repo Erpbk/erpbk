@@ -100,11 +100,7 @@ class RiderCustomField extends BaseModel
             'created_by',
             'updated_by',
             'deleted_by',
-            'absconder',
-            'flowup',
-            'l_license',
             'mol',
-            'pro',
         ];
     }
     protected $table = 'rider_custom_fields';
@@ -428,6 +424,10 @@ class RiderCustomField extends BaseModel
             'absconder' => ['type' => 'checkbox'],
             'flowup' => ['type' => 'checkbox'],
             'l_license' => ['type' => 'checkbox'],
+            'walker' => ['type' => 'checkbox'],
+            'vacation' => ['type' => 'checkbox'],
+            'cancel' => ['type' => 'checkbox'],
+            'pro' => ['type' => 'checkbox'],
             'TAID' => ['type' => 'text'],
             'noon_no' => ['type' => 'text'],
             'other_details' => ['type' => 'textarea', 'rows' => 2],

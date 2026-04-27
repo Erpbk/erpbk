@@ -1919,6 +1919,9 @@ class RidersController extends AppBaseController
       } else {
         $rider->status = 3;
       }
+      if (Schema::hasColumn($rider->getTable(), 'walker')) {
+        $rider->walker = $isSettingWalker ? 1 : 0;
+      }
 
       $rider->save();
 
@@ -1986,6 +1989,9 @@ class RidersController extends AppBaseController
         $rider->status = 3; // Inactive while on vacation
       } else {
         $rider->status = 1; // Active when vacation is turned off
+      }
+      if (Schema::hasColumn($rider->getTable(), 'vacation')) {
+        $rider->vacation = $isSettingVacation ? 1 : 0;
       }
 
       $rider->save();
@@ -2110,6 +2116,15 @@ class RidersController extends AppBaseController
       $rider->absconder = 0;
       $rider->flowup = 0;
       $rider->l_license = 0;
+      if (Schema::hasColumn($rider->getTable(), 'walker')) {
+        $rider->walker = 0;
+      }
+      if (Schema::hasColumn($rider->getTable(), 'vacation')) {
+        $rider->vacation = 0;
+      }
+      if (Schema::hasColumn($rider->getTable(), 'cancel')) {
+        $rider->cancel = 0;
+      }
       $rider->rider_status_option = null;
       if (Schema::hasColumn($rider->getTable(), 'pro')) {
         $rider->pro = 0;
@@ -2140,10 +2155,19 @@ class RidersController extends AppBaseController
             $rider->l_license = 1;
             break;
           case 'walker':
+            if (Schema::hasColumn($rider->getTable(), 'walker')) {
+              $rider->walker = 1;
+            }
             break;
           case 'vacation':
+            if (Schema::hasColumn($rider->getTable(), 'vacation')) {
+              $rider->vacation = 1;
+            }
             break;
           case 'cancel':
+            if (Schema::hasColumn($rider->getTable(), 'cancel')) {
+              $rider->cancel = 1;
+            }
             break;
           case 'pro':
             if (Schema::hasColumn($rider->getTable(), 'pro')) {

@@ -11,7 +11,7 @@
         </tr>
     </thead>
     <tbody>
-        @foreach($data as $r)
+        @forelse($data as $r)
         <tr class="text-center">
             <td> <a href="{{ route('salik.tickets' , $r->id) }}">{{$r->name}}</a><br> </td>
             @php
@@ -80,7 +80,11 @@
                 </div>
             </div>
         </div>
-        @endforeach
+        @empty
+        <tr>
+            <td colspan="5" class="text-center text-muted py-4">No Salik accounts found.</td>
+        </tr>
+        @endforelse
     </tbody>
 </table>
 {!! $data->links('pagination') !!}

@@ -364,7 +364,7 @@
                     <select class="form-control" id="rta_account_id" name="rta_account_id" required>
                         <option value="">Select Account</option>
                         @foreach(($rtaAccounts ?? collect()) as $rtaAccount)
-                        <option value="{{ $rtaAccount->id }}" {{ (string) $account->id === (string) $rtaAccount->id ? 'selected' : '' }}>
+                        <option value="{{ $rtaAccount->id }}" {{ (string) optional($account)->id === (string) $rtaAccount->id ? 'selected' : '' }}>
                             {{ $rtaAccount->name }}
                         </option>
                         @endforeach

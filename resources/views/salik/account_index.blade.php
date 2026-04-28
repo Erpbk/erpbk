@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 @section('title', 'Salik Accounts')
 @section('content')
 <style>
@@ -72,6 +72,10 @@
             <h4 style="padding-left: 20px; font-weight: bold; margin-top: 10px;">RTA Salik Accounts</h4>
         </div>
         <div class="col-sm-6 text-end mb-2">
+            <a class="btn btn-outline-primary action-btn show-modal"
+                href="javascript:void(0);" data-size="lg" data-title="Add New Salik" data-action="{{ route('salik.create', 0) }}">
+                Add New Salik Entry
+            </a>
             <a class="btn btn-primary action-btn show-modal"
                 href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#createsalikaccount">
                 Add New Salik Account

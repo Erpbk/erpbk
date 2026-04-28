@@ -147,6 +147,7 @@
                         $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
                         }])->where('show_in_top_bar', 1)->orderBy('display_order')->orderBy('id')->get();
                         $slideIndex = 0;
+                        $hasRiderTopOptionColumn = \Illuminate\Support\Facades\Schema::hasColumn('riders', 'rider_top_option_id');
                         @endphp
 
                         @foreach($riderTopCategories as $category)
@@ -158,12 +159,12 @@
                                 <div class="fleet-stat active @if((int)request('rider_top_option_id') === (int)$option->id && in_array('active', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'active')">
                                     <i class="fleet-stat-icon ti ti-user-check"></i>
                                     <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ \App\Models\Riders::where('rider_top_option_id', $option->id)->where('status', 1)->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })->count() }}</span>
+                                    <span class="fleet-stat-value">{{ $hasRiderTopOptionColumn ? \App\Models\Riders::where('rider_top_option_id', $option->id)->where('status', 1)->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })->count() : 0 }}</span>
                                 </div>
                                 <div class="fleet-stat inactive @if((int)request('rider_top_option_id') === (int)$option->id && in_array('inactive', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'inactive')">
                                     <i class="fleet-stat-icon ti ti-user-x"></i>
                                     <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ \App\Models\Riders::where('rider_top_option_id', $option->id)->where(function($q) { $q->where('status', 3)->orWhereDoesntHave('bikes', function($bikeQuery) { $bikeQuery->where('warehouse', 'Active'); }); })->count() }}</span>
+                                    <span class="fleet-stat-value">{{ $hasRiderTopOptionColumn ? \App\Models\Riders::where('rider_top_option_id', $option->id)->where(function($q) { $q->where('status', 3)->orWhereDoesntHave('bikes', function($bikeQuery) { $bikeQuery->where('warehouse', 'Active'); }); })->count() : 0 }}</span>
                                 </div>
                             </div>
                         </div>

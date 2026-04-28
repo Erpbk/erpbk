@@ -248,7 +248,11 @@ class RidersController extends AppBaseController
     if ($request->has('customer_id') && !empty($request->customer_id)) {
       $query->where('customer_id', $request->customer_id);
     }
-    if ($request->has('rider_top_option_id') && !empty($request->rider_top_option_id)) {
+    if (
+      Schema::hasColumn('riders', 'rider_top_option_id') &&
+      $request->has('rider_top_option_id') &&
+      !empty($request->rider_top_option_id)
+    ) {
       $query->where('rider_top_option_id', $request->rider_top_option_id);
     }
     if ($request->has('attendance') && !empty($request->attendance)) {
@@ -390,7 +394,11 @@ class RidersController extends AppBaseController
     if ($request->has('customer_id') && !empty($request->customer_id)) {
       $query->where('customer_id', $request->customer_id);
     }
-    if ($request->has('rider_top_option_id') && !empty($request->rider_top_option_id)) {
+    if (
+      Schema::hasColumn('riders', 'rider_top_option_id') &&
+      $request->has('rider_top_option_id') &&
+      !empty($request->rider_top_option_id)
+    ) {
       $query->where('rider_top_option_id', $request->rider_top_option_id);
     }
     if ($request->has('attendance') && !empty($request->attendance)) {

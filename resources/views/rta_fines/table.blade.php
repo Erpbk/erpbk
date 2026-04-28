@@ -23,7 +23,7 @@
       </tr>
    </thead>
    <tbody>
-      @foreach($data as $r)
+      @forelse($data as $r)
       <tr class="text-center">
          <td>{{ $r->branch?->name ?? 'N/A' }}</td>
          <td>{{ DB::table('accounts')->where('id', $r->rta_account_id)->first()->name ?? 'N/A' }}</td>
@@ -104,7 +104,13 @@
             </div>
          </td>
       </tr>
-      @endforeach
+      @empty
+      <tr>
+         <td colspan="17" class="text-center text-muted py-4">
+            No records found.
+         </td>
+      </tr>
+      @endforelse
    </tbody>
 </table>
 @if(method_exists($data, 'links'))

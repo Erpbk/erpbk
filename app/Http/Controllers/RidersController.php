@@ -16,13 +16,14 @@ use App\Helpers\Common;
 use App\Helpers\General;
 use App\Helpers\HeadAccount;
 use App\Http\Requests\CreateAccountsRequest;
-use App\Http\Requests\CreateRidersRequest;
-use App\Http\Requests\UpdateRidersRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Accounts;
 use App\Models\RiderEmails;
+use App\Models\RiderCategory;
+use App\Models\RiderFieldCategoryAssignment;
 use App\Models\RiderItemPrice;
 use App\Models\JobStatus;
+use App\Models\RiderCustomField;
 use App\Models\Riders;
 use App\Models\Files;
 use App\Models\Transactions;
@@ -44,6 +45,7 @@ use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Flash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -56,6 +58,24 @@ class RidersController extends AppBaseController
   use GlobalPagination, TracksCascadingDeletions;
   /** @var RidersRepository $ridersRepository*/
   private $ridersRepository;
+
+  private function applyCompanyScope($query)
+  {
+    if (Schema::hasColumn('riders', 'company_id')) {
+      $authUser = auth()->user();
+      if ($authUser && isset($authUser->company_id)) {
+        $query->where('riders.company_id', $authUser->company_id);
+      }
+    }
+    return $query;
+  }
+
+  private function findAccessibleRider(int $id): ?Riders
+  {
+    $query = Riders::query()->where('id', $id);
+    $this->applyCompanyScope($query);
+    return $query->first();
+  }
 
   /**
    * Normalize billing month input to first day of month (Y-m-01).
@@ -77,6 +97,110 @@ class RidersController extends AppBaseController
     }
     // Fallback to current month start
     return date('Y-m-01');
+  }
+
+  /**
+   * Build validation rules for dynamic rider fields based on settings.
+   */
+  private function dynamicFieldRules(): array
+  {
+    $rules = [];
+    $riderColumns = array_flip(Schema::getColumnListing('riders'));
+    $assignmentTable = (new RiderFieldCategoryAssignment())->getTable();
+    $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
+    $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
+
+    if ($hasRequiredColumn) {
+      $query = RiderFieldCategoryAssignment::query()->where('is_required', 1);
+      if ($hasVisibleColumn) {
+        $query->where(function ($q) {
+          $q->where('is_visible', 1)->orWhereNull('is_visible');
+        });
+      }
+      $query->get(['field_key'])->each(function ($assignment) use (&$rules, $riderColumns) {
+        $fieldKey = (string) $assignment->field_key;
+        if (!isset($riderColumns[$fieldKey])) {
+          return;
+        }
+        // Honor settings-required fields while allowing existing base rules to remain.
+        $rules[$fieldKey] = 'required';
+      });
+    }
+
+    RiderCustomField::query()
+      ->where('is_mandatory', 1)
+      ->get(['id'])
+      ->each(function ($field) use (&$rules) {
+        $rules['custom_field_values.' . $field->id] = 'required';
+      });
+
+    return $rules;
+  }
+
+  /**
+   * Build rider create/update validation rules from settings + rider table columns.
+   */
+  private function riderValidationRules(?int $ignoreRiderId = null): array
+  {
+    $rules = Riders::$rules;
+    $riderColumns = array_flip(Schema::getColumnListing('riders'));
+    $assignmentTable = (new RiderFieldCategoryAssignment())->getTable();
+    $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
+    $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
+
+    $normalizePresenceRule = function ($rule, bool $required) {
+      if (is_array($rule)) {
+        $tokens = array_values(array_filter($rule, function ($item) {
+          return !is_string($item) || ($item !== 'required' && $item !== 'nullable');
+        }));
+        array_unshift($tokens, $required ? 'required' : 'nullable');
+        return $tokens;
+      }
+
+      $tokens = array_values(array_filter(explode('|', (string) $rule), function ($item) {
+        return $item !== '' && $item !== 'required' && $item !== 'nullable';
+      }));
+      array_unshift($tokens, $required ? 'required' : 'nullable');
+      return implode('|', $tokens);
+    };
+
+    $assignmentColumns = ['field_key'];
+    if ($hasRequiredColumn) {
+      $assignmentColumns[] = 'is_required';
+    }
+    if ($hasVisibleColumn) {
+      $assignmentColumns[] = 'is_visible';
+    }
+    $assignments = RiderFieldCategoryAssignment::query()
+      ->get($assignmentColumns)
+      ->keyBy('field_key');
+    $fixedKeys = RiderCustomField::allFixedFieldKeys();
+
+    foreach ($fixedKeys as $fieldKey) {
+      if (!isset($riderColumns[$fieldKey])) {
+        continue;
+      }
+      $assignment = $assignments->get($fieldKey);
+      // If there is no assignment row yet, default to visible + optional.
+      $isVisible = !$hasVisibleColumn || !$assignment || $assignment->is_visible === null ? true : (bool) $assignment->is_visible;
+      $isRequired = ($assignment && $hasRequiredColumn) ? (bool) $assignment->is_required : false;
+      $baseRule = $rules[$fieldKey] ?? 'nullable';
+      $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
+    }
+
+    if ($ignoreRiderId !== null) {
+      $rules['rider_id'] = ['required', Rule::unique('riders', 'rider_id')->ignore($ignoreRiderId)];
+      $rules['name'] = ['required', 'string', 'max:191', Rule::unique('riders', 'name')->ignore($ignoreRiderId)];
+      $passportRule = $rules['passport'] ?? 'nullable|string|max:191';
+      $passportTokens = is_array($passportRule) ? $passportRule : explode('|', (string) $passportRule);
+      $passportTokens = array_values(array_filter($passportTokens, function ($token) {
+        return !(is_string($token) && str_starts_with($token, 'unique:'));
+      }));
+      $passportTokens[] = Rule::unique('riders', 'passport')->ignore($ignoreRiderId);
+      $rules['passport'] = $passportTokens;
+    }
+
+    return array_merge($rules, $this->dynamicFieldRules());
   }
 
   public function __construct(RidersRepository $ridersRepo)
@@ -108,19 +232,12 @@ class RidersController extends AppBaseController
       ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
       ->orderBy('days_count', 'asc')
       ->with('branch');
+    $this->applyCompanyScope($query);
     if ($request->has('rider_id') && !empty($request->rider_id)) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
     }
     if ($request->has('branch_id') && !empty($request->branch_id)) {
       $query->where('riders.branch_id', $request->branch_id);
-    }
-    if ($request->has('courier_id') && !empty($request->courier_id)) {
-      $courierIdInput = $request->courier_id;
-      // Remove 'CI-' prefix if present (case-insensitive)
-      if (stripos($courierIdInput, 'CI-') === 0) {
-        $courierIdInput = substr($courierIdInput, 3);
-      }
-      $query->where('riders.courier_id', 'like', '%' . $courierIdInput . '%');
     }
     if ($request->has('name') && !empty($request->name)) {
       $query->where('name', 'like', '%' . $request->name . '%');
@@ -134,62 +251,24 @@ class RidersController extends AppBaseController
     if ($request->has('customer_id') && !empty($request->customer_id)) {
       $query->where('customer_id', $request->customer_id);
     }
-    if ($request->has('branded_plate_no') && !empty($request->branded_plate_no)) {
-      $query->where('branded_plate_no', $request->branded_plate_no);
-    }
-    if ($request->has('designation') && !empty($request->designation)) {
-      $query->where('designation', $request->designation);
+    if (
+      Schema::hasColumn('riders', 'rider_top_option_id') &&
+      $request->has('rider_top_option_id') &&
+      !empty($request->rider_top_option_id)
+    ) {
+      $query->where('rider_top_option_id', $request->rider_top_option_id);
     }
     if ($request->has('attendance') && !empty($request->attendance)) {
       $query->where('attendance', $request->attendance);
     }
-    // Explicit tag filters coming from slider cards
-    $absconderParam = (array) $request->input('absconder', []);
-    $followupParam = (array) $request->input('followup', []);
-    $llicenseParam = (array) $request->input('llicense', []);
-
-    // Absconder (expects absconder[]=1)
-    if (!empty($absconderParam) && in_array('1', $absconderParam, true)) {
-      $query->where('absconder', 1);
-    }
-    // Follow Up (expects followup[]=1)
-    if (!empty($followupParam) && in_array('1', $followupParam, true)) {
-      $query->where('flowup', 1);
-    }
-    // Learning License (expects llicense[]=1)
-    if (!empty($llicenseParam) && in_array('1', $llicenseParam, true)) {
-      $query->where('l_license', 1);
-    }
-
-    // Filter by rider status (followup, llicense, active, inactive)
+    // Filter by rider status (active, inactive)
     if ($request->has('rider_status') && !empty($request->rider_status)) {
       $statusFilters = $request->rider_status;
-
-      // If explicit tag params are present, drop corresponding tokens from rider_status[]
-      if (!empty($absconderParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'absconder';
-        }));
-      }
-      if (!empty($followupParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'followup';
-        }));
-      }
-      if (!empty($llicenseParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'llicense';
-        }));
-      }
 
       if (is_array($statusFilters)) {
         $query->where(function ($q) use ($statusFilters) {
           foreach ($statusFilters as $status) {
-            if ($status === 'followup') {
-              $q->orWhere('flowup', 1);
-            } elseif ($status === 'llicense') {
-              $q->orWhere('l_license', 1);
-            } elseif ($status === 'active') {
+            if ($status === 'active') {
               // Active riders: status = 1 (regardless of bike assignment)
               $q->orWhere('riders.status', 1);
             } elseif ($status === 'inactive') {
@@ -206,11 +285,7 @@ class RidersController extends AppBaseController
         });
       } else {
         // Handle single selection for backward compatibility
-        if ($statusFilters === 'followup') {
-          $query->where('flowup', 1);
-        } elseif ($statusFilters === 'llicense') {
-          $query->where('l_license', 1);
-        } elseif ($statusFilters === 'active') {
+        if ($statusFilters === 'active') {
           // Active riders: status = 1 AND have active bike assigned
           $query->where('riders.status', 1);
         } elseif ($statusFilters === 'inactive') {
@@ -240,15 +315,6 @@ class RidersController extends AppBaseController
         });
       }
     }
-    // Filter by balance
-    if ($request->has('balance_filter') && !empty($request->balance_filter)) {
-      if ($request->balance_filter === 'greater_than_zero') {
-        // Riders with balance greater than 0
-        $query->whereHas('account', function ($q) {
-          $q->whereRaw('(SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) FROM transactions WHERE account_id = accounts.id) > 0');
-        });
-      }
-    }
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
 
@@ -257,12 +323,8 @@ class RidersController extends AppBaseController
         ->where(function ($q) use ($search) {
           $q->where('riders.name', 'like', "%{$search}%")
             ->orWhere('riders.rider_id', 'like', "%{$search}%")
-            ->orWhere('riders.courier_id', 'like', "%{$search}%")
-            ->orWhere('riders.branded_plate_no', 'like', "%{$search}%")
             ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
-            ->orWhere('riders.emirate_hub', 'like', "%{$search}%")
             ->orWhere('riders.customer_id', 'like', "%{$search}%")
-            ->orWhere('riders.designation', 'like', "%{$search}%")
             ->orWhere('customers.name', 'like', "%{$search}%");
           if (stripos($search, 'active') !== false) {
             $q->orWhereExists(function ($subQuery) {
@@ -318,17 +380,10 @@ class RidersController extends AppBaseController
       ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
       ->orderBy('days_count', 'desc')
       ->orderBy('riders.id', 'desc');
+    $this->applyCompanyScope($query);
 
     if ($request->has('rider_id') && !empty($request->rider_id)) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
-    }
-    if ($request->has('courier_id') && !empty($request->courier_id)) {
-      $courierIdInput = $request->courier_id;
-      // Remove 'CI-' prefix if present (case-insensitive)
-      if (stripos($courierIdInput, 'CI-') === 0) {
-        $courierIdInput = substr($courierIdInput, 3);
-      }
-      $query->where('riders.courier_id', 'like', '%' . $courierIdInput . '%');
     }
     if ($request->has('name') && !empty($request->name)) {
       $query->where('name', 'like', '%' . $request->name . '%');
@@ -342,60 +397,25 @@ class RidersController extends AppBaseController
     if ($request->has('customer_id') && !empty($request->customer_id)) {
       $query->where('customer_id', $request->customer_id);
     }
-    if ($request->has('branded_plate_no') && !empty($request->branded_plate_no)) {
-      $query->where('branded_plate_no', $request->branded_plate_no);
-    }
-    if ($request->has('designation') && !empty($request->designation)) {
-      $query->where('designation', $request->designation);
+    if (
+      Schema::hasColumn('riders', 'rider_top_option_id') &&
+      $request->has('rider_top_option_id') &&
+      !empty($request->rider_top_option_id)
+    ) {
+      $query->where('rider_top_option_id', $request->rider_top_option_id);
     }
     if ($request->has('attendance') && !empty($request->attendance)) {
       $query->where('attendance', $request->attendance);
     }
 
-    // Explicit tag filters coming from slider cards (AJAX)
-    $absconderParam = (array) $request->input('absconder', []);
-    $followupParam = (array) $request->input('followup', []);
-    $llicenseParam = (array) $request->input('llicense', []);
-
-    if (!empty($absconderParam) && in_array('1', $absconderParam, true)) {
-      $query->where('absconder', 1);
-    }
-    if (!empty($followupParam) && in_array('1', $followupParam, true)) {
-      $query->where('flowup', 1);
-    }
-    if (!empty($llicenseParam) && in_array('1', $llicenseParam, true)) {
-      $query->where('l_license', 1);
-    }
-
-    // Filter by rider status (followup, llicense, active, inactive)
+    // Filter by rider status (active, inactive)
     if ($request->has('rider_status') && !empty($request->rider_status)) {
       $statusFilters = $request->rider_status;
-
-      // If explicit tag params are present, drop corresponding tokens from rider_status[]
-      if (!empty($absconderParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'absconder';
-        }));
-      }
-      if (!empty($followupParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'followup';
-        }));
-      }
-      if (!empty($llicenseParam)) {
-        $statusFilters = array_values(array_filter($statusFilters, function ($s) {
-          return $s !== 'llicense';
-        }));
-      }
 
       if (is_array($statusFilters)) {
         $query->where(function ($q) use ($statusFilters) {
           foreach ($statusFilters as $status) {
-            if ($status === 'followup') {
-              $q->orWhere('flowup', 1);
-            } elseif ($status === 'llicense') {
-              $q->orWhere('l_license', 1);
-            } elseif ($status === 'active') {
+            if ($status === 'active') {
               // Active riders: status = 1 (regardless of bike assignment)
               $q->orWhere('status', 1);
             } elseif ($status === 'inactive') {
@@ -412,13 +432,7 @@ class RidersController extends AppBaseController
         });
       } else {
         // Handle single selection for backward compatibility
-        if ($statusFilters === 'absconder') {
-          $query->where('absconder', 1);
-        } elseif ($statusFilters === 'followup') {
-          $query->where('flowup', 1);
-        } elseif ($statusFilters === 'llicense') {
-          $query->where('l_license', 1);
-        } elseif ($statusFilters === 'active') {
+        if ($statusFilters === 'active') {
           // Active riders: status = 1 AND have active bike assigned
           $query->where('status', 1);
         } elseif ($statusFilters === 'inactive') {
@@ -432,16 +446,6 @@ class RidersController extends AppBaseController
       }
     }
 
-    // Filter by balance
-    if ($request->has('balance_filter') && !empty($request->balance_filter)) {
-      if ($request->balance_filter === 'greater_than_zero') {
-        // Riders with balance greater than 0
-        $query->whereHas('account', function ($q) {
-          $q->whereRaw('(SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) FROM transactions WHERE account_id = accounts.id) > 0');
-        });
-      }
-    }
-
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
 
@@ -450,12 +454,8 @@ class RidersController extends AppBaseController
         ->where(function ($q) use ($search) {
           $q->where('riders.name', 'like', "%{$search}%")
             ->orWhere('riders.rider_id', 'like', "%{$search}%")
-            ->orWhere('riders.courier_id', 'like', "%{$search}%")
-            ->orWhere('riders.branded_plate_no', 'like', "%{$search}%")
             ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
-            ->orWhere('riders.emirate_hub', 'like', "%{$search}%")
             ->orWhere('riders.customer_id', 'like', "%{$search}%")
-            ->orWhere('riders.designation', 'like', "%{$search}%")
             ->orWhere('customers.name', 'like', "%{$search}%");
           if (stripos($search, 'active') !== false) {
             $q->orWhereExists(function ($subQuery) {
@@ -513,110 +513,101 @@ class RidersController extends AppBaseController
   /**
    * Store a newly created Riders in storage.
    */
-  public function store(CreateRidersRequest $request)
+  public function store(Request $request)
   {
-    try {
-      DB::beginTransaction();
 
-      $input = $request->all();
-      $items = $request->get('items');
+    DB::beginTransaction();
+    $request->validate($this->riderValidationRules());
+
+    $input = $request->all();
+    if (Schema::hasColumn('riders', 'company_id')) {
+      $input['company_id'] = auth()->user()->company_id;
+    }
+    $items = $request->get('items');
 
 
-      $riders = $this->ridersRepository->create($input);
-      if ($riders) {
+    $riders = $this->ridersRepository->create($input);
+    if ($riders) {
 
-        /* $parentAccount = Accounts::firstOrCreate(
+      /* $parentAccount = Accounts::firstOrCreate(
           ['name' => 'Riders', 'account_type' => 'Liability', 'parent_id' => null],
           ['name' => 'Riders', 'account_type' => 'Liability', 'account_code' => Account::code()]
         ); */
 
-        $account = new Accounts();
-        $account->account_code = 'RD' . str_pad($riders->rider_id, 4, "0", STR_PAD_LEFT);
-        $account->name = $riders->name;
-        $account->account_type = 'Liability';
-        $account->ref_name = 'Rider';
-        $account->parent_id = HeadAccount::RIDER;
-        $account->ref_id = $riders->id;
-        $account->branch_id = $riders->branch_id;
-        $account->save();
+      $account = new Accounts();
+      $account->account_code = 'RD' . str_pad($riders->rider_id, 4, "0", STR_PAD_LEFT);
+      $account->name = $riders->name;
+      $account->account_type = 'Liability';
+      $account->ref_name = 'Rider';
+      $account->company_id = auth()->user()->company_id;
+      $account->parent_id = HeadAccount::RIDER;
+      $account->ref_id = $riders->id;
+      $account->branch_id = $riders->branch_id;
+      $account->save();
 
-        if ($items) {
-          foreach ($items['id'] as $key => $val) {
-            if ($items['id'][$key] != 0) {
-              $riderItemPrice = new RiderItemPrice();
-              $riderItemPrice->item_id = $items['id'][$key];
-              $riderItemPrice->price = isset($item['price'][$key]) ? $items['price'][$key] : 0;
-              $riderItemPrice->RID = $riders->id;
-              $riderItemPrice->save();
-            }
+      if ($items) {
+        foreach ($items['id'] as $key => $val) {
+          if ($items['id'][$key] != 0) {
+            $riderItemPrice = new RiderItemPrice();
+            $riderItemPrice->item_id = $items['id'][$key];
+            $riderItemPrice->price = isset($item['price'][$key]) ? $items['price'][$key] : 0;
+            $riderItemPrice->RID = $riders->id;
+            $riderItemPrice->save();
           }
         }
-
-        $riders->account_id = $account->id;
-        $riders->status = 3;
-        $riders->save();
       }
 
-      DB::commit();
+      $riders->account_id = $account->id;
+      $riders->status = 3;
+      $riders->save();
+    }
 
-      // Check if request is AJAX
-      if (request()->ajax()) {
-        return response()->json([
-          'success' => true,
-          'message' => 'Rider created successfully!',
-          'redirect_url' => route('riders.index')
-        ]);
-      }
+    DB::commit();
 
-      Flash::success('Rider created successfully.');
-      return redirect(route('riders.index'));
-    } catch (\Illuminate\Database\QueryException $e) {
-      DB::rollback();
+    // Check if request is AJAX
+    if (request()->ajax()) {
+      return response()->json([
+        'success' => true,
+        'message' => 'Rider created successfully!',
+        'redirect_url' => route('riders.index')
+      ]);
+    }
 
-      // Handle duplicate entry error
-      if ($e->getCode() == 23000) {
-        $errorMessage = 'A rider with this ID already exists. Please use a different Rider ID.';
+    Flash::success('Rider created successfully.');
+    return redirect(route('riders.index'));
 
-        if (request()->ajax()) {
-          return response()->json([
-            'success' => false,
-            'message' => $errorMessage,
-            'errors' => [
-              'rider_id' => ['A rider with this ID already exists.']
-            ]
-          ], 422);
-        }
+    DB::rollback();
 
-        Flash::error($errorMessage);
-        return redirect()->back()->withInput();
-      }
-
-      // Handle other database errors
-      Log::error('Rider creation error: ' . $e->getMessage());
+    // Handle duplicate entry error
+    if ($e->getCode() == 23000) {
+      $errorMessage = 'A rider with this ID already exists. Please use a different Rider ID.';
 
       if (request()->ajax()) {
         return response()->json([
           'success' => false,
-          'message' => 'An error occurred while creating the rider. Please try again.'
-        ], 500);
+          'message' => $errorMessage,
+          'errors' => [
+            'rider_id' => ['A rider with this ID already exists.']
+          ]
+        ], 422);
       }
 
-      Flash::error('An error occurred while creating the rider. Please try again.');
-      return redirect()->back()->withInput();
-    } catch (\Exception $e) {
-      DB::rollback();
-      Log::error('Rider creation error: ' . $e->getMessage());
-
-      if (request()->ajax()) {
-        return response()->json([
-          'success' => false,
-          'message' => 'An unexpected error occurred. Please try again.'
-        ], 500);
-      }
-
-      Flash::error('An unexpected error occurred. Please try again.');
+      Flash::error($errorMessage);
       return redirect()->back()->withInput();
     }
+
+    // Handle other database errors
+    Log::error('Rider creation error: ' . $e->getMessage());
+
+    if (request()->ajax()) {
+      return response()->json([
+        'success' => false,
+        'message' => 'An error occurred while creating the rider. Please try again.'
+      ], 500);
+    }
+
+    Flash::error('An error occurred while creating the rider. Please try again.');
+    return redirect()->back()->withInput();
   }
 
   /**
@@ -624,9 +615,13 @@ class RidersController extends AppBaseController
    */
   public function show($company_slug, $id)
   {
-    $rider = $this->ridersRepository->find($id);
-    if (empty($rider) || !in_array($rider->branch_id, app('user_branches'))) {
+    $rider = $this->findAccessibleRider((int) $id);
+    if (empty($rider)) {
 
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
+    if (!empty($rider->branch_id) && !in_array($rider->branch_id, app('user_branches'))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -648,8 +643,10 @@ class RidersController extends AppBaseController
    */
   public function edit($company_slug, $id)
   {
-    // $riders = $this->ridersRepository->find($id);
-    $riders = $this->ridersRepository->getRiderWithItemsRelations($id);
+    $riders = $this->findAccessibleRider((int) $id);
+    if ($riders) {
+      $riders->load('items');
+    }
 
     if (empty($riders)) {
       Flash::error('Riders not found');
@@ -667,7 +664,8 @@ class RidersController extends AppBaseController
    */
   public function update($company_slug, $id, Request $request)
   {
-    $riders = Riders::find($id);
+    $request->validate($this->riderValidationRules((int) $id));
+    $riders = $this->findAccessibleRider((int) $id);
     // $items = $riders->items;
     $items = $request->get('items');
     if (empty($riders)) {
@@ -676,6 +674,9 @@ class RidersController extends AppBaseController
       return redirect(route('riders.index'));
     }
     $data = $request->except(['_token', 'items']);
+    if (Schema::hasColumn('riders', 'company_id')) {
+      $data['company_id'] = auth()->user()->company_id;
+    }
 
     $riders->update($data);
     if ($riders) {
@@ -718,7 +719,7 @@ class RidersController extends AppBaseController
    */
   public function destroy($company_slug, $id)
   {
-    $riders = $this->ridersRepository->find($id);
+    $riders = $this->findAccessibleRider((int) $id);
 
     if (empty($riders)) {
       Flash::error('Riders not found');
@@ -952,19 +953,19 @@ class RidersController extends AppBaseController
     }
 
     $riders = Riders::find($rider_id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    if (empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
     $files = Files::where('type_id', $rider_id)->get();
-    
+
 
     return view('riders.document', compact('files', 'riders'));
   }
   public function timeline($company_slug, $id)
   {
-    $riders = Riders::find($id);
-    if(empty($riders) || !in_array($riders->branch_id, app('user_branches'))){
+    $riders = $this->findAccessibleRider((int) $id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -975,7 +976,7 @@ class RidersController extends AppBaseController
   public function contract($company_slug, $id)
   {
     $riders = Riders::find($id);
-    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
+    if (empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1077,8 +1078,8 @@ class RidersController extends AppBaseController
   }
   public function ledger($company_slug, $rider_id, LedgerDataTable $ledgerDataTable)
   {
-    $riders = Riders::find($rider_id);
-    if(empty($riders)){
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders)) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1088,8 +1089,8 @@ class RidersController extends AppBaseController
   }
   public function items($company_slug, $rider_id)
   {
-    $riders = $this->ridersRepository->find($rider_id);
-    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1097,8 +1098,8 @@ class RidersController extends AppBaseController
   }
   public function additems($company_slug, $rider_id)
   {
-    $rider = $this->ridersRepository->find($rider_id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider) || (!empty($rider->branch_id) && !in_array($rider->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1107,7 +1108,7 @@ class RidersController extends AppBaseController
 
   public function storeitems(Request $request, $company_slug, $rider_id)
   {
-    $rider = $this->ridersRepository->find($rider_id);
+    $rider = $this->findAccessibleRider((int) $rider_id);
 
     if (empty($rider)) {
       return response()->json([
@@ -1303,8 +1304,8 @@ class RidersController extends AppBaseController
   }
   public function attendance($company_slug, $rider_id, RiderAttendanceDataTable $riderAttendanceDataTable)
   {
-    $riders = Riders::find($rider_id);
-    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1312,8 +1313,8 @@ class RidersController extends AppBaseController
   }
   public function activities($company_slug, $rider_id)
   {
-    $riders = Riders::find($rider_id);
-    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1350,11 +1351,16 @@ class RidersController extends AppBaseController
     // Convert average ontime to percentage
     $totals['avg_ontime'] = $totals['avg_ontime'] * 100;
 
-    return view('riders.activities', compact('data', 'filters', 'totals','riders'));
+    return view('riders.activities', compact('data', 'filters', 'totals', 'riders'));
   }
 
   public function activitiesPdf($company_slug, $rider_id)
   {
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider)) {
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $month = request('month') ?? date('Y-m');
     $filters = [
       'rider_id' => $rider_id,
@@ -1393,8 +1399,6 @@ class RidersController extends AppBaseController
     $totals['avg_ontime'] = $totals['avg_ontime'] * 100;
 
     // Get rider info
-    $rider = Riders::find($rider_id);
-
     // Use dompdf directly (dompdf/dompdf package is installed)
     $dompdf = new \Dompdf\Dompdf();
     $html = view('riders.activities_pdf', compact('data', 'filters', 'totals', 'rider', 'month'))->render();
@@ -1428,6 +1432,11 @@ class RidersController extends AppBaseController
 
   public function activitiesPrint($company_slug, $rider_id)
   {
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider)) {
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $month = request('month') ?? date('Y-m');
     $filters = [
       'rider_id' => $rider_id,
@@ -1466,15 +1475,13 @@ class RidersController extends AppBaseController
     $totals['avg_ontime'] = $totals['avg_ontime'] * 100;
 
     // Get rider info
-    $rider = Riders::find($rider_id);
-
     return view('riders.activities_print', compact('data', 'filters', 'totals', 'rider', 'month'));
   }
 
   public function invoices($company_slug, $rider_id, RiderInvoicesDataTable $riderInvoicesDataTable)
   {
-    $riders = Riders::find($rider_id);
-    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1482,8 +1489,8 @@ class RidersController extends AppBaseController
   }
   public function emails($company_slug, $rider_id, RiderEmailsDataTable $riderEmailsDataTable)
   {
-    $riders = Riders::find($rider_id);
-    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1549,7 +1556,7 @@ class RidersController extends AppBaseController
   public function visaloan($company_slug, $rider_id)
   {
     $rider = Riders::find($rider_id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    if (empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1570,8 +1577,8 @@ class RidersController extends AppBaseController
 
   public function files($company_slug, $rider_id)
   {
-    $riders = Riders::find($rider_id);
-    if(empty($riders) || (!in_array($riders->branch_id, app('user_branches')) && !$riders->branch_id)){
+    $riders = $this->findAccessibleRider((int) $rider_id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1693,8 +1700,8 @@ class RidersController extends AppBaseController
       ];
       RiderEmails::create($email_data);
     }
-    $rider = Riders::find($id);
-    if(empty($rider) || (!in_array($rider->branch_id, app('user_branches')) && !$rider->branch_id)){
+    $rider = $this->findAccessibleRider((int) $id);
+    if (empty($rider) || (!empty($rider->branch_id) && !in_array($rider->branch_id, app('user_branches')))) {
       Flash::error('Rider not found');
       return redirect(route('riders.index'));
     }
@@ -1737,7 +1744,6 @@ class RidersController extends AppBaseController
       'name' => $request->input('name') ?: session('riders_filter.name'),
       'fleet_supervisor' => $request->input('fleet_supervisor') ?: session('riders_filter.fleet_supervisor'),
       'status' => $request->input('status') ?: session('riders_filter.status'),
-      'emirate_hub' => $request->input('emirate_hub') ?: session('riders_filter.emirate_hub'),
       'quick_search' => $request->input('quick_search') ?: session('riders_filter.quick_search'),
     ];
 
@@ -1789,6 +1795,49 @@ class RidersController extends AppBaseController
     }
   }
 
+  public function setRiderTopOption(Request $request, $company_slug, $id)
+  {
+    $rider = $this->ridersRepository->find($id);
+    if (empty($rider)) {
+      return response()->json(['success' => false, 'message' => 'Rider not found'], 404);
+    }
+
+    $validated = $request->validate([
+      'option_id' => 'nullable|integer|exists:rider_top_options,id',
+    ]);
+
+    $optionId = $validated['option_id'] ?? null;
+    $option = null;
+    if (!empty($optionId)) {
+      $option = DB::table('rider_top_options as o')
+        ->join('rider_top_categories as c', 'c.id', '=', 'o.category_id')
+        ->where('o.id', $optionId)
+        ->where('c.show_in_view_cards', 1)
+        ->select('o.id', 'o.name', 'c.rider_column')
+        ->first();
+      if (!$option) {
+        return response()->json(['success' => false, 'message' => 'Invalid Rider Top option for view cards.'], 422);
+      }
+    }
+
+    $rider->rider_top_option_id = $option?->id;
+    // Keep rider status synced directly with selected view-card option.
+    $rider->rider_status = $option ? (string) $option->name : null;
+    if ($rider->rider_status !== null) {
+      $inactiveStatuses = ['Absconder', 'Vacation', 'Cancel'];
+      $rider->status = in_array($rider->rider_status, $inactiveStatuses, true) ? 3 : 1;
+    }
+    $rider->save();
+
+    return response()->json([
+      'success' => true,
+      'message' => 'Rider view card option and status updated successfully.',
+      'option_id' => $option?->id,
+      'option_label' => $option?->name,
+      'rider_status' => $rider->rider_status,
+    ]);
+  }
+
   public function toggleAbsconder(Request $request, $company_slug, $id)
   {
     $rider = $this->ridersRepository->find($id);
@@ -1799,13 +1848,13 @@ class RidersController extends AppBaseController
 
     try {
       // Toggle the absconder status
-      $rider->absconder = $rider->absconder ? 0 : 1;
+      $rider->rider_status = ($rider->rider_status === 'Absconder') ? null : 'Absconder';
       $rider->save();
 
       return response()->json([
         'success' => true,
         'message' => 'Absconder status updated successfully',
-        'absconder' => $rider->absconder
+        'rider_status' => $rider->rider_status
       ]);
     } catch (\Exception $e) {
       return response()->json([
@@ -1825,13 +1874,13 @@ class RidersController extends AppBaseController
 
     try {
       // Toggle the flowup status
-      $rider->flowup = $rider->flowup ? 0 : 1;
+      $rider->rider_status = ($rider->rider_status === 'Follow Up') ? null : 'Follow Up';
       $rider->save();
 
       return response()->json([
         'success' => true,
         'message' => 'Flowup status updated successfully',
-        'flowup' => $rider->flowup
+        'rider_status' => $rider->rider_status
       ]);
     } catch (\Exception $e) {
       return response()->json([
@@ -1851,13 +1900,13 @@ class RidersController extends AppBaseController
 
     try {
       // Toggle the l_license status
-      $rider->l_license = $rider->l_license ? 0 : 1;
+      $rider->rider_status = ($rider->rider_status === 'Learning License') ? null : 'Learning License';
       $rider->save();
 
       return response()->json([
         'success' => true,
         'message' => 'Learning license status updated successfully',
-        'l_license' => $rider->l_license
+        'rider_status' => $rider->rider_status
       ]);
     } catch (\Exception $e) {
       return response()->json([
@@ -1888,6 +1937,7 @@ class RidersController extends AppBaseController
       } else {
         $rider->status = 3;
       }
+      $rider->rider_status = $isSettingWalker ? 'Walker' : null;
 
       $rider->save();
 
@@ -1956,6 +2006,7 @@ class RidersController extends AppBaseController
       } else {
         $rider->status = 1; // Active when vacation is turned off
       }
+      $rider->rider_status = $isSettingVacation ? 'Vacation' : null;
 
       $rider->save();
 
@@ -2040,13 +2091,13 @@ class RidersController extends AppBaseController
 
     try {
       // Toggle the PRO status
-      $rider->pro = $rider->pro ? 0 : 1;
+      $rider->rider_status = ($rider->rider_status === 'PRO') ? null : 'PRO';
       $rider->save();
 
       return response()->json([
         'success' => true,
         'message' => 'PRO status updated successfully',
-        'pro' => $rider->pro
+        'rider_status' => $rider->rider_status
       ]);
     } catch (\Exception $e) {
       return response()->json([
@@ -2068,24 +2119,11 @@ class RidersController extends AppBaseController
       return response()->json(['error' => 'Rider not found'], 404);
     }
 
-    $validTypes = ['absconder', 'flowup', 'llicense', 'walker', 'vacation', 'cancel', 'pro', 'none'];
-    $type = $request->input('type', 'none');
-    if (!in_array($type, $validTypes, true)) {
-      return response()->json(['success' => false, 'message' => 'Invalid status type'], 400);
-    }
+    $type = trim((string) $request->input('type', 'none'));
 
     try {
-      // Clear all status option flags and rider_status_option only (do not touch designation or status)
-      $rider->absconder = 0;
-      $rider->flowup = 0;
-      $rider->l_license = 0;
-      $rider->rider_status_option = null;
-      if (Schema::hasColumn($rider->getTable(), 'pro')) {
-        $rider->pro = 0;
-      }
-      if (Schema::hasColumn($rider->getTable(), 'mol')) {
-        $rider->mol = 0;
-      }
+      // Single status column only.
+      $rider->rider_status = null;
 
       if ($type !== 'none') {
         $labels = [
@@ -2097,46 +2135,43 @@ class RidersController extends AppBaseController
           'cancel' => 'Cancel',
           'pro' => 'PRO',
         ];
-        $rider->rider_status_option = $labels[$type] ?? null;
-        switch ($type) {
-          case 'absconder':
-            $rider->absconder = 1;
-            break;
-          case 'flowup':
-            $rider->flowup = 1;
-            break;
-          case 'llicense':
-            $rider->l_license = 1;
-            break;
-          case 'walker':
-            break;
-          case 'vacation':
-            break;
-          case 'cancel':
-            break;
-          case 'pro':
-            if (Schema::hasColumn($rider->getTable(), 'pro')) {
-              $rider->pro = 1;
-            }
-            break;
+        $statusLabel = $labels[$type] ?? $type;
+        $statusLabel = trim((string) $statusLabel);
+
+        $statusCategory = \App\Models\RiderTopCategory::where('rider_column', 'rider_status')->first();
+        if ($statusCategory) {
+          $configuredStatuses = \App\Models\RiderTopOption::where('category_id', $statusCategory->id)
+            ->pluck('name')
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
+            ->values()
+            ->all();
+          if (!in_array($statusLabel, $configuredStatuses, true)) {
+            return response()->json(['success' => false, 'message' => 'Status is not configured in Rider Settings.'], 422);
+          }
         }
+        $rider->rider_status = $statusLabel;
+      }
+      if ($rider->rider_status !== null) {
+        $inactiveStatuses = ['Absconder', 'Vacation', 'Cancel'];
+        $rider->status = in_array($rider->rider_status, $inactiveStatuses, true) ? 3 : 1;
       }
 
       $rider->save();
 
-      $statusLabel = $type === 'none' ? (null) : $rider->rider_status_option;
+      $statusLabel = $type === 'none' ? null : $rider->rider_status;
 
       return response()->json([
         'success' => true,
         'message' => $type === 'none' ? 'Status option cleared.' : 'Status option updated.',
         'statusLabel' => $statusLabel,
-        'rider_status_option' => $rider->rider_status_option,
+        'rider_status' => $rider->rider_status,
         'designation' => $rider->designation,
         'status' => $rider->status,
-        'absconder' => $rider->absconder,
-        'flowup' => $rider->flowup,
-        'l_license' => $rider->l_license,
-        'pro' => $rider->pro ?? 0,
+        'absconder' => $rider->rider_status === 'Absconder' ? 1 : 0,
+        'flowup' => $rider->rider_status === 'Follow Up' ? 1 : 0,
+        'l_license' => $rider->rider_status === 'Learning License' ? 1 : 0,
+        'pro' => $rider->rider_status === 'PRO' ? 1 : 0,
       ]);
     } catch (\Exception $e) {
       return response()->json([
@@ -2593,7 +2628,7 @@ class RidersController extends AppBaseController
         'voucher_id' => $voucher->id,
         'trans_code' => $transCode,
         'reload' => true,
-       ]);
+      ]);
     } catch (\Exception $e) {
       \DB::rollback();
 
@@ -2618,7 +2653,11 @@ class RidersController extends AppBaseController
 
   public function incentive($company_slug, $rider_id)
   {
-    $rider = Riders::find($rider_id);
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider)) {
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
@@ -2910,7 +2949,11 @@ class RidersController extends AppBaseController
    */
   public function voucher($company_slug, $rider_id)
   {
-    $rider = Riders::find($rider_id);
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider)) {
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
@@ -3047,6 +3090,101 @@ class RidersController extends AppBaseController
         ]
       ], 500);
     }
+  }
+
+  public function storeDropdownOption($company_slug, Request $request)
+  {
+    $validated = $request->validate([
+      'option_value' => 'required|string|max:255',
+      'field_key' => 'nullable|string|max:80',
+      'custom_field_id' => 'nullable|integer|exists:rider_custom_fields,id',
+    ]);
+
+    $optionValue = trim((string) $validated['option_value']);
+    if ($optionValue === '') {
+      return response()->json(['success' => false, 'message' => 'Option value is required.'], 422);
+    }
+
+    if (empty($validated['field_key']) && empty($validated['custom_field_id'])) {
+      return response()->json(['success' => false, 'message' => 'Field target is required.'], 422);
+    }
+
+    $companyId = auth()->user()->company_id ?? null;
+
+    if (!empty($validated['field_key'])) {
+      $assignment = RiderFieldCategoryAssignment::where('field_key', $validated['field_key'])->first();
+      if (!$assignment) {
+        return response()->json(['success' => false, 'message' => 'Field assignment not found.'], 404);
+      }
+
+      if (Schema::hasColumn('rider_categories', 'company_id') && $companyId) {
+        $category = RiderCategory::where('id', $assignment->category_id)
+          ->where(function ($q) use ($companyId) {
+            $q->where('company_id', $companyId)->orWhereNull('company_id');
+          })
+          ->first();
+        if (!$category) {
+          return response()->json(['success' => false, 'message' => 'Field is outside your company scope.'], 403);
+        }
+      }
+
+      $config = is_array($assignment->input_config) ? $assignment->input_config : [];
+      $raw = $config['options'] ?? '';
+      $lines = is_array($raw) ? $raw : preg_split('/\r\n|\r|\n/', (string) $raw);
+      $lines = array_values(array_filter(array_map(fn($v) => trim((string) $v), $lines), fn($v) => $v !== ''));
+      $exists = collect($lines)->contains(fn($v) => mb_strtolower($v) === mb_strtolower($optionValue));
+      if (!$exists) {
+        $lines[] = $optionValue;
+      }
+      $config['options'] = implode("\n", $lines);
+      $assignment->input_type = $assignment->input_type ?: 'dropdown';
+      $assignment->input_config = $config;
+      $assignment->save();
+
+      return response()->json(['success' => true, 'message' => 'Option added successfully.', 'reload' => true]);
+    }
+
+    $field = RiderCustomField::findOrFail((int) $validated['custom_field_id']);
+    if (Schema::hasColumn('rider_categories', 'company_id') && $companyId && $field->category_id) {
+      $category = RiderCategory::where('id', $field->category_id)
+        ->where(function ($q) use ($companyId) {
+          $q->where('company_id', $companyId)->orWhereNull('company_id');
+        })
+        ->first();
+      if (!$category) {
+        return response()->json(['success' => false, 'message' => 'Custom field is outside your company scope.'], 403);
+      }
+    }
+
+    $config = is_array($field->config) ? $field->config : [];
+    $raw = $config['options'] ?? '';
+    $lines = is_array($raw) ? $raw : preg_split('/\r\n|\r|\n/', (string) $raw);
+    $lines = array_values(array_filter(array_map(fn($v) => trim((string) $v), $lines), fn($v) => $v !== ''));
+    $exists = collect($lines)->contains(fn($v) => mb_strtolower($v) === mb_strtolower($optionValue));
+    if (!$exists) {
+      $lines[] = $optionValue;
+    }
+    $config['options'] = implode("\n", $lines);
+    $field->config = $config;
+    if (!$field->data_type) {
+      $field->data_type = 'dropdown';
+    }
+    $field->save();
+
+    return response()->json(['success' => true, 'message' => 'Option added successfully.', 'reload' => true]);
+  }
+
+  public function dropdownOptionModal($company_slug, Request $request)
+  {
+    $fieldKey = trim((string) $request->query('field_key', ''));
+    $customFieldId = trim((string) $request->query('custom_field_id', ''));
+    $fieldLabel = trim((string) $request->query('label', 'Field'));
+
+    return view('riders.dropdown_option_modal', [
+      'fieldKey' => $fieldKey,
+      'customFieldId' => $customFieldId,
+      'fieldLabel' => $fieldLabel,
+    ]);
   }
 
   /**

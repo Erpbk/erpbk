@@ -4,6 +4,7 @@
 @php
 $configData = Helper::appClasses();
 $settingsPanelLabels = \App\Models\Settings::getMenuLabels();
+$settingsPanelRidersLabel = \App\Models\Settings::getMenuLabel('rider_settings');
 $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug');
 $moduleIcons = [
 'dashboard' => 'ti-layout-dashboard',
@@ -55,32 +56,32 @@ $moduleIcons = [
 'ledger' => 'ti-book',
 ];
 $erpModuleMenu = [
-    ['key' => 'dashboard'],
-    ['key' => 'cash_banks', 'children' => ['cash_banks', 'cheques']],
-    ['key' => 'employees'],
-    ['key' => 'attendance', 'children' => ['attendance', 'attendance_records', 'attendance_summary']],
-    ['key' => 'items', 'children' => ['items', 'items_list', 'garage_items']],
-    ['key' => 'leads'],
-    ['key' => 'customers'],
-    ['key' => 'vendors'],
-    ['key' => 'recruiters'],
-    ['key' => 'riders', 'children' => ['riders', 'riders_list', 'invoices', 'activities', 'live_activities', 'rider_report']],
-    ['key' => 'bikes', 'children' => ['bikes', 'bike_list', 'maintenance_overview']],
-    ['key' => 'sims'],
-    ['key' => 'fuel_cards'],
-    ['key' => 'rta_fines'],
-    ['key' => 'rta_saliks'],
-    ['key' => 'inventory'],
-    ['key' => 'visa_expense'],
-    ['key' => 'expenses'],
-    ['key' => 'vat', 'children' => ['vat', 'vat_ledger', 'vat_return_file']],
-    ['key' => 'leasing_companies', 'children' => ['leasing_companies', 'leasing_companies_list', 'leasing_invoices']],
-    ['key' => 'garages'],
-    ['key' => 'supplier', 'children' => ['supplier', 'suppliers', 'supplier_invoices']],
-    ['key' => 'assets'],
-    ['key' => 'documents'],
-    ['key' => 'vouchers'],
-    ['key' => 'accounts', 'children' => ['accounts', 'chart_of_accounts', 'ledger']],
+['key' => 'dashboard'],
+['key' => 'cash_banks', 'children' => ['cash_banks', 'cheques']],
+['key' => 'employees'],
+['key' => 'attendance', 'children' => ['attendance', 'attendance_records', 'attendance_summary']],
+['key' => 'items', 'children' => ['items', 'items_list', 'garage_items']],
+['key' => 'leads'],
+['key' => 'customers'],
+['key' => 'vendors'],
+['key' => 'recruiters'],
+['key' => 'riders', 'children' => ['rider-settings', 'invoices', 'activities', 'live_activities', 'rider_report']],
+['key' => 'bikes', 'children' => ['bikes', 'bike_list', 'maintenance_overview']],
+['key' => 'sims'],
+['key' => 'fuel_cards'],
+['key' => 'rta_fines'],
+['key' => 'rta_saliks'],
+['key' => 'inventory'],
+['key' => 'visa_expense'],
+['key' => 'expenses'],
+['key' => 'vat', 'children' => ['vat', 'vat_ledger', 'vat_return_file']],
+['key' => 'leasing_companies', 'children' => ['leasing_companies', 'leasing_companies_list', 'leasing_invoices']],
+['key' => 'garages'],
+['key' => 'supplier', 'children' => ['supplier', 'suppliers', 'supplier_invoices']],
+['key' => 'assets'],
+['key' => 'documents'],
+['key' => 'vouchers'],
+['key' => 'accounts', 'children' => ['accounts', 'chart_of_accounts', 'ledger']],
 ];
 @endphp
 @extends('layouts/commonMaster')
@@ -142,14 +143,7 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
-        @can('dropdown_view')
-        <li class="menu-item {{ Request::is('settings-panel/dropdowns*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.dropdowns.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-list"></i>
-            <div>Dropdown Management</div>
-          </a>
-        </li>
-        @endcan
+
         @endcanany
 
         {{-- User Management, Activity Logs, Recycle Bin --}}
@@ -227,12 +221,6 @@ $containerNav = 'container-fluid';
             <div>{{ $settingsPanelLabels['vouchers'] ?? 'Vouchers' }}</div>
           </a>
         </li>
-        <li class="menu-item {{ Request::is('settings-panel/rider-settings*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.rider-settings.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-motorbike"></i>
-            <div>{{ $settingsPanelLabels['riders'] ?? 'Riders' }}</div>
-          </a>
-        </li>
         @endcan
         @can('vat_view')
         <li class="menu-item {{ Request::is('settings-panel/vat-settings*') ? 'active' : '' }}">
@@ -257,10 +245,10 @@ $containerNav = 'container-fluid';
         $parentRoutePattern = 'settings-panel/module-settings/' . $parentKey;
         $anyChildActive = false;
         foreach ($children as $childKey) {
-            if (Request::is('settings-panel/module-settings/' . $childKey)) {
-                $anyChildActive = true;
-                break;
-            }
+        if (Request::is('settings-panel/module-settings/' . $childKey) || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*'))) {
+        $anyChildActive = true;
+        break;
+        }
         }
         $isOpen = Request::is($parentRoutePattern) || $anyChildActive;
         $isVisible = \App\Support\CompanyModuleVisibility::enabled($parentKey);
@@ -270,14 +258,14 @@ $containerNav = 'container-fluid';
         <li class="menu-item {{ $isOpen ? 'open' : '' }}">
           <a href="javascript:void(0);" class="menu-link menu-toggle">
             <i class="menu-icon tf-icons ti {{ $moduleIcons[$parentKey] ?? 'ti-adjustments-alt' }}"></i>
-            <div>{{ $settingsPanelLabels[$parentKey] ?? config('menu_labels.defaults.' . $parentKey, ucwords(str_replace('_', ' ', $parentKey))) }}</div>
+            <div>{{ $parentKey === 'riders' ? $settingsPanelRidersLabel : ($settingsPanelLabels[$parentKey] ?? config('menu_labels.defaults.' . $parentKey, ucwords(str_replace('_', ' ', $parentKey)))) }}</div>
           </a>
           <ul class="menu-sub">
             @foreach($children as $childKey)
-            <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $childKey) ? 'active' : '' }}">
-              <a href="{{ route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $childKey]) }}" class="menu-link">
+            <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $childKey) || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*')) ? 'active' : '' }}">
+              <a href="{{ $childKey === 'rider-settings' ? route('settings-panel.rider-settings.index', ['company_slug' => $settingsCompanySlug]) : route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $childKey]) }}" class="menu-link">
                 <i class="menu-icon tf-icons ti {{ $moduleIcons[$childKey] ?? 'ti-adjustments-alt' }}"></i>
-                <div>{{ $settingsPanelLabels[$childKey] ?? config('menu_labels.defaults.' . $childKey, ucwords(str_replace('_', ' ', $childKey))) }}</div>
+                <div>{{ $childKey === 'rider-settings' ? $settingsPanelRidersLabel : ($settingsPanelLabels[$childKey] ?? config('menu_labels.defaults.' . $childKey, ucwords(str_replace('_', ' ', $childKey)))) }}</div>
               </a>
             </li>
             @endforeach
@@ -324,6 +312,55 @@ $containerNav = 'container-fluid';
 
       <div class="content-wrapper">
         <div class="container-fluid flex-grow-1 container-p-y">
+          @php
+          $settingsPanelAlerts = [];
+          if (session('success')) {
+          $settingsPanelAlerts[] = ['icon' => 'success', 'title' => 'Success', 'text' => session('success')];
+          }
+          if (session('error')) {
+          $settingsPanelAlerts[] = ['icon' => 'error', 'title' => 'Error', 'text' => session('error')];
+          }
+          if (session('warning')) {
+          $settingsPanelAlerts[] = ['icon' => 'warning', 'title' => 'Warning', 'text' => session('warning')];
+          }
+          if (session('info')) {
+          $settingsPanelAlerts[] = ['icon' => 'info', 'title' => 'Info', 'text' => session('info')];
+          }
+          if ($errors->any()) {
+          $settingsPanelAlerts[] = ['icon' => 'error', 'title' => 'Validation Error', 'text' => $errors->first()];
+          }
+          @endphp
+          @if(!empty($settingsPanelAlerts))
+          <div id="settings-panel-alert-data" data-alerts='@json($settingsPanelAlerts)' hidden></div>
+          <script>
+            document.addEventListener('DOMContentLoaded', function() {
+              var alerts = [];
+              var alertDataEl = document.getElementById('settings-panel-alert-data');
+              if (alertDataEl) {
+                try {
+                  alerts = JSON.parse(alertDataEl.getAttribute('data-alerts') || '[]');
+                } catch (e) {
+                  alerts = [];
+                }
+              }
+
+              alerts.forEach(function(item) {
+                if (typeof Swal !== 'undefined') {
+                  Swal.fire({
+                    icon: item.icon,
+                    title: item.title,
+                    text: item.text
+                  });
+                } else if (typeof toastr !== 'undefined') {
+                  var fn = toastr[item.icon] || toastr.info;
+                  fn(item.text);
+                } else {
+                  alert(item.text);
+                }
+              });
+            });
+          </script>
+          @endif
           @yield('content')
         </div>
         <div class="content-backdrop fade"></div>

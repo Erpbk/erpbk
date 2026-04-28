@@ -4,6 +4,7 @@ namespace App\DataTables;
 
 use App\Helpers\General;
 use App\Models\Riders;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
 use Carbon\Carbon;
@@ -44,9 +45,6 @@ class RidersDataTable extends DataTable
 
         return $name;
       })
-      ->editColumn('designation', function (Riders $rider) {
-        return $rider->designation ?? '-';
-      })
       ->editColumn('bike', function (Riders $rider) {
         return $rider->bikes->plate ?? '-';
       })
@@ -72,19 +70,8 @@ class RidersDataTable extends DataTable
         if ($attn['emails']) {
           $job_status .= '<a href="' . route('rider.emails', $rider->id) . '"><span class="text-success cursor-pointer" title="Email Sent">●</span></a>&nbsp;';
         }
-        $job_status .= '<a href="javascript:void(0);" data-action="' . url('riders/job_status/' . $rider->id) . '" data-size="md" data-title="Add Timeline" class="show-modal">' . $rider->attendance . '</a>';
+        $job_status .= '<a href="javascript:void(0);" data-action="' . route('rider.job_status', ['company_slug' => request()->route('company_slug'), 'id' => $rider->id]) . '" data-size="md" data-title="Add Timeline" class="show-modal">' . $rider->attendance . '</a>';
         return $job_status;
-      })
-      ->addColumn('company_contact', function (Riders $rider) {
-        if (!$rider->company_contact)
-          return 'N/A';
-
-        $phone = preg_replace('/[^0-9]/', '', $rider->company_contact);
-        $whatsappNumber = '+971' . ltrim($phone, '0');
-
-        return '<a href="https://wa.me/' . $whatsappNumber . '" target="_blank" class="text-success">
-                        <i class="fab fa-whatsapp"></i> ' . $rider->company_contact . '
-                    </a>';
       })
       // Status filter
       ->filterColumn('status', function ($query, $keyword) {
@@ -105,17 +92,9 @@ class RidersDataTable extends DataTable
       ->filterColumn('name', function ($query, $keyword) {
         $query->where('name', 'LIKE', "%{$keyword}%");
       })
-      // Contact filter
-      ->filterColumn('company_contact', function ($query, $keyword) {
-        $query->where('company_contact', 'LIKE', "%{$keyword}%");
-      })
       // Fleet Supervisor filter
       ->filterColumn('fleet_supervisor', function ($query, $keyword) {
         $query->where('fleet_supervisor', 'LIKE', "%{$keyword}%");
-      })
-      // Emirate Hub filter
-      ->filterColumn('emirate_hub', function ($query, $keyword) {
-        $query->where('emirate_hub', 'LIKE', "%{$keyword}%");
       })
       ->filterColumn('customer_id', function ($query, $keyword) {
         $query->whereHas('customer', function ($q) use ($keyword) {
@@ -123,7 +102,7 @@ class RidersDataTable extends DataTable
         });
       })
 
-      ->rawColumns(['name', 'status', 'action', 'company_contact', 'attendance']);
+      ->rawColumns(['name', 'status', 'action', 'attendance']);
 
     return $dataTable;
   }
@@ -142,18 +121,13 @@ class RidersDataTable extends DataTable
       ->select([
         'riders.id',
         'riders.rider_id',
-        'riders.courier_id',
         'riders.name',
-        'riders.company_contact',
         'riders.fleet_supervisor',
-        'riders.emirate_hub',
         'riders.status',
-        'riders.shift',
-        'riders.designation',
         'riders.customer_id',
         'riders.attendance',
-        \DB::raw('SUM(rider_activities.delivered_orders) as orders_sum'),
-        \DB::raw('COUNT(rider_activities.date) as days')
+        DB::raw('SUM(rider_activities.delivered_orders) as orders_sum'),
+        DB::raw('COUNT(rider_activities.date) as days')
       ]);
     if (request('fleet')) {
       $query->where('fleet_supervisor', request('fleet'));
@@ -161,14 +135,9 @@ class RidersDataTable extends DataTable
     $query->groupBy([
       'riders.id',
       'riders.rider_id',
-      'riders.courier_id',
       'riders.name',
-      'riders.company_contact',
       'riders.fleet_supervisor',
-      'riders.emirate_hub',
       'riders.status',
-      'riders.shift',
-      'riders.designation',
       'riders.customer_id',
       'riders.attendance'
     ]);
@@ -224,20 +193,8 @@ class RidersDataTable extends DataTable
         'orderable' => true
       ],
       [
-        'data' => 'courier_id',
-        'title' => 'Courier ID',
-        'searchable' => true,
-        'orderable' => true
-      ],
-      [
         'data' => 'name',
         'title' => 'Name',
-        'searchable' => true,
-        'orderable' => true
-      ],
-      [
-        'data' => 'company_contact',
-        'title' => 'Contact',
         'searchable' => true,
         'orderable' => true
       ],
@@ -248,20 +205,8 @@ class RidersDataTable extends DataTable
         'orderable' => true
       ],
       [
-        'data' => 'emirate_hub',
-        'title' => 'Hub',
-        'searchable' => true,
-        'orderable' => true
-      ],
-      [
         'data' => 'customer_id',
         'title' => 'Customer',
-        'searchable' => true,
-        'orderable' => true
-      ],
-      [
-        'data' => 'designation',
-        'title' => 'Desig',
         'searchable' => true,
         'orderable' => true
       ],
@@ -274,12 +219,6 @@ class RidersDataTable extends DataTable
       [
         'data' => 'status',
         'title' => 'Status',
-        'searchable' => true,
-        'orderable' => true
-      ],
-      [
-        'data' => 'shift',
-        'title' => 'Shift',
         'searchable' => true,
         'orderable' => true
       ],

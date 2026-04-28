@@ -27,6 +27,7 @@ class Accounts extends BaseModel
 
   public $fillable = [
     'branch_id',
+    'company_id',
     'account_code',
     'name',
     'account_type',
@@ -96,7 +97,7 @@ class Accounts extends BaseModel
 
   public function branch()
   {
-    return $this->belongsTo(Branch::class, 'branch_id' , 'id');
+    return $this->belongsTo(Branch::class, 'branch_id', 'id');
   }
 
   public function ledgerEntries()
@@ -181,7 +182,7 @@ class Accounts extends BaseModel
 
   public function getBranchNameAttribute()
   {
-    $branch = $this->branch_id ? $this->branch->name .' ( '. $this->branch->code .' )' : 'All' ; 
+    $branch = $this->branch_id ? $this->branch->name . ' ( ' . $this->branch->code . ' )' : 'All';
     return $branch;
   }
 }

@@ -7,7 +7,9 @@
          $tableCols = $tableColumns ?? [];
          $dataColumns = array_values(array_filter($tableCols, function($c){
          $k = $c['data'] ?? ($c['key'] ?? null);
-         return $k !== 'search' && $k !== 'control';
+         return $k !== 'search'
+            && $k !== 'control'
+            && !in_array($k, ['branch_id', 'company_id', 'account_id'], true);
          }));
          @endphp
          @foreach($dataColumns as $col)
@@ -59,38 +61,21 @@
          @endphp
          <td>{{ $account ? ($account->account_code ?? $account->name ?? $r->account_id) : '-' }}</td>
          @break
-         @case('l_license')
-         <td>{{ ($r->l_license == 1) ? 'Learning' : '-' }}</td>
-         @break
          @case('bike')
          @php $bike = DB::table('bikes')->where('rider_id', $r->id)->first(); @endphp
          <td>{{ $bike ? $bike->plate : '-' }}</td>
          @break
-         @case('emirate_hub')
-         @php $bike = DB::table('bikes')->where('rider_id', $r->id)->first(); @endphp
-         <td>{{ $bike && $bike->emirates ? $bike->emirates : '-' }}</td>
-         @break
          @case('status')
          @php
-         $statusOptionLabel = !empty($r->rider_status_option) ? $r->rider_status_option : null;
-         if (!$statusOptionLabel) {
-           if (($r->absconder ?? 0) == 1) $statusOptionLabel = 'Absconder';
-           elseif (($r->flowup ?? 0) == 1) $statusOptionLabel = 'Follow Up';
-           elseif (($r->l_license ?? 0) == 1) $statusOptionLabel = 'Learning License';
-           elseif ($r->designation === 'Walker') $statusOptionLabel = 'Walker';
-           elseif ($r->designation === 'Vacation') $statusOptionLabel = 'Vacation';
-           elseif ($r->designation === 'Cancel') $statusOptionLabel = 'Cancel';
-           elseif ($r->designation === 'PRO' || ($r->pro ?? 0) == 1) $statusOptionLabel = 'PRO';
-         }
-
-         if ($statusOptionLabel) {
-           $statusText = $statusOptionLabel;
-           $badgeClass = 'bg-label-primary';
-         } else {
-           $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
-           $statusText = $hasActiveBike ? 'Active' : 'Inactive';
-           $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
-         }
+        $statusText = trim((string)($r->rider_status ?? ''));
+        if ($statusText === '') {
+          $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
+          $statusText = $hasActiveBike ? 'Active' : 'Inactive';
+        }
+        $normalized = strtolower($statusText);
+        $badgeClass = in_array($normalized, ['active', 'follow up', 'pro', 'walker', 'learning license'], true)
+          ? 'bg-label-success'
+          : 'bg-label-danger';
          @endphp
          <td>
             <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
@@ -99,8 +84,8 @@
          @case('attendance')
          @php
          $rider = DB::Table('riders')->find($r->id);
-         $timeline = DB::Table('job_status')->select('id')->where('RID', $r->id)->whereDate('created_at', '=', $r->attendance_date)->first();
-         $emails = DB::Table('rider_emails')->select('id')->where('rider_id', $r->id)->whereDate('created_at', '=', $r->attendance_date)->first();
+        $timeline = DB::Table('job_status')->select('id')->where('RID', $r->id)->whereDate('created_at', today())->first();
+        $emails = DB::Table('rider_emails')->select('id')->where('rider_id', $r->id)->whereDate('created_at', today())->first();
          @endphp
          <td>
             @if($timeline)
@@ -109,7 +94,7 @@
             @if($emails)
             <a href="{{ route('rider.emails') }}/{{ $rider->id }}"><span class="text-success cursor-pointer" title="Email Sent">●</span></a>&nbsp;
             @endif
-            <a href="javascript:void(0);" data-action="{{ url('riders/job_status', $rider->id) }}" data-size="md" data-title="Add Timeline" class="show-modal">{{ $r->attendance }}</a>
+            <a href="javascript:void(0);" data-action="{{ route('rider.job_status', ['company_slug' => request()->route('company_slug'), 'id' => $rider->id]) }}" data-size="md" data-title="Add Timeline" class="show-modal">{{ $r->attendance }}</a>
          </td>
          @break
          @case('orders_sum')

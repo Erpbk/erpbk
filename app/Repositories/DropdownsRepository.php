@@ -4,12 +4,14 @@ namespace App\Repositories;
 
 use App\Models\Dropdowns;
 use App\Repositories\BaseRepository;
+use Illuminate\Support\Facades\Auth;
 
 class DropdownsRepository extends BaseRepository
 {
   protected $fieldSearchable = [
     'name',
     'label',
+    'company_id',
     'values',
     'key',
     'status'
@@ -30,6 +32,9 @@ class DropdownsRepository extends BaseRepository
   {
     $input = $request->all();
     $input['values'] = json_encode($input['values']);
+    if (empty($input['company_id']) && Auth::check()) {
+      $input['company_id'] = Auth::user()->company_id;
+    }
 
     Dropdowns::updateOrCreate(
       ['id' => $id],

@@ -24,15 +24,15 @@ return new class extends Migration
 
         $slugMap = [
             'rider_info' => [
-                'branch_id', 'name', 'rider_id', 'courier_id', 'personal_contact', 'company_contact',
-                'personal_email', 'email', 'nationality', 'passport', 'passport_expiry', 'ethnicity', 'dob', 'image_name',
+                'name', 'rider_id', 'courier_id', 'personal_contact', 'company_contact',
+                'email', 'nationality', 'passport', 'passport_expiry', 'ethnicity', 'dob', 'image_name',
             ],
             'visa_info' => [
                 'emirate_hub', 'emirate_id', 'emirate_exp', 'visa_status', 'passport_handover', 'visa_sponsor',
                 'visa_occupation', 'license_no', 'license_expiry', 'road_permit', 'road_permit_expiry',
             ],
             'job_info' => [
-                'VID', 'account_id', 'salary_model', 'fleet_supervisor', 'rider_reference', 'DEPT', 'PID',
+                'VID', 'salary_model', 'fleet_supervisor', 'rider_reference', 'DEPT', 'PID',
                 'job_status', 'customer_id', 'recruiter_id', 'recuriter', 'shift', 'attendance',
             ],
             'labor_info' => [

@@ -2,7 +2,7 @@
 
     <div class="col-md-12 form-group">
         <label>Email Address</label>
-        <input type="email" class="form-control form-control" name="email_to" value="{{$rider->personal_email}}" readonly>
+        <input type="email" class="form-control form-control" name="email_to" value="{{$rider->email}}" readonly>
     </div>
     <div class="col-md-12 form-group">
         <label>Subject</label>

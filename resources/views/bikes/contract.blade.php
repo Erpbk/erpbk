@@ -104,7 +104,7 @@
                <p class="s3" style="padding-top: 1pt;padding-left: 1pt;text-indent: 0pt;text-align: left;">Email I,d.</p>
             </td>
             <td style="width:238pt;border:1px solid #000000;">
-               <p style="padding-top: 1pt;text-indent: 0pt;text-align: center;">{{@$contract->rider->personal_email}}</p>
+               <p style="padding-top: 1pt;text-indent: 0pt;text-align: center;">{{@$contract->rider->email}}</p>
             </td>
             <td style="width:73pt;border:1px solid #000000;">
                <p class="s3" style="padding-top: 1pt;padding-left: 1pt;text-indent: 0pt;text-align: left;">Emirate.</p>

@@ -61,8 +61,7 @@ class SupplierInvoices extends BaseModel
         parent::boot();
 
         static::creating(function ($invoice) {
-            $lastInvoice = self::orderBy('id', 'desc')->first();
-            $lastNumber = $lastInvoice->id;
+            $lastNumber = self::max('id') ?? 0;
 
             $invoice->inv_id = 'SUP' . str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
         });

@@ -47,7 +47,7 @@ class CustomerInvoiceItem extends BaseModel
      */
     public function invoice()
     {
-        return $this->belongsTo(CompanyInvoice::class, 'inv_id');
+        return $this->belongsTo(CustomerInvoices::class, 'inv_id', 'id');
     }
 
     /**

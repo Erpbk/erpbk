@@ -88,7 +88,7 @@
 
                          <li class="list-group-item @if(@$result['job_status'] == 1) text-success @else text-danger @endif" >
                             <b>Job Status</b> <span class="float-right">
-                                @isset($result)<a href="javascript:void(0);" data-action="{{url('riders/job_status/'.$result['id'])}}" data-title="Change Job Status" class="btn btn-default btn-sm show-modal">Change Status</a>@endisset
+                                @isset($result)<a href="javascript:void(0);" data-action="{{ route('rider.job_status', ['company_slug' => request()->route('company_slug'), 'id' => $result['id']]) }}" data-title="Change Job Status" class="btn btn-default btn-sm show-modal">Change Status</a>@endisset
                                  @isset($result['job_status']){{App\Helpers\CommonHelper::JobStatus($result['job_status'])??'not-set'}}@endisset</span>
                                 @isset($rider->jobstatus)
                                 <hr/>

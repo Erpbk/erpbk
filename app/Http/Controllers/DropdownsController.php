@@ -48,7 +48,9 @@ class DropdownsController extends AppBaseController
    */
   public function store(CreateDropdownsRequest $request)
   {
-    //$input = $request->all();
+    if (empty($request->company_id) && auth()->check()) {
+      $request->merge(['company_id' => auth()->user()->company_id]);
+    }
 
     $dropdowns = $this->dropdownsRepository->save($request);
 

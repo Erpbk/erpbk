@@ -44,7 +44,8 @@ class visa_expenses extends BaseModel
     ];
     public function rider()
     {
-        return $this->belongsTo(Riders::class, 'rider_id', 'id');
+        // In current schema rider_id maps to accounts.id for visa ledgers.
+        return $this->belongsTo(Accounts::class, 'rider_id', 'id');
     }
     public function account()
     {

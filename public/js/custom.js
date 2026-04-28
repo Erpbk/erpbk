@@ -351,7 +351,7 @@ $('body').on('click', '.show-modal', function () {
     $('.layout-wrapper').addClass('layout-menu-collapsed');
   }
 
-  $('#modalTop').modal('show');
+  toggleModalTop('show');
   block();
 });
 
@@ -502,7 +502,7 @@ $(document).on('submit', '#formajax', function (e) {
       if ($('#reload_page').val() == 1) {
         location.reload();
       }
-      $('#modalTop').modal('hide');
+      toggleModalTop('hide');
       reloadDataTable();
     },
     error: function (ajaxcontent) {

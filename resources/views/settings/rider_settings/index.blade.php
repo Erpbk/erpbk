@@ -104,7 +104,6 @@
     </div>
   </div>
 </div>
-
 {{-- Main content: tabs General | Categories | Rider Fields --}}
 <div class="row">
   <div class="col-12">
@@ -1169,15 +1168,9 @@
   (function() {
     'use strict';
 
-    let dataTypesMeta = {};
-    const dataTypesMetaEl = document.getElementById('riderDataTypesMetaJson');
-    if (dataTypesMetaEl && dataTypesMetaEl.value) {
-      try {
-        dataTypesMeta = JSON.parse(dataTypesMetaEl.value);
-      } catch (e) {
-        dataTypesMeta = {};
-      }
-    }
+    const dataTypesMeta = {
+      !!json_encode($dataTypes, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!
+    };
 
     function buildConfigFields(container, typeKey, existingConfig) {
       container.innerHTML = '';

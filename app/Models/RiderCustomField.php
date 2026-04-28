@@ -449,11 +449,8 @@ class RiderCustomField extends BaseModel
      */
     public static function fieldsByCategoryForForm(): array
     {
-        self::ensureDefaultFixedAssignments(['status', 'attendance']);
-
-        $categories = self::scopedRiderCategoriesQuery()->orderBy('display_order')->orderBy('id')->get();
-        $categoryIds = $categories->pluck('id')->all();
-        $riderColumns = array_flip(Schema::getColumnListing('riders'));
+        $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $fallbackMap = self::fixedFieldsSlugMap();
         $assignmentsAll = RiderFieldCategoryAssignment::with('category')
             ->whereIn('category_id', $categoryIds)
             ->orderBy('display_order')
@@ -473,37 +470,33 @@ class RiderCustomField extends BaseModel
         $result = [];
         foreach ($categories as $cat) {
             $fields = [];
-            foreach ($assignmentsVisible->where('category_id', $cat->id)->values() as $a) {
-                if (in_array($a->field_key, self::removedRiderColumns(), true)) {
-                    continue;
+            $categoryAssignments = $assignmentsAll->where('category_id', $cat->id)->values();
+
+            if ($categoryAssignments->isNotEmpty()) {
+                foreach ($categoryAssignments as $a) {
+                    $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
+                        ? trim($a->display_label)
+                        : self::humanizeFieldKey($a->field_key);
+                    $spec = $specs[$a->field_key] ?? ['type' => 'text'];
+                    $fields[] = (object) [
+                        'kind' => 'fixed',
+                        'field_key' => $a->field_key,
+                        'label' => $label,
+                        'spec' => $spec,
+                    ];
                 }
-                if (!isset($riderColumns[$a->field_key])) {
-                    continue;
+            } else {
+                // If no visible category assignments exist, fall back to built-in fixed fields map.
+                foreach ($fallbackMap[$cat->slug] ?? [] as $fieldKey) {
+                    $fields[] = (object) [
+                        'kind' => 'fixed',
+                        'field_key' => $fieldKey,
+                        'label' => self::humanizeFieldKey($fieldKey),
+                        'spec' => $specs[$fieldKey] ?? ['type' => 'text'],
+                    ];
                 }
-                $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
-                    ? trim($a->display_label)
-                    : self::humanizeFieldKey($a->field_key);
-                $spec = $specs[$a->field_key] ?? ['type' => 'text'];
-                if (!empty($a->input_type)) {
-                    $spec['type'] = $a->input_type === 'dropdown' ? 'select' : $a->input_type;
-                }
-                if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
-                    $raw = $a->input_config['options'];
-                    if (is_array($raw)) {
-                        $spec['options_lines'] = array_values(array_filter(array_map(fn($v) => trim((string) $v), $raw), fn($v) => $v !== ''));
-                    } else {
-                        $spec['options_lines'] = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) $raw)), fn($v) => $v !== ''));
-                    }
-                }
-                $spec['required'] = (bool) ($a->is_required ?? false);
-                $fields[] = (object) [
-                    'kind' => 'fixed',
-                    'field_key' => $a->field_key,
-                    'label' => $label,
-                    'spec' => $spec,
-                    'is_required' => (bool) ($a->is_required ?? false),
-                ];
             }
+
             foreach ($customFieldsAll->where('category_id', $cat->id)->values() as $cf) {
                 $fields[] = (object) [
                     'kind' => 'custom',

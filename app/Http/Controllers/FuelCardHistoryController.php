@@ -46,9 +46,10 @@ class FuelCardHistoryController extends Controller
                 'assign_date' => $request['assign_date'],
                 'note'=> $request['note'],
             ]);
-            $branchId = \App\Models\Riders::where('id', $request['assigned_to'])->get('branch_id');
+            $rider = \App\Models\Riders::find($request['assigned_to']);
             $fuelCard->assigned_to = $request['assigned_to'];
-            $fuelCard->branch_id = $branchId;
+            $fuelCard->branch_id = $rider->branch_id;
+            $fuelCard->bike_no = $rider->bikes->id;
             $fuelCard->status = 'Active';
             $fuelCard->save();
             DB::commit();
@@ -126,5 +127,37 @@ class FuelCardHistoryController extends Controller
         }
         Flash::success('Fuel Card Returned Successfully');
         return redirect()->back();
+    }
+
+    public function updateAssignment(Request $request, $company_slug, $id)
+    {
+        if(!auth()->user()->hasPermissionTo('fuel_assign')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $fuelCard = FuelCards::find($id);
+        if(!$fuelCard){
+            return response()->json(['message' => 'Card Not Found']);
+        }
+
+        if($request->isMethod('get')){
+            return view('fuel_cards.update_assignment', compact('fuelCard'));
+        }else {
+            $request->validate([
+                'attachment' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            ]);
+            $file = $request->file('attachment');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('public/fuelcards', $filename);
+            $fuelCard->attachment = $path;
+            $fuelCard->bike_no = $fuelCard->rider->bikes->plate;
+            $fuelCard->save();
+            if($request->ajax()) {
+                return response()->json(['message' => 'Action Performed Successfully' , 'reload' => true]);
+            }
+            Flash::success('Action Performed Successfully');
+            return redirect()->back();
+        }
+
     }
 }

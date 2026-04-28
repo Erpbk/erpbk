@@ -10,14 +10,18 @@
       <tr role="row">
          <th title="Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Number: activate to sort column ascending">Card Number</th>
          <th title="Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Card Type</th>
-         <th title="Branch" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Branch: activate to sort column ascending">Branch</th>
-         <th title="User" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Balance: activate to sort column ascending">Assigned To</th>
+         <th title="Bike" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Bike: activate to sort column ascending">Notification</th>
+         <th title="User" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Balance: activate to sort column ascending">Rider</th>
+         <th title="User" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Balance: activate to sort column ascending">Bike</th>
          <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
          <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
       </tr>
    </thead>
    <tbody>
       @foreach($data as $r)
+      @php
+         $r->rider?->load('bikes') ?? '';
+      @endphp
       <tr class="text-center">
          <td>
             <a href="{{ route('fuelCards.show' , $r->id)}}" >
@@ -25,8 +29,20 @@
             </a>
          </td>
          <td>{{$r->card_type}}</td>
-         <td>{{ $r->branch?->name ?? '-' }}</td>
-         <td>{{$r->rider? ($r->rider->rider_id. '-'. $r->rider->name) : '-'}}</td>
+         <td>
+            @if((! $r->bike_no ?? 1 == $r->rider?->bikes?->plate ?? 0) && $r->status == 'Active')
+               <br><a href="javascript:void(0);" data-size="lg" data-title="Update Bike Assignment" data-action="{{ route('fuelCards.update_assignment', $r->id) }}" class='show-modal btn btn-danger btn-sm'>
+                  Update
+               </a>
+            @else
+               <a @if($r->attachment) href="{{ Storage::url($r->attachment) }}" target="_blank" @else href="javascript:void(0);" @endif class="btn btn-success btn-sm">OK</a>
+            @endif
+
+         </td>
+         <td style="text-align: left;">
+            {{$r->rider? ($r->rider->name) : '-'}}
+         </td>
+         <td>{{ ($r->rider?->bikes?->emirates ?? '') .'-'. ($r->rider?->bikes?->plate ?? '') }}</td>
          <td>
             @if($r->status == 'Active')
                 <span class="badge  bg-success">Active</span>
@@ -48,6 +64,9 @@
                      @else
                         <a href="javascript:void(0);" data-size="lg" data-title="Return Fuel Card" data-action="{{ route('fuelCards.return', $r->id) }}" class='dropdown-item waves-effect show-modal'>
                            <i class="fa fa-undo my-1"></i>Return
+                        </a>
+                        <a href="javascript:void(0);" data-size="lg" data-title="Update Assignment" data-action="{{ route('fuelCards.update_assignment', $r->id) }}" class='dropdown-item waves-effect show-modal'>
+                           <i class="fa fa-undo my-1"></i>Return & Assign
                         </a>
                      @endif
                   @endcan

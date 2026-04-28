@@ -38,6 +38,8 @@ return [
         'cheques'              => 'Cheques',
         'sims'                 => 'Sims',
         'fuel_cards'           => 'Fuel Cards',
+        'fuel_card_list'       => 'Card List',
+        'fuel_data'            => 'Fuel Transactions',
         'rta_fines'            => 'RTA Fines',
         'rta_saliks'           => 'RTA Saliks',
         'inventory'            => 'Inventory',

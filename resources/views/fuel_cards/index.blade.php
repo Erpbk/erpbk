@@ -17,7 +17,7 @@
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
                             @can('fuel_create')
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Card" data-action="{{ route('fuelCards.create') }}">
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Card" data-action="{{ route('fuelCards.create') }}">
                                 <i class="ti ti-plus"></i>
                                 <div>
                                     <div class="action-dropdown-item-text">Add Fuel Card</div>

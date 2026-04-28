@@ -134,7 +134,6 @@ class BanksController extends AppBaseController
       $account->status = $banks->status;
       $account->branch_id = $banks->branch_id;
       $account->save();
-
       $banks->account_id = $account->id;
       $banks->save();
       DB::commit();
@@ -395,7 +394,6 @@ class BanksController extends AppBaseController
   {
     $files = \App\Support\CompanyQuery::table('files')->where('type', 'bank')->where('type_id', $id)->latest('id')->get();
     $banks = Banks::find($id);
-    \Log::info('banks.files', ['bank' => $banks, 'id' => $id, 'previous' => url()->previous() , 'current' => url()->current()]);
     return view('banks.document', compact('files','banks'));
   }
 

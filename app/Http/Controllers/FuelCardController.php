@@ -23,7 +23,7 @@ class FuelCardController extends Controller
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = FuelCards::query()
             ->orderBy('id', 'asc')
-            ->with('rider.bikes');
+            ->with('rider');
         if ($request->has('card_number') && !empty($request->card_number)) {
             $query->where('card_number', 'like', '%' . $request->card_number . '%');
         }
@@ -78,9 +78,9 @@ class FuelCardController extends Controller
         $this->validate($request, [
             'card_number' => 'required|string|min:16|unique:fuel_cards,card_number',
             'card_type'=> 'nullable|string|max:255',
-            'assigned_to'=> 'nullable|integer',
+            'assigned_to'=> 'nullable|integer|exists:riders,id',
             'status' =>'nullable|string',
-            'branch_id' => 'required|numeric|exists:branches,id',
+            'assign_date' => 'nullable|date',
             ]);
 
         $request['created_by'] = auth()->id();
@@ -88,6 +88,7 @@ class FuelCardController extends Controller
             $request['status'] = 'Active';
             $rider = \App\Models\Riders::find($request->assigned_to);
             $request['branch_id'] = $rider->branch_id;
+            $request['bike_no'] = $rider->bikes->id;
         }
         else
             $request['status'] = 'Inactive';
@@ -97,7 +98,7 @@ class FuelCardController extends Controller
             if($request['assigned_to']){
                 FuelCardHistory::create([
                     'card_id' => $card->id,
-                    'assigned_to' => $request['assigned_to'],
+                    'assigned_to' => $card->assigned_to,
                     'assigned_by' => auth()->id(),
                     'assign_date' => $request['assign_date'] ?? now(),
                     'note'=> 'Initial Assignment',
@@ -107,14 +108,14 @@ class FuelCardController extends Controller
         }catch(\Exception $e){
             DB::rollBack();
             if($request->ajax()){
-                return response()->json(['messahe' => 'An Error Occurred'. $e->getMessage() . $e->getTraceAsString()],500);
+                return response()->json(['message' => 'An Error Occurred'. $e->getMessage() . $e->getTraceAsString()],500);
             }
             Flash::error('Error Occurred: '.$e->getMessage());
             return redirect()->back();
         }
         
         if($request->ajax()) {
-            return response()->json(['message' => 'Fuel Card Added Succesfully']);
+            return response()->json(['message' => 'Fuel Card Added Succesfully', 'reload' => true]);
         }
         Flash::success('Fuel Card Added Successfully');
         return redirect()->back();
@@ -125,6 +126,7 @@ class FuelCardController extends Controller
      */
     public function show($company_slug, string $id)
     {
+        \Log::info("Showing fuel card with ID: $id");
         $card = FuelCards::find($id);
         $histories = $card->histories()->orderByDesc('id')->get();
         $card->load('branch');
@@ -148,7 +150,6 @@ class FuelCardController extends Controller
         $this->validate($request, [
             'card_number' => 'required|string|min:16|unique:fuel_cards,card_number,'.$id,
             'card_type'=> 'nullable|string|max:255',
-            'branch_id' => 'required|numeric|exists:branches,id',
             ]);
 
         $card = FuelCards::find($id);

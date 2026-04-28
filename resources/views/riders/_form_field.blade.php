@@ -16,22 +16,19 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
 <div class="form-group col-sm-4">
   @if ($item->kind === 'fixed')
   @php $spec = $item->spec; $req = !empty($spec['required']); @endphp
-  @if (in_array(($spec['type'] ?? 'text'), ['select', 'dropdown'], true))
+  @if (($spec['type'] ?? 'text') === 'select')
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
   @php
   $opts = [];
-  if (!empty($spec['options_lines']) && is_array($spec['options_lines'])) {
-  $opts = ['' => 'Select'];
-  foreach ($spec['options_lines'] as $line) {
-  $opts[$line] = $line;
-  }
-  } elseif (($spec['dropdown'] ?? '') === 'countries') {
+  if (($spec['dropdown'] ?? '') === 'countries') {
   $opts = \App\Models\Countries::list()->toArray();
   } elseif (($spec['dropdown'] ?? '') === 'vendors') {
   $opts = \App\Models\Vendors::dropdown();
   } elseif (($spec['dropdown'] ?? '') === 'recruiters') {
-  // Use model scope so options are filtered by company_id (and active status).
-  $opts = \App\Models\Recruiters::dropdown()->toArray();
+  $opts = ['' => 'Select Recruiter'];
+  foreach (DB::table('recruiters')->where('status', 1)->get() as $r) {
+  $opts[$r->id] = $r->name;
+  }
   } elseif (($spec['dropdown'] ?? '') === 'accounts') {
   $opts = \App\Models\Accounts::dropdown(null) ?? ['' => 'Select'];
   } elseif (($spec['dropdown'] ?? '') === 'customers') {
@@ -41,12 +38,8 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   } else {
   $opts = Common::Dropdowns($spec['dropdown'] ?? '');
   }
-  // Keep only one "Select" prompt via Select2 placeholder.
-  if (is_array($opts) && array_key_exists('', $opts)) {
-  unset($opts['']);
-  }
   @endphp
-  {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select select2 js-dropdown-with-add-option', 'placeholder' => 'Select ' . $item->label, 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null, 'data-field-key' => $item->field_key, 'data-label' => $item->label] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select', 'placeholder' => 'Select ' . $item->label, 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null] + ($req ? ['required' => true] : [])) !!}
   @if ($item->field_key === 'rider_id')
   <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
   @endif
@@ -97,9 +90,8 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   $line = trim($line);
   if ($line !== '') $dd[$line] = $line;
   }
-  if (array_key_exists('', $dd)) unset($dd['']);
   @endphp
-  {!! Form::select($name, $dd, $value, ['class' => 'form-select select2 js-dropdown-with-add-option', 'placeholder' => 'Select', 'data-custom-field-id' => $f->id, 'data-label' => $f->label] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::select($name, $dd, $value, ['class' => 'form-select', 'placeholder' => 'Select'] + ($req ? ['required' => true] : [])) !!}
   @break
   @case('checkbox')
   <div class="form-check mt-2">

@@ -11,7 +11,7 @@
 
                     <div class="form-group col-sm-6">
                         {!! Form::label('assign_to', 'Assigned To:') !!}
-                        {!! Form::text('assign_to', $fuelCard->rider->rider_id.'-'.$fuelCard->rider->name ?? '', ['class' => 'form-control', 'readonly' => true]) !!}
+                        {!! Form::text('assign_to', 'Bike: ' . ($fuelCard->bike?->plate ?? 'N/A') . ' , Rider: ' . ($fuelCard->rider?->name ?? 'N/A'), ['class' => 'form-control', 'readonly' => true]) !!}
                     </div>
 
                     <div class="form-group col-md-3">

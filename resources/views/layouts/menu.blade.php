@@ -317,11 +317,23 @@ $homeLink = auth('admin')->check()
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('fuel_cards'))
 @can('fuel_view')
-<li class="menu-item {{ Route::is('fuelCards*') ? 'active' : '' }}">
-  <a href="{{ route('fuelCards.index') }}" class="menu-link">
+<li class="menu-item {{ Route::is('fuelCards*') ? 'open' : '' }} {{ Route::is('fuel_data*') ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle">
     <i class="menu-icon tf-icons ti ti-gas-station"></i>
     <div>{{ $menuLabels['fuel_cards'] ?? 'Fuel Cards' }}</div>
   </a>
+  <ul class="menu-sub">
+    <li class="menu-item {{ Route::is('fuelCards*') ? 'active' : '' }}">
+      <a href="{{ route('fuelCards.index') }}" class="menu-link">
+        <div>{{ $menuLabels['fuel_card_list'] ?? 'Card List' }}</div>
+      </a>
+    </li>
+    <li class="menu-item {{ Route::is('fuel_data*') ? 'active' : '' }}">
+      <a href="{{ route('fuel_data.index') }}" class="menu-link">
+        <div>{{ $menuLabels['fuel_data'] ?? 'Fuel Transactions' }}</div>
+      </a>
+    </li>
+  </ul>
 </li>
 @endcan
 @endif

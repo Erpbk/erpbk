@@ -20,6 +20,7 @@ class FuelCards extends BaseModel
         'assigned_to',
         'created_by',
         'updated_by',
+        'bike_no',
     ] ;
 
     protected $casts = [
@@ -29,6 +30,8 @@ class FuelCards extends BaseModel
         'assigned_to'=> 'integer',
         'created_by'=> 'integer',
         'updated_by'=> 'integer',
+        'bike_no'=> 'string',
+        'attachment'=> 'string',
     ];
 
     public static array $rules = [
@@ -52,5 +55,20 @@ class FuelCards extends BaseModel
     public function branch()
     {
         return $this->belongsTo(Branch::class, 'branch_id', 'id');
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by', 'id');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by', 'id');
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'Active');
     }
 }

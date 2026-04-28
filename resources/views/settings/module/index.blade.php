@@ -5,7 +5,7 @@
 @section('content')
 @include('flash::message')
 @php
-  $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug');
+$settingsCompanySlug = request()->route('company_slug') ?? session('company_slug');
 @endphp
 <div class="row">
   <div class="col-12">
@@ -27,6 +27,7 @@
         <ul class="nav nav-tabs mb-3" id="moduleSettingsTabs" role="tablist">
           <li class="nav-item" role="presentation">
             <button class="nav-link active" id="tab-general-btn" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">General</button>
+
           </li>
         </ul>
 

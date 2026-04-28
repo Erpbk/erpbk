@@ -450,6 +450,7 @@ class RiderCustomField extends BaseModel
     public static function fieldsByCategoryForForm(): array
     {
         $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $categoryIds = $categories->pluck('id')->all();
         $fallbackMap = self::fixedFieldsSlugMap();
         $assignmentsAll = RiderFieldCategoryAssignment::with('category')
             ->whereIn('category_id', $categoryIds)
@@ -470,7 +471,7 @@ class RiderCustomField extends BaseModel
         $result = [];
         foreach ($categories as $cat) {
             $fields = [];
-            $categoryAssignments = $assignmentsAll->where('category_id', $cat->id)->values();
+            $categoryAssignments = $assignmentsVisible->where('category_id', $cat->id)->values();
 
             if ($categoryAssignments->isNotEmpty()) {
                 foreach ($categoryAssignments as $a) {

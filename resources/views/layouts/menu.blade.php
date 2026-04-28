@@ -1,7 +1,7 @@
 @php
 // Labels are editable in Settings > ERP Module Settings > [Module] > General; same source as ModuleSettingsController
 $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
-$companySlug = request()->route('company_slug') ?? session('company_slug');
+$companySlug = request()->route('company_slug') ?? session('company_slug') ?? request()->segment(1);
 $isAdminUser = auth('admin')->check();
 @endphp
 @if($isAdminUser)
@@ -15,7 +15,7 @@ $isAdminUser = auth('admin')->check();
 @elseif(\App\Support\CompanyModuleVisibility::enabled('dashboard'))
 @can('dashboard_view')
 <li class="menu-item {{ Route::is('home') || Route::is('/') ? 'active' : '' }}">
-  <a href="{{ $companySlug ? route('home', ['company_slug' => $companySlug]) : url('/') }}" class="menu-link ">
+  <a href="{{ $companySlug ? route('home', ['company_slug' => $companySlug]) : 'javascript:void(0);' }}" class="menu-link ">
     <i class="menu-icon tf-icons ti ti-layout-dashboard"></i>
     <div>{{ $menuLabels['dashboard'] ?? 'Dashboard' }}</div>
     {{-- <div class="badge bg-white text-dark rounded-pill ms-auto">2</div>  --}}

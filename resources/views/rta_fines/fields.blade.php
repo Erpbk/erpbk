@@ -118,6 +118,7 @@
     {!! Form::textarea('detail', $rtaFines->detail ?? '', ['class' => 'form-control', 'maxlength' => 500,'rows'=>3, 'required']) !!}
 </div>
 <script type="text/javascript">
+    console.log('in rta fields');
     function selectbike(id) {
         if (id) {
             $.ajax({

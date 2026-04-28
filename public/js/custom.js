@@ -292,10 +292,27 @@ function printModalContent() {
     };
 }
 
+// Backward-compatible modal toggler used by .show-modal handlers.
+function toggleModalTop(action) {
+  var modalEl = document.getElementById('modalTop');
+  if (!modalEl) return;
 
+  // Bootstrap 5
+  if (window.bootstrap && window.bootstrap.Modal) {
+    var instance = bootstrap.Modal.getOrCreateInstance(modalEl);
+    if (action === 'show') {
+      instance.show();
+    } else {
+      instance.hide();
+    }
+    return;
+  }
 
-
-
+  // Bootstrap 4/jQuery fallback
+  if (window.jQuery && $('#modalTop').modal) {
+    $('#modalTop').modal(action === 'show' ? 'show' : 'hide');
+  }
+}
 
 $('body').on('click', '.show-modal', function () {
   var action = $(this).data('action');

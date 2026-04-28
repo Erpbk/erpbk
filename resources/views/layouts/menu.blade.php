@@ -2,10 +2,13 @@
 // Labels are editable in Settings > ERP Module Settings > [Module] > General; same source as ModuleSettingsController
 $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
 $companySlug = request()->route('company_slug') ?? session('company_slug');
-$homeLink = auth('admin')->check()
+$isAdminLogin = auth('admin')->check();
+$isCompanyLogin = !$isAdminLogin && !empty($companySlug);
+$homeLink = $isAdminLogin
 ? route('admin.dashboard')
 : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
 @endphp
+@if($isCompanyLogin)
 @if(\App\Support\CompanyModuleVisibility::enabled('dashboard'))
 @can('dashboard_view')
 <li class="menu-item {{ Route::is('/') ? 'active' : '' }}">
@@ -565,8 +568,10 @@ $homeLink = auth('admin')->check()
 
 
 
+@endif
 
 {{-- Admin Panel (global site settings) --}}
+@if($isAdminLogin)
 @php($adminUser = auth('admin')->user())
 @php($canAccessSuperAdminPanel = $adminUser && $adminUser->hasRole('Super Admin'))
 @if($canAccessSuperAdminPanel)
@@ -642,7 +647,9 @@ $homeLink = auth('admin')->check()
   </a>
 </li>
 @endif
+@endif
 
+@if($isCompanyLogin)
 @canany(['account_view','gn_ledger'])
 <li class="menu-item {{ Route::is('accounts*') ? 'open' : '' }} ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
@@ -674,6 +681,7 @@ $homeLink = auth('admin')->check()
   </ul>
 </li>
 @endcanany
+@endif
 
 {{-- <li class="menu-item {{ Request::is('reports*') ? 'open' : '' }} ">
 <a href="javascript:void(0);" class="menu-link menu-toggle ">

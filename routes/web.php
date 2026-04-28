@@ -214,7 +214,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('rtaFines/paid', [\App\Http\Controllers\RtaFinesController::class, 'paid'])->name('rtaFines.paid');
     Route::post('rtaFines/payfine', [\App\Http\Controllers\RtaFinesController::class, 'payfine'])->name('rtaFines.payfine');
     Route::get('rtaFines/viewvoucher/{id}', [\App\Http\Controllers\RtaFinesController::class, 'viewvoucher'])->name('rtaFines.viewvoucher');
-    Route::get('rtaFines/getrider/{id}', [\App\Http\Controllers\RtaFinesController::class, 'getrider']);
+    Route::get('rtaFines/getrider/{id}', [\App\Http\Controllers\RtaFinesController::class, 'getrider'])->name('rtaFines.getrider');
 
 
     Route::get('/customer_invoices/{id}/edit', [App\Http\Controllers\CustomerInvoicesController::class, 'edit'])->name('customer_invoice.edit');
@@ -465,6 +465,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::resource('simHistories', App\Http\Controllers\SimHistoryController::class);
     Route::any('fuel_transactions/import', [\App\Http\Controllers\FuelDataController::class, 'import'])->name('fuel_data.import');
+    Route::get('fuel_transactions/importSample', [\App\Http\Controllers\FuelDataController::class, 'downloadTemplate'])->name('fuel_data.importSample');
     Route::get('fuel_data/summary', [\App\Http\Controllers\FuelDataController::class, 'monthlySummary'])->name('fuel_data.summary');
     Route::get('fuel_invoice/{rider_id}/{billing_month}', [\App\Http\Controllers\FuelDataController::class, 'show2'])->name('fuel_data.rider_monthly_summary');
     Route::resource('fuel_data', App\Http\Controllers\FuelDataController::class);

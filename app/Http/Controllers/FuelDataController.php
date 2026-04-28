@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\FuelCards;
 use App\Models\FuelData;
@@ -93,6 +94,7 @@ class FuelDataController extends Controller
             'vat_amount' => 'required|numeric|min:0',
             'subtotal' => 'nullable|numeric',
             'total' => 'nullable|numeric',
+            'service_charges' => 'nullable|numeric|min:0.01'
         ], [
             'trans_no.unique' => 'This transaction number already exists.',
             'bike_no.exists' => 'Selected bike number does not exist.',
@@ -101,22 +103,17 @@ class FuelDataController extends Controller
 
         $card = FuelCards::where('card_number', $request->card_no)->first();
         $bike = Bikes::where('plate', $request->bike_no)->first();
-        if(!$card || !$bike) {
+        if(!$card) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid bike number or card number.'
+                'message' => 'Invalid card number.'
             ], 400);
         }
-        if($card->assigned_to != $bike->rider_id) {
+        $rider = $card->findRiderForDate(Carbon::parse($request->trans_date)->format('Y-m-d'));
+        if(!$rider) {
             return response()->json([
                 'success' => false,
-                'message' => 'The selected card is not assigned to the rider of the selected bike.'
-            ], 400);
-        }
-        if( !$card->assigned_to || !$bike->rider_id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'The selected card or bike is not assigned to any rider.'
+                'message' => 'No rider found for the selected card on the transaction date.'
             ], 400);
         }
         try {
@@ -125,6 +122,7 @@ class FuelDataController extends Controller
             // Calculate values if not provided
             $subtotal = $request->subtotal ?? ($request->qty * $request->price);
             $total = $request->total ?? ($subtotal + $request->vat_amount);
+            $serviceCharges = $request->service_charges ?? 25; // Default service charge if not provided
 
             
 
@@ -145,12 +143,16 @@ class FuelDataController extends Controller
                 'vat_amount' => $request->vat_amount,
                 'total' => $total,
             ]);
-
-            $rider = $card->rider;
             $transCode = \App\Helpers\Account::trans_code();
-
+            $serviceCharges = ($fuelData->service_charges == 0 || $fuelData->service_charges != $serviceCharges ) ? $serviceCharges : 0 ;
+            if($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges){
+                $rider->transactions()->where('reference_type', 'fuel')
+                    ->where('billing_month', $fuelData->billing_month)
+                    ->where('narration', 'like', "%service charge%")
+                    ->delete();
+            }
             //Add ledger transactions against this fuel transaction
-            $this->recordTransaction($rider->account_id, $rider->branch_id, $fuelData, $transCode);
+            $this->recordTransaction($rider->account_id, $rider->branch_id, $fuelData, $transCode, $serviceCharges);
 
             DB::commit();
 
@@ -253,6 +255,7 @@ class FuelDataController extends Controller
             'vat_amount' => 'required|numeric|min:0',
             'subtotal' => 'nullable|numeric',
             'total' => 'nullable|numeric',
+            'service_charges' => 'nullable|numeric|min:0.01'
         ], [
             'trans_no.unique' => 'This transaction number already exists.',
             'bike_no.exists' => 'Selected bike number does not exist.',
@@ -268,22 +271,17 @@ class FuelDataController extends Controller
                 'message' => 'Fuel transaction not found.'
             ], 404);
         }
-        if(!$card || !$bike) {
+        if(!$card) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid bike number or card number.'
+                'message' => 'Invalid card number.'
             ], 400);
         }
-        if($card->assigned_to != $bike->rider_id) {
+        $rider = $card->findRiderForDate(Carbon::parse($request->trans_date)->format('Y-m-d'));
+        if(!$rider) {
             return response()->json([
                 'success' => false,
-                'message' => 'The selected card is not assigned to the rider of the selected bike.'
-            ], 400);
-        }
-        if( !$card->assigned_to || !$bike->rider_id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'The selected card or bike is not assigned to any rider.'
+                'message' => 'No rider found for the selected card on the transaction date.'
             ], 400);
         }
         try {
@@ -293,9 +291,10 @@ class FuelDataController extends Controller
             $subtotal = $request->subtotal ?? ($request->qty * $request->price);
             $total = $request->total ?? ($subtotal + $request->vat_amount);
             $request['billing_month'] = $request->billing_month . '-01'; // Convert to first day of month
-            $request['rider_id'] = $card->assigned_to;
+            $request['rider_id'] = $rider->id;
             $request['subtotal'] = $subtotal;
             $request['total'] = $total;
+            $serviceCharges = $request->service_charges ?? 25; // Default service charge if not provided
 
             $fuelData->fill($request->all());
             if($fuelData->isDirty()){
@@ -308,14 +307,19 @@ class FuelDataController extends Controller
                 ], 200);
             }
 
-            $rider = $card->rider;
-            $transaction = Transactions::where('reference_id', $fuelData->id)
+            Transactions::where('reference_id', $fuelData->id)
                 ->where('reference_type', 'fuel')
                 ->delete();
             $transCode = \App\Helpers\Account::trans_code();
-
+            $serviceCharges = ($fuelData->service_charges == 0 || $fuelData->service_charges != $serviceCharges ) ? $serviceCharges : 0 ;
+            if($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges){
+                $rider->transactions()->where('reference_type', 'fuel')
+                    ->where('billing_month', $fuelData->billing_month)
+                    ->where('narration', 'like', "%service charge%")
+                    ->delete();
+            }
             //Add ledger transactions against this fuel transaction
-            $this->recordTransaction($rider->account_id, $rider->branch_id, $fuelData, $transCode);
+            $this->recordTransaction($rider->account_id, $rider->branch_id, $fuelData, $transCode, $serviceCharges);
 
             DB::commit();
 
@@ -360,7 +364,15 @@ class FuelDataController extends Controller
                     'message' => 'Fuel transaction not found.'
                 ], 404);
             }
-            
+            $rider = $fuelData->rider;
+            $billingMonth = $fuelData->billing_month;
+            $tranactionCount = $rider->transactions()->where('reference_type', 'fuel')->where('billing_month', $fuelData->billing_month)->count();
+            if($tranactionCount == 1){
+                $rider->transactions()->where('reference_type', 'fuel')
+                    ->where('billing_month', $billingMonth)
+                    ->where('narration', 'like', "%service charge%")
+                    ->delete();
+            }
             // Delete associated ledger transactions
             Transactions::where('reference_id', $fuelData->id)
                 ->where('reference_type', 'fuel')
@@ -388,8 +400,23 @@ class FuelDataController extends Controller
         }
     }
 
-    private function recordTransaction($riderAccountId, $branch_id, $fuelData, $transCode)
+    private function recordTransaction($riderAccountId, $branch_id, $fuelData, $transCode, $serviceCharges)
     {
+        //debit service charges to rider account if not already debited
+        if($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges) {
+            Transactions::create([
+                'account_id' => $riderAccountId,
+                'reference_id' => $fuelData->id,
+                'reference_type' => 'fuel',
+                'trans_code' => $transCode,
+                'trans_date' => $fuelData->trans_date->format('Y-m-d'),
+                'narration' => 'Fuel Purchased',
+                'debit' => $fuelData->total,
+                'credit' => 0,
+                'billing_month' => $fuelData->billing_month,
+                'branch_id' => $branch_id,
+            ]);
+        }
         // Debit full amount to rider's account
         Transactions::create([
             'account_id' => $riderAccountId,
@@ -473,5 +500,82 @@ class FuelDataController extends Controller
                 'message' => 'Import failed: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Download import template
+     */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Transaction No',
+            'Transaction Date',
+            'Customer Code',
+            'customer Name',
+            'Group Code',
+            'Group Name',
+            'Plate No',
+            'Chassis',
+            'Odometer',
+            'Transaction Type',
+            'Service Charge Description',
+            'Origin',
+            'VIP/Card Number',
+            'Auth Code',
+            'Status',
+            'Site',
+            'LOB',
+            'Product Name',
+            'Quantity',
+            'Unit Price',
+            'Amount Without VAT',
+            'VAT Amount',
+            'Total Amount',
+            'Card Name',
+            'Employee',
+            'Remarks'
+        ];
+        
+        $callback = function() use ($headers) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $headers);
+            
+            // Sample data
+            fputcsv($file, [
+                '321433001',
+                '2024-04-15 14:30:00',
+                '3000048785',
+                'DELIVERY SERVICE L L C-BRANCH OF ABU DHABI',
+                'EX-G',
+                'DELIVERY SERVICE L L C-BRANCH OF ABU DHABI Group',
+                '1-DXB-13310',
+                'XMBJHBBY5JH',
+                '15000',
+                'Purchase',
+                '',
+                'Select Prestige Dr',
+                '7001048785267928',
+                'AUTH123',
+                'Completed',
+                '1021',
+                'FUEL',
+                'SPECIAL',
+                '10',
+                '28.50',
+                '285',
+                '14.25',
+                '299.25',
+                'DELIVERY SERVICE L L C-BRANCH OF ABU DHABI',
+                'John Doe',
+                'Sample remark'
+            ]);
+            
+            fclose($file);
+        };
+        
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="fuel_data_import_template.csv"'
+        ]);
     }
 }

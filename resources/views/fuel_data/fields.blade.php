@@ -167,7 +167,7 @@
 
     <div class="col-md-4 mb-3">
     <label for="total_display" class="form-label">Service Charges</label>
-    <input class="form-control" type="number" step="0.01" name="service_charges" id="service_charges" value="{{ old('service_charges', $data->service_charges ?? '') }}">
+    <input class="form-control" type="number" step="0.01" name="service_charges" id="service_charges" value="{{ old('service_charges', $data->service_charges ?? 25) }}">
     </div>
 
     <div class="col-md-4 mb-3"></div>
@@ -197,6 +197,7 @@
 
 <script>
     // Auto-calculate subtotal and total with jQuery
+    console.log('Initializing auto-calculation script');
     $(document).ready(function() {
         // Initialize select2
         $('.select2').select2({

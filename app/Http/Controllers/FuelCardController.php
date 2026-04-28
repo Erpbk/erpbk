@@ -23,7 +23,7 @@ class FuelCardController extends Controller
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = FuelCards::query()
             ->orderBy('id', 'asc')
-            ->with('rider');
+            ->with('rider.bikes');
         if ($request->has('card_number') && !empty($request->card_number)) {
             $query->where('card_number', 'like', '%' . $request->card_number . '%');
         }

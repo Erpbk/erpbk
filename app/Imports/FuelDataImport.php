@@ -151,10 +151,9 @@ class FuelDataImport implements ToCollection
 
                     // Find bike
                     $bikePlate = $this->extractBikePlate($bikePlate);
-                    $bike = Bikes::where('plate', $bikePlate)->first();
 
                     // Find rider for the transaction date
-                    $rider = $this->findRiderForTransactionDate($card, $transactionDate->format('Y-m-d'));
+                    $rider = $card->findRiderForDate($transactionDate->format('Y-m-d'));
                     if (!$rider) {
                         $this->addFailedRow($rowNumber, $row, 'No rider found', 
                             "No rider assigned to card {$cardNumber} on date {$transactionDate->format('Y-m-d')}");
@@ -309,31 +308,6 @@ class FuelDataImport implements ToCollection
         }
     }
 
-    /**
-     * Find rider for transaction date
-     */
-    private function findRiderForTransactionDate($card, $transactionDate)
-    {
-
-        $tripDate = $transactionDate ?? null;
-
-        // Check card history for rider assigned on or before transaction date
-        $history = FuelCardHistory::where('card_id', $card->id)
-            ->whereDate('assign_date', '<=', $tripDate)
-            ->where(function ($q) use ($tripDate) {
-                $q->whereNull('return_date')
-                    ->orWhereDate('return_date', '>=', $tripDate);
-            })
-            ->orderBy('assign_date', 'desc')
-            ->first();
-
-        if ($history && $history->assigned_to) {
-            return Riders::find($history->assigned_to);
-        }
-
-        return null;
-    }
-
     // extract bike plate number from full string (if needed)
     private function extractBikePlate($plate)
     {
@@ -361,13 +335,9 @@ class FuelDataImport implements ToCollection
             $transCode = $group['transCode'];
             $riderName = $group['rider_name'];
 
-            $serviceChargesExist = Transactions::where('reference_type', 'fuel')
-                                 ->where('account_id', $riderAccountId)
-                                 ->where('billing_month', $fuelData->billing_month)
-                                 ->where('narration', 'like' , "%service charge%")
-                                 ->exists();
+            $serviceCharges = $fuelData->service_charges;
 
-            if(!$serviceChargesExist) {
+            if($serviceCharges > 0) {
                 // Record service charge transaction if not already recorded for this billing month
                 $transactionService->recordTransaction([
                     'account_id' => $riderAccountId,

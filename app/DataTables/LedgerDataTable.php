@@ -218,7 +218,7 @@ class LedgerDataTable extends DataTable
         $invoice = FuelData::find($row->reference_id);
         if ($invoice) {
           $voucher_ID = $invoice->inv_id;
-          $voucher_text = '<span class="d-none">' . $voucher_ID . '</span><a href="' . route('fuel_data.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+          $voucher_text = '<span class="d-none">' . $voucher_ID . '</span><a href="javascript:void(0);" data-action="' . route('fuel_data.show', $invoice->id) . '" class="no-print show-modal-right" >' . $voucher_ID . '</a>';
           if ($invoice->attachment) {
             $view_file = '  <a href="' . url('storage2/' . $invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
           }

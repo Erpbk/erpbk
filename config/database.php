@@ -2,6 +2,18 @@
 
 use Illuminate\Support\Str;
 
+$resolvedDefaultConnection = (function (): string {
+    $connection = (string) env('DB_CONNECTION', 'mysql');
+
+    // Laravel Cloud can inject human-readable labels instead of config keys.
+    // Normalize common admin labels to a valid configured connection.
+    if (Str::startsWith($connection, 'Cloud - ') && Str::endsWith($connection, ' - admin')) {
+        return 'admin';
+    }
+
+    return $connection;
+})();
+
 return [
 
     /*
@@ -15,7 +27,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'mysql'),
+    'default' => $resolvedDefaultConnection,
 
     /*
     |--------------------------------------------------------------------------

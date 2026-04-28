@@ -77,7 +77,7 @@ trait LogsActivity
     /**
      * Log a custom activity for this model.
      */
-    public function logActivity(string $action, array $changes = null): void
+    public function logActivity(string $action, ?array $changes = null): void
     {
         if (auth()->check()) {
             ActivityLogger::custom($action, static::getModuleName(), $this, $changes);

@@ -131,7 +131,13 @@ class SalikController extends AppBaseController
         if (!auth()->user()->hasPermissionTo('salik_view')) {
             abort(403, 'Unauthorized action.');
         }
+
         $parent = Accounts::where('id', 1237)->first();
+        if (!$parent) {
+            Flash::error('Parent account "Salik" not found.');
+            return redirect()->back();
+        }
+
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Accounts::query()

@@ -2,6 +2,18 @@
 
 use Illuminate\Support\Str;
 
+$resolvedDefaultConnection = (function (): string {
+    $connection = (string) env('DB_CONNECTION', 'mysql');
+
+    // Laravel Cloud can inject human-readable labels instead of config keys.
+    // Normalize common admin labels to a valid configured connection.
+    if (Str::startsWith($connection, 'Cloud - ') && Str::endsWith($connection, ' - admin')) {
+        return 'admin';
+    }
+
+    return $connection;
+})();
+
 return [
 
     /*
@@ -15,7 +27,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'mysql'),
+    'default' => $resolvedDefaultConnection,
 
     /*
     |--------------------------------------------------------------------------
@@ -106,6 +118,27 @@ return [
             ]) : [],
         ],
 
+        // Backward-compatible alias so commands using "--database=admin" keep working.
+        'admin' => [
+            'driver' => 'mysql',
+            'url' => env('ADMIN_DATABASE_URL'),
+            'host' => env('ADMIN_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('ADMIN_DB_PORT', env('DB_PORT', '3306')),
+            'database' => env('ADMIN_DB_DATABASE', env('DB_DATABASE', 'forge')),
+            'username' => env('ADMIN_DB_USERNAME', env('DB_USERNAME', 'forge')),
+            'password' => env('ADMIN_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('ADMIN_DB_SOCKET', env('DB_SOCKET', '')),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DATABASE_URL'),
@@ -168,7 +201,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
+            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_database_'),
         ],
 
         'default' => [

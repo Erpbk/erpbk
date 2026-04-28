@@ -5,6 +5,7 @@ namespace App\Models\Concerns;
 use App\Models\Company;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
 trait BelongsToCompany
@@ -66,6 +67,10 @@ trait BelongsToCompany
         $company = $request->attributes->get('company');
         if ($company && isset($company->id)) {
             return (int) $company->id;
+        }
+
+        if (Auth::check() && !empty(Auth::user()->company_id)) {
+            return (int) Auth::user()->company_id;
         }
 
         $companySlug = $request->route('company_slug') ?? $request->session()->get('company_slug');

@@ -47,8 +47,8 @@
                                     </div>
                                     <!--col-->
                                     <div class="col-md-3 form-group">
-                                        <label>Personal Gmail ID  <span style="color:red;">*</span></label>
-                                        {!! Form::text('personal_email', null, ['class' => 'form-control form-control-sm', 'maxlength' => 255,'readonly'=>auth()->user()->cannot('rider_personal_gmail_id_edit') ? 'readonly' : null]) !!}
+                                        <label>Email  <span style="color:red;">*</span></label>
+                                        {!! Form::text('email', null, ['class' => 'form-control form-control-sm', 'maxlength' => 255,'readonly'=>auth()->user()->cannot('rider_personal_gmail_id_edit') ? 'readonly' : null]) !!}
                                     </div>
                                     <!--col-->
                                     {{-- <div class="col-md-3 form-group">

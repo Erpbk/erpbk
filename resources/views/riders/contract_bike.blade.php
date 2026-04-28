@@ -160,7 +160,7 @@
         </td>
         <td style="width:157pt;border-top-style:solid;border-top-width:1pt;border-left-style:solid;border-left-width:1pt;border-bottom-style:solid;border-bottom-width:1pt;border-right-style:solid;border-right-width:1pt">
           <p style="padding-left: 5pt;text-indent: 0pt;line-height: 12pt;text-align: left;">
-            <a href="mailto:{{@$contract->rider->personal_email}}" class="s5">{{@$contract->rider->personal_email}}</a>
+            <a href="mailto:{{@$contract->rider->email}}" class="s5">{{@$contract->rider->email}}</a>
           </p>
         </td>
       </tr>

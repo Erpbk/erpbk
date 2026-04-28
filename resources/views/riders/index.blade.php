@@ -17,42 +17,37 @@
         <div class="filter-tabs-section mb-4" id="filter-tabs-section">
             <div class="d-flex justify-content-between">
                 @php
-                $activeFiltersCount = count(request('rider_status', [])) + (request('balance_filter') ? 1 : 0);
+                $activeFiltersCount = count(request('rider_status', []));
 
                 // Helper function to toggle rider status in URL
                 if (!function_exists('toggleRiderStatus')) {
-                    function toggleRiderStatus($status) {
-                        $currentStatuses = request('rider_status', []);
-                        $newStatuses = $currentStatuses;
+                function toggleRiderStatus($status) {
+                $currentStatuses = request('rider_status', []);
+                $newStatuses = $currentStatuses;
 
-                        if (in_array($status, $currentStatuses)) {
-                            // Remove the status
-                            $newStatuses = array_diff($currentStatuses, [$status]);
-                        } else {
-                            // Add the status
-                            $newStatuses[] = $status;
-                        }
+                if (in_array($status, $currentStatuses)) {
+                // Remove the status
+                $newStatuses = array_diff($currentStatuses, [$status]);
+                } else {
+                // Add the status
+                $newStatuses[] = $status;
+                }
 
-                        $queryParams = request()->query();
-                        $queryParams['rider_status'] = array_values($newStatuses);
+                $queryParams = request()->query();
+                $queryParams['rider_status'] = array_values($newStatuses);
 
-                        return request()->fullUrlWithQuery($queryParams);
-                    }
+                return request()->fullUrlWithQuery($queryParams);
+                }
                 }
 
                 // Helper function to toggle balance filter in URL
                 if (!function_exists('toggleBalanceFilter')) {
-                    function toggleBalanceFilter() {
-                        $queryParams = request()->query();
+                function toggleBalanceFilter() {
+                $queryParams = request()->query();
 
-                        if (request('balance_filter') == 'greater_than_zero') {
-                            unset($queryParams['balance_filter']);
-                        } else {
-                            $queryParams['balance_filter'] = 'greater_than_zero';
-                        }
 
-                        return request()->fullUrlWithQuery($queryParams);
-                    }
+                return request()->fullUrlWithQuery($queryParams);
+                }
                 }
                 @endphp
 
@@ -70,7 +65,7 @@
                         </div>
                     </div>
                     @endif
-                    <a href="{{ route('riders.index') }}" class="filter-tab {{ !request('rider_status') && !request('balance_filter') ? 'active' : '' }}">
+                    <a href="{{ route('riders.index') }}" class="filter-tab {{ !request('rider_status') ? 'active' : '' }}">
                         <i class="ti ti-users"></i>
                         All Riders
                     </a>
@@ -148,266 +143,46 @@
                     </div>
                     <div class="fleet-supervisor-cards slider-track" id="sliderTrack">
                         @php
-                        $dropdown = DB::table('dropdowns')->where('label', 'Fleet Supervisor')->first();
-                        $fleetSupervisors = $dropdown && $dropdown->values ? json_decode($dropdown->values, true) : [];
+                        $riderTopCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
+                        $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+                        }])->where('show_in_top_bar', 1)->orderBy('display_order')->orderBy('id')->get();
+                        $slideIndex = 0;
+                        $hasRiderTopOptionColumn = \Illuminate\Support\Facades\Schema::hasColumn('riders', 'rider_top_option_id');
                         @endphp
 
-                        @foreach($fleetSupervisors as $index => $fleet)
-                        <div class="fleet-supervisor-card @if($fleet == request('fleet_supervisor')) active filtered @endif" data-slide="{{ $index }}" onclick="filterByFleetSupervisor('{{ $fleet }}')">
-                            <h3 class="fleet-supervisor-name">{{ $fleet }}</h3>
+                        @foreach($riderTopCategories as $category)
+                        @foreach($category->options as $option)
+                        <div class="fleet-supervisor-card @if((int)request('rider_top_option_id') === (int)$option->id) active filtered @endif" data-slide="{{ $slideIndex++ }}" onclick="filterByRiderTopOption('{{ $option->id }}')">
+                            <h3 class="fleet-supervisor-name">{{ $option->name }}</h3>
+                            <div class="small text-muted mb-1">{{ $category->name }}</div>
                             <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active @if($fleet == request('fleet_supervisor') && in_array('active', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByStatus('{{ $fleet }}', 'active')">
+                                <div class="fleet-stat active @if((int)request('rider_top_option_id') === (int)$option->id && in_array('active', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'active')">
                                     <i class="fleet-stat-icon ti ti-user-check"></i>
                                     <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ \App\Models\Riders::where('fleet_supervisor', $fleet)->where('status', 1)->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })->count() }}</span>
+                                    <span class="fleet-stat-value">{{ $hasRiderTopOptionColumn ? \App\Models\Riders::where('rider_top_option_id', $option->id)->where('status', 1)->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })->count() : 0 }}</span>
                                 </div>
-                                <div class="fleet-stat inactive @if($fleet == request('fleet_supervisor') && in_array('inactive', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByStatus('{{ $fleet }}', 'inactive')">
+                                <div class="fleet-stat inactive @if((int)request('rider_top_option_id') === (int)$option->id && in_array('inactive', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'inactive')">
                                     <i class="fleet-stat-icon ti ti-user-x"></i>
                                     <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ \App\Models\Riders::where('fleet_supervisor', $fleet)->where(function($q) { $q->where('status', 3)->orWhereDoesntHave('bikes', function($bikeQuery) { $bikeQuery->where('warehouse', 'Active'); }); })->count() }}</span>
+                                    <span class="fleet-stat-value">{{ $hasRiderTopOptionColumn ? \App\Models\Riders::where('rider_top_option_id', $option->id)->where(function($q) { $q->where('status', 3)->orWhereDoesntHave('bikes', function($bikeQuery) { $bikeQuery->where('warehouse', 'Active'); }); })->count() : 0 }}</span>
                                 </div>
                             </div>
                         </div>
                         @endforeach
+                        @endforeach
 
-                        @php
-                        // Absconder Counts
-                        $absActiveCountSlider = \App\Models\Riders::where('absconder', 1)
-                        ->where('status', 1)
-                        ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
-                        ->count();
-                        $absInactiveCountSlider = \App\Models\Riders::where('absconder', 1)
-                        ->where(function($q){
-                        $q->where('status', 3)
-                        ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active'); });
-                        })
-                        ->count();
-                        $absFilterActive = !empty(request('absconder')) && in_array('1', (array) request('absconder'), true);
-                        $absActiveSelectedSlider = $absFilterActive && in_array('active', request('rider_status', []));
-                        $absInactiveSelectedSlider = $absFilterActive && in_array('inactive', request('rider_status', []));
-
-                        // Learning License Counts
-                        $llActiveCountSlider = \App\Models\Riders::where('l_license', 1)
-                        ->where('status', 1)
-                        ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
-                        ->count();
-                        $llInactiveCountSlider = \App\Models\Riders::where('l_license', 1)
-                        ->where(function($q){
-                        $q->where('status', 3)
-                        ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active'); });
-                        })
-                        ->count();
-                        $llActiveSelectedSlider = in_array('llicense', request('rider_status', [])) && in_array('active', request('rider_status', []));
-                        $llInactiveSelectedSlider = in_array('llicense', request('rider_status', [])) && in_array('inactive', request('rider_status', []));
-
-                        // Follow Up Counts
-                        $fuActiveCountSlider = \App\Models\Riders::where('flowup', 1)
-                        ->where('status', 1)
-                        ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
-                        ->count();
-                        $fuInactiveCountSlider = \App\Models\Riders::where('flowup', 1)
-                        ->where(function($q){
-                        $q->where('status', 3)
-                        ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active'); });
-                        })
-                        ->count();
-                        $fuActiveSelectedSlider = in_array('followup', request('rider_status', [])) && in_array('active', request('rider_status', []));
-                        $fuInactiveSelectedSlider = in_array('followup', request('rider_status', [])) && in_array('inactive', request('rider_status', []));
-
-                        // Recovery Counts (balance > 0)
-                        $recoveryActiveCountSlider = \App\Models\Riders::whereHas('account', function($q) {
-                        $q->whereRaw('(SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) FROM transactions WHERE account_id = accounts.id) > 0');
-                        })
-                        ->where('status', 1)
-                        ->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })
-                        ->count();
-                        $recoveryInactiveCountSlider = \App\Models\Riders::whereHas('account', function($q) {
-                        $q->whereRaw('(SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) FROM transactions WHERE account_id = accounts.id) > 0');
-                        })
-                        ->where(function($q){
-                        $q->where('status', 3)
-                        ->orWhereDoesntHave('bikes', function($b){ $b->where('warehouse','Active'); });
-                        })
-                        ->count();
-                        $recoveryActiveSelectedSlider = request('balance_filter') === 'greater_than_zero' && in_array('active', request('rider_status', []));
-                        $recoveryInactiveSelectedSlider = request('balance_filter') === 'greater_than_zero' && in_array('inactive', request('rider_status', []));
-                        @endphp
-
-                        <div class="fleet-supervisor-card {{ (!empty(request('absconder')) && in_array('1', (array) request('absconder'), true)) ? 'active filtered' : '' }}" onclick="filterAbsconderBoth()">
-                            <h3 class="fleet-supervisor-name"><i class="ti ti-user-x"></i> Absconder</h3>
-                            <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active {{ $absActiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterAbsconderStatus('active')">
-                                    <i class="fleet-stat-icon ti ti-user-check"></i>
-                                    <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ $absActiveCountSlider }}</span>
-                                </div>
-                                <div class="fleet-stat inactive {{ $absInactiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterAbsconderStatus('inactive')">
-                                    <i class="fleet-stat-icon ti ti-user-x"></i>
-                                    <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ $absInactiveCountSlider }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="fleet-supervisor-card {{ (!empty(request('llicense')) && in_array('1', (array) request('llicense'), true)) ? 'active filtered' : (in_array('llicense', request('rider_status', [])) ? 'active filtered' : '') }}" onclick="filterLLicenseBoth()">
-                            <h3 class="fleet-supervisor-name"><i class="ti ti-license"></i> Learning License</h3>
-                            <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active {{ $llActiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterLLicenseStatus('active')">
-                                    <i class="fleet-stat-icon ti ti-user-check"></i>
-                                    <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ $llActiveCountSlider }}</span>
-                                </div>
-                                <div class="fleet-stat inactive {{ $llInactiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterLLicenseStatus('inactive')">
-                                    <i class="fleet-stat-icon ti ti-user-x"></i>
-                                    <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ $llInactiveCountSlider }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="fleet-supervisor-card {{ (!empty(request('followup')) && in_array('1', (array) request('followup'), true)) ? 'active filtered' : (in_array('followup', request('rider_status', [])) ? 'active filtered' : '') }}" onclick="filterFollowUpBoth()">
-                            <h3 class="fleet-supervisor-name"><i class="ti ti-phone-call"></i> Follow Up</h3>
-                            <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active {{ $fuActiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterFollowUpStatus('active')">
-                                    <i class="fleet-stat-icon ti ti-user-check"></i>
-                                    <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ $fuActiveCountSlider }}</span>
-                                </div>
-                                <div class="fleet-stat inactive {{ $fuInactiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterFollowUpStatus('inactive')">
-                                    <i class="fleet-stat-icon ti ti-user-x"></i>
-                                    <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ $fuInactiveCountSlider }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="fleet-supervisor-card {{ request('balance_filter') === 'greater_than_zero' ? 'active filtered' : '' }}" onclick="filterRecoveryBoth()">
-                            <h3 class="fleet-supervisor-name"><i class="ti ti-cash"></i> Recovery</h3>
-                            <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active {{ $recoveryActiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterRecoveryStatus('active')">
-                                    <i class="fleet-stat-icon ti ti-user-check"></i>
-                                    <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ $recoveryActiveCountSlider }}</span>
-                                </div>
-                                <div class="fleet-stat inactive {{ $recoveryInactiveSelectedSlider ? 'active-selected' : '' }}" onclick="event.stopPropagation(); filterRecoveryStatus('inactive')">
-                                    <i class="fleet-stat-icon ti ti-user-x"></i>
-                                    <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ $recoveryInactiveCountSlider }}</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Fleet Supervisor Slider Script -->
+        <!-- Fleet Supervisor Continuous Ticker Script -->
         <script>
-            // Fleet Supervisor Slider with boundary checking
             setTimeout(function() {
-                console.log('Initializing fleet supervisor slider...');
-                const sliderTrack = document.getElementById('sliderTrack');
-                const prevBtn = document.getElementById('prevBtn');
-                const nextBtn = document.getElementById('nextBtn');
-
-                if (sliderTrack && prevBtn && nextBtn) {
-                    console.log('All elements found, initializing slider...');
-
-                    const cards = sliderTrack.querySelectorAll('.fleet-supervisor-card');
-                    const totalCards = cards.length;
-                    console.log('Found', totalCards, 'cards');
-
-                    if (totalCards === 0) {
-                        console.log('No cards found');
-                        return;
-                    }
-
-                    let currentIndex = 0;
-                    const cardWidth = 296; // 280px card width + 16px gap
-                    const maxIndex = totalCards - 1;
-
-                    // Update button states based on current position
-                    function updateButtonStates() {
-                        // Disable prev button if at first card
-                        if (currentIndex === 0) {
-                            prevBtn.style.opacity = '0.5';
-                            prevBtn.style.pointerEvents = 'none';
-                            prevBtn.disabled = true;
-                        } else {
-                            prevBtn.style.opacity = '1';
-                            prevBtn.style.pointerEvents = 'auto';
-                            prevBtn.disabled = false;
-                        }
-
-                        // Disable next button if at last card
-                        if (currentIndex >= maxIndex) {
-                            nextBtn.style.opacity = '0.5';
-                            nextBtn.style.pointerEvents = 'none';
-                            nextBtn.disabled = true;
-                        } else {
-                            nextBtn.style.opacity = '1';
-                            nextBtn.style.pointerEvents = 'auto';
-                            nextBtn.disabled = false;
-                        }
-
-                        console.log('Current index:', currentIndex, 'Max index:', maxIndex);
-                    }
-
-                    // Update slider position
-                    function updateSlider() {
-                        const translateX = -currentIndex * cardWidth;
-                        sliderTrack.style.transform = `translateX(${translateX}px)`;
-                        console.log('Moving to card', currentIndex, 'translateX:', translateX);
-                        updateButtonStates();
-                    }
-
-                    // Next slide - move to next card
-                    function nextSlide() {
-                        if (currentIndex < maxIndex) {
-                            currentIndex++;
-                            updateSlider();
-                        } else {
-                            console.log('Already at last card, cannot go forward');
-                        }
-                    }
-
-                    // Previous slide - move to previous card
-                    function prevSlide() {
-                        if (currentIndex > 0) {
-                            currentIndex--;
-                            updateSlider();
-                        } else {
-                            console.log('Already at first card, cannot go backward');
-                        }
-                    }
-
-                    // Add click handlers with boundary checking
-                    nextBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        console.log('Next button clicked, current index:', currentIndex);
-                        nextSlide();
-                    });
-
-                    prevBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        console.log('Prev button clicked, current index:', currentIndex);
-                        prevSlide();
-                    });
-
-                    // Initialize slider
-                    updateSlider();
-
-                    console.log('Fleet supervisor slider initialized successfully!');
-                    console.log('Total cards:', totalCards, 'Max index:', maxIndex);
-
-                } else {
-                    console.log('Missing elements:', {
-                        sliderTrack: !!sliderTrack,
-                        prevBtn: !!prevBtn,
-                        nextBtn: !!nextBtn
-                    });
+                if (typeof initFleetSupervisorSlider === 'function') {
+                    initFleetSupervisorSlider();
                 }
-            }, 500);
+            }, 150);
         </script>
         <!-- Filter Tabs Section -->
 
@@ -419,63 +194,13 @@
             <div class="filter-body" id="searchTopbody">
                 <form id="filterForm" action="{{ route('riders.index') }}" method="GET">
                     <div class="row">
-                        @if(auth()->user()->hasMultipleBranches())
-                        <div class="form-group col-md-12">
-                            <label for="bike_code">Filter by Branch</label>
-                            <select class="form-control " id="branch_id" name="branch_id">
-                                @foreach(auth()->user()->branchDropdown() as $id => $name)
-                                <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @endif
                         <div class="form-group col-md-12">
                             <label for="id">Rider Id</label>
                             <input type="number" name="rider_id" class="form-control" placeholder="Filter By Rider ID" value="{{ request('rider_id') }}">
                         </div>
                         <div class="form-group col-md-12">
-                            <label for="courier_id">Courier ID</label>
-                            <input type="number" name="courier_id" class="form-control" placeholder="Filter By Courier ID" value="{{ request('courier_id') }}">
-                        </div>
-                        <div class="form-group col-md-12">
                             <label for="name">Rider Name</label>
                             <input type="text" name="name" class="form-control" placeholder="Filter By Name" value="{{ request('name') }}">
-                        </div>
-                        <div class="form-group col-md-12">
-                            <label for="fleet_supervisor">Filter by Fleet SuperVisor</label>
-                            <select class="form-control " id="fleet_supervisor" name="fleet_supervisor">
-                                @php
-                                $supervisorRow = DB::table('dropdowns')
-                                ->where('label', 'Fleet Supervisor')
-                                ->whereNotNull('values')
-                                ->first();
-                                $fleetSupervisors = [];
-                                if ($supervisorRow && $supervisorRow->values) {
-                                $fleetSupervisors = json_decode($supervisorRow->values, true);
-                                }
-                                @endphp
-                                <option value="" selected>Select</option>
-                                @foreach($fleetSupervisors as $supervisor)
-                                <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>{{ $supervisor }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group col-md-12">
-                            <label for="hub">Filter by HUB</label>
-                            <select class="form-control " id="hub" name="hub">
-                                @php
-                                $emirateHubs = DB::table('riders')
-                                ->whereNotNull('designation')
-                                ->where('designation', '!=', '')
-                                ->select('designation')
-                                ->distinct()
-                                ->pluck('designation');
-                                @endphp
-                                <option value="" selected>Select</option>
-                                @foreach($emirateHubs as $hub)
-                                <option value="{{ $hub }}" {{ request('hub') == $hub ? 'selected' : '' }}>{{ $hub }}</option>
-                                @endforeach
-                            </select>
                         </div>
                         <div class="form-group col-md-12">
                             <label for="customer_id">Filter by Customer</label>
@@ -495,27 +220,6 @@
                                 <option value="" selected>Select</option>
                                 @foreach($customers as $customer)
                                 <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group col-md-12">
-                            <label for="bike">Bike Number</label>
-                            <input type="text" name="branded_plate_no" value="{{ request('bike') }}" class="form-control" placeholder="Filter By Bike Number">
-                        </div>
-                        <div class="form-group col-md-12">
-                            <label for="designation">Filter by Designation</label>
-                            <select class="form-control " id="designation" name="designation">
-                                @php
-                                $emiratedesignation = DB::table('riders')
-                                ->whereNotNull('designation')
-                                ->where('designation', '!=', '')
-                                ->select('designation')
-                                ->distinct()
-                                ->pluck('designation');
-                                @endphp
-                                <option value="" selected>Select</option>
-                                @foreach($emiratedesignation as $des)
-                                <option value="{{ $des }}" {{ request('designation') == $des ? 'selected' : '' }}>{{ $des }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -557,24 +261,39 @@
 {{-- Include Column Control Panel --}}
 @php
 use Illuminate\Support\Facades\Schema;
-// Get all columns from riders table
-$filteredColumns = Schema::getColumnListing('riders');
+// Build column-control list from Rider Settings assignments only.
+$riderColumns = Schema::getColumnListing('riders');
+$riderColumnsSet = array_flip($riderColumns);
 
-// Columns to exclude
-$exclude = ['id', 'email', 'NFDID', 'cdm_deposit_id', 'DEPT', 'job_status', 'attach_documents', 'other_details', 'TAID', 'mashreq_id', 'PID', 'branded_plate_no', 'vaccine_status', 'created_at', 'updated_at', 'VID', 'noon_no', 'contract', 'image_name', 'rider_reference', 'vat', 'attendance_date'];
+// Columns to always exclude from manual column control.
+$exclude = ['id', 'email', 'created_at', 'updated_at', 'branch_id', 'company_id', 'account_id'];
+$excludedSet = array_flip($exclude);
 
-// Final filtered columns
-$dbColumns = array_diff($filteredColumns, $exclude);
+// Assigned fixed fields (from Rider Settings -> Rider Fields).
+$assignedFixedColumns = \App\Models\RiderFieldCategoryAssignment::query()
+->orderBy('display_order')
+->orderBy('id')
+->pluck('field_key')
+->filter(function ($key) use ($riderColumnsSet, $excludedSet) {
+return isset($riderColumnsSet[$key]) && !isset($excludedSet[$key]);
+})
+->values()
+->all();
+
+// Assigned custom fields (category-wise moved from settings).
+$assignedCustomFields = \App\Models\RiderCustomField::query()
+->whereNotNull('category_id')
+->orderBy('display_order')
+->orderBy('id')
+->get(['id', 'label']);
+
+// Merge only assigned DB-backed fields (unique, ordered).
+$dbColumns = array_values(array_unique($assignedFixedColumns));
 $preferredOrder = [
 'rider_id',
 'name',
-'branch_id',
-'company_contact',
 'fleet_supervisor',
-'emirate_hub',
 'customer_id',
-'designation',
-'shift',
 'attendance',
 'status',
 ];
@@ -585,17 +304,9 @@ $makeTitle = function ($key) {
 $customTitles = [
 'doj' => 'Date of Joining',
 'recruiter_id' => 'Recruiter',
-'l_license' => 'Learning',
-'emirate_hub' => 'Emirates',
-'branch_id' => 'Branch',
 ];
 return $customTitles[$key] ?? ucwords(str_replace('_', ' ', $key));
 };
-
-// If Absconder filter is active, make sure 'absconder' column is prioritized
-if (in_array('absconder', (array) request('rider_status', []))) {
-array_unshift($preferredOrder, 'absconder');
-}
 
 // Add preferred DB columns first
 foreach ($preferredOrder as $key) {
@@ -610,6 +321,14 @@ foreach ($dbColumns as $key) {
 if (empty($added[$key])) {
 $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
 }
+}
+
+// Add assigned custom fields (stored in riders.custom_field_values JSON).
+foreach ($assignedCustomFields as $cf) {
+$columns[] = [
+'data' => 'custom_field_values.' . $cf->id,
+'title' => trim((string) $cf->label) !== '' ? $cf->label : ('Custom Field #' . $cf->id),
+];
 }
 
 // 3) Append special/computed columns used in UI
@@ -697,29 +416,9 @@ $tableColumns = $columns;
         });
     });
     $(document).ready(function() {
-        $('#fleet_supervisor').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Fleet SuperVisor",
-            allowClear: true, // ✅ cross icon enable
-        });
-        $('#hub').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By HUB",
-            allowClear: true, // ✅ cross icon enable
-        });
         $('#customer_id').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Customer",
-            allowClear: true, // ✅ cross icon enable
-        });
-        $('#branch_id').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Branch",
-            allowClear: true, // ✅ cross icon enable
-        });
-        $('#designation').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Designation",
             allowClear: true, // ✅ cross icon enable
         });
         $('#bike_assignment_status').select2({
@@ -821,14 +520,6 @@ $tableColumns = $columns;
             if (dropdown.hasClass('show')) {
                 dropdown.removeClass('show');
                 btn.removeClass('open');
-                // Reset inline styles when closing
-                dropdown.css({
-                    position: '',
-                    top: '',
-                    left: '',
-                    right: '',
-                    width: ''
-                });
             } else {
                 // Close other dropdowns
                 $('.action-dropdown-menu').removeClass('show');
@@ -836,23 +527,6 @@ $tableColumns = $columns;
                 // Show this dropdown
                 dropdown.addClass('show');
                 btn.addClass('open');
-
-                // Reposition menu to be outside containers (viewport-level)
-                const rect = btn[0].getBoundingClientRect();
-                const menuWidth = Math.max(260, dropdown.outerWidth());
-                const viewportWidth = window.innerWidth;
-                const left = Math.min(rect.right - menuWidth, viewportWidth - menuWidth - 12);
-                const top = rect.bottom + 8;
-
-                // Use fixed positioning to escape any overflow:hidden ancestors
-                dropdown.css({
-                    position: 'fixed',
-                    top: `${top}px`,
-                    left: `${Math.max(12, left)}px`,
-                    right: '',
-                    width: `${menuWidth}px`,
-                    'z-index': 3000
-                });
             }
         });
 
@@ -874,13 +548,7 @@ $tableColumns = $columns;
         $(window).on('scroll resize', function() {
             const dropdown = $('#addRiderDropdown');
             if (dropdown.hasClass('show')) {
-                dropdown.removeClass('show').css({
-                    position: '',
-                    top: '',
-                    left: '',
-                    right: '',
-                    width: ''
-                });
+                dropdown.removeClass('show');
                 $('#addRiderDropdownBtn').removeClass('open');
             }
         });
@@ -888,18 +556,17 @@ $tableColumns = $columns;
         // Fleet supervisor and balance filter cards now use direct links - no JavaScript needed
     });
 
-    // Fleet supervisor filtering function - shows both active and inactive
-    function filterByFleetSupervisor(fleetSupervisor) {
+    // Rider top option filtering function - shows both active and inactive
+    function filterByRiderTopOption(optionId) {
         const url = new URL(window.location);
 
         // Clear existing filters
-        url.searchParams.delete('fleet_supervisor');
+        url.searchParams.delete('rider_top_option_id');
         url.searchParams.delete('rider_status');
         url.searchParams.delete('rider_status[]');
-        url.searchParams.delete('absconder[]');
 
-        // Set fleet supervisor filter
-        url.searchParams.set('fleet_supervisor', fleetSupervisor);
+        // Set rider top option filter
+        url.searchParams.set('rider_top_option_id', optionId);
 
         // Set both active and inactive status
         url.searchParams.append('rider_status[]', 'active');
@@ -909,26 +576,26 @@ $tableColumns = $columns;
         window.location.href = url.toString();
     }
 
-    // Fleet supervisor status filtering function - toggle specific status
-    function filterByStatus(fleetSupervisor, status) {
+    // Rider top option status filtering function - toggle specific status
+    function filterByRiderTopOptionStatus(optionId, status) {
         const url = new URL(window.location);
-        const currentFleetSupervisor = url.searchParams.get('fleet_supervisor');
+        const currentOptionId = url.searchParams.get('rider_top_option_id');
         const currentStatuses = url.searchParams.getAll('rider_status[]');
 
-        // If clicking the same fleet supervisor and same status, toggle it off
-        if (currentFleetSupervisor === fleetSupervisor && currentStatuses.includes(status)) {
+        // If clicking the same rider top option and same status, toggle it off
+        if (currentOptionId === String(optionId) && currentStatuses.includes(status)) {
             // Remove this specific status
             const newStatuses = currentStatuses.filter(s => s !== status);
             url.searchParams.delete('rider_status[]');
             newStatuses.forEach(s => url.searchParams.append('rider_status[]', s));
 
-            // If no statuses left, remove fleet supervisor filter entirely
+            // If no statuses left, remove rider top option filter entirely
             if (newStatuses.length === 0) {
-                url.searchParams.delete('fleet_supervisor');
+                url.searchParams.delete('rider_top_option_id');
             }
         } else {
-            // Set fleet supervisor and specific status
-            url.searchParams.set('fleet_supervisor', fleetSupervisor);
+            // Set rider top option and specific status
+            url.searchParams.set('rider_top_option_id', optionId);
             url.searchParams.delete('rider_status[]');
             url.searchParams.set('rider_status[]', status);
         }
@@ -936,168 +603,14 @@ $tableColumns = $columns;
         // Redirect to filtered URL
         window.location.href = url.toString();
     }
-
-    // Absconder filtering: clicking the card sets absconder + both statuses
-    function filterAbsconderBoth() {
-        const url = new URL(window.location);
-        // Clear existing status params
-        url.searchParams.delete('rider_status');
-        url.searchParams.delete('rider_status[]');
-
-        // Set absconder + both active/inactive using explicit param
-        url.searchParams.append('absconder[]', '1');
-        url.searchParams.append('rider_status[]', 'active');
-        url.searchParams.append('rider_status[]', 'inactive');
-
-        // Remove fleet supervisor filter to avoid conflict
-        url.searchParams.delete('fleet_supervisor');
-
-        window.location.href = url.toString();
-    }
-
-    // Toggle specific status under Absconder (enforce AND semantics with absconder)
-    function filterAbsconderStatus(status) {
-        const url = new URL(window.location);
-        const currentStatuses = url.searchParams.getAll('rider_status[]');
-
-        // Ensure absconder explicit param is present
-        if (!url.searchParams.getAll('absconder[]').includes('1')) {
-            // Reset to only absconder + clicked status
-            url.searchParams.delete('rider_status');
-            url.searchParams.delete('rider_status[]');
-            url.searchParams.append('absconder[]', '1');
-            url.searchParams.append('rider_status[]', status);
-        } else {
-            // Toggle the clicked status while keeping absconder
-            const hasStatus = currentStatuses.includes(status);
-            url.searchParams.delete('rider_status[]');
-            // Always ensure absconder[] stays
-            url.searchParams.append('absconder[]', '1');
-            // Add the other status if present
-            const other = status === 'active' ? 'inactive' : 'active';
-            if (hasStatus) {
-                // If toggling off and no other status present, leave only absconder
-                if (currentStatuses.includes(other)) {
-                    url.searchParams.append('rider_status[]', other);
-                }
-            } else {
-                // Add clicked status
-                url.searchParams.append('rider_status[]', status);
-                // Preserve other if it existed
-                if (currentStatuses.includes(other)) {
-                    url.searchParams.append('rider_status[]', other);
-                }
-            }
-        }
-
-        // Remove fleet supervisor filter to avoid mixing contexts
-        url.searchParams.delete('fleet_supervisor');
-
-        window.location.href = url.toString();
-    }
-
-    // Learning License filtering
-    function filterLLicenseBoth() {
-        const url = new URL(window.location);
-        url.searchParams.delete('rider_status');
-        url.searchParams.delete('rider_status[]');
-        url.searchParams.delete('absconder[]');
-        url.searchParams.delete('followup[]');
-        url.searchParams.append('llicense[]', '1');
-        url.searchParams.append('rider_status[]', 'active');
-        url.searchParams.append('rider_status[]', 'inactive');
-        url.searchParams.delete('fleet_supervisor');
-        window.location.href = url.toString();
-    }
-
-    function filterLLicenseStatus(status) {
-        const url = new URL(window.location);
-        const currentStatuses = url.searchParams.getAll('rider_status[]');
-        if (!url.searchParams.getAll('llicense[]').includes('1')) {
-            url.searchParams.delete('rider_status');
-            url.searchParams.delete('rider_status[]');
-            url.searchParams.delete('absconder[]');
-            url.searchParams.delete('followup[]');
-            url.searchParams.append('llicense[]', '1');
-            url.searchParams.append('rider_status[]', status);
-        } else {
-            const hasStatus = currentStatuses.includes(status);
-            const other = status === 'active' ? 'inactive' : 'active';
-            url.searchParams.delete('rider_status[]');
-            url.searchParams.append('llicense[]', '1');
-            if (!hasStatus) url.searchParams.append('rider_status[]', status);
-            if (currentStatuses.includes(other)) url.searchParams.append('rider_status[]', other);
-        }
-        url.searchParams.delete('fleet_supervisor');
-        window.location.href = url.toString();
-    }
-
-    // Follow Up filtering
-    function filterFollowUpBoth() {
-        const url = new URL(window.location);
-        url.searchParams.delete('rider_status');
-        url.searchParams.delete('rider_status[]');
-        url.searchParams.delete('absconder[]');
-        url.searchParams.delete('llicense[]');
-        url.searchParams.append('followup[]', '1');
-        url.searchParams.append('rider_status[]', 'active');
-        url.searchParams.append('rider_status[]', 'inactive');
-        url.searchParams.delete('fleet_supervisor');
-        window.location.href = url.toString();
-    }
-
-    function filterFollowUpStatus(status) {
-        const url = new URL(window.location);
-        const currentStatuses = url.searchParams.getAll('rider_status[]');
-        if (!url.searchParams.getAll('followup[]').includes('1')) {
-            url.searchParams.delete('rider_status');
-            url.searchParams.delete('rider_status[]');
-            url.searchParams.delete('absconder[]');
-            url.searchParams.delete('llicense[]');
-            url.searchParams.append('followup[]', '1');
-            url.searchParams.append('rider_status[]', status);
-        } else {
-            const hasStatus = currentStatuses.includes(status);
-            const other = status === 'active' ? 'inactive' : 'active';
-            url.searchParams.delete('rider_status[]');
-            url.searchParams.append('followup[]', '1');
-            if (!hasStatus) url.searchParams.append('rider_status[]', status);
-            if (currentStatuses.includes(other)) url.searchParams.append('rider_status[]', other);
-        }
-        url.searchParams.delete('fleet_supervisor');
-        window.location.href = url.toString();
-    }
-
-    // Recovery filtering (balance_filter + active/inactive)
-    function filterRecoveryBoth() {
-        const url = new URL(window.location);
-        url.searchParams.set('balance_filter', 'greater_than_zero');
-        url.searchParams.delete('rider_status');
-        url.searchParams.delete('rider_status[]');
-        url.searchParams.append('rider_status[]', 'active');
-        url.searchParams.append('rider_status[]', 'inactive');
-        url.searchParams.delete('fleet_supervisor');
-        window.location.href = url.toString();
-    }
-
-    function filterRecoveryStatus(status) {
-        const url = new URL(window.location);
-        url.searchParams.set('balance_filter', 'greater_than_zero');
-        const currentStatuses = url.searchParams.getAll('rider_status[]');
-        const hasStatus = currentStatuses.includes(status);
-        const other = status === 'active' ? 'inactive' : 'active';
-        url.searchParams.delete('rider_status[]');
-        if (!hasStatus) url.searchParams.append('rider_status[]', status);
-        if (currentStatuses.includes(other)) url.searchParams.append('rider_status[]', other);
-        url.searchParams.delete('fleet_supervisor');
-        window.location.href = url.toString();
-    }
 </script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const table = document.querySelector('#dataTableBuilder');
+        if (!table) return;
         const headers = table.querySelectorAll('th.sorting');
         const tbody = table.querySelector('tbody');
+        if (!tbody) return;
 
         headers.forEach((header, colIndex) => {
             header.addEventListener('click', () => {
@@ -1128,22 +641,25 @@ $tableColumns = $columns;
             });
         });
     });
-    document.querySelector('.copy-text').addEventListener('click', function() {
-        const value = this.querySelector('.copy-value').textContent.trim();
-        const icon = this.querySelector('i');
+    const copyTextEl = document.querySelector('.copy-text');
+    if (copyTextEl) {
+        copyTextEl.addEventListener('click', function() {
+            const valueEl = this.querySelector('.copy-value');
+            const icon = this.querySelector('i');
+            if (!valueEl) return;
+            const value = valueEl.textContent.trim();
 
-        navigator.clipboard.writeText(value).then(() => {
-            // Icon ko tick mark me change karo
-            icon.classList.remove('fa-copy');
-            icon.classList.add('fa-check');
-
-            // 1.5 sec baad wapas copy icon me badal do
-            setTimeout(() => {
-                icon.classList.remove('fa-check');
-                icon.classList.add('fa-copy');
-            }, 1500);
+            navigator.clipboard.writeText(value).then(() => {
+                if (!icon) return;
+                icon.classList.remove('fa-copy');
+                icon.classList.add('fa-check');
+                setTimeout(() => {
+                    icon.classList.remove('fa-check');
+                    icon.classList.add('fa-copy');
+                }, 1500);
+            });
         });
-    });
+    }
 
     // Status filter functionality is now handled by direct URL links
 
@@ -1314,11 +830,14 @@ $tableColumns = $columns;
 
             /* Fix Add Rider dropdown positioning in header */
             .fleet-supervisor-header-right { position: relative; overflow: visible; }
-            .action-dropdown-container { position: static; }
+            .action-dropdown-container { position: relative; display: inline-block; }
             .action-dropdown-btn { display: inline-flex; align-items: center; gap: 8px; }
             .action-dropdown-menu {
-                position: fixed; /* switched to fixed in JS when opened */
+                position: absolute;
+                top: calc(100% + 8px);
+                right: 0;
                 min-width: 260px;
+                max-width: 320px;
                 background: #ffffff;
                 border: 1px solid #e5e7eb;
                 border-radius: 8px;
@@ -1337,80 +856,45 @@ $tableColumns = $columns;
         .appendTo('head');
 
     function initFleetSupervisorSlider() {
-        console.log('Initializing slider...');
-
         const sliderTrack = document.getElementById('sliderTrack');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const indicatorsContainer = document.getElementById('sliderIndicators');
+        if (!sliderTrack || sliderTrack.dataset.tickerInit === '1') return;
 
-        if (!sliderTrack) {
-            console.log('sliderTrack not found');
-            return;
+        const cards = Array.from(sliderTrack.querySelectorAll('.fleet-supervisor-card'));
+        if (!cards.length) return;
+
+        const container = sliderTrack.closest('.fleet-supervisor-slider-container');
+        if (container) container.classList.add('ticker-mode');
+
+        sliderTrack.dataset.tickerInit = '1';
+        if (cards.length < 2) return;
+
+        let intervalId = null;
+        let isAnimating = false;
+        const computedTrackStyle = window.getComputedStyle(sliderTrack);
+        const gap = parseFloat(computedTrackStyle.columnGap || computedTrackStyle.gap || '16') || 16;
+
+        function slideNextCard() {
+            if (isAnimating) return;
+            const firstCard = sliderTrack.querySelector('.fleet-supervisor-card');
+            if (!firstCard) return;
+            isAnimating = true;
+
+            const shiftAmount = firstCard.offsetWidth + gap;
+            sliderTrack.style.transition = 'transform 520ms ease';
+            sliderTrack.style.transform = 'translateX(-' + shiftAmount + 'px)';
+
+            window.setTimeout(function() {
+                sliderTrack.style.transition = 'none';
+                sliderTrack.style.transform = 'translateX(0)';
+                sliderTrack.appendChild(firstCard);
+                // Force reflow so next animation starts cleanly.
+                void sliderTrack.offsetWidth;
+                isAnimating = false;
+            }, 540);
         }
 
-        if (!prevBtn) {
-            console.log('prevBtn not found');
-            return;
-        }
-
-        if (!nextBtn) {
-            console.log('nextBtn not found');
-            return;
-        }
-
-        if (!indicatorsContainer) {
-            console.log('indicatorsContainer not found');
-            return;
-        }
-
-        const cards = sliderTrack.querySelectorAll('.fleet-supervisor-card');
-        console.log('Found cards:', cards.length);
-
-        if (cards.length === 0) {
-            console.log('No cards found');
-            return;
-        }
-
-        let currentIndex = 0;
-
-        // Simple next function
-        function nextSlide() {
-            if (currentIndex < cards.length - 1) {
-                currentIndex++;
-                updateSlider();
-            }
-        }
-
-        // Simple prev function
-        function prevSlide() {
-            if (currentIndex > 0) {
-                currentIndex--;
-                updateSlider();
-            }
-        }
-
-        // Update slider
-        function updateSlider() {
-            const translateX = -currentIndex * 300; // 300px per slide
-            sliderTrack.style.transform = `translateX(${translateX}px)`;
-
-            // Update buttons
-            prevBtn.style.opacity = currentIndex === 0 ? '0.5' : '1';
-            nextBtn.style.opacity = currentIndex >= cards.length - 1 ? '0.5' : '1';
-        }
-
-        // Event listeners
-        nextBtn.onclick = function() {
-            nextSlide();
-        };
-
-        prevBtn.onclick = function() {
-            prevSlide();
-        };
-
-        // Initialize
-        updateSlider();
+        intervalId = window.setInterval(slideNextCard, 2600);
+        sliderTrack.dataset.tickerIntervalId = String(intervalId);
     }
 
     // Initialize slider when DOM is loaded

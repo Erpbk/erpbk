@@ -113,7 +113,7 @@
                <p class="s1" style="padding-top: 2pt;padding-left: 1pt;text-indent: 0pt;text-align: left;">Email I’d</p>
             </td>
             <td style="border-top-style:solid;border-top-width:1pt;border-left-style:solid;border-left-width:1pt;border-bottom-style:solid;border-bottom-width:1pt;border-right-style:solid;border-right-width:1pt" >
-               <p style="padding-top: 2pt;padding-right: 1pt;text-indent: 0pt;text-align: center;">{{@$rider->personal_email}}</p>
+               <p style="padding-top: 2pt;padding-right: 1pt;text-indent: 0pt;text-align: center;">{{@$rider->email}}</p>
             </td>
          </tr>
          <tr style="height:16pt">

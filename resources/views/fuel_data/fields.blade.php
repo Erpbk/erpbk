@@ -108,7 +108,7 @@
                 class="form-select @error('card_no') is-invalid @enderror select2" 
                 required>
             <option value="">Select Card Number</option>
-            @foreach(\App\Models\fuelCards::all() as $fuelCard)
+            @foreach(\App\Models\FuelCards::all() as $fuelCard)
                 <option value="{{ $fuelCard->card_number }}" 
                     {{ old('card_no', $data?->card_no ?? '') == $fuelCard->card_number ? 'selected' : '' }}>
                     {{ $fuelCard->card_number }}

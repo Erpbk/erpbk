@@ -37,6 +37,6 @@ class Permissions extends BaseModel
 
     public function roles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(\App\Models\Role::class, 'role_has_permissions');
+        return $this->belongsToMany(\App\Models\Roles::class, 'role_has_permissions', 'permission_id', 'role_id');
     }
 }

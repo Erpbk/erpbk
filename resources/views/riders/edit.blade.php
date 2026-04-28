@@ -107,10 +107,14 @@
 <script>
     $(document).ready(function() {
         // Intercept form submission for fast AJAX processing
-        $('#formajax').on('submit', function(e) {
+        $('#formajax').off('submit.riderEdit').on('submit.riderEdit', function(e) {
             e.preventDefault();
 
             const form = $(this);
+            if (form.data('submitting')) {
+                return false;
+            }
+            form.data('submitting', true);
             const submitButton = form.find('button[type="submit"]');
             const originalText = submitButton.html();
 
@@ -141,6 +145,7 @@
                 },
                 error: function(xhr) {
                     // Handle errors
+                    form.data('submitting', false);
                     submitButton.html(originalText).prop('disabled', false);
 
                     if (xhr.status === 422) {
@@ -158,6 +163,12 @@
                     }
                 },
                 timeout: 30000 // 30 seconds timeout
+                ,
+                complete: function() {
+                    if (!submitButton.prop('disabled')) {
+                        form.data('submitting', false);
+                    }
+                }
             });
         });
 

@@ -5,6 +5,12 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
+// PHP 8.4 emits deprecations from some third-party packages.
+// In production HTTP requests, do not surface deprecated notices as runtime output.
+if (($_SERVER['APP_ENV'] ?? getenv('APP_ENV') ?: 'production') === 'production') {
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+}
+
 /*
 |--------------------------------------------------------------------------
 | Check If The Application Is Under Maintenance

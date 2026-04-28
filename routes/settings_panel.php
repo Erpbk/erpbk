@@ -68,6 +68,7 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::post('rider-settings/field-assignment', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.rider-settings.update-field-assignment');
     Route::post('rider-settings/field-assignment/display-label', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignmentLabel'])->name('settings-panel.rider-settings.update-field-assignment-label');
     Route::post('rider-settings/field-assignment/visibility', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignmentVisibility'])->name('settings-panel.rider-settings.update-field-assignment-visibility');
+    Route::post('rider-settings/field-assignment/required', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignmentRequired'])->name('settings-panel.rider-settings.update-field-assignment-required');
     Route::post('rider-settings/field-assignments/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.rider-settings.reorder-field-assignments');
     Route::get('rider-settings/categories/table-body', [App\Http\Controllers\RiderSettingsController::class, 'categoriesTableBody'])->name('settings-panel.rider-settings.categories-table-body');
     Route::post('rider-settings/categories', [App\Http\Controllers\RiderSettingsController::class, 'storeCategory'])->name('settings-panel.rider-settings.store-category');
@@ -78,6 +79,7 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::get('rider-settings/fields/table-body/{categoryId}', [App\Http\Controllers\RiderSettingsController::class, 'tableBodyCategory'])->name('settings-panel.rider-settings.table-body-category');
     Route::get('rider-settings/fields/config-schema/{dataType}', [App\Http\Controllers\RiderSettingsController::class, 'fieldConfigSchema'])->name('settings-panel.rider-settings.field-config-schema');
     Route::post('rider-settings/fields', [App\Http\Controllers\RiderSettingsController::class, 'storeField'])->name('settings-panel.rider-settings.store-field');
+    Route::post('rider-settings/fields/{id}/assign-category', [App\Http\Controllers\RiderSettingsController::class, 'assignCustomFieldCategory'])->name('settings-panel.rider-settings.assign-custom-field-category');
     Route::put('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateField'])->name('settings-panel.rider-settings.update-field');
     Route::delete('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyField'])->name('settings-panel.rider-settings.destroy-field');
     Route::post('rider-settings/fields/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderFields'])->name('settings-panel.rider-settings.reorder-fields');
@@ -86,6 +88,27 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::put('rider-settings/documents/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateDocumentType'])->name('settings-panel.rider-settings.update-document-type');
     Route::delete('rider-settings/documents/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyDocumentType'])->name('settings-panel.rider-settings.destroy-document-type');
     Route::post('rider-settings/documents/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentTypes'])->name('settings-panel.rider-settings.reorder-document-types');
+    Route::get('rider-settings/rider-top/accordion-body', [App\Http\Controllers\RiderSettingsController::class, 'riderTopAccordionBody'])->name('settings-panel.rider-settings.rider-top-accordion-body');
+    Route::post('rider-settings/rider-top/categories', [App\Http\Controllers\RiderSettingsController::class, 'storeRiderTopCategory'])->name('settings-panel.rider-settings.store-rider-top-category');
+    Route::get('rider-settings/rider-top/categories/{id}/field-values', [App\Http\Controllers\RiderSettingsController::class, 'riderTopCategoryFieldValues'])->name('settings-panel.rider-settings.rider-top-category-field-values');
+    Route::put('rider-settings/rider-top/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderTopCategory'])->name('settings-panel.rider-settings.update-rider-top-category');
+    Route::delete('rider-settings/rider-top/categories/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyRiderTopCategory'])->name('settings-panel.rider-settings.destroy-rider-top-category');
+    Route::post('rider-settings/rider-top/categories/{id}/visibility', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderTopCategoryVisibility'])->name('settings-panel.rider-settings.update-rider-top-category-visibility');
+    Route::post('rider-settings/rider-top/options', [App\Http\Controllers\RiderSettingsController::class, 'storeRiderTopOption'])->name('settings-panel.rider-settings.store-rider-top-option');
+    Route::put('rider-settings/rider-top/options/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderTopOption'])->name('settings-panel.rider-settings.update-rider-top-option');
+    Route::delete('rider-settings/rider-top/options/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyRiderTopOption'])->name('settings-panel.rider-settings.destroy-rider-top-option');
+    Route::post('rider-settings/statuses', [App\Http\Controllers\RiderSettingsController::class, 'storeRiderStatus'])->name('settings-panel.rider-settings.store-rider-status');
+    Route::put('rider-settings/statuses/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateRiderStatus'])->name('settings-panel.rider-settings.update-rider-status');
+    Route::delete('rider-settings/statuses/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyRiderStatus'])->name('settings-panel.rider-settings.destroy-rider-status');
+    // Backward-compatible alias: rider-settings lives on dedicated controller page.
+    Route::get('module-settings/rider-settings', function (\Illuminate\Http\Request $request) {
+        $companySlug = (string) ($request->route('company_slug') ?? '');
+        return redirect()->route(
+            'settings-panel.rider-settings.index',
+            array_merge(['company_slug' => $companySlug], $request->query())
+        );
+    })->name('settings-panel.module-settings.rider-settings-alias');
+
     // Module settings (General tab only) for all ERP modules
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[A-Za-z0-9_-]+');

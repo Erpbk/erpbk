@@ -127,9 +127,13 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
             'title' => 'CDM ID',
             'data' => 'cdm_deposit_id'
         ],
+        'email' => [
+            'title' => 'Email',
+            'data' => 'email'
+        ],
         'personal_email' => [
             'title' => 'Email',
-            'data' => 'personal_email'
+            'data' => 'email'
         ],
         'wps' => [
             'title' => 'WPS/NON WPS',
@@ -318,8 +322,10 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
             case 'cdm_deposit_id':
                 return $rider->cdm_deposit_id;
 
+            case 'email':
+                return $rider->email;
             case 'personal_email':
-                return $rider->personal_email;
+                return $rider->email;
 
             case 'wps':
                 return $rider->wps;

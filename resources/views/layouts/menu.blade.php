@@ -2,13 +2,10 @@
 // Labels are editable in Settings > ERP Module Settings > [Module] > General; same source as ModuleSettingsController
 $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
 $companySlug = request()->route('company_slug') ?? session('company_slug');
-$isAdminLogin = auth('admin')->check();
-$isCompanyLogin = !$isAdminLogin && !empty($companySlug);
-$homeLink = $isAdminLogin
+$homeLink = auth('admin')->check()
 ? route('admin.dashboard')
 : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
 @endphp
-@if($isCompanyLogin)
 @if(\App\Support\CompanyModuleVisibility::enabled('dashboard'))
 @can('dashboard_view')
 <li class="menu-item {{ Route::is('/') ? 'active' : '' }}">
@@ -568,12 +565,11 @@ $homeLink = $isAdminLogin
 
 
 
-@endif
 
 {{-- Admin Panel (global site settings) --}}
-@if($isAdminLogin)
 @php($adminUser = auth('admin')->user())
-@php($canAccessSuperAdminPanel = $adminUser && $adminUser->hasRole('Super Admin'))
+@php($isCompanyContext = !empty($companySlug))
+@php($canAccessSuperAdminPanel = $adminUser && !$isCompanyContext && $adminUser->hasRole('Super Admin'))
 @if($canAccessSuperAdminPanel)
 <li class="menu-header small text-uppercase mt-3">
   <span class="menu-header-text">{{ __('Admin Panel') }}</span>
@@ -586,8 +582,8 @@ $homeLink = $isAdminLogin
 </li>
 @endif
 @if($canAccessSuperAdminPanel && $adminUser->hasPermission('companies_view'))
-  <li class="menu-item {{ Route::is('admin.companies*') ? 'active' : '' }}">
-    <a href="{{ route('admin.companies.index') }}" class="menu-link">
+<li class="menu-item {{ Route::is('admin.companies*') ? 'active' : '' }}">
+  <a href="{{ route('admin.companies.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-building-community"></i>
     <div>{{ __('Companies') }}</div>
   </a>
@@ -647,9 +643,7 @@ $homeLink = $isAdminLogin
   </a>
 </li>
 @endif
-@endif
 
-@if($isCompanyLogin)
 @canany(['account_view','gn_ledger'])
 <li class="menu-item {{ Route::is('accounts*') ? 'open' : '' }} ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
@@ -681,7 +675,6 @@ $homeLink = $isAdminLogin
   </ul>
 </li>
 @endcanany
-@endif
 
 {{-- <li class="menu-item {{ Request::is('reports*') ? 'open' : '' }} ">
 <a href="javascript:void(0);" class="menu-link menu-toggle ">

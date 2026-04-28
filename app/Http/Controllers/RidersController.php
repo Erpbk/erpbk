@@ -62,7 +62,10 @@ class RidersController extends AppBaseController
   private function applyCompanyScope($query)
   {
     if (Schema::hasColumn('riders', 'company_id')) {
-      $query->where('riders.company_id', auth()->user()->company_id);
+      $authUser = auth()->user();
+      if ($authUser && isset($authUser->company_id)) {
+        $query->where('riders.company_id', $authUser->company_id);
+      }
     }
     return $query;
   }

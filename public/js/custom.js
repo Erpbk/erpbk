@@ -665,6 +665,7 @@ function alertfunction() {
 }
 
 function block() {
+  if (!window.jQuery || !$.fn || !$.fn.block) return;
   $('#modalTopbody').block({
     message: '<div class="loading-overlay"><div class="spinner-border text-primary" role="status"></div></div>',
     css: {
@@ -678,16 +679,19 @@ function block() {
   });
 }
 function unblock() {
+  if (!window.jQuery || !$.fn || !$.fn.unblock) return;
   $('#modalTopbody').unblock();
 }
 /* $('.select2').select2({
   dropdownParent: $('#modalTop'),
             allowClear: true
 }); */
-$('.select2').select2({
-  /* dropdownParent: $('.card ') */
-  allowClear: true
-});
+if (window.jQuery && $.fn && $.fn.select2) {
+  $('.select2').select2({
+    /* dropdownParent: $('.card ') */
+    allowClear: true
+  });
+}
 
 $("select[name='country']").on('change', function () {
   var country = $(this).val();
@@ -710,6 +714,7 @@ $("select[name='country']").on('change', function () {
 });
 
 function bodyblock() {
+  if (!window.jQuery || !$.fn || !$.fn.block) return;
   $('.card').block({
     message: '<div class="loading-overlay"><div class="spinner-border text-primary" role="status"></div></div>',
     css: {
@@ -723,6 +728,7 @@ function bodyblock() {
   });
 }
 function bodyunblock() {
+  if (!window.jQuery || !$.fn || !$.fn.unblock) return;
   $('.card').unblock();
 }
 
@@ -768,9 +774,11 @@ function selectCC(pk) {
 
 $(document).ready(function () {
   // Initialize select2 for the existing select elements
-  $('.select2').select2({
-    allowClear: true
-  });
+  if (window.jQuery && $.fn && $.fn.select2) {
+    $('.select2').select2({
+      allowClear: true
+    });
+  }
 
   // Add new row by cloning the first row
   $('#add-new-row').click(function () {
@@ -778,7 +786,7 @@ $(document).ready(function () {
     const newRow = $('#rows-container .row:first').clone();
 
     // Destroy select2 and clean up in the cloned row
-    if (newRow.find('.select2').data('select2')) {
+    if (window.jQuery && $.fn && $.fn.select2 && newRow.find('.select2').data('select2')) {
       newRow.find('.select2').select2('destroy');
     }
     //newRow.find('.select2').select2('destroy').end();
@@ -806,9 +814,11 @@ $(document).ready(function () {
     $('#rows-container').append(newRow);
 
     // Reinitialize select2 for the newly added select element
-    $('.select2').select2({
-      allowClear: true
-    });
+    if (window.jQuery && $.fn && $.fn.select2) {
+      $('.select2').select2({
+        allowClear: true
+      });
+    }
     
     // Recalculate total after adding new row
     if (typeof getTotal === 'function') {
@@ -882,6 +892,7 @@ $(document).ready(function () {
 });
 
 function bodyblock() {
+  if (!window.jQuery || !$.fn || !$.fn.block) return;
   $('#bodyloader').block({
     message: '<div class="loading-overlay"><div class="spinner-border text-primary" role="status"></div></div>',
     css: {
@@ -895,6 +906,7 @@ function bodyblock() {
   });
 }
 function bodyunblock() {
+  if (!window.jQuery || !$.fn || !$.fn.unblock) return;
   $('#bodyloader').unblock();
 }
 

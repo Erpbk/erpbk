@@ -133,18 +133,8 @@ class RtaFinesController extends AppBaseController
         if (!auth()->user()->hasPermissionTo('rtafine_view')) {
             abort(403, 'Unauthorized action.');
         }
-        $parent = Accounts::where('id', 1235)->first();
-        $defaultAccount = Accounts::query()
-            ->where('parent_id', $parent?->id)
-            ->orderBy('id', 'asc')
-            ->first();
 
-        if (!$defaultAccount) {
-            Flash::error('No RTA Fine account found.');
-            return redirect()->back();
-        }
-
-        return redirect()->route('rtaFines.tickets');
+        return $this->renderTicketsListing($request, 'unpaid');
     }
     public function tickets(Request $request)
     {
@@ -182,18 +172,18 @@ class RtaFinesController extends AppBaseController
             ?? session('rta_selected_account_id')
             ?? $defaultAccount?->id;
 
-        if (!$selectedAccountId) {
-            Flash::error('No RTA Fine account found.');
-            return redirect()->back();
-        }
-
-        session(['rta_selected_account_id' => $selectedAccountId]);
-
         $query = RtaFines::query()
             ->with('branch')
             ->orderBy('id', 'asc')
-            ->where('rta_account_id', $selectedAccountId)
             ->where('status', $status);
+
+        if ($selectedAccountId) {
+            $query->where('rta_account_id', $selectedAccountId);
+            session(['rta_selected_account_id' => $selectedAccountId]);
+        } else {
+            // Keep module accessible when no account exists yet.
+            $query->whereRaw('1 = 0');
+        }
 
         if ($request->filled('ticket_no')) {
             $query->where('ticket_no', 'like', '%' . $request->ticket_no . '%');

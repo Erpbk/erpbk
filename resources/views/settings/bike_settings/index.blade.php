@@ -1056,41 +1056,14 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
           {{-- Tab: Documents --}}
           <div class="tab-pane fade" id="tab-docs" role="tabpanel">
             <div class="card mb-4">
-              <div class="card-body">
-                <form action="{{ route($settingsRoutePrefix . '.store-document-type', $settingsRouteParams) }}" method="POST" class="row g-3 align-items-end">
-                  @csrf
-                  <div class="col-md-3">
-                    <label class="form-label">Key</label>
-                    <input type="text" name="key" class="form-control" required maxlength="80" placeholder="e.g. mulkiya">
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label">Type</label>
-                    <select name="type" class="form-select" required>
-                      <option value="single">Single</option>
-                      <option value="dual">Dual</option>
-                    </select>
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label">Label</label>
-                    <input type="text" name="label" class="form-control" maxlength="255" placeholder="Optional">
-                  </div>
-                  <div class="col-md-3 text-end">
-                    <button type="submit" class="btn btn-primary">Add</button>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label class="form-label">Display Order</label>
-                    <input type="number" name="display_order" class="form-control" min="0" value="0">
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label">Front label (dual)</label>
-                    <input type="text" name="front_label" class="form-control" maxlength="255">
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label">Back label (dual)</label>
-                    <input type="text" name="back_label" class="form-control" maxlength="255">
-                  </div>
-                </form>
+              <div class="card-body d-flex justify-content-end">
+                <button type="button"
+                  class="btn btn-primary"
+                  data-bs-toggle="modal"
+                  data-bs-target="#addModuleDocumentTypeModal">
+                  <i class="ti ti-plus me-1"></i>
+                  Add document type
+                </button>
               </div>
             </div>
 
@@ -1098,54 +1071,290 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
               <table class="table table-bordered align-middle">
                 <thead>
                   <tr>
+                    <th style="width: 40px;"></th>
+                    <th style="width: 70px;">#</th>
                     <th>Key</th>
                     <th>Type</th>
                     <th>Labels</th>
-                    <th style="width: 160px;">Save</th>
-                    <th style="width: 120px;">Delete</th>
+                    <th>Status</th>
+                    <th class="text-end" style="width: 140px;">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  @foreach($documentTypes as $doc)
-                  <tr>
-                    <form action="{{ route($settingsRoutePrefix . '.update-document-type', array_merge($settingsRouteParams, ['id' => $doc->id])) }}" method="POST">
-                      @csrf
-                      @method('PUT')
-                      <td>
-                        <input type="text" name="key" value="{{ $doc->key }}" class="form-control form-control-sm" required>
-                      </td>
-                      <td>
-                        <select name="type" class="form-select form-select-sm">
-                          <option value="single" {{ $doc->type === 'single' ? 'selected' : '' }}>Single</option>
-                          <option value="dual" {{ $doc->type === 'dual' ? 'selected' : '' }}>Dual</option>
-                        </select>
-                      </td>
-                      <td>
-                        <input type="text" name="label" value="{{ $doc->label }}" class="form-control form-control-sm mb-2" placeholder="Label">
-                        <input type="text" name="front_label" value="{{ $doc->front_label }}" class="form-control form-control-sm mb-2" placeholder="Front label">
-                        <input type="text" name="back_label" value="{{ $doc->back_label }}" class="form-control form-control-sm" placeholder="Back label">
-                      </td>
-                      <td class="text-end">
-                        <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                      </td>
-                    </form>
-                    <td>
-                      <form action="{{ route($settingsRoutePrefix . '.destroy-document-type', array_merge($settingsRouteParams, ['id' => $doc->id])) }}" method="POST" onsubmit="return confirm('Delete this document type?')" class="d-inline">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-danger">Del</button>
-                      </form>
+                  @forelse($documentTypes as $index => $doc)
+                  <tr data-id="{{ $doc->id }}">
+                    <td class="align-middle">
+                      <span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span>
+                    </td>
+                    <td class="align-middle">{{ $index + 1 }}</td>
+                    <td class="align-middle"><code>{{ $doc->key }}</code></td>
+                    <td class="align-middle">
+                      @if($doc->type === 'single')
+                      <span class="badge bg-label-info">Single</span>
+                      @else
+                      <span class="badge bg-label-primary">Dual</span>
+                      @endif
+                    </td>
+                    <td class="align-middle">
+                      @if($doc->type === 'single')
+                      {{ $doc->label ?: '—' }}
+                      @else
+                      <span class="text-muted small">Front: {{ $doc->front_label ?? '—' }}</span><br>
+                      <span class="text-muted small">Back: {{ $doc->back_label ?? '—' }}</span>
+                      @endif
+                    </td>
+                    <td class="align-middle">
+                      @if($doc->is_active)
+                      <span class="badge bg-label-success">Active</span>
+                      @else
+                      <span class="badge bg-label-secondary">Inactive</span>
+                      @endif
+                    </td>
+                    <td class="text-end align-middle">
+                      <div class="btn-group btn-group-sm" role="group">
+                        <button type="button"
+                          class="btn btn-outline-secondary btn-icon btn-edit-module-document-type"
+                          data-id="{{ $doc->id }}"
+                          data-key="{{ $doc->key }}"
+                          data-type="{{ $doc->type }}"
+                          data-label="{{ $doc->label }}"
+                          data-front-label="{{ $doc->front_label }}"
+                          data-back-label="{{ $doc->back_label }}"
+                          data-update-url="{{ route($settingsRoutePrefix . '.update-document-type', array_merge($settingsRouteParams, ['id' => $doc->id])) }}"
+                          data-bs-toggle="modal"
+                          data-bs-target="#editModuleDocumentTypeModal">
+                          <i class="ti ti-edit"></i>
+                        </button>
+                        <form method="POST"
+                          action="{{ route($settingsRoutePrefix . '.destroy-document-type', array_merge($settingsRouteParams, ['id' => $doc->id])) }}"
+                          class="d-inline"
+                          onsubmit="return confirm('Delete this document type?')">
+                          @csrf
+                          @method('DELETE')
+                          <button type="submit" class="btn btn-outline-danger btn-icon">
+                            <i class="ti ti-trash"></i>
+                          </button>
+                        </form>
+                      </div>
                     </td>
                   </tr>
-                  @endforeach
-                  @if(($documentTypes ?? collect())->isEmpty())
+                  @empty
                   <tr>
-                    <td colspan="5" class="text-center text-muted py-3">No document types configured.</td>
+                    <td colspan="7" class="text-center text-muted py-4">No document types yet. Add one to define required module documents.</td>
                   </tr>
-                  @endif
+                  @endforelse
                 </tbody>
               </table>
             </div>
+
+            <div class="modal fade" id="editModuleDocumentTypeModal" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <form id="formEditModuleDocumentType" method="POST">
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-header">
+                      <h5 class="modal-title">Edit Document Type</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <div class="mb-3">
+                        <label class="form-label">Key</label>
+                        <input type="text" id="editModuleDocKey" name="key" class="form-control" required maxlength="80">
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Type</label>
+                        <select id="editModuleDocType" name="type" class="form-select" required>
+                          <option value="single">Single</option>
+                          <option value="dual">Dual</option>
+                        </select>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Label</label>
+                        <input type="text" id="editModuleDocLabel" name="label" class="form-control" maxlength="255">
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Front Label (dual)</label>
+                        <input type="text" id="editModuleDocFrontLabel" name="front_label" class="form-control" maxlength="255">
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Back Label (dual)</label>
+                        <input type="text" id="editModuleDocBackLabel" name="back_label" class="form-control" maxlength="255">
+                      </div>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-primary">Save changes</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal fade" id="addModuleDocumentTypeModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">Add Document Type</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <form id="formAddModuleDocumentType">
+                    @csrf
+                    <div class="modal-body pt-0">
+                      <div class="mb-3">
+                        <label class="form-label">Key <span class="text-danger">*</span></label>
+                        <input type="text" name="key" id="addModuleDocTypeKey" class="form-control" placeholder="e.g. photo, passport" pattern="[a-z0-9_]+" maxlength="80" required>
+                        <div class="form-text">Lowercase letters, numbers, underscores. Used to match uploaded file names.</div>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Type <span class="text-danger">*</span></label>
+                        <select name="type" id="addModuleDocTypeType" class="form-select" required>
+                          <option value="single">Single (one file)</option>
+                          <option value="dual">Dual (front + back page)</option>
+                        </select>
+                      </div>
+                      <div class="mb-3" id="addModuleDocTypeSingleWrap">
+                        <label class="form-label">Label <span class="text-danger">*</span></label>
+                        <input type="text" name="label" id="addModuleDocTypeLabel" class="form-control" placeholder="e.g. Profile Photo" maxlength="255">
+                      </div>
+                      <div id="addModuleDocTypeDualWrap" style="display: none;">
+                        <div class="mb-3">
+                          <label class="form-label">Front / First page label <span class="text-danger">*</span></label>
+                          <input type="text" name="front_label" id="addModuleDocTypeFrontLabel" class="form-control" placeholder="e.g. Passport ( First Page )" maxlength="255">
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label">Back / Second page label <span class="text-danger">*</span></label>
+                          <input type="text" name="back_label" id="addModuleDocTypeBackLabel" class="form-control" placeholder="e.g. Passport ( Second Page )" maxlength="255">
+                        </div>
+                      </div>
+                      <div class="mb-0">
+                        <div class="form-check">
+                          <input type="checkbox" name="is_active" id="addModuleDocTypeActive" class="form-check-input" value="1" checked>
+                          <label class="form-check-label" for="addModuleDocTypeActive">Active</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-primary" id="addModuleDocumentTypeSubmitBtn">Save</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <script>
+              document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.btn-edit-module-document-type');
+                if (!btn) return;
+
+                const form = document.getElementById('formEditModuleDocumentType');
+                if (!form) return;
+
+                form.action = btn.dataset.updateUrl || '#';
+                document.getElementById('editModuleDocKey').value = btn.dataset.key || '';
+                document.getElementById('editModuleDocType').value = btn.dataset.type || 'single';
+                document.getElementById('editModuleDocLabel').value = btn.dataset.label || '';
+                document.getElementById('editModuleDocFrontLabel').value = btn.dataset.frontLabel || '';
+                document.getElementById('editModuleDocBackLabel').value = btn.dataset.backLabel || '';
+              });
+
+              var addModuleDocTypeType = document.getElementById('addModuleDocTypeType');
+              if (addModuleDocTypeType) {
+                addModuleDocTypeType.addEventListener('change', function() {
+                  var isDual = this.value === 'dual';
+                  document.getElementById('addModuleDocTypeSingleWrap').style.display = isDual ? 'none' : 'block';
+                  document.getElementById('addModuleDocTypeDualWrap').style.display = isDual ? 'block' : 'none';
+                });
+              }
+
+              var formAddModuleDocumentType = document.getElementById('formAddModuleDocumentType');
+              if (formAddModuleDocumentType) {
+                formAddModuleDocumentType.addEventListener('submit', function(e) {
+                  e.preventDefault();
+                  var form = this;
+                  var fd = new FormData(form);
+                  fd.set('is_active', form.querySelector('#addModuleDocTypeActive').checked ? '1' : '0');
+                  var btn = document.getElementById('addModuleDocumentTypeSubmitBtn');
+                  if (btn) btn.disabled = true;
+
+                  fetch("{{ route($settingsRoutePrefix . '.store-document-type', $settingsRouteParams) }}", {
+                      method: 'POST',
+                      body: fd,
+                      headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                      }
+                    })
+                    .then(function(r) {
+                      if (!r.ok) {
+                        return r.json().then(function(d) {
+                          return {
+                            _httpError: true,
+                            status: r.status,
+                            data: d
+                          };
+                        }).catch(function() {
+                          return {
+                            _httpError: true,
+                            status: r.status
+                          };
+                        });
+                      }
+                      return r.json();
+                    })
+                    .then(function(data) {
+                      if (btn) btn.disabled = false;
+                      if (data._httpError) {
+                        var msg = (data.data && data.data.message) || 'Server error.';
+                        if (typeof Swal !== 'undefined') Swal.fire({
+                          icon: 'error',
+                          title: 'Error',
+                          text: msg
+                        });
+                        return;
+                      }
+
+                      if (data.success) {
+                        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                          var m = bootstrap.Modal.getInstance(document.getElementById('addModuleDocumentTypeModal'));
+                          if (m) m.hide();
+                        }
+                        form.reset();
+                        document.getElementById('addModuleDocTypeSingleWrap').style.display = 'block';
+                        document.getElementById('addModuleDocTypeDualWrap').style.display = 'none';
+                        document.getElementById('addModuleDocTypeActive').checked = true;
+                        if (typeof Swal !== 'undefined') {
+                          Swal.fire({
+                            icon: 'success',
+                            title: 'Saved',
+                            text: data.message || 'Document type added.'
+                          }).then(function() {
+                            window.location.reload();
+                          });
+                        } else {
+                          window.location.reload();
+                        }
+                      } else {
+                        if (typeof Swal !== 'undefined') Swal.fire({
+                          icon: 'error',
+                          title: 'Error',
+                          text: data.message || 'Could not save.'
+                        });
+                      }
+                    })
+                    .catch(function() {
+                      if (btn) btn.disabled = false;
+                      if (typeof Swal !== 'undefined') Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Could not save document type.'
+                      });
+                    });
+                });
+              }
+            </script>
           </div>
         </div>
       </div>

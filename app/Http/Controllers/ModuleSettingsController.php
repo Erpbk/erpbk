@@ -431,9 +431,10 @@ class ModuleSettingsController extends Controller
             'type' => ['required', Rule::in(['single', 'dual'])],
             'front_label' => 'nullable|string|max:255',
             'back_label' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
         ]);
 
-        ModuleDocumentType::create([
+        $documentType = ModuleDocumentType::create([
             'module_key' => $module,
             'company_id' => optional(auth()->user())->company_id,
             'key' => trim((string) $validated['key']),
@@ -442,8 +443,16 @@ class ModuleSettingsController extends Controller
             'front_label' => $validated['front_label'] ?? null,
             'back_label' => $validated['back_label'] ?? null,
             'display_order' => ((int) ModuleDocumentType::where('module_key', $module)->max('display_order')) + 1,
-            'is_active' => true,
+            'is_active' => filter_var((string) ($validated['is_active'] ?? true), FILTER_VALIDATE_BOOLEAN),
         ]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Document type added.',
+                'id' => $documentType->id,
+            ]);
+        }
 
         return back()->with('success', 'Document type added.');
     }

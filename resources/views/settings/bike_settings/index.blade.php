@@ -1003,58 +1003,54 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
               });
             }
 
-            document.addEventListener('change', function (e) {
-              const requiredToggle = e.target.closest('.bike-field-required-toggle');
-              if (!requiredToggle) return;
+            if (!window.__moduleFieldToggleChangeBound) {
+              window.__moduleFieldToggleChangeBound = true;
 
-              const originalChecked = !requiredToggle.checked;
-              requiredToggle.disabled = true;
+              document.addEventListener('change', function (e) {
+                const toggle = e.target.closest('.bike-field-required-toggle, .bike-field-visibility-toggle');
+                if (!toggle) return;
+                if (toggle.dataset.updating === '1') return;
 
-              bikeUpdateFieldToggle(requiredToggle, 'is_required', requiredToggle.checked ? 1 : 0)
-                .then(function (data) {
-                  const isRequired = Number(data.is_required ? 1 : 0);
-                  requiredToggle.dataset.isRequiredCurrent = String(isRequired);
-                  requiredToggle.checked = !!isRequired;
-                  bikeSyncFieldToggles(requiredToggle.dataset.fieldKey, 'required', isRequired);
-                  document.querySelectorAll('.bike-field-visibility-toggle[data-field-key="' + requiredToggle.dataset.fieldKey + '"]')
-                    .forEach(function (el) {
-                      el.dataset.isRequiredCurrent = String(isRequired);
-                    });
-                })
-                .catch(function () {
-                  requiredToggle.checked = originalChecked;
-                })
-                .finally(function () {
-                  requiredToggle.disabled = false;
-                });
-            });
+                const isRequiredToggle = toggle.classList.contains('bike-field-required-toggle');
+                const changedKey = isRequiredToggle ? 'is_required' : 'is_visible';
+                const changedType = isRequiredToggle ? 'required' : 'visibility';
+                const originalChecked = !toggle.checked;
 
-            document.addEventListener('change', function (e) {
-              const visibilityToggle = e.target.closest('.bike-field-visibility-toggle');
-              if (!visibilityToggle) return;
+                toggle.dataset.updating = '1';
+                toggle.disabled = true;
 
-              const originalChecked = !visibilityToggle.checked;
-              visibilityToggle.disabled = true;
+                bikeUpdateFieldToggle(toggle, changedKey, toggle.checked ? 1 : 0)
+                  .then(function (data) {
+                    const isRequired = Number(data.is_required ? 1 : 0);
+                    const isVisible = Number(data.is_visible ? 1 : 0);
 
-              bikeUpdateFieldToggle(visibilityToggle, 'is_visible', visibilityToggle.checked ? 1 : 0)
-                .then(function (data) {
-                  const isVisible = Number(data.is_visible ? 1 : 0);
-                  visibilityToggle.dataset.isVisibleCurrent = String(isVisible);
-                  visibilityToggle.checked = !!isVisible;
-                  bikeSyncFieldToggles(visibilityToggle.dataset.fieldKey, 'visibility', isVisible);
-                  document.querySelectorAll('.bike-field-required-toggle[data-field-key="' + visibilityToggle.dataset.fieldKey + '"]')
-                    .forEach(function (el) {
-                      el.dataset.isVisibleCurrent = String(isVisible);
-                    });
+                    document.querySelectorAll('.bike-field-required-toggle[data-field-key="' + toggle.dataset.fieldKey + '"]')
+                      .forEach(function (el) {
+                        el.dataset.isRequiredCurrent = String(isRequired);
+                      });
 
-                })
-                .catch(function () {
-                  visibilityToggle.checked = originalChecked;
-                })
-                .finally(function () {
-                  visibilityToggle.disabled = false;
-                });
-            });
+                    document.querySelectorAll('.bike-field-visibility-toggle[data-field-key="' + toggle.dataset.fieldKey + '"]')
+                      .forEach(function (el) {
+                        el.dataset.isVisibleCurrent = String(isVisible);
+                      });
+
+                    if (isRequiredToggle) {
+                      toggle.checked = !!isRequired;
+                      bikeSyncFieldToggles(toggle.dataset.fieldKey, changedType, isRequired);
+                    } else {
+                      toggle.checked = !!isVisible;
+                      bikeSyncFieldToggles(toggle.dataset.fieldKey, changedType, isVisible);
+                    }
+                  })
+                  .catch(function () {
+                    toggle.checked = originalChecked;
+                  })
+                  .finally(function () {
+                    toggle.disabled = false;
+                    delete toggle.dataset.updating;
+                  });
+              });
+            }
           </script>
 
           {{-- Tab: Documents --}}

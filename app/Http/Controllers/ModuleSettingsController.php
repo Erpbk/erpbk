@@ -304,7 +304,7 @@ class ModuleSettingsController extends Controller
             'is_required' => 'nullable|boolean',
         ]);
 
-        ModuleFieldCategoryAssignment::updateOrCreate(
+        $assignment = ModuleFieldCategoryAssignment::updateOrCreate(
             ['module_key' => $module, 'field_key' => trim((string) $validated['field_key'])],
             [
                 'field_label' => $validated['field_label'] ?? null,
@@ -314,6 +314,16 @@ class ModuleSettingsController extends Controller
                 'is_required' => filter_var((string) ($validated['is_required'] ?? false), FILTER_VALIDATE_BOOLEAN),
             ]
         );
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Field assignment saved.',
+                'field_key' => $assignment->field_key,
+                'is_visible' => (bool) $assignment->is_visible,
+                'is_required' => (bool) $assignment->is_required,
+            ]);
+        }
 
         return back()->with('success', 'Field assignment saved.');
     }

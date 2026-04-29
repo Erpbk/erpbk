@@ -5,6 +5,41 @@ $tableColumns = $tableColumns ?? [];
 $exportRoute = $exportRoute ?? null;
 $tableIdentifier = $tableIdentifier ?? 'default_table';
 $fixedColumnsCount = 2; // Number of fixed action columns at the end (search, control)
+$explicitModuleKey = $moduleKey ?? null;
+$moduleSettingsMap = config('module_settings_sync.table_identifier_to_module', []);
+$resolvedModuleKey = $explicitModuleKey ?: ($moduleSettingsMap[$tableIdentifier] ?? null);
+
+if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment::class)) {
+    $assignmentRows = \App\Models\ModuleFieldCategoryAssignment::query()
+        ->where('module_key', $resolvedModuleKey)
+        ->get()
+        ->keyBy('field_key');
+
+    if ($assignmentRows->isNotEmpty()) {
+        $tableColumns = array_values(array_filter(array_map(function ($column) use ($assignmentRows) {
+            $columnKey = $column['data'] ?? $column['key'] ?? null;
+            if (!$columnKey || in_array($columnKey, ['search', 'control', 'action'], true)) {
+                return $column;
+            }
+
+            $assignment = $assignmentRows->get($columnKey);
+            if (!$assignment) {
+                return $column;
+            }
+
+            if (!(bool) $assignment->is_visible || empty($assignment->category_id)) {
+                return null;
+            }
+
+            $effectiveLabel = trim((string) ($assignment->display_label ?: $assignment->field_label ?: ''));
+            if ($effectiveLabel !== '') {
+                $column['title'] = $effectiveLabel;
+            }
+
+            return $column;
+        }, $tableColumns)));
+    }
+}
 @endphp
 
 <div id="columnControlSidebar" class="column-control-sidebar" style="z-index: 1111;">

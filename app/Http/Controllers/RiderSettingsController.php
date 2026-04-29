@@ -336,7 +336,16 @@ class RiderSettingsController extends Controller
         if (!in_array($validated['field_key'], $keys, true)) {
             return response()->json(['success' => false, 'message' => 'Invalid field.'], 422);
         }
-        $assignment = RiderFieldCategoryAssignment::firstOrNew(['field_key' => $validated['field_key']]);
+        $assignment = RiderFieldCategoryAssignment::withoutGlobalScope('company')
+            ->where('field_key', $validated['field_key'])
+            ->first();
+        if (!$assignment) {
+            $assignment = new RiderFieldCategoryAssignment();
+            $assignment->field_key = $validated['field_key'];
+            if (Schema::hasColumn($assignment->getTable(), 'company_id')) {
+                $assignment->company_id = auth()->user()->company_id ?? null;
+            }
+        }
         $newCategoryId = (int) $validated['category_id'];
         $assignment->category_id = $newCategoryId;
         if (!$assignment->exists || (int) $assignment->getOriginal('category_id') !== $newCategoryId) {

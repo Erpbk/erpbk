@@ -27,7 +27,7 @@
          <td>
             <span class="badge bg-{{ $r->rider_status['badge'] }}">{{ $r->rider_status['text'] }}</span>
          </td>
-         <td><a href="{{ route('bikeHistories.index') }}?bike_id={{ $r->bike->id }}" target="_blank">{{ $r->bike_no }}</a></td>
+         <td><a @if($r->bike) href="{{ route('bikeHistories.index') }}?bike_id={{ $r->bike->id }}" target="_blank" @else href="javascript:void(0);" @endif" >{{ $r->bike_no }}</a></td>
          <td>{{$r->total ?? 'N/A' }}</td>
          <td style="position: relative;">
             <div class="dropdown">

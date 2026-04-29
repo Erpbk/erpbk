@@ -431,7 +431,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('/item/{id}/price', [ItemsController::class, 'getPrice'])->name('item.price');
 
     Route::get('/get-item-price/{id}', [ItemsController::class, 'getItemPrice'])->name('item.getPrice');
-    Route::get('items/delete/{id}', [\App\Http\Controllers\ItemsController::class, 'destroy'])->name('items.delete');
+    Route::get('items/delete/{id}', [ItemsController::class, 'destroy'])->name('items.delete');
+    Route::get('/get-owners', [ItemsController::class, 'getOwners'])->name('get-owners');
 
     Route::resource('files', FilesController::class);
 

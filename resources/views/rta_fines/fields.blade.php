@@ -118,12 +118,11 @@
     {!! Form::textarea('detail', $rtaFines->detail ?? '', ['class' => 'form-control', 'maxlength' => 500,'rows'=>3, 'required']) !!}
 </div>
 <script type="text/javascript">
-    console.log('in rta fields');
     function selectbike(id) {
         if (id) {
             $.ajax({
                 type: 'get',
-                url: '{{ url("rtaFines/getrider") }}/' + id,
+                url: '{{ route("rtaFines.getrider","") }}/' + id,
                 success: function(res) {
                     $('#debit_account').html(res);
                 }

@@ -194,7 +194,9 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
 
                         <div class="col-md-6">
                           <label class="form-label">Dropdown Options (one per line)</label>
-                          <textarea name="config_options" rows="2" class="form-control" placeholder="Option 1&#10;Option 2"></textarea>
+                          <input type="hidden" name="config_options" id="addBikeFieldConfigOptionsHidden" value="">
+                          <div id="addBikeFieldOptionsRows" class="d-flex flex-column gap-2"></div>
+                          <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addBikeFieldOptionRowBtn">Add Option</button>
                         </div>
                       </div>
                     </div>
@@ -635,7 +637,9 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
 
                       <div class="col-md-12">
                         <label class="form-label">Dropdown options (one per line)</label>
-                        <textarea name="input_config_options" id="editBikeFixedInputConfigOptions" rows="2" class="form-control" placeholder="Option 1&#10;Option 2"></textarea>
+                        <input type="hidden" name="input_config_options" id="editBikeFixedInputConfigOptionsHidden" value="">
+                        <div id="editBikeFixedOptionsRows" class="d-flex flex-column gap-2"></div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="editBikeFixedOptionRowBtn">Add Option</button>
                       </div>
                     </div>
                   </div>
@@ -712,7 +716,9 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
 
                       <div class="col-md-12">
                         <label class="form-label">Config options (dropdown: one per line)</label>
-                        <textarea name="config_options" id="editBikeCustomConfigOptions" rows="2" class="form-control" placeholder="Option 1&#10;Option 2"></textarea>
+                        <input type="hidden" name="config_options" id="editBikeCustomConfigOptionsHidden" value="">
+                        <div id="editBikeCustomOptionsRows" class="d-flex flex-column gap-2"></div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="editBikeCustomOptionRowBtn">Add Option</button>
                       </div>
                     </div>
                   </div>
@@ -735,6 +741,104 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                 return fallback;
               }
             }
+
+            function bikeParseOptionLines(raw) {
+              return String(raw || '')
+                .split(/\r?\n/)
+                .map(function (s) {
+                  return s.trim();
+                })
+                .filter(function (s) {
+                  return s.length > 0;
+                });
+            }
+
+            function bikeSyncOptionsToHidden(container, hiddenInput) {
+              if (!container || !hiddenInput) return;
+              const items = Array.prototype.slice.call(container.querySelectorAll('input[type="text"]'))
+                .map(function (el) {
+                  return (el.value || '').trim();
+                })
+                .filter(function (v) {
+                  return v.length > 0;
+                });
+              hiddenInput.value = items.join('\n');
+            }
+
+            function bikeCreateOptionRow(container, hiddenInput, initialValue) {
+              const row = document.createElement('div');
+              row.className = 'd-flex align-items-center gap-2';
+
+              const rowInput = document.createElement('input');
+              rowInput.type = 'text';
+              rowInput.className = 'form-control';
+              rowInput.placeholder = 'Option value';
+              rowInput.value = initialValue || '';
+              rowInput.addEventListener('input', function () {
+                bikeSyncOptionsToHidden(container, hiddenInput);
+              });
+
+              const removeBtn = document.createElement('button');
+              removeBtn.type = 'button';
+              removeBtn.className = 'btn btn-sm btn-outline-danger';
+              removeBtn.textContent = 'Remove';
+              removeBtn.addEventListener('click', function () {
+                row.remove();
+                bikeSyncOptionsToHidden(container, hiddenInput);
+              });
+
+              row.appendChild(rowInput);
+              row.appendChild(removeBtn);
+              container.appendChild(row);
+              bikeSyncOptionsToHidden(container, hiddenInput);
+            }
+
+            function bikeRenderOptionRows(container, hiddenInput, rawOptions) {
+              if (!container || !hiddenInput) return;
+              container.innerHTML = '';
+              const items = bikeParseOptionLines(rawOptions);
+              if (!items.length) {
+                bikeCreateOptionRow(container, hiddenInput, '');
+                return;
+              }
+              items.forEach(function (item) {
+                bikeCreateOptionRow(container, hiddenInput, item);
+              });
+            }
+
+            function bikeInitOptionRowButtons() {
+              // Add modal (new custom field)
+              const addBtn = document.getElementById('addBikeFieldOptionRowBtn');
+              const rows = document.getElementById('addBikeFieldOptionsRows');
+              const hidden = document.getElementById('addBikeFieldConfigOptionsHidden');
+              if (addBtn && rows && hidden) {
+                addBtn.addEventListener('click', function () {
+                  bikeCreateOptionRow(rows, hidden, '');
+                });
+              }
+
+              // Edit fixed field modal
+              const editFixedAddBtn = document.getElementById('editBikeFixedOptionRowBtn');
+              const editFixedRows = document.getElementById('editBikeFixedOptionsRows');
+              const editFixedHidden = document.getElementById('editBikeFixedInputConfigOptionsHidden');
+              if (editFixedAddBtn && editFixedRows && editFixedHidden) {
+                editFixedAddBtn.addEventListener('click', function () {
+                  bikeCreateOptionRow(editFixedRows, editFixedHidden, '');
+                });
+              }
+
+              // Edit custom field modal
+              const editCustomAddBtn = document.getElementById('editBikeCustomOptionRowBtn');
+              const editCustomRows = document.getElementById('editBikeCustomOptionsRows');
+              const editCustomHidden = document.getElementById('editBikeCustomConfigOptionsHidden');
+              if (editCustomAddBtn && editCustomRows && editCustomHidden) {
+                editCustomAddBtn.addEventListener('click', function () {
+                  bikeCreateOptionRow(editCustomRows, editCustomHidden, '');
+                });
+              }
+            }
+
+            bikeInitOptionRowButtons();
 
             document.addEventListener('show.bs.modal', function (e) {
               const modalId = e.target && e.target.id ? e.target.id : null;
@@ -759,7 +863,11 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
 
                 const configOptionsRaw = btn.dataset.inputConfigOptions;
                 const configOptions = bikeSafeJsonParse(configOptionsRaw, '');
-                document.getElementById('editBikeFixedInputConfigOptions').value = configOptions || '';
+                bikeRenderOptionRows(
+                  document.getElementById('editBikeFixedOptionsRows'),
+                  document.getElementById('editBikeFixedInputConfigOptionsHidden'),
+                  configOptions || ''
+                );
               }
 
               // Custom field edit
@@ -788,7 +896,11 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
 
                 const configOptionsRaw = btn.dataset.configOptions;
                 const configOptions = bikeSafeJsonParse(configOptionsRaw, '');
-                document.getElementById('editBikeCustomConfigOptions').value = configOptions || '';
+                bikeRenderOptionRows(
+                  document.getElementById('editBikeCustomOptionsRows'),
+                  document.getElementById('editBikeCustomConfigOptionsHidden'),
+                  configOptions || ''
+                );
               }
             });
           </script>

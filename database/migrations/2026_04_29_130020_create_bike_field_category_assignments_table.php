@@ -97,16 +97,9 @@ return new class extends Migration
         // Seed all fields with default assignments (order by column name).
         sort($fieldKeys);
         $displayOrderByCategory = [];
-        $requiredDefaults = [
-            'branch_id',
-            'plate',
-            'vehicle_type',
-            'chassis_number',
-            'color',
-            'model',
-            'model_type',
-            'engine',
-        ];
+        // By default, fixed fields are NOT required.
+        // Users decide requiredness from Bike Settings (bike_field_category_assignments.is_required).
+        $requiredDefaults = [];
         foreach ($fieldKeys as $fieldKey) {
             $categoryId = (int) ($resolvedCategoryForField[$fieldKey] ?? $otherId);
             if (!isset($displayOrderByCategory[$categoryId])) {

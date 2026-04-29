@@ -136,7 +136,11 @@
                     $value == 1 || $value === true,
                     ['class' => 'form-check-input', 'id' => 'field_' . $item->field_key]
                 ) !!}
-                {!! Form::label('field_' . $item->field_key, $item->field_key === 'status' ? 'Is Active' : $item->label, ['class' => 'form-check-label pt-0']) !!}
+                {!! Form::label(
+                    'field_' . $item->field_key,
+                    $item->field_key === 'status' ? 'Is Active' : $item->label,
+                    ['class' => 'form-check-label pt-0' . ($req ? ' required' : '')]
+                ) !!}
             </div>
         @else
             {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}

@@ -273,6 +273,8 @@ class BikeCustomField extends BaseModel
                         $spec['type'] = $a->input_type === 'dropdown' ? 'select' : $a->input_type;
                     }
 
+                    $spec['required'] = (bool) ($a->is_required ?? false);
+
                     if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
                         $spec['options'] = $a->input_config['options'];
                     }

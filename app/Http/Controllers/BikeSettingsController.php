@@ -71,7 +71,13 @@ class BikeSettingsController extends Controller
             ->orderBy('category_id')
             ->orderBy('display_order')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->filter(function ($assignment) {
+                // Keep Bike Field Settings aligned with Bike create/edit/info visibility.
+                // If fixed field is hidden from Bike module, hide it here too.
+                return $assignment->is_visible === null || (bool) $assignment->is_visible;
+            })
+            ->values();
 
         $fixedAssignmentsByCategory = $fixedAssignments->groupBy('category_id');
 
@@ -79,7 +85,13 @@ class BikeSettingsController extends Controller
             ->orderBy('category_id')
             ->orderBy('display_order')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->filter(function ($field) {
+                // Unassigned custom fields are not rendered in Bike create/edit/info,
+                // so hide them in Bike Field Settings to avoid user confusion.
+                return !empty($field->category_id);
+            })
+            ->values();
 
         $customFieldsByCategory = $customFields->groupBy('category_id');
 

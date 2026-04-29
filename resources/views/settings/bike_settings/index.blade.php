@@ -276,6 +276,10 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                       @php
                       $fieldLabel = $row->display_label ? $row->display_label : \App\Models\BikeCustomField::humanizeFieldKey($row->field_key);
                       $categoryLabel = $row->category?->label ?? '';
+                      $inputOptions = '';
+                      if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
+                        $inputOptions = (string) $row->input_config['options'];
+                      }
                       @endphp
                       <tr>
                         <td class="align-middle">{{ $rowIndex + 1 }}</td>
@@ -286,8 +290,36 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                         <td class="align-middle">
                           <span class="badge bg-label-info">{{ $categoryLabel }}</span>
                         </td>
-                        <td class="align-middle text-center">{{ ($row->is_required ?? false) ? 'Yes' : 'No' }}</td>
-                        <td class="align-middle text-center">{{ ($row->is_visible ?? true) ? 'Yes' : 'No' }}</td>
+                        <td class="align-middle text-center">
+                          <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-inline-block">
+                            @csrf
+                            <input type="hidden" name="field_key" value="{{ $row->field_key }}">
+                            <input type="hidden" name="category_id" value="{{ $row->category_id }}">
+                            <input type="hidden" name="display_label" value="{{ $row->display_label }}">
+                            <input type="hidden" name="is_visible" value="{{ ($row->is_visible ?? true) ? 1 : 0 }}">
+                            <input type="hidden" name="input_type" value="{{ $row->input_type }}">
+                            <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
+                            <input type="hidden" name="is_required" value="0">
+                            <div class="form-check form-switch d-inline-block mb-0">
+                              <input type="checkbox" class="form-check-input" name="is_required" value="1" {{ ($row->is_required ?? false) ? 'checked' : '' }} onchange="this.form.submit()">
+                            </div>
+                          </form>
+                        </td>
+                        <td class="align-middle text-center">
+                          <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-inline-block">
+                            @csrf
+                            <input type="hidden" name="field_key" value="{{ $row->field_key }}">
+                            <input type="hidden" name="category_id" value="{{ $row->category_id }}">
+                            <input type="hidden" name="display_label" value="{{ $row->display_label }}">
+                            <input type="hidden" name="is_required" value="{{ ($row->is_required ?? false) ? 1 : 0 }}">
+                            <input type="hidden" name="input_type" value="{{ $row->input_type }}">
+                            <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
+                            <input type="hidden" name="is_visible" value="0">
+                            <div class="form-check form-switch d-inline-block mb-0">
+                              <input type="checkbox" class="form-check-input" name="is_visible" value="1" {{ ($row->is_visible ?? true) ? 'checked' : '' }} onchange="this.form.submit()">
+                            </div>
+                          </form>
+                        </td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
@@ -296,12 +328,6 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                             <input type="hidden" name="is_visible" value="{{ ($row->is_visible ?? true) ? 1 : 0 }}">
                             <input type="hidden" name="is_required" value="{{ ($row->is_required ?? false) ? 1 : 0 }}">
                             <input type="hidden" name="input_type" value="{{ $row->input_type }}">
-                            @php
-                            $inputOptions = '';
-                            if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
-                            $inputOptions = (string)$row->input_config['options'];
-                            }
-                            @endphp
                             <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
 
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
@@ -447,6 +473,10 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                       @foreach($fixedRows as $rowIndex => $row)
                       @php
                       $fieldLabel = $row->display_label ? $row->display_label : \App\Models\BikeCustomField::humanizeFieldKey($row->field_key);
+                      $inputOptions = '';
+                      if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
+                        $inputOptions = (string) $row->input_config['options'];
+                      }
                       @endphp
                       <tr>
                         <td class="align-middle"></td>
@@ -454,8 +484,36 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                           <span class="fw-semibold">{{ $fieldLabel }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
-                        <td class="align-middle text-center">{{ ($row->is_required ?? false) ? 'Yes' : 'No' }}</td>
-                        <td class="align-middle text-center">{{ ($row->is_visible ?? true) ? 'Yes' : 'No' }}</td>
+                        <td class="align-middle text-center">
+                          <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-inline-block">
+                            @csrf
+                            <input type="hidden" name="field_key" value="{{ $row->field_key }}">
+                            <input type="hidden" name="category_id" value="{{ $row->category_id }}">
+                            <input type="hidden" name="display_label" value="{{ $row->display_label }}">
+                            <input type="hidden" name="is_visible" value="{{ ($row->is_visible ?? true) ? 1 : 0 }}">
+                            <input type="hidden" name="input_type" value="{{ $row->input_type }}">
+                            <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
+                            <input type="hidden" name="is_required" value="0">
+                            <div class="form-check form-switch d-inline-block mb-0">
+                              <input type="checkbox" class="form-check-input" name="is_required" value="1" {{ ($row->is_required ?? false) ? 'checked' : '' }} onchange="this.form.submit()">
+                            </div>
+                          </form>
+                        </td>
+                        <td class="align-middle text-center">
+                          <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-inline-block">
+                            @csrf
+                            <input type="hidden" name="field_key" value="{{ $row->field_key }}">
+                            <input type="hidden" name="category_id" value="{{ $row->category_id }}">
+                            <input type="hidden" name="display_label" value="{{ $row->display_label }}">
+                            <input type="hidden" name="is_required" value="{{ ($row->is_required ?? false) ? 1 : 0 }}">
+                            <input type="hidden" name="input_type" value="{{ $row->input_type }}">
+                            <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
+                            <input type="hidden" name="is_visible" value="0">
+                            <div class="form-check form-switch d-inline-block mb-0">
+                              <input type="checkbox" class="form-check-input" name="is_visible" value="1" {{ ($row->is_visible ?? true) ? 'checked' : '' }} onchange="this.form.submit()">
+                            </div>
+                          </form>
+                        </td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
@@ -464,12 +522,6 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                             <input type="hidden" name="is_visible" value="{{ ($row->is_visible ?? true) ? 1 : 0 }}">
                             <input type="hidden" name="is_required" value="{{ ($row->is_required ?? false) ? 1 : 0 }}">
                             <input type="hidden" name="input_type" value="{{ $row->input_type }}">
-                            @php
-                            $inputOptions = '';
-                            if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
-                            $inputOptions = (string)$row->input_config['options'];
-                            }
-                            @endphp
                             <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
 
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>

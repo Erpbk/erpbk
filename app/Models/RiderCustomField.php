@@ -479,6 +479,17 @@ class RiderCustomField extends BaseModel
                         ? trim($a->display_label)
                         : self::humanizeFieldKey($a->field_key);
                     $spec = $specs[$a->field_key] ?? ['type' => 'text'];
+
+                    // Rider Settings can override a fixed field's input type + config (e.g. dropdown options).
+                    // The rider module renderer reads from "$spec", so we merge relevant config here.
+                    if (!empty($a->input_type)) {
+                        // The renderer expects HTML-ish types: dropdown -> select, checkbox stays checkbox.
+                        $spec['type'] = $a->input_type === 'dropdown' ? 'select' : $a->input_type;
+                    }
+                    if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
+                        $spec['options'] = $a->input_config['options'];
+                    }
+
                     $fields[] = (object) [
                         'kind' => 'fixed',
                         'field_key' => $a->field_key,

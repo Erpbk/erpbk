@@ -328,6 +328,39 @@ class ModuleSettingsController extends Controller
         return back()->with('success', 'Field assignment saved.');
     }
 
+    public function reorderFieldAssignments(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        $validated = $request->validate([
+            'category_id' => ['required', 'integer', $this->categoryBelongsToModuleRule($module)],
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'string', 'max:120'],
+        ]);
+
+        $categoryId = (int) $validated['category_id'];
+        $order = array_values(array_unique(array_map('strval', $validated['order'])));
+
+        $allowedKeys = ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $module)
+            ->where('category_id', $categoryId)
+            ->pluck('field_key')
+            ->map(fn ($v) => (string) $v)
+            ->all();
+
+        $position = 0;
+        foreach ($order as $fieldKey) {
+            if (!in_array($fieldKey, $allowedKeys, true)) {
+                continue;
+            }
+            ModuleFieldCategoryAssignment::where('module_key', $module)
+                ->where('category_id', $categoryId)
+                ->where('field_key', $fieldKey)
+                ->update(['display_order' => $position++]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
     public function storeField(Request $request, string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);
@@ -420,6 +453,41 @@ class ModuleSettingsController extends Controller
         ModuleCustomField::where('module_key', $module)->where('id', $id)->delete();
 
         return back()->with('success', 'Custom field deleted.');
+    }
+
+    public function reorderFields(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        $validated = $request->validate([
+            'category_id' => ['nullable', 'integer', $this->categoryBelongsToModuleRule($module)],
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'integer', 'exists:module_custom_fields,id'],
+        ]);
+
+        $categoryId = $validated['category_id'] ?? null;
+        $order = array_values(array_unique(array_map('intval', $validated['order'])));
+
+        $query = ModuleCustomField::query()
+            ->where('module_key', $module)
+            ->whereIn('id', $order);
+        if ($categoryId === null) {
+            $query->whereNull('category_id');
+        } else {
+            $query->where('category_id', (int) $categoryId);
+        }
+        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->all();
+
+        $position = 0;
+        foreach ($order as $id) {
+            if (!in_array($id, $allowedIds, true)) {
+                continue;
+            }
+            ModuleCustomField::where('module_key', $module)
+                ->where('id', $id)
+                ->update(['display_order' => $position++]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
     }
 
     public function storeDocumentType(Request $request, string $company_slug, string $module)

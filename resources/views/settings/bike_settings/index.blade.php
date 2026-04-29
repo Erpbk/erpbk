@@ -334,6 +334,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                             <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
 
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
+                              <option value="">Select category</option>
                               @foreach($categories as $dst)
                               <option value="{{ $dst->id }}" {{ (int)$row->category_id === (int)$dst->id ? 'selected' : '' }}>
                                 {{ $dst->label }}
@@ -394,6 +395,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
+                              <option value="">Select category</option>
                               @foreach($categories as $dst)
                               <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>
                                 {{ $dst->label }}
@@ -472,7 +474,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                         <th class="text-end">Actions</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="bike-fields-sortable-tbody" data-category-id="{{ $cat->id }}">
                       @foreach($fixedRows as $rowIndex => $row)
                       @php
                       $fieldLabel = $row->display_label ? $row->display_label : \App\Models\BikeCustomField::humanizeFieldKey($row->field_key);
@@ -481,8 +483,8 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                         $inputOptions = (string) $row->input_config['options'];
                       }
                       @endphp
-                      <tr>
-                        <td class="align-middle"></td>
+                      <tr data-bike-field-key="{{ $row->field_key }}">
+                        <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle">
                           <span class="fw-semibold">{{ $fieldLabel }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
@@ -524,6 +526,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                             <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
 
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
+                              <option value="">Select category</option>
                               @foreach($categories as $dst)
                               <option value="{{ $dst->id }}" {{ (int)$cat->id === (int)$dst->id ? 'selected' : '' }}>{{ $dst->label }}</option>
                               @endforeach
@@ -557,7 +560,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                       @endforeach
 
                       @foreach($customRows as $customIndex => $customField)
-                      <tr class="table-light">
+                      <tr class="table-light" data-id="{{ $customField->id }}">
                         <td class="align-middle"></td>
                         <td class="align-middle">
                           <span class="fw-semibold">{{ $customField->label }}</span>
@@ -569,6 +572,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
+                              <option value="">Select category</option>
                               @foreach($categories as $dst)
                               <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>
                                 {{ $dst->label }}
@@ -1051,6 +1055,48 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                   });
               });
             }
+
+            function initBikeFieldSortables() {
+              if (typeof Sortable === 'undefined') return;
+              document.querySelectorAll('.bike-fields-sortable-tbody').forEach(function(tbody) {
+                if (tbody.dataset.sortableInit === '1') return;
+                var categoryId = tbody.getAttribute('data-category-id');
+                if (!categoryId) return;
+
+                new Sortable(tbody, {
+                  handle: '.drag-handle',
+                  draggable: 'tr[data-bike-field-key]',
+                  animation: 150,
+                  ghostClass: 'table-warning',
+                  onEnd: function() {
+                    var order = Array.from(tbody.querySelectorAll('tr[data-bike-field-key]')).map(function(tr) {
+                      return tr.getAttribute('data-bike-field-key');
+                    });
+                    fetch("{{ route($settingsRoutePrefix . '.reorder-field-assignments', $settingsRouteParams) }}", {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                      },
+                      body: JSON.stringify({
+                        category_id: parseInt(categoryId, 10),
+                        order: order
+                      })
+                    });
+                  }
+                });
+                tbody.dataset.sortableInit = '1';
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', initBikeFieldSortables);
+            document.querySelectorAll('#bikeFieldsCategoryTabs [data-bs-toggle="tab"]').forEach(function(tabBtn) {
+              tabBtn.addEventListener('shown.bs.tab', function() {
+                setTimeout(initBikeFieldSortables, 50);
+              });
+            });
           </script>
 
           {{-- Tab: Documents --}}

@@ -40,7 +40,7 @@
         @endphp
 
         @if (($spec['type'] ?? 'text') === 'select')
-            {!! Form::label($item->field_key, $item->label . ($req ? ' *' : ''), $req ? ['class' => 'required'] : []) !!}
+            {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
             @php
                 $dropdownKey = $spec['dropdown'] ?? null;
                 $opts = [];
@@ -117,7 +117,7 @@
                 ]
             ) !!}
         @elseif (($spec['type'] ?? '') === 'textarea')
-            {!! Form::label($item->field_key, $item->label . ($req ? ' *' : ''), $req ? ['class' => 'required'] : []) !!}
+            {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
             {!! Form::textarea(
                 $item->field_key,
                 $value,
@@ -136,14 +136,14 @@
                     $value == 1 || $value === true,
                     ['class' => 'form-check-input', 'id' => 'field_' . $item->field_key]
                 ) !!}
-            {!! Form::label(
+                {!! Form::label(
                     'field_' . $item->field_key,
-                    ($item->field_key === 'status' ? 'Is Active' : $item->label) . ($req ? ' *' : ''),
+                    $item->field_key === 'status' ? 'Is Active' : $item->label,
                     ['class' => 'form-check-label pt-0' . ($req ? ' required' : '')]
                 ) !!}
             </div>
         @else
-            {!! Form::label($item->field_key, $item->label . ($req ? ' *' : ''), $req ? ['class' => 'required'] : []) !!}
+            {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
             {!! Form::input(
                 $spec['type'] ?? 'text',
                 $item->field_key,
@@ -167,7 +167,7 @@
             $f = $item->field;
             $req = $f->is_mandatory ?? false;
         @endphp
-        {!! Form::label($name, $f->label . ($req ? ' *' : ''), $req ? ['class' => 'required'] : []) !!}
+        {!! Form::label($name, $f->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
         @if ($f->help_text)
             <p class="form-text small text-muted mb-1">{{ $f->help_text }}</p>
         @endif

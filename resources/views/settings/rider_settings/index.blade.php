@@ -319,7 +319,7 @@
               </li>
               @foreach($fieldsByCategory as $idx => $group)
               @php
-                $categoryCustomFields = ($customFieldsByCategory ?? collect())->get($group->category->id, collect());
+              $categoryCustomFields = ($customFieldsByCategory ?? collect())->get($group->category->id, collect());
               @endphp
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="rider-cat-{{ $group->category->id }}-tab" data-bs-toggle="tab" data-bs-target="#rider-field-cat-{{ $group->category->id }}" type="button" role="tab">
@@ -350,7 +350,7 @@
                       <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $row->category_id ?? '' }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
                         <td class="align-middle">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}@if($row->is_required ?? false) <span class="text-danger">*</span>@endif</span>
+                          <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
                         <td class="align-middle">
@@ -407,7 +407,7 @@
                       <tr class="table-light">
                         <td class="align-middle">{{ count($allFixedFieldsForStatic ?? []) + $customIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $customField->label }}@if($customField->is_mandatory ?? false) <span class="text-danger">*</span>@endif</span>
+                          <span class="fw-semibold">{{ $customField->label }}</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
                         <td class="align-middle">
@@ -488,8 +488,8 @@
 
               @foreach($fieldsByCategory as $idx => $group)
               @php
-                $categoryCustomFields = ($customFieldsByCategory ?? collect())->get($group->category->id, collect());
-                $fixedCount = count($group->fields);
+              $categoryCustomFields = ($customFieldsByCategory ?? collect())->get($group->category->id, collect());
+              $fixedCount = count($group->fields);
               @endphp
               <div class="tab-pane fade" id="rider-field-cat-{{ $group->category->id }}" role="tabpanel" data-category-id="{{ $group->category->id }}">
                 <div class="table-responsive">
@@ -511,7 +511,7 @@
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle rider-field-index">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}@if($row->is_required ?? false) <span class="text-danger">*</span>@endif</span>
+                          <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
                         <td class="align-middle text-center">
@@ -564,7 +564,7 @@
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle rider-custom-field-index">{{ $fixedCount + $customIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $customField->label }}@if($customField->is_mandatory ?? false) <span class="text-danger">*</span>@endif</span>
+                          <span class="fw-semibold">{{ $customField->label }}</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
                         <td class="align-middle text-center">
@@ -1232,7 +1232,9 @@
   (function() {
     'use strict';
 
-    const dataTypesMeta = {!! json_encode($dataTypes, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!};
+    const dataTypesMeta = {
+      !!json_encode($dataTypes, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!
+    };
 
     function buildConfigFields(container, typeKey, existingConfig) {
       container.innerHTML = '';
@@ -2717,6 +2719,7 @@
 
     // Sortable for rider categories (manual reorder)
     var riderCategoriesSortable = null;
+
     function initRiderCategoriesSortable() {
       var tbody = document.getElementById('riderCategoriesTbody');
       if (!tbody || typeof Sortable === 'undefined') return;

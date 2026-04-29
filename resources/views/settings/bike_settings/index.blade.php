@@ -285,13 +285,13 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                       $categoryLabel = $row->category?->label ?? '';
                       $inputOptions = '';
                       if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
-                        $inputOptions = (string) $row->input_config['options'];
+                      $inputOptions = (string) $row->input_config['options'];
                       }
                       @endphp
                       <tr data-bike-field-key="{{ $row->field_key }}">
                         <td class="align-middle">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $fieldLabel }}@if($row->is_required ?? false) <span class="text-danger">*</span>@endif</span>
+                          <span class="fw-semibold">{{ $fieldLabel }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
                         <td class="align-middle">
@@ -346,10 +346,10 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                         </td>
                         <td class="align-middle text-end">
                           @php
-                            $fixedInputOptions = '';
-                            if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
-                              $fixedInputOptions = (string) $row->input_config['options'];
-                            }
+                          $fixedInputOptions = '';
+                          if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
+                          $fixedInputOptions = (string) $row->input_config['options'];
+                          }
                           @endphp
                           <button type="button"
                             class="btn btn-sm btn-outline-primary btn-edit-bike-fixed-field"
@@ -379,7 +379,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                       <tr class="table-light">
                         <td class="align-middle">{{ $customStart + $customIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $customField->label }}@if($isReq) <span class="text-danger">*</span>@endif</span>
+                          <span class="fw-semibold">{{ $customField->label }}</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
                         <td class="align-middle">
@@ -407,10 +407,10 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                         </td>
                         <td class="align-middle text-end">
                           @php
-                            $customConfigOptions = '';
-                            if (is_array($customField->config ?? null) && isset($customField->config['options'])) {
-                              $customConfigOptions = (string) $customField->config['options'];
-                            }
+                          $customConfigOptions = '';
+                          if (is_array($customField->config ?? null) && isset($customField->config['options'])) {
+                          $customConfigOptions = (string) $customField->config['options'];
+                          }
                           @endphp
                           <button type="button"
                             class="btn btn-sm btn-outline-primary btn-edit-bike-custom-field"
@@ -444,7 +444,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                       @endforeach
                       @if(($fixedList ?? collect())->isEmpty() && ($customFields ?? collect())->isEmpty())
                       <tr>
-                          <td colspan="7" class="text-center text-muted py-3">No bike fields configured yet.</td>
+                        <td colspan="7" class="text-center text-muted py-3">No bike fields configured yet.</td>
                       </tr>
                       @endif
                     </tbody>
@@ -480,13 +480,13 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                       $fieldLabel = $row->display_label ? $row->display_label : \App\Models\BikeCustomField::humanizeFieldKey($row->field_key);
                       $inputOptions = '';
                       if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
-                        $inputOptions = (string) $row->input_config['options'];
+                      $inputOptions = (string) $row->input_config['options'];
                       }
                       @endphp
                       <tr data-bike-field-key="{{ $row->field_key }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $fieldLabel }}@if($row->is_required ?? false) <span class="text-danger">*</span>@endif</span>
+                          <span class="fw-semibold">{{ $fieldLabel }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
                         <td class="align-middle text-center">
@@ -536,10 +536,10 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                         </td>
                         <td class="align-middle text-end">
                           @php
-                            $fixedInputOptions = '';
-                            if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
-                              $fixedInputOptions = (string) $row->input_config['options'];
-                            }
+                          $fixedInputOptions = '';
+                          if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
+                          $fixedInputOptions = (string) $row->input_config['options'];
+                          }
                           @endphp
                           <button type="button"
                             class="btn btn-sm btn-outline-primary btn-edit-bike-fixed-field"
@@ -563,7 +563,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                       <tr class="table-light" data-id="{{ $customField->id }}">
                         <td class="align-middle"></td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $customField->label }}@if(($customField->is_mandatory ?? false)) <span class="text-danger">*</span>@endif</span>
+                          <span class="fw-semibold">{{ $customField->label }}</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
                         <td class="align-middle text-center">{{ ($customField->is_mandatory ?? false) ? 'Yes' : 'No' }}</td>
@@ -584,10 +584,10 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                         </td>
                         <td class="align-middle text-end">
                           @php
-                            $customConfigOptions = '';
-                            if (is_array($customField->config ?? null) && isset($customField->config['options'])) {
-                              $customConfigOptions = (string) $customField->config['options'];
-                            }
+                          $customConfigOptions = '';
+                          if (is_array($customField->config ?? null) && isset($customField->config['options'])) {
+                          $customConfigOptions = (string) $customField->config['options'];
+                          }
                           @endphp
                           <button type="button"
                             class="btn btn-sm btn-outline-primary btn-edit-bike-custom-field"
@@ -660,7 +660,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                         <label class="form-label">Category</label>
                         <select name="category_id" id="editBikeFixedCategoryId" class="form-select" required>
                           @foreach($categories as $cat)
-                            <option value="{{ $cat->id }}">{{ $cat->label }}</option>
+                          <option value="{{ $cat->id }}">{{ $cat->label }}</option>
                           @endforeach
                         </select>
                       </div>
@@ -685,7 +685,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                         <label class="form-label">Input type</label>
                         <select name="input_type" id="editBikeFixedInputType" class="form-select">
                           @foreach(['text','textarea','number','decimal','date','datetime','dropdown','checkbox'] as $t)
-                            <option value="{{ $t }}">{{ ucfirst($t) }}</option>
+                          <option value="{{ $t }}">{{ ucfirst($t) }}</option>
                           @endforeach
                         </select>
                       </div>
@@ -736,7 +736,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                         <label class="form-label">Data type</label>
                         <select name="data_type" id="editBikeCustomDataType" class="form-select" required>
                           @foreach($dataTypes as $typeKey => $spec)
-                            <option value="{{ $typeKey }}">{{ $spec['label'] }}</option>
+                          <option value="{{ $typeKey }}">{{ $spec['label'] }}</option>
                           @endforeach
                         </select>
                       </div>
@@ -754,7 +754,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                         <select name="category_id" id="editBikeCustomCategoryId" class="form-select">
                           <option value="">Unassigned</option>
                           @foreach($categories as $cat)
-                            <option value="{{ $cat->id }}">{{ $cat->label }}</option>
+                          <option value="{{ $cat->id }}">{{ $cat->label }}</option>
                           @endforeach
                         </select>
                       </div>
@@ -800,10 +800,10 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
             function bikeParseOptionLines(raw) {
               return String(raw || '')
                 .split(/\r?\n/)
-                .map(function (s) {
+                .map(function(s) {
                   return s.trim();
                 })
-                .filter(function (s) {
+                .filter(function(s) {
                   return s.length > 0;
                 });
             }
@@ -811,10 +811,10 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
             function bikeSyncOptionsToHidden(container, hiddenInput) {
               if (!container || !hiddenInput) return;
               const items = Array.prototype.slice.call(container.querySelectorAll('input[type="text"]'))
-                .map(function (el) {
+                .map(function(el) {
                   return (el.value || '').trim();
                 })
-                .filter(function (v) {
+                .filter(function(v) {
                   return v.length > 0;
                 });
               hiddenInput.value = items.join('\n');
@@ -829,7 +829,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
               rowInput.className = 'form-control';
               rowInput.placeholder = 'Option value';
               rowInput.value = initialValue || '';
-              rowInput.addEventListener('input', function () {
+              rowInput.addEventListener('input', function() {
                 bikeSyncOptionsToHidden(container, hiddenInput);
               });
 
@@ -837,7 +837,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
               removeBtn.type = 'button';
               removeBtn.className = 'btn btn-sm btn-outline-danger';
               removeBtn.textContent = 'Remove';
-              removeBtn.addEventListener('click', function () {
+              removeBtn.addEventListener('click', function() {
                 row.remove();
                 bikeSyncOptionsToHidden(container, hiddenInput);
               });
@@ -856,7 +856,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                 bikeCreateOptionRow(container, hiddenInput, '');
                 return;
               }
-              items.forEach(function (item) {
+              items.forEach(function(item) {
                 bikeCreateOptionRow(container, hiddenInput, item);
               });
             }
@@ -867,7 +867,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
               const rows = document.getElementById('addBikeFieldOptionsRows');
               const hidden = document.getElementById('addBikeFieldConfigOptionsHidden');
               if (addBtn && rows && hidden) {
-                addBtn.addEventListener('click', function () {
+                addBtn.addEventListener('click', function() {
                   bikeCreateOptionRow(rows, hidden, '');
                 });
               }
@@ -877,7 +877,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
               const editFixedRows = document.getElementById('editBikeFixedOptionsRows');
               const editFixedHidden = document.getElementById('editBikeFixedInputConfigOptionsHidden');
               if (editFixedAddBtn && editFixedRows && editFixedHidden) {
-                editFixedAddBtn.addEventListener('click', function () {
+                editFixedAddBtn.addEventListener('click', function() {
                   bikeCreateOptionRow(editFixedRows, editFixedHidden, '');
                 });
               }
@@ -887,7 +887,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
               const editCustomRows = document.getElementById('editBikeCustomOptionsRows');
               const editCustomHidden = document.getElementById('editBikeCustomConfigOptionsHidden');
               if (editCustomAddBtn && editCustomRows && editCustomHidden) {
-                editCustomAddBtn.addEventListener('click', function () {
+                editCustomAddBtn.addEventListener('click', function() {
                   bikeCreateOptionRow(editCustomRows, editCustomHidden, '');
                 });
               }
@@ -895,7 +895,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
 
             bikeInitOptionRowButtons();
 
-            document.addEventListener('show.bs.modal', function (e) {
+            document.addEventListener('show.bs.modal', function(e) {
               const modalId = e.target && e.target.id ? e.target.id : null;
               const btn = e.relatedTarget;
               if (!modalId || !btn) return;
@@ -960,10 +960,10 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
             });
 
             function bikeSyncFieldToggles(fieldKey, type, value) {
-              const selector = type === 'required'
-                ? '.bike-field-required-toggle[data-field-key="' + fieldKey + '"]'
-                : '.bike-field-visibility-toggle[data-field-key="' + fieldKey + '"]';
-              document.querySelectorAll(selector).forEach(function (el) {
+              const selector = type === 'required' ?
+                '.bike-field-required-toggle[data-field-key="' + fieldKey + '"]' :
+                '.bike-field-visibility-toggle[data-field-key="' + fieldKey + '"]';
+              document.querySelectorAll(selector).forEach(function(el) {
                 el.checked = !!value;
               });
             }
@@ -981,12 +981,12 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
               payload.append('input_type', toggleEl.dataset.inputType || '');
               payload.append('input_config_options', toggleEl.dataset.inputConfigOptions || '');
 
-              const isRequired = changedKey === 'is_required'
-                ? changedValue
-                : Number(toggleEl.dataset.isRequiredCurrent || 0);
-              const isVisible = changedKey === 'is_visible'
-                ? changedValue
-                : Number(toggleEl.dataset.isVisibleCurrent || 1);
+              const isRequired = changedKey === 'is_required' ?
+                changedValue :
+                Number(toggleEl.dataset.isRequiredCurrent || 0);
+              const isVisible = changedKey === 'is_visible' ?
+                changedValue :
+                Number(toggleEl.dataset.isVisibleCurrent || 1);
 
               payload.append('is_required', String(isRequired));
               payload.append('is_visible', String(isVisible));
@@ -1000,8 +1000,8 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                   'X-Requested-With': 'XMLHttpRequest',
                 },
                 body: payload.toString(),
-              }).then(function (response) {
-                return response.json().then(function (data) {
+              }).then(function(response) {
+                return response.json().then(function(data) {
                   return response.ok ? data : Promise.reject(data);
                 });
               });
@@ -1010,7 +1010,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
             if (!window.__moduleFieldToggleChangeBound) {
               window.__moduleFieldToggleChangeBound = true;
 
-              document.addEventListener('change', function (e) {
+              document.addEventListener('change', function(e) {
                 const toggle = e.target.closest('.bike-field-required-toggle, .bike-field-visibility-toggle');
                 if (!toggle) return;
                 if (toggle.dataset.updating === '1') return;
@@ -1024,17 +1024,17 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                 toggle.disabled = true;
 
                 bikeUpdateFieldToggle(toggle, changedKey, toggle.checked ? 1 : 0)
-                  .then(function (data) {
+                  .then(function(data) {
                     const isRequired = Number(data.is_required ? 1 : 0);
                     const isVisible = Number(data.is_visible ? 1 : 0);
 
                     document.querySelectorAll('.bike-field-required-toggle[data-field-key="' + toggle.dataset.fieldKey + '"]')
-                      .forEach(function (el) {
+                      .forEach(function(el) {
                         el.dataset.isRequiredCurrent = String(isRequired);
                       });
 
                     document.querySelectorAll('.bike-field-visibility-toggle[data-field-key="' + toggle.dataset.fieldKey + '"]')
-                      .forEach(function (el) {
+                      .forEach(function(el) {
                         el.dataset.isVisibleCurrent = String(isVisible);
                       });
 
@@ -1046,10 +1046,10 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                       bikeSyncFieldToggles(toggle.dataset.fieldKey, changedType, isVisible);
                     }
                   })
-                  .catch(function () {
+                  .catch(function() {
                     toggle.checked = originalChecked;
                   })
-                  .finally(function () {
+                  .finally(function() {
                     toggle.disabled = false;
                     delete toggle.dataset.updating;
                   });

@@ -342,6 +342,8 @@ class BikesController extends AppBaseController
       );
     }
 
+    $input = $this->normalizeBikeInputForDatabase($input);
+
     $bikes = $this->bikesRepository->create($input);
     $bikes->created_by = Auth::user()->id;
     $bikes->save();
@@ -398,7 +400,8 @@ class BikesController extends AppBaseController
       return response()->json(['errors' => ['error' => 'Bike not found!']], 422);
     }
 
-    $bikes = $this->bikesRepository->update($request->all(), $id);
+    $input = $this->normalizeBikeInputForDatabase($request->all());
+    $bikes = $this->bikesRepository->update($input, $id);
     $bikes->updated_by = Auth::user()->id;
     $bikes->save();
 
@@ -430,6 +433,21 @@ class BikesController extends AppBaseController
       }
     }
     return response()->json(['message' => 'Bike updated successfully.', 'redirect' => route('bikes.show', $bikes->id)]);
+  }
+
+  /**
+   * Keep DB writes safe when a non-null bike column is not required by settings.
+   */
+  private function normalizeBikeInputForDatabase(array $input): array
+  {
+    // `plate` is NOT NULL in schema for some environments.
+    // When field is hidden/non-required in settings, request may omit it.
+    // Persist empty string instead of null to avoid SQLSTATE[HY000] 1364/1048.
+    if (!array_key_exists('plate', $input) || $input['plate'] === null) {
+      $input['plate'] = '';
+    }
+
+    return $input;
   }
 
   /**

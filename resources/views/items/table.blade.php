@@ -4,7 +4,7 @@
    <thead class="text-center">
       <tr role="row">
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>
-         <th title="Customer" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Customer: activate to sort column ascending">Customer</th>
+         <th title="Customer" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Customer: activate to sort column ascending">Owner</th>
          <th title="Supplier" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Supplier: activate to sort column ascending">Supplier</th>
          <th title="Price" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Price: activate to sort column ascending">Price</th>
          <th title="Vat" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Vat: activate to sort column ascending">Vat</th>
@@ -19,8 +19,8 @@
       @foreach($data as $r)
       <tr class="text-center">
          <td>{{$r->name}}<br /></td>
-         <td>{{ DB::table('customers')->where('id', $r->customer_id)->first()->name ?? '-' }}</td>
-         <td>{{ DB::Table('suppliers')->where('id' , $r->supplier_id)->first()->name ?? '-' }}</td>
+         <td>{{ $r->owner?->name ?? 'All'}}</td>
+         <td>{{ $r->supplier?->name ?? '-' }}</td>
          <td>{{$r->price }}</td>
          <td>{{$r->vat }}</td>
          <td>

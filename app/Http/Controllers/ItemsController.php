@@ -38,8 +38,7 @@ class ItemsController extends AppBaseController
     }
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Items::query()
-      ->orderBy('id', 'desc');
+    $query = Items::query();
     if ($request->has('name') && !empty($request->name)) {
       $query->where('name', 'like', '%' . $request->name . '%');
     }
@@ -55,9 +54,12 @@ class ItemsController extends AppBaseController
     if ($request->has('status') && !empty($request->status)) {
       $query->where('status', $request->status);
     }
+    $stats['total'] = $query->count();
+    $stats['active'] = (clone $query)->where('status', 1)->count();
+    $stats['inactive'] = (clone $query)->where('status', 2)->count();
+    $query->orderBy('ref_name')->orderBy('ref_id')->orderBy('name');
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
-
     if ($request->ajax()) {
       $tableData = view('items.table', [
         'data' => $data,
@@ -80,6 +82,7 @@ class ItemsController extends AppBaseController
 
     return view('items.index', [
       'data' => $data,
+      'stats' => $stats
     ]);
   }
 
@@ -99,7 +102,12 @@ class ItemsController extends AppBaseController
     $input = $request->all();
 
     $items = $this->itemsRepository->create($input);
-
+    if($request->ajax()){
+      return response()->json([
+        'message' => 'Item created successfully',
+        'reload' => true,
+      ],200);
+    }
     Flash::success('Item added successfully.');
     return redirect()->back();
   }
@@ -130,7 +138,7 @@ class ItemsController extends AppBaseController
     if (empty($items)) {
       Flash::error('Items not found');
 
-      return redirect(route('items.index'));
+      return redirect()->back();
     }
 
     return view('items.edit')->with('items', $items);
@@ -148,6 +156,12 @@ class ItemsController extends AppBaseController
     }
 
     $items = $this->itemsRepository->update($request->all(), $id);
+    if($request->ajax()){
+      return response()->json([
+        'message' => 'Item updated successfully',
+        'reload' => true,
+      ],200);
+    }
     Flash::success('Item updated successfully.');
     return redirect()->back();
   }
@@ -309,4 +323,42 @@ class ItemsController extends AppBaseController
       'index_route' => 'items.index',
     ];
   }
+
+  public function getOwners(Request $request)
+    {
+        $request->validate([
+            'owner_type' => 'required|string'
+        ]);
+        
+        $ownerType = $request->owner_type;
+        $data = [];
+        
+        switch ($ownerType) {
+            case 'customer':
+                $data = \App\Models\Customers::select('id', 'name')->orderBy('name')->get();
+                break;
+            case 'leasingCompany':
+                $data = \App\Models\LeasingCompanies::select('id', 'name')->orderBy('name')->get();
+                break;
+            case 'supplier':
+                $data = \App\Models\Supplier::select('id', 'name')->orderBy('name')->get();
+                break;
+            case 'garage':
+                $data = \App\Models\Garages::select('id', 'name')->orderBy('name')->get();
+                break;
+            default:
+                $data = [];
+        }
+        $defaultOption = [
+          'id' => '',
+          'name' => 'All'
+        ];
+
+        $data = $data->prepend((object)$defaultOption);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ]);
+    }
 }

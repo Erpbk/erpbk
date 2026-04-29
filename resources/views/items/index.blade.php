@@ -1,108 +1,127 @@
 ﻿@extends('layouts.app')
 @section('title','Items')
 @section('content')
-<div style="display: none;" class="loading-overlay" id="loading-overlay"><div class="spinner-border text-primary" role="status"></div></div>
-    <section class="content-header">
-        <div class="container-fluid">
+<section class="content-header ">
+        @include('flash::message')
+        <div>
             <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h3>Items</h3>
-                </div>
-                <div class="col-sm-6">
-                    @can('item_create')
-                    <a class="btn btn-primary action-btn show-modal"
-                    href="javascript:void(0);" data-size="md" data-title="New Item" data-action="{{ route('items.create') }}">
-                        Add New
-                    </a>
-                    @endcan
-                    <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static"role="dialog" aria-hidden="true">
-                       <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-                          <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" >Filter Items</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="col-sm-12 col-lg-12">
+                    <div class="action-buttons d-flex justify-content-end" >
+                    <div class="action-dropdown-container">
+                        <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                            <i class="ti ti-plus"></i>
+                            <span>Add Fuel Card</span>
+                            <i class="ti ti-chevron-down"></i>
+                        </button>
+                        <div class="action-dropdown-menu" id="addBikeDropdown">
+                            @can('item_create')
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Item" data-action="{{ route('items.create') }}">
+                                <i class="ti ti-plus"></i>
+                                <div>
+                                    <div class="action-dropdown-item-text">New</div>
+                                    <div class="action-dropdown-item-desc">Add New Item</div>
                                 </div>
-                             <div class="modal-body" id="searchTopbody">
-                                <form id="filterForm" action="{{ route('items.index') }}" method="GET">
-                                    <div class="row">
-                                        <div class="form-group col-md-4">
-                                            <label for="name">Item Name</label>
-                                            <input type="text" name="name" class="form-control" placeholder="Filter By Item Name" value="{{ request('name') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="code">Code</label>
-                                            <input type="text" name="code" class="form-control" placeholder="Filter By Code" value="{{ request('code') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="customer_id">Filter by Customer</label>
-                                            <select class="form-control " id="customer_id" name="customer_id">
-                                                @php
-                                                $customerIds = DB::table('items')
-                                                    ->whereNotNull('customer_id')
-                                                    ->where('customer_id', '!=', '')
-                                                    ->pluck('customer_id')
-                                                    ->unique();
-
-                                                $customers = DB::table('customers')
-                                                    ->whereIn('id', $customerIds)
-                                                    ->select('id', 'name')
-                                                    ->get();
-                                                @endphp
-                                                <option value="" selected>Select</option>
-                                                @foreach($customers as $customer)
-                                                    <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="supplier_id">Filter by Supplier</label>
-                                            <select class="form-control " id="supplier_id" name="supplier_id">
-                                                @php
-                                                $supplierid = DB::table('items')
-                                                    ->whereNotNull('supplier_id')
-                                                    ->where('supplier_id', '!=', '')
-                                                    ->pluck('supplier_id')
-                                                    ->unique();
-
-                                                $suppliers = DB::table('suppliers')
-                                                    ->whereIn('id', $supplierid)
-                                                    ->select('id', 'name')
-                                                    ->get();
-                                                @endphp
-                                                <option value="" selected>Select</option>
-                                                @foreach($suppliers as $supplier)
-                                                    <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="status">Filter by Status</label>
-                                            <select class="form-control " id="status" name="status">
-                                                <option value="" selected>Select</option>
-                                                <option value="1"  {{ request('status') == 1 ? 'selected' : '' }}>Active</option>
-                                                <option value="3" {{ request('status') == 3 ? 'selected' : '' }}>In Active</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-12 form-group text-center">
-                                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                                        </div>
-                                    </div>
-                                </form>
-                             </div>
-                          </div>
-                       </div>
+                            </a>
+                            @endcan
+                        </div>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
     </section>
-    <div class="content px-3">
-        @include('flash::message')
+
+    <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+        <div class="filter-header">
+            <h5>Filter Sims</h5>
+            <button type="button" class="btn-close" id="closeSidebar"></button>
+        </div>
+        <div class="filter-body" id="searchTopbody">
+            <form id="filterForm" action="{{ route('items.index') }}" method="GET">
+                @csrf
+                <div class="row">
+                    <div class="form-group col-md-12 col-sm-12">
+                        <label for="name">Item Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="Filter By Item Name" value="{{ request('name') }}">
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="code">Code</label>
+                        <input type="text" name="code" class="form-control" placeholder="Filter By Code" value="{{ request('code') }}">
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="owner_type">Owner Type</label>
+                        <select class="form-control " id="owner_type1" name="ref_name">
+                            <option value="">Select</option>
+                            <option value="customer">Customer</option>
+                            <option value="leasingCompany">Leasing Company</option>
+                            <option value="supplier">Supplier</option>
+                            <option value="garage">Garage</option>
+                            <option value="rider">Rider</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-sm-12">
+                        <label for="owner_id">Owner</label>
+                        <select name="ref_id" id="owner_id1" class="form-control" disabled>
+                            <option value="">First select owner type</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="supplier_id">Supplier</label>
+                        <select class="form-control " id="supplier_id" name="supplier_id">
+                            @php
+                            $supplierid = App\Models\Items::whereNotNull('supplier_id')
+                                ->pluck('supplier_id')
+                                ->unique();
+
+                            $suppliers = App\Models\Supplier::whereIn('id', $supplierid)
+                                ->select('id', 'name')
+                                ->get();
+                            @endphp
+                            <option value="" selected>Select</option>
+                            @foreach($suppliers as $supplier)
+                                <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="status">Status</label>
+                        <select class="form-control " id="status" name="status">
+                            <option value="" selected>Select</option>
+                            <option value='1' >Active</option>
+                            <option value='0' >Inactive</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12 form-group text-center">
+                        <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="content">
         <div class="clearfix"></div>
         <div class="card">
-            <div class="card-body table-responsive px-2 py-0"  id="table-data">
-                @include('items.table', ['data' => $data])
+            <div class="card-header text-end">
+            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Cards</button>
+        </div>
+        <div class="totals-cards">
+            <div class="total-card total-blue">
+                <div class="label"><i class="fa fa-motorcycle"></i>Total Cards</div>
+                <div class="value" id="total_orders">{{ $stats['total'] ?? 0 }}</div>
             </div>
+            <div class="total-card total-green">
+                <div class="label"><i class="fa fa-check-circle"></i>Active</div>
+                <div class="value" id="avg_ontime">{{ $stats['active'] ?? 0 }}</div>
+            </div>
+            <div class="total-card total-red">
+                <div class="label"><i class="fa fa-times-circle"></i>Inactive</div>
+                <div class="value" id="total_rejected">{{ $stats['inactive'] ?? 0 }}</div>
+            </div>
+        </div>
+        <div class="card-body table-responsive px-2 py-0" id="table-data">
+            @include('items.table', ['data' => $data,])
+        </div>
         </div>
     </div>
 
@@ -126,9 +145,14 @@ function confirmDelete(url) {
     })
 }
 $(document).ready(function () {
-    $('#customer_id').select2({
+    $('#owner_type1').select2({
         dropdownParent: $('#searchTopbody'),
-        placeholder: "Filter By Customer",
+        placeholder: "Filter By Owner",
+            allowClear: true
+    });
+    $('#owner_id1').select2({
+        dropdownParent: $('#searchTopbody'),
+        placeholder: "Filter By Owner",
             allowClear: true
     });
     $('#supplier_id').select2({
@@ -141,86 +165,49 @@ $(document).ready(function () {
         placeholder: "Filter By status",
             allowClear: true
     });
-});
-</script>
-
-<script type="text/javascript">
-$(document).ready(function () {
-    $('#filterForm').on('submit', function (e) {
-        e.preventDefault();
-
-        $('#loading-overlay').show();
-        $('#searchModal').modal('hide');
-
-        const loaderStartTime = Date.now();
-
-        // Exclude _token and empty fields
-        let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
-        let formData = $.param(filteredFields);
-
-        $.ajax({
-            url: "{{ route('items.index') }}",
-            type: "GET",
-            data: formData,
-            success: function (data) {
-                $('#table-data').html(data.tableData);
-
-                // Update URL
-                let newUrl = "{{ route('items.index') }}" + (formData ? '?' + formData : '');
-                history.pushState(null, '', newUrl);
-
-                
-                // Ensure loader is visible at least 3s
-                const elapsed = Date.now() - loaderStartTime;
-                const remaining = 1000 - elapsed;
-                setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-            },
-            error: function (xhr, status, error) {
-                console.error(error);
-
-                const elapsed = Date.now() - loaderStartTime;
-                const remaining = 1000 - elapsed;
-                setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-            }
-        });
+    $('#owner_type1').on('change', function() {
+        var ownerType = $(this).val();
+        var $ownerSelect = $('#owner_id1');
+        if(ownerType == '') {
+          $ownerSelect.html('<option value="">All</option>').prop('disabled', true);
+          return;
+        }
+        
+        if (ownerType) {
+            // Reset and disable owner select while loading
+            $ownerSelect.html('<option value="">Loading...</option>').prop('disabled', true);
+            
+            // Make AJAX request to get owners
+            $.ajax({
+                url: "{{ route('get-owners') }}",
+                type: "GET",
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    owner_type: ownerType
+                },
+                dataType: "json",
+                success: function(response) {
+                    if (response.success && response.data.length > 0) {
+                        var options = '<option value="">Select Owner</option>';
+                        $.each(response.data, function(key, owner) {
+                            var name = owner.name || owner.company_name || owner.title || owner.full_name;
+                            options += '<option value="' + owner.id + '">' + name + '</option>';
+                        });
+                        $ownerSelect.html(options).prop('disabled', false);
+                    } else {
+                        $ownerSelect.html('<option value="">No owners found</option>').prop('disabled', false);
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Error loading owners:', xhr);
+                    $ownerSelect.html('<option value="">Error loading owners. Please try again.</option>').prop('disabled', false);
+                }
+            });
+        } else {
+            $ownerSelect.html('<option value="">First select owner type</option>').prop('disabled', true);
+        }
     });
 });
-</script>
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const table = document.querySelector('#dataTableBuilder');
-    const headers = table.querySelectorAll('th.sorting');
-    const tbody = table.querySelector('tbody');
-
-    headers.forEach((header, colIndex) => {
-      header.addEventListener('click', () => {
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-        const isAsc = header.classList.contains('sorted-asc');
-
-        // Clear previous sort classes
-        headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
-
-        // Add new sort direction
-        header.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
-
-        // Sort logic
-        rows.sort((a, b) => {
-          let aText = a.children[colIndex]?.textContent.trim().toLowerCase();
-          let bText = b.children[colIndex]?.textContent.trim().toLowerCase();
-
-          const aVal = isNaN(aText) ? aText : parseFloat(aText);
-          const bVal = isNaN(bText) ? bText : parseFloat(bText);
-
-          if (aVal < bVal) return isAsc ? 1 : -1;
-          if (aVal > bVal) return isAsc ? -1 : 1;
-          return 0;
-        });
-
-        // Re-append sorted rows
-        rows.forEach(row => tbody.appendChild(row));
-      });
-    });
-  });
 </script>
 @endsection
 

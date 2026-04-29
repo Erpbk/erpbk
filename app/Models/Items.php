@@ -24,7 +24,8 @@ class Items extends BaseModel
     'created_by',
     'updated_by',
     'deleted_by',
-    'customer_id',
+    'ref_name',
+    'ref_id',
     'supplier_id',
     'status'
   ];
@@ -39,8 +40,9 @@ class Items extends BaseModel
 
   public static array $rules = [
     'name' => 'required|string|max:255',
-    'customer_id' => 'required',
-    'supplier_id' => 'required',
+    'ref_name' => 'required',
+    'ref_id' => 'required',
+    'supplier_id' => 'nullable|exists:suppliers,id',
     'detail' => 'nullable|string|max:500',
     'price' => 'required|numeric',
     'cost' => 'required|numeric',
@@ -54,9 +56,20 @@ class Items extends BaseModel
     $query = self::select('id', 'name')->pluck('name', 'id')->prepend('Select', '');
     return $query;
   }
-  public function customer()
+  public function getOwnerAttribute()
   {
-    return $this->belongsTo(Customers::class, 'customer_id', 'id');
+    if($this->ref_name == 'customer')
+      return Customers::find($this->ref_id);
+    else if($this->ref_name == 'supplier')
+      return Supplier::find($this->ref_id);
+    else if($this->ref_name == 'leasingCompany')
+      return LeasingCompanies::find($this->ref_id);
+    else if($this->ref_name == 'garage')
+      return Garages::find($this->ref_id);
+    else if($this->ref_name == 'rider')
+      return Riders::find($this->ref_id);
+    else
+      null;
   }
   public function supplier()
   {

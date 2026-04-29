@@ -2129,7 +2129,8 @@
       var id = form.querySelector('#editRiderCategoryId').value;
       var fd = new FormData(form);
       fd.set('_method', 'PUT');
-      fetch(baseUrl + '/settings-panel/rider-settings/categories/' + id, {
+      var updateCategoryUrlTemplate = "{{ route('settings-panel.rider-settings.update-category', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+      fetch(updateCategoryUrlTemplate.replace('__ID__', String(id)), {
           method: 'POST',
           body: fd,
           headers: {
@@ -2522,7 +2523,8 @@
         var fd = new FormData(form);
         fd.set('_method', 'PUT');
         fd.set('is_active', form.querySelector('#editDocTypeActive').checked ? '1' : '0');
-        fetch(baseUrl + '/settings-panel/rider-settings/documents/' + id, {
+        var updateDocumentUrlTemplate = "{{ route('settings-panel.rider-settings.update-document-type', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+        fetch(updateDocumentUrlTemplate.replace('__ID__', String(id)), {
             method: 'POST',
             body: fd,
             headers: {

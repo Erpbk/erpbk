@@ -139,7 +139,7 @@ class BikeSettingsController extends Controller
         return $this->bikeSettingsIndexRedirect()->with('success', 'Category added.');
     }
 
-    public function updateCategory(Request $request, int $id)
+    public function updateCategory(Request $request, string $company_slug, int $id)
     {
         $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
         if ((bool) $category->is_system) {
@@ -156,7 +156,7 @@ class BikeSettingsController extends Controller
         return $this->bikeSettingsIndexRedirect()->with('success', 'Category updated.');
     }
 
-    public function destroyCategory(int $id)
+    public function destroyCategory(string $company_slug, int $id)
     {
         $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
         if ((bool) $category->is_system) {
@@ -271,7 +271,7 @@ class BikeSettingsController extends Controller
             ->with('success', 'Custom field added.');
     }
 
-    public function updateField(Request $request, int $id)
+    public function updateField(Request $request, string $company_slug, int $id)
     {
         $field = BikeCustomField::where('id', $id)->firstOrFail();
 
@@ -311,7 +311,7 @@ class BikeSettingsController extends Controller
             ->with('success', 'Custom field updated.');
     }
 
-    public function destroyField(int $id)
+    public function destroyField(string $company_slug, int $id)
     {
         $field = BikeCustomField::where('id', $id)->firstOrFail();
         $activeCategoryId = $field->category_id !== null ? (int) $field->category_id : 0;
@@ -324,7 +324,7 @@ class BikeSettingsController extends Controller
      * Assign a bike custom field to a category (button-only in UI).
      * Supports moving to "Unassigned" by sending empty `category_id`.
      */
-    public function assignCustomFieldCategory(Request $request, int $id)
+    public function assignCustomFieldCategory(Request $request, string $company_slug, int $id)
     {
         $validated = $request->validate([
             'category_id' => ['required', 'integer', 'exists:bike_categories,id'],
@@ -364,7 +364,7 @@ class BikeSettingsController extends Controller
         return $this->bikeSettingsIndexRedirect()->with('success', 'Document type added.');
     }
 
-    public function updateDocumentType(Request $request, int $id)
+    public function updateDocumentType(Request $request, string $company_slug, int $id)
     {
         $field = BikeDocumentType::where('id', $id)->firstOrFail();
 
@@ -389,7 +389,7 @@ class BikeSettingsController extends Controller
         return $this->bikeSettingsIndexRedirect()->with('success', 'Document type updated.');
     }
 
-    public function destroyDocumentType(int $id)
+    public function destroyDocumentType(string $company_slug, int $id)
     {
         $field = BikeDocumentType::where('id', $id)->firstOrFail();
         $field->delete();

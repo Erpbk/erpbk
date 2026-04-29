@@ -342,7 +342,7 @@ class BikesController extends AppBaseController
       );
     }
 
-    $input = $this->normalizeBikeInputForDatabase($input);
+    $input = $this->normalizeBikeInputForDatabase($input, true);
 
     $bikes = $this->bikesRepository->create($input);
     $bikes->created_by = Auth::user()->id;
@@ -400,7 +400,7 @@ class BikesController extends AppBaseController
       return response()->json(['errors' => ['error' => 'Bike not found!']], 422);
     }
 
-    $input = $this->normalizeBikeInputForDatabase($request->all());
+    $input = $this->normalizeBikeInputForDatabase($request->all(), false);
     $bikes = $this->bikesRepository->update($input, $id);
     $bikes->updated_by = Auth::user()->id;
     $bikes->save();
@@ -438,16 +438,83 @@ class BikesController extends AppBaseController
   /**
    * Keep DB writes safe when a non-null bike column is not required by settings.
    */
-  private function normalizeBikeInputForDatabase(array $input): array
+  private function normalizeBikeInputForDatabase(array $input, bool $isCreate = true): array
   {
-    // `plate` is NOT NULL in schema for some environments.
-    // When field is hidden/non-required in settings, request may omit it.
-    // Persist empty string instead of null to avoid SQLSTATE[HY000] 1364/1048.
-    if (!array_key_exists('plate', $input) || $input['plate'] === null) {
-      $input['plate'] = '';
+    $requiredColumns = $this->bikeNonNullableColumnsWithoutDefault();
+
+    foreach ($requiredColumns as $column => $meta) {
+      $hasKey = array_key_exists($column, $input);
+      $current = $hasKey ? $input[$column] : null;
+
+      // Create: ensure missing required DB columns are populated.
+      // Update: do not overwrite omitted fields; only normalize when key exists.
+      if (($isCreate && (!$hasKey || $current === null)) || (!$isCreate && $hasKey && $current === null)) {
+        $input[$column] = $this->fallbackValueForSqlType($meta['type']);
+      }
     }
 
     return $input;
+  }
+
+  /**
+   * Non-null bike columns that have no DB default (must receive a value on insert).
+   *
+   * @return array<string, array{type:string}>
+   */
+  private function bikeNonNullableColumnsWithoutDefault(): array
+  {
+    static $cached = null;
+    if ($cached !== null) {
+      return $cached;
+    }
+
+    $rows = DB::select('SHOW COLUMNS FROM bikes');
+    $fillable = array_flip((new Bikes())->getFillable());
+    $result = [];
+
+    foreach ($rows as $row) {
+      $field = (string) ($row->Field ?? '');
+      $isNotNull = strtoupper((string) ($row->Null ?? 'YES')) === 'NO';
+      $default = $row->Default ?? null;
+      $extra = strtolower((string) ($row->Extra ?? ''));
+      $type = strtolower((string) ($row->Type ?? ''));
+
+      if (!$isNotNull || $default !== null) {
+        continue;
+      }
+      if ($field === '' || !isset($fillable[$field])) {
+        continue;
+      }
+      if (str_contains($extra, 'auto_increment')) {
+        continue;
+      }
+
+      $result[$field] = ['type' => $type];
+    }
+
+    $cached = $result;
+    return $cached;
+  }
+
+  private function fallbackValueForSqlType(string $type)
+  {
+    $type = strtolower($type);
+
+    if (
+      str_contains($type, 'int') ||
+      str_contains($type, 'decimal') ||
+      str_contains($type, 'float') ||
+      str_contains($type, 'double')
+    ) {
+      return 0;
+    }
+
+    if (str_contains($type, 'json')) {
+      return '{}';
+    }
+
+    // varchar/text/date/datetime/enum/set fallback
+    return '';
   }
 
   /**

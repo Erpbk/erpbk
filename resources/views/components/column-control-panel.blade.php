@@ -613,7 +613,19 @@ $fixedColumnsCount = 2; // Number of fixed action columns at the end (search, co
             applyUserSettings(settings) {
                 try {
                     // Apply visibility settings
-                    if (settings.visible_columns) {
+                    if (Array.isArray(settings.visible_columns)) {
+                        const availableColumnKeys = Array.from(document.querySelectorAll('.column-item'))
+                            .map(item => item.dataset.columnKey)
+                            .filter(Boolean);
+                        const hasAnyMatchingVisibleColumn = settings.visible_columns.some(key => availableColumnKeys.includes(key));
+
+                        // If saved settings no longer match current table columns
+                        // (e.g. module column schema changed), fall back to defaults.
+                        if (!hasAnyMatchingVisibleColumn && availableColumnKeys.length > 0) {
+                            this.applyDefaultSettings();
+                            return;
+                        }
+
                         document.querySelectorAll('.column-visibility-checkbox').forEach(checkbox => {
                             const columnKey = checkbox.closest('.column-item').dataset.columnKey;
                             const isVisible = settings.visible_columns.includes(columnKey);

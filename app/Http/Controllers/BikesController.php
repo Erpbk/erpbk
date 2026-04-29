@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateBikesRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\BikeHistory;
 use App\Models\Bikes;
+use App\Models\BikeFieldCategoryAssignment;
 use App\Models\Riders;
 use App\Models\VehicleModels;
 use App\Repositories\BikesRepository;
@@ -160,13 +161,24 @@ class BikesController extends AppBaseController
 
     // Final filtered columns
     $dbColumns = array_diff($filteredColumns, $exclude);
+
+    // Only include fields enabled in Bike Settings ("Show in form" ON).
+    $visibleFieldKeys = $this->getVisibleBikeFieldKeysForTable();
+    if (!empty($visibleFieldKeys)) {
+      $visibleDbColumns = array_values(array_filter($dbColumns, function ($key) use ($visibleFieldKeys) {
+        return isset($visibleFieldKeys[$key]);
+      }));
+
+      // Guard against accidental key mismatch causing empty table columns.
+      if (!empty($visibleDbColumns)) {
+        $dbColumns = $visibleDbColumns;
+      }
+    }
     $preferredOrder = [
       'bike_code',
       'plate',
       'branch_id',
       'rider_id',
-      // Rider name is a computed column and should always be available
-      'rider_name', // Ensure rider_name is included and controllable
       'emirates',
       'company',
       'customer_id',
@@ -185,11 +197,7 @@ class BikesController extends AppBaseController
 
     // Add preferred DB columns first
     foreach ($preferredOrder as $key) {
-      // Add rider_name always, even if not in DB
-      if ($key === 'rider_name') {
-        $columns[] = ['data' => 'rider_name', 'title' => $makeTitle('rider_name')];
-        $added['rider_name'] = true;
-      } elseif ($key === 'branch_id') {
+      if ($key === 'branch_id') {
         $columns[] = ['data' => 'branch_id', 'title' => 'Branch'];
         $added['branch_id'] = true;
       } elseif (in_array($key, $dbColumns)) {
@@ -214,6 +222,27 @@ class BikesController extends AppBaseController
     ]);
 
     return $columns;
+  }
+
+  /**
+   * Fields that should appear in Bike table/column-control.
+   * Source of truth: bike_field_category_assignments.is_visible
+   */
+  private function getVisibleBikeFieldKeysForTable(): array
+  {
+    if (!Schema::hasTable('bike_field_category_assignments')) {
+      return [];
+    }
+
+    $query = BikeFieldCategoryAssignment::query()->select('field_key');
+    if (Schema::hasColumn('bike_field_category_assignments', 'is_visible')) {
+      $query->where(function ($q) {
+        $q->whereNull('is_visible')->orWhere('is_visible', 1);
+      });
+    }
+
+    $keys = $query->pluck('field_key')->filter()->values()->all();
+    return array_fill_keys($keys, true);
   }
 
   /**

@@ -122,6 +122,7 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::post('module-settings/bike_list/fields', [App\Http\Controllers\BikeSettingsController::class, 'storeField'])->name('settings-panel.bike-settings.store-field');
     Route::put('module-settings/bike_list/fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateField'])->name('settings-panel.bike-settings.update-field');
     Route::delete('module-settings/bike_list/fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyField'])->name('settings-panel.bike-settings.destroy-field');
+    Route::post('module-settings/bike_list/assign-custom-field-category/{id}', [App\Http\Controllers\BikeSettingsController::class, 'assignCustomFieldCategory'])->name('settings-panel.bike-settings.assign-custom-field-category');
 
     // Bike documents
     Route::post('module-settings/bike_list/documents', [App\Http\Controllers\BikeSettingsController::class, 'storeDocumentType'])->name('settings-panel.bike-settings.store-document-type');

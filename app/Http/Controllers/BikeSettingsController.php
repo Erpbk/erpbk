@@ -18,13 +18,19 @@ class BikeSettingsController extends Controller
         $this->middleware('auth');
     }
 
-    protected function bikeSettingsIndexRedirect()
+    protected function bikeSettingsIndexRedirect(?int $activeCategoryId = null)
     {
         $companySlug = request()->route('company_slug') ?? session('company_slug');
-        return redirect()->route('settings-panel.module-settings.index', [
+        $url = route('settings-panel.module-settings.index', [
             'company_slug' => $companySlug,
             'module' => 'bike_list',
         ]);
+
+        if ($activeCategoryId !== null) {
+            $url .= (str_contains($url, '?') ? '&' : '?') . 'active_category_id=' . (int) $activeCategoryId;
+        }
+
+        return redirect()->to($url);
     }
 
     protected function bikeCategoryCompanyScoped(): bool
@@ -185,10 +191,15 @@ class BikeSettingsController extends Controller
         $assignment = BikeFieldCategoryAssignment::where('field_key', $validated['field_key'])->firstOrFail();
 
         $assignment->category_id = (int) $validated['category_id'];
-        $assignment->display_label = $validated['display_label'] !== null ? trim((string) $validated['display_label']) : null;
+
+        $displayLabel = $validated['display_label'] !== null ? trim((string) $validated['display_label']) : null;
+        $assignment->display_label = ($displayLabel === '' ? null : $displayLabel);
+
         $assignment->is_visible = filter_var((string) ($validated['is_visible'] ?? false), FILTER_VALIDATE_BOOLEAN);
         $assignment->is_required = filter_var((string) ($validated['is_required'] ?? false), FILTER_VALIDATE_BOOLEAN);
-        $assignment->input_type = $validated['input_type'] !== null ? trim((string) $validated['input_type']) : null;
+
+        $inputType = $validated['input_type'] !== null ? trim((string) $validated['input_type']) : null;
+        $assignment->input_type = ($inputType === '' ? null : $inputType);
 
         if (!empty($validated['input_config_options'])) {
             // Used by fixed-field dropdown renderer (stored as newline-separated list).
@@ -199,7 +210,7 @@ class BikeSettingsController extends Controller
 
         $assignment->save();
 
-        return $this->bikeSettingsIndexRedirect()->with('success', 'Field assignment updated.');
+        return $this->bikeSettingsIndexRedirect((int) $assignment->category_id)->with('success', 'Field assignment updated.');
     }
 
     public function storeField(Request $request)
@@ -285,6 +296,24 @@ class BikeSettingsController extends Controller
         $field->delete();
 
         return $this->bikeSettingsIndexRedirect()->with('success', 'Custom field deleted.');
+    }
+
+    /**
+     * Assign a bike custom field to a category (button-only in UI).
+     * Supports moving to "Unassigned" by sending empty `category_id`.
+     */
+    public function assignCustomFieldCategory(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'category_id' => ['required', 'integer', 'exists:bike_categories,id'],
+        ]);
+
+        $field = BikeCustomField::where('id', $id)->firstOrFail();
+        $field->category_id = (int) $validated['category_id'];
+        $field->save();
+
+        $activeCategoryId = (int) $field->category_id;
+        return $this->bikeSettingsIndexRedirect($activeCategoryId)->with('success', 'Custom field moved.');
     }
 
     public function storeDocumentType(Request $request)

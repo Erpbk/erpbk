@@ -129,6 +129,10 @@ class RidersController extends AppBaseController
 
     RiderCustomField::query()
       ->where('is_mandatory', 1)
+      ->whereNotNull('category_id')
+      ->where(function ($q) {
+        $q->where('is_visible', 1)->orWhereNull('is_visible');
+      })
       ->get(['id'])
       ->each(function ($field) use (&$rules) {
         $rules['custom_field_values.' . $field->id] = 'required';

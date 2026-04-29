@@ -417,8 +417,26 @@
                           <span class="badge bg-label-warning">Unassigned</span>
                           @endif
                         </td>
-                        <td class="align-middle text-center">{{ $customField->is_mandatory ? 'Yes' : 'No' }}</td>
-                        <td class="align-middle text-center">-</td>
+                        <td class="align-middle text-center">
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox"
+                              class="form-check-input rider-custom-required-toggle"
+                              data-id="{{ $customField->id }}"
+                              data-update-url="{{ route('settings-panel.rider-settings.update-custom-field-flags', ['id' => $customField->id]) }}"
+                              data-is-visible-current="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
+                              {{ ($customField->is_mandatory ?? false) ? 'checked' : '' }}>
+                          </div>
+                        </td>
+                        <td class="align-middle text-center">
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox"
+                              class="form-check-input rider-custom-visibility-toggle"
+                              data-id="{{ $customField->id }}"
+                              data-update-url="{{ route('settings-panel.rider-settings.update-custom-field-flags', ['id' => $customField->id]) }}"
+                              data-is-mandatory-current="{{ ($customField->is_mandatory ?? false) ? 1 : 0 }}"
+                              {{ ($customField->is_visible ?? true) ? 'checked' : '' }}>
+                          </div>
+                        </td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.rider-settings.assign-custom-field-category', ['id' => $customField->id]) }}" method="POST" class="d-flex justify-content-center">
                             @csrf
@@ -439,6 +457,7 @@
                               data-help_text="{{ $customField->help_text }}"
                               data-data_type="{{ $customField->data_type }}"
                               data-is_mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
+                              data-is_visible="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
                               data-prevent_duplicate_values="{{ $customField->prevent_duplicate_values ? 1 : 0 }}"
                               data-default_value="{{ $customField->default_value }}"
                               data-input_format="{{ $customField->input_format }}"
@@ -548,8 +567,26 @@
                           <span class="fw-semibold">{{ $customField->label }}</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
-                        <td class="align-middle text-center">{{ $customField->is_mandatory ? 'Yes' : 'No' }}</td>
-                        <td class="align-middle text-center">-</td>
+                        <td class="align-middle text-center">
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox"
+                              class="form-check-input rider-custom-required-toggle"
+                              data-id="{{ $customField->id }}"
+                              data-update-url="{{ route('settings-panel.rider-settings.update-custom-field-flags', ['id' => $customField->id]) }}"
+                              data-is-visible-current="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
+                              {{ ($customField->is_mandatory ?? false) ? 'checked' : '' }}>
+                          </div>
+                        </td>
+                        <td class="align-middle text-center">
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox"
+                              class="form-check-input rider-custom-visibility-toggle"
+                              data-id="{{ $customField->id }}"
+                              data-update-url="{{ route('settings-panel.rider-settings.update-custom-field-flags', ['id' => $customField->id]) }}"
+                              data-is-mandatory-current="{{ ($customField->is_mandatory ?? false) ? 1 : 0 }}"
+                              {{ ($customField->is_visible ?? true) ? 'checked' : '' }}>
+                          </div>
+                        </td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.rider-settings.assign-custom-field-category', ['id' => $customField->id]) }}" method="POST" class="d-flex justify-content-center">
                             @csrf
@@ -569,6 +606,7 @@
                               data-help_text="{{ $customField->help_text }}"
                               data-data_type="{{ $customField->data_type }}"
                               data-is_mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
+                              data-is_visible="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
                               data-prevent_duplicate_values="{{ $customField->prevent_duplicate_values ? 1 : 0 }}"
                               data-default_value="{{ $customField->default_value }}"
                               data-input_format="{{ $customField->input_format }}"
@@ -696,6 +734,19 @@
                 <div class="form-check">
                   <input type="radio" name="is_mandatory" value="0" class="form-check-input" id="addRiderMandatoryNo" checked>
                   <label class="form-check-label" for="addRiderMandatoryNo">No</label>
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Show in Rider Form</label>
+              <div class="d-flex gap-3">
+                <div class="form-check">
+                  <input type="radio" name="is_visible" value="1" class="form-check-input" id="addRiderVisibleYes" checked>
+                  <label class="form-check-label" for="addRiderVisibleYes">Yes</label>
+                </div>
+                <div class="form-check">
+                  <input type="radio" name="is_visible" value="0" class="form-check-input" id="addRiderVisibleNo">
+                  <label class="form-check-label" for="addRiderVisibleNo">No</label>
                 </div>
               </div>
             </div>
@@ -1141,6 +1192,19 @@
                 <div class="form-check">
                   <input type="radio" name="is_mandatory" value="0" class="form-check-input" id="editRiderMandatoryNo">
                   <label class="form-check-label" for="editRiderMandatoryNo">No</label>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Show in Rider Form</label>
+              <div class="d-flex gap-3 mt-2">
+                <div class="form-check">
+                  <input type="radio" name="is_visible" value="1" class="form-check-input" id="editRiderVisibleYes">
+                  <label class="form-check-label" for="editRiderVisibleYes">Yes</label>
+                </div>
+                <div class="form-check">
+                  <input type="radio" name="is_visible" value="0" class="form-check-input" id="editRiderVisibleNo">
+                  <label class="form-check-label" for="editRiderVisibleNo">No</label>
                 </div>
               </div>
             </div>
@@ -2247,6 +2311,13 @@
         mandatoryYes.checked = isMandatory;
         mandatoryNo.checked = !isMandatory;
       }
+      var visibleYes = document.getElementById('editRiderVisibleYes');
+      var visibleNo = document.getElementById('editRiderVisibleNo');
+      if (visibleYes && visibleNo) {
+        var isVisible = String(editCustomFieldBtn.dataset.is_visible || '1') === '1';
+        visibleYes.checked = isVisible;
+        visibleNo.checked = !isVisible;
+      }
       var dupYes = document.getElementById('editRiderPreventDupYes');
       var dupNo = document.getElementById('editRiderPreventDupNo');
       if (dupYes && dupNo) {
@@ -3296,6 +3367,60 @@
             showConfirmButton: false,
             timer: 5000
           });
+        });
+    });
+
+    document.addEventListener('change', function(e) {
+      var toggle = e.target.closest('.rider-custom-required-toggle, .rider-custom-visibility-toggle');
+      if (!toggle) return;
+
+      var customFieldId = toggle.getAttribute('data-id');
+      var updateUrl = toggle.getAttribute('data-update-url');
+      if (!customFieldId || !updateUrl) return;
+
+      var csrf = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) || (document.querySelector('.rider-field-assignment-form input[name="_token"]') && document.querySelector('.rider-field-assignment-form input[name="_token"]').value);
+      if (!csrf) {
+        toggle.checked = !toggle.checked;
+        return;
+      }
+
+      var fieldRequiredToggles = document.querySelectorAll('.rider-custom-required-toggle[data-id="' + customFieldId + '"]');
+      var fieldVisibleToggles = document.querySelectorAll('.rider-custom-visibility-toggle[data-id="' + customFieldId + '"]');
+      var isMandatory = fieldRequiredToggles.length ? (fieldRequiredToggles[0].checked ? 1 : 0) : 0;
+      var isVisible = fieldVisibleToggles.length ? (fieldVisibleToggles[0].checked ? 1 : 0) : 1;
+
+      var formBody = new URLSearchParams();
+      formBody.append('_token', csrf);
+      formBody.append('is_mandatory', String(isMandatory));
+      formBody.append('is_visible', String(isVisible));
+
+      fetch(updateUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: formBody.toString()
+        })
+        .then(function(r) {
+          return r.json().then(function(data) {
+            return r.ok ? data : Promise.reject(data);
+          });
+        })
+        .then(function(data) {
+          fieldRequiredToggles.forEach(function(el) {
+            el.checked = !!data.is_mandatory;
+            el.setAttribute('data-is-visible-current', data.is_visible ? '1' : '0');
+          });
+          fieldVisibleToggles.forEach(function(el) {
+            el.checked = !!data.is_visible;
+            el.setAttribute('data-is-mandatory-current', data.is_mandatory ? '1' : '0');
+          });
+        })
+        .catch(function() {
+          toggle.checked = !toggle.checked;
         });
     });
 

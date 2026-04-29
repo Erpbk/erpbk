@@ -82,6 +82,7 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::post('rider-settings/fields/{id}/assign-category', [App\Http\Controllers\RiderSettingsController::class, 'assignCustomFieldCategory'])->name('settings-panel.rider-settings.assign-custom-field-category');
     Route::put('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateField'])->name('settings-panel.rider-settings.update-field');
     Route::delete('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyField'])->name('settings-panel.rider-settings.destroy-field');
+    Route::post('rider-settings/fields/{id}/flags', [App\Http\Controllers\RiderSettingsController::class, 'updateCustomFieldFlags'])->name('settings-panel.rider-settings.update-custom-field-flags');
     Route::post('rider-settings/fields/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderFields'])->name('settings-panel.rider-settings.reorder-fields');
     Route::get('rider-settings/documents/table-body', [App\Http\Controllers\RiderSettingsController::class, 'documentTypesTableBody'])->name('settings-panel.rider-settings.document-types-table-body');
     Route::post('rider-settings/documents', [App\Http\Controllers\RiderSettingsController::class, 'storeDocumentType'])->name('settings-panel.rider-settings.store-document-type');

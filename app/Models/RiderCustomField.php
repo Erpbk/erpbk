@@ -114,6 +114,7 @@ class RiderCustomField extends BaseModel
         'input_format',
         'data_type',
         'is_mandatory',
+        'is_visible',
         'config',
         'category_id',
         'display_order',
@@ -121,6 +122,7 @@ class RiderCustomField extends BaseModel
 
     protected $casts = [
         'is_mandatory' => 'boolean',
+        'is_visible' => 'boolean',
         'prevent_duplicate_values' => 'boolean',
         'data_privacy' => 'array',
         'config' => 'array',
@@ -463,6 +465,9 @@ class RiderCustomField extends BaseModel
         })->values();
         $customFieldsAll = self::with('category')
             ->whereIn('category_id', $categoryIds)
+            ->where(function ($q) {
+                $q->where('is_visible', true)->orWhereNull('is_visible');
+            })
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();

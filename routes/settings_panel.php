@@ -109,24 +109,24 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
         );
     })->name('settings-panel.module-settings.rider-settings-alias');
 
-    // Bike Settings (categories + fixed/custom fields; excludes "on top" and "view on card")
-    Route::get('bike-settings', [App\Http\Controllers\BikeSettingsController::class, 'index'])->name('settings-panel.bike-settings.index');
-    Route::post('bike-settings/module-label', [App\Http\Controllers\BikeSettingsController::class, 'storeModuleLabel'])->name('settings-panel.bike-settings.store-module-label');
+    // Bike Settings: mount under module-settings/bike_list
+    // (So the sidebar route `settings-panel/module-settings/bike_list` opens bike settings.)
+    Route::post('module-settings/bike_list/module-label', [App\Http\Controllers\BikeSettingsController::class, 'storeModuleLabel'])->name('settings-panel.bike-settings.store-module-label');
 
-    Route::post('bike-settings/field-assignment', [App\Http\Controllers\BikeSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.bike-settings.update-field-assignment');
-    Route::post('bike-settings/categories', [App\Http\Controllers\BikeSettingsController::class, 'storeCategory'])->name('settings-panel.bike-settings.store-category');
-    Route::put('bike-settings/categories/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateCategory'])->name('settings-panel.bike-settings.update-category');
-    Route::delete('bike-settings/categories/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyCategory'])->name('settings-panel.bike-settings.destroy-category');
+    Route::post('module-settings/bike_list/field-assignment', [App\Http\Controllers\BikeSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.bike-settings.update-field-assignment');
+    Route::post('module-settings/bike_list/categories', [App\Http\Controllers\BikeSettingsController::class, 'storeCategory'])->name('settings-panel.bike-settings.store-category');
+    Route::put('module-settings/bike_list/categories/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateCategory'])->name('settings-panel.bike-settings.update-category');
+    Route::delete('module-settings/bike_list/categories/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyCategory'])->name('settings-panel.bike-settings.destroy-category');
 
     // Bike custom fields
-    Route::post('bike-settings/fields', [App\Http\Controllers\BikeSettingsController::class, 'storeField'])->name('settings-panel.bike-settings.store-field');
-    Route::put('bike-settings/fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateField'])->name('settings-panel.bike-settings.update-field');
-    Route::delete('bike-settings/fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyField'])->name('settings-panel.bike-settings.destroy-field');
+    Route::post('module-settings/bike_list/fields', [App\Http\Controllers\BikeSettingsController::class, 'storeField'])->name('settings-panel.bike-settings.store-field');
+    Route::put('module-settings/bike_list/fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateField'])->name('settings-panel.bike-settings.update-field');
+    Route::delete('module-settings/bike_list/fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyField'])->name('settings-panel.bike-settings.destroy-field');
 
     // Bike documents
-    Route::post('bike-settings/documents', [App\Http\Controllers\BikeSettingsController::class, 'storeDocumentType'])->name('settings-panel.bike-settings.store-document-type');
-    Route::put('bike-settings/documents/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateDocumentType'])->name('settings-panel.bike-settings.update-document-type');
-    Route::delete('bike-settings/documents/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyDocumentType'])->name('settings-panel.bike-settings.destroy-document-type');
+    Route::post('module-settings/bike_list/documents', [App\Http\Controllers\BikeSettingsController::class, 'storeDocumentType'])->name('settings-panel.bike-settings.store-document-type');
+    Route::put('module-settings/bike_list/documents/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateDocumentType'])->name('settings-panel.bike-settings.update-document-type');
+    Route::delete('module-settings/bike_list/documents/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyDocumentType'])->name('settings-panel.bike-settings.destroy-document-type');
 
     // Module settings (General tab only) for all ERP modules
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');

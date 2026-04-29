@@ -1,4 +1,4 @@
-@extends($layout ?? 'layouts.app')
+@extends('layouts.settingsPanelLayout')
 
 @section('title', 'Bike Settings – Site Settings')
 

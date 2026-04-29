@@ -23,6 +23,12 @@ class ModuleSettingsController extends Controller
     public function index(string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);
+
+        // Bike settings are configured via this module-settings route for sidebar consistency.
+        if ($module === 'bike_list') {
+            return app(\App\Http\Controllers\BikeSettingsController::class)->index();
+        }
+
         $defaultLabels = config('menu_labels.defaults', []);
         $defaultLabel = $defaultLabels[$module] ?? ucwords(str_replace('_', ' ', $module));
 

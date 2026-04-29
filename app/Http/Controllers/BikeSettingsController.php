@@ -18,6 +18,15 @@ class BikeSettingsController extends Controller
         $this->middleware('auth');
     }
 
+    protected function bikeSettingsIndexRedirect()
+    {
+        $companySlug = request()->route('company_slug') ?? session('company_slug');
+        return redirect()->route('settings-panel.module-settings.index', [
+            'company_slug' => $companySlug,
+            'module' => 'bike_list',
+        ]);
+    }
+
     protected function bikeCategoryCompanyScoped(): bool
     {
         return Schema::hasColumn('bike_categories', 'company_id');
@@ -102,7 +111,7 @@ class BikeSettingsController extends Controller
 
         Settings::clearMenuLabelsCache();
 
-        return redirect()->route('settings-panel.bike-settings.index')->with('success', 'Module name updated.');
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Module name updated.');
     }
 
     public function storeCategory(Request $request)
@@ -121,7 +130,7 @@ class BikeSettingsController extends Controller
 
         BikeCategory::create($validated);
 
-        return redirect()->route('settings-panel.bike-settings.index')->with('success', 'Category added.');
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Category added.');
     }
 
     public function updateCategory(Request $request, int $id)
@@ -138,7 +147,7 @@ class BikeSettingsController extends Controller
         $category->label = $validated['label'];
         $category->save();
 
-        return redirect()->route('settings-panel.bike-settings.index')->with('success', 'Category updated.');
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Category updated.');
     }
 
     public function destroyCategory(int $id)
@@ -158,7 +167,7 @@ class BikeSettingsController extends Controller
 
         $category->delete();
 
-        return redirect()->route('settings-panel.bike-settings.index')->with('success', 'Category deleted.');
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Category deleted.');
     }
 
     public function updateFieldAssignment(Request $request)
@@ -190,7 +199,7 @@ class BikeSettingsController extends Controller
 
         $assignment->save();
 
-        return redirect()->route('settings-panel.bike-settings.index')->with('success', 'Field assignment updated.');
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Field assignment updated.');
     }
 
     public function storeField(Request $request)
@@ -233,7 +242,7 @@ class BikeSettingsController extends Controller
             'display_order' => $displayOrder,
         ]);
 
-        return redirect()->route('settings-panel.bike-settings.index')->with('success', 'Custom field added.');
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Custom field added.');
     }
 
     public function updateField(Request $request, int $id)
@@ -267,7 +276,7 @@ class BikeSettingsController extends Controller
         $field->config = $config;
         $field->save();
 
-        return redirect()->route('settings-panel.bike-settings.index')->with('success', 'Custom field updated.');
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Custom field updated.');
     }
 
     public function destroyField(int $id)
@@ -275,7 +284,7 @@ class BikeSettingsController extends Controller
         $field = BikeCustomField::where('id', $id)->firstOrFail();
         $field->delete();
 
-        return redirect()->route('settings-panel.bike-settings.index')->with('success', 'Custom field deleted.');
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Custom field deleted.');
     }
 
     public function storeDocumentType(Request $request)
@@ -301,7 +310,7 @@ class BikeSettingsController extends Controller
             'is_active' => true,
         ]);
 
-        return redirect()->route('settings-panel.bike-settings.index')->with('success', 'Document type added.');
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Document type added.');
     }
 
     public function updateDocumentType(Request $request, int $id)
@@ -326,7 +335,7 @@ class BikeSettingsController extends Controller
         $field->is_active = true;
         $field->save();
 
-        return redirect()->route('settings-panel.bike-settings.index')->with('success', 'Document type updated.');
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Document type updated.');
     }
 
     public function destroyDocumentType(int $id)
@@ -334,7 +343,7 @@ class BikeSettingsController extends Controller
         $field = BikeDocumentType::where('id', $id)->firstOrFail();
         $field->delete();
 
-        return redirect()->route('settings-panel.bike-settings.index')->with('success', 'Document type deleted.');
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Document type deleted.');
     }
 }
 

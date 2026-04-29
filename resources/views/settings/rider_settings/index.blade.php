@@ -1232,9 +1232,7 @@
   (function() {
     'use strict';
 
-    const dataTypesMeta = {
-      !!json_encode($dataTypes, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!
-    };
+    const dataTypesMeta = JSON.parse((document.getElementById('riderDataTypesMetaJson') && document.getElementById('riderDataTypesMetaJson').value) || '{}');
 
     function buildConfigFields(container, typeKey, existingConfig) {
       container.innerHTML = '';

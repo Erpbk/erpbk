@@ -41,6 +41,7 @@ class Bikes extends BaseModel
     'current_km',
     'previous_km',
     'maintenance_km',
+    'custom_field_values',
   ];
 
   protected $casts = [
@@ -63,6 +64,8 @@ class Bikes extends BaseModel
     'policy_no' => 'string',
     'customer_id' => 'string',
     'deleted_at' => 'datetime'
+    ,
+    'custom_field_values' => 'array'
   ];
 
   protected $dates = ['deleted_at'];

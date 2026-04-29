@@ -51,7 +51,7 @@ class BikesController extends AppBaseController
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Bikes::query()
       ->orderBy('bike_code', 'desc');
-    if($request->has('branch_id') && !empty($request->branch_id)){
+    if ($request->has('branch_id') && !empty($request->branch_id)) {
       $query->where('branch_id', $request->branch_id);
     }
     if ($request->has('bike_code') && !empty($request->bike_code)) {
@@ -189,7 +189,7 @@ class BikesController extends AppBaseController
       if ($key === 'rider_name') {
         $columns[] = ['data' => 'rider_name', 'title' => $makeTitle('rider_name')];
         $added['rider_name'] = true;
-      }elseif ($key === 'branch_id') {
+      } elseif ($key === 'branch_id') {
         $columns[] = ['data' => 'branch_id', 'title' => 'Branch'];
         $added['branch_id'] = true;
       } elseif (in_array($key, $dbColumns)) {
@@ -409,7 +409,8 @@ class BikesController extends AppBaseController
         $customer_id = $request->customer_id;
         // Determine new designation (copy from assignrider logic)
         $designation = $rider->designation;
-        $emirate_hub = $request->emirate_hub;
+        // Bike form field name is `emirates` (not `emirate_hub`)
+        $emirate_hub = $request->input('emirates');
         if ($bikes->vehicle_type) {
           $vehicleModel = \App\Support\CompanyQuery::table('vehicle_models')->where('id', $bikes->vehicle_type)->first();
           $vehicleTypeName = $vehicleModel ? strtolower($vehicleModel->name) : '';

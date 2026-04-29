@@ -217,6 +217,10 @@ class BikeSettingsController extends Controller
     {
         $allowedTypes = array_keys(BikeCustomField::dataTypes());
 
+        if ($request->input('category_id') === '') {
+            $request->merge(['category_id' => null]);
+        }
+
         $validated = $request->validate([
             'label' => 'required|string|max:255',
             'help_text' => 'nullable|string|max:1000',
@@ -253,7 +257,8 @@ class BikeSettingsController extends Controller
             'display_order' => $displayOrder,
         ]);
 
-        return $this->bikeSettingsIndexRedirect()->with('success', 'Custom field added.');
+        return $this->bikeSettingsIndexRedirect($categoryId !== null ? (int) $categoryId : 0)
+            ->with('success', 'Custom field added.');
     }
 
     public function updateField(Request $request, int $id)
@@ -261,6 +266,11 @@ class BikeSettingsController extends Controller
         $field = BikeCustomField::where('id', $id)->firstOrFail();
 
         $allowedTypes = array_keys(BikeCustomField::dataTypes());
+
+        if ($request->input('category_id') === '') {
+            $request->merge(['category_id' => null]);
+        }
+
         $validated = $request->validate([
             'label' => 'required|string|max:255',
             'help_text' => 'nullable|string|max:1000',
@@ -287,15 +297,17 @@ class BikeSettingsController extends Controller
         $field->config = $config;
         $field->save();
 
-        return $this->bikeSettingsIndexRedirect()->with('success', 'Custom field updated.');
+        return $this->bikeSettingsIndexRedirect($field->category_id !== null ? (int) $field->category_id : 0)
+            ->with('success', 'Custom field updated.');
     }
 
     public function destroyField(int $id)
     {
         $field = BikeCustomField::where('id', $id)->firstOrFail();
+        $activeCategoryId = $field->category_id !== null ? (int) $field->category_id : 0;
         $field->delete();
 
-        return $this->bikeSettingsIndexRedirect()->with('success', 'Custom field deleted.');
+        return $this->bikeSettingsIndexRedirect($activeCategoryId)->with('success', 'Custom field deleted.');
     }
 
     /**

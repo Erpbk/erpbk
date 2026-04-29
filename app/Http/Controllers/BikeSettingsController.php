@@ -71,13 +71,7 @@ class BikeSettingsController extends Controller
             ->orderBy('category_id')
             ->orderBy('display_order')
             ->orderBy('id')
-            ->get()
-            ->filter(function ($assignment) {
-                // Keep Bike Field Settings aligned with Bike create/edit/info visibility.
-                // If fixed field is hidden from Bike module, hide it here too.
-                return $assignment->is_visible === null || (bool) $assignment->is_visible;
-            })
-            ->values();
+            ->get();
 
         $fixedAssignmentsByCategory = $fixedAssignments->groupBy('category_id');
 
@@ -85,13 +79,7 @@ class BikeSettingsController extends Controller
             ->orderBy('category_id')
             ->orderBy('display_order')
             ->orderBy('id')
-            ->get()
-            ->filter(function ($field) {
-                // Unassigned custom fields are not rendered in Bike create/edit/info,
-                // so hide them in Bike Field Settings to avoid user confusion.
-                return !empty($field->category_id);
-            })
-            ->values();
+            ->get();
 
         $customFieldsByCategory = $customFields->groupBy('category_id');
 
@@ -221,6 +209,16 @@ class BikeSettingsController extends Controller
         }
 
         $assignment->save();
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Field assignment updated.',
+                'field_key' => $assignment->field_key,
+                'is_visible' => (bool) $assignment->is_visible,
+                'is_required' => (bool) $assignment->is_required,
+            ]);
+        }
 
         return $this->bikeSettingsIndexRedirect((int) $assignment->category_id)->with('success', 'Field assignment updated.');
     }

@@ -281,7 +281,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                         $inputOptions = (string) $row->input_config['options'];
                       }
                       @endphp
-                      <tr>
+                      <tr data-bike-field-key="{{ $row->field_key }}">
                         <td class="align-middle">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
                           <span class="fw-semibold">{{ $fieldLabel }}</span>
@@ -291,34 +291,30 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                           <span class="badge bg-label-info">{{ $categoryLabel }}</span>
                         </td>
                         <td class="align-middle text-center">
-                          <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-inline-block">
-                            @csrf
-                            <input type="hidden" name="field_key" value="{{ $row->field_key }}">
-                            <input type="hidden" name="category_id" value="{{ $row->category_id }}">
-                            <input type="hidden" name="display_label" value="{{ $row->display_label }}">
-                            <input type="hidden" name="is_visible" value="{{ ($row->is_visible ?? true) ? 1 : 0 }}">
-                            <input type="hidden" name="input_type" value="{{ $row->input_type }}">
-                            <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
-                            <input type="hidden" name="is_required" value="0">
-                            <div class="form-check form-switch d-inline-block mb-0">
-                              <input type="checkbox" class="form-check-input" name="is_required" value="1" {{ ($row->is_required ?? false) ? 'checked' : '' }} onchange="this.form.submit()">
-                            </div>
-                          </form>
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox"
+                              class="form-check-input bike-field-required-toggle"
+                              data-field-key="{{ $row->field_key }}"
+                              data-category-id="{{ $row->category_id }}"
+                              data-display-label="{{ $row->display_label }}"
+                              data-input-type="{{ $row->input_type }}"
+                              data-input-config-options="{{ $inputOptions }}"
+                              data-is-visible-current="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
+                              {{ ($row->is_required ?? false) ? 'checked' : '' }}>
+                          </div>
                         </td>
                         <td class="align-middle text-center">
-                          <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-inline-block">
-                            @csrf
-                            <input type="hidden" name="field_key" value="{{ $row->field_key }}">
-                            <input type="hidden" name="category_id" value="{{ $row->category_id }}">
-                            <input type="hidden" name="display_label" value="{{ $row->display_label }}">
-                            <input type="hidden" name="is_required" value="{{ ($row->is_required ?? false) ? 1 : 0 }}">
-                            <input type="hidden" name="input_type" value="{{ $row->input_type }}">
-                            <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
-                            <input type="hidden" name="is_visible" value="0">
-                            <div class="form-check form-switch d-inline-block mb-0">
-                              <input type="checkbox" class="form-check-input" name="is_visible" value="1" {{ ($row->is_visible ?? true) ? 'checked' : '' }} onchange="this.form.submit()">
-                            </div>
-                          </form>
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox"
+                              class="form-check-input bike-field-visibility-toggle"
+                              data-field-key="{{ $row->field_key }}"
+                              data-category-id="{{ $row->category_id }}"
+                              data-display-label="{{ $row->display_label }}"
+                              data-input-type="{{ $row->input_type }}"
+                              data-input-config-options="{{ $inputOptions }}"
+                              data-is-required-current="{{ ($row->is_required ?? false) ? 1 : 0 }}"
+                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}>
+                          </div>
                         </td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
@@ -438,7 +434,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                       </tr>
                       @endforeach
                       @if(($fixedList ?? collect())->isEmpty() && ($customFields ?? collect())->isEmpty())
-                      <tr>
+                      <tr data-bike-field-key="{{ $row->field_key }}">
                           <td colspan="7" class="text-center text-muted py-3">No bike fields configured yet.</td>
                       </tr>
                       @endif
@@ -460,7 +456,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                 <div class="table-responsive">
                   <table class="table table-hover bike-settings-table mb-0">
                     <thead class="table-light">
-                      <tr>
+                      <tr data-bike-field-key="{{ $row->field_key }}">
                         <th style="width: 60px;"></th>
                         <th>Field</th>
                         <th class="text-center">Required</th>
@@ -485,34 +481,30 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
                         <td class="align-middle text-center">
-                          <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-inline-block">
-                            @csrf
-                            <input type="hidden" name="field_key" value="{{ $row->field_key }}">
-                            <input type="hidden" name="category_id" value="{{ $row->category_id }}">
-                            <input type="hidden" name="display_label" value="{{ $row->display_label }}">
-                            <input type="hidden" name="is_visible" value="{{ ($row->is_visible ?? true) ? 1 : 0 }}">
-                            <input type="hidden" name="input_type" value="{{ $row->input_type }}">
-                            <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
-                            <input type="hidden" name="is_required" value="0">
-                            <div class="form-check form-switch d-inline-block mb-0">
-                              <input type="checkbox" class="form-check-input" name="is_required" value="1" {{ ($row->is_required ?? false) ? 'checked' : '' }} onchange="this.form.submit()">
-                            </div>
-                          </form>
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox"
+                              class="form-check-input bike-field-required-toggle"
+                              data-field-key="{{ $row->field_key }}"
+                              data-category-id="{{ $row->category_id }}"
+                              data-display-label="{{ $row->display_label }}"
+                              data-input-type="{{ $row->input_type }}"
+                              data-input-config-options="{{ $inputOptions }}"
+                              data-is-visible-current="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
+                              {{ ($row->is_required ?? false) ? 'checked' : '' }}>
+                          </div>
                         </td>
                         <td class="align-middle text-center">
-                          <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-inline-block">
-                            @csrf
-                            <input type="hidden" name="field_key" value="{{ $row->field_key }}">
-                            <input type="hidden" name="category_id" value="{{ $row->category_id }}">
-                            <input type="hidden" name="display_label" value="{{ $row->display_label }}">
-                            <input type="hidden" name="is_required" value="{{ ($row->is_required ?? false) ? 1 : 0 }}">
-                            <input type="hidden" name="input_type" value="{{ $row->input_type }}">
-                            <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
-                            <input type="hidden" name="is_visible" value="0">
-                            <div class="form-check form-switch d-inline-block mb-0">
-                              <input type="checkbox" class="form-check-input" name="is_visible" value="1" {{ ($row->is_visible ?? true) ? 'checked' : '' }} onchange="this.form.submit()">
-                            </div>
-                          </form>
+                          <div class="form-check form-switch d-inline-block mb-0">
+                            <input type="checkbox"
+                              class="form-check-input bike-field-visibility-toggle"
+                              data-field-key="{{ $row->field_key }}"
+                              data-category-id="{{ $row->category_id }}"
+                              data-display-label="{{ $row->display_label }}"
+                              data-input-type="{{ $row->input_type }}"
+                              data-input-config-options="{{ $inputOptions }}"
+                              data-is-required-current="{{ ($row->is_required ?? false) ? 1 : 0 }}"
+                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}>
+                          </div>
                         </td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
@@ -954,6 +946,107 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                   configOptions || ''
                 );
               }
+            });
+
+            function bikeSyncFieldToggles(fieldKey, type, value) {
+              const selector = type === 'required'
+                ? '.bike-field-required-toggle[data-field-key="' + fieldKey + '"]'
+                : '.bike-field-visibility-toggle[data-field-key="' + fieldKey + '"]';
+              document.querySelectorAll(selector).forEach(function (el) {
+                el.checked = !!value;
+              });
+            }
+
+            function bikeUpdateFieldToggle(toggleEl, changedKey, changedValue) {
+              const csrf = '{{ csrf_token() }}';
+              const fieldKey = toggleEl.dataset.fieldKey || '';
+              const categoryId = toggleEl.dataset.categoryId || '';
+
+              const payload = new URLSearchParams();
+              payload.append('_token', csrf);
+              payload.append('field_key', fieldKey);
+              payload.append('category_id', categoryId);
+              payload.append('display_label', toggleEl.dataset.displayLabel || '');
+              payload.append('input_type', toggleEl.dataset.inputType || '');
+              payload.append('input_config_options', toggleEl.dataset.inputConfigOptions || '');
+
+              const isRequired = changedKey === 'is_required'
+                ? changedValue
+                : Number(toggleEl.dataset.isRequiredCurrent || 0);
+              const isVisible = changedKey === 'is_visible'
+                ? changedValue
+                : Number(toggleEl.dataset.isVisibleCurrent || 1);
+
+              payload.append('is_required', String(isRequired));
+              payload.append('is_visible', String(isVisible));
+
+              return fetch("{{ route('settings-panel.bike-settings.update-field-assignment') }}", {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded',
+                  'X-CSRF-TOKEN': csrf,
+                  'Accept': 'application/json',
+                  'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: payload.toString(),
+              }).then(function (response) {
+                return response.json().then(function (data) {
+                  return response.ok ? data : Promise.reject(data);
+                });
+              });
+            }
+
+            document.addEventListener('change', function (e) {
+              const requiredToggle = e.target.closest('.bike-field-required-toggle');
+              if (!requiredToggle) return;
+
+              const originalChecked = !requiredToggle.checked;
+              requiredToggle.disabled = true;
+
+              bikeUpdateFieldToggle(requiredToggle, 'is_required', requiredToggle.checked ? 1 : 0)
+                .then(function (data) {
+                  const isRequired = Number(data.is_required ? 1 : 0);
+                  requiredToggle.dataset.isRequiredCurrent = String(isRequired);
+                  requiredToggle.checked = !!isRequired;
+                  bikeSyncFieldToggles(requiredToggle.dataset.fieldKey, 'required', isRequired);
+                  document.querySelectorAll('.bike-field-visibility-toggle[data-field-key="' + requiredToggle.dataset.fieldKey + '"]')
+                    .forEach(function (el) {
+                      el.dataset.isRequiredCurrent = String(isRequired);
+                    });
+                })
+                .catch(function () {
+                  requiredToggle.checked = originalChecked;
+                })
+                .finally(function () {
+                  requiredToggle.disabled = false;
+                });
+            });
+
+            document.addEventListener('change', function (e) {
+              const visibilityToggle = e.target.closest('.bike-field-visibility-toggle');
+              if (!visibilityToggle) return;
+
+              const originalChecked = !visibilityToggle.checked;
+              visibilityToggle.disabled = true;
+
+              bikeUpdateFieldToggle(visibilityToggle, 'is_visible', visibilityToggle.checked ? 1 : 0)
+                .then(function (data) {
+                  const isVisible = Number(data.is_visible ? 1 : 0);
+                  visibilityToggle.dataset.isVisibleCurrent = String(isVisible);
+                  visibilityToggle.checked = !!isVisible;
+                  bikeSyncFieldToggles(visibilityToggle.dataset.fieldKey, 'visibility', isVisible);
+                  document.querySelectorAll('.bike-field-required-toggle[data-field-key="' + visibilityToggle.dataset.fieldKey + '"]')
+                    .forEach(function (el) {
+                      el.dataset.isVisibleCurrent = String(isVisible);
+                    });
+
+                })
+                .catch(function () {
+                  visibilityToggle.checked = originalChecked;
+                })
+                .finally(function () {
+                  visibilityToggle.disabled = false;
+                });
             });
           </script>
 

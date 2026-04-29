@@ -291,7 +291,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                       <tr data-bike-field-key="{{ $row->field_key }}">
                         <td class="align-middle">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $fieldLabel }}</span>
+                          <span class="fw-semibold">{{ $fieldLabel }}@if($row->is_required ?? false) <span class="text-danger">*</span>@endif</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
                         <td class="align-middle">
@@ -379,7 +379,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                       <tr class="table-light">
                         <td class="align-middle">{{ $customStart + $customIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $customField->label }}</span>
+                          <span class="fw-semibold">{{ $customField->label }}@if($isReq) <span class="text-danger">*</span>@endif</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
                         <td class="align-middle">
@@ -486,7 +486,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                       <tr data-bike-field-key="{{ $row->field_key }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $fieldLabel }}</span>
+                          <span class="fw-semibold">{{ $fieldLabel }}@if($row->is_required ?? false) <span class="text-danger">*</span>@endif</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
                         <td class="align-middle text-center">
@@ -563,7 +563,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
                       <tr class="table-light" data-id="{{ $customField->id }}">
                         <td class="align-middle"></td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $customField->label }}</span>
+                          <span class="fw-semibold">{{ $customField->label }}@if(($customField->is_mandatory ?? false)) <span class="text-danger">*</span>@endif</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
                         <td class="align-middle text-center">{{ ($customField->is_mandatory ?? false) ? 'Yes' : 'No' }}</td>

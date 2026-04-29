@@ -17,7 +17,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   @if ($item->kind === 'fixed')
   @php $spec = $item->spec; $req = !empty($spec['required']); @endphp
   @if (($spec['type'] ?? 'text') === 'select')
-  {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
+  {!! Form::label($item->field_key, $item->label . ($req ? ' *' : ''), $req ? ['class' => 'required'] : []) !!}
   @php
   $opts = [];
   // Prefer user-configured options (stored in Rider Settings) when available.
@@ -62,16 +62,16 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
   @endif
   @elseif (($spec['type'] ?? '') === 'textarea')
-  {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
+  {!! Form::label($item->field_key, $item->label . ($req ? ' *' : ''), $req ? ['class' => 'required'] : []) !!}
   {!! Form::textarea($item->field_key, $value, ['class' => 'form-control', 'rows' => $spec['rows'] ?? 3] + ($req ? ['required' => true] : [])) !!}
   @elseif (($spec['type'] ?? '') === 'checkbox')
   <div class="form-check mt-4">
     <input type="hidden" name="{{ $item->field_key }}" value="{{ in_array($item->field_key, ['vat'], true) ? '2' : '0' }}" />
     {!! Form::checkbox($item->field_key, $spec['value'] ?? 1, $value == 1 || $value === true, ['class' => 'form-check-input', 'id' => 'field_' . $item->field_key]) !!}
-    {!! Form::label('field_' . $item->field_key, $item->label, ['class' => 'form-check-label pt-0']) !!}
+    {!! Form::label('field_' . $item->field_key, $item->label . ($req ? ' *' : ''), ['class' => 'form-check-label pt-0']) !!}
   </div>
   @else
-  {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
+  {!! Form::label($item->field_key, $item->label . ($req ? ' *' : ''), $req ? ['class' => 'required'] : []) !!}
   @if ($item->field_key === 'rider_id')
   {!! Form::text($item->field_key, $value, ['class' => 'form-control', 'id' => 'rider_id_field'] + array_filter(['required' => $req, 'maxlength' => $spec['maxlength'] ?? null, 'placeholder' => $spec['placeholder'] ?? null])) !!}
   <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
@@ -82,7 +82,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   @error($item->field_key)<span class="text-danger">{{ $message }}</span>@enderror
   @else
   @php $f = $item->field; $req = $f->is_mandatory ?? false; @endphp
-  {!! Form::label($name, $f->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
+  {!! Form::label($name, $f->label . ($req ? ' *' : ''), $req ? ['class' => 'required'] : []) !!}
   @if ($f->help_text)
   <p class="form-text small text-muted mb-1">{{ $f->help_text }}</p>
   @endif

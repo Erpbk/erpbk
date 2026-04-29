@@ -350,7 +350,7 @@
                       <tr data-field-key="{{ $row->field_key }}" data-field-label="{{ $row->label }}" data-category-id="{{ $row->category_id ?? '' }}" data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}" data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}" data-input-type="{{ $row->input_type ?? 'text' }}" data-input-config='@json($row->input_config ?? [])' class="{{ !($row->is_visible ?? true) ? 'table-secondary' : '' }}">
                         <td class="align-middle">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
+                          <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}@if($row->is_required ?? false) <span class="text-danger">*</span>@endif</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
                         <td class="align-middle">
@@ -407,7 +407,7 @@
                       <tr class="table-light">
                         <td class="align-middle">{{ count($allFixedFieldsForStatic ?? []) + $customIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $customField->label }}</span>
+                          <span class="fw-semibold">{{ $customField->label }}@if($customField->is_mandatory ?? false) <span class="text-danger">*</span>@endif</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
                         <td class="align-middle">
@@ -511,7 +511,7 @@
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle rider-field-index">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
+                          <span class="rider-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}@if($row->is_required ?? false) <span class="text-danger">*</span>@endif</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                         </td>
                         <td class="align-middle text-center">
@@ -564,7 +564,7 @@
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle rider-custom-field-index">{{ $fixedCount + $customIndex + 1 }}</td>
                         <td class="align-middle">
-                          <span class="fw-semibold">{{ $customField->label }}</span>
+                          <span class="fw-semibold">{{ $customField->label }}@if($customField->is_mandatory ?? false) <span class="text-danger">*</span>@endif</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
                         <td class="align-middle text-center">

@@ -1,6 +1,6 @@
 @extends('layouts.settingsPanelLayout')
 
-@section('title', 'Bike Settings – Site Settings')
+@section('title', $pageTitle ?? 'Bike Settings – Site Settings')
 
 @section('content')
 @include('flash::message')
@@ -8,6 +8,13 @@
 @php
 $activeCategoryId = (int) (request()->query('active_category_id', 0));
 $showBikeFieldsMainTab = request()->query->has('active_category_id');
+$settingsRoutePrefix = $settingsRoutePrefix ?? 'settings-panel.bike-settings';
+$settingsRouteParams = $settingsRouteParams ?? [];
+$settingsHeading = $settingsHeading ?? 'Bike Settings';
+$settingsFieldsTabLabel = $settingsFieldsTabLabel ?? 'Bike Fields';
+$settingsEntityName = $settingsEntityName ?? 'bike';
+$fixedFieldSourceTable = $fixedFieldSourceTable ?? 'bike_field_category_assignments';
+$customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
 @endphp
 
 <div class="row">
@@ -15,9 +22,9 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
     <div class="card mb-4">
       <div class="card-header d-flex align-items-center justify-content-between">
         <div>
-          <h4 class="card-title mb-0">Bike Settings</h4>
+          <h4 class="card-title mb-0">{{ $settingsHeading }}</h4>
           <p class="text-muted small mb-0 mt-1">
-            Configure bike fixed/custom fields and document types. Bike has no "on top" / "view on card" controls.
+            Configure fixed/custom fields and document types. This module has no "on top" / "view on card" controls.
           </p>
         </div>
       </div>
@@ -42,7 +49,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
           </li>
           <li class="nav-item" role="presentation">
             <button class="nav-link {{ $showBikeFieldsMainTab ? 'active' : '' }}" data-bs-toggle="tab" data-bs-target="#tab-bike-fields" type="button" role="tab">
-              Bike Fields
+              {{ $settingsFieldsTabLabel }}
             </button>
           </li>
           <li class="nav-item" role="presentation">
@@ -55,13 +62,13 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
         <div class="tab-content">
           {{-- Tab: General --}}
           <div class="tab-pane fade {{ $showBikeFieldsMainTab ? '' : 'show active' }}" id="tab-general" role="tabpanel">
-            <form action="{{ route('settings-panel.bike-settings.store-module-label') }}" method="POST" class="row g-3 align-items-end">
+            <form action="{{ route($settingsRoutePrefix . '.store-module-label', $settingsRouteParams) }}" method="POST" class="row g-3 align-items-end">
               @csrf
               <div class="col-md-6">
                 <label class="form-label">Name in menu</label>
                 <input type="text" name="module_label" class="form-control"
-                  value="{{ old('module_label', $moduleLabel ?? 'Bike Settings') }}"
-                  placeholder="Bike Settings" maxlength="100" required>
+                  value="{{ old('module_label', $moduleLabel ?? $settingsHeading) }}"
+                  placeholder="{{ $settingsHeading }}" maxlength="100" required>
               </div>
               <div class="col-md-6 text-end">
                 <button class="btn btn-primary" type="submit">Save name</button>
@@ -73,7 +80,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
           <div class="tab-pane fade" id="tab-categories" role="tabpanel">
             <div class="card mb-4">
               <div class="card-body">
-                <form action="{{ route('settings-panel.bike-settings.store-category') }}" method="POST" class="row g-3 align-items-end">
+                <form action="{{ route($settingsRoutePrefix . '.store-category', $settingsRouteParams) }}" method="POST" class="row g-3 align-items-end">
                   @csrf
                   <div class="col-md-8">
                     <label class="form-label">New category label</label>
@@ -102,14 +109,14 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                     <td>{!! $cat->is_system ? '<span class="badge bg-secondary">Yes</span>' : '<span class="badge bg-light text-dark border">No</span>' !!}</td>
                     <td>
                       @if(!$cat->is_system)
-                      <form action="{{ route('settings-panel.bike-settings.update-category', $cat->id) }}" method="POST" class="d-inline-flex gap-2 align-items-center">
+                      <form action="{{ route($settingsRoutePrefix . '.update-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline-flex gap-2 align-items-center">
                         @csrf
                         @method('PUT')
                         <input type="text" name="label" value="{{ $cat->label }}" required maxlength="255" class="form-control form-control-sm" style="max-width: 260px">
                         <button class="btn btn-sm btn-primary" type="submit"><i class="ti ti-pencil"></i></button>
                       </form>
 
-                      <form action="{{ route('settings-panel.bike-settings.destroy-category', $cat->id) }}" method="POST" class="d-inline ms-2" onsubmit="return confirm('Delete this category?')">
+                      <form action="{{ route($settingsRoutePrefix . '.destroy-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline ms-2" onsubmit="return confirm('Delete this category?')">
                         @csrf
                         @method('DELETE')
                         <button class="btn btn-sm btn-danger" type="submit"><i class="ti ti-trash"></i></button>
@@ -146,7 +153,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                   </div>
 
-                  <form id="formAddBikeField" action="{{ route('settings-panel.bike-settings.store-field') }}" method="POST">
+                  <form id="formAddBikeField" action="{{ route($settingsRoutePrefix . '.store-field', $settingsRouteParams) }}" method="POST">
                     @csrf
                     <div class="modal-body pt-0">
                       <div class="row g-3 align-items-end">
@@ -212,8 +219,8 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
 
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
               <p class="text-muted small mb-0">
-                Fixed fields come from <code>bike_field_category_assignments</code>. Custom fields come from <code>bike_custom_fields</code>.
-                Use <b>All Fields</b> to move fields, and category tabs show their current assignments.
+                Fixed fields come from <code>{{ $fixedFieldSourceTable }}</code>. Custom fields come from <code>{{ $customFieldSourceTable }}</code>.
+                <b>All Fields</b> automatically lists this module's database fields, and category tabs show only this module's own assignments.
               </p>
             </div>
 
@@ -317,7 +324,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                           </div>
                         </td>
                         <td class="align-middle">
-                          <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
+                          <form action="{{ route($settingsRoutePrefix . '.update-field-assignment', $settingsRouteParams) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
                             <input type="hidden" name="field_key" value="{{ $row->field_key }}">
                             <input type="hidden" name="display_label" value="{{ $row->display_label }}">
@@ -384,7 +391,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                         <td class="align-middle text-center">{{ $isReq ? 'Yes' : 'No' }}</td>
                         <td class="align-middle text-center">-</td>
                         <td class="align-middle">
-                          <form action="{{ route('settings-panel.bike-settings.assign-custom-field-category', $customField->id) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
+                          <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
                               @foreach($categories as $dst)
@@ -415,15 +422,15 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                             data-default-value="{{ $customField->default_value }}"
                             data-input-format="{{ $customField->input_format }}"
                             data-config-options='@json($customConfigOptions)'
-                            data-update-url="{{ route('settings-panel.bike-settings.update-field', ['id' => $customField->id]) }}"
+                            data-update-url="{{ route($settingsRoutePrefix . '.update-field', array_merge($settingsRouteParams, ['id' => $customField->id])) }}"
                             data-category-id="{{ $customField->category_id ?? '' }}"
                             title="Edit custom field">
                             <i class="ti ti-pencil"></i>
                           </button>
-                          <form action="{{ route('settings-panel.bike-settings.destroy-field', $customField->id) }}"
+                          <form action="{{ route($settingsRoutePrefix . '.destroy-field', array_merge($settingsRouteParams, ['id' => $customField->id])) }}"
                             method="POST"
                             class="d-inline ms-1"
-                            onsubmit="return confirm('Delete this bike custom field?')">
+                            onsubmit="return confirm('Delete this {{ $settingsEntityName }} custom field?')">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete custom field">
@@ -434,7 +441,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                       </tr>
                       @endforeach
                       @if(($fixedList ?? collect())->isEmpty() && ($customFields ?? collect())->isEmpty())
-                      <tr data-bike-field-key="{{ $row->field_key }}">
+                      <tr>
                           <td colspan="7" class="text-center text-muted py-3">No bike fields configured yet.</td>
                       </tr>
                       @endif
@@ -456,7 +463,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                 <div class="table-responsive">
                   <table class="table table-hover bike-settings-table mb-0">
                     <thead class="table-light">
-                      <tr data-bike-field-key="{{ $row->field_key }}">
+                      <tr>
                         <th style="width: 60px;"></th>
                         <th>Field</th>
                         <th class="text-center">Required</th>
@@ -507,7 +514,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                           </div>
                         </td>
                         <td class="align-middle">
-                          <form action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
+                          <form action="{{ route($settingsRoutePrefix . '.update-field-assignment', $settingsRouteParams) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
                             <input type="hidden" name="field_key" value="{{ $row->field_key }}">
                             <input type="hidden" name="display_label" value="{{ $row->display_label }}">
@@ -559,7 +566,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                         <td class="align-middle text-center">{{ ($customField->is_mandatory ?? false) ? 'Yes' : 'No' }}</td>
                         <td class="align-middle text-center">-</td>
                         <td class="align-middle">
-                          <form action="{{ route('settings-panel.bike-settings.assign-custom-field-category', $customField->id) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
+                          <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
                               @foreach($categories as $dst)
@@ -590,15 +597,15 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                             data-default-value="{{ $customField->default_value }}"
                             data-input-format="{{ $customField->input_format }}"
                             data-config-options='@json($customConfigOptions)'
-                            data-update-url="{{ route('settings-panel.bike-settings.update-field', ['id' => $customField->id]) }}"
+                            data-update-url="{{ route($settingsRoutePrefix . '.update-field', array_merge($settingsRouteParams, ['id' => $customField->id])) }}"
                             data-category-id="{{ $customField->category_id ?? '' }}"
                             title="Edit custom field">
                             <i class="ti ti-pencil"></i>
                           </button>
-                          <form action="{{ route('settings-panel.bike-settings.destroy-field', $customField->id) }}"
+                          <form action="{{ route($settingsRoutePrefix . '.destroy-field', array_merge($settingsRouteParams, ['id' => $customField->id])) }}"
                             method="POST"
                             class="d-inline ms-1"
-                            onsubmit="return confirm('Delete this bike custom field?')">
+                            onsubmit="return confirm('Delete this {{ $settingsEntityName }} custom field?')">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete custom field">
@@ -631,7 +638,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
 
-                <form id="formEditBikeFixedField" action="{{ route('settings-panel.bike-settings.update-field-assignment') }}" method="POST">
+                <form id="formEditBikeFixedField" action="{{ route($settingsRoutePrefix . '.update-field-assignment', $settingsRouteParams) }}" method="POST">
                   @csrf
                   <div class="modal-body pt-0">
                     <div class="row g-3 align-items-end">
@@ -980,7 +987,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
               payload.append('is_required', String(isRequired));
               payload.append('is_visible', String(isVisible));
 
-              return fetch("{{ route('settings-panel.bike-settings.update-field-assignment') }}", {
+              return fetch("{{ route($settingsRoutePrefix . '.update-field-assignment', $settingsRouteParams) }}", {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/x-www-form-urlencoded',
@@ -1054,7 +1061,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
           <div class="tab-pane fade" id="tab-docs" role="tabpanel">
             <div class="card mb-4">
               <div class="card-body">
-                <form action="{{ route('settings-panel.bike-settings.store-document-type') }}" method="POST" class="row g-3 align-items-end">
+                <form action="{{ route($settingsRoutePrefix . '.store-document-type', $settingsRouteParams) }}" method="POST" class="row g-3 align-items-end">
                   @csrf
                   <div class="col-md-3">
                     <label class="form-label">Key</label>
@@ -1105,7 +1112,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                 <tbody>
                   @foreach($documentTypes as $doc)
                   <tr>
-                    <form action="{{ route('settings-panel.bike-settings.update-document-type', $doc->id) }}" method="POST">
+                    <form action="{{ route($settingsRoutePrefix . '.update-document-type', array_merge($settingsRouteParams, ['id' => $doc->id])) }}" method="POST">
                       @csrf
                       @method('PUT')
                       <td>
@@ -1127,7 +1134,7 @@ $showBikeFieldsMainTab = request()->query->has('active_category_id');
                       </td>
                     </form>
                     <td>
-                      <form action="{{ route('settings-panel.bike-settings.destroy-document-type', $doc->id) }}" method="POST" onsubmit="return confirm('Delete this document type?')" class="d-inline">
+                      <form action="{{ route($settingsRoutePrefix . '.destroy-document-type', array_merge($settingsRouteParams, ['id' => $doc->id])) }}" method="POST" onsubmit="return confirm('Delete this document type?')" class="d-inline">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-danger">Del</button>

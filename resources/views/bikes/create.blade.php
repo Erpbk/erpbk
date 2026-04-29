@@ -2,9 +2,7 @@
 
 <div class="card-body">
   <input type="hidden" name="created_by" value="{{ Auth::user()->id }}">
-  <div class="row">
-    @include('bikes.fields')
-  </div>
+  @include('bikes.fields')
 
 </div>
 

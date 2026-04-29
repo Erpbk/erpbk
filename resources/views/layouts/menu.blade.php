@@ -581,8 +581,8 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 @if($canAccessSuperAdminPanel && $adminUser->hasPermission('companies_view'))
-  <li class="menu-item {{ Route::is('admin.companies*') ? 'active' : '' }}">
-    <a href="{{ route('admin.companies.index') }}" class="menu-link">
+<li class="menu-item {{ Route::is('admin.companies*') ? 'active' : '' }}">
+  <a href="{{ route('admin.companies.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-building-community"></i>
     <div>{{ __('Companies') }}</div>
   </a>

@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateBikesRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\BikeHistory;
 use App\Models\Bikes;
+use App\Models\BikeFieldCategoryAssignment;
 use App\Models\Riders;
 use App\Models\VehicleModels;
 use App\Repositories\BikesRepository;
@@ -51,7 +52,7 @@ class BikesController extends AppBaseController
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Bikes::query()
       ->orderBy('bike_code', 'desc');
-    if($request->has('branch_id') && !empty($request->branch_id)){
+    if ($request->has('branch_id') && !empty($request->branch_id)) {
       $query->where('branch_id', $request->branch_id);
     }
     if ($request->has('bike_code') && !empty($request->bike_code)) {
@@ -160,13 +161,24 @@ class BikesController extends AppBaseController
 
     // Final filtered columns
     $dbColumns = array_diff($filteredColumns, $exclude);
+
+    // Only include fields enabled in Bike Settings ("Show in form" ON).
+    $visibleFieldKeys = $this->getVisibleBikeFieldKeysForTable();
+    if (!empty($visibleFieldKeys)) {
+      $visibleDbColumns = array_values(array_filter($dbColumns, function ($key) use ($visibleFieldKeys) {
+        return isset($visibleFieldKeys[$key]);
+      }));
+
+      // Guard against accidental key mismatch causing empty table columns.
+      if (!empty($visibleDbColumns)) {
+        $dbColumns = $visibleDbColumns;
+      }
+    }
     $preferredOrder = [
       'bike_code',
       'plate',
       'branch_id',
       'rider_id',
-      // Rider name is a computed column and should always be available
-      'rider_name', // Ensure rider_name is included and controllable
       'emirates',
       'company',
       'customer_id',
@@ -185,11 +197,7 @@ class BikesController extends AppBaseController
 
     // Add preferred DB columns first
     foreach ($preferredOrder as $key) {
-      // Add rider_name always, even if not in DB
-      if ($key === 'rider_name') {
-        $columns[] = ['data' => 'rider_name', 'title' => $makeTitle('rider_name')];
-        $added['rider_name'] = true;
-      }elseif ($key === 'branch_id') {
+      if ($key === 'branch_id') {
         $columns[] = ['data' => 'branch_id', 'title' => 'Branch'];
         $added['branch_id'] = true;
       } elseif (in_array($key, $dbColumns)) {
@@ -214,6 +222,27 @@ class BikesController extends AppBaseController
     ]);
 
     return $columns;
+  }
+
+  /**
+   * Fields that should appear in Bike table/column-control.
+   * Source of truth: bike_field_category_assignments.is_visible
+   */
+  private function getVisibleBikeFieldKeysForTable(): array
+  {
+    if (!Schema::hasTable('bike_field_category_assignments')) {
+      return [];
+    }
+
+    $query = BikeFieldCategoryAssignment::query()->select('field_key');
+    if (Schema::hasColumn('bike_field_category_assignments', 'is_visible')) {
+      $query->where(function ($q) {
+        $q->whereNull('is_visible')->orWhere('is_visible', 1);
+      });
+    }
+
+    $keys = $query->pluck('field_key')->filter()->values()->all();
+    return array_fill_keys($keys, true);
   }
 
   /**
@@ -342,6 +371,8 @@ class BikesController extends AppBaseController
       );
     }
 
+    $input = $this->normalizeBikeInputForDatabase($input, true);
+
     $bikes = $this->bikesRepository->create($input);
     $bikes->created_by = Auth::user()->id;
     $bikes->save();
@@ -398,7 +429,8 @@ class BikesController extends AppBaseController
       return response()->json(['errors' => ['error' => 'Bike not found!']], 422);
     }
 
-    $bikes = $this->bikesRepository->update($request->all(), $id);
+    $input = $this->normalizeBikeInputForDatabase($request->all(), false);
+    $bikes = $this->bikesRepository->update($input, $id);
     $bikes->updated_by = Auth::user()->id;
     $bikes->save();
 
@@ -409,7 +441,8 @@ class BikesController extends AppBaseController
         $customer_id = $request->customer_id;
         // Determine new designation (copy from assignrider logic)
         $designation = $rider->designation;
-        $emirate_hub = $request->emirate_hub;
+        // Bike form field name is `emirates` (not `emirate_hub`)
+        $emirate_hub = $request->input('emirates');
         if ($bikes->vehicle_type) {
           $vehicleModel = \App\Support\CompanyQuery::table('vehicle_models')->where('id', $bikes->vehicle_type)->first();
           $vehicleTypeName = $vehicleModel ? strtolower($vehicleModel->name) : '';
@@ -429,6 +462,88 @@ class BikesController extends AppBaseController
       }
     }
     return response()->json(['message' => 'Bike updated successfully.', 'redirect' => route('bikes.show', $bikes->id)]);
+  }
+
+  /**
+   * Keep DB writes safe when a non-null bike column is not required by settings.
+   */
+  private function normalizeBikeInputForDatabase(array $input, bool $isCreate = true): array
+  {
+    $requiredColumns = $this->bikeNonNullableColumnsWithoutDefault();
+
+    foreach ($requiredColumns as $column => $meta) {
+      $hasKey = array_key_exists($column, $input);
+      $current = $hasKey ? $input[$column] : null;
+
+      // Create: ensure missing required DB columns are populated.
+      // Update: do not overwrite omitted fields; only normalize when key exists.
+      if (($isCreate && (!$hasKey || $current === null)) || (!$isCreate && $hasKey && $current === null)) {
+        $input[$column] = $this->fallbackValueForSqlType($meta['type']);
+      }
+    }
+
+    return $input;
+  }
+
+  /**
+   * Non-null bike columns that have no DB default (must receive a value on insert).
+   *
+   * @return array<string, array{type:string}>
+   */
+  private function bikeNonNullableColumnsWithoutDefault(): array
+  {
+    static $cached = null;
+    if ($cached !== null) {
+      return $cached;
+    }
+
+    $rows = DB::select('SHOW COLUMNS FROM bikes');
+    $fillable = array_flip((new Bikes())->getFillable());
+    $result = [];
+
+    foreach ($rows as $row) {
+      $field = (string) ($row->Field ?? '');
+      $isNotNull = strtoupper((string) ($row->Null ?? 'YES')) === 'NO';
+      $default = $row->Default ?? null;
+      $extra = strtolower((string) ($row->Extra ?? ''));
+      $type = strtolower((string) ($row->Type ?? ''));
+
+      if (!$isNotNull || $default !== null) {
+        continue;
+      }
+      if ($field === '' || !isset($fillable[$field])) {
+        continue;
+      }
+      if (str_contains($extra, 'auto_increment')) {
+        continue;
+      }
+
+      $result[$field] = ['type' => $type];
+    }
+
+    $cached = $result;
+    return $cached;
+  }
+
+  private function fallbackValueForSqlType(string $type)
+  {
+    $type = strtolower($type);
+
+    if (
+      str_contains($type, 'int') ||
+      str_contains($type, 'decimal') ||
+      str_contains($type, 'float') ||
+      str_contains($type, 'double')
+    ) {
+      return 0;
+    }
+
+    if (str_contains($type, 'json')) {
+      return '{}';
+    }
+
+    // varchar/text/date/datetime/enum/set fallback
+    return '';
   }
 
   /**

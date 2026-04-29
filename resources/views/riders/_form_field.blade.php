@@ -20,23 +20,41 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
   @php
   $opts = [];
-  if (($spec['dropdown'] ?? '') === 'countries') {
-  $opts = \App\Models\Countries::list()->toArray();
-  } elseif (($spec['dropdown'] ?? '') === 'vendors') {
-  $opts = \App\Models\Vendors::dropdown();
-  } elseif (($spec['dropdown'] ?? '') === 'recruiters') {
-  $opts = ['' => 'Select Recruiter'];
-  foreach (DB::table('recruiters')->where('status', 1)->get() as $r) {
-  $opts[$r->id] = $r->name;
+  // Prefer user-configured options (stored in Rider Settings) when available.
+  $rawOptions = $spec['options'] ?? null;
+  $parsedOptions = [];
+  if ($rawOptions !== null && $rawOptions !== '') {
+    $lines = is_array($rawOptions) ? $rawOptions : preg_split('/\r\n|\r|\n/', (string) $rawOptions);
+    foreach ($lines as $line) {
+      $line = trim((string) $line);
+      if ($line !== '') {
+        $parsedOptions[] = $line;
+      }
+    }
   }
+
+  if (!empty($parsedOptions)) {
+    foreach ($parsedOptions as $opt) {
+      // Store both key and label as the same value for now.
+      $opts[$opt] = $opt;
+    }
+  } elseif (($spec['dropdown'] ?? '') === 'countries') {
+    $opts = \App\Models\Countries::list()->toArray();
+  } elseif (($spec['dropdown'] ?? '') === 'vendors') {
+    $opts = \App\Models\Vendors::dropdown();
+  } elseif (($spec['dropdown'] ?? '') === 'recruiters') {
+    $opts = ['' => 'Select Recruiter'];
+    foreach (DB::table('recruiters')->where('status', 1)->get() as $r) {
+      $opts[$r->id] = $r->name;
+    }
   } elseif (($spec['dropdown'] ?? '') === 'accounts') {
-  $opts = \App\Models\Accounts::dropdown(null) ?? ['' => 'Select'];
+    $opts = \App\Models\Accounts::dropdown(null) ?? ['' => 'Select'];
   } elseif (($spec['dropdown'] ?? '') === 'customers') {
-  $opts = \App\Models\Customers::pluck('name', 'id')->prepend('Select', '')->toArray();
+    $opts = \App\Models\Customers::pluck('name', 'id')->prepend('Select', '')->toArray();
   } elseif (($spec['dropdown'] ?? '') === 'branch') {
-  $opts = \App\Models\Branch::active()->pluck('name', 'id')->prepend('Select', '')->toArray();
+    $opts = \App\Models\Branch::active()->pluck('name', 'id')->prepend('Select', '')->toArray();
   } else {
-  $opts = Common::Dropdowns($spec['dropdown'] ?? '');
+    $opts = Common::Dropdowns($spec['dropdown'] ?? '');
   }
   @endphp
   {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select', 'placeholder' => 'Select ' . $item->label, 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null] + ($req ? ['required' => true] : [])) !!}

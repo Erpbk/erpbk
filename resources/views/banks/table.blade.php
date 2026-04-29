@@ -5,34 +5,49 @@
    }
 </style>
 @endpush
+@php
+   $visibleFieldMap = \App\Support\ModuleFieldSettings::visibleFieldMap('cash_banks');
+   $showField = function (string $key) use ($visibleFieldMap): bool {
+      return array_key_exists($key, $visibleFieldMap);
+   };
+   $labelFor = function (string $key, string $fallback) use ($visibleFieldMap): string {
+      return $visibleFieldMap[$key] ?? $fallback;
+   };
+   $colspan = 1; // actions
+   foreach (['name', 'title', 'account_no', 'branch', 'balance', 'status'] as $k) {
+      if ($showField($k)) {
+         $colspan++;
+      }
+   }
+@endphp
 <table class="table dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
-         <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>
-         <th title="Title" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Title: activate to sort column ascending">Title</th>
-         <th title="Account No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Account No: activate to sort column ascending">Account No</th>
-         <th title="Branch" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Branch: activate to sort column ascending">Branch</th>
-         <th title="Balance" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Balance: activate to sort column ascending">Balance</th>
-         <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
+         @if($showField('name'))<th title="{{ $labelFor('name', 'Name') }}" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="{{ $labelFor('name', 'Name') }}: activate to sort column ascending">{{ $labelFor('name', 'Name') }}</th>@endif
+         @if($showField('title'))<th title="{{ $labelFor('title', 'Title') }}" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="{{ $labelFor('title', 'Title') }}: activate to sort column ascending">{{ $labelFor('title', 'Title') }}</th>@endif
+         @if($showField('account_no'))<th title="{{ $labelFor('account_no', 'Account No') }}" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="{{ $labelFor('account_no', 'Account No') }}: activate to sort column ascending">{{ $labelFor('account_no', 'Account No') }}</th>@endif
+         @if($showField('branch'))<th title="{{ $labelFor('branch', 'Branch') }}" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="{{ $labelFor('branch', 'Branch') }}: activate to sort column ascending">{{ $labelFor('branch', 'Branch') }}</th>@endif
+         @if($showField('balance'))<th title="{{ $labelFor('balance', 'Balance') }}" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="{{ $labelFor('balance', 'Balance') }}: activate to sort column ascending">{{ $labelFor('balance', 'Balance') }}</th>@endif
+         @if($showField('status'))<th title="{{ $labelFor('status', 'Status') }}" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="{{ $labelFor('status', 'Status') }}: activate to sort column ascending">{{ $labelFor('status', 'Status') }}</th>@endif
          <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
       </tr>
    </thead>
    <tbody>
       @forelse($data as $r)
       <tr class="text-center">
-         <td><a href="{{ route('bank.files' , $r->id)}}">{{$r->name}}</a><br/></td>
-         <td>{{$r->title}}</td>
-         <td>{{$r->account_no}}</td>
-         <td>{{ $r->branch_name }}</td>
-         <td>{{$r->balance}}</td>
-         <td>
+         @if($showField('name'))<td><a href="{{ route('bank.files' , $r->id)}}">{{$r->name}}</a><br/></td>@endif
+         @if($showField('title'))<td>{{$r->title}}</td>@endif
+         @if($showField('account_no'))<td>{{$r->account_no}}</td>@endif
+         @if($showField('branch'))<td>{{ $r->branch_name }}</td>@endif
+         @if($showField('balance'))<td>{{$r->balance}}</td>@endif
+         @if($showField('status'))<td>
             @if($r->status == 1)
                 <span class="badge  bg-success">Active</span>
             @else
                 <span class="badge  bg-danger">Inactive</span>
             @endif
-            </td>
-            <td style="position: relative;">
+            </td>@endif
+         <td style="position: relative;">
                <div class="dropdown">
                   <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -49,8 +64,9 @@
                         </a>
                      @endcan
                      @can('bank_delete')
-                     <a href="#" class='dropdown-item waves-effect' 
-                     onclick="confirmDelete('{{route('bank.delete', $r->id) }}')">
+                     <a href="#" class='dropdown-item waves-effect'
+                     data-delete-url="{{ route('bank.delete', $r->id) }}"
+                     onclick="confirmDelete(this.dataset.deleteUrl)">
                      <i class="fa fa-trash my-1"></i> Delete
                      </a>
                      @endcan
@@ -60,7 +76,7 @@
       </tr>
       @empty
       <tr>
-         <td colspan="7" class="text-center">
+         <td colspan="{{ $colspan }}" class="text-center">
             <h4 class="mt-3">No Data Found</h4>
          </td>
       </tr>

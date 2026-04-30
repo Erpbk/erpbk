@@ -46,7 +46,7 @@ class BanksController extends AppBaseController
     if (!auth()->user()->hasPermissionTo('bank_view')) {
       abort(403, 'Unauthorized action.');
     }
-    
+
     $fundIn = 0;
     $fundOut = 0;
     $banks = Banks::all();
@@ -115,14 +115,15 @@ class BanksController extends AppBaseController
   {
     $input = $request->all();
 
-    try{
+    try {
       DB::beginTransaction();
       $banks = $this->banksRepository->create($input);
 
       //Adding Account and setting reference
-      $parentAccount = Accounts::where('name', 'Cash & Bank')->where('account_type', 'Asset')->first();
+      $parentId = Accounts::where('name', 'Current Assets')->where('account_type', 'Asset')->first()->id;
+      $parentAccount = Accounts::where('name', 'Cash & Bank')->where('account_type', 'Asset')->where('parent_id', $parentId)->first();
       if (!$parentAccount) {
-        Flash::error('Parent account "Asset" not found.');
+        Flash::error('Parent account "Cash & Bank" not found.');
       }
       $account = new Accounts();
       $account->account_code = 'BK' . str_pad($banks->id, 4, "0", STR_PAD_LEFT);
@@ -137,23 +138,23 @@ class BanksController extends AppBaseController
       $banks->account_id = $account->id;
       $banks->save();
       DB::commit();
-      if($request->ajax()){
+      if ($request->ajax()) {
         return response()->json([
           'message' => 'Bank Account Added Successfully',
           'reload' => true
-        ],200);
+        ], 200);
       }
       Flash::success('Bank added successfully.');
       return redirect()->back();
-    }catch(\Exception $e){
-      \Log::error('error occured while creating bank account : '.$e->getMessage());
+    } catch (\Exception $e) {
+      \Log::error('error occured while creating bank account : ' . $e->getMessage());
       DB::rollBack();
-      if($request->ajax()){
+      if ($request->ajax()) {
         return response()->json([
-            'message' => 'Error: '.$e->getMessage(),
-          ],500);
+          'message' => 'Error: ' . $e->getMessage(),
+        ], 500);
       }
-      Flash::error('Error: '.$e->getMessage());
+      Flash::error('Error: ' . $e->getMessage());
       return redirect()->back();
     }
   }
@@ -178,7 +179,7 @@ class BanksController extends AppBaseController
   /**
    * Show the form for editing the specified Banks.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $id = (int) $id;
     $banks = $this->banksRepository->find($id);
@@ -394,7 +395,7 @@ class BanksController extends AppBaseController
   {
     $files = \App\Support\CompanyQuery::table('files')->where('type', 'bank')->where('type_id', $id)->latest('id')->get();
     $banks = Banks::find($id);
-    return view('banks.document', compact('files','banks'));
+    return view('banks.document', compact('files', 'banks'));
   }
 
   public function receipts(Request $request, $company_slug, $id)
@@ -402,8 +403,8 @@ class BanksController extends AppBaseController
     $banks = Banks::find($id);
     $fundIn = 0;
     $fundOut = 0;
-    $credit = Transactions::where('account_id',$banks->account_id)->sum('credit');
-    $debit  = Transactions::where('account_id',$banks->account_id)->sum('debit');
+    $credit = Transactions::where('account_id', $banks->account_id)->sum('credit');
+    $debit  = Transactions::where('account_id', $banks->account_id)->sum('debit');
     $balance = $debit - $credit;
     $fundIn += $debit;
     $fundOut += $credit;
@@ -411,10 +412,10 @@ class BanksController extends AppBaseController
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Receipt::query()->latest('id');
     $query->where('bank_id', $banks->id);
-    
+
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
-    return view('banks.receipts' , ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
+    return view('banks.receipts', ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
   }
 
   public function payments(Request $request, $company_slug, $id)
@@ -422,8 +423,8 @@ class BanksController extends AppBaseController
     $banks = Banks::find($id);
     $fundIn = 0;
     $fundOut = 0;
-    $credit = Transactions::where('account_id',$banks->account_id)->sum('credit');
-    $debit  = Transactions::where('account_id',$banks->account_id)->sum('debit');
+    $credit = Transactions::where('account_id', $banks->account_id)->sum('credit');
+    $debit  = Transactions::where('account_id', $banks->account_id)->sum('debit');
     $balance = $debit - $credit;
     $fundIn += $debit;
     $fundOut += $credit;
@@ -434,7 +435,7 @@ class BanksController extends AppBaseController
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
-    return view('banks.payments' , ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
+    return view('banks.payments', ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
   }
 
   public function cheques(Request $request, $company_slug, $id)

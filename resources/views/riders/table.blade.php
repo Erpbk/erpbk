@@ -8,8 +8,8 @@
          $dataColumns = array_values(array_filter($tableCols, function($c){
          $k = $c['data'] ?? ($c['key'] ?? null);
          return $k !== 'search'
-            && $k !== 'control'
-            && !in_array($k, ['branch_id', 'company_id', 'account_id'], true);
+         && $k !== 'control'
+         && !in_array($k, ['branch_id', 'company_id', 'account_id'], true);
          }));
          @endphp
          @foreach($dataColumns as $col)
@@ -67,15 +67,15 @@
          @break
          @case('status')
          @php
-        $statusText = trim((string)($r->rider_status ?? ''));
-        if ($statusText === '') {
-          $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
-          $statusText = $hasActiveBike ? 'Active' : 'Inactive';
-        }
-        $normalized = strtolower($statusText);
-        $badgeClass = in_array($normalized, ['active', 'follow up', 'pro', 'walker', 'learning license'], true)
-          ? 'bg-label-success'
-          : 'bg-label-danger';
+         $statusText = trim((string)($r->rider_status ?? ''));
+         if ($statusText === '') {
+         $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
+         $statusText = $hasActiveBike ? 'Active' : 'Inactive';
+         }
+         $normalized = strtolower($statusText);
+         $badgeClass = in_array($normalized, ['active', 'follow up', 'pro', 'walker', 'learning license'], true)
+         ? 'bg-label-success'
+         : 'bg-label-danger';
          @endphp
          <td>
             <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
@@ -84,8 +84,8 @@
          @case('attendance')
          @php
          $rider = DB::Table('riders')->find($r->id);
-        $timeline = DB::Table('job_status')->select('id')->where('RID', $r->id)->whereDate('created_at', today())->first();
-        $emails = DB::Table('rider_emails')->select('id')->where('rider_id', $r->id)->whereDate('created_at', today())->first();
+         $timeline = DB::Table('job_status')->select('id')->where('RID', $r->id)->whereDate('created_at', today())->first();
+         $emails = DB::Table('rider_emails')->select('id')->where('rider_id', $r->id)->whereDate('created_at', today())->first();
          @endphp
          <td>
             @if($timeline)
@@ -139,19 +139,19 @@
          @default
          <td>
             @php
-               $value = data_get($r, $key, '-');
-               // Blade escapes output via htmlspecialchars(). If $value is an array/collection,
-               // convert it into a displayable string first to avoid "must be of type string" errors.
-               if (is_array($value)) {
-                  $value = array_is_list($value)
-                     ? implode(', ', array_map(fn($v) => is_scalar($v) ? (string)$v : json_encode($v), $value))
-                     : json_encode($value);
-               } elseif ($value instanceof \Illuminate\Support\Collection) {
-                  $value = $value->toArray();
-                  $value = array_is_list($value)
-                     ? implode(', ', array_map(fn($v) => is_scalar($v) ? (string)$v : json_encode($v), $value))
-                     : json_encode($value);
-               }
+            $value = data_get($r, $key, '-');
+            // Blade escapes output via htmlspecialchars(). If $value is an array/collection,
+            // convert it into a displayable string first to avoid "must be of type string" errors.
+            if (is_array($value)) {
+            $value = array_is_list($value)
+            ? implode(', ', array_map(fn($v) => is_scalar($v) ? (string)$v : json_encode($v), $value))
+            : json_encode($value);
+            } elseif ($value instanceof \Illuminate\Support\Collection) {
+            $value = $value->toArray();
+            $value = array_is_list($value)
+            ? implode(', ', array_map(fn($v) => is_scalar($v) ? (string)$v : json_encode($v), $value))
+            : json_encode($value);
+            }
             @endphp
             {{ $value }}
          </td>

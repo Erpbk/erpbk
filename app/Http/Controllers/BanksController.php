@@ -196,7 +196,7 @@ class BanksController extends AppBaseController
   /**
    * Update the specified Banks in storage.
    */
-  public function update($id, UpdateBanksRequest $request)
+  public function update($company_slug, $id, UpdateBanksRequest $request)
   {
     $id = (int) $id;
     $banks = $this->banksRepository->find($id);
@@ -218,7 +218,7 @@ class BanksController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $id = (int) $id;
     $banks = $this->banksRepository->find($id);

@@ -1,8 +1,9 @@
 @php
 $containerNav = ($configData['contentLayout'] === 'compact') ? 'container-xxl' : 'container-fluid';
 $navbarDetached = ($navbarDetached ?? '');
+$isAdminRoute = request()->routeIs('admin.*');
 $adminUser = auth('admin')->user();
-$isAdminSession = (bool) $adminUser;
+$isAdminSession = $isAdminRoute && (bool) $adminUser;
 $companySlug = request()->route('company_slug') ?? session('company_slug');
 $homeLink = $isAdminSession
 ? route('admin.dashboard')

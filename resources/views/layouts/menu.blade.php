@@ -2,8 +2,9 @@
 // Labels are editable in Settings > ERP Module Settings > [Module] > General; same source as ModuleSettingsController
 $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
 $companySlug = request()->route('company_slug') ?? session('company_slug');
-$isAdminLogin = auth('admin')->check();
-$homeLink = auth('admin')->check()
+$isAdminRoute = request()->routeIs('admin.*');
+$isAdminLogin = auth('admin')->check() && $isAdminRoute;
+$homeLink = $isAdminLogin
 ? route('admin.dashboard')
 : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
 @endphp

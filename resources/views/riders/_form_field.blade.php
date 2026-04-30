@@ -56,8 +56,16 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   } else {
   $opts = Common::Dropdowns($spec['dropdown'] ?? '');
   }
+  $hasEmptyOption = array_key_exists('', $opts);
+  $selectAttributes = ['class' => 'form-select', 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null];
+  if (!$hasEmptyOption) {
+  $selectAttributes['placeholder'] = 'Select ' . $item->label;
+  }
+  if ($req) {
+  $selectAttributes['required'] = true;
+  }
   @endphp
-  {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select', 'placeholder' => 'Select ' . $item->label, 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::select($item->field_key, $opts, $value, $selectAttributes) !!}
   @if ($item->field_key === 'rider_id')
   <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
   @endif

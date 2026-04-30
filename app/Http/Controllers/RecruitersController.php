@@ -79,12 +79,12 @@ class RecruitersController extends AppBaseController
     {
         $input = $request->all();
         //Adding Account and setting reference
-
-        $parentAccount = Accounts::where('name', 'Recruiter')->where('account_type', 'Liability')->where('parent_id', null)->first();
+        $parentId = Accounts::where('name', 'Current Liabilities')->where('account_type', 'Liability')->first()->id;
+        $parentAccount = Accounts::where('name', 'Recruiter')->where('account_type', 'Liability')->where('parent_id', $parentId)->first();
         if (!$parentAccount) {
             Flash::error('Parent account "Recruiter" not found.');
         }
-        try{
+        try {
             DB::beginTransaction();
             $recruiter = $this->recruitersRepository->create($input);
 
@@ -104,18 +104,17 @@ class RecruitersController extends AppBaseController
             $recruiter->save();
             DB::commit();
 
-            return response()->json(['message' => 'Recruiter added successfully.', 'reload' => true],200);
-
-        } catch(\Exception $e){
-            \Log::error('error occured while adding recruiter : '.$e->getMessage());
+            return response()->json(['message' => 'Recruiter added successfully.', 'reload' => true], 200);
+        } catch (\Exception $e) {
+            \Log::error('error occured while adding recruiter : ' . $e->getMessage());
             DB::rollBack();
-            if($request->ajax()){
+            if ($request->ajax()) {
                 return response()->json([
-                    'message' => 'Error: '.$e->getMessage(),
+                    'message' => 'Error: ' . $e->getMessage(),
                     'reload' => true
-                ],500);
+                ], 500);
             }
-            Flash::error('Error: '.$e->getMessage());
+            Flash::error('Error: ' . $e->getMessage());
             return redirect()->back();
         }
     }
@@ -280,7 +279,7 @@ class RecruitersController extends AppBaseController
     /**
      * Assign riders to a recruiter
      */
-    public function assignRiders(Request $request,$company_slug,  $recruiterId)
+    public function assignRiders(Request $request, $company_slug,  $recruiterId)
     {
         $recruiter = $this->recruitersRepository->find((int)$recruiterId);
 

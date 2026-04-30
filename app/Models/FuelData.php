@@ -3,10 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 
-class FuelData extends Model
+class FuelData extends BaseModel
 {
     use HasFactory, SoftDeletes;
 
@@ -63,7 +63,7 @@ class FuelData extends Model
     public static function getOrCreateInvId($riderId, $billingMonth)
     {
         // Check if any transaction already exists for this rider and billing month
-    \Log::info("riderId: $riderId, billingMonth: $billingMonth");
+        Log::info("riderId: $riderId, billingMonth: $billingMonth");
         $existingTransaction = self::where('rider_id', $riderId)
             ->where('billing_month', $billingMonth)
             ->whereNotNull('inv_id')

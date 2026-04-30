@@ -132,6 +132,7 @@ class AccountsController extends AppBaseController
   public function store(CreateAccountsRequest $request)
   {
     $input = $request->except(['custom_field_values']);
+    $input['is_fixed'] = $this->resolveFixedFlag($request, false);
     // Set is_locked=1 if parent_id is not set (root account)
 
     $accounts = $this->accountsRepository->create($input);
@@ -202,6 +203,7 @@ class AccountsController extends AppBaseController
     }
 
     $input = $request->except(['custom_field_values']);
+    $input['is_fixed'] = $this->resolveFixedFlag($request, (bool) ($accounts->is_fixed ?? false));
     $accounts = $this->accountsRepository->update($input, $id);
 
     if ($accounts) {
@@ -412,6 +414,32 @@ class AccountsController extends AppBaseController
   }
 
   /**
+   * Toggle fixed account status (admin only).
+   */
+  public function toggleFixed(Request $request, $company_slug, $id)
+  {
+    $account = $this->findAccessibleAccount($id);
+    if (!$account) {
+      abort(404);
+    }
+
+    if (!$this->canManageFixedAccounts()) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $account->is_fixed = !$account->is_fixed;
+    $account->save();
+
+    return response()->json([
+      'success' => true,
+      'is_fixed' => (bool) $account->is_fixed,
+      'message' => $account->is_fixed
+        ? 'Account marked as fixed and shared across all companies.'
+        : 'Account unmarked as fixed.',
+    ]);
+  }
+
+  /**
    * Get head accounts by account type (AJAX)
    */
   public function getHeadAccountsByType($company_slug, $type)
@@ -514,6 +542,20 @@ class AccountsController extends AppBaseController
     }
 
     return null;
+  }
+
+  private function canManageFixedAccounts(): bool
+  {
+    return Auth::guard('admin')->check();
+  }
+
+  private function resolveFixedFlag(Request $request, bool $default = false): bool
+  {
+    if (!$this->canManageFixedAccounts()) {
+      return $default;
+    }
+
+    return (bool) $request->boolean('is_fixed');
   }
 
 }

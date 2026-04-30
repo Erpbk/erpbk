@@ -34,6 +34,7 @@ use App\Http\Controllers\Admin\AdminRolesController;
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminPermissionsController;
+use App\Http\Controllers\Admin\AdminAccountFixingController;
 use Illuminate\Support\Facades\Artisan;
 
 
@@ -138,6 +139,10 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
     Route::patch('permissions/{permission}', [AdminPermissionsController::class, 'update'])->name('permissions.update');
     Route::post('permissions/roles/{role}', [AdminPermissionsController::class, 'updateRolePermissions'])->name('permissions.update-role');
     Route::delete('permissions/{permission}', [AdminPermissionsController::class, 'destroy'])->name('permissions.destroy');
+
+    // Account fixing (global chart account sharing)
+    Route::get('accounts/fixed', [AdminAccountFixingController::class, 'index'])->name('accounts.fixed.index');
+    Route::post('accounts/fixed/{account}/toggle', [AdminAccountFixingController::class, 'toggle'])->name('accounts.fixed.toggle');
 });
 
 // pages
@@ -587,6 +592,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
         Route::post('/vat/voucher/store', [App\Http\Controllers\VatController::class, 'storeVoucher'])->name('vat.voucher.store');
         Route::post('accounts/{id}/toggle-lock', [App\Http\Controllers\AccountsController::class, 'toggleLock'])->name('accounts.toggleLock');
         Route::post('accounts/{id}/toggle-status', [App\Http\Controllers\AccountsController::class, 'toggleStatus'])->name('accounts.toggleStatus');
+        Route::post('accounts/{id}/toggle-fixed', [App\Http\Controllers\AccountsController::class, 'toggleFixed'])->name('accounts.toggleFixed');
     });
 
     // Expense module: expense accounts from Chart of Accounts

@@ -647,6 +647,15 @@ $homeLink = $isAdminLogin
 </li>
 @endif
 
+@if($isAdminLogin && $canAccessSuperAdminPanel)
+<li class="menu-item {{ Route::is('admin.accounts.fixed*') ? 'active' : '' }}">
+  <a href="{{ route('admin.accounts.fixed.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-pinned"></i>
+    <div>{{ __('Account Fixing') }}</div>
+  </a>
+</li>
+@endif
+
 @if(!$isAdminLogin)
 @canany(['account_view','gn_ledger'])
 <li class="menu-item {{ Route::is('accounts*') ? 'open' : '' }} ">

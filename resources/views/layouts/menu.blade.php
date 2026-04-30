@@ -28,6 +28,11 @@ $homeLink = $isAdminLogin
     <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
   </a>
   <ul class="menu-sub">
+    <li class="menu-item {{ Route::is('banks.*') ? 'active' : '' }} {{ Route::is('bank.*') ? 'active' : '' }} ">
+      <a href="{{ route('banks.index') }}" class="menu-link">
+        <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
+      </a>
+    </li>
     <li class="menu-item {{ Route::is('cheques.*') ? 'active' : '' }}">
       <a href="{{ route('cheques.index') }}" class="menu-link">
         <div>{{ $menuLabels['cheques'] ?? 'Cheques' }}</div>
@@ -41,11 +46,6 @@ $homeLink = $isAdminLogin
     <li class="menu-item {{ Route::is('receipts.*') ? 'active' : '' }}">
       <a href="{{ route('receipts.index') }}" class="menu-link">
         <div>{{ $menuLabels['receipts'] ?? 'Receipts (Cash-In)' }}</div>
-      </a>
-    </li>
-    <li class="menu-item {{ Route::is('banks.*') ? 'active' : '' }} {{ Route::is('bank.*') ? 'active' : '' }} ">
-      <a href="{{ route('banks.index') }}" class="menu-link">
-        <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
       </a>
     </li>
   </ul>

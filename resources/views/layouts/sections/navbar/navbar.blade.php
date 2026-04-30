@@ -5,8 +5,8 @@ $adminUser = auth('admin')->user();
 $isAdminSession = (bool) $adminUser;
 $companySlug = request()->route('company_slug') ?? session('company_slug');
 $homeLink = $isAdminSession
-  ? route('admin.dashboard')
-  : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
+? route('admin.dashboard')
+: ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
 @endphp
 
 <!-- Navbar -->
@@ -72,9 +72,8 @@ $homeLink = $isAdminSession
 
         <ul class="navbar-nav flex-row align-items-center ms-auto">
 
-          <!-- Settings (opens in new window) -->
           <li class="nav-item me-2 me-lg-3">
-            @if(!$adminUser)
+            @if(!$isAdminSession)
             <a
               class="nav-link"
               href="{{ $isAdminSession ? route('admin.companies.index') : ($companySlug ? route('settings-panel.index', ['company_slug' => $companySlug]) : url('/')) }}"

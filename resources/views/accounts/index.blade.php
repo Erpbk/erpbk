@@ -105,12 +105,19 @@
     color: #6c757d;
     text-align: center;
   }
+
   .chart-ledger-panel .ledger-table-scroll {
     max-height: 50vh;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .chart-ledger-panel .ledger-table thead th { position: sticky; top: 0; background: #f8f9fa; z-index: 1; }
+
+  .chart-ledger-panel .ledger-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 1;
+  }
 </style>
 @endpush
 
@@ -386,31 +393,36 @@
       var tbody = document.getElementById('ledgerTableBody');
       if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3"><i class="fa fa-spinner fa-spin"></i> Loading...</td></tr>';
       fetch(ledgerEntriesBaseUrl + '/' + accountId + '/ledger-entries?page=' + page + '&per_page=' + perPage + '&currency=' + currency, {
-        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (tbody) tbody.innerHTML = data.html || '<tr><td colspan="6" class="text-center text-muted py-3">No entries.</td></tr>';
-        var p = data.pagination;
-        if (!p || !paginationEl) return;
-        var infoEl = paginationEl.querySelector('.ledger-pagination-info');
-        if (infoEl) infoEl.textContent = 'Showing ' + (p.from || 0) + '\u2013' + (p.to || 0) + ' of ' + (p.total || 0);
-        var pageInfoEl = paginationEl.querySelector('.ledger-page-info');
-        if (pageInfoEl) pageInfoEl.textContent = 'Page ' + p.current_page + ' of ' + p.last_page;
-        var prev = paginationEl.querySelector('.ledger-page-prev');
-        var next = paginationEl.querySelector('.ledger-page-next');
-        if (prev) {
-          prev.disabled = p.current_page <= 1;
-          prev.setAttribute('data-page', p.current_page - 1);
-        }
-        if (next) {
-          next.disabled = p.current_page >= p.last_page;
-          next.setAttribute('data-page', p.current_page + 1);
-        }
-      })
-      .catch(function() {
-        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Failed to load.</td></tr>';
-      });
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.json();
+        })
+        .then(function(data) {
+          if (tbody) tbody.innerHTML = data.html || '<tr><td colspan="6" class="text-center text-muted py-3">No entries.</td></tr>';
+          var p = data.pagination;
+          if (!p || !paginationEl) return;
+          var infoEl = paginationEl.querySelector('.ledger-pagination-info');
+          if (infoEl) infoEl.textContent = 'Showing ' + (p.from || 0) + '\u2013' + (p.to || 0) + ' of ' + (p.total || 0);
+          var pageInfoEl = paginationEl.querySelector('.ledger-page-info');
+          if (pageInfoEl) pageInfoEl.textContent = 'Page ' + p.current_page + ' of ' + p.last_page;
+          var prev = paginationEl.querySelector('.ledger-page-prev');
+          var next = paginationEl.querySelector('.ledger-page-next');
+          if (prev) {
+            prev.disabled = p.current_page <= 1;
+            prev.setAttribute('data-page', p.current_page - 1);
+          }
+          if (next) {
+            next.disabled = p.current_page >= p.last_page;
+            next.setAttribute('data-page', p.current_page + 1);
+          }
+        })
+        .catch(function() {
+          if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Failed to load.</td></tr>';
+        });
     });
 
     function toggleChildren(accountId, show) {

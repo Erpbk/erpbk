@@ -15,6 +15,10 @@ $settingsFieldsTabLabel = $settingsFieldsTabLabel ?? 'Bike Fields';
 $settingsEntityName = $settingsEntityName ?? 'bike';
 $fixedFieldSourceTable = $fixedFieldSourceTable ?? 'bike_field_category_assignments';
 $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
+$isRiderInvoicesModule = ($moduleKey ?? '') === 'invoices';
+$riderInvoiceAccountTree = $riderInvoiceAccountTree ?? [];
+$riderInvoiceAssignments = $riderInvoiceAssignments ?? ['debit' => [], 'credit' => []];
+$canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['admin', 'Administrator', 'Super Admin']);
 @endphp
 
 <div class="row">
@@ -52,6 +56,13 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
               {{ $settingsFieldsTabLabel }}
             </button>
           </li>
+          @if($isRiderInvoicesModule && $canManageAccountAssigning)
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-account-assigning" type="button" role="tab">
+              Account Assigning
+            </button>
+          </li>
+          @endif
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs" type="button" role="tab">
               Documents
@@ -633,6 +644,100 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
             </div>
           </div>
 
+          @if($isRiderInvoicesModule && $canManageAccountAssigning)
+          <div class="tab-pane fade account-assigning-pane" id="tab-account-assigning" role="tabpanel">
+            @if(empty($riderInvoiceAccountTree))
+            <p class="text-muted mb-0">{{ __('No ledger accounts with sub-accounts are available. Create sub-accounts under your chart heads first.') }}</p>
+            @else
+            <form method="POST" action="{{ route($settingsRoutePrefix . '.store-rider-invoice-account-assigning', $settingsRouteParams) }}" id="riderInvoiceAccountAssigningForm">
+              @csrf
+              <input type="hidden" name="debit_assignments" id="debitAssignmentsInput" value="">
+              <input type="hidden" name="credit_assignments" id="creditAssignmentsInput" value="">
+              <div id="riderInvoiceAssigningMeta"
+                data-enabled="{{ ($isRiderInvoicesModule && $canManageAccountAssigning) ? 'true' : 'false' }}"
+                data-initial-assignments='@json($riderInvoiceAssignments)'
+                hidden></div>
+
+              <div class="row g-4">
+                <div class="col-12 col-xl-6">
+                  <div class="card border">
+                    <div class="card-header">
+                      <h6 class="mb-0">Debit Accounts</h6>
+                    </div>
+                    <div class="card-body">
+                      <div class="mb-3">
+                        <label class="form-label">{{ __('Accounts') }}</label>
+                        <p class="text-muted small mb-2">{{ __('Each group is a ledger account. Choose the parent itself or one of its sub-accounts.') }}</p>
+                        <div id="debitParentRows" class="d-flex flex-column gap-2">
+                          <div class="d-flex align-items-start gap-2 account-parent-row">
+                            <div class="flex-grow-1">
+                              <select class="form-select js-rider-invoice-account-assignment" data-side="debit" data-placeholder="{{ __('Select debit account') }}">
+                                <option value="">{{ __('Select debit account') }}</option>
+                                @foreach($riderInvoiceAccountTree as $group)
+                                <option value="{{ $group['parent_id'] }}" data-parent-id="{{ $group['parent_id'] }}" data-is-parent="1">{{ $group['label'] }}</option>
+                                @foreach($group['children'] as $child)
+                                <option value="{{ $child['id'] }}" data-parent-id="{{ $group['parent_id'] }}">{{ $child['text'] }}</option>
+                                @endforeach
+                                @endforeach
+                              </select>
+                            </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm js-remove-parent-row d-none mt-1" title="{{ __('Remove row') }}">
+                              <i class="ti ti-trash"></i>
+                            </button>
+                          </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-2 js-add-parent-row" data-side="debit">
+                          <i class="ti ti-plus me-1"></i>{{ __('Add line') }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12 col-xl-6">
+                  <div class="card border">
+                    <div class="card-header">
+                      <h6 class="mb-0">Credit Accounts</h6>
+                    </div>
+                    <div class="card-body">
+                      <div class="mb-3">
+                        <label class="form-label">{{ __('Accounts') }}</label>
+                        <p class="text-muted small mb-2">{{ __('Each group is a ledger account. Choose the parent itself or one of its sub-accounts.') }}</p>
+                        <div id="creditParentRows" class="d-flex flex-column gap-2">
+                          <div class="d-flex align-items-start gap-2 account-parent-row">
+                            <div class="flex-grow-1">
+                              <select class="form-select js-rider-invoice-account-assignment" data-side="credit" data-placeholder="{{ __('Select credit account') }}">
+                                <option value="">{{ __('Select credit account') }}</option>
+                                @foreach($riderInvoiceAccountTree as $group)
+                                <option value="{{ $group['parent_id'] }}" data-parent-id="{{ $group['parent_id'] }}" data-is-parent="1">{{ $group['label'] }}</option>
+                                @foreach($group['children'] as $child)
+                                <option value="{{ $child['id'] }}" data-parent-id="{{ $group['parent_id'] }}">{{ $child['text'] }}</option>
+                                @endforeach
+                                @endforeach
+                              </select>
+                            </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm js-remove-parent-row d-none mt-1" title="{{ __('Remove row') }}">
+                              <i class="ti ti-trash"></i>
+                            </button>
+                          </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-2 js-add-parent-row" data-side="credit">
+                          <i class="ti ti-plus me-1"></i>{{ __('Add line') }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-end mt-4">
+                <button type="submit" class="btn btn-primary">{{ __('Save Account Assigning') }}</button>
+              </div>
+            </form>
+            @endif
+          </div>
+          @endif
+
           {{-- Edit Bike Fixed Field Modal --}}
           <div class="modal fade" id="editBikeFixedFieldModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -787,317 +892,6 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
             </div>
           </div>
 
-          <script>
-            function bikeSafeJsonParse(value, fallback) {
-              try {
-                if (value === undefined || value === null) return fallback;
-                return JSON.parse(value);
-              } catch (e) {
-                return fallback;
-              }
-            }
-
-            function bikeParseOptionLines(raw) {
-              return String(raw || '')
-                .split(/\r?\n/)
-                .map(function(s) {
-                  return s.trim();
-                })
-                .filter(function(s) {
-                  return s.length > 0;
-                });
-            }
-
-            function bikeSyncOptionsToHidden(container, hiddenInput) {
-              if (!container || !hiddenInput) return;
-              const items = Array.prototype.slice.call(container.querySelectorAll('input[type="text"]'))
-                .map(function(el) {
-                  return (el.value || '').trim();
-                })
-                .filter(function(v) {
-                  return v.length > 0;
-                });
-              hiddenInput.value = items.join('\n');
-            }
-
-            function bikeCreateOptionRow(container, hiddenInput, initialValue) {
-              const row = document.createElement('div');
-              row.className = 'd-flex align-items-center gap-2';
-
-              const rowInput = document.createElement('input');
-              rowInput.type = 'text';
-              rowInput.className = 'form-control';
-              rowInput.placeholder = 'Option value';
-              rowInput.value = initialValue || '';
-              rowInput.addEventListener('input', function() {
-                bikeSyncOptionsToHidden(container, hiddenInput);
-              });
-
-              const removeBtn = document.createElement('button');
-              removeBtn.type = 'button';
-              removeBtn.className = 'btn btn-sm btn-outline-danger';
-              removeBtn.textContent = 'Remove';
-              removeBtn.addEventListener('click', function() {
-                row.remove();
-                bikeSyncOptionsToHidden(container, hiddenInput);
-              });
-
-              row.appendChild(rowInput);
-              row.appendChild(removeBtn);
-              container.appendChild(row);
-              bikeSyncOptionsToHidden(container, hiddenInput);
-            }
-
-            function bikeRenderOptionRows(container, hiddenInput, rawOptions) {
-              if (!container || !hiddenInput) return;
-              container.innerHTML = '';
-              const items = bikeParseOptionLines(rawOptions);
-              if (!items.length) {
-                bikeCreateOptionRow(container, hiddenInput, '');
-                return;
-              }
-              items.forEach(function(item) {
-                bikeCreateOptionRow(container, hiddenInput, item);
-              });
-            }
-
-            function bikeInitOptionRowButtons() {
-              // Add modal (new custom field)
-              const addBtn = document.getElementById('addBikeFieldOptionRowBtn');
-              const rows = document.getElementById('addBikeFieldOptionsRows');
-              const hidden = document.getElementById('addBikeFieldConfigOptionsHidden');
-              if (addBtn && rows && hidden) {
-                addBtn.addEventListener('click', function() {
-                  bikeCreateOptionRow(rows, hidden, '');
-                });
-              }
-
-              // Edit fixed field modal
-              const editFixedAddBtn = document.getElementById('editBikeFixedOptionRowBtn');
-              const editFixedRows = document.getElementById('editBikeFixedOptionsRows');
-              const editFixedHidden = document.getElementById('editBikeFixedInputConfigOptionsHidden');
-              if (editFixedAddBtn && editFixedRows && editFixedHidden) {
-                editFixedAddBtn.addEventListener('click', function() {
-                  bikeCreateOptionRow(editFixedRows, editFixedHidden, '');
-                });
-              }
-
-              // Edit custom field modal
-              const editCustomAddBtn = document.getElementById('editBikeCustomOptionRowBtn');
-              const editCustomRows = document.getElementById('editBikeCustomOptionsRows');
-              const editCustomHidden = document.getElementById('editBikeCustomConfigOptionsHidden');
-              if (editCustomAddBtn && editCustomRows && editCustomHidden) {
-                editCustomAddBtn.addEventListener('click', function() {
-                  bikeCreateOptionRow(editCustomRows, editCustomHidden, '');
-                });
-              }
-            }
-
-            bikeInitOptionRowButtons();
-
-            document.addEventListener('show.bs.modal', function(e) {
-              const modalId = e.target && e.target.id ? e.target.id : null;
-              const btn = e.relatedTarget;
-              if (!modalId || !btn) return;
-
-              // Fixed field edit
-              if (modalId === 'editBikeFixedFieldModal') {
-                const fieldKey = btn.dataset.fieldKey || '';
-                document.getElementById('editBikeFixedFieldKey').value = fieldKey;
-                document.getElementById('editBikeFixedDisplayLabel').value = btn.dataset.fieldLabel || '';
-
-                const categoryId = btn.dataset.categoryId || '';
-                const catSelect = document.getElementById('editBikeFixedCategoryId');
-                if (categoryId && catSelect.querySelector('option[value="' + categoryId + '"]')) {
-                  catSelect.value = categoryId;
-                }
-
-                document.getElementById('editBikeFixedIsVisible').checked = String(btn.dataset.isVisible) === '1';
-                document.getElementById('editBikeFixedIsRequired').checked = String(btn.dataset.isRequired) === '1';
-                document.getElementById('editBikeFixedInputType').value = btn.dataset.inputType || 'text';
-
-                const configOptionsRaw = btn.dataset.inputConfigOptions;
-                const configOptions = bikeSafeJsonParse(configOptionsRaw, '');
-                bikeRenderOptionRows(
-                  document.getElementById('editBikeFixedOptionsRows'),
-                  document.getElementById('editBikeFixedInputConfigOptionsHidden'),
-                  configOptions || ''
-                );
-              }
-
-              // Custom field edit
-              if (modalId === 'editBikeCustomFieldModal') {
-                const updateUrl = btn.dataset.updateUrl || '#';
-                const form = document.getElementById('formEditBikeCustomField');
-                if (form && updateUrl && updateUrl !== '#') {
-                  form.action = updateUrl;
-                }
-
-                document.getElementById('editBikeCustomLabel').value = btn.dataset.fieldLabel || '';
-                document.getElementById('editBikeCustomHelpText').value = btn.dataset.helpText || '';
-                document.getElementById('editBikeCustomDataType').value = btn.dataset.dataType || '';
-                document.getElementById('editBikeCustomIsMandatory').checked = String(btn.dataset.isMandatory) === '1';
-
-                const categoryId = btn.dataset.categoryId || '';
-                const catSelect = document.getElementById('editBikeCustomCategoryId');
-                if (categoryId !== '' && catSelect.querySelector('option[value="' + categoryId + '"]')) {
-                  catSelect.value = categoryId;
-                } else {
-                  catSelect.value = '';
-                }
-
-                document.getElementById('editBikeCustomDefaultValue').value = btn.dataset.defaultValue || '';
-                document.getElementById('editBikeCustomInputFormat').value = btn.dataset.inputFormat || '';
-
-                const configOptionsRaw = btn.dataset.configOptions;
-                const configOptions = bikeSafeJsonParse(configOptionsRaw, '');
-                bikeRenderOptionRows(
-                  document.getElementById('editBikeCustomOptionsRows'),
-                  document.getElementById('editBikeCustomConfigOptionsHidden'),
-                  configOptions || ''
-                );
-              }
-            });
-
-            function bikeSyncFieldToggles(fieldKey, type, value) {
-              const selector = type === 'required' ?
-                '.bike-field-required-toggle[data-field-key="' + fieldKey + '"]' :
-                '.bike-field-visibility-toggle[data-field-key="' + fieldKey + '"]';
-              document.querySelectorAll(selector).forEach(function(el) {
-                el.checked = !!value;
-              });
-            }
-
-            function bikeUpdateFieldToggle(toggleEl, changedKey, changedValue) {
-              const csrf = '{{ csrf_token() }}';
-              const fieldKey = toggleEl.dataset.fieldKey || '';
-              const categoryId = toggleEl.dataset.categoryId || '';
-
-              const payload = new URLSearchParams();
-              payload.append('_token', csrf);
-              payload.append('field_key', fieldKey);
-              payload.append('category_id', categoryId);
-              payload.append('display_label', toggleEl.dataset.displayLabel || '');
-              payload.append('input_type', toggleEl.dataset.inputType || '');
-              payload.append('input_config_options', toggleEl.dataset.inputConfigOptions || '');
-
-              const isRequired = changedKey === 'is_required' ?
-                changedValue :
-                Number(toggleEl.dataset.isRequiredCurrent || 0);
-              const isVisible = changedKey === 'is_visible' ?
-                changedValue :
-                Number(toggleEl.dataset.isVisibleCurrent || 1);
-
-              payload.append('is_required', String(isRequired));
-              payload.append('is_visible', String(isVisible));
-
-              return fetch("{{ route($settingsRoutePrefix . '.update-field-assignment', $settingsRouteParams) }}", {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/x-www-form-urlencoded',
-                  'X-CSRF-TOKEN': csrf,
-                  'Accept': 'application/json',
-                  'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: payload.toString(),
-              }).then(function(response) {
-                return response.json().then(function(data) {
-                  return response.ok ? data : Promise.reject(data);
-                });
-              });
-            }
-
-            if (!window.__moduleFieldToggleChangeBound) {
-              window.__moduleFieldToggleChangeBound = true;
-
-              document.addEventListener('change', function(e) {
-                const toggle = e.target.closest('.bike-field-required-toggle, .bike-field-visibility-toggle');
-                if (!toggle) return;
-                if (toggle.dataset.updating === '1') return;
-
-                const isRequiredToggle = toggle.classList.contains('bike-field-required-toggle');
-                const changedKey = isRequiredToggle ? 'is_required' : 'is_visible';
-                const changedType = isRequiredToggle ? 'required' : 'visibility';
-                const originalChecked = !toggle.checked;
-
-                toggle.dataset.updating = '1';
-                toggle.disabled = true;
-
-                bikeUpdateFieldToggle(toggle, changedKey, toggle.checked ? 1 : 0)
-                  .then(function(data) {
-                    const isRequired = Number(data.is_required ? 1 : 0);
-                    const isVisible = Number(data.is_visible ? 1 : 0);
-
-                    document.querySelectorAll('.bike-field-required-toggle[data-field-key="' + toggle.dataset.fieldKey + '"]')
-                      .forEach(function(el) {
-                        el.dataset.isRequiredCurrent = String(isRequired);
-                      });
-
-                    document.querySelectorAll('.bike-field-visibility-toggle[data-field-key="' + toggle.dataset.fieldKey + '"]')
-                      .forEach(function(el) {
-                        el.dataset.isVisibleCurrent = String(isVisible);
-                      });
-
-                    if (isRequiredToggle) {
-                      toggle.checked = !!isRequired;
-                      bikeSyncFieldToggles(toggle.dataset.fieldKey, changedType, isRequired);
-                    } else {
-                      toggle.checked = !!isVisible;
-                      bikeSyncFieldToggles(toggle.dataset.fieldKey, changedType, isVisible);
-                    }
-                  })
-                  .catch(function() {
-                    toggle.checked = originalChecked;
-                  })
-                  .finally(function() {
-                    toggle.disabled = false;
-                    delete toggle.dataset.updating;
-                  });
-              });
-            }
-
-            function initBikeFieldSortables() {
-              if (typeof Sortable === 'undefined') return;
-              document.querySelectorAll('.bike-fields-sortable-tbody').forEach(function(tbody) {
-                if (tbody.dataset.sortableInit === '1') return;
-                var categoryId = tbody.getAttribute('data-category-id');
-                if (!categoryId) return;
-
-                new Sortable(tbody, {
-                  handle: '.drag-handle',
-                  draggable: 'tr[data-bike-field-key]',
-                  animation: 150,
-                  ghostClass: 'table-warning',
-                  onEnd: function() {
-                    var order = Array.from(tbody.querySelectorAll('tr[data-bike-field-key]')).map(function(tr) {
-                      return tr.getAttribute('data-bike-field-key');
-                    });
-                    fetch("{{ route($settingsRoutePrefix . '.reorder-field-assignments', $settingsRouteParams) }}", {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                      },
-                      body: JSON.stringify({
-                        category_id: parseInt(categoryId, 10),
-                        order: order
-                      })
-                    });
-                  }
-                });
-                tbody.dataset.sortableInit = '1';
-              });
-            }
-
-            document.addEventListener('DOMContentLoaded', initBikeFieldSortables);
-            document.querySelectorAll('#bikeFieldsCategoryTabs [data-bs-toggle="tab"]').forEach(function(tabBtn) {
-              tabBtn.addEventListener('shown.bs.tab', function() {
-                setTimeout(initBikeFieldSortables, 50);
-              });
-            });
-          </script>
 
           {{-- Tab: Documents --}}
           <div class="tab-pane fade" id="tab-docs" role="tabpanel">
@@ -1289,118 +1083,7 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
               </div>
             </div>
 
-            <script>
-              document.addEventListener('click', function(e) {
-                const btn = e.target.closest('.btn-edit-module-document-type');
-                if (!btn) return;
 
-                const form = document.getElementById('formEditModuleDocumentType');
-                if (!form) return;
-
-                form.action = btn.dataset.updateUrl || '#';
-                document.getElementById('editModuleDocKey').value = btn.dataset.key || '';
-                document.getElementById('editModuleDocType').value = btn.dataset.type || 'single';
-                document.getElementById('editModuleDocLabel').value = btn.dataset.label || '';
-                document.getElementById('editModuleDocFrontLabel').value = btn.dataset.frontLabel || '';
-                document.getElementById('editModuleDocBackLabel').value = btn.dataset.backLabel || '';
-              });
-
-              var addModuleDocTypeType = document.getElementById('addModuleDocTypeType');
-              if (addModuleDocTypeType) {
-                addModuleDocTypeType.addEventListener('change', function() {
-                  var isDual = this.value === 'dual';
-                  document.getElementById('addModuleDocTypeSingleWrap').style.display = isDual ? 'none' : 'block';
-                  document.getElementById('addModuleDocTypeDualWrap').style.display = isDual ? 'block' : 'none';
-                });
-              }
-
-              var formAddModuleDocumentType = document.getElementById('formAddModuleDocumentType');
-              if (formAddModuleDocumentType) {
-                formAddModuleDocumentType.addEventListener('submit', function(e) {
-                  e.preventDefault();
-                  var form = this;
-                  var fd = new FormData(form);
-                  fd.set('is_active', form.querySelector('#addModuleDocTypeActive').checked ? '1' : '0');
-                  var btn = document.getElementById('addModuleDocumentTypeSubmitBtn');
-                  if (btn) btn.disabled = true;
-
-                  fetch("{{ route($settingsRoutePrefix . '.store-document-type', $settingsRouteParams) }}", {
-                      method: 'POST',
-                      body: fd,
-                      headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                      }
-                    })
-                    .then(function(r) {
-                      if (!r.ok) {
-                        return r.json().then(function(d) {
-                          return {
-                            _httpError: true,
-                            status: r.status,
-                            data: d
-                          };
-                        }).catch(function() {
-                          return {
-                            _httpError: true,
-                            status: r.status
-                          };
-                        });
-                      }
-                      return r.json();
-                    })
-                    .then(function(data) {
-                      if (btn) btn.disabled = false;
-                      if (data._httpError) {
-                        var msg = (data.data && data.data.message) || 'Server error.';
-                        if (typeof Swal !== 'undefined') Swal.fire({
-                          icon: 'error',
-                          title: 'Error',
-                          text: msg
-                        });
-                        return;
-                      }
-
-                      if (data.success) {
-                        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                          var m = bootstrap.Modal.getInstance(document.getElementById('addModuleDocumentTypeModal'));
-                          if (m) m.hide();
-                        }
-                        form.reset();
-                        document.getElementById('addModuleDocTypeSingleWrap').style.display = 'block';
-                        document.getElementById('addModuleDocTypeDualWrap').style.display = 'none';
-                        document.getElementById('addModuleDocTypeActive').checked = true;
-                        if (typeof Swal !== 'undefined') {
-                          Swal.fire({
-                            icon: 'success',
-                            title: 'Saved',
-                            text: data.message || 'Document type added.'
-                          }).then(function() {
-                            window.location.reload();
-                          });
-                        } else {
-                          window.location.reload();
-                        }
-                      } else {
-                        if (typeof Swal !== 'undefined') Swal.fire({
-                          icon: 'error',
-                          title: 'Error',
-                          text: data.message || 'Could not save.'
-                        });
-                      }
-                    })
-                    .catch(function() {
-                      if (btn) btn.disabled = false;
-                      if (typeof Swal !== 'undefined') Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Could not save document type.'
-                      });
-                    });
-                });
-              }
-            </script>
           </div>
         </div>
       </div>
@@ -1408,4 +1091,831 @@ $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
   </div>
 </div>
 
+@endsection
+
+<style>
+  .account-assigning-pane .js-rider-invoice-account-assignment+.select2-container {
+    margin-bottom: 0.75rem;
+  }
+
+  .account-assigning-pane .account-hier-bullet {
+    flex-shrink: 0;
+    font-size: 1.05rem;
+    line-height: 1.25;
+    width: 0.65rem;
+    text-align: center;
+  }
+
+  .account-assigning-pane .select2-results__group {
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding-top: 0.35rem;
+  }
+
+  .account-assigning-pane .select2-results__option--selectable .account-hier-option {
+    margin-left: 0.15rem;
+  }
+</style>
+@section('page-script')
+<script>
+  (function() {
+    const meta = document.getElementById('riderInvoiceAssigningMeta');
+    const isAccountAssigningAvailable = !!meta && meta.dataset.enabled === 'true';
+    if (!isAccountAssigningAvailable) {
+      return;
+    }
+
+    let initialAssignments = {
+      debit: {},
+      credit: {},
+    };
+    try {
+      const parsed = JSON.parse(meta.dataset.initialAssignments || '{}');
+      if (parsed && typeof parsed === 'object') {
+        initialAssignments = {
+          debit: (parsed.debit && typeof parsed.debit === 'object') ? parsed.debit : {},
+          credit: (parsed.credit && typeof parsed.credit === 'object') ? parsed.credit : {},
+        };
+      }
+    } catch (error) {
+      initialAssignments = {
+        debit: {},
+        credit: {},
+      };
+    }
+    const form = document.getElementById('riderInvoiceAccountAssigningForm');
+    if (!form) {
+      return;
+    }
+
+    const state = {
+      debit: {},
+      credit: {},
+    };
+
+    function hasSelect2() {
+      return !!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2);
+    }
+
+    function cleanupSelect2Orphans(element) {
+      if (!element || !element.parentNode) return;
+      Array.from(element.parentNode.querySelectorAll(':scope > span.select2')).forEach(function(orphan) {
+        orphan.remove();
+      });
+    }
+
+    function initAssignmentSelect2(element) {
+      if (!element || !hasSelect2()) {
+        return;
+      }
+      const $el = window.jQuery(element);
+      const $tabPane = $el.closest('.tab-pane');
+      cleanupSelect2Orphans(element);
+
+      if ($el.data('select2')) {
+        $el.select2('destroy');
+      }
+
+      const placeholder = element.getAttribute('data-placeholder') || 'Select account';
+      $el.select2({
+        width: '100%',
+        dropdownParent: $tabPane.length ? $tabPane : undefined,
+        placeholder: placeholder,
+        allowClear: false,
+        closeOnSelect: !element.multiple,
+        templateResult: function(data) {
+          if (!data.id) {
+            return data.text;
+          }
+          const $opt = window.jQuery(data.element);
+          if (!$opt.length || !$opt.attr('data-parent-id')) {
+            return data.text;
+          }
+          const isParentOption = String($opt.attr('data-is-parent') || '') === '1';
+          if (isParentOption) {
+            return data.text;
+          }
+          const $wrap = window.jQuery('<span class="account-hier-option d-flex align-items-start gap-2 py-1"></span>');
+          $wrap.append(window.jQuery('<span class="account-hier-bullet text-muted pt-1" aria-hidden="true">•</span>'));
+          $wrap.append(window.jQuery('<span class="account-hier-option-text"></span>').text(data.text));
+          return $wrap;
+        },
+        templateSelection: function(data) {
+          return data.text;
+        },
+      });
+    }
+
+    function getParentRows(side) {
+      return document.getElementById(side + 'ParentRows');
+    }
+
+    function syncHiddenInputs() {
+      const debitInput = document.getElementById('debitAssignmentsInput');
+      const creditInput = document.getElementById('creditAssignmentsInput');
+      if (debitInput) debitInput.value = JSON.stringify(state.debit);
+      if (creditInput) creditInput.value = JSON.stringify(state.credit);
+    }
+
+    function readRowSelection(select) {
+      if (!select || !select.value) {
+        return { parentId: 0, childId: 0 };
+      }
+      const opt = select.options[select.selectedIndex];
+      const childId = Number(select.value);
+      const parentId = opt && opt.getAttribute('data-parent-id') ? Number(opt.getAttribute('data-parent-id')) : 0;
+      return { parentId: parentId, childId: childId };
+    }
+
+    function applyAssignmentSelectionToState(side, select) {
+      const prevParentId = Number(select.dataset.assignedParentId || 0);
+      const cur = readRowSelection(select);
+
+      if (prevParentId > 0 && (prevParentId !== cur.parentId || cur.childId === 0)) {
+        delete state[side][prevParentId];
+      }
+
+      if (cur.parentId > 0 && cur.childId > 0) {
+        state[side][cur.parentId] = [cur.childId];
+        select.dataset.assignedParentId = String(cur.parentId);
+      } else {
+        delete select.dataset.assignedParentId;
+      }
+
+      syncHiddenInputs();
+      refreshDisabledAssignmentOptions(side);
+    }
+
+    function refreshDisabledAssignmentOptions(side) {
+      const parentRows = getParentRows(side);
+      if (!parentRows) return;
+
+      const rows = Array.from(parentRows.querySelectorAll('.account-parent-row'));
+      const rowSelections = rows.map(function(row) {
+        const sel = row.querySelector('.js-rider-invoice-account-assignment');
+        return readRowSelection(sel);
+      });
+
+      rows.forEach(function(row, idx) {
+        const select = row.querySelector('.js-rider-invoice-account-assignment');
+        if (!select) return;
+
+        const parentsUsedElsewhere = new Set();
+        const childrenUsedElsewhere = new Set();
+        rowSelections.forEach(function(s, j) {
+          if (j === idx || s.childId === 0) {
+            return;
+          }
+          parentsUsedElsewhere.add(s.parentId);
+          childrenUsedElsewhere.add(s.childId);
+        });
+
+        Array.from(select.options).forEach(function(option) {
+          if (!option.value) return;
+          const p = Number(option.getAttribute('data-parent-id') || 0);
+          const c = Number(option.value);
+          const conflictParent = parentsUsedElsewhere.has(p);
+          const conflictChild = childrenUsedElsewhere.has(c);
+          option.disabled = conflictParent || conflictChild;
+        });
+
+        if (hasSelect2()) {
+          window.jQuery(select).trigger('change.select2');
+        }
+      });
+    }
+
+    function refreshRemoveButtons(side) {
+      const parentRows = getParentRows(side);
+      if (!parentRows) return;
+      const rows = Array.from(parentRows.querySelectorAll('.account-parent-row'));
+      rows.forEach(function(row) {
+        const removeBtn = row.querySelector('.js-remove-parent-row');
+        if (!removeBtn) return;
+        removeBtn.classList.toggle('d-none', rows.length <= 1);
+      });
+    }
+
+    function removeExtraEmptyRows(side) {
+      const parentRows = getParentRows(side);
+      if (!parentRows) return;
+      const rows = Array.from(parentRows.querySelectorAll('.account-parent-row'));
+      if (rows.length <= 1) return;
+
+      rows.slice(1).forEach(function(row) {
+        const select = row.querySelector('.js-rider-invoice-account-assignment');
+        const val = select ? String(select.value || '').trim() : '';
+        if (val === '') {
+          if (hasSelect2() && select && window.jQuery(select).data('select2')) {
+            window.jQuery(select).select2('destroy');
+          }
+          row.remove();
+        }
+      });
+
+      refreshRemoveButtons(side);
+    }
+
+    function bindAssignmentRow(side, row) {
+      const select = row.querySelector('.js-rider-invoice-account-assignment');
+      const removeBtn = row.querySelector('.js-remove-parent-row');
+      if (!select) return;
+
+      if (hasSelect2()) {
+        window.jQuery(select).off('change');
+      }
+
+      initAssignmentSelect2(select);
+
+      window.jQuery(select).on('change', function() {
+        applyAssignmentSelectionToState(side, select);
+      });
+
+      if (removeBtn) {
+        removeBtn.addEventListener('click', function() {
+          const prevParentId = Number(select.dataset.assignedParentId || 0);
+          if (prevParentId > 0) {
+            delete state[side][prevParentId];
+            syncHiddenInputs();
+          }
+          if (hasSelect2()) {
+            window.jQuery(select).select2('destroy');
+          }
+          row.remove();
+          refreshRemoveButtons(side);
+          refreshDisabledAssignmentOptions(side);
+        });
+      }
+    }
+
+    function addAssignmentRow(side) {
+      const parentRows = getParentRows(side);
+      if (!parentRows) return null;
+
+      const firstRow = parentRows.querySelector('.account-parent-row');
+      if (!firstRow) return null;
+
+      const templateSelect = firstRow.querySelector('.js-rider-invoice-account-assignment');
+      if (!templateSelect) return null;
+
+      const row = document.createElement('div');
+      row.className = 'd-flex align-items-start gap-2 account-parent-row';
+      row.innerHTML = '' +
+        '<div class="flex-grow-1">' +
+        '  <select class="form-select js-rider-invoice-account-assignment" data-side="' + side + '">' +
+        templateSelect.innerHTML +
+        '  </select>' +
+        '</div>' +
+        '<button type="button" class="btn btn-outline-danger btn-sm js-remove-parent-row mt-1" title="Remove row">' +
+        '  <i class="ti ti-trash"></i>' +
+        '</button>';
+
+      const select = row.querySelector('.js-rider-invoice-account-assignment');
+      if (!select) return null;
+
+      select.setAttribute('data-placeholder', templateSelect.getAttribute('data-placeholder') || '');
+
+      if (hasSelect2()) {
+        const firstSelect = firstRow.querySelector('.js-rider-invoice-account-assignment');
+        if (firstSelect && window.jQuery(firstSelect).data('select2')) {
+          window.jQuery(firstSelect).select2('destroy');
+        }
+      }
+
+      select.value = '';
+      delete select.dataset.assignedParentId;
+      parentRows.appendChild(row);
+
+      bindAssignmentRow(side, row);
+      refreshRemoveButtons(side);
+      refreshDisabledAssignmentOptions(side);
+
+      if (hasSelect2()) {
+        const firstSelect = firstRow.querySelector('.js-rider-invoice-account-assignment');
+        if (firstSelect) {
+          initAssignmentSelect2(firstSelect);
+        }
+      }
+
+      return row;
+    }
+
+    ['debit', 'credit'].forEach(function(side) {
+      const parentRows = getParentRows(side);
+      if (!parentRows) return;
+
+      const firstRow = parentRows.querySelector('.account-parent-row');
+      if (firstRow) {
+        bindAssignmentRow(side, firstRow);
+      }
+
+      const addButton = document.querySelector('.js-add-parent-row[data-side="' + side + '"]');
+      if (addButton) {
+        addButton.addEventListener('click', function() {
+          addAssignmentRow(side);
+        });
+      }
+
+      refreshRemoveButtons(side);
+      refreshDisabledAssignmentOptions(side);
+    });
+
+    ['debit', 'credit'].forEach(function(side) {
+      const sideAssignments = initialAssignments[side] || {};
+      const parentIds = Object.keys(sideAssignments).map(Number).filter(function(id) {
+        return id > 0;
+      });
+
+      if (!parentIds.length) return;
+
+      const parentRows = getParentRows(side);
+      if (!parentRows) return;
+      const firstRow = parentRows.querySelector('.account-parent-row');
+      if (!firstRow) return;
+
+      const firstSelect = firstRow.querySelector('.js-rider-invoice-account-assignment');
+      const firstChildId = (sideAssignments[parentIds[0]] || [])[0];
+      if (firstSelect && firstChildId) {
+        firstSelect.value = String(firstChildId);
+        applyAssignmentSelectionToState(side, firstSelect);
+        if (hasSelect2()) {
+          window.jQuery(firstSelect).trigger('change.select2');
+        }
+      }
+
+      parentIds.slice(1).forEach(function(parentId) {
+        const childId = (sideAssignments[parentId] || [])[0];
+        const row = addAssignmentRow(side);
+        if (!row || !childId) return;
+        const sel = row.querySelector('.js-rider-invoice-account-assignment');
+        sel.value = String(childId);
+        applyAssignmentSelectionToState(side, sel);
+        if (hasSelect2()) {
+          window.jQuery(sel).trigger('change.select2');
+        }
+      });
+
+      refreshDisabledAssignmentOptions(side);
+    });
+
+    ['debit', 'credit'].forEach(function(side) {
+      removeExtraEmptyRows(side);
+    });
+
+    form.addEventListener('submit', function(event) {
+      const debitHasSelection = Object.values(state.debit).some(function(children) {
+        return Array.isArray(children) && children.length > 0;
+      });
+      const creditHasSelection = Object.values(state.credit).some(function(children) {
+        return Array.isArray(children) && children.length > 0;
+      });
+
+      if (!debitHasSelection || !creditHasSelection) {
+        event.preventDefault();
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'error',
+            title: 'Validation Error',
+            text: 'Select at least one child account on both debit and credit sides.',
+          });
+        }
+      }
+    });
+
+    document.querySelectorAll('[data-bs-target="#tab-account-assigning"]').forEach(function(tabBtn) {
+      tabBtn.addEventListener('shown.bs.tab', function() {
+        ['debit', 'credit'].forEach(function(side) {
+          const parentRows = getParentRows(side);
+          if (!parentRows) return;
+          parentRows.querySelectorAll('.js-rider-invoice-account-assignment').forEach(function(sel) {
+            initAssignmentSelect2(sel);
+          });
+          refreshDisabledAssignmentOptions(side);
+        });
+      });
+    });
+  })();
+
+  function bikeSafeJsonParse(value, fallback) {
+    try {
+      if (value === undefined || value === null) return fallback;
+      return JSON.parse(value);
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  function bikeParseOptionLines(raw) {
+    return String(raw || '')
+      .split(/\r?\n/)
+      .map(function(s) {
+        return s.trim();
+      })
+      .filter(function(s) {
+        return s.length > 0;
+      });
+  }
+
+  function bikeSyncOptionsToHidden(container, hiddenInput) {
+    if (!container || !hiddenInput) return;
+    const items = Array.prototype.slice.call(container.querySelectorAll('input[type="text"]'))
+      .map(function(el) {
+        return (el.value || '').trim();
+      })
+      .filter(function(v) {
+        return v.length > 0;
+      });
+    hiddenInput.value = items.join('\n');
+  }
+
+  function bikeCreateOptionRow(container, hiddenInput, initialValue) {
+    const row = document.createElement('div');
+    row.className = 'd-flex align-items-center gap-2';
+
+    const rowInput = document.createElement('input');
+    rowInput.type = 'text';
+    rowInput.className = 'form-control';
+    rowInput.placeholder = 'Option value';
+    rowInput.value = initialValue || '';
+    rowInput.addEventListener('input', function() {
+      bikeSyncOptionsToHidden(container, hiddenInput);
+    });
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn-sm btn-outline-danger';
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', function() {
+      row.remove();
+      bikeSyncOptionsToHidden(container, hiddenInput);
+    });
+
+    row.appendChild(rowInput);
+    row.appendChild(removeBtn);
+    container.appendChild(row);
+    bikeSyncOptionsToHidden(container, hiddenInput);
+  }
+
+  function bikeRenderOptionRows(container, hiddenInput, rawOptions) {
+    if (!container || !hiddenInput) return;
+    container.innerHTML = '';
+    const items = bikeParseOptionLines(rawOptions);
+    if (!items.length) {
+      bikeCreateOptionRow(container, hiddenInput, '');
+      return;
+    }
+    items.forEach(function(item) {
+      bikeCreateOptionRow(container, hiddenInput, item);
+    });
+  }
+
+  function bikeInitOptionRowButtons() {
+    // Add modal (new custom field)
+    const addBtn = document.getElementById('addBikeFieldOptionRowBtn');
+    const rows = document.getElementById('addBikeFieldOptionsRows');
+    const hidden = document.getElementById('addBikeFieldConfigOptionsHidden');
+    if (addBtn && rows && hidden) {
+      addBtn.addEventListener('click', function() {
+        bikeCreateOptionRow(rows, hidden, '');
+      });
+    }
+
+    // Edit fixed field modal
+    const editFixedAddBtn = document.getElementById('editBikeFixedOptionRowBtn');
+    const editFixedRows = document.getElementById('editBikeFixedOptionsRows');
+    const editFixedHidden = document.getElementById('editBikeFixedInputConfigOptionsHidden');
+    if (editFixedAddBtn && editFixedRows && editFixedHidden) {
+      editFixedAddBtn.addEventListener('click', function() {
+        bikeCreateOptionRow(editFixedRows, editFixedHidden, '');
+      });
+    }
+
+    // Edit custom field modal
+    const editCustomAddBtn = document.getElementById('editBikeCustomOptionRowBtn');
+    const editCustomRows = document.getElementById('editBikeCustomOptionsRows');
+    const editCustomHidden = document.getElementById('editBikeCustomConfigOptionsHidden');
+    if (editCustomAddBtn && editCustomRows && editCustomHidden) {
+      editCustomAddBtn.addEventListener('click', function() {
+        bikeCreateOptionRow(editCustomRows, editCustomHidden, '');
+      });
+    }
+  }
+
+  bikeInitOptionRowButtons();
+
+  document.addEventListener('show.bs.modal', function(e) {
+    const modalId = e.target && e.target.id ? e.target.id : null;
+    const btn = e.relatedTarget;
+    if (!modalId || !btn) return;
+
+    // Fixed field edit
+    if (modalId === 'editBikeFixedFieldModal') {
+      const fieldKey = btn.dataset.fieldKey || '';
+      document.getElementById('editBikeFixedFieldKey').value = fieldKey;
+      document.getElementById('editBikeFixedDisplayLabel').value = btn.dataset.fieldLabel || '';
+
+      const categoryId = btn.dataset.categoryId || '';
+      const catSelect = document.getElementById('editBikeFixedCategoryId');
+      if (categoryId && catSelect.querySelector('option[value="' + categoryId + '"]')) {
+        catSelect.value = categoryId;
+      }
+
+      document.getElementById('editBikeFixedIsVisible').checked = String(btn.dataset.isVisible) === '1';
+      document.getElementById('editBikeFixedIsRequired').checked = String(btn.dataset.isRequired) === '1';
+      document.getElementById('editBikeFixedInputType').value = btn.dataset.inputType || 'text';
+
+      const configOptionsRaw = btn.dataset.inputConfigOptions;
+      const configOptions = bikeSafeJsonParse(configOptionsRaw, '');
+      bikeRenderOptionRows(
+        document.getElementById('editBikeFixedOptionsRows'),
+        document.getElementById('editBikeFixedInputConfigOptionsHidden'),
+        configOptions || ''
+      );
+    }
+
+    // Custom field edit
+    if (modalId === 'editBikeCustomFieldModal') {
+      const updateUrl = btn.dataset.updateUrl || '#';
+      const form = document.getElementById('formEditBikeCustomField');
+      if (form && updateUrl && updateUrl !== '#') {
+        form.action = updateUrl;
+      }
+
+      document.getElementById('editBikeCustomLabel').value = btn.dataset.fieldLabel || '';
+      document.getElementById('editBikeCustomHelpText').value = btn.dataset.helpText || '';
+      document.getElementById('editBikeCustomDataType').value = btn.dataset.dataType || '';
+      document.getElementById('editBikeCustomIsMandatory').checked = String(btn.dataset.isMandatory) === '1';
+
+      const categoryId = btn.dataset.categoryId || '';
+      const catSelect = document.getElementById('editBikeCustomCategoryId');
+      if (categoryId !== '' && catSelect.querySelector('option[value="' + categoryId + '"]')) {
+        catSelect.value = categoryId;
+      } else {
+        catSelect.value = '';
+      }
+
+      document.getElementById('editBikeCustomDefaultValue').value = btn.dataset.defaultValue || '';
+      document.getElementById('editBikeCustomInputFormat').value = btn.dataset.inputFormat || '';
+
+      const configOptionsRaw = btn.dataset.configOptions;
+      const configOptions = bikeSafeJsonParse(configOptionsRaw, '');
+      bikeRenderOptionRows(
+        document.getElementById('editBikeCustomOptionsRows'),
+        document.getElementById('editBikeCustomConfigOptionsHidden'),
+        configOptions || ''
+      );
+    }
+  });
+
+  function bikeSyncFieldToggles(fieldKey, type, value) {
+    const selector = type === 'required' ?
+      '.bike-field-required-toggle[data-field-key="' + fieldKey + '"]' :
+      '.bike-field-visibility-toggle[data-field-key="' + fieldKey + '"]';
+    document.querySelectorAll(selector).forEach(function(el) {
+      el.checked = !!value;
+    });
+  }
+
+  function bikeUpdateFieldToggle(toggleEl, changedKey, changedValue) {
+    const csrf = '{{ csrf_token() }}';
+    const fieldKey = toggleEl.dataset.fieldKey || '';
+    const categoryId = toggleEl.dataset.categoryId || '';
+
+    const payload = new URLSearchParams();
+    payload.append('_token', csrf);
+    payload.append('field_key', fieldKey);
+    payload.append('category_id', categoryId);
+    payload.append('display_label', toggleEl.dataset.displayLabel || '');
+    payload.append('input_type', toggleEl.dataset.inputType || '');
+    payload.append('input_config_options', toggleEl.dataset.inputConfigOptions || '');
+
+    const isRequired = changedKey === 'is_required' ?
+      changedValue :
+      Number(toggleEl.dataset.isRequiredCurrent || 0);
+    const isVisible = changedKey === 'is_visible' ?
+      changedValue :
+      Number(toggleEl.dataset.isVisibleCurrent || 1);
+
+    payload.append('is_required', String(isRequired));
+    payload.append('is_visible', String(isVisible));
+
+    return fetch("{{ route($settingsRoutePrefix . '.update-field-assignment', $settingsRouteParams) }}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRF-TOKEN': csrf,
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: payload.toString(),
+    }).then(function(response) {
+      return response.json().then(function(data) {
+        return response.ok ? data : Promise.reject(data);
+      });
+    });
+  }
+
+  if (!window.__moduleFieldToggleChangeBound) {
+    window.__moduleFieldToggleChangeBound = true;
+
+    document.addEventListener('change', function(e) {
+      const toggle = e.target.closest('.bike-field-required-toggle, .bike-field-visibility-toggle');
+      if (!toggle) return;
+      if (toggle.dataset.updating === '1') return;
+
+      const isRequiredToggle = toggle.classList.contains('bike-field-required-toggle');
+      const changedKey = isRequiredToggle ? 'is_required' : 'is_visible';
+      const changedType = isRequiredToggle ? 'required' : 'visibility';
+      const originalChecked = !toggle.checked;
+
+      toggle.dataset.updating = '1';
+      toggle.disabled = true;
+
+      bikeUpdateFieldToggle(toggle, changedKey, toggle.checked ? 1 : 0)
+        .then(function(data) {
+          const isRequired = Number(data.is_required ? 1 : 0);
+          const isVisible = Number(data.is_visible ? 1 : 0);
+
+          document.querySelectorAll('.bike-field-required-toggle[data-field-key="' + toggle.dataset.fieldKey + '"]')
+            .forEach(function(el) {
+              el.dataset.isRequiredCurrent = String(isRequired);
+            });
+
+          document.querySelectorAll('.bike-field-visibility-toggle[data-field-key="' + toggle.dataset.fieldKey + '"]')
+            .forEach(function(el) {
+              el.dataset.isVisibleCurrent = String(isVisible);
+            });
+
+          if (isRequiredToggle) {
+            toggle.checked = !!isRequired;
+            bikeSyncFieldToggles(toggle.dataset.fieldKey, changedType, isRequired);
+          } else {
+            toggle.checked = !!isVisible;
+            bikeSyncFieldToggles(toggle.dataset.fieldKey, changedType, isVisible);
+          }
+        })
+        .catch(function() {
+          toggle.checked = originalChecked;
+        })
+        .finally(function() {
+          toggle.disabled = false;
+          delete toggle.dataset.updating;
+        });
+    });
+  }
+
+  function initBikeFieldSortables() {
+    if (typeof Sortable === 'undefined') return;
+    document.querySelectorAll('.bike-fields-sortable-tbody').forEach(function(tbody) {
+      if (tbody.dataset.sortableInit === '1') return;
+      var categoryId = tbody.getAttribute('data-category-id');
+      if (!categoryId) return;
+
+      new Sortable(tbody, {
+        handle: '.drag-handle',
+        draggable: 'tr[data-bike-field-key]',
+        animation: 150,
+        ghostClass: 'table-warning',
+        onEnd: function() {
+          var order = Array.from(tbody.querySelectorAll('tr[data-bike-field-key]')).map(function(tr) {
+            return tr.getAttribute('data-bike-field-key');
+          });
+          fetch("{{ route($settingsRoutePrefix . '.reorder-field-assignments', $settingsRouteParams) }}", {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': '{{ csrf_token() }}',
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+              category_id: parseInt(categoryId, 10),
+              order: order
+            })
+          });
+        }
+      });
+      tbody.dataset.sortableInit = '1';
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', initBikeFieldSortables);
+  document.querySelectorAll('#bikeFieldsCategoryTabs [data-bs-toggle="tab"]').forEach(function(tabBtn) {
+    tabBtn.addEventListener('shown.bs.tab', function() {
+      setTimeout(initBikeFieldSortables, 50);
+    });
+  });
+</script>
+<script>
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-edit-module-document-type');
+    if (!btn) return;
+
+    const form = document.getElementById('formEditModuleDocumentType');
+    if (!form) return;
+
+    form.action = btn.dataset.updateUrl || '#';
+    document.getElementById('editModuleDocKey').value = btn.dataset.key || '';
+    document.getElementById('editModuleDocType').value = btn.dataset.type || 'single';
+    document.getElementById('editModuleDocLabel').value = btn.dataset.label || '';
+    document.getElementById('editModuleDocFrontLabel').value = btn.dataset.frontLabel || '';
+    document.getElementById('editModuleDocBackLabel').value = btn.dataset.backLabel || '';
+  });
+
+  var addModuleDocTypeType = document.getElementById('addModuleDocTypeType');
+  if (addModuleDocTypeType) {
+    addModuleDocTypeType.addEventListener('change', function() {
+      var isDual = this.value === 'dual';
+      document.getElementById('addModuleDocTypeSingleWrap').style.display = isDual ? 'none' : 'block';
+      document.getElementById('addModuleDocTypeDualWrap').style.display = isDual ? 'block' : 'none';
+    });
+  }
+
+  var formAddModuleDocumentType = document.getElementById('formAddModuleDocumentType');
+  if (formAddModuleDocumentType) {
+    formAddModuleDocumentType.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var form = this;
+      var fd = new FormData(form);
+      fd.set('is_active', form.querySelector('#addModuleDocTypeActive').checked ? '1' : '0');
+      var btn = document.getElementById('addModuleDocumentTypeSubmitBtn');
+      if (btn) btn.disabled = true;
+
+      fetch("{{ route($settingsRoutePrefix . '.store-document-type', $settingsRouteParams) }}", {
+          method: 'POST',
+          body: fd,
+          headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          if (!r.ok) {
+            return r.json().then(function(d) {
+              return {
+                _httpError: true,
+                status: r.status,
+                data: d
+              };
+            }).catch(function() {
+              return {
+                _httpError: true,
+                status: r.status
+              };
+            });
+          }
+          return r.json();
+        })
+        .then(function(data) {
+          if (btn) btn.disabled = false;
+          if (data._httpError) {
+            var msg = (data.data && data.data.message) || 'Server error.';
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: msg
+            });
+            return;
+          }
+
+          if (data.success) {
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+              var m = bootstrap.Modal.getInstance(document.getElementById('addModuleDocumentTypeModal'));
+              if (m) m.hide();
+            }
+            form.reset();
+            document.getElementById('addModuleDocTypeSingleWrap').style.display = 'block';
+            document.getElementById('addModuleDocTypeDualWrap').style.display = 'none';
+            document.getElementById('addModuleDocTypeActive').checked = true;
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'success',
+                title: 'Saved',
+                text: data.message || 'Document type added.'
+              }).then(function() {
+                window.location.reload();
+              });
+            } else {
+              window.location.reload();
+            }
+          } else {
+            if (typeof Swal !== 'undefined') Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Could not save.'
+            });
+          }
+        })
+        .catch(function() {
+          if (btn) btn.disabled = false;
+          if (typeof Swal !== 'undefined') Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Could not save document type.'
+          });
+        });
+    });
+  }
+</script>
 @endsection

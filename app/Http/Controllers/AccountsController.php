@@ -58,7 +58,7 @@ class AccountsController extends AppBaseController
           ->orWhere('account_type', 'like', '%' . $search . '%');
       });
     }
-    $accounts = $query->get()->map(fn ($account) => (object) ['account' => $account, 'depth' => 0]);
+    $accounts = $query->get()->map(fn($account) => (object) ['account' => $account, 'depth' => 0]);
     return view('accounts.index', compact('accounts'));
   }
 
@@ -131,6 +131,10 @@ class AccountsController extends AppBaseController
    */
   public function store(CreateAccountsRequest $request)
   {
+    if ($request->boolean('is_fixed') && !$this->canManageFixedAccounts()) {
+      return response()->json(['errors' => ['error' => 'Only admin panel can create fixed accounts.']], 422);
+    }
+
     $input = $request->except(['custom_field_values']);
     $input['is_fixed'] = $this->resolveFixedFlag($request, false);
     // Set is_locked=1 if parent_id is not set (root account)
@@ -202,6 +206,15 @@ class AccountsController extends AppBaseController
       return redirect(route('accounts.index', ['company_slug' => CompanyRouteContext::slug()]));
     }
 
+    if ((bool) $accounts->is_fixed) {
+      $childAccountsCount = Accounts::where('parent_id', $accounts->id)->count();
+      if ($childAccountsCount > 0) {
+        return response()->json([
+          'errors' => ['error' => "Fixed account cannot be edited because it has {$childAccountsCount} child account(s)."]
+        ], 422);
+      }
+    }
+
     $input = $request->except(['custom_field_values']);
     $input['is_fixed'] = $this->resolveFixedFlag($request, (bool) ($accounts->is_fixed ?? false));
     $accounts = $this->accountsRepository->update($input, $id);
@@ -247,6 +260,10 @@ class AccountsController extends AppBaseController
 
     if (empty($accounts)) {
       return response()->json(['errors' => ['error' => 'Account not found!']], 422);
+    }
+
+    if ((bool) $accounts->is_fixed && !Auth::guard('admin')->check()) {
+      return response()->json(['errors' => ['error' => 'Fixed account can only be deleted from admin panel.']], 422);
     }
 
     // Check if account is a parent (has child accounts)
@@ -330,7 +347,7 @@ class AccountsController extends AppBaseController
   /**
    * Account detail panel (AJAX): ledger summary, closing balance, full ledger (paginated).
    */
-  public function accountDetail(Request $request,$company_slug, $id)
+  public function accountDetail(Request $request, $company_slug, $id)
   {
     $account = $this->findAccessibleAccount($id);
     if (!$account) {
@@ -557,5 +574,4 @@ class AccountsController extends AppBaseController
 
     return (bool) $request->boolean('is_fixed');
   }
-
 }

@@ -17,7 +17,7 @@ Route::get('settings-pane/{path?}', function (Request $request, ?string $path = 
 })->where('path', '.*');
 
 // Settings Panel (opens in separate window, Zoho-style admin)
-Route::prefix('settings-panel')->middleware('settings.panel')->group(function () {
+Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings'])->group(function () {
     Route::get('/', [App\Http\Controllers\SettingsPanelController::class, 'index'])->name('settings-panel.index');
     Route::match(['get', 'post'], '/company', [HomeController::class, 'settings'])->name('settings-panel.company');
     Route::get('/erp', [App\Http\Controllers\ErpSettingsController::class, 'index'])->name('settings-panel.erp');
@@ -150,6 +150,8 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     // Module settings page + label update
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[A-Za-z0-9_-]+');
+    Route::get('module-settings/{module}/account-assigning/children', [App\Http\Controllers\ModuleSettingsController::class, 'riderInvoiceAccountChildren'])->name('settings-panel.module-settings.rider-invoice-account-children')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/account-assigning', [App\Http\Controllers\ModuleSettingsController::class, 'storeRiderInvoiceAccountAssigning'])->name('settings-panel.module-settings.store-rider-invoice-account-assigning')->where('module', '[A-Za-z0-9_-]+');
     // User Management, Activity Logs, Recycle Bin (moved into Settings)
 
     Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');

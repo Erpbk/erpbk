@@ -142,7 +142,11 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
 
     // Account fixing (global chart account sharing)
     Route::get('accounts/fixed', [AdminAccountFixingController::class, 'index'])->name('accounts.fixed.index');
+    Route::get('accounts/fixed/create', [AdminAccountFixingController::class, 'create'])->name('accounts.fixed.create');
+    Route::post('accounts/fixed', [AdminAccountFixingController::class, 'store'])->name('accounts.fixed.store');
+    Route::put('accounts/fixed/{account}', [AdminAccountFixingController::class, 'update'])->name('accounts.fixed.update');
     Route::post('accounts/fixed/{account}/toggle', [AdminAccountFixingController::class, 'toggle'])->name('accounts.fixed.toggle');
+    Route::delete('accounts/fixed/{account}', [AdminAccountFixingController::class, 'destroy'])->name('accounts.fixed.destroy');
 });
 
 // pages

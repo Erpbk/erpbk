@@ -74,13 +74,13 @@ $homeLink = $isAdminSession
         <ul class="navbar-nav flex-row align-items-center ms-auto">
 
           <li class="nav-item me-2 me-lg-3">
-            @if(!$isAdminSession)
+            @if(!$isAdminSession && Auth::check() && Auth::user()->isAdmin())
             <a
               class="nav-link"
-              href="{{ $isAdminSession ? route('admin.companies.index') : ($companySlug ? route('settings-panel.index', ['company_slug' => $companySlug]) : url('/')) }}"
+              href="{{ $companySlug ? route('settings-panel.index', ['company_slug' => $companySlug]) : url('/') }}"
               target="_blank"
               rel="noopener"
-              title="Settings">
+              title="{{ __('Settings') }}">
               <i class="ti ti-settings ti-md"></i>
             </a>
             @endif

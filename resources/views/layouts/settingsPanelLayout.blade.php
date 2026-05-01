@@ -55,6 +55,7 @@ $moduleIcons = [
 'chart_of_accounts' => 'ti-list-tree',
 'ledger' => 'ti-book',
 ];
+$settingsIsCompanyAdmin = auth()->check() && auth()->user()->isAdmin();
 $erpModuleMenu = [
 ['key' => 'dashboard'],
 ['key' => 'cash_banks', 'children' => ['cash_banks', 'cheques']],
@@ -97,7 +98,7 @@ $containerNav = 'container-fluid';
     {{-- Settings panel sidebar: Zoho-style clean admin --}}
     <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme settings-panel-sidebar">
       <div class="app-brand demo border-bottom">
-        <a href="{{ route('settings-panel.company', ['company_slug' => $settingsCompanySlug]) }}" class="app-brand-link">
+        <a href="{{ $settingsIsCompanyAdmin ? route('settings-panel.company', ['company_slug' => $settingsCompanySlug]) : route('settings-panel.profile', ['company_slug' => $settingsCompanySlug]) }}" class="app-brand-link">
           <span class="app-brand-logo">
             <i class="ti ti-settings ti-lg text-primary"></i>
           </span>
@@ -108,6 +109,7 @@ $containerNav = 'container-fluid';
       <div class="menu-inner-shadow"></div>
 
       <ul class="menu-inner py-3">
+        @if($settingsIsCompanyAdmin)
         <li class="menu-header small text-uppercase">
           <span class="menu-header-text">Administration</span>
         </li>
@@ -281,6 +283,17 @@ $containerNav = 'container-fluid';
         @endif
         @endif
         @endforeach
+        @else
+        <li class="menu-header small text-uppercase">
+          <span class="menu-header-text">{{ __('My account') }}</span>
+        </li>
+        <li class="menu-item {{ Request::routeIs('settings-panel.profile') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.profile', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-user"></i>
+            <div>{{ __('Profile') }}</div>
+          </a>
+        </li>
+        @endif
       </ul>
 
       <div class="mt-auto border-top pt-3">

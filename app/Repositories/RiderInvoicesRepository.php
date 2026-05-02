@@ -132,7 +132,7 @@ class RiderInvoicesRepository extends BaseRepository
     }
 
 
-    if ($invoice->rider->vat == 1) {
+    if ($invoice->vat > 0) {
 
       $transactionData = [
         'account_id' => HeadAccount::TAX_ACCOUNT, //VAT Account asked to set by Adnan 08-05-2025

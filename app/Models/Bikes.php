@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
+
 class Bikes extends BaseModel
 {
   use SoftDeletes, LogsActivity, BranchScope;
@@ -41,6 +42,7 @@ class Bikes extends BaseModel
     'current_km',
     'previous_km',
     'maintenance_km',
+    'custom_field_values',
   ];
 
   protected $casts = [
@@ -62,20 +64,21 @@ class Bikes extends BaseModel
     'insurance_co' => 'string',
     'policy_no' => 'string',
     'customer_id' => 'string',
-    'deleted_at' => 'datetime'
+    'deleted_at' => 'datetime',
+    'custom_field_values' => 'array'
   ];
 
   protected $dates = ['deleted_at'];
 
   public static array $rules = [
-    'branch_id' => 'required|exists:branches,id',
-    'plate' => 'required|string|max:100',
-    'vehicle_type' => 'required|string|max:100',
-    'chassis_number' => 'required|string|max:100',
-    'color' => 'required|string|max:100',
-    'model' => 'required|string|max:100',
-    'model_type' => 'required|string|max:100',
-    'engine' => 'required|string|max:100',
+    'branch_id' => 'exists:branches,id',
+    'plate' => 'nullable|string|max:100',
+    'vehicle_type' => 'nullable|string|max:100',
+    'chassis_number' => 'nullable|string|max:100',
+    'color' => 'nullable|string|max:100',
+    'model' => 'nullable|string|max:100',
+    'model_type' => 'nullable|string|max:100',
+    'engine' => 'nullable|string|max:100',
     'company' => 'nullable',
     'rider_id' => 'nullable',
     'notes' => 'nullable|string|max:65535',
@@ -131,15 +134,15 @@ class Bikes extends BaseModel
   public function maintenanceStatus(): string
   {
     if ($this->current_km === null || $this->previous_km === null || $this->maintenance_km === null) {
-        return 'missing_data';
+      return 'missing_data';
     }
 
     $km = max(0, $this->current_km - $this->previous_km);
     if ($km > $this->maintenance_km) {
-        return 'overdue';
+      return 'overdue';
     }
     if ($km >= ($this->maintenance_km * 0.8)) {
-        return 'due';
+      return 'due';
     }
     return 'good';
   }
@@ -155,7 +158,8 @@ class Bikes extends BaseModel
     ");
   }
 
-  public function maintenanceRecords(){
-    return $this->hasMany(BikeMaintenance::class,'bike_id','id');
+  public function maintenanceRecords()
+  {
+    return $this->hasMany(BikeMaintenance::class, 'bike_id', 'id');
   }
 }

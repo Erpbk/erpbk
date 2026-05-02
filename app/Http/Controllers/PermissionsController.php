@@ -104,6 +104,10 @@ class PermissionsController extends AppBaseController
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         Flash::success(' permissions saved successfully.');
 
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json(['message' => 'Permissions saved successfully.'], 200);
+        }
+
         return redirect(route('settings-panel.permissions.index'));
     }
 
@@ -178,41 +182,54 @@ class PermissionsController extends AppBaseController
         
         // Find the parent permission
         $parent = Permission::findOrFail($id);
-        
+
         // Update parent permission name
         $parent->update(['name' => $request->name]);
-        
-        // Delete all existing child permissions
-        Permission::where('parent_id', $id)->delete();
-        
+
         $guard = $parent->guard_name ?? 'web';
         $standardPermissions = ['view', 'create', 'edit', 'delete'];
+        $desiredNames = [];
         foreach ($standardPermissions as $perm) {
-            Permission::query()->firstOrCreate(
-                ['name' => $fixstr . '_' . $perm, 'guard_name' => $guard],
-                ['parent_id' => $id]
-            );
+            $desiredNames[] = $fixstr . '_' . $perm;
         }
 
+        $extraPermissions = [];
         if ($request->has('extra') && !empty($request->extra)) {
-            $extraPermissions = array_filter($request->extra, function ($value) {
-                return !empty(trim($value));
-            });
+            $extraPermissions = array_values(array_filter($request->extra, function ($value) {
+                return !empty(trim((string) $value));
+            }));
 
             foreach ($extraPermissions as $customPerm) {
-                $customPerm = str_replace(' ', '_', strtolower(trim($customPerm)));
+                $customPerm = str_replace(' ', '_', strtolower(trim((string) $customPerm)));
                 if ($customPerm !== '') {
-                    Permission::query()->firstOrCreate(
-                        ['name' => $fixstr . '_' . $customPerm, 'guard_name' => $guard],
-                        ['parent_id' => $id]
-                    );
+                    $desiredNames[] = $fixstr . '_' . $customPerm;
                 }
             }
         }
-        
-        $totalPermissions = 4 + (isset($extraPermissions) ? count($extraPermissions) : 0);
+
+        $desiredNames = array_values(array_unique($desiredNames));
+
+        // firstOrCreate keeps existing permission IDs (preserves role_has_permissions rows)
+        foreach ($desiredNames as $permName) {
+            Permission::query()->firstOrCreate(
+                ['name' => $permName, 'guard_name' => $guard],
+                ['parent_id' => (int) $id]
+            );
+        }
+
+        Permission::where('parent_id', $id)
+            ->whereNotIn('name', $desiredNames)
+            ->delete();
+
+        $totalPermissions = count($desiredNames);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         Flash::success('Permissions updated successfully. ' . $totalPermissions . ' permissions active.');
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'message' => 'Permissions updated successfully. ' . $totalPermissions . ' permissions active.',
+            ], 200);
+        }
 
         return redirect(route('settings-panel.permissions.index'));
     }
@@ -261,9 +278,14 @@ class PermissionsController extends AppBaseController
 
     private function ensurePermissionWriteAllowed(): void
     {
-        // In company settings panel, permissions are visible but managed only from admin portal.
-        if (Route::currentRouteNamed('settings-panel.permissions.*')) {
-            abort(403, 'Permission management is restricted to system administrators.');
+        if (!Route::currentRouteNamed('settings-panel.permissions.*')) {
+            return;
         }
+
+        if (auth()->check() && auth()->user()->isAdmin()) {
+            return;
+        }
+
+        abort(403, 'Permission management is restricted to company administrators.');
     }
 }

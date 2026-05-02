@@ -56,19 +56,7 @@ class UserController extends AppBaseController
     }*/
 
 
-    $rolesQuery = Role::query();
-    if (Schema::hasColumn('roles', 'company_id')) {
-      $rolesQuery->where(function ($query) {
-        $query
-          ->where('company_id', auth()->user()->company_id)
-          ->orWhere('name', 'Super Admin');
-      });
-    } else {
-      // Fallback for schemas where roles are global and don't carry company_id.
-      $rolesQuery->where('name', '!=', IConstants::ROLE_SUPER_ADMIN);
-    }
-
-    $roles = $rolesQuery->get();
+    $roles = $this->assignableRolesQuery()->orderBy('name')->get();
     return $userDataTable->render('users.index', compact('roles'));
   }
 
@@ -77,7 +65,7 @@ class UserController extends AppBaseController
    */
   public function create()
   {
-    $roles = Role::where('name', '!=', IConstants::ROLE_SUPER_ADMIN)->pluck('name', 'name')->all();
+    $roles = $this->assignableRolesQuery()->pluck('name', 'name')->all();
     $countries = Country::countries();
     $departments = Departments::all()->pluck('name', 'id');
     $branches = Branch::active()->pluck('name', 'id');
@@ -91,6 +79,7 @@ class UserController extends AppBaseController
   public function store(CreateUserRequest $request)
   {
     $input = $request->all();
+    $this->assertRolesAssignable($request->input('roles'));
     $input['company_id'] = $this->resolveCompanyId($request);
 
     $input['name'] = $input['first_name'] . ' ' . $input['last_name'];
@@ -145,7 +134,7 @@ class UserController extends AppBaseController
     }
 
     $user->load('employee');
-    $roles = Role::where('name', '!=', IConstants::ROLE_SUPER_ADMIN)->pluck('name', 'name')->all();
+    $roles = $this->assignableRolesQuery()->pluck('name', 'name')->all();
     $userRole = $user->roles->pluck('name', 'name')->first();
     $departments = Departments::all()->pluck('name', 'id');
     $countries = Country::countries();
@@ -163,6 +152,7 @@ class UserController extends AppBaseController
     $user = $this->userRepository->find($user);
     $input = $request->all();
     unset($input['company_id']);
+    $this->assertRolesAssignable($request->input('roles'));
 
     if (empty($user) || !$this->belongsToCurrentCompany($user)) {
       Flash::error('User not found');
@@ -367,5 +357,35 @@ class UserController extends AppBaseController
   {
     $currentCompanyId = $this->resolveCompanyId(request());
     return (int) ($user->company_id ?? 0) === (int) $currentCompanyId;
+  }
+
+  private function assignableRolesQuery()
+  {
+    $query = Role::query()->where('name', '!=', IConstants::ROLE_SUPER_ADMIN);
+    if (Schema::hasColumn('roles', 'company_id')) {
+      $query->where('company_id', auth()->user()->company_id);
+    }
+
+    return $query;
+  }
+
+  /**
+   * @param  mixed  $roles
+   */
+  private function assertRolesAssignable($roles): void
+  {
+    if ($roles === null) {
+      abort(403, __('Invalid role assignment.'));
+    }
+    $flat = is_array($roles) ? $roles : [$roles];
+    $allowed = $this->assignableRolesQuery()->pluck('name')->all();
+    foreach ($flat as $name) {
+      if ($name === null || $name === '') {
+        continue;
+      }
+      if (! in_array($name, $allowed, true)) {
+        abort(403, __('Invalid role assignment.'));
+      }
+    }
   }
 }

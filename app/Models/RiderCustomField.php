@@ -114,6 +114,7 @@ class RiderCustomField extends BaseModel
         'input_format',
         'data_type',
         'is_mandatory',
+        'is_visible',
         'config',
         'category_id',
         'display_order',
@@ -121,6 +122,7 @@ class RiderCustomField extends BaseModel
 
     protected $casts = [
         'is_mandatory' => 'boolean',
+        'is_visible' => 'boolean',
         'prevent_duplicate_values' => 'boolean',
         'data_privacy' => 'array',
         'config' => 'array',
@@ -463,6 +465,9 @@ class RiderCustomField extends BaseModel
         })->values();
         $customFieldsAll = self::with('category')
             ->whereIn('category_id', $categoryIds)
+            ->where(function ($q) {
+                $q->where('is_visible', true)->orWhereNull('is_visible');
+            })
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -479,6 +484,23 @@ class RiderCustomField extends BaseModel
                         ? trim($a->display_label)
                         : self::humanizeFieldKey($a->field_key);
                     $spec = $specs[$a->field_key] ?? ['type' => 'text'];
+
+                    // Rider Settings can override a fixed field's input type + config (e.g. dropdown options).
+                    // The rider module renderer reads from "$spec", so we merge relevant config here.
+                    if (!empty($a->input_type)) {
+                        // The renderer expects HTML-ish types: dropdown -> select, checkbox stays checkbox.
+                        $spec['type'] = $a->input_type === 'dropdown' ? 'select' : $a->input_type;
+                    }
+                    if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
+                        $spec['options'] = $a->input_config['options'];
+                    }
+                    if (array_key_exists('is_required', $a->getAttributes())) {
+                        $rawRequired = $a->getRawOriginal('is_required');
+                        if ($rawRequired !== null) {
+                            $spec['required'] = (int) $rawRequired === 1;
+                        }
+                    }
+
                     $fields[] = (object) [
                         'kind' => 'fixed',
                         'field_key' => $a->field_key,

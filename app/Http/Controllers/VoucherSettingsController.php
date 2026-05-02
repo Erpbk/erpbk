@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Settings;
 use App\Models\VoucherType;
 use App\Models\VoucherCustomField;
+use App\Support\CompanyContext;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class VoucherSettingsController extends Controller
 {
@@ -46,8 +48,18 @@ class VoucherSettingsController extends Controller
     public function storeType(Request $request)
     {
         $allowedModules = array_keys(VoucherType::availableModules());
+        $companyId = CompanyContext::id();
         $validated = $request->validate([
-            'code' => 'required|string|max:20|unique:voucher_types,code',
+            'code' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('voucher_types', 'code')->where(function ($query) use ($companyId) {
+                    return $companyId === null
+                        ? $query->whereNull('company_id')
+                        : $query->where('company_id', $companyId);
+                }),
+            ],
             'label' => 'required|string|max:255',
             'module_assignments' => 'required|array|min:1',
             'module_assignments.*' => 'array',
@@ -89,12 +101,24 @@ class VoucherSettingsController extends Controller
         return redirect()->route('settings-panel.voucher-settings.index')->with('success', 'Voucher type added successfully.');
     }
 
-    public function updateType(Request $request, $id)
+    public function updateType(Request $request, string $company_slug, $id)
     {
         $type = VoucherType::findOrFail($id);
         $allowedModules = array_keys(VoucherType::availableModules());
+        $companyId = CompanyContext::id();
         $validated = $request->validate([
-            'code' => 'required|string|max:20|unique:voucher_types,code,' . $id,
+            'code' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('voucher_types', 'code')
+                    ->ignore($id)
+                    ->where(function ($query) use ($companyId) {
+                        return $companyId === null
+                            ? $query->whereNull('company_id')
+                            : $query->where('company_id', $companyId);
+                    }),
+            ],
             'label' => 'required|string|max:255',
             'is_active' => 'boolean',
             'module_assignments' => 'required|array|min:1',
@@ -135,7 +159,7 @@ class VoucherSettingsController extends Controller
         return redirect()->route('settings-panel.voucher-settings.index')->with('success', 'Voucher type updated successfully.');
     }
 
-    public function destroyType($id)
+    public function destroyType(string $company_slug, $id)
     {
         $type = VoucherType::findOrFail($id);
         $type->delete();
@@ -197,7 +221,7 @@ class VoucherSettingsController extends Controller
         return redirect()->route('settings-panel.voucher-settings.index')->with('success', 'Custom field added successfully.');
     }
 
-    public function updateField(Request $request, $id)
+    public function updateField(Request $request, string $company_slug, $id)
     {
         $field = VoucherCustomField::findOrFail($id);
         $validated = $request->validate([
@@ -232,7 +256,7 @@ class VoucherSettingsController extends Controller
         return redirect()->route('settings-panel.voucher-settings.index')->with('success', 'Custom field updated successfully.');
     }
 
-    public function destroyField($id)
+    public function destroyField(string $company_slug, $id)
     {
         $field = VoucherCustomField::findOrFail($id);
         $field->delete();

@@ -58,9 +58,13 @@
 <div class="form-group col-sm-6">
     <label class="">Credit Account:</label>
     <select class="form select select2" required id="salik_account_id" name="salik_account_id">
-        <option value=""></option>
-        @foreach(DB::table('accounts')->where('status' , 1)->where('id', $data->id)->get() as $a)
-        <option value="{{ $a->id }}" @if($data->id == $a->id) selected @endif>{{ $a->name }}</option>
+        <option value="">Select Account</option>
+        @foreach(DB::table('accounts')->where('status', 1)->where('parent_id', 1237)->orderBy('name')->get() as $a)
+        <option value="{{ $a->id }}"
+            data-admin-charges="{{ $a->admin_charges ?? 0 }}"
+            @if((isset($salik) && (string) $salik->salik_account_id === (string) $a->id) || (isset($data) && (string) $data->id === (string) $a->id)) selected @endif>
+            {{ $a->name }}
+        </option>
         @endforeach
     </select>
 </div>
@@ -79,7 +83,7 @@
 <!-- Amount Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('admin_fee', 'Admin Charges:', ['class' => '']) !!}
-    {!! Form::number('admin_fee', $data->admin_charges ?? 0, ['class' => 'form-control','step'=>'0.01', 'readonly']) !!}
+    {!! Form::number('admin_fee', $data->admin_charges ?? 0, ['class' => 'form-control','step'=>'0.01', 'readonly', 'id' => 'admin_fee']) !!}
 </div>
 <div class="form-group col-sm-6">
     {!! Form::label('amount', 'Amount:') !!}
@@ -124,5 +128,10 @@
             }
         }
         $('#bike_id_create, #trip_date_create').on('change', updateRiderSelect);
+
+        $('#salik_account_id').on('change', function() {
+            var adminCharges = $(this).find('option:selected').data('admin-charges');
+            $('#admin_fee').val(adminCharges || 0);
+        }).trigger('change');
     });
 </script>

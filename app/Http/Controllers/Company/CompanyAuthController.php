@@ -145,13 +145,22 @@ class CompanyAuthController extends Controller
             })
             ->first();
 
-        $authenticated = $user && Hash::check($password, (string) $user->password);
+        $statusValue = $user ? strtolower((string) ($user->status ?? '')) : '';
+        $isActive = in_array($statusValue, ['1', 'true', 'active'], true);
+
+        $authenticated = $user && $isActive && Hash::check($password, (string) $user->password);
 
         if ($authenticated) {
             Auth::login($user, $remember);
             $request->session()->regenerate();
             $request->session()->put('company_slug', $company->slug);
             return redirect()->route($this->companyHomeRouteName(), ['company_slug' => $company->slug]);
+        }
+
+        if ($user && ! $isActive) {
+            return back()
+                ->withErrors(['email' => __('Your account has been deactivated. Please contact the administrator.')])
+                ->onlyInput('email');
         }
 
         return back()->withErrors(['email' => __('These credentials do not match our records.')])->onlyInput('email');

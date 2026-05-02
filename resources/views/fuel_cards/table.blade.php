@@ -40,9 +40,9 @@
 
          </td>
          <td style="text-align: left;">
-            {{$r->rider? ($r->rider->name) : '-'}}
+            <a @if($r->rider) href="{{ route('riders.show', $r->rider->id) }}" target="_blank" @else href="javascript:void(0);" @endif" >{{$r->rider? ($r->rider->name) : '-'}}</a>
          </td>
-         <td>{{ ($r->rider?->bikes?->emirates ?? '') .'-'. ($r->rider?->bikes?->plate ?? '') }}</td>
+         <td><a @if($r->rider?->bikes) href="{{ route('bikes.show', $r->rider->bikes->id) }}" target="_blank" @else href="javascript:void(0);" @endif">{{ ($r->rider?->bikes?->emirates ?? '') .'-'. ($r->rider?->bikes?->plate ?? '') }}</a></td>
          <td>
             @if($r->status == 'Active')
                 <span class="badge  bg-success">Active</span>

@@ -92,6 +92,7 @@ class Kernel extends HttpKernel
     'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
     'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
     'settings.panel' => \App\Http\Middleware\SettingsPanelLayout::class,
+    'company.settings' => \App\Http\Middleware\EnsureCompanyAdministratorForSettings::class,
     'ensure.admin.permissions' => \App\Http\Middleware\EnsureAdminPanelPermissions::class,
     'admin.auth' => \App\Http\Middleware\AuthenticateAdmin::class,
     'admin.guard' => \App\Http\Middleware\SetAdminGuard::class,

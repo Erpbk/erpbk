@@ -51,7 +51,8 @@ class SalikController extends AppBaseController
         // Get the parent account
         $parent = Accounts::where('id', 1237)->first();
         if (!$parent) {
-            Flash::success('Parent account "Salik" not found.');
+            Flash::error('Parent account "Salik" not found.');
+            return redirect()->back();
         }
         // Create new account
         $newdata = new Accounts();
@@ -75,6 +76,7 @@ class SalikController extends AppBaseController
         $parent = Accounts::where('id', 1237)->first();
         if (!$parent) {
             Flash::error('Parent account "Salik" not found.');
+            return redirect()->back();
         }
         $newdata = Accounts::find($request->id);
         $newdata->name = $request->name;
@@ -131,11 +133,20 @@ class SalikController extends AppBaseController
         if (!auth()->user()->hasPermissionTo('salik_view')) {
             abort(403, 'Unauthorized action.');
         }
+
         $parent = Accounts::where('id', 1237)->first();
+
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Accounts::query()
-            ->orderBy('id', 'asc')->where('parent_id', $parent->id);
+            ->orderBy('id', 'asc');
+
+        if ($parent) {
+            $query->where('parent_id', $parent->id);
+        } else {
+            // Keep module accessible when no Salik parent/account exists yet.
+            $query->whereRaw('1 = 0');
+        }
         if ($request->has('account_code') && !empty($request->account_code)) {
             $query->where('account_code', 'like', '%' . $request->account_code . '%');
         }

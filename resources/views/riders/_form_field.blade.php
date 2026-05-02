@@ -20,7 +20,25 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
   @php
   $opts = [];
-  if (($spec['dropdown'] ?? '') === 'countries') {
+  // Prefer user-configured options (stored in Rider Settings) when available.
+  $rawOptions = $spec['options'] ?? null;
+  $parsedOptions = [];
+  if ($rawOptions !== null && $rawOptions !== '') {
+  $lines = is_array($rawOptions) ? $rawOptions : preg_split('/\r\n|\r|\n/', (string) $rawOptions);
+  foreach ($lines as $line) {
+  $line = trim((string) $line);
+  if ($line !== '') {
+  $parsedOptions[] = $line;
+  }
+  }
+  }
+
+  if (!empty($parsedOptions)) {
+  foreach ($parsedOptions as $opt) {
+  // Store both key and label as the same value for now.
+  $opts[$opt] = $opt;
+  }
+  } elseif (($spec['dropdown'] ?? '') === 'countries') {
   $opts = \App\Models\Countries::list()->toArray();
   } elseif (($spec['dropdown'] ?? '') === 'vendors') {
   $opts = \App\Models\Vendors::dropdown();
@@ -38,8 +56,16 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   } else {
   $opts = Common::Dropdowns($spec['dropdown'] ?? '');
   }
+  $hasEmptyOption = array_key_exists('', $opts);
+  $selectAttributes = ['class' => 'form-select', 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null];
+  if (!$hasEmptyOption) {
+  $selectAttributes['placeholder'] = 'Select ' . $item->label;
+  }
+  if ($req) {
+  $selectAttributes['required'] = true;
+  }
   @endphp
-  {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select', 'placeholder' => 'Select ' . $item->label, 'id' => $item->field_key === 'rider_id' ? 'rider_id_field' : null] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::select($item->field_key, $opts, $value, $selectAttributes) !!}
   @if ($item->field_key === 'rider_id')
   <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
   @endif
@@ -50,7 +76,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   <div class="form-check mt-4">
     <input type="hidden" name="{{ $item->field_key }}" value="{{ in_array($item->field_key, ['vat'], true) ? '2' : '0' }}" />
     {!! Form::checkbox($item->field_key, $spec['value'] ?? 1, $value == 1 || $value === true, ['class' => 'form-check-input', 'id' => 'field_' . $item->field_key]) !!}
-    {!! Form::label('field_' . $item->field_key, $item->label, ['class' => 'form-check-label pt-0']) !!}
+    {!! Form::label('field_' . $item->field_key, $item->label, ['class' => 'form-check-label pt-0' . ($req ? ' required' : '')]) !!}
   </div>
   @else
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}

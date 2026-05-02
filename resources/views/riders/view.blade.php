@@ -537,8 +537,8 @@ $companySlug = request()->route('company_slug');
               <ul class="nav nav-pills flex-nowrap mb-0 overflow-hidden" id="mainNavigation" style="gap: 0.25rem;">
                 <!-- Priority navigation items (always visible when possible) -->
                 <li class="nav-item nav-priority-1">
-                  <a class="nav-link @if(is_numeric(request()->segment(2)) || request()->segment(2) == 'create') active @endif"
-                    href="@isset($result['id']){{route('riders.show',['company_slug' => $companySlug, $result['id']])}}@else#@endif">
+                  <a class="nav-link @if(Route::is('riders.show') || Route::is('riders.create')) active @endif"
+                    href="@isset($result['id']){{route('riders.show',$result['id'])}}@else#@endif">
                     <i class="ti ti-user-check ti-sm me-1_5"></i>Information
                   </a>
                 </li>
@@ -546,8 +546,8 @@ $companySlug = request()->route('company_slug');
                 @isset($result)
                 @can('timeline_view')
                 <li class="nav-item nav-priority-2">
-                  <a class="nav-link @if(request()->segment(2) == 'timeline') active @endif"
-                    href="{{route('rider.timeline',['company_slug' => $companySlug, $result['id']])}}">
+                  <a class="nav-link @if(Route::is('rider.timeline')) active @endif"
+                    href="{{route('rider.timeline',$result['id'])}}">
                     <i class="ti ti-timeline ti-sm me-1_5"></i>Timeline
                   </a>
                 </li>
@@ -555,8 +555,8 @@ $companySlug = request()->route('company_slug');
 
                 @can('rider_document')
                 <li class="nav-item nav-priority-3">
-                  <a class="nav-link @if(request()->segment(2) == 'files') active @endif"
-                    href="{{route('rider.files',['company_slug' => $companySlug, $result['id']])}}">
+                  <a class="nav-link @if(Route::is('rider.files')) active @endif"
+                    href="{{route('rider.files',$result['id'])}}">
                     <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
                   </a>
                 </li>
@@ -564,8 +564,8 @@ $companySlug = request()->route('company_slug');
 
                 @can('riderinvoice_view')
                 <li class="nav-item nav-priority-4">
-                  <a class="nav-link @if(request()->segment(2) == 'invoices') active @endif"
-                    href="{{route('rider.invoices',['company_slug' => $companySlug, $result['id']])}}">
+                  <a class="nav-link @if(Route::is('rider.invoices')) active @endif"
+                    href="{{route('rider.invoices',$result['id'])}}">
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Invoices
                   </a>
                 </li>
@@ -574,7 +574,7 @@ $companySlug = request()->route('company_slug');
                 @can('visaexpense_view')
                 @if(!empty($account))
                 <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(request()->segment(2) == 'generatentries' || request()->segment(2) == 'installmentPlan') active @endif"
+                  <a class="nav-link @if(Route::is('VisaExpense.generatentries')) active @endif"
                     href="{{ route('VisaExpense.generatentries', optional($account)->id) }}">
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Visa Expense
                   </a>
@@ -584,8 +584,8 @@ $companySlug = request()->route('company_slug');
 
                 @can('item_view')
                 <li class="nav-item nav-priority-6">
-                  <a class="nav-link @if(request()->segment(2) == 'items') active @endif"
-                    href="{{route('rider.items',['company_slug' => $companySlug, $result['id']])}}">
+                  <a class="nav-link @if(Route::is('rider.items')) active @endif"
+                    href="{{route('rider.items',$result['id'])}}">
                     <i class="ti ti-cash-banknote ti-sm me-1"></i>Salary
                   </a>
                 </li>
@@ -593,8 +593,8 @@ $companySlug = request()->route('company_slug');
 
                 @can('gn_ledger')
                 <li class="nav-item nav-priority-7">
-                  <a class="nav-link @if(request()->segment(2) == 'ledger') active @endif"
-                    href="{{route('rider.ledger',['company_slug' => $companySlug, $result['id']])}}">
+                  <a class="nav-link @if(Route::is('rider.ledger')) active @endif"
+                    href="{{route('rider.ledger',$result['id'])}}">
                     <i class="ti ti-file ti-sm me-1_5"></i>Ledger
                   </a>
                 </li>
@@ -602,8 +602,8 @@ $companySlug = request()->route('company_slug');
 
                 @can('activity_view')
                 <li class="nav-item nav-priority-8">
-                  <a class="nav-link @if(request()->segment(2) == 'activities') active @endif"
-                    href="{{route('rider.activities',['company_slug' => $companySlug, $result['id']])}}">
+                  <a class="nav-link @if(Route::is('rider.activities')) active @endif"
+                    href="{{route('rider.activities',$result['id'])}}">
                     <i class="ti ti-motorbike ti-sm me-1_5"></i>Activities
                   </a>
                 </li>
@@ -611,8 +611,8 @@ $companySlug = request()->route('company_slug');
 
                 @can('email_view')
                 <li class="nav-item nav-priority-9">
-                  <a class="nav-link @if(request()->segment(2) == 'emails') active @endif"
-                    href="{{route('rider.emails',['company_slug' => $companySlug, $result['id']])}}">
+                  <a class="nav-link @if(Route::is('rider.emails')) active @endif"
+                    href="{{route('rider.emails',$result['id'])}}">
                     <i class="ti ti-mail ti-sm me-1_5"></i>Emails
                   </a>
                 </li>

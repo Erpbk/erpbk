@@ -199,5 +199,25 @@
             });
         });
     });
+
+    // Add Rider Dropdown Toggle
+    $('#addLeasingCompanyDropdownBtn').on('click', function(e) {
+        e.stopPropagation();
+        const dropdown = $('#addLeasingCompanyDropdown');
+        const btn = $(this);
+
+        if (dropdown.hasClass('show')) {
+            dropdown.removeClass('show');
+            btn.removeClass('open');
+        } else {
+            // Close other dropdowns
+            $('.action-dropdown-menu').removeClass('show');
+            $('.action-dropdown-btn').removeClass('open');
+            // Show this dropdown
+            dropdown.addClass('show');
+            btn.addClass('open');
+        }
+    });
 </script>
+
 @endsection

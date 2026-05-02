@@ -71,4 +71,30 @@ class FuelCards extends BaseModel
     {
         return $query->where('status', 'Active');
     }
+
+    /**
+     * Find rider for specific date in card history
+     */
+
+    public function findRiderForDate($transactionDate)
+    {
+
+        $tripDate = $transactionDate ?? null;
+
+        // Check card history for rider assigned on or before transaction date
+        $history = $this->histories()
+            ->whereDate('assign_date', '<=', $tripDate)
+            ->where(function ($q) use ($tripDate) {
+                $q->whereNull('return_date')
+                    ->orWhereDate('return_date', '>=', $tripDate);
+            })
+            ->orderBy('assign_date', 'desc')
+            ->first();
+
+        if ($history && $history->assigned_to) {
+            return Riders::find($history->assigned_to);
+        }
+
+        return null;
+    }
 }

@@ -41,110 +41,15 @@ class RtaFinesController extends AppBaseController
     /**
      * Display a listing of the RtaFines.
      */
-    public function accountcreate(Request $request)
-    {
-        $exists = Accounts::where('name', $request->name)->exists();
-        if ($exists) {
-            Flash::success('Account with this name already exists.');
-        }
 
-        // Get the parent account
-        $parent = Accounts::where('id', 1235)->first();
-        if (!$parent) {
-            Flash::success('Parent account "RTA Fines" not found.');
-        }
-        // Create new account
-        $newdata = new Accounts();
-        $newdata->name = $request->name;
-        $newdata->traffic_code_number = $request->traffic_code_number;
-        $newdata->account_tax = $request->account_tax;
-        $newdata->admin_charges = $request->admin_charges;
-        $newdata->parent_id = $parent->id;
-        $newdata->account_type = 'Liability';
-        $newdata->status = 1;
-        $newdata->save();
-        $newdata->account_code = 'ACCT-' . str_pad($newdata->id, 5, '0', STR_PAD_LEFT);
-        $newdata->save();
-
-        Flash::success('Account added successfully.');
-        return redirect()->back();
-    }
-
-    public function editaccount(Request $request)
-    {
-        $parent = Accounts::where('id', 1235)->first();
-        if (!$parent) {
-            Flash::error('Parent account "RTA Fines" not found.');
-        }
-        $newdata = Accounts::find($request->id);
-        $newdata->name = $request->name;
-        $newdata->traffic_code_number = $request->traffic_code_number;
-        $newdata->account_tax = $request->account_tax;
-        $newdata->admin_charges = $request->admin_charges;
-        $newdata->parent_id = $parent->id;
-        $newdata->account_type = 'Liability';
-        $newdata->status = 1;
-        $newdata->save();
-        $newdata->account_code = 'ACCT-' . str_pad($newdata->id, 5, '0', STR_PAD_LEFT);
-        $newdata->save();
-
-        Flash::success('Account Updated successfully.');
-        return redirect()->back();
-    }
-    public function deleteaccount($company_slug, $id)
-    {
-        // Check if there are any rtaFines (tickets) related to this account (including soft deleted)
-        $hasFines = RtaFines::withTrashed()->where('rta_account_id', $id)->exists();
-
-        if ($hasFines) {
-            Flash::error('Cannot delete account. There are existing RTA fines (tickets) linked to this account.');
-            return redirect()->back();
-        }
-
-        // Check if there are any ledger transactions related to this account
-        $hasLedgerEntries = LedgerEntry::where('account_id', $id)->exists();
-
-        if ($hasLedgerEntries) {
-            Flash::error('Cannot delete account. There are existing ledger transactions linked to this account.');
-            return redirect()->back();
-        }
-
-        // Check if there are any transactions related to this account (including soft deleted)
-        $hasTransactions = Transactions::withTrashed()->where('account_id', $id)->exists();
-
-        if ($hasTransactions) {
-            Flash::error('Cannot delete account. There are existing transactions linked to this account.');
-            return redirect()->back();
-        }
-
-        // Get account details before deletion for cascade tracking
-        $account = Accounts::findOrFail($id);
-        $accountName = $account->name ?? "Account #{$id}";
-
-        // Soft delete the account
-        $account->delete();
-
-        Flash::success('Account deleted successfully.');
-        return redirect()->back();
-    }
 
     public function index(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('rtafine_view')) {
             abort(403, 'Unauthorized action.');
         }
-        $parent = Accounts::where('id', 1235)->first();
-        $defaultAccount = Accounts::query()
-            ->where('parent_id', $parent?->id)
-            ->orderBy('id', 'asc')
-            ->first();
 
-        if (!$defaultAccount) {
-            Flash::error('No RTA Fine account found.');
-            return redirect()->back();
-        }
-
-        return redirect()->route('rtaFines.tickets');
+        return $this->renderTicketsListing($request, 'unpaid');
     }
     public function tickets(Request $request)
     {
@@ -172,9 +77,9 @@ class RtaFinesController extends AppBaseController
 
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-
+        $parentId = Accounts::where('name', 'Current Liabilities')->where('account_type', 'Liability')->first()->id;
         $defaultAccount = Accounts::query()
-            ->where('parent_id', 1235)
+            ->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')
             ->orderBy('id', 'asc')
             ->first();
 
@@ -182,18 +87,18 @@ class RtaFinesController extends AppBaseController
             ?? session('rta_selected_account_id')
             ?? $defaultAccount?->id;
 
-        if (!$selectedAccountId) {
-            Flash::error('No RTA Fine account found.');
-            return redirect()->back();
-        }
-
-        session(['rta_selected_account_id' => $selectedAccountId]);
-
         $query = RtaFines::query()
             ->with('branch')
             ->orderBy('id', 'asc')
-            ->where('rta_account_id', $selectedAccountId)
             ->where('status', $status);
+
+        if ($selectedAccountId) {
+            $query->where('rta_account_id', $selectedAccountId);
+            session(['rta_selected_account_id' => $selectedAccountId]);
+        } else {
+            // Keep module accessible when no account exists yet.
+            $query->whereRaw('1 = 0');
+        }
 
         if ($request->filled('ticket_no')) {
             $query->where('ticket_no', 'like', '%' . $request->ticket_no . '%');
@@ -233,7 +138,7 @@ class RtaFinesController extends AppBaseController
         $adminFee = $filteredData->sum('admin_fee');
         $account = Accounts::find($selectedAccountId);
         $rtaAccounts = Accounts::query()
-            ->where('parent_id', 1235)
+            ->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')
             ->orderBy('name', 'asc')
             ->get();
         $total_Amount =  $totalAmount + $serviceCharges + $adminFee;
@@ -445,12 +350,13 @@ class RtaFinesController extends AppBaseController
      */
     public function create()
     {
+        $parentId = Accounts::where('name', 'Current Liabilities')->where('account_type', 'Liability')->first()->id;
         $selectedAccountId = request('rta_account_id')
             ?? session('rta_selected_account_id')
-            ?? Accounts::query()->where('parent_id', 1235)->orderBy('id', 'asc')->value('id');
+            ?? Accounts::query()->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')->orderBy('id', 'asc')->value('id');
         $data = Accounts::where('id', $selectedAccountId)->first();
         $rtaAccounts = Accounts::query()
-            ->where('parent_id', 1235)
+            ->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')
             ->orderBy('name', 'asc')
             ->get();
         return view('rta_fines.create', compact('data', 'rtaAccounts'));

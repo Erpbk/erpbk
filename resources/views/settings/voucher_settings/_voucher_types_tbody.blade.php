@@ -20,8 +20,8 @@
     @endif
   </td>
   <td class="align-middle text-end">
-    <button type="button" class="btn btn-sm btn-icon btn-outline-primary edit-voucher-type" data-id="{{ $vt->id }}" data-code="{{ $vt->code }}" data-label="{{ $vt->label }}" data-active="{{ $vt->is_active ? '1' : '0' }}" data-modules='@json($vt->module_keys)' data-allow-edit-voucher="{{ $vt->allow_edit_in_voucher_module ? '1' : '0' }}" data-allow-delete-voucher="{{ $vt->allow_delete_in_voucher_module ? '1' : '0' }}" title="Edit"><i class="ti ti-edit"></i></button>
-    <button type="button" class="btn btn-sm btn-icon btn-outline-danger delete-voucher-type" data-id="{{ $vt->id }}" data-code="{{ $vt->code }}" data-label="{{ $vt->label }}" title="Delete"><i class="ti ti-trash"></i></button>
+    <button type="button" class="btn btn-sm btn-icon btn-outline-primary edit-voucher-type" data-id="{{ $vt->id }}" data-code="{{ $vt->code }}" data-label="{{ $vt->label }}" data-active="{{ $vt->is_active ? '1' : '0' }}" data-modules='@json($vt->module_keys)' data-allow-edit-voucher="{{ $vt->allow_edit_in_voucher_module ? '1' : '0' }}" data-allow-delete-voucher="{{ $vt->allow_delete_in_voucher_module ? '1' : '0' }}" data-update-url="{{ route('settings-panel.voucher-settings.update-type', ['id' => $vt->id]) }}" title="Edit"><i class="ti ti-edit"></i></button>
+    <button type="button" class="btn btn-sm btn-icon btn-outline-danger delete-voucher-type" data-id="{{ $vt->id }}" data-code="{{ $vt->code }}" data-label="{{ $vt->label }}" data-delete-url="{{ route('settings-panel.voucher-settings.destroy-type', ['id' => $vt->id]) }}" title="Delete"><i class="ti ti-trash"></i></button>
   </td>
 </tr>
 @empty

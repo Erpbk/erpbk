@@ -3,6 +3,7 @@
 @section('title', 'Chart of Accounts')
 @section('content')
 @php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
+@php $__canManageFixedAccounts = \Illuminate\Support\Facades\Auth::guard('admin')->check(); @endphp
 @push('third_party_stylesheets')
 <style>
   .chart-of-accounts-table {
@@ -104,12 +105,19 @@
     color: #6c757d;
     text-align: center;
   }
+
   .chart-ledger-panel .ledger-table-scroll {
     max-height: 50vh;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .chart-ledger-panel .ledger-table thead th { position: sticky; top: 0; background: #f8f9fa; z-index: 1; }
+
+  .chart-ledger-panel .ledger-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 1;
+  }
 </style>
 @endpush
 
@@ -208,6 +216,9 @@
                     <i class="fa fa-lock lock-icon" title="{{ $isMainParent ? 'Main parent account' : 'Locked account' }}"></i>
                     @endif
                     <a href="javascript:void(0);" class="account-link chart-account-name" data-id="{{ $account->id }}">{{ $account->name }}</a>
+                    @if($account->is_fixed)
+                    <span class="badge bg-primary">Fixed</span>
+                    @endif
                 </div>
               </td>
               <td class="text-nowrap align-middle">{{ $account->account_code ?? '—' }}</td>
@@ -222,6 +233,9 @@
                     <li><a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-edit me-2"></i> Edit</a></li>
                     <li><a class="dropdown-item toggle-lock" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-{{ $account->is_locked ? 'unlock' : 'lock' }} me-2"></i> {{ $account->is_locked ? 'Unlock' : 'Lock' }}</a></li>
                     <li><a class="dropdown-item toggle-status" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleStatus', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-active="{{ $account->status == 1 ? '1' : '0' }}"><i class="fa fa-{{ $account->status == 1 ? 'pause-circle-o' : 'play-circle-o' }} me-2"></i> {{ $account->status == 1 ? 'Mark as Inactive' : 'Mark as Active' }}</a></li>
+                    @if($__canManageFixedAccounts)
+                    <li><a class="dropdown-item toggle-fixed" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleFixed', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-thumb-tack me-2"></i> {{ $account->is_fixed ? 'Unmark as Fixed' : 'Mark as Fixed' }}</a></li>
+                    @endif
                     @endcan
                     <li><a class="dropdown-item view-ledger" href="javascript:void(0);" data-id="{{ $account->id }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
                     @can('account_delete')
@@ -379,31 +393,36 @@
       var tbody = document.getElementById('ledgerTableBody');
       if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3"><i class="fa fa-spinner fa-spin"></i> Loading...</td></tr>';
       fetch(ledgerEntriesBaseUrl + '/' + accountId + '/ledger-entries?page=' + page + '&per_page=' + perPage + '&currency=' + currency, {
-        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (tbody) tbody.innerHTML = data.html || '<tr><td colspan="6" class="text-center text-muted py-3">No entries.</td></tr>';
-        var p = data.pagination;
-        if (!p || !paginationEl) return;
-        var infoEl = paginationEl.querySelector('.ledger-pagination-info');
-        if (infoEl) infoEl.textContent = 'Showing ' + (p.from || 0) + '\u2013' + (p.to || 0) + ' of ' + (p.total || 0);
-        var pageInfoEl = paginationEl.querySelector('.ledger-page-info');
-        if (pageInfoEl) pageInfoEl.textContent = 'Page ' + p.current_page + ' of ' + p.last_page;
-        var prev = paginationEl.querySelector('.ledger-page-prev');
-        var next = paginationEl.querySelector('.ledger-page-next');
-        if (prev) {
-          prev.disabled = p.current_page <= 1;
-          prev.setAttribute('data-page', p.current_page - 1);
-        }
-        if (next) {
-          next.disabled = p.current_page >= p.last_page;
-          next.setAttribute('data-page', p.current_page + 1);
-        }
-      })
-      .catch(function() {
-        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Failed to load.</td></tr>';
-      });
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.json();
+        })
+        .then(function(data) {
+          if (tbody) tbody.innerHTML = data.html || '<tr><td colspan="6" class="text-center text-muted py-3">No entries.</td></tr>';
+          var p = data.pagination;
+          if (!p || !paginationEl) return;
+          var infoEl = paginationEl.querySelector('.ledger-pagination-info');
+          if (infoEl) infoEl.textContent = 'Showing ' + (p.from || 0) + '\u2013' + (p.to || 0) + ' of ' + (p.total || 0);
+          var pageInfoEl = paginationEl.querySelector('.ledger-page-info');
+          if (pageInfoEl) pageInfoEl.textContent = 'Page ' + p.current_page + ' of ' + p.last_page;
+          var prev = paginationEl.querySelector('.ledger-page-prev');
+          var next = paginationEl.querySelector('.ledger-page-next');
+          if (prev) {
+            prev.disabled = p.current_page <= 1;
+            prev.setAttribute('data-page', p.current_page - 1);
+          }
+          if (next) {
+            next.disabled = p.current_page >= p.last_page;
+            next.setAttribute('data-page', p.current_page + 1);
+          }
+        })
+        .catch(function() {
+          if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Failed to load.</td></tr>';
+        });
     });
 
     function toggleChildren(accountId, show) {
@@ -556,6 +575,23 @@
       if (e.target.closest('.toggle-status')) {
         e.preventDefault();
         var link = e.target.closest('.toggle-status');
+        var fd = new FormData();
+        fd.append('_token', csrf);
+        fetch(link.getAttribute('data-url'), {
+          method: 'POST',
+          body: fd,
+          headers: {
+            'Accept': 'application/json'
+          }
+        }).then(function(r) {
+          return r.json();
+        }).then(function(res) {
+          if (res.success) location.reload();
+        });
+      }
+      if (e.target.closest('.toggle-fixed')) {
+        e.preventDefault();
+        var link = e.target.closest('.toggle-fixed');
         var fd = new FormData();
         fd.append('_token', csrf);
         fetch(link.getAttribute('data-url'), {

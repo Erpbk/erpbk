@@ -64,7 +64,7 @@
                         <i class="ti ti-info-circle"></i>
                         <strong>Need a template?</strong> Download the Excel template to get started.
                     </div>
-                    <a href="{{ route('fuel_data.import') }}" class="btn btn-success">
+                    <a href="{{ route('fuel_data.importSample') }}" class="btn btn-success">
                         <i class="ti ti-download"></i> Download Template
                     </a>
                 </div>

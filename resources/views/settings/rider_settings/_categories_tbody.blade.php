@@ -35,7 +35,7 @@
         onsubmit="return confirm('Delete this category? It can only be deleted when no fixed/custom fields exist in this category.');">
         @csrf
         @method('DELETE')
-        <button type="submit" class="btn btn-outline-danger btn-icon btn-edit-category">
+        <button type="submit" class="btn btn-outline-danger btn-icon btn-delete-category">
           <i class="ti ti-trash"></i>
         </button>
       </form>

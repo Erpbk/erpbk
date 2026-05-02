@@ -17,13 +17,13 @@
                         </button>
                         <div class="action-dropdown-menu" id="addLeasingCompanyDropdown">
                             @can('leasing_create')
-                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Leasing Company" data-action="{{ route('leasingCompanies.create') }}">
-                                    <i class="ti ti-plus"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">New Leasing Company</div>
-                                        <div class="action-dropdown-item-desc">Add a new Leasing Company</div>
-                                    </div>
-                                </a>
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Leasing Company" data-action="{{ route('leasingCompanies.create') }}">
+                                <i class="ti ti-plus"></i>
+                                <div>
+                                    <div class="action-dropdown-item-text">New Leasing Company</div>
+                                    <div class="action-dropdown-item-desc">Add a new Leasing Company</div>
+                                </div>
+                            </a>
                             @endcan
                         </div>
                     </div>

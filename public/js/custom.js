@@ -292,10 +292,27 @@ function printModalContent() {
     };
 }
 
+// Backward-compatible modal toggler used by .show-modal handlers.
+function toggleModalTop(action) {
+  var modalEl = document.getElementById('modalTop');
+  if (!modalEl) return;
 
+  // Bootstrap 5
+  if (window.bootstrap && window.bootstrap.Modal) {
+    var instance = bootstrap.Modal.getOrCreateInstance(modalEl);
+    if (action === 'show') {
+      instance.show();
+    } else {
+      instance.hide();
+    }
+    return;
+  }
 
-
-
+  // Bootstrap 4/jQuery fallback
+  if (window.jQuery && $('#modalTop').modal) {
+    $('#modalTop').modal(action === 'show' ? 'show' : 'hide');
+  }
+}
 
 $('body').on('click', '.show-modal', function () {
   var action = $(this).data('action');
@@ -309,38 +326,8 @@ $('body').on('click', '.show-modal', function () {
     $('.modal-dialog').addClass('modal-' + size);
   }
   $('#modalTopTitle').text(title);
-  $.ajax({
-    url: action,
-    type: 'GET',
-    dataType: 'html',
-    success: function (response) {
-      // Prevent duplicate global declarations (e.g., `isRtl`) from re-evaluating
-      // scripts every time modal content is loaded.
-      var $wrapper = $('<div>').html(response);
-      $wrapper.find('script').remove();
-      $('#modalTopbody').html($wrapper.html());
-
-      // Re-init select2 fields inside the modal content.
-      if ($.fn.select2) {
-        $('#modalTopbody .select2').select2({
-          dropdownParent: $('#modalTop'),
-          allowClear: true
-        });
-      }
-    },
-    complete: function () {
-      unblock();
-    },
-    error: function (xhr) {
-      var errMsg = 'Failed to load modal content.';
-      if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
-        errMsg = xhr.responseJSON.message;
-      }
-      $('#modalTopbody').html('<div class="alert alert-danger mb-0">' + errMsg + '</div>');
-      if (window.toastr) {
-        toastr.error(errMsg);
-      }
-    }
+  $('#modalTopbody').load(action, function () {
+    unblock();
   });
 
   if (table) {
@@ -445,13 +432,15 @@ function reloadDataTable() {
   }
 }
 
-$(document).on('submit', '#formajax', function (e) {
+$(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
   e.preventDefault();
   block();
 
+  var $form = $(this);
   let formID = 'formajax';
-  var action = $(this).attr('action');
+  var action = $form.attr('action');
   var formData = new FormData(this);
+  var shouldReloadTable = String($form.data('reload-table')) !== '0';
 
   // Dynamic fields ki values ko ek array mein store karein
   var values = [];
@@ -469,22 +458,27 @@ $(document).on('submit', '#formajax', function (e) {
 
   $.ajax({
     url: action,
-    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+    headers: {
+      'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+      'X-Requested-With': 'XMLHttpRequest',
+      Accept: 'application/json',
+    },
     type: 'POST',
     data: formData,
     contentType: false,
     cache: false,
     processData: false,
     beforeSend: function () {
-      $('#' + formID)
-        .find('.save_rec')
-        .hide();
-      $('#' + formID)
-        .find('.loader')
-        .show();
+      $form.find('.save_rec').hide();
+      $form.find('.loader').show();
     },
-    success: function (data) {
+    success: function (data, _textStatus, jqXHR) {
       unblock();
+      var ct = (jqXHR && jqXHR.getResponseHeader('Content-Type')) || '';
+      if (typeof data !== 'object' || data === null || (ct && ct.indexOf('application/json') === -1)) {
+        toastr.error('Save failed: server did not return JSON. Check validation or try again.');
+        return;
+      }
       if (data.message) {
         toastr.success(data.message);
       } else {
@@ -499,11 +493,13 @@ $(document).on('submit', '#formajax', function (e) {
             location.reload();
         }, 1000); // 1000ms = 1 seconds
       }
-      if ($('#reload_page').val() == 1) {
+      if ($form.find('#reload_page').val() == 1) {
         location.reload();
       }
       toggleModalTop('hide');
-      reloadDataTable();
+      if (shouldReloadTable) {
+        reloadDataTable();
+      }
     },
     error: function (ajaxcontent) {
       unblock();
@@ -531,15 +527,15 @@ $(document).on('submit', '#formajax', function (e) {
       // Handle Laravel validation errors
       if (ajaxcontent.responseJSON && ajaxcontent.responseJSON.errors) {
         vali = ajaxcontent.responseJSON.errors;
-        $('#' + formID + ' input').css('border', '1px solid #dfdfdf');
-        $('#' + formID + ' input')
+        $form.find('input').css('border', '1px solid #dfdfdf');
+        $form.find('input')
           .next('span')
           .remove();
 
         $.each(vali, function (index, value) {
-          $('#' + formID + " input[name~='" + index + "']").css('border', '1px solid red');
-          //$('#' + formID + " input[name~='" + index + "']").after('<span style="color:red;">' + value + '</span>');
-          $('#' + formID + " select[name~='" + index + "']")
+          $form.find("input[name~='" + index + "']").css('border', '1px solid red');
+          //$form.find("input[name~='" + index + "']").after('<span style="color:red;">' + value + '</span>');
+          $form.find("select[name~='" + index + "']")
             .parent()
             .find('.select2-container--default .select2-selection--single')
             .css('border', '1px solid red');
@@ -550,15 +546,13 @@ $(document).on('submit', '#formajax', function (e) {
         toastr.error('An error occurred. Please try again.');
       }
 
-      reloadDataTable();
+      if (shouldReloadTable) {
+        reloadDataTable();
+      }
     },
     complete: function () {
-      $('#' + formID)
-        .find('.save_rec')
-        .show();
-      $('#' + formID)
-        .find('.loader')
-        .hide();
+      $form.find('.save_rec').show();
+      $form.find('.loader').hide();
     }
   });
 });
@@ -648,6 +642,7 @@ function alertfunction() {
 }
 
 function block() {
+  if (!window.jQuery || !$.fn || !$.fn.block) return;
   $('#modalTopbody').block({
     message: '<div class="loading-overlay"><div class="spinner-border text-primary" role="status"></div></div>',
     css: {
@@ -661,16 +656,19 @@ function block() {
   });
 }
 function unblock() {
+  if (!window.jQuery || !$.fn || !$.fn.unblock) return;
   $('#modalTopbody').unblock();
 }
 /* $('.select2').select2({
   dropdownParent: $('#modalTop'),
             allowClear: true
 }); */
-$('.select2').select2({
-  /* dropdownParent: $('.card ') */
-  allowClear: true
-});
+if (window.jQuery && $.fn && $.fn.select2) {
+  $('.select2').select2({
+    /* dropdownParent: $('.card ') */
+    allowClear: true
+  });
+}
 
 $("select[name='country']").on('change', function () {
   var country = $(this).val();
@@ -693,6 +691,7 @@ $("select[name='country']").on('change', function () {
 });
 
 function bodyblock() {
+  if (!window.jQuery || !$.fn || !$.fn.block) return;
   $('.card').block({
     message: '<div class="loading-overlay"><div class="spinner-border text-primary" role="status"></div></div>',
     css: {
@@ -706,6 +705,7 @@ function bodyblock() {
   });
 }
 function bodyunblock() {
+  if (!window.jQuery || !$.fn || !$.fn.unblock) return;
   $('.card').unblock();
 }
 
@@ -751,9 +751,11 @@ function selectCC(pk) {
 
 $(document).ready(function () {
   // Initialize select2 for the existing select elements
-  $('.select2').select2({
-    allowClear: true
-  });
+  if (window.jQuery && $.fn && $.fn.select2) {
+    $('.select2').select2({
+      allowClear: true
+    });
+  }
 
   // Add new row by cloning the first row
   $('#add-new-row').click(function () {
@@ -761,7 +763,7 @@ $(document).ready(function () {
     const newRow = $('#rows-container .row:first').clone();
 
     // Destroy select2 and clean up in the cloned row
-    if (newRow.find('.select2').data('select2')) {
+    if (window.jQuery && $.fn && $.fn.select2 && newRow.find('.select2').data('select2')) {
       newRow.find('.select2').select2('destroy');
     }
     //newRow.find('.select2').select2('destroy').end();
@@ -789,9 +791,11 @@ $(document).ready(function () {
     $('#rows-container').append(newRow);
 
     // Reinitialize select2 for the newly added select element
-    $('.select2').select2({
-      allowClear: true
-    });
+    if (window.jQuery && $.fn && $.fn.select2) {
+      $('.select2').select2({
+        allowClear: true
+      });
+    }
     
     // Recalculate total after adding new row
     if (typeof getTotal === 'function') {
@@ -865,6 +869,7 @@ $(document).ready(function () {
 });
 
 function bodyblock() {
+  if (!window.jQuery || !$.fn || !$.fn.block) return;
   $('#bodyloader').block({
     message: '<div class="loading-overlay"><div class="spinner-border text-primary" role="status"></div></div>',
     css: {
@@ -878,6 +883,7 @@ function bodyblock() {
   });
 }
 function bodyunblock() {
+  if (!window.jQuery || !$.fn || !$.fn.unblock) return;
   $('#bodyloader').unblock();
 }
 

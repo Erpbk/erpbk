@@ -16,27 +16,28 @@
             width: 850px;
             margin: auto;
             padding: 10px;
-            border: 1px solid #000;
         }
 
-        table {
+        .invoice-box table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 8px;
         }
 
-        th, td {
+        .invoice-box th,
+        .invoice-box td {
             border: 1px solid #000;
             padding: 4px 6px;
             font-size: 12px;
         }
 
-        th {
-            background: #d9e1f2;
+        .invoice-box th {
+            background: #004aad;
             font-weight: bold;
+            text-align: center;
         }
 
-        td {
+        .invoice-box td {
             text-align: center;
         }
 
@@ -86,7 +87,7 @@
             color: #fff;
             border: none;
             padding: 8px 12px;
-            font-size: 12px;
+            font-size: 16px;
             cursor: pointer;
             border-radius: 3px;
             text-decoration: none;
@@ -119,16 +120,21 @@
         }
         
         .controls {
-            position: relative;
-            top: -10px;
-            right: 0px;
-            z-index: 15000; /* Changed from 9999 to lower value */
+            position: sticky;
+            top: 10px;
+            z-index: 100;
             display: flex;
             gap: 10px;
             background: white;
-            padding: 10px;
+            padding: 10px 20px;
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            width: 95%;
+            justify-self: center;
+            justify-content: right;
+            margin-left: auto;
+            margin-right: auto;
         }
         
         .details-grid {
@@ -306,7 +312,7 @@
                     <td class="num">AED {{ number_format($summary->total_subtotal, 2) }}</td>
                 </tr>
                 <tr>
-                    <td><strong>VAT Amount (5%):</strong></td>
+                    <td><strong>VAT Amount:</strong></td>
                     <td class="num">AED {{ number_format($summary->total_vat, 2) }}</td>
                 </tr>
                 @if($transaction->service_charges > 0)

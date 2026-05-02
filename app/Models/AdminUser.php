@@ -61,5 +61,28 @@ class AdminUser extends Authenticatable
     {
         return $this->roles()->where('name', $roleName)->exists();
     }
+
+    /**
+     * Compatibility helper for places expecting Spatie-style API.
+     *
+     * @param mixed ...$roles
+     */
+    public function hasAnyRole(...$roles): bool
+    {
+        $roleNames = [];
+        foreach ($roles as $role) {
+            if (is_array($role)) {
+                $roleNames = array_merge($roleNames, $role);
+            } elseif (is_string($role) && $role !== '') {
+                $roleNames[] = $role;
+            }
+        }
+
+        if ($roleNames === []) {
+            return false;
+        }
+
+        return $this->roles()->whereIn('name', $roleNames)->exists();
+    }
 }
 

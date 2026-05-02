@@ -6,11 +6,12 @@ use App\DataTables\RolesDataTable;
 
 use App\Http\Controllers\AppBaseController;
 use App\Repositories\RolesRepository;
-use DB;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 use Illuminate\Support\Facades\Schema;
 use Flash;
 use Illuminate\Validation\Rule;
@@ -69,19 +70,33 @@ class RolesController extends AppBaseController
    */
   public function store(Request $request)
   {
+    $companyId = (int) auth()->user()->company_id;
+    $uniqueNameRule = Rule::unique('roles', 'name');
+    if (Schema::hasColumn('roles', 'company_id')) {
+      $uniqueNameRule = Rule::unique('roles', 'name')->where(function ($query) use ($companyId) {
+        return $query->where('company_id', $companyId);
+      });
+    }
+
     $this->validate($request, [
-      'name' => [
-        'required',
-        Rule::unique('roles', 'name')->where(function ($query) use ($request) {
-          return $query->where('company_id', $request->company_id);
-        }),
-      ],
-      'company_id' => 'nullable|exists:companies,id',
-      'permission' => 'required',
+      'name' => ['required', $uniqueNameRule],
+      'permission' => 'required|array|min:1',
+      'permission.*' => 'integer|exists:permissions,id',
     ]);
 
-    $role = Role::create(['name' => $request->input('name'), 'company_id' => $request->input('company_id')]);
-    $role->syncPermissions($request->input('permission'));
+    $payload = ['name' => $request->input('name'), 'guard_name' => 'web'];
+    if (Schema::hasColumn('roles', 'company_id')) {
+      $payload['company_id'] = $companyId;
+    }
+
+    $role = Role::create($payload);
+    $this->syncRolePermissionsByIds($role, (array) $request->input('permission', []));
+
+    if ($request->ajax() || $request->expectsJson()) {
+      return response()->json([
+        'message' => 'Roles saved successfully.',
+      ], 200);
+    }
 
     Flash::success('Roles saved successfully.');
 
@@ -93,9 +108,9 @@ class RolesController extends AppBaseController
    */
   public function show(string $company_slug, $role)
   {
-    $roles = $this->rolesRepository->find($role);
+    $roles = Role::query()->find($role);
 
-    if (empty($roles)) {
+    if (empty($roles) || !$this->roleBelongsToCurrentCompany($roles)) {
       Flash::error('Roles not found');
 
       return $this->redirectToUserManagement();
@@ -110,7 +125,7 @@ class RolesController extends AppBaseController
   public function edit(string $company_slug, $role)
   {
     $roles = Role::query()->find($role);
-    if (empty($roles)) {
+    if (empty($roles) || !$this->roleBelongsToCurrentCompany($roles)) {
       Flash::error('Roles not found');
 
       return $this->redirectToUserManagement();
@@ -139,10 +154,16 @@ class RolesController extends AppBaseController
   {
     $this->validate($request, [
       'name' => 'required',
-      'permission' => 'required',
+      'permission' => 'required|array|min:1',
+      'permission.*' => 'integer|exists:permissions,id',
     ]);
     $role = Role::query()->find($roleId);
-    if (empty($role)) {
+    if (empty($role) || !$this->roleBelongsToCurrentCompany($role)) {
+      if ($request->ajax() || $request->expectsJson()) {
+        return response()->json([
+          'message' => 'Roles not found',
+        ], 404);
+      }
       Flash::error('Roles not found');
 
       return $this->redirectToUserManagement();
@@ -150,7 +171,12 @@ class RolesController extends AppBaseController
 
     $role->name = $request->input('name');
     $role->save();
-    $role->syncPermissions($request->input('permission'));
+    $this->syncRolePermissionsByIds($role, (array) $request->input('permission', []));
+    if ($request->ajax() || $request->expectsJson()) {
+      return response()->json([
+        'message' => 'Roles updated successfully.',
+      ], 200);
+    }
 
     Flash::success('Roles updated successfully.');
 
@@ -165,13 +191,13 @@ class RolesController extends AppBaseController
   public function destroy(Request $request, string $company_slug, $id)
   {
     $role = Role::find($id);
-    if (empty($role)) {
+    if (empty($role) || !$this->roleBelongsToCurrentCompany($role)) {
       Flash::error('Roles not found');
 
       return $this->redirectToUserManagement();
     }
     if ($role->users()->count() > 0) {
-      if ($request->ajax()) {
+      if ($request->ajax() || $request->expectsJson()) {
         return response()->json([
           'message' => 'Role is assigned to user(s), cannot delete. Assign user(s) to other role then delete this role.',
           'reload' => true
@@ -185,7 +211,7 @@ class RolesController extends AppBaseController
 
     $this->rolesRepository->delete($id);
 
-    if ($request->ajax()) {
+    if ($request->ajax() || $request->expectsJson()) {
       return response()->json([
         'message' => 'Role Deleted Successfully',
         'reload' => true
@@ -230,5 +256,75 @@ class RolesController extends AppBaseController
       }
     }
     return compact('htmlData');
+  }
+
+  private function roleBelongsToCurrentCompany(?Role $role): bool
+  {
+    if (!$role) {
+      return false;
+    }
+    if ($role->name === IConstants::ROLE_SUPER_ADMIN) {
+      return false;
+    }
+    if (Schema::hasColumn('roles', 'company_id')) {
+      return (int) ($role->company_id ?? 0) === (int) auth()->user()->company_id;
+    }
+
+    return true;
+  }
+
+  /**
+   * Persist role permissions explicitly in role_has_permissions.
+   *
+   * @param array<int|string> $permissionIds
+   */
+  private function syncRolePermissionsByIds(Role $role, array $permissionIds): void
+  {
+    $table = config('permission.table_names.role_has_permissions', 'role_has_permissions');
+    $pivotRole = config('permission.column_names.role_pivot_key') ?: 'role_id';
+    $pivotPermission = config('permission.column_names.permission_pivot_key') ?: 'permission_id';
+    $hasCompanyId = Schema::hasColumn($table, 'company_id');
+    $companyId = null;
+    if ($hasCompanyId) {
+      $companyId = $role->company_id ?? auth()->user()->company_id;
+      if ($companyId === null || $companyId === '') {
+        throw new \RuntimeException('Cannot sync role permissions: company_id is required on role_has_permissions but is missing.');
+      }
+      $companyId = (int) $companyId;
+    }
+
+    $ids = Permission::query()
+      ->whereIn('id', $permissionIds)
+      ->pluck('id')
+      ->map(fn($id) => (int) $id)
+      ->unique()
+      ->values()
+      ->all();
+
+    DB::transaction(function () use ($table, $pivotRole, $pivotPermission, $role, $ids, $hasCompanyId, $companyId): void {
+      // Primary key is (permission_id, role_id) in standard Spatie schema. Do not scope delete by
+      // company_id — legacy rows may have NULL/other company_id and would block re-insert.
+      DB::table($table)->where($pivotRole, (int) $role->id)->delete();
+
+      if (empty($ids)) {
+        return;
+      }
+
+      $rows = array_map(function (int $permissionId) use ($pivotRole, $pivotPermission, $role, $hasCompanyId, $companyId): array {
+        $row = [
+          $pivotPermission => $permissionId,
+          $pivotRole => (int) $role->id,
+        ];
+        if ($hasCompanyId && $companyId !== null) {
+          $row['company_id'] = $companyId;
+        }
+
+        return $row;
+      }, $ids);
+
+      DB::table($table)->insert($rows);
+    });
+
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
   }
 }

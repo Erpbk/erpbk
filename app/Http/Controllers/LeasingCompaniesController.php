@@ -98,13 +98,13 @@ class LeasingCompaniesController extends AppBaseController
     $input = $request->all();
 
     //Adding Account and setting reference
-
-    $parentAccount = Accounts::where('name', 'Leasing Companies')->where('account_type', 'Liability')->where('parent_id', null)->first();
+    $parentId = Accounts::where('name', 'Non-Current Liabilities')->where('account_type', 'Liability')->first()->id;
+    $parentAccount = Accounts::where('name', 'Leasing Companies')->where('account_type', 'Liability')->where('parent_id', $parentId)->first();
     if (!$parentAccount) {
       Flash::error('Parent account "Leasing Companies" not found.');
     }
 
-    try{
+    try {
       DB::beginTransaction();
       $leasingCompanies = $this->leasingCompaniesRepository->create($input);
       $account = new Accounts();
@@ -121,16 +121,16 @@ class LeasingCompaniesController extends AppBaseController
       $leasingCompanies->account_id = $account->id;
       $leasingCompanies->save();
       DB::commit();
-      return response()->json(['message' => 'Company added successfully.','reload' => true]);
-    }catch(\Exception $e){
-      \Log::error('error occured while adding leasing company: '.$e->getMessage());
+      return response()->json(['message' => 'Company added successfully.', 'reload' => true]);
+    } catch (\Exception $e) {
+      \Log::error('error occured while adding leasing company: ' . $e->getMessage());
       DB::rollBack();
-      if($request->ajax()){
+      if ($request->ajax()) {
         return response()->json([
-            'message' => 'Error: '.$e->getMessage(),
-          ],500);
+          'message' => 'Error: ' . $e->getMessage(),
+        ], 500);
       }
-      Flash::error('Error: '.$e->getMessage());
+      Flash::error('Error: ' . $e->getMessage());
       return redirect()->back();
     }
   }
@@ -916,7 +916,7 @@ class LeasingCompaniesController extends AppBaseController
     }
 
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Receipt::query()->with('payerAccount','payeeAccount')->latest('id');
+    $query = Receipt::query()->with('payerAccount', 'payeeAccount')->latest('id');
     $query->where('payer_account_id', $leasingCompany->account_id);
 
     // Apply pagination using the trait
@@ -931,7 +931,7 @@ class LeasingCompaniesController extends AppBaseController
   {
     $accountIds = LeasingCompanies::all()->pluck('account_id')->toArray();
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Receipt::query()->with('payerAccount','payeeAccount')->latest('id');
+    $query = Receipt::query()->with('payerAccount', 'payeeAccount')->latest('id');
     $query->whereIn('payer_account_id', $accountIds);
 
     // Apply pagination using the trait

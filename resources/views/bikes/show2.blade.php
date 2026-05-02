@@ -207,4 +207,20 @@
 }
 </style>
 
+@php
+  // Show configured bike fixed/custom fields (grouped by category).
+  $fieldsByCategory = $fieldsByCategory ?? \App\Models\BikeCustomField::fieldsByCategoryForForm();
+@endphp
+
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0">Bike Fields</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      @include('bikes.show_fields_by_category', ['fieldsByCategory' => $fieldsByCategory, 'bikes' => $bikes])
+    </div>
+  </div>
+</div>
+
 @endsection

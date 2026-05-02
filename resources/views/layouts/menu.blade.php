@@ -1,18 +1,15 @@
 @php
 // Labels are editable in Settings > ERP Module Settings > [Module] > General; same source as ModuleSettingsController
 $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
-$companySlug = request()->route('company_slug') ?? session('company_slug') ?? request()->segment(1);
-$isAdminUser = auth('admin')->check();
+$companySlug = request()->route('company_slug') ?? session('company_slug');
+$isAdminRoute = request()->routeIs('admin.*');
+$isAdminLogin = auth('admin')->check() && $isAdminRoute;
+$homeLink = $isAdminLogin
+? route('admin.dashboard')
+: ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
 @endphp
-@if($isAdminUser)
-<li class="menu-item {{ Route::is('admin.dashboard') ? 'active' : '' }}">
-  <a href="{{ route('admin.dashboard') }}" class="menu-link ">
-    <i class="menu-icon tf-icons ti ti-layout-dashboard"></i>
-    <div>{{ $menuLabels['dashboard'] ?? 'Dashboard' }}</div>
-    {{-- <div class="badge bg-white text-dark rounded-pill ms-auto">2</div>  --}}
-  </a>
-</li>
-@elseif(\App\Support\CompanyModuleVisibility::enabled('dashboard'))
+@if(!$isAdminLogin)
+@if(\App\Support\CompanyModuleVisibility::enabled('dashboard'))
 @can('dashboard_view')
 <li class="menu-item {{ Route::is('home') || Route::is('/') ? 'active' : '' }}">
   <a href="{{ $companySlug ? route('home', ['company_slug' => $companySlug]) : 'javascript:void(0);' }}" class="menu-link ">
@@ -31,6 +28,11 @@ $isAdminUser = auth('admin')->check();
     <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
   </a>
   <ul class="menu-sub">
+    <li class="menu-item {{ Route::is('banks.*') ? 'active' : '' }} {{ Route::is('bank.*') ? 'active' : '' }} ">
+      <a href="{{ route('banks.index') }}" class="menu-link">
+        <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
+      </a>
+    </li>
     <li class="menu-item {{ Route::is('cheques.*') ? 'active' : '' }}">
       <a href="{{ route('cheques.index') }}" class="menu-link">
         <div>{{ $menuLabels['cheques'] ?? 'Cheques' }}</div>
@@ -44,11 +46,6 @@ $isAdminUser = auth('admin')->check();
     <li class="menu-item {{ Route::is('receipts.*') ? 'active' : '' }}">
       <a href="{{ route('receipts.index') }}" class="menu-link">
         <div>{{ $menuLabels['receipts'] ?? 'Receipts (Cash-In)' }}</div>
-      </a>
-    </li>
-    <li class="menu-item {{ Route::is('banks.*') ? 'active' : '' }} {{ Route::is('bank.*') ? 'active' : '' }} ">
-      <a href="{{ route('banks.index') }}" class="menu-link">
-        <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
       </a>
     </li>
   </ul>
@@ -568,15 +565,15 @@ $isAdminUser = auth('admin')->check();
 </li>
 @endcan
 @endif
+@endif
 
 
 
 
 {{-- Admin Panel (global site settings) --}}
 @php($adminUser = auth('admin')->user())
-@php($isCompanyContext = !empty($companySlug))
-@php($canAccessSuperAdminPanel = $adminUser && !$isCompanyContext && $adminUser->hasRole('Super Admin'))
-@if($canAccessSuperAdminPanel)
+@php($canAccessSuperAdminPanel = $adminUser && $adminUser->hasRole('Super Admin'))
+@if($isAdminLogin && $canAccessSuperAdminPanel)
 <li class="menu-header small text-uppercase mt-3">
   <span class="menu-header-text">{{ __('Admin Panel') }}</span>
 </li>
@@ -587,7 +584,7 @@ $isAdminUser = auth('admin')->check();
   </a>
 </li>
 @endif
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('companies_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('companies_view'))
 <li class="menu-item {{ Route::is('admin.companies*') ? 'active' : '' }}">
   <a href="{{ route('admin.companies.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-building-community"></i>
@@ -596,7 +593,7 @@ $isAdminUser = auth('admin')->check();
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('blogs_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('blogs_view'))
 <li class="menu-item {{ Route::is('admin.blogs*') ? 'active' : '' }}">
   <a href="{{ route('admin.blogs.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-pencil"></i>
@@ -605,7 +602,7 @@ $isAdminUser = auth('admin')->check();
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('testimonials_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('testimonials_view'))
 <li class="menu-item {{ Route::is('admin.testimonials*') ? 'active' : '' }}">
   <a href="{{ route('admin.testimonials.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-message-dots"></i>
@@ -614,7 +611,7 @@ $isAdminUser = auth('admin')->check();
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('privacy_policy_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('privacy_policy_view'))
 <li class="menu-item {{ Route::is('admin.privacy-policy*') ? 'active' : '' }}">
   <a href="{{ route('admin.privacy-policy.edit') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-file-description"></i>
@@ -623,7 +620,7 @@ $isAdminUser = auth('admin')->check();
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('terms_conditions_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('terms_conditions_view'))
 <li class="menu-item {{ Route::is('admin.terms-conditions*') ? 'active' : '' }}">
   <a href="{{ route('admin.terms-conditions.edit') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-file-description"></i>
@@ -632,7 +629,7 @@ $isAdminUser = auth('admin')->check();
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('users_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('users_view'))
 <li class="menu-item {{ Route::is('admin.users*') ? 'active' : '' }}">
   <a href="{{ route('admin.users.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-users-group"></i>
@@ -641,7 +638,7 @@ $isAdminUser = auth('admin')->check();
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel)
+@if($isAdminLogin && $canAccessSuperAdminPanel)
 <li class="menu-item {{ Route::is('admin.permissions*') ? 'active' : '' }}">
   <a href="{{ route('admin.permissions.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-lock"></i>
@@ -650,6 +647,16 @@ $isAdminUser = auth('admin')->check();
 </li>
 @endif
 
+@if($isAdminLogin && $canAccessSuperAdminPanel)
+<li class="menu-item {{ Route::is('admin.accounts.fixed*') ? 'active' : '' }}">
+  <a href="{{ route('admin.accounts.fixed.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-pinned"></i>
+    <div>{{ __('Account Fixing') }}</div>
+  </a>
+</li>
+@endif
+
+@if(!$isAdminLogin)
 @canany(['account_view','gn_ledger'])
 <li class="menu-item {{ Route::is('accounts*') ? 'open' : '' }} ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
@@ -681,6 +688,7 @@ $isAdminUser = auth('admin')->check();
   </ul>
 </li>
 @endcanany
+@endif
 
 {{-- <li class="menu-item {{ Request::is('reports*') ? 'open' : '' }} ">
 <a href="javascript:void(0);" class="menu-link menu-toggle ">

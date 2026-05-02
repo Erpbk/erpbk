@@ -11,8 +11,8 @@ $homeLink = $isAdminLogin
 @if(!$isAdminLogin)
 @if(\App\Support\CompanyModuleVisibility::enabled('dashboard'))
 @can('dashboard_view')
-<li class="menu-item {{ Route::is('/') ? 'active' : '' }}">
-  <a href="{{ $homeLink }}" class="menu-link ">
+<li class="menu-item {{ Route::is('home') || Route::is('/') ? 'active' : '' }}">
+  <a href="{{ $companySlug ? route('home', ['company_slug' => $companySlug]) : 'javascript:void(0);' }}" class="menu-link ">
     <i class="menu-icon tf-icons ti ti-layout-dashboard"></i>
     <div>{{ $menuLabels['dashboard'] ?? 'Dashboard' }}</div>
     {{-- <div class="badge bg-white text-dark rounded-pill ms-auto">2</div>  --}}

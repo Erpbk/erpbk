@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Repositories\ReceiptsRepository;
 use App\Models\Receipt;
 use App\Models\Banks;
@@ -33,29 +34,29 @@ class ReceiptController extends Controller
         $fundIn = 0;
         $fundOut = 0;
         $banks = Banks::all();
-        foreach($banks as $bank){
-          $credit = Transactions::where('account_id',$bank->account_id)->sum('credit');
-          $debit  = Transactions::where('account_id',$bank->account_id)->sum('debit');
-          $balance = $debit - $credit;
-          $fundIn += $debit;
-          $fundOut += $credit;
-          $bank->update(['balance' => $balance]);
+        foreach ($banks as $bank) {
+            $credit = Transactions::where('account_id', $bank->account_id)->sum('credit');
+            $debit  = Transactions::where('account_id', $bank->account_id)->sum('debit');
+            $balance = $debit - $credit;
+            $fundIn += $debit;
+            $fundOut += $credit;
+            $bank->update(['balance' => $balance]);
         }
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = Receipt::query()->with(['payerAccount','payeeAccount'])->orderBy('date_of_receipt', 'desc');
+        $query = Receipt::query()->with(['payerAccount', 'payeeAccount'])->orderBy('date_of_receipt', 'desc');
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
         $fundsIn = 0;
         $fundsOut = 0;
         $banks = Banks::all();
-        foreach($banks as $bank){
-        $credit = Transactions::where('account_id',$bank->account_id)->sum('credit');
-        $debit  = Transactions::where('account_id',$bank->account_id)->sum('debit');
-        $fundsIn += $debit;
-        $fundsOut += $credit;
+        foreach ($banks as $bank) {
+            $credit = Transactions::where('account_id', $bank->account_id)->sum('credit');
+            $debit  = Transactions::where('account_id', $bank->account_id)->sum('debit');
+            $fundsIn += $debit;
+            $fundsOut += $credit;
         }
-        return view('receipts.index', compact('data','fundsIn','fundsOut'));
+        return view('receipts.index', compact('data', 'fundsIn', 'fundsOut'));
     }
 
     public function create()
@@ -67,69 +68,71 @@ class ReceiptController extends Controller
         $accountIds = null;
         $leasingIds = null;
         $invoiceType = null;
-        if(request()->input('customer_receipt')){
+        if (request()->input('customer_receipt')) {
             $customerIds = Customers::pluck('id')->toArray();
             $accountIds = Customers::pluck('account_id')->toArray();
         }
-        if(request()->input('leasing_receipt')){
+        if (request()->input('leasing_receipt')) {
             $leasingIds = LeasingCompanies::pluck('id')->toArray();
             $accountIds = LeasingCompanies::pluck('account_id')->toArray();
         }
-        if($customerId){
+        if ($customerId) {
             $invoices = CustomerInvoices::with('customer')
-                        ->where('customer_id', $customerId)
-                        ->where(function($q){
-                            $q->where('status', 'pending')
-                            ->orWhere('status', 'partially_paid');
-                        })
-                        ->get();
+                ->where('customer_id', $customerId)
+                ->where(function ($q) {
+                    $q->where('status', 'pending')
+                        ->orWhere('status', 'partially_paid');
+                })
+                ->get();
             $accountIds = Customers::where('id', $customerId)->pluck('account_id')->toArray();
-        }elseif($customerIds){
+        } elseif ($customerIds) {
             $invoices = CustomerInvoices::with('customer')
-                        ->whereIn('customer_id', $customerIds)
-                        ->where(function($q){
-                            $q->where('status', 'pending')
-                            ->orWhere('status', 'partially_paid');
-                        })
-                        ->get();
-        }elseif($leasingCompanyId){
+                ->whereIn('customer_id', $customerIds)
+                ->where(function ($q) {
+                    $q->where('status', 'pending')
+                        ->orWhere('status', 'partially_paid');
+                })
+                ->get();
+        } elseif ($leasingCompanyId) {
             $invoices = LeasingCompanyBillingInvoice::with('leasingCompany')
-                        ->where('leasing_company_id', $leasingCompanyId)
-                        ->where(function($q){
-                            $q->where('status', 0)
-                            ->orWhere('status', 3);
-                        })
-                        ->get();
+                ->where('leasing_company_id', $leasingCompanyId)
+                ->where(function ($q) {
+                    $q->where('status', 0)
+                        ->orWhere('status', 3);
+                })
+                ->get();
             $accountIds = LeasingCompanies::where('id', $leasingCompanyId)->pluck('account_id')->toArray();
-        }elseif($leasingIds){
+        } elseif ($leasingIds) {
             $invoices = LeasingCompanyBillingInvoice::with('leasingCompany')
-                        ->whereIn('leasing_company_id', $leasingIds)
-                        ->where(function($q){
-                            $q->where('status', 0)
-                            ->orWhere('status', 3);
-                        })
-                        ->get();
-        }else{
+                ->whereIn('leasing_company_id', $leasingIds)
+                ->where(function ($q) {
+                    $q->where('status', 0)
+                        ->orWhere('status', 3);
+                })
+                ->get();
+        } else {
             $invoices = null;
         }
         $receipt = null;
         $customerIds = $accountIds;
 
         if ($accountId) {
+            $banks = Banks::active()->get();
             $bank = Banks::find($accountId);
-            return view('receipts.create', compact('bank'));
+            $receipt = Receipt::where('bank_id', $accountId)->first();
+            return view('receipts.create', compact('bank', 'banks', 'receipt'));
         } elseif ($leasingCompanyId || $leasingIds) {
             $leasingCompany = LeasingCompanies::find($leasingCompanyId ?? 0);
             $banks = Banks::with('account')->active()->get();
             $invoiceType = 'leasingCompany';
-            return view('receipts.create', compact('leasingCompany','banks','receipt','invoices', 'customerIds','invoiceType','customerId'));
+            return view('receipts.create', compact('leasingCompany', 'banks', 'receipt', 'invoices', 'customerIds', 'invoiceType', 'customerId'));
         } elseif ($customerId || $customerIds) {
             $banks = Banks::with('account')->active()->get();
             $invoiceType = 'customer';
-            return view('receipts.create', compact('banks','receipt','invoices','customerIds','customerId','invoiceType'));
+            return view('receipts.create', compact('banks', 'receipt', 'invoices', 'customerIds', 'customerId', 'invoiceType'));
         } else {
             $banks = Banks::with('account')->active()->get();
-            return view('receipts.create', compact('banks','receipt','invoices'));
+            return view('receipts.create', compact('banks', 'receipt', 'invoices'));
         }
     }
 
@@ -179,54 +182,54 @@ class ReceiptController extends Controller
 
         $input['created_by'] = auth()->id();
         $input['billing_month'] = $input['billing_month'] . '-01';
-        $input['branch_id'] = Accounts::where('id',$input['payer_account_id'])->value('branch_id');
+        $input['branch_id'] = Accounts::where('id', $input['payer_account_id'])->value('branch_id');
         $input['account_id'] = $bank->account_id;
         try {
             DB::beginTransaction();
-            if($request->has('invoice_ids') && count($input['invoice_ids']) > 0){
+            if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
                 $paymentAmounts = $request->input('payment_amounts');
                 $totalPayment = array_sum($paymentAmounts);
-                if($totalPayment > $input['amount']){
+                if ($totalPayment > $input['amount']) {
                     throw new \Exception('Total payment amount for selected invoices cannot exceed the receipt amount.');
                 }
             }
             $receipt = Receipt::create($input);
 
-            if($request->has('invoice_ids') && count($input['invoice_ids']) > 0){
+            if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
                 $invoiceIds = $request->input('invoice_ids');
-                if($input['invoice_type'] == 'customer'){
+                if ($input['invoice_type'] == 'customer') {
                     $invoices = CustomerInvoices::whereIn('id', $invoiceIds)->get();
-                    foreach($invoices as $invoice){
+                    foreach ($invoices as $invoice) {
                         $paymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
                         $partialAmount = $invoice->partial_paid_amount ?? [];
-                        $partialAmount[$receipt->id] = $paymentAmount; 
-                        if($paymentAmount > 0){
+                        $partialAmount[$receipt->id] = $paymentAmount;
+                        if ($paymentAmount > 0) {
 
                             // Update the invoice status based on the payment
                             if ($paymentAmount >= ($invoice->total - ($invoice->paid_amount ?? 0))) {
-                                $invoice->update(['status' => 'paid','partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
+                                $invoice->update(['status' => 'paid', 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
                             } else {
                                 $invoice->update(['status' => 'partially_paid', 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
                             }
                         }
                     }
-                }else{
+                } else {
                     $invoices = LeasingCompanyBillingInvoice::whereIn('id', $invoiceIds)->get();
-                    foreach($invoices as $invoice){
+                    foreach ($invoices as $invoice) {
                         $paymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
                         $partialAmount = $invoice->partial_paid_amount ?? [];
-                        $partialAmount[$receipt->id] = $paymentAmount; 
-                        if($paymentAmount > 0){
+                        $partialAmount[$receipt->id] = $paymentAmount;
+                        if ($paymentAmount > 0) {
 
                             // Update the invoice status based on the payment
                             if ($paymentAmount == $invoice->total) {
-                                $invoice->update(['status' => 1,'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
+                                $invoice->update(['status' => 1, 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
                             } else {
                                 $invoice->update(['status' => 3, 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
                             }
                         }
                     }
-                }                
+                }
             }
 
             $transCode = \App\Helpers\Account::trans_code();
@@ -353,49 +356,49 @@ class ReceiptController extends Controller
             Flash::error('Receipt not found');
             return redirect()->back();
         }
-        if(str_contains($receipt->reference, 'CI-')){
+        if (str_contains($receipt->reference, 'CI-')) {
             $invoiceType = 'customer';
             $invoice_numbers = explode(' ', $receipt->reference);
             $invoiceIds = [];
-            foreach($invoice_numbers as $invoice_number){
+            foreach ($invoice_numbers as $invoice_number) {
                 $id = CustomerInvoices::getIdFromInvoiceNumber($invoice_number);
-                if($id){
+                if ($id) {
                     $invoiceIds[] = $id;
                 }
             }
             $existingInvoices = CustomerInvoices::with('customer')
-                        ->whereIn('id', $invoiceIds)
-                        ->get();
+                ->whereIn('id', $invoiceIds)
+                ->get();
             $invoices = CustomerInvoices::with('customer')
-                        ->whereIn('customer_id', $existingInvoices->pluck('customer_id'))
-                        ->where(function($query) use ($invoiceIds){
-                            $query->whereIn('status', ['pending', 'partially_paid'])
-                                  ->WhereNotIn('id', $invoiceIds);
-                        })
-                        ->get();
+                ->whereIn('customer_id', $existingInvoices->pluck('customer_id'))
+                ->where(function ($query) use ($invoiceIds) {
+                    $query->whereIn('status', ['pending', 'partially_paid'])
+                        ->WhereNotIn('id', $invoiceIds);
+                })
+                ->get();
             $customerIds = $existingInvoices->pluck('customer.account_id')->toArray();
             $customerId = $existingInvoices->first()->customer_id ?? null;
         }
-        if((str_contains($receipt->reference, 'LBI-'))){
+        if ((str_contains($receipt->reference, 'LBI-'))) {
             $invoiceType = 'leasingCompany';
             $invoice_numbers = explode(' ', $receipt->reference);
             $invoiceIds = [];
-            foreach($invoice_numbers as $invoice_number){
+            foreach ($invoice_numbers as $invoice_number) {
                 $id = LeasingCompanyBillingInvoice::getIdFromInvoiceNumber($invoice_number);
-                if($id){
+                if ($id) {
                     $invoiceIds[] = $id;
                 }
             }
             $existingInvoices = LeasingCompanyBillingInvoice::with('leasingCompany')
-                        ->whereIn('id', $invoiceIds)
-                        ->get();
+                ->whereIn('id', $invoiceIds)
+                ->get();
             $invoices = LeasingCompanyBillingInvoice::with('leasingCompany')
-                        ->whereIn('leasing_company_id', $existingInvoices->pluck('leasing_company_id'))
-                        ->where(function($query) use ($invoiceIds){
-                            $query->whereIn('status', [0, 3])
-                                  ->WhereNotIn('id', $invoiceIds);
-                        })
-                        ->get();
+                ->whereIn('leasing_company_id', $existingInvoices->pluck('leasing_company_id'))
+                ->where(function ($query) use ($invoiceIds) {
+                    $query->whereIn('status', [0, 3])
+                        ->WhereNotIn('id', $invoiceIds);
+                })
+                ->get();
             $customerIds = $existingInvoices->pluck('leasingCompany.account_id')->toArray();
             $customerId = $existingInvoices->first()->leasing_company_id ?? null;
         }
@@ -404,7 +407,7 @@ class ReceiptController extends Controller
 
         $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
 
-        return view('receipts.edit', compact('receipt', 'banks','invoices','existingInvoices','customerIds', 'customerId','invoiceType'));
+        return view('receipts.edit', compact('receipt', 'banks', 'invoices', 'existingInvoices', 'customerIds', 'customerId', 'invoiceType'));
     }
 
     public function update(Request $request, $comapny_slug, $id)
@@ -466,51 +469,51 @@ class ReceiptController extends Controller
             // Prepare data for receipt update
             $input = $request->all();
             $input['billing_month'] = $input['billing_month'] . '-01';
-            $input['branch_id'] = Accounts::where('id',$input['payer_account_id'])->value('branch_id');
+            $input['branch_id'] = Accounts::where('id', $input['payer_account_id'])->value('branch_id');
             $input['updated_by'] = auth()->id();
             $pending = null;
             $partial = null;
             $paid = null;
-            if($request->has('invoice_ids') && count($input['invoice_ids']) > 0){
+            if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
                 $paymentAmounts = $request->input('payment_amounts');
                 $totalPayment = array_sum($paymentAmounts);
-                if($totalPayment > $input['amount']){
+                if ($totalPayment > $input['amount']) {
                     throw new \Exception('Total payment amount for selected invoices cannot exceed the receipt amount.');
                 }
                 $invoice_numbers = explode(' ', $receipt->reference);
                 $invoiceIds = [];
-                if($input['invoice_type'] == 'customer'){
-                    foreach($invoice_numbers as $invoice_number){
+                if ($input['invoice_type'] == 'customer') {
+                    foreach ($invoice_numbers as $invoice_number) {
                         $id = CustomerInvoices::getIdFromInvoiceNumber($invoice_number);
-                        if($id){
+                        if ($id) {
                             $invoiceIds[] = $id;
                         }
                     }
                     $existingInvoices = CustomerInvoices::with('customer')
-                                ->whereIn('id', $invoiceIds)
-                                ->get();
+                        ->whereIn('id', $invoiceIds)
+                        ->get();
                     $pending = 'pending';
                     $partial = 'partially_paid';
-                }else{
-                    foreach($invoice_numbers as $invoice_number){
+                } else {
+                    foreach ($invoice_numbers as $invoice_number) {
                         $id = LeasingCompanyBillingInvoice::getIdFromInvoiceNumber($invoice_number);
-                        if($id){
+                        if ($id) {
                             $invoiceIds[] = $id;
                         }
                     }
                     $existingInvoices = LeasingCompanyBillingInvoice::with('leasingCompany')
-                                ->whereIn('id', $invoiceIds)
-                                ->get();
+                        ->whereIn('id', $invoiceIds)
+                        ->get();
                     $pending = 0;
                     $partial = 3;
                 }
-                foreach($existingInvoices as $invoice){
+                foreach ($existingInvoices as $invoice) {
                     $partialAmount = $invoice->partial_paid_amount ?? [];
                     unset($partialAmount[$receipt->id]); // Remove payment for this receipt
                     $invoice->partial_paid_amount = $partialAmount;
-                    if(count($partialAmount) < 1){
+                    if (count($partialAmount) < 1) {
                         $invoice->status = $pending; // Revert to pending if no payments left
-                    }else{
+                    } else {
                         $invoice->status = $partial; // Otherwise, it's still partially paid
                     }
                     $invoice->updated_by = auth()->id();
@@ -521,7 +524,7 @@ class ReceiptController extends Controller
             $receipt->fill($input);
             $receiptHasChanges = $receipt->isDirty();
             $hasNewAttachment = $request->hasFile('attachment');
-            
+
 
             // If nothing changed, return early
             if (!$receiptHasChanges && !$hasNewAttachment) {
@@ -531,27 +534,27 @@ class ReceiptController extends Controller
                     'reload' => true
                 ], 200);
             }
-            if($request->has('invoice_ids') && count($input['invoice_ids']) > 0){
+            if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
                 $invoiceIds = $request->input('invoice_ids');
-                if($input['invoice_type'] == 'customer'){
+                if ($input['invoice_type'] == 'customer') {
                     $invoices = CustomerInvoices::whereIn('id', $invoiceIds)->get();
                     $partial = 'partially_paid';
                     $paid = 'paid';
-                }else{
+                } else {
                     $invoices = LeasingCompanyBillingInvoice::whereIn('id', $invoiceIds)->get();
                     $partial = 3;
                     $paid = 1;
                 }
 
-                foreach($invoices as $invoice){
+                foreach ($invoices as $invoice) {
                     $paymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
                     $partialAmount = $invoice->partial_paid_amount ?? [];
                     $partialAmount[$receipt->id] = $paymentAmount;
-                    if($paymentAmount > 0){
+                    if ($paymentAmount > 0) {
 
                         // Update the invoice status based on the payment
                         if ($paymentAmount == (($invoice->total ?? $invoice->total_amount) - ($invoice->paid_amount ?? 0))) {
-                            $invoice->update(['status' => $paid,'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
+                            $invoice->update(['status' => $paid, 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
                         } else {
                             $invoice->update(['status' => $partial, 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
                         }
@@ -615,7 +618,7 @@ class ReceiptController extends Controller
                 ];
 
                 $receipt->voucher->fill($voucherData);
-                
+
                 // Save voucher if it has changes
                 if ($receipt->voucher->isDirty()) {
                     $receipt->voucher->save();
@@ -627,9 +630,9 @@ class ReceiptController extends Controller
                 $file = $request->file('attachment');
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $file->storeAs('public/vouchers', $fileName);
-                
+
                 $receipt->update(['attachment' => $fileName]);
-                
+
                 if ($receipt->voucher) {
                     $receipt->voucher->update(['attach_file' => $fileName]);
                 }
@@ -647,7 +650,6 @@ class ReceiptController extends Controller
                 'message' => $message,
                 'reload' => true
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Receipt update failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
@@ -687,21 +689,21 @@ class ReceiptController extends Controller
                     ]);
                 }
             }
-            if(str_contains($receipt->reference, 'CI-')){
+            if (str_contains($receipt->reference, 'CI-')) {
                 $invoice_numbers = explode(' ', $receipt->reference);
                 $invoiceIds = [];
-                foreach($invoice_numbers as $invoice_number){
+                foreach ($invoice_numbers as $invoice_number) {
                     $id = CustomerInvoices::getIdFromInvoiceNumber($invoice_number);
-                    if($id){
+                    if ($id) {
                         $invoiceIds[] = $id;
                     }
                 }
                 $invoices = CustomerInvoices::whereIn('id', $invoiceIds)->get();
-                foreach($invoices as $invoice){
+                foreach ($invoices as $invoice) {
                     $partialAmount = $invoice->partial_paid_amount ?? [];
                     unset($partialAmount[$receipt->id]); // Remove payment for this receipt
                     $invoice->partial_paid_amount = $partialAmount;
-                    if(count($partialAmount) < 1){
+                    if (count($partialAmount) < 1) {
                         $invoice->status = 'pending'; // Revert to pending if no payments left
                     } else {
                         $invoice->status = 'partially_paid';
@@ -709,21 +711,21 @@ class ReceiptController extends Controller
                     $invoice->save();
                 }
             }
-            if(str_contains($receipt->reference, 'LBI-')){
+            if (str_contains($receipt->reference, 'LBI-')) {
                 $invoice_numbers = explode(' ', $receipt->reference);
                 $invoiceIds = [];
-                foreach($invoice_numbers as $invoice_number){
+                foreach ($invoice_numbers as $invoice_number) {
                     $id = LeasingCompanyBillingInvoice::getIdFromInvoiceNumber($invoice_number);
-                    if($id){
+                    if ($id) {
                         $invoiceIds[] = $id;
                     }
                 }
                 $invoices = LeasingCompanyBillingInvoice::whereIn('id', $invoiceIds)->get();
-                foreach($invoices as $invoice){
+                foreach ($invoices as $invoice) {
                     $partialAmount = $invoice->partial_paid_amount ?? [];
                     unset($partialAmount[$receipt->id]); // Remove payment for this receipt
                     $invoice->partial_paid_amount = $partialAmount;
-                    if(count($partialAmount) < 1){
+                    if (count($partialAmount) < 1) {
                         $invoice->status = 0; // Revert to pending if no payments left
                     } else {
                         $invoice->status = 3;

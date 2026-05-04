@@ -1,7 +1,7 @@
 @foreach($fieldsByCategory as $group)
 <div class="col-12">
     <div class="card border mb-4">
-        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap p-2">
             <b>{{ $group->category->label }}</b>
             <div class="d-flex align-items-center ms-auto">
                 @php

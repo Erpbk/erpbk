@@ -3,7 +3,7 @@
     <div class="card border mb-4">
         <div class="card-header">
             <b>{{ $group->category->label }}</b>
-            <div class="d-flex align-items-center gap-2 ms-auto">
+            <div class="d-flex align-items-center ms-auto">
                 @php
                 $mulkiyaAuthorized = auth()->user()->can('bike_document');
                 @endphp
@@ -12,7 +12,7 @@
                     <i class="ti ti-download"></i> Mulkiya
                 </a>
                 @elseif($mulkiyaAuthorized)
-                <a class="btn btn-light btn-sm show-modal action-btn"
+                <a class="btn btn-light btn-sm show-modal"
                     href="javascript:void(0);"
                     data-action="{{ route('files.create', ['type_id' => $bikes->id, 'type' => 'bike', 'suggested_name' => 'Mulkiya']) }}"
                     data-size="sm"

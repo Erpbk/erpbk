@@ -300,10 +300,6 @@ class BikeSettingsController extends Controller
         $assignment->is_visible = filter_var((string) ($validated['is_visible'] ?? false), FILTER_VALIDATE_BOOLEAN);
         $assignment->is_required = filter_var((string) ($validated['is_required'] ?? false), FILTER_VALIDATE_BOOLEAN);
 
-        if (ModuleFieldSource::isSchemaFieldKey('bike_list', $validated['field_key'])) {
-            $assignment->is_visible = true;
-        }
-
         $inputType = $validated['input_type'] !== null ? trim((string) $validated['input_type']) : null;
         $assignment->input_type = ($inputType === '' ? null : $inputType);
 

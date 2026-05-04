@@ -339,7 +339,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-required-current="{{ ($row->is_required ?? false) ? 1 : 0 }}"
                               {{ ($row->is_visible ?? true) ? 'checked' : '' }}
-                              @if($isSchemaLocked) disabled title="Always shown for database columns" @endif>
+                              title="Show this field on add/edit forms when checked">
                           </div>
                         </td>
                         <td class="align-middle">
@@ -544,7 +544,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-required-current="{{ ($row->is_required ?? false) ? 1 : 0 }}"
                               {{ ($row->is_visible ?? true) ? 'checked' : '' }}
-                              @if($isSchemaLocked) disabled title="Always shown for database columns" @endif>
+                              title="Show this field on add/edit forms when checked">
                           </div>
                         </td>
                         <td class="align-middle">
@@ -1643,12 +1643,11 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
         catSelect.value = categoryId;
       }
 
-      const schemaLocked = String(btn.dataset.schemaLocked || '') === '1';
       var visEl = document.getElementById('editBikeFixedIsVisible');
       var reqEl = document.getElementById('editBikeFixedIsRequired');
       if (visEl) {
         visEl.checked = String(btn.dataset.isVisible) === '1';
-        visEl.disabled = schemaLocked;
+        visEl.disabled = false;
       }
       if (reqEl) {
         reqEl.checked = String(btn.dataset.isRequired) === '1';

@@ -491,12 +491,8 @@ class ModuleSettingsController extends Controller
         ]);
 
         $fieldKey = trim((string) $validated['field_key']);
-        $isSchemaField = ModuleFieldSource::isSchemaFieldKey($module, $fieldKey);
         $isVisible = filter_var((string) ($validated['is_visible'] ?? false), FILTER_VALIDATE_BOOLEAN);
         $isRequired = filter_var((string) ($validated['is_required'] ?? false), FILTER_VALIDATE_BOOLEAN);
-        if ($isSchemaField) {
-            $isVisible = true;
-        }
 
         $assignment = ModuleFieldCategoryAssignment::updateOrCreate(
             ['module_key' => $module, 'field_key' => $fieldKey],

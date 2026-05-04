@@ -1,4 +1,3 @@
-{{-- <script src="{{ asset('js/modal_custom.js') }}"></script> --}}
 @php
 $items = \App\Models\Items::dropdown('garage');
 $items = $items->merge(\App\Models\Items::dropdown('supplier'));

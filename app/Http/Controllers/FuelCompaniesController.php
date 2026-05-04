@@ -77,7 +77,7 @@ class FuelCompaniesController extends AppBaseController
         }
 
         $input = $request->all();
-        $parentAccount = Accounts::where('name', 'Fuel Wallet')->where('account_type', 'Asset')->where('parent_id', 1639)->first();
+        $parentAccount = Accounts::where('name', 'Fuel Wallet')->where('account_type', 'Asset')->where('parent_id', 2484)->first();
         if (!$parentAccount) {
             $message = 'Chart of accounts is missing a "Fuels (Company)" (Liability) head under Current Liabilities. Add it in Chart of Accounts first.';
             if ($request->ajax()) {

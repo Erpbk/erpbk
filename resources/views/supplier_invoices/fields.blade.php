@@ -35,6 +35,10 @@ $items = $items->merge(\App\Models\Items::dropdown('supplier'));
         {!! Form::file('attachment', ['class' => 'form-control', 'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx']) !!}
         <small class="text-muted">Max: 5MB</small>
     </div>
+    <div class="col-md-2 form-group">
+        <label>Garage</label>
+        {!! Form::select('garage_id', ['' => 'Select Garage'] + $garages->toArray(), isset($invoice) ? $invoice->garage_id : null, ['class' => 'form-select form-select-sm select2', 'required' => true]) !!}
+    </div>
     @else
     <div class="col-md-2 form-group">
         <label>Order Date</label>

@@ -134,6 +134,7 @@ class AdminCompaniesController extends Controller
             'vat_return_file',
             'leasing_companies_list',
             'leasing_invoices',
+            'bike_rent_customers',
             'suppliers',
             'supplier_invoices',
             'chart_of_accounts',

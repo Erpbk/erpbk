@@ -22,6 +22,8 @@ return [
         'invoices'             => 'Invoices',
         'bikes'                => 'Bikes',
         'bike_list'            => 'Bike List',
+        'bike_on_rent'         => 'Bike on rent',
+        'bike_rent_customers'  => 'Bike on rent — Customers',
         'maintenance'          => 'Maintenance',
         'cheques'              => 'Cheques',
         'sims'                 => 'Sims',

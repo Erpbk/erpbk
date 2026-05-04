@@ -16,7 +16,7 @@ class BranchController extends Controller
     /**
      * Display a listing of branches with DataTables.
      */
-    public function index(Request $request)
+    public function index(string $company_slug, Request $request)
     {
         $branches = Branch::with(['parent', 'createdBy'])->get();
         return view('branches.index', compact('branches'));
@@ -25,7 +25,7 @@ class BranchController extends Controller
     /**
      * Show the form for creating a new branch.
      */
-    public function create()
+    public function create(string $company_slug)
     {
         $parents = Branch::active()->get();
         $branchTypes = [
@@ -41,7 +41,7 @@ class BranchController extends Controller
     /**
      * Store a newly created branch.
      */
-    public function store(Request $request)
+    public function store(string $company_slug, Request $request)
     {
 
         $data = $this->validate($request, [
@@ -97,7 +97,7 @@ class BranchController extends Controller
     /**
      * Display the specified branch with statistics.
      */
-    public function show(Branch $branch)
+    public function show(string $company_slug, Branch $branch)
     {
         $branch->load([
             'parent',
@@ -124,7 +124,7 @@ class BranchController extends Controller
     /**
      * Show the form for editing the specified branch.
      */
-    public function edit(Branch $branch)
+    public function edit(string $company_slug, Branch $branch)
     {
         // Prevent setting self as parent
         $parents = Branch::active()
@@ -148,7 +148,7 @@ class BranchController extends Controller
     /**
      * Update the specified branch.
      */
-    public function update(Request $request, Branch $branch)
+    public function update(Request $request, string $company_slug, Branch $branch)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
@@ -208,7 +208,7 @@ class BranchController extends Controller
     /**
      * Remove the specified branch.
      */
-    public function destroy(Branch $branch)
+    public function destroy(string $company_slug, Branch $branch)
     {
         // Check if branch has children
         if ($branch->children()->exists()) {
@@ -269,7 +269,7 @@ class BranchController extends Controller
     /**
      * Get hierarchical tree of branches.
      */
-    public function getTree()
+    public function getTree(string $company_slug)
     {
         $rootBranch = Branch::with('children')
             ->whereNull('parent_branch_id')
@@ -313,7 +313,7 @@ class BranchController extends Controller
     /**
      * Get branch statistics.
      */
-    public function getStatistics(Branch $branch)
+    public function getStatistics(string $company_slug, Branch $branch)
     {
         $statistics = $branch->getStatistics();
         

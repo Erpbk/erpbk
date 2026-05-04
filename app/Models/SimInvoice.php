@@ -43,7 +43,7 @@ class SimInvoice extends BaseModel
 
     public static array $rules = [
         'inv_date' => 'required|date',
-        'vendor_id' => 'required|exists:vendors,id',
+        'vendor_id' => 'required|exists:sim_companies,id',
         'billing_month' => 'required|date',
         'invoice_number' => 'nullable|string|max:255',
         'reference_number' => 'required|string|max:255',
@@ -56,7 +56,7 @@ class SimInvoice extends BaseModel
 
     public function vendor()
     {
-        return $this->belongsTo(Vendors::class, 'vendor_id');
+        return $this->belongsTo(SimCompany::class, 'vendor_id');
     }
 
     public function items()

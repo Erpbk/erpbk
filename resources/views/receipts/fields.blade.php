@@ -15,14 +15,15 @@
 </div>
 
 <!-- Bank ID or Leasing Company ID Field -->
-@if(request()->has('leasing_company_id') || (isset($receipt) && $receipt->leasing_company_id))
+@if(request()->has('bike_rent_company_id') || request()->has('leasing_company_id') || (isset($receipt) && $receipt->leasing_company_id))
   @php
-    $leasingCompany = \App\Models\LeasingCompanies::find(request('leasing_company_id') ?? $receipt->leasing_company_id);
+    $brId = request('bike_rent_company_id') ?? request('leasing_company_id') ?? ($receipt->leasing_company_id ?? null);
+    $leasingCompany = \App\Models\BikeRentCompany::find($brId);
   @endphp
   <div class="form-group col-sm-6">
-    {!! Form::label('leasing_company_id', 'Receiving Leasing Company:') !!}
-    {!! Form::hidden('leasing_company_id', $leasingCompany->id ?? '')!!}
-    {!! Form::text('leasing-company-name', $leasingCompany->name ?? '-', ['class' => 'form-control', 'readonly' => true]) !!}
+    {!! Form::label('bike_rent_company_id', 'Customer (bike on rent):') !!}
+    {!! Form::hidden('bike_rent_company_id', $leasingCompany->id ?? '')!!}
+    {!! Form::text('bike-rent-customer-name', $leasingCompany->name ?? '-', ['class' => 'form-control', 'readonly' => true]) !!}
   </div>
 @elseif(!isset($bank) && !isset($receipt))
   <div class="form-group col-sm-6">
@@ -35,11 +36,11 @@
     </select>
   </div>
   <div class="form-group col-sm-6">
-    {!! Form::label('leasing_company_id', 'OR Leasing Company:') !!}
-    <select name="leasing_company_id" id="leasing_company_id" class="form-control select2">
+    {!! Form::label('bike_rent_company_id', 'OR bike on rent customer:') !!}
+    <select name="bike_rent_company_id" id="bike_rent_company_id" class="form-control select2">
       <option value="">Select</option>
-      @foreach(\App\Models\LeasingCompanies::where('status', 1)->get() as $lc)
-      <option value="{{ $lc->id }}" {{ old('leasing_company_id', isset($receipt) ? $receipt->leasing_company_id : '') == $lc->id ? 'selected' : '' }}>{{ $lc->name }}</option>
+      @foreach(\App\Models\BikeRentCompany::where('status', 1)->orderBy('name')->get() as $lc)
+      <option value="{{ $lc->id }}" {{ old('bike_rent_company_id', request('bike_rent_company_id')) == $lc->id ? 'selected' : '' }}>{{ $lc->name }}</option>
       @endforeach
     </select>
   </div>

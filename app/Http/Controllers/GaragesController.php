@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\GaragesDataTable;
 use App\Http\Requests\CreateGaragesRequest;
 use App\Http\Requests\UpdateGaragesRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Repositories\GaragesRepository;
+use App\Helpers\HeadAccount;
 use App\Models\Garages;
 use App\Models\Accounts;
 use Illuminate\Http\Request;
@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 
 class GaragesController extends AppBaseController
 {
-    use GlobalPagination;
+  use GlobalPagination;
   /** @var GaragesRepository $garagesRepository*/
   private $garagesRepository;
 
@@ -35,7 +35,7 @@ class GaragesController extends AppBaseController
       abort(403, 'Unauthorized action.');
     }
     // Use global pagination trait
-        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Garages::query()
       ->orderBy('id', 'desc');
     if ($request->has('name') && !empty($request->name)) {
@@ -51,7 +51,7 @@ class GaragesController extends AppBaseController
       $query->where('branch_id', $request->branch_id);
     }
     // Apply pagination using the trait
-        $data = $this->applyPagination($query, $paginationParams);
+    $data = $this->applyPagination($query, $paginationParams);
     if ($request->ajax()) {
       $tableData = view('garages.table', [
         'data' => $data,
@@ -82,14 +82,41 @@ class GaragesController extends AppBaseController
   public function store(CreateGaragesRequest $request)
   {
     $input = $request->all();
+    $isInternal = ($input['garage_type'] ?? '') === 'internal';
+
+    if ($isInternal) {
+      $inventoryParent = Accounts::find(HeadAccount::GARAGE_ACCOUNT);
+      if (! $inventoryParent) {
+        $inventoryParent = Accounts::where('name', 'Garages')
+          ->where('account_type', 'Asset')
+          ->first();
+      }
+      if (! $inventoryParent) {
+        return response()->json([
+          'message' => 'Chart of accounts is missing the Garage Inventory (Asset) head. Add it or sync account IDs in HeadAccount.',
+        ], 422);
+      }
+      $parentId = $inventoryParent->id;
+      $accountType = 'Asset';
+    } else {
+      $liabilityParent = Accounts::where('name', 'Garages')->where('account_type', 'Liability')->first();
+      if (! $liabilityParent) {
+        return response()->json([
+          'message' => 'Chart of accounts is missing the Garages (Liability) head.',
+        ], 422);
+      }
+      $parentId = $liabilityParent->id;
+      $accountType = 'Liability';
+    }
+
     DB::beginTransaction();
-    try{
+    try {
       // Create Garage
       $garages = $this->garagesRepository->create($input);
       $account = new Accounts();
       $account->name = $garages->name;
-      $account->account_type = 'Liability';
-      $account->parent_id = 1664; // fixed parent
+      $account->account_type = $accountType;
+      $account->parent_id = $parentId;
       $account->ref_name = 'Garage';
       $account->ref_id = $garages->id;
       $account->status = 1;
@@ -97,14 +124,14 @@ class GaragesController extends AppBaseController
       $account->branch_id = $garages->branch_id;
       $account->save();
       $garages->update([
-          'account_id' => $account->id
+        'account_id' => $account->id
       ]);
       DB::commit();
       return response()->json(['message' => 'Garage and account added successfully.']);
-    }catch(\Exception $e){
+    } catch (\Exception $e) {
       DB::rollBack();
       \Log::error($e);
-      return response()->json(['message' => 'Error: '.$e->getMessage()],500);
+      return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
     }
   }
 
@@ -152,7 +179,7 @@ class GaragesController extends AppBaseController
       return response()->json(['errors' => ['error' => 'Garage not found!']], 422);
     }
 
-    $garages = $this->garagesRepository->update($request->all(), $id);
+    $garages = $this->garagesRepository->update($request->except(['garage_type']), $id);
 
     return response()->json(['message' => 'Garage updated successfully.', 'reload' => true]);
   }

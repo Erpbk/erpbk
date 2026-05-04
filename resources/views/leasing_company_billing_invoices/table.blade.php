@@ -24,7 +24,7 @@
          <td>{{ $invoice->invoice_number ?? ('LBI-' . $invoice->id) }}</td>
          <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
          <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
-         <td>{{ $invoice->leasingCompany->name ?? '-' }}</td>
+         <td>{{ $invoice->customer->name ?? '-' }}</td>
          <td><span class="badge bg-info">{{ $invoice->items->count() }} bike(s)</span></td>
          <td>AED {{ number_format($invoice->subtotal ?? 0, 2) }}</td>
          <td>AED {{ number_format($invoice->vat ?? 0, 2) }}</td>

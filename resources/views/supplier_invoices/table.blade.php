@@ -7,6 +7,9 @@
          <th title="Inv Id" class="sorting" rowspan="1" colspan="1">@if(str_contains(url()->current(), 'order'))Order Id @else Inv Id @endif</th>
          <th title="Billing Month" class="sorting" rowspan="1" colspan="1">@if(str_contains(url()->current(), 'order')) Created By @else Billing Month @endif</th>
          <th title="Supplier" class="sorting" rowspan="1" colspan="1">Supplier</th>
+         @if(!str_contains(url()->current(), 'order'))
+         <th title="Garage" class="sorting" rowspan="1" colspan="1">Garage</th>
+         @endif
          <th title="Descriptions" class="sorting" rowspan="1" colspan="1">Description</th>
          <th title="Total Amount" class="sorting" rowspan="1" colspan="1">Amount</th>
          <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
@@ -25,6 +28,9 @@
          @else <td>{{ $r->createdNy?->name ?? '-' }}</td>
          @endif
          <td>{{ $r->supplier?->name ?? '-' }}</td>
+         @if(!str_contains(url()->current(), 'order'))
+         <td>{{ $r->garage?->name ?? '—' }}</td>
+         @endif
          <td>{{$r->descriptions ?? 'N/A' }}</td>
          <td>{{$r->total_amount ?? 'N/A' }}</td>
          <td style="position: relative;">

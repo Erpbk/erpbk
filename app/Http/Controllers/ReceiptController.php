@@ -13,6 +13,7 @@ use App\Models\Customers;
 use App\Models\Accounts;
 use App\Models\LeasingCompanyInvoice;
 use App\Models\LeasingCompanyBillingInvoice;
+use App\Models\BikeRentCompany;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use Illuminate\Support\Facades\DB;
@@ -62,7 +63,7 @@ class ReceiptController extends Controller
     public function create()
     {
         $accountId = request()->input('id') ?? null;
-        $leasingCompanyId = request()->input('leasing_company_id') ?? null;
+        $bikeRentCompanyId = request()->input('bike_rent_company_id') ?? request()->input('leasing_company_id') ?? null;
         $customerId = request()->input('customer_id') ?? null;
         $customerIds = null;
         $accountIds = null;
@@ -73,8 +74,8 @@ class ReceiptController extends Controller
             $accountIds = Customers::pluck('account_id')->toArray();
         }
         if (request()->input('leasing_receipt')) {
-            $leasingIds = LeasingCompanies::pluck('id')->toArray();
-            $accountIds = LeasingCompanies::pluck('account_id')->toArray();
+            $leasingIds = BikeRentCompany::pluck('id')->toArray();
+            $accountIds = BikeRentCompany::pluck('account_id')->toArray();
         }
         if ($customerId) {
             $invoices = CustomerInvoices::with('customer')
@@ -93,18 +94,18 @@ class ReceiptController extends Controller
                         ->orWhere('status', 'partially_paid');
                 })
                 ->get();
-        } elseif ($leasingCompanyId) {
-            $invoices = LeasingCompanyBillingInvoice::with('leasingCompany')
-                ->where('leasing_company_id', $leasingCompanyId)
+        } elseif ($bikeRentCompanyId) {
+            $invoices = LeasingCompanyBillingInvoice::with('customer')
+                ->where('customer_id', $bikeRentCompanyId)
                 ->where(function ($q) {
                     $q->where('status', 0)
                         ->orWhere('status', 3);
                 })
                 ->get();
-            $accountIds = LeasingCompanies::where('id', $leasingCompanyId)->pluck('account_id')->toArray();
+            $accountIds = BikeRentCompany::where('id', $bikeRentCompanyId)->pluck('account_id')->toArray();
         } elseif ($leasingIds) {
-            $invoices = LeasingCompanyBillingInvoice::with('leasingCompany')
-                ->whereIn('leasing_company_id', $leasingIds)
+            $invoices = LeasingCompanyBillingInvoice::with('customer')
+                ->whereIn('customer_id', $leasingIds)
                 ->where(function ($q) {
                     $q->where('status', 0)
                         ->orWhere('status', 3);
@@ -121,8 +122,8 @@ class ReceiptController extends Controller
             $bank = Banks::find($accountId);
             $receipt = Receipt::where('bank_id', $accountId)->first();
             return view('receipts.create', compact('bank', 'banks', 'receipt'));
-        } elseif ($leasingCompanyId || $leasingIds) {
-            $leasingCompany = LeasingCompanies::find($leasingCompanyId ?? 0);
+        } elseif ($bikeRentCompanyId || $leasingIds) {
+            $leasingCompany = BikeRentCompany::find($bikeRentCompanyId ?? 0);
             $banks = Banks::with('account')->active()->get();
             $invoiceType = 'leasingCompany';
             return view('receipts.create', compact('leasingCompany', 'banks', 'receipt', 'invoices', 'customerIds', 'invoiceType', 'customerId'));
@@ -389,18 +390,18 @@ class ReceiptController extends Controller
                     $invoiceIds[] = $id;
                 }
             }
-            $existingInvoices = LeasingCompanyBillingInvoice::with('leasingCompany')
+            $existingInvoices = LeasingCompanyBillingInvoice::with('customer')
                 ->whereIn('id', $invoiceIds)
                 ->get();
-            $invoices = LeasingCompanyBillingInvoice::with('leasingCompany')
-                ->whereIn('leasing_company_id', $existingInvoices->pluck('leasing_company_id'))
+            $invoices = LeasingCompanyBillingInvoice::with('customer')
+                ->whereIn('customer_id', $existingInvoices->pluck('customer_id'))
                 ->where(function ($query) use ($invoiceIds) {
                     $query->whereIn('status', [0, 3])
                         ->WhereNotIn('id', $invoiceIds);
                 })
                 ->get();
-            $customerIds = $existingInvoices->pluck('leasingCompany.account_id')->toArray();
-            $customerId = $existingInvoices->first()->leasing_company_id ?? null;
+            $customerIds = $existingInvoices->pluck('customer.account_id')->toArray();
+            $customerId = $existingInvoices->first()->customer_id ?? null;
         }
 
         $banks = Banks::active()->get();
@@ -501,7 +502,7 @@ class ReceiptController extends Controller
                             $invoiceIds[] = $id;
                         }
                     }
-                    $existingInvoices = LeasingCompanyBillingInvoice::with('leasingCompany')
+                    $existingInvoices = LeasingCompanyBillingInvoice::with('customer')
                         ->whereIn('id', $invoiceIds)
                         ->get();
                     $pending = 0;

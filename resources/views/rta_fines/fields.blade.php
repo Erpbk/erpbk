@@ -76,15 +76,7 @@
 </div>
 <div class="form-group col-sm-6">
     {!! Form::label('rta_account_id', 'Credit Account:', ['class' => 'required']) !!}
-    <select class="form select select2" required id="rta_account_id" name="rta_account_id">
-        <option value="">Select Account</option>
-        @foreach(($rtaAccounts ?? collect()) as $account)
-            <option value="{{ $account->id }}"
-                {{ (isset($rtaFines) && (string) $rtaFines->rta_account_id === (string) $account->id) || (!isset($rtaFines) && isset($data) && (string) $data->id === (string) $account->id) ? 'selected' : '' }}>
-                {{ $account->name }}
-            </option>
-        @endforeach
-    </select>
+    <input type="text" name="rta_account_id" value="{{ $rtaFineAccount->name ?? '' }}" readonly class="form-control">
 </div>
 
 <div class="form-group col-sm-6">
@@ -94,24 +86,25 @@
 <!-- Admin Charges Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('admin_fee', 'Admin Charges:', ['class' => '']) !!}
-    {!! Form::number('admin_fee', $data->admin_charges ?? '', ['class' => 'form-control','step'=>'any', 'readonly']) !!}
+    {!! Form::number('admin_fee', $rtaFines->admin_fee ?? '', ['class' => 'form-control','step'=>'any']) !!}
 </div>
 <!-- Service Charges Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('service_charges', 'Service Charges:', ['class' => '']) !!}
-    {!! Form::number('service_charges', $data->account_tax ?? '', ['class' => 'form-control','step'=>'any']) !!}
+    {!! Form::number('service_charges', $rtaFines->service_charges ?? '', ['class' => 'form-control','step'=>'any']) !!}
 </div>
-<!-- Amount Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('amount', 'Amount:', ['class' => 'required']) !!}
-    {!! Form::number('amount', $rtaFines->amount ?? '', ['class' => 'form-control','step'=>'any', 'required']) !!}
-</div>
+
 <!-- Vat Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('vat', 'VAT:') !!}
     {!! Form::number('vat', $rtaFines->vat ?? '', ['class' => 'form-control','step'=>'any']) !!}
 </div>
 
+<!-- Amount Field -->
+<div class="form-group col-sm-6">
+    {!! Form::label('amount', 'Amount:', ['class' => 'required']) !!}
+    {!! Form::number('amount', $rtaFines->amount ?? '', ['class' => 'form-control','step'=>'any', 'required']) !!}
+</div>
 <!-- Detail Field -->
 <div class="form-group col-sm-12">
     {!! Form::label('detail', 'Detail:', ['class' => 'required']) !!}

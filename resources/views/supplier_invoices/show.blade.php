@@ -264,6 +264,9 @@
                     <div style="font-weight: 600; color: #555;">Billing Month:</div>
                     <div>{{ date('M Y', strtotime($supplierInvoice->billing_month)) }}</div>
 
+                    <div style="font-weight: 600; color: #555;">Garage:</div>
+                    <div>{{ $supplierInvoice->garage?->name ?? '—' }}</div>
+
                     <div style="font-weight: 600; color: #555;">Created By:</div>
                     <div>{{ $supplierInvoice->updatedBy?->name ?? $supplierInvoice->createdBy?->name ?? ''}}</div>
                 </div>

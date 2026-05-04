@@ -23,7 +23,7 @@ class FuelCardController extends Controller
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = FuelCards::query()
             ->orderBy('id', 'asc')
-            ->with('rider.bikes');
+            ->with(['rider.bikes', 'fuelCompany']);
         if ($request->has('card_number') && !empty($request->card_number)) {
             $query->where('card_number', 'like', '%' . $request->card_number . '%');
         }
@@ -77,7 +77,7 @@ class FuelCardController extends Controller
     {
         $this->validate($request, [
             'card_number' => 'required|string|min:16|unique:fuel_cards,card_number',
-            'card_type'=> 'nullable|string|max:255',
+            'fuel_company_id' => 'nullable|exists:fuel_companies,id',
             'assigned_to'=> 'nullable|integer|exists:riders,id',
             'status' =>'nullable|string',
             'assign_date' => 'nullable|date',
@@ -129,7 +129,7 @@ class FuelCardController extends Controller
         \Log::info("Showing fuel card with ID: $id");
         $card = FuelCards::find($id);
         $histories = $card->histories()->orderByDesc('id')->get();
-        $card->load('branch');
+        $card->load(['branch', 'fuelCompany']);
         return view('fuel_cards.show', compact('card', 'histories'));
     }
 
@@ -149,7 +149,7 @@ class FuelCardController extends Controller
     {
         $this->validate($request, [
             'card_number' => 'required|string|min:16|unique:fuel_cards,card_number,'.$id,
-            'card_type'=> 'nullable|string|max:255',
+            'fuel_company_id' => 'nullable|exists:fuel_companies,id',
             ]);
 
         $card = FuelCards::find($id);

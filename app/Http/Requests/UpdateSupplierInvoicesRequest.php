@@ -26,7 +26,12 @@ class UpdateSupplierInvoicesRequest extends FormRequest
     public function rules()
     {
         $rules = SupplierInvoices::$rules;
-        
+        if ($this->input('type') === 'order') {
+            $rules['garage_id'] = 'nullable|exists:garages,id';
+        } else {
+            $rules['garage_id'] = 'required|exists:garages,id';
+        }
+
         return $rules;
     }
 }

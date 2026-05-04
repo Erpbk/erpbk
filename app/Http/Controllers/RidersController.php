@@ -537,8 +537,13 @@ class RidersController extends AppBaseController
           ['name' => 'Riders', 'account_type' => 'Liability', 'parent_id' => null],
           ['name' => 'Riders', 'account_type' => 'Liability', 'account_code' => Account::code()]
         ); */
-      $parentId = Accounts::where('name', 'Current Liabilities')->where('account_type', 'Liability')->first()->id;
-      $parentAccount = Accounts::where('name', 'Riders')->where('account_type', 'Liability')->where('parent_id', $parentId)->first();
+      $parentAccount = Accounts::where('name', 'Riders')->where('account_type', 'Liability')->first();
+      if (!$parentAccount) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Parent account "Riders" not found.',
+        ], 422);
+      }
       $account = new Accounts();
       $account->account_code = 'RD' . str_pad($riders->rider_id, 4, "0", STR_PAD_LEFT);
       $account->name = $riders->name;

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\HeadAccount;
 use App\Models\BikeMaintenance;
 use App\Models\BikeMaintenanceItem;
 use Illuminate\Http\Request;
@@ -24,12 +25,12 @@ class BikeMaintenanceController extends Controller
     public function index()
     {
         $maintenances = BikeMaintenance::with(['bike.rider'])
-                        ->orderBy('maintenance_date', 'desc')
-                        ->whereHas('bike')
-                        ->get();
+            ->orderBy('maintenance_date', 'desc')
+            ->whereHas('bike')
+            ->get();
         $stats = $this->stats($maintenances);
 
-        return view('bike-maintenance.index',compact('maintenances','stats'));
+        return view('bike-maintenance.index', compact('maintenances', 'stats'));
     }
 
     /**
@@ -61,18 +62,18 @@ class BikeMaintenanceController extends Controller
         $path = null;
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $filename = 'maintenance_'.time().'.'.$file->extension();
-            $path = $file->storeAs('bike/'.$bike->id.'/', $filename);
+            $filename = 'maintenance_' . time() . '.' . $file->extension();
+            $path = $file->storeAs('bike/' . $bike->id . '/', $filename);
             $validated['attachment'] = $path;
         }
         DB::beginTransaction();
-        try{
+        try {
             $this->validateFinancials($request);
             $bike->update([
                 'previous_km' => $validated['current_km'],
                 'maintenance_km' => $validated['maintenance_km']
-                ]);
-            if($validated['previous_km'] === null)
+            ]);
+            if ($validated['previous_km'] === null)
                 $validated['previous_km'] = $validated['current_km'];
             $maintenance = BikeMaintenance::create($validated);
             // Create maintenance items if present
@@ -101,15 +102,15 @@ class BikeMaintenanceController extends Controller
                 BikeMaintenanceItem::insert($rows);
             }
             $data = $this->billData($maintenance);
-            if(!empty($data['missing'])){
+            if (!empty($data['missing'])) {
                 throw new \Exception(implode('. ', $data['missing']));
             }
             $this->chargeInvoice($maintenance, $data);
             DB::commit();
-            return response()->json(['message' => 'Maintenance Record Created Successfully.'],200);
-        }catch(\Exception $e){
+            return response()->json(['message' => 'Maintenance Record Created Successfully.'], 200);
+        } catch (\Exception $e) {
             DB::rollBack();
-            if($path)
+            if ($path)
                 Storage::delete($path);
             \Log::error(
                 'An error occured while creating bike maintenance record',
@@ -118,9 +119,8 @@ class BikeMaintenanceController extends Controller
                     'trace'   => $e->getTrace(),
                 ]
             );
-            return response()->json(['message' => 'Error: '. $e->getMessage()],500);
+            return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
         }
-        
     }
 
     public function invoice($company_slug, BikeMaintenance $maintenance)
@@ -148,14 +148,15 @@ class BikeMaintenanceController extends Controller
      * Show the form for editing the specified Bike's Maintenance Details.
      */
 
-    public function edit($company_slug, BikeMaintenance $bikeMaintenance){
+    public function edit($company_slug, BikeMaintenance $bikeMaintenance)
+    {
         $maintenance = $bikeMaintenance;
         $bike = $bikeMaintenance->bike;
         $items = $bikeMaintenance->maintenanceItems;
-        return view('bike-maintenance.edit', compact('bike','items','maintenance'));
+        return view('bike-maintenance.edit', compact('bike', 'items', 'maintenance'));
     }
 
-    
+
 
     /**
      * Update the MAintenance Fields in Bikes Table.
@@ -170,18 +171,18 @@ class BikeMaintenanceController extends Controller
         $path = null;
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $filename = 'maintenance_'.time().'.'.$file->extension();
-            $path = $file->storeAs('bike/'.$bike->id.'/', $filename);
+            $filename = 'maintenance_' . time() . '.' . $file->extension();
+            $path = $file->storeAs('bike/' . $bike->id . '/', $filename);
             $validated['attachment'] = $path;
         }
         DB::beginTransaction();
-        try{
+        try {
             $this->validateFinancials($request);
             $bike->update([
                 'previous_km' => $validated['current_km'],
                 'current_km' => null,
                 'maintenance_km' => $validated['maintenance_km']
-                ]);
+            ]);
             $maintenance->update($validated);
             BikeMaintenanceItem::where('bike_maintenance_id', $maintenance->id)->delete();
             // Create maintenance items if present
@@ -209,24 +210,24 @@ class BikeMaintenanceController extends Controller
                 BikeMaintenanceItem::insert($rows);
             }
             $data = $this->billData($maintenance);
-            if(!empty($data['missing'])){
+            if (!empty($data['missing'])) {
                 throw new \Exception(implode('. ', $data['missing']));
             }
-            $transcode = Transactions::where('reference_type','Bike Maintenance')
-                        ->where('reference_id',$maintenance->id)
-                        ->value('trans_code');
-            Transactions::where('reference_type','Bike Maintenance')
-                        ->where('reference_id',$maintenance->id)
-                        ->delete();
+            $transcode = Transactions::where('reference_type', 'Bike Maintenance')
+                ->where('reference_id', $maintenance->id)
+                ->value('trans_code');
+            Transactions::where('reference_type', 'Bike Maintenance')
+                ->where('reference_id', $maintenance->id)
+                ->delete();
             $this->chargeInvoice($maintenance, $data, $transcode);
             DB::commit();
-            if($oldpath)
-                if($path)
+            if ($oldpath)
+                if ($path)
                     Storage::delete($oldpath);
-            return response()->json(['message' => 'Maintenance Record Updated Successfully.'],200);
-        }catch(\Exception $e){
+            return response()->json(['message' => 'Maintenance Record Updated Successfully.'], 200);
+        } catch (\Exception $e) {
             DB::rollBack();
-            if($path)
+            if ($path)
                 Storage::delete($path);
             \Log::error(
                 'An error occured while update bike maintenance record',
@@ -235,12 +236,12 @@ class BikeMaintenanceController extends Controller
                     'trace'   => $e->getTrace(),
                 ]
             );
-            return response()->json(['message' => 'Error: '. $e->getMessage()],500);
+            return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
         }
-
     }
 
-    private function billData(BikeMaintenance $maintenance){
+    private function billData(BikeMaintenance $maintenance)
+    {
         // Eager load everything including nested accounts
         $maintenance->load([
             'bike',
@@ -254,8 +255,8 @@ class BikeMaintenanceController extends Controller
         $items = $maintenance->maintenanceItems;
         $riderItems   = $items->where('charge_to', 'Rider');
         $companyItems = $items->where('charge_to', 'Company');
-        
-        if($items->isEmpty())
+
+        if ($items->isEmpty())
             $missing[] = 'No items Added in the Bill';
         // Overdue calculation
         $overdueCost = ($maintenance->overdue_paidby === 'Rider')
@@ -283,13 +284,13 @@ class BikeMaintenanceController extends Controller
             }
         }
 
-        foreach($items as $item){
+        foreach ($items as $item) {
             $itemTotal = $item->quantity * $item->rate;
             $discount = $item->discount ?? 0;
             $itemTotal -= $discount;
-            $vatAmount = $itemTotal * ($item->vat/100);
+            $vatAmount = $itemTotal * ($item->vat / 100);
             $itemTotal += $vatAmount;
-            if(round($item->total_amount,2) != round($itemTotal,2))
+            if (round($item->total_amount, 2) != round($itemTotal, 2))
                 $missing[] = 'Item total amount mismatch for item: ' . $item->item_name;
         }
 
@@ -343,10 +344,11 @@ class BikeMaintenanceController extends Controller
         return $data;
     }
 
-    private function chargeInvoice(BikeMaintenance $maintenance, $data, $transcode = null){
+    private function chargeInvoice(BikeMaintenance $maintenance, $data, $transcode = null)
+    {
 
         $transCode = $transcode ?? \App\Helpers\Account::trans_code();
-        if( $data['rider_amount'] && $data['rider_amount'] > 0){
+        if ($data['rider_amount'] && $data['rider_amount'] > 0) {
             Transactions::create([
                 'trans_code' => $transCode,
                 'trans_date' => $maintenance->maintenance_date,
@@ -359,9 +361,8 @@ class BikeMaintenanceController extends Controller
                 'narration' => $data['description'],
             ]);
         }
-        if($data['company_amount'] && $data['company_amount'] > 0){
-            $companyAcc = Accounts::select('id')
-                ->find(1213); // bike maintenance account
+        if ($data['company_amount'] && $data['company_amount'] > 0) {
+            $companyAcc = HeadAccount::BIKE_MAINTENANCE_ACCOUNT; // bike maintenance account
             if (!$companyAcc) {
                 throw new \Exception('Bike Maintenance Company Account Not Found');
             }
@@ -371,7 +372,7 @@ class BikeMaintenanceController extends Controller
                 'trans_date' => $maintenance->maintenance_date,
                 'reference_id' => $maintenance->id,
                 'reference_type' => 'Bike Maintenance',
-                'account_id' => $companyAcc->id,
+                'account_id' => $companyAcc,
                 'credit' => 0,
                 'debit' => $data['company_amount'],
                 'billing_month' => $maintenance->billing_month,
@@ -389,10 +390,10 @@ class BikeMaintenanceController extends Controller
             'billing_month' => $maintenance->billing_month,
             'narration' => $data['description'],
         ]);
-        if($data['vat_amount'] > 0){
-            $vatAcc = Accounts::select('id') ->find(1023); // VAT on purchase
-            if (!$companyAcc) {
-                throw new \Exception('VAT on purchase Account Not Found');
+        if ($data['vat_amount'] > 0) {
+            $vatAcc = HeadAccount::VAT_ON_SALES; // VAT on Sale
+            if (!$vatAcc) {
+                throw new \Exception('VAT on Sale Account Not Found');
             }
 
             Transactions::create([
@@ -400,7 +401,7 @@ class BikeMaintenanceController extends Controller
                 'trans_date' => $maintenance->maintenance_date,
                 'reference_id' => $maintenance->id,
                 'reference_type' => 'Bike Maintenance',
-                'account_id' => $vatAcc->id,
+                'account_id' => $vatAcc,
                 'credit' => 0,
                 'debit' => $data['vat_amount'],
                 'billing_month' => $maintenance->billing_month,
@@ -416,44 +417,44 @@ class BikeMaintenanceController extends Controller
     public function destroy($company_slug, BikeMaintenance $bikeMaintenance)
     {
         DB::beginTransaction();
-        try{
+        try {
             BikeMaintenanceItem::where('bike_maintenance_id', $bikeMaintenance->id)->delete();
             Transactions::where('reference_type', 'Bike Maintenance')
-                        ->where('reference_id', $bikeMaintenance->id)
-                        ->delete();
+                ->where('reference_id', $bikeMaintenance->id)
+                ->delete();
 
-            $path = $bikeMaintenance->attachment ;
+            $path = $bikeMaintenance->attachment;
             $bike = $bikeMaintenance->bike;
             $prev = $bikeMaintenance->previous_km;
-            $maintenance = BikeMaintenance::where('bike_id',$bike->id)
-                        ->where('id', '!=', $bikeMaintenance->id)
-                        ->orderby('maintenance_date','desc')
-                        ->first();
-            if($maintenance){
+            $maintenance = BikeMaintenance::where('bike_id', $bike->id)
+                ->where('id', '!=', $bikeMaintenance->id)
+                ->orderby('maintenance_date', 'desc')
+                ->first();
+            if ($maintenance) {
                 $bike->update([
-                'previous_km' => $maintenance->current_km,
-                'maintenance_km' => $maintenance->maintenance_km
+                    'previous_km' => $maintenance->current_km,
+                    'maintenance_km' => $maintenance->maintenance_km
                 ]);
-            }else{
+            } else {
                 $bike->update([
-                'previous_km' => null,
+                    'previous_km' => null,
                 ]);
             }
             $bikeMaintenance->delete();
-            if($path)
+            if ($path)
                 Storage::delete($path);
-            
-            DB::commit();
-            return response()->json(['message' => 'Maintenance Record Deleted Successfully'],200);
-        }catch(\Exception $e){
-            DB::rollBack();
-            \Log::error('error occured while deleteing maintenance record',['error' => $e->getMessage() , 'trace: ' => $e->getTrace()]);
-            return response()->json(['message' => 'Error: '.$e->getMessage()],500);
-        }
 
+            DB::commit();
+            return response()->json(['message' => 'Maintenance Record Deleted Successfully'], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('error occured while deleteing maintenance record', ['error' => $e->getMessage(), 'trace: ' => $e->getTrace()]);
+            return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
+        }
     }
 
-    private function validateRequest(Request $request){
+    private function validateRequest(Request $request)
+    {
 
         return $request->validate([
             'bike_id' => 'required|exists:bikes,id',
@@ -485,7 +486,7 @@ class BikeMaintenanceController extends Controller
             'charge_to' => 'nullable|array',
             'charge_to.*' => 'required|in:Company,Rider',
             'total_cost' => 'nullable|numeric|min:0',
-        ],[
+        ], [
             'bike_id.required' => 'Please Select A Bike',
             'item_id.*.required' => 'Item Field Cannot Be Empty',
             'quantity.*.required' => 'Quantity Field Cannot be Empty',
@@ -494,29 +495,30 @@ class BikeMaintenanceController extends Controller
         ]);
     }
 
-    private function stats($maintenances){
+    private function stats($maintenances)
+    {
 
         return [
-            'active' => Bikes::where('status',1)->count(),
+            'active' => Bikes::where('status', 1)->count(),
             'total'  => $maintenances->count(),
             'current' => $maintenances->whereBetween('maintenance_date', [
-                                Carbon::now()->startOfMonth(),
-                                Carbon::now()->endOfMonth()
-                            ])->count(),
+                Carbon::now()->startOfMonth(),
+                Carbon::now()->endOfMonth()
+            ])->count(),
             'total_overdue' => $maintenances->where('overdue_km', '>', 0)->count(),
             'current_overdue' => $maintenances->whereBetween('maintenance_date', [
-                                Carbon::now()->startOfMonth(),
-                                Carbon::now()->endOfMonth()
-                            ])
-                            ->where('overdue_km', '>', 0)
-                            ->count(),
+                Carbon::now()->startOfMonth(),
+                Carbon::now()->endOfMonth()
+            ])
+                ->where('overdue_km', '>', 0)
+                ->count(),
             'avg' => $maintenances
-                    ->where('overdue_km', '>', 0)
-                    ->groupBy(fn($item) => $item->maintenance_date->format('Y-m'))
-                    ->map(fn($group) => $group->count())
-                    ->avg() ?? 0,
-            'overdue_cost' => $maintenances->where('overdue_km', '>', 0)->sum(fn($m)=>  $m->overdue_km*$m->overdue_cost_per_km),
-            'overdue_charged' => $maintenances->where('overdue_km', '>', 0)->where('overdue_paidby','Rider')->sum(fn($m)=>  $m->overdue_km*$m->overdue_cost_per_km),
+                ->where('overdue_km', '>', 0)
+                ->groupBy(fn($item) => $item->maintenance_date->format('Y-m'))
+                ->map(fn($group) => $group->count())
+                ->avg() ?? 0,
+            'overdue_cost' => $maintenances->where('overdue_km', '>', 0)->sum(fn($m) =>  $m->overdue_km * $m->overdue_cost_per_km),
+            'overdue_charged' => $maintenances->where('overdue_km', '>', 0)->where('overdue_paidby', 'Rider')->sum(fn($m) =>  $m->overdue_km * $m->overdue_cost_per_km),
             'maint_cost' => $maintenances->sum('total_cost'),
 
         ];
@@ -559,10 +561,10 @@ class BikeMaintenanceController extends Controller
         if (round((float)$request->overdue_cost, 2) !== $overdueCalculated) {
             throw new \Exception("Overdue cost calculation mismatch.");
         }
-
     }
 
-    public function sticker($company_slug, BikeMaintenance $maintenance){
+    public function sticker($company_slug, BikeMaintenance $maintenance)
+    {
 
         $maintenance->load('bike');
 
@@ -570,10 +572,9 @@ class BikeMaintenanceController extends Controller
             'date' => $maintenance->maintenance_date,
             'bike' => $maintenance->bike->emirates . '-' . $maintenance->bike->plate,
             'current_reading' => $maintenance->current_km,
-            'next_reading' => $maintenance->current_km + $maintenance->bike->maintenance_km, 
+            'next_reading' => $maintenance->current_km + $maintenance->bike->maintenance_km,
         ];
 
-        return view('bike-maintenance.sticker',compact('sticker'));
+        return view('bike-maintenance.sticker', compact('sticker'));
     }
-
 }

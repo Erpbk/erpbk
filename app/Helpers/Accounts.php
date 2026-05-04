@@ -5,6 +5,8 @@ namespace App\Helpers;
 use App\Models\Banks;
 use App\Models\Customers;
 use App\Models\LeasingCompanies;
+use App\Models\FuelCompany;
+use App\Models\SimCompany;
 use App\Models\LedgerEntry;
 use App\Models\Riders;
 use App\Models\Services;
@@ -44,7 +46,6 @@ class Accounts
   {
     $html = '';
     $select = '';
-
     if (isset($items[$parentId])) {
       foreach ($items[$parentId] as $item) {
         if ($selected) {
@@ -113,6 +114,12 @@ class Accounts
       }
       if ($data['ref_name'] == 'LeasingCompany') {
         $row = LeasingCompanies::find($data['ref_id']);
+      }
+      if ($data['ref_name'] == 'SimCompany') {
+        $row = SimCompany::find($data['ref_id']);
+      }
+      if ($data['ref_name'] == 'FuelCompany') {
+        $row = FuelCompany::find($data['ref_id']);
       }
       if ($data['ref_name'] == 'Account') {
         $row = \App\Models\Accounts::find($data['ref_id']);

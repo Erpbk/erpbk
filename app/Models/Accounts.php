@@ -166,7 +166,7 @@ class Accounts extends BaseModel
   {
     return self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))
       ->where('account_type', 'Asset')
-      ->whereIn('parent_id', [994, 1643])
+      ->whereIn('parent_id', [2452])
       ->pluck('full_name', 'id')
       ->prepend('Select', '');
   }

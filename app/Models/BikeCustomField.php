@@ -225,11 +225,14 @@ class BikeCustomField extends BaseModel
     /**
      * Build fields grouped by category for the Bike create/edit form.
      * Returns items: kind=fixed|custom.
+     *
+     * @param  bool  $includeCustomFields  When false (default), only schema-backed (fixed) fields are returned.
      */
-    public static function fieldsByCategoryForForm(): array
+    public static function fieldsByCategoryForForm(bool $includeCustomFields = false): array
     {
         $categories = BikeCategory::orderBy('display_order')->orderBy('id')->get();
         $categoryIds = $categories->pluck('id')->all();
+        $allowedFixedLookup = array_flip(self::allFixedFieldKeys());
 
         // Fixed field assignments for all categories.
         $assignmentsAll = BikeFieldCategoryAssignment::query()
@@ -262,6 +265,9 @@ class BikeCustomField extends BaseModel
             if ($catFixedAssignments->isNotEmpty()) {
                 foreach ($catFixedAssignments as $a) {
                     $fieldKey = (string) $a->field_key;
+                    if (!isset($allowedFixedLookup[$fieldKey])) {
+                        continue;
+                    }
                     $label = !empty($a->display_label)
                         ? trim((string) $a->display_label)
                         : self::humanizeFieldKey($fieldKey);
@@ -303,12 +309,17 @@ class BikeCustomField extends BaseModel
                 }
             }
 
-            // Custom fields for this category
-            foreach (($customFieldsAll[$cat->id] ?? collect()) as $cf) {
-                $fields[] = (object) [
-                    'kind' => 'custom',
-                    'field' => $cf,
-                ];
+            if ($includeCustomFields) {
+                foreach (($customFieldsAll[$cat->id] ?? collect()) as $cf) {
+                    $fields[] = (object) [
+                        'kind' => 'custom',
+                        'field' => $cf,
+                    ];
+                }
+            }
+
+            if ($fields === []) {
+                continue;
             }
 
             $result[] = (object) [

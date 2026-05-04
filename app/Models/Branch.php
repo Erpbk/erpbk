@@ -43,7 +43,7 @@ class Branch extends BaseModel
      */
     public function getTypeAttribute(): string
     {
-        return match($this->branch_type) {
+        return match ($this->branch_type) {
             'headquarters' => 'Headquarters',
             'branch' => 'Branch',
             'warehouse' => 'Warehouse',
@@ -180,6 +180,6 @@ class Branch extends BaseModel
 
     public static function dropdown()
     {
-      return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->toArray();
+        return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->prepend('All', null)->toArray();
     }
 }

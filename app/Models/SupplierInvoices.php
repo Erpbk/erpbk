@@ -14,6 +14,7 @@ class SupplierInvoices extends BaseModel
   public $fillable = [
     'inv_date',
     'supplier_id',
+    'garage_id',
     'month_invoice',
     'descriptions',
     'total_amount',
@@ -33,6 +34,7 @@ class SupplierInvoices extends BaseModel
   ];
 
   protected $casts = [
+    'garage_id' => 'integer',
     'partial_paid_amount' => 'array',
     'descriptions' => 'string',
     'total_amount' => 'float',
@@ -45,6 +47,7 @@ class SupplierInvoices extends BaseModel
   public static array $rules = [
     'inv_date' => 'nullable',
     'supplier_id' => 'required',
+    'garage_id' => 'nullable|exists:garages,id',
     'month_invoice' => 'nullable',
     'descriptions' => 'nullable|string|max:65535',
     'total_amount' => 'nullable|numeric',
@@ -70,6 +73,11 @@ class SupplierInvoices extends BaseModel
   public function supplier()
   {
     return $this->belongsTo(Supplier::class);
+  }
+
+  public function garage()
+  {
+    return $this->belongsTo(Garages::class, 'garage_id');
   }
 
   public function items()

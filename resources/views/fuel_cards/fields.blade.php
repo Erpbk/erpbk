@@ -6,8 +6,8 @@
 
 <!-- Company Field -->
 <div class="form-group col-sm-6">
-    {!! Form::label('card_type', 'Card type:', ['class' => 'required']) !!}
-    {!! Form::text('card_type', null, ['class' => 'form-control']) !!}
+    {!! Form::label('fuel_company_id', 'Fuel Company:', ['class' => 'required']) !!}
+    {!! Form::select('fuel_company_id', \App\Models\FuelCompany::dropdown(), null, ['class' => 'form-control select2']) !!}
 </div>
 
 <!-- Assigned To -->
@@ -17,9 +17,9 @@
         <option value="">Select</option>
         @foreach(\App\Models\Bikes::where('status', 1)->whereNotNull('rider_id')->get() as $bike)
         @php
-            $bike->load('rider');
+        $bike->load('rider');
         @endphp
-        <option value="{{ $bike->rider->id }}" 
+        <option value="{{ $bike->rider->id }}"
             {{ old('assigned_to', isset($fuelCard) ? $fuelCard->assigned_to : '') == $bike->rider->id ? 'selected' : '' }}>
             {{ 'Bike: '.$bike->plate.', Rider: '. ($bike->rider?->name ?? 'N/A') }}
         </option>
@@ -36,11 +36,10 @@
 
 
 <script type="text/javascript">
-
-$(document).ready(function () {
-    $('.select2').select2({
-        dropdownParent: $('#formajax'),
-        allowClear: true
+    $(document).ready(function() {
+        $('.select2').select2({
+            dropdownParent: $('#formajax'),
+            allowClear: true
+        });
     });
-});
 </script>

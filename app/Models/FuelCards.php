@@ -15,41 +15,43 @@ class FuelCards extends BaseModel
     protected $fillable = [
         'branch_id',
         'card_number',
-        'card_type',
+        'fuel_company_id',
         'status',
         'assigned_to',
         'created_by',
         'updated_by',
         'bike_no',
-    ] ;
+    ];
 
     protected $casts = [
-        'card_number'=> 'string',
-        'card_type'=> 'string',
-        'status'=> 'string',
-        'assigned_to'=> 'integer',
-        'created_by'=> 'integer',
-        'updated_by'=> 'integer',
-        'bike_no'=> 'string',
-        'attachment'=> 'string',
+        'card_number' => 'string',
+        'fuel_company_id' => 'integer',
+        'status' => 'string',
+        'assigned_to' => 'integer',
+        'created_by' => 'integer',
+        'updated_by' => 'integer',
+        'bike_no' => 'string',
+        'attachment' => 'string',
     ];
 
     public static array $rules = [
-        'card_number'=> 'required|string|min:16',
-        'card_type'=> 'nullable|string|max:255',
-        'status'=> 'required|string|max:255',
-        'assigned_to'=> 'nullable|numeric',
-        'created_by'=> 'nullable|numeric',
-        'updated_by'=> 'nullable|numeric',
+        'card_number' => 'required|string|min:16',
+        'fuel_company_id' => 'nullable|exists:fuel_companies,id',
+        'status' => 'required|string|max:255',
+        'assigned_to' => 'nullable|numeric',
+        'created_by' => 'nullable|numeric',
+        'updated_by' => 'nullable|numeric',
         'branch_id' => 'nullable|exists:branches,id',
     ];
-    public function rider(){
+    public function rider()
+    {
 
-        return $this->belongsTo(Riders::class,'assigned_to','id');
+        return $this->belongsTo(Riders::class, 'assigned_to', 'id');
     }
 
-    public function histories(){
-        return $this->hasMany(FuelCardHistory::class, 'card_id','id');
+    public function histories()
+    {
+        return $this->hasMany(FuelCardHistory::class, 'card_id', 'id');
     }
 
     public function branch()
@@ -96,5 +98,10 @@ class FuelCards extends BaseModel
         }
 
         return null;
+    }
+
+    public function fuelCompany()
+    {
+        return $this->belongsTo(FuelCompany::class, 'fuel_company_id', 'id');
     }
 }

@@ -27,7 +27,7 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                 return $column;
             }
 
-            if (!(bool) $assignment->is_visible || empty($assignment->category_id)) {
+            if (!(bool) $assignment->is_visible) {
                 return null;
             }
 

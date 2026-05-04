@@ -212,7 +212,7 @@ class SimsController extends AppBaseController
         try {
             // Perform validation
             $this->validate($request, $rules, $messages);
-
+            dd($input);
             $sims = Sims::create($input);
 
             return response()->json([

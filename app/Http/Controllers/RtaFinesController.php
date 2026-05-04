@@ -388,10 +388,9 @@ class RtaFinesController extends AppBaseController
             $input['status']          = 'unpaid';
             $input['reference_number']        = $input['reference_number'];
             $input['branch_id']       = $bike->branch_id;
-
+            $input['rta_account_id']   = HeadAccount::RTA_FINE;
             // Create RTA Fine
-            $rtaFines = $this->rtaFinesRepository->create($input);
-
+            $rtaFines = RtaFines::create($input);
 
             $TransactionService = new TransactionService();
             $billingMonth = $rtaFines->billing_month;

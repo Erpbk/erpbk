@@ -210,20 +210,11 @@ class SimsController extends AppBaseController
         // Perform validation
         $this->validate($request, $rules, $messages);
 
-        try {
-            $sims = Sims::create($input);
+        $sims = Sims::create($input);
 
-            return response()->json([
-                'message' => 'Sim added successfully.',
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error creating SIM: ' . $e->getMessage());
-
-            return response()->json([
-                'errors' => ['error' => 'Failed to create SIM. Please try again.'],
-                'message' => 'Server error occurred.'
-            ], 500);
-        }
+        return response()->json([
+            'message' => 'Sim added successfully.',
+        ]);
     }
 
     /**

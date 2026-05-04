@@ -7,7 +7,9 @@ use App\Models\BikeCustomField;
 use App\Models\BikeDocumentType;
 use App\Models\BikeFieldCategoryAssignment;
 use App\Models\Settings;
+use App\Support\ModuleFieldSource;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
@@ -60,8 +62,113 @@ class BikeSettingsController extends Controller
         return $query;
     }
 
+    /**
+     * Ensure every real bikes-table column has an assignment row and cannot be "optional" or hidden via settings.
+     */
+    protected function syncBikeSchemaAssignmentsFromDb(): void
+    {
+        if (!Schema::hasTable('bikes') || !Schema::hasTable('bike_field_category_assignments') || !Schema::hasTable('bike_categories')) {
+            return;
+        }
+
+        $systemColumns = [
+            'id',
+            'created_at',
+            'updated_at',
+            'deleted_at',
+            'custom_field_values',
+            'created_by',
+            'updated_by',
+            'deleted_by',
+        ];
+
+        $bikeColumns = Schema::getColumnListing('bikes');
+        $fieldKeys = array_values(array_filter($bikeColumns, function ($col) use ($systemColumns) {
+            return !in_array($col, $systemColumns, true);
+        }));
+
+        $slugToCategoryId = DB::table('bike_categories')->pluck('id', 'slug')->all();
+        $otherId = (int) ($slugToCategoryId['other'] ?? 0);
+        if ($otherId <= 0) {
+            return;
+        }
+
+        $mapping = [
+            'bike_info' => [
+                'plate',
+                'bike_code',
+                'chassis_number',
+                'engine',
+                'vehicle_type',
+                'model',
+                'model_type',
+                'color',
+                'emirates',
+                'branch_id',
+                'company',
+                'rider_id',
+                'warehouse',
+                'traffic_file_number',
+                'registration_date',
+                'expiry_date',
+                'notes',
+                'status',
+                'customer_id',
+            ],
+            'insurance_info' => [
+                'insurance_expiry',
+                'insurance_co',
+                'policy_no',
+            ],
+            'documents_info' => [
+                'contract_number',
+            ],
+        ];
+
+        $resolvedCategoryForField = [];
+        foreach ($fieldKeys as $key) {
+            $resolvedCategoryForField[$key] = $otherId;
+            foreach ($mapping as $slug => $keys) {
+                if (in_array($key, $keys, true)) {
+                    $catId = (int) ($slugToCategoryId[$slug] ?? $otherId);
+                    $resolvedCategoryForField[$key] = $catId > 0 ? $catId : $otherId;
+                    break;
+                }
+            }
+        }
+
+        sort($fieldKeys);
+        foreach ($fieldKeys as $fieldKey) {
+            $categoryId = (int) ($resolvedCategoryForField[$fieldKey] ?? $otherId);
+            $assignment = BikeFieldCategoryAssignment::where('field_key', $fieldKey)->first();
+            if ($assignment) {
+                if (!$assignment->is_visible || !$assignment->is_required) {
+                    $assignment->is_visible = true;
+                    $assignment->is_required = true;
+                    $assignment->save();
+                }
+
+                continue;
+            }
+
+            $nextOrder = ((int) BikeFieldCategoryAssignment::where('category_id', $categoryId)->max('display_order')) + 1;
+            BikeFieldCategoryAssignment::create([
+                'field_key' => $fieldKey,
+                'category_id' => $categoryId,
+                'display_order' => $nextOrder,
+                'display_label' => null,
+                'input_type' => null,
+                'input_config' => null,
+                'is_visible' => true,
+                'is_required' => true,
+            ]);
+        }
+    }
+
     public function index()
     {
+        $this->syncBikeSchemaAssignmentsFromDb();
+
         $categories = $this->bikeCategoryQuery()
             ->orderBy('display_order')
             ->orderBy('id')
@@ -102,7 +209,10 @@ class BikeSettingsController extends Controller
             'dataTypes',
             'moduleLabel',
             'documentTypes',
-        ));
+        ) + [
+            'moduleKey' => 'bike_list',
+            'moduleSchemaFieldKeys' => ModuleFieldSource::schemaFieldKeysForModule('bike_list'),
+        ]);
     }
 
     public function storeModuleLabel(Request $request)
@@ -197,6 +307,11 @@ class BikeSettingsController extends Controller
 
         $assignment->is_visible = filter_var((string) ($validated['is_visible'] ?? false), FILTER_VALIDATE_BOOLEAN);
         $assignment->is_required = filter_var((string) ($validated['is_required'] ?? false), FILTER_VALIDATE_BOOLEAN);
+
+        if (ModuleFieldSource::isSchemaFieldKey('bike_list', $validated['field_key'])) {
+            $assignment->is_visible = true;
+            $assignment->is_required = true;
+        }
 
         $inputType = $validated['input_type'] !== null ? trim((string) $validated['input_type']) : null;
         $assignment->input_type = ($inputType === '' ? null : $inputType);

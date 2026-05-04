@@ -16,7 +16,6 @@ class ModuleFieldSettings
 
         return ModuleFieldCategoryAssignment::query()
             ->where('module_key', $moduleKey)
-            ->whereNotNull('category_id')
             ->where('is_visible', true)
             ->get();
     }

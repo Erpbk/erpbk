@@ -3,7 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Banks;
-use App\Models\ModuleFieldCategoryAssignment;
+use App\Support\ModuleFieldSource;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Schema;
 
@@ -28,16 +28,11 @@ class CreateBanksRequest extends FormRequest
     {
         $rules = Banks::$rules;
 
-        if (!Schema::hasTable('module_field_category_assignments')) {
+        if (!Schema::hasTable('banks')) {
             return $rules;
         }
 
-        $requiredFieldKeys = ModuleFieldCategoryAssignment::query()
-            ->where('module_key', 'cash_banks')
-            ->whereNotNull('category_id')
-            ->where('is_visible', true)
-            ->where('is_required', true)
-            ->pluck('field_key');
+        $requiredFieldKeys = ModuleFieldSource::schemaFieldKeysForModule('cash_banks');
 
         foreach ($requiredFieldKeys as $fieldKey) {
             if (array_key_exists($fieldKey, $rules)) {

@@ -19,6 +19,7 @@ $isRiderInvoicesModule = ($moduleKey ?? '') === 'invoices';
 $riderInvoiceAccountTree = $riderInvoiceAccountTree ?? [];
 $riderInvoiceAssignments = $riderInvoiceAssignments ?? ['debit' => [], 'credit' => []];
 $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['admin', 'Administrator', 'Super Admin']);
+$moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 @endphp
 
 <div class="row">
@@ -298,12 +299,16 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                       if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
                       $inputOptions = (string) $row->input_config['options'];
                       }
+                      $isSchemaLocked = in_array($row->field_key, $moduleSchemaFieldKeys, true);
                       @endphp
                       <tr data-bike-field-key="{{ $row->field_key }}">
                         <td class="align-middle">{{ $rowIndex + 1 }}</td>
                         <td class="align-middle">
                           <span class="fw-semibold">{{ $fieldLabel }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
+                          @if($isSchemaLocked)
+                          <span class="badge bg-label-secondary ms-1">Database</span>
+                          @endif
                         </td>
                         <td class="align-middle">
                           <span class="badge bg-label-info">{{ $categoryLabel }}</span>
@@ -318,7 +323,8 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                               data-input-type="{{ $row->input_type }}"
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-visible-current="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
-                              {{ ($row->is_required ?? false) ? 'checked' : '' }}>
+                              {{ ($row->is_required ?? false) ? 'checked' : '' }}
+                              @if($isSchemaLocked) disabled title="Required for database columns" @endif>
                           </div>
                         </td>
                         <td class="align-middle text-center">
@@ -331,7 +337,8 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                               data-input-type="{{ $row->input_type }}"
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-required-current="{{ ($row->is_required ?? false) ? 1 : 0 }}"
-                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}>
+                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}
+                              @if($isSchemaLocked) disabled title="Always shown for database columns" @endif>
                           </div>
                         </td>
                         <td class="align-middle">
@@ -373,6 +380,7 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                             data-input-type="{{ $row->input_type ?? 'text' }}"
                             data-input-config-options='@json($fixedInputOptions)'
                             data-category-id="{{ $row->category_id ?? '' }}"
+                            data-schema-locked="{{ $isSchemaLocked ? '1' : '0' }}"
                             title="Edit fixed field">
                             <i class="ti ti-pencil"></i>
                           </button>
@@ -493,12 +501,16 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                       if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
                       $inputOptions = (string) $row->input_config['options'];
                       }
+                      $isSchemaLocked = in_array($row->field_key, $moduleSchemaFieldKeys, true);
                       @endphp
                       <tr data-bike-field-key="{{ $row->field_key }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle">
                           <span class="fw-semibold">{{ $fieldLabel }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
+                          @if($isSchemaLocked)
+                          <span class="badge bg-label-secondary ms-1">Database</span>
+                          @endif
                         </td>
                         <td class="align-middle text-center">
                           <div class="form-check form-switch d-inline-block mb-0">
@@ -510,7 +522,8 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                               data-input-type="{{ $row->input_type }}"
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-visible-current="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
-                              {{ ($row->is_required ?? false) ? 'checked' : '' }}>
+                              {{ ($row->is_required ?? false) ? 'checked' : '' }}
+                              @if($isSchemaLocked) disabled title="Required for database columns" @endif>
                           </div>
                         </td>
                         <td class="align-middle text-center">
@@ -523,7 +536,8 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                               data-input-type="{{ $row->input_type }}"
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-required-current="{{ ($row->is_required ?? false) ? 1 : 0 }}"
-                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}>
+                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}
+                              @if($isSchemaLocked) disabled title="Always shown for database columns" @endif>
                           </div>
                         </td>
                         <td class="align-middle">
@@ -563,6 +577,7 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                             data-input-type="{{ $row->input_type ?? 'text' }}"
                             data-input-config-options='@json($fixedInputOptions)'
                             data-category-id="{{ $row->category_id ?? '' }}"
+                            data-schema-locked="{{ $isSchemaLocked ? '1' : '0' }}"
                             title="Edit fixed field">
                             <i class="ti ti-pencil"></i>
                           </button>
@@ -1620,8 +1635,17 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
         catSelect.value = categoryId;
       }
 
-      document.getElementById('editBikeFixedIsVisible').checked = String(btn.dataset.isVisible) === '1';
-      document.getElementById('editBikeFixedIsRequired').checked = String(btn.dataset.isRequired) === '1';
+      const schemaLocked = String(btn.dataset.schemaLocked || '') === '1';
+      var visEl = document.getElementById('editBikeFixedIsVisible');
+      var reqEl = document.getElementById('editBikeFixedIsRequired');
+      if (visEl) {
+        visEl.checked = String(btn.dataset.isVisible) === '1';
+        visEl.disabled = schemaLocked;
+      }
+      if (reqEl) {
+        reqEl.checked = String(btn.dataset.isRequired) === '1';
+        reqEl.disabled = schemaLocked;
+      }
       document.getElementById('editBikeFixedInputType').value = btn.dataset.inputType || 'text';
 
       const configOptionsRaw = btn.dataset.inputConfigOptions;

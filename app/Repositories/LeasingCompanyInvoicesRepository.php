@@ -209,7 +209,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 
         // Validate required accounts exist
         $expenseAccountId = HeadAccount::LEASING_EXPENSE_ACCOUNT;
-        $vatAccountId = HeadAccount::TAX_ACCOUNT;
+        $vatAccountId = HeadAccount::VAT_PURCHASE_ACCOUNT;
 
         $expenseAccountExists = \App\Support\CompanyQuery::table('accounts')->where('id', $expenseAccountId)->whereNull('deleted_at')->exists();
         if (!$expenseAccountExists) {

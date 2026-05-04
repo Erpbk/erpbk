@@ -14,14 +14,15 @@ use Illuminate\Support\Facades\DB;
 use App\Traits\GlobalPagination;
 use App\Imports\FuelDataImport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Helpers\HeadAccount;
 
 
 class FuelDataController extends Controller
 {
     use GlobalPagination;
     /**
-    * Display a listing of the resource.
-    */
+     * Display a listing of the resource.
+     */
     public function index(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('fuel_view')) {
@@ -41,7 +42,7 @@ class FuelDataController extends Controller
             $query->where('billing_month', $request->billing_month);
         }
         if ($request->has('date') && !empty($request->date)) {
-            $query->whereDate('trans_date','=', $request->date);
+            $query->whereDate('trans_date', '=', $request->date);
         }
 
         // Apply pagination using the trait
@@ -63,8 +64,8 @@ class FuelDataController extends Controller
     }
 
     /**
-    * Show the form for creating a new resource.
-    */
+     * Show the form for creating a new resource.
+     */
     public function create()
     {
         if (!auth()->user()->hasPermissionTo('fuel_create')) {
@@ -80,13 +81,13 @@ class FuelDataController extends Controller
     public function store(Request $request)
     {
         // Validate the request
-        $request->validate( [
+        $request->validate([
             'trans_no' => 'required|string|max:255|unique:fuel_data,trans_no',
             'trans_date' => 'required|date',
             'auth_code' => 'required|string|max:255',
             'site' => 'required|string|max:255',
             'billing_month' => 'required|date_format:Y-m',
-            'bike_no' => 'required|string|exists:bikes,plate',
+            'bike_no' => 'nullable|string|exists:bikes,plate',
             'card_no' => 'required|string|exists:fuel_cards,card_number',
             'product' => 'required|string|max:255',
             'qty' => 'required|numeric|min:0.01',
@@ -103,14 +104,14 @@ class FuelDataController extends Controller
 
         $card = FuelCards::where('card_number', $request->card_no)->first();
         $bike = Bikes::where('plate', $request->bike_no)->first();
-        if(!$card) {
+        if (!$card) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid card number.'
             ], 400);
         }
         $rider = $card->findRiderForDate(Carbon::parse($request->trans_date)->format('Y-m-d'));
-        if(!$rider) {
+        if (!$rider) {
             return response()->json([
                 'success' => false,
                 'message' => 'No rider found for the selected card on the transaction date.'
@@ -124,7 +125,7 @@ class FuelDataController extends Controller
             $total = $request->total ?? ($subtotal + $request->vat_amount);
             $serviceCharges = $request->service_charges ?? 25; // Default service charge if not provided
 
-            
+
 
             // Create fuel transaction
             $fuelData = FuelData::create([
@@ -132,7 +133,7 @@ class FuelDataController extends Controller
                 'trans_date' => $request->trans_date,
                 'billing_month' => $request->billing_month . '-01', // Convert to first day of month
                 'rider_id' => $card->assigned_to,
-                'bike_no' => $bike->plate,
+                'bike_no' => $bike->plate ?? null,
                 'card_no' => $card->card_number,
                 'auth_code' => $request->auth_code,
                 'site' => $request->site,
@@ -144,8 +145,8 @@ class FuelDataController extends Controller
                 'total' => $total,
             ]);
             $transCode = \App\Helpers\Account::trans_code();
-            $serviceCharges = ($fuelData->service_charges == 0 || $fuelData->service_charges != $serviceCharges ) ? $serviceCharges : 0 ;
-            if($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges){
+            $serviceCharges = ($fuelData->service_charges == 0 || $fuelData->service_charges != $serviceCharges) ? $serviceCharges : 0;
+            if ($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges) {
                 $rider->transactions()->where('reference_type', 'fuel')
                     ->where('billing_month', $fuelData->billing_month)
                     ->where('narration', 'like', "%service charge%")
@@ -161,21 +162,20 @@ class FuelDataController extends Controller
                 'message' => 'Fuel Transaction added successfully.',
                 'reload' => true
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to add fuel transaction.' .$e->getMessage(),
+                'message' => 'Failed to add fuel transaction.' . $e->getMessage(),
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-    * Display the specified resource.
-    */
+     * Display the specified resource.
+     */
     public function show($company_slug, string $id)
     {
         $data = FuelData::find($id);
@@ -184,18 +184,18 @@ class FuelDataController extends Controller
     }
 
     /**
-    * Display the specified resource.
-    */
+     * Display the specified resource.
+     */
     public function show2($company_slug, $rider_id, $billing_month)
     {
-        $data = FuelData::where('rider_id' ,$rider_id)->where('billing_month', $billing_month)->first();
+        $data = FuelData::where('rider_id', $rider_id)->where('billing_month', $billing_month)->first();
         $summary = $data->getMonthlySummary();
         return view('fuel_data.show', compact('summary'));
     }
 
     /**
-    * Show the form for editing the specified resource.
-    */
+     * Show the form for editing the specified resource.
+     */
 
     public function monthlySummary(Request $request)
     {
@@ -212,10 +212,10 @@ class FuelDataController extends Controller
             DB::raw('MIN(trans_date) as first_transaction'),
             DB::raw('MAX(trans_date) as last_transaction')
         )
-        ->with('rider')
-        ->groupBy('inv_id', 'rider_id', 'billing_month')
-        ->orderBy('billing_month', 'desc');
-        if($request->has('billing_month') && !empty($request->billing_month)) {
+            ->with('rider')
+            ->groupBy('inv_id', 'rider_id', 'billing_month')
+            ->orderBy('billing_month', 'desc');
+        if ($request->has('billing_month') && !empty($request->billing_month)) {
             $query->whereDate('billing_month', $request->billing_month . '-01');
         }
         $summaries = $query->get();
@@ -224,8 +224,8 @@ class FuelDataController extends Controller
     }
 
     /**
-    * Show the form for editing the specified resource.
-    */
+     * Show the form for editing the specified resource.
+     */
     public function edit($company_slug, string $id)
     {
         if (!auth()->user()->hasPermissionTo('fuel_create')) {
@@ -236,13 +236,13 @@ class FuelDataController extends Controller
     }
 
     /**
-    * Update the specified resource in storage.
-    */
+     * Update the specified resource in storage.
+     */
     public function update(Request $request, $company_slug, string $id)
     {
         // Validate the request
-        $request->validate( [
-            'trans_no' => 'required|string|max:255|unique:fuel_data,trans_no,'.$id,
+        $request->validate([
+            'trans_no' => 'required|string|max:255|unique:fuel_data,trans_no,' . $id,
             'trans_date' => 'required|date',
             'auth_code' => 'required|string|max:255',
             'site' => 'required|string|max:255',
@@ -271,14 +271,14 @@ class FuelDataController extends Controller
                 'message' => 'Fuel transaction not found.'
             ], 404);
         }
-        if(!$card) {
+        if (!$card) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid card number.'
             ], 400);
         }
         $rider = $card->findRiderForDate(Carbon::parse($request->trans_date)->format('Y-m-d'));
-        if(!$rider) {
+        if (!$rider) {
             return response()->json([
                 'success' => false,
                 'message' => 'No rider found for the selected card on the transaction date.'
@@ -297,9 +297,9 @@ class FuelDataController extends Controller
             $serviceCharges = $request->service_charges ?? 25; // Default service charge if not provided
 
             $fuelData->fill($request->all());
-            if($fuelData->isDirty()){
+            if ($fuelData->isDirty()) {
                 $fuelData->save();
-            }else{
+            } else {
                 return response()->json([
                     'success' => true,
                     'message' => 'No changes detected to update.',
@@ -311,8 +311,8 @@ class FuelDataController extends Controller
                 ->where('reference_type', 'fuel')
                 ->delete();
             $transCode = \App\Helpers\Account::trans_code();
-            $serviceCharges = ($fuelData->service_charges == 0 || $fuelData->service_charges != $serviceCharges ) ? $serviceCharges : 0 ;
-            if($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges){
+            $serviceCharges = ($fuelData->service_charges == 0 || $fuelData->service_charges != $serviceCharges) ? $serviceCharges : 0;
+            if ($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges) {
                 $rider->transactions()->where('reference_type', 'fuel')
                     ->where('billing_month', $fuelData->billing_month)
                     ->where('narration', 'like', "%service charge%")
@@ -328,21 +328,20 @@ class FuelDataController extends Controller
                 'message' => 'Fuel Transaction added successfully.',
                 'reload' => true
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to add fuel transaction.' .$e->getMessage(),
+                'message' => 'Failed to add fuel transaction.' . $e->getMessage(),
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-    * Remove the specified resource from storage.
-    */
+     * Remove the specified resource from storage.
+     */
     public function destroy($company_slug, string $id)
     {
         // Check permission
@@ -352,12 +351,12 @@ class FuelDataController extends Controller
                 'message' => 'You do not have permission to delete fuel transactions.'
             ], 403);
         }
-        
+
         try {
             DB::beginTransaction();
-            
+
             $fuelData = FuelData::find($id);
-            
+
             if (!$fuelData) {
                 return response()->json([
                     'success' => false,
@@ -367,7 +366,7 @@ class FuelDataController extends Controller
             $rider = $fuelData->rider;
             $billingMonth = $fuelData->billing_month;
             $tranactionCount = $rider->transactions()->where('reference_type', 'fuel')->where('billing_month', $fuelData->billing_month)->count();
-            if($tranactionCount == 1){
+            if ($tranactionCount == 1) {
                 $rider->transactions()->where('reference_type', 'fuel')
                     ->where('billing_month', $billingMonth)
                     ->where('narration', 'like', "%service charge%")
@@ -377,21 +376,20 @@ class FuelDataController extends Controller
             Transactions::where('reference_id', $fuelData->id)
                 ->where('reference_type', 'fuel')
                 ->delete();
-            
+
             // Delete the fuel transaction
             $fuelData->delete();
-            
+
             DB::commit();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Fuel transaction deleted successfully.',
                 'reload' => true
             ], 200);
-            
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete fuel transaction: ' . $e->getMessage(),
@@ -403,16 +401,28 @@ class FuelDataController extends Controller
     private function recordTransaction($riderAccountId, $branch_id, $fuelData, $transCode, $serviceCharges)
     {
         //debit service charges to rider account if not already debited
-        if($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges) {
+        if ($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges) {
             Transactions::create([
                 'account_id' => $riderAccountId,
                 'reference_id' => $fuelData->id,
                 'reference_type' => 'fuel',
                 'trans_code' => $transCode,
                 'trans_date' => $fuelData->trans_date->format('Y-m-d'),
-                'narration' => 'Fuel Purchased',
-                'debit' => $fuelData->total,
+                'narration' => 'Monthly service charges for fuel transactions',
+                'debit' => 25,
                 'credit' => 0,
+                'billing_month' => $fuelData->billing_month,
+                'branch_id' => $branch_id,
+            ]);
+            Transactions::create([
+                'account_id' => HeadAccount::FUEL_ADMIN_CHARGES,
+                'reference_id' => $fuelData->id,
+                'reference_type' => 'fuel',
+                'trans_code' => $transCode,
+                'trans_date' => $fuelData->trans_date->format('Y-m-d'),
+                'narration' => 'Fuel Service Charges',
+                'debit' => 0,
+                'credit' => 25,
                 'billing_month' => $fuelData->billing_month,
                 'branch_id' => $branch_id,
             ]);
@@ -433,7 +443,7 @@ class FuelDataController extends Controller
 
         // Credit fuel account
         Transactions::create([
-            'account_id' => 1097, // dummy account, need to change dynamically for every company
+            'account_id' => $fuelData->card->fuelCompany->account_id,
             'reference_id' => $fuelData->id,
             'reference_type' => 'fuel',
             'trans_code' => $transCode,
@@ -443,12 +453,12 @@ class FuelDataController extends Controller
             'credit' => $fuelData->total,
             'billing_month' => $fuelData->billing_month,
             'branch_id' => $branch_id,
-         ]);
+        ]);
 
-         // Add entry for VAT if applicable
-         if ($fuelData->vat_amount > 0) {
+        // Add entry for VAT if applicable
+        if ($fuelData->vat_amount > 0) {
             Transactions::create([
-                'account_id' => 1023, // dummy VAT account, need to change dynamically for every company
+                'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
                 'reference_id' => $fuelData->id,
                 'reference_type' => 'fuel',
                 'trans_code' => $transCode,
@@ -458,42 +468,41 @@ class FuelDataController extends Controller
                 'credit' => 0,
                 'billing_month' => $fuelData->billing_month,
                 'branch_id' => $branch_id,
-             ]);
-         }
+            ]);
+        }
     }
 
     public function import(Request $request)
     {
-        if($request->isMethod('get')) {
+        if ($request->isMethod('get')) {
             return view('fuel_data.import');
         }
-        
+
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
         ]);
 
         try {
             $import = new FuelDataImport();
-            
+
             Excel::import($import, $request->file('file'));
-            
+
             $result = [
                 'success_count' => $import->getSuccessCount(),
                 'failed_count' => count($import->getFailedRows()),
                 'total_rows' => $import->getTotalRows(),
                 'failed_rows' => $import->getFailedRows()
             ];
-            
+
             // Return JSON response for AJAX
             return response()->json([
                 'success' => true,
                 'message' => 'Import completed successfully',
                 'data' => $result
             ]);
-            
         } catch (\Exception $e) {
             \Log::error('Import error: ' . $e->getMessage());
-            
+
             // Return JSON error for AJAX
             return response()->json([
                 'success' => false,
@@ -535,11 +544,11 @@ class FuelDataController extends Controller
             'Employee',
             'Remarks'
         ];
-        
-        $callback = function() use ($headers) {
+
+        $callback = function () use ($headers) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $headers);
-            
+
             // Sample data
             fputcsv($file, [
                 '321433001',
@@ -569,10 +578,10 @@ class FuelDataController extends Controller
                 'John Doe',
                 'Sample remark'
             ]);
-            
+
             fclose($file);
         };
-        
+
         return response()->stream($callback, 200, [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="fuel_data_import_template.csv"'

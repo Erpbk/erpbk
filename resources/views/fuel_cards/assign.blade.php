@@ -1,4 +1,3 @@
-
 {!! Form::model($fuelCard, ['url' => route('fuelCards.assign', $fuelCard->id), 'method' => 'post','id'=>'formajax']) !!}
 
 <div class="card-body">
@@ -14,18 +13,15 @@
             {!! Form::label('assigned_to', 'Assign To:') !!}
             <select name="assigned_to" class="form-control account-select select2">
                 <option value="">Select</option>
-                @foreach(\App\Models\Bikes::where('status', 1)->whereNotNull('rider_id')->get() as $bike)
-                @php
-                    $bike->load('rider');
-                @endphp
-                <option value="{{ $bike->rider->id }}" 
-                    {{ old('assigned_to', isset($fuelCard) ? $fuelCard->assigned_to : '') == $bike->rider->id ? 'selected' : '' }}>
-                    {{ 'Bike: '.$bike->plate.', Rider: '. ($bike->rider?->name ?? 'N/A') }}
+                @foreach(\App\Models\Riders::where('status', 1)->get() as $rider)
+                <option value="{{ $rider->id }}"
+                    {{ old('assigned_to', isset($fuelCard) ? $fuelCard->assigned_to : '') == $rider->id ? 'selected' : '' }}>
+                    {{ 'Rider: '. ($rider?->name ?? 'N/A') }}
                 </option>
                 @endforeach
             </select>
         </div>
-        
+
         <div class="form-group col-md-6">
             <label for="assign_date">Assign Date</label>
             <input type="date" name="assign_date" class="form-control">
@@ -39,7 +35,7 @@
 </div>
 
 <div class="action-btn pt-3">
-    <button type="button" class="btn btn-default"  data-bs-dismiss="modal">Cancel</button>
+    <button type="button" class="btn btn-default" data-bs-dismiss="modal">Cancel</button>
     {!! Form::submit('Save', ['class' => 'btn btn-primary']) !!}
 
 </div>
@@ -47,14 +43,10 @@
 {!! Form::close() !!}
 
 <script type="text/javascript">
-
-$(document).ready(function () {
-    $('.select2').select2({
-        dropdownParent: $('#formajax'),
-        allowClear: true
+    $(document).ready(function() {
+        $('.select2').select2({
+            dropdownParent: $('#formajax'),
+            allowClear: true
+        });
     });
-});
 </script>
-
-
-

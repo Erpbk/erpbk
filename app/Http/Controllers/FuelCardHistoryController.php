@@ -13,11 +13,11 @@ class FuelCardHistoryController extends Controller
 
     public function assign(Request $request, $company_slug, $id)
     {
-        if(!auth()->user()->hasPermissionTo('fuel_assign')) {
+        if (!auth()->user()->hasPermissionTo('fuel_assign')) {
             abort(403, 'Unauthorized action.');
         }
 
-        if($request->isMethod('get')){
+        if ($request->isMethod('get')) {
 
             $fuelCard = FuelCards::find($id);
             if (!$fuelCard) {
@@ -35,7 +35,7 @@ class FuelCardHistoryController extends Controller
         $request->validate([
             'assigned_to' => 'required|integer|exists:riders,id',
             'assign_date' => 'required|date',
-            'note'=> 'nullable|string',
+            'note' => 'nullable|string',
         ]);
         DB::beginTransaction();
         try {
@@ -44,12 +44,12 @@ class FuelCardHistoryController extends Controller
                 'assigned_to' => $request['assigned_to'],
                 'assigned_by' => auth()->id(),
                 'assign_date' => $request['assign_date'],
-                'note'=> $request['note'],
+                'note' => $request['note'],
             ]);
             $rider = \App\Models\Riders::find($request['assigned_to']);
             $fuelCard->assigned_to = $request['assigned_to'];
             $fuelCard->branch_id = $rider->branch_id;
-            $fuelCard->bike_no = $rider->bikes->id;
+            $fuelCard->bike_no = $rider->bikes->id ?? null;
             $fuelCard->status = 'Active';
             $fuelCard->save();
             DB::commit();
@@ -71,11 +71,11 @@ class FuelCardHistoryController extends Controller
 
     public function return(Request $request, $company_slug, $id)
     {
-        if(!auth()->user()->hasPermissionTo('fuel_assign')) {
+        if (!auth()->user()->hasPermissionTo('fuel_assign')) {
             abort(403, 'Unauthorized action.');
         }
 
-        if($request->isMethod('get')){
+        if ($request->isMethod('get')) {
 
             $fuelCard = FuelCards::find($id);
             if (!$fuelCard) {
@@ -91,7 +91,7 @@ class FuelCardHistoryController extends Controller
 
         $request->validate([
             'return_date' => 'required|date',
-            'note'=> 'nullable|string',
+            'note' => 'nullable|string',
         ]);
         DB::beginTransaction();
         try {
@@ -131,18 +131,18 @@ class FuelCardHistoryController extends Controller
 
     public function updateAssignment(Request $request, $company_slug, $id)
     {
-        if(!auth()->user()->hasPermissionTo('fuel_assign')) {
+        if (!auth()->user()->hasPermissionTo('fuel_assign')) {
             abort(403, 'Unauthorized action.');
         }
 
         $fuelCard = FuelCards::find($id);
-        if(!$fuelCard){
+        if (!$fuelCard) {
             return response()->json(['message' => 'Card Not Found']);
         }
 
-        if($request->isMethod('get')){
+        if ($request->isMethod('get')) {
             return view('fuel_cards.update_assignment', compact('fuelCard'));
-        }else {
+        } else {
             $request->validate([
                 'attachment' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
             ]);
@@ -152,12 +152,11 @@ class FuelCardHistoryController extends Controller
             $fuelCard->attachment = $path;
             $fuelCard->bike_no = $fuelCard->rider->bikes->plate;
             $fuelCard->save();
-            if($request->ajax()) {
-                return response()->json(['message' => 'Action Performed Successfully' , 'reload' => true]);
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Action Performed Successfully', 'reload' => true]);
             }
             Flash::success('Action Performed Successfully');
             return redirect()->back();
         }
-
     }
 }

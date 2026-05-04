@@ -49,9 +49,13 @@ class SupplierInvoicesController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = SupplierInvoices::query()
             ->where('is_invoice', true)
+            ->with(['supplier', 'garage'])
             ->orderBy('id', 'asc');
 
         $query->whereHas('supplier');
+        if ($request->filled('garage_id')) {
+            $query->where('garage_id', $request->garage_id);
+        }
         if ($request->has('inv_id') && !empty($request->inv_id)) {
             $query->where('inv_id', 'like', '%' . $request->inv_id . '%');
         }
@@ -139,7 +143,7 @@ class SupplierInvoicesController extends AppBaseController
             Flash::error('Supplier Invoice not found');
             return redirect(route('supplier_invoices.index'));
         }
-        $supplierInvoice->load(['supplier','createdBy','updatedBy']);
+        $supplierInvoice->load(['supplier', 'garage', 'createdBy', 'updatedBy']);
 
         if(request()->input('order'))
             return view('supplier_invoices.showOrder')->with('supplierInvoice', $supplierInvoice);
@@ -353,9 +357,13 @@ class SupplierInvoicesController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = SupplierInvoices::query()
             ->where('is_order', true)
+            ->with(['supplier', 'garage'])
             ->orderBy('id', 'asc');
 
         $query->whereHas('supplier');
+        if ($request->filled('garage_id')) {
+            $query->where('garage_id', $request->garage_id);
+        }
         if ($request->has('inv_id') && !empty($request->inv_id)) {
             $query->where('inv_id', 'like', '%' . $request->inv_id . '%');
         }

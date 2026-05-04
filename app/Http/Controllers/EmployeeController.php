@@ -32,8 +32,8 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
-        $accounts = \App\Models\Accounts::where('ref_name','Rider')->get();
-        $empId = 'EMP-'.( (Employee::latest()->first()->id ?? 0) + 1001);
+        $accounts = \App\Models\Accounts::where('ref_name', 'Rider')->get();
+        $empId = 'EMP-' . ((Employee::latest()->first()->id ?? 0) + 1001);
         return view('employees.create', compact('nationalities', 'branches', 'departments', 'accounts', 'empId'));
     }
 
@@ -88,17 +88,17 @@ class EmployeeController extends Controller
             // Create employee
             $employee = Employee::create($validated);
 
-            
+
 
             // Handle account creation or linking
             if ($request->account === 'new') {
                 // Create new account
                 $account = Accounts::create([
                     'name' => $employee->name, // Use employee name as account name
-                    'account_code' => 'EMP'.($employee->id+1000),
+                    'account_code' => 'EMP' . ($employee->id + 1000),
                     'ref_name' => 'employee',
                     'ref_id' => $employee->id,
-                    'account_type' =>'Liability',
+                    'account_type' => 'Liability',
                     'parent_id' => '1', // Rider salaries payable account, for now we are hardcoding it, but ideally this should be configurable
                     'created_by' => auth()->id(),
                     'branch_id' => $employee->branch_id,
@@ -110,7 +110,7 @@ class EmployeeController extends Controller
                 $account = Accounts::find($request->account_id);
                 $account->update([
                     'name' => $employee->name,
-                    'account_code' => 'EMP'.($employee->id+1000),
+                    'account_code' => 'EMP' . ($employee->id + 1000),
                     'ref_name' => 'employee',
                     'ref_id' => $employee->id,
                     'updated_by' => auth()->id(),
@@ -123,15 +123,14 @@ class EmployeeController extends Controller
             // Check if request is AJAX
             if (request()->ajax()) {
                 return response()->json([
-                'success' => true,
-                'message' => 'Employee created successfully!',
-                'redirect' => route('employees.index')
-                ],200);
+                    'success' => true,
+                    'message' => 'Employee created successfully!',
+                    'redirect' => route('employees.index')
+                ], 200);
             }
 
             Flash::success('Rider created successfully.');
             return redirect(route('employees.index'));
-
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -143,15 +142,15 @@ class EmployeeController extends Controller
             // Log the error
             \Log::error('Employee creation failed: ' . $e->getMessage());
 
-            if(request()->ajax()){
+            if (request()->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to create employee. Please try again. Error:'.$e->getMessage(),
-                ],500);
+                    'message' => 'Failed to create employee. Please try again. Error:' . $e->getMessage(),
+                ], 500);
             }
             // Redirect back with error
-            Flash::error('Failed to create employee. Please try again. Error:'.$e->getMessage());
-            return redirect() ->back() ->withInput();
+            Flash::error('Failed to create employee. Please try again. Error:' . $e->getMessage());
+            return redirect()->back()->withInput();
         }
     }
 
@@ -174,19 +173,19 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
-        return view('employees.edit', compact('employee','nationalities', 'branches', 'departments'));
+        return view('employees.edit', compact('employee', 'nationalities', 'branches', 'departments'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request,$comapny_slug, Employee $employee)
+    public function update(Request $request, $comapny_slug, Employee $employee)
     {
         $validated = $request->validate([
             'employee_id' => 'required|string',
             'name' => 'required|string|max:255',
-            'company_email' => 'required|email|unique:employees,company_email,'.$employee->id,
-            'personal_email' => 'required|email|unique:employees,personal_email,'.$employee->id,
+            'company_email' => 'required|email|unique:employees,company_email,' . $employee->id,
+            'personal_email' => 'required|email|unique:employees,personal_email,' . $employee->id,
             'personal_contact' => 'nullable|string|max:20',
             'company_contact' => 'nullable|string|max:20',
             'emergency_contact' => 'nullable|string|max:20',
@@ -216,18 +215,18 @@ class EmployeeController extends Controller
             if ($employee->profile_image) {
                 Storage::disk('public')->delete($employee->profile_image);
             }
-            
+
             $imagePath = $request->file('profile_image')->store('employees/profile', 'public');
             $validated['profile_image'] = $imagePath;
         }
         $validated['updated_by'] = auth()->id();
         $employee->update($validated);
-        if(request()->ajax()){
+        if (request()->ajax()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Employee updated successfully!',
                 'redirect' => route('employees.index')
-            ],200);
+            ], 200);
         }
         Flash::success('Employee updated successfully.');
         return redirect()->route('employees.index');
@@ -238,11 +237,11 @@ class EmployeeController extends Controller
      */
     public function destroy($comapny_slug, Employee $employee)
     {
-        if(Transactions::where('account_id', $employee->account_id)->count() > 0){
+        if (Transactions::where('account_id', $employee->account_id)->count() > 0) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cannot delete employee with existing financial transactions. Please remove related transactions first.',
-            ],400);
+            ], 400);
         }
 
         // Delete profile image
@@ -255,13 +254,13 @@ class EmployeeController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Employee deleted successfully!',
-        ],200);
+        ], 200);
     }
 
     public function ledger($comapny_slug, $id, LedgerDataTable $ledgerDataTable)
     {
         $employee = Employee::findOrFail($id);
-        if(empty($employee) || !in_array($employee->branch_id, app('user_branches'))){
+        if (empty($employee) || !in_array($employee->branch_id, app('user_branches'))) {
             Flash::error('Employee not Found');
             return redirect(route('employees.index'));
         }
@@ -269,11 +268,11 @@ class EmployeeController extends Controller
         return $ledgerDataTable->with(['account_id' => $account])->render('employees.ledger', compact('employee'));
     }
 
-    public function updateSection(Request $request,$comapny_slug,  $id)
+    public function updateSection(Request $request, $comapny_slug,  $id)
     {
         $employee = Employee::findOrFail($id);
         $section = $request->input('section');
-        
+
         // Validate section exists
         $validSections = ['personal', 'employment', 'documents', 'notes', 'photo'];
         if (!in_array($section, $validSections)) {
@@ -282,13 +281,13 @@ class EmployeeController extends Controller
                 'message' => 'Invalid section specified'
             ], 400);
         }
-        
+
         // Get validation rules
         $rules = $this->getSectionRules($section);
-        
+
         // Create validator
         $validator = Validator::make($request->all(), $rules);
-        
+
         if ($validator->fails()) {
             \Log::error('Employee section update validation failed', [
                 'employee_id' => $employee->id,
@@ -301,27 +300,27 @@ class EmployeeController extends Controller
             ], 422);
         }
 
-        if($section == 'photo' && $request->hasFile('profile_image')) {
+        if ($section == 'photo' && $request->hasFile('profile_image')) {
             // Handle file upload
             if ($employee->profile_image) {
                 Storage::disk('public')->delete($employee->profile_image);
             }
-            
+
             $imagePath = $request->file('profile_image')->store('employees/profile', 'public');
             $employee->profile_image = $imagePath;
             $employee->save();
-             return response()->json([
+            return response()->json([
                 'success' => true,
                 'message' => 'Profile photo updated successfully',
                 'data' => $employee,
                 'image_url' => Storage::url($imagePath)
             ]);
         }
-        
+
         // Update employee
         $employee->update($request->all());
         $employee->refresh();
-        
+
         return response()->json([
             'success' => true,
             'message' => ucfirst($section) . ' information updated successfully',
@@ -342,7 +341,7 @@ class EmployeeController extends Controller
                     'emergency_contact' => 'nullable|string|max:20',
                     'address' => 'nullable|string'
                 ];
-                
+
             case 'employment':
                 return [
                     'department_id' => 'required|exists:departments,id',
@@ -353,7 +352,7 @@ class EmployeeController extends Controller
                     'company_email' => 'nullable|email|max:255',
                     'company_contact' => 'nullable|string|max:20'
                 ];
-                
+
             case 'documents':
                 return [
                     'emirate_id' => 'nullable|string|max:50',
@@ -364,17 +363,17 @@ class EmployeeController extends Controller
                     'passport_expiry' => 'nullable|date',
                     'visa_expiry' => 'nullable|date'
                 ];
-                
+
             case 'notes':
                 return [
                     'notes' => 'nullable|string'
                 ];
-                
+
             case 'photo':
                 return [
                     'profile_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'
                 ];
-                
+
             default:
                 return [];
         }
@@ -407,7 +406,6 @@ class EmployeeController extends Controller
                 'success' => true,
                 'message' => 'Employee status updated successfully',
             ]);
-
         } catch (\Exception $e) {
             \Log::error('Failed to update employee status', [
                 'employee_id' => $request->employee_id,

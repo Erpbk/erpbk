@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Traits\LogsActivity;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LeasingCompanyBillingInvoice extends BaseModel
@@ -14,11 +13,11 @@ class LeasingCompanyBillingInvoice extends BaseModel
 
     public $fillable = [
         'inv_date',
-        'leasing_company_id',
+        'customer_id',
         'billing_month',
         'invoice_number',
         'reference_number',
-        'leasing_company_invoice_number',
+        'customer_invoice_number',
         'descriptions',
         'subtotal',
         'vat',
@@ -32,7 +31,7 @@ class LeasingCompanyBillingInvoice extends BaseModel
     protected $casts = [
         'inv_date' => 'date',
         'billing_month' => 'date',
-        'leasing_company_invoice_number' => 'string',
+        'customer_invoice_number' => 'string',
         'attachment' => 'string',
         'subtotal' => 'decimal:2',
         'vat' => 'decimal:2',
@@ -45,11 +44,11 @@ class LeasingCompanyBillingInvoice extends BaseModel
 
     public static array $rules = [
         'inv_date' => 'required|date',
-        'leasing_company_id' => 'required|exists:leasing_companies,id',
+        'customer_id' => 'required|exists:bike_rent_companies,id',
         'billing_month' => 'required|date',
         'invoice_number' => 'nullable|string|max:255',
         'reference_number' => 'required|string|max:255',
-        'leasing_company_invoice_number' => 'required|string|max:255',
+        'customer_invoice_number' => 'nullable|string|max:255',
         'descriptions' => 'nullable|string',
         'notes' => 'nullable|string',
         'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
@@ -57,9 +56,9 @@ class LeasingCompanyBillingInvoice extends BaseModel
         'partial_paid_amount' => 'nullable|array',
     ];
 
-    public function leasingCompany()
+    public function customer()
     {
-        return $this->belongsTo(LeasingCompanies::class, 'leasing_company_id');
+        return $this->belongsTo(BikeRentCompany::class, 'customer_id');
     }
 
     public function items()
@@ -79,14 +78,9 @@ class LeasingCompanyBillingInvoice extends BaseModel
 
     public static function getIdFromInvoiceNumber($invoiceNumber)
     {
-        // Remove the prefix 'CI-' and get the numeric part
         $numericPart = str_replace('LBI-', '', $invoiceNumber);
-        
-        // Remove leading zeros and convert to integer
         $id = (int) ltrim($numericPart, '0');
-        
-        // Verify the invoice exists
+
         return self::where('id', $id)->exists() ? $id : null;
     }
 }
-

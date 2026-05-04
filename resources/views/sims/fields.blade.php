@@ -4,23 +4,6 @@
     {!! Form::text('number', old('number', $sims->number ?? ''), ['class' => 'form-control', 'readonly' => isset($sims) ]) !!}
 </div>
 
-<!-- Company Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('company', 'Company:') !!}
-    @php
-        $companies  = DB::table('sims')
-            ->whereNotNull('company')
-            ->select('company')
-            ->distinct()
-            ->pluck('company');
-        @endphp
-    {!! Form::text('company', $sims->company ?? '', ['class' => 'form-control select2', 'list' => 'companies-list', 'autocomplete' => 'off']) !!}
-    <datalist id="companies-list">
-        @foreach($companies as $company)
-            <option value="{{ $company }}">
-        @endforeach
-    </datalist>
-</div>
 
 {{-- <!-- Assign To Field -->
 <!-- Created By Field -->
@@ -55,13 +38,12 @@
 
 <!-- Vendor Field -->
 <div class="form-group col-sm-6">
-    {!! Form::label('vendor', 'Vendor:') !!}
-    {!! Form::select('vendor', \App\Models\Vendors::dropdown(), old('vendor', $sims->vendor ?? ''), ['class' => 'form-control select2']) !!}
+    {!! Form::label('company', 'Company:') !!}
+    {!! Form::select('vendor', \App\Models\SimCompany::dropdown(), old('vendor', $sims->vendor ?? ''), ['class' => 'form-control select2']) !!}
 </div>
 
 <!-- Branch Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('branch_id', 'Branch:',['class'=>'required']) !!}
-    {!! Form::select('branch_id', App\Models\Branch::dropdown(),null, ['class' => 'form-select select2', 'required']) !!}
+    {!! Form::select('branch_id', auth()->user()->branchDropdown(),null, ['class' => 'form-select select2']) !!}
 </div>
-

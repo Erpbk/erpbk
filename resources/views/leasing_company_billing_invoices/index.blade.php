@@ -49,14 +49,14 @@
         <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
     <div class="filter-body" id="searchTopbody">
-        <form id="filterForm" action="{{ route('leasingCompanyInvoices.index') }}" method="GET">
+        <form id="filterForm" action="{{ route('leasingCompanyBillingInvoices.index') }}" method="GET">
             <div class="row">
                 <div class="form-group col-md-12">
-                    <label for="leasing_company_id">Filter by Leasing Company</label>
-                    <select class="form-control" id="leasing_company_id" name="leasing_company_id">
+                    <label for="customer_id">Filter by customer</label>
+                    <select class="form-control" id="customer_id" name="customer_id">
                         <option value="" selected>Select</option>
-                        @foreach($leasingCompanies as $company)
-                        <option value="{{ $company->id }}" {{ request('leasing_company_id') == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
+                        @foreach($bikeRentCustomers as $company)
+                        <option value="{{ $company->id }}" {{ request('customer_id') == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -101,9 +101,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script type="text/javascript">
     $(document).ready(function() {
-        $('#leasing_company_id').select2({
+        $('#customer_id').select2({
             dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Leasing Company",
+            placeholder: "Filter by customer",
             allowClear: true,
         });
         $('#status').select2({

@@ -19,6 +19,7 @@ $isRiderInvoicesModule = ($moduleKey ?? '') === 'invoices';
 $riderInvoiceAccountTree = $riderInvoiceAccountTree ?? [];
 $riderInvoiceAssignments = $riderInvoiceAssignments ?? ['debit' => [], 'credit' => []];
 $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['admin', 'Administrator', 'Super Admin']);
+$moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 @endphp
 
 <div class="row">
@@ -276,7 +277,7 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                   <table class="table table-hover bike-settings-table mb-0">
                     <thead class="table-light">
                       <tr>
-                        <th style="width: 60px;">#</th>
+                        <th style="width: 48px;" class="text-center" title="{{ __('Drag to reorder') }}"></th>
                         <th>Field</th>
                         <th>Current category</th>
                         <th class="text-center">Required</th>
@@ -285,11 +286,12 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                         <th class="text-end">Actions</th>
                       </tr>
                     </thead>
-                    <tbody>
                       @php
                       $fixedList = $fixedAssignments ?? collect();
                       $fixedOffset = 0;
                       @endphp
+                      @if($fixedList->isNotEmpty())
+                    <tbody class="bike-fields-all-fixed-sortable-tbody">
                       @foreach($fixedList as $rowIndex => $row)
                       @php
                       $fieldLabel = $row->display_label ? $row->display_label : \App\Models\BikeCustomField::humanizeFieldKey($row->field_key);
@@ -298,12 +300,16 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                       if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
                       $inputOptions = (string) $row->input_config['options'];
                       }
+                      $isSchemaLocked = in_array($row->field_key, $moduleSchemaFieldKeys, true);
                       @endphp
                       <tr data-bike-field-key="{{ $row->field_key }}">
-                        <td class="align-middle">{{ $rowIndex + 1 }}</td>
+                        <td class="align-middle"><span class="drag-handle cursor-grab text-muted" title="{{ __('Drag to reorder') }}"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle">
                           <span class="fw-semibold">{{ $fieldLabel }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
+                          @if($isSchemaLocked)
+                          <span class="badge bg-label-secondary ms-1">Database</span>
+                          @endif
                         </td>
                         <td class="align-middle">
                           <span class="badge bg-label-info">{{ $categoryLabel }}</span>
@@ -318,7 +324,8 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                               data-input-type="{{ $row->input_type }}"
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-visible-current="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
-                              {{ ($row->is_required ?? false) ? 'checked' : '' }}>
+                              {{ ($row->is_required ?? false) ? 'checked' : '' }}
+                              title="Require this value when the field is shown on add/edit forms">
                           </div>
                         </td>
                         <td class="align-middle text-center">
@@ -331,7 +338,8 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                               data-input-type="{{ $row->input_type }}"
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-required-current="{{ ($row->is_required ?? false) ? 1 : 0 }}"
-                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}>
+                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}
+                              title="Show this field on add/edit forms when checked">
                           </div>
                         </td>
                         <td class="align-middle">
@@ -373,22 +381,26 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                             data-input-type="{{ $row->input_type ?? 'text' }}"
                             data-input-config-options='@json($fixedInputOptions)'
                             data-category-id="{{ $row->category_id ?? '' }}"
+                            data-schema-locked="{{ $isSchemaLocked ? '1' : '0' }}"
                             title="Edit fixed field">
                             <i class="ti ti-pencil"></i>
                           </button>
                         </td>
                       </tr>
                       @endforeach
+                    </tbody>
+                      @endif
 
-                      @php $customStart = count($fixedList); @endphp
+                      @if(($customFields ?? collect())->isNotEmpty())
+                    <tbody class="bike-fields-all-custom-sortable-tbody">
                       @foreach(($customFields ?? collect()) as $customIndex => $customField)
                       @php
                       $cat = $customField->category;
                       $catLabel = $cat?->label ?? 'Unassigned';
                       $isReq = (bool) ($customField->is_mandatory ?? false);
                       @endphp
-                      <tr class="table-light">
-                        <td class="align-middle">{{ $customStart + $customIndex + 1 }}</td>
+                      <tr class="table-light" data-custom-field-id="{{ $customField->id }}">
+                        <td class="align-middle"><span class="drag-handle cursor-grab text-muted" title="{{ __('Drag to reorder') }}"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle">
                           <span class="fw-semibold">{{ $customField->label }}</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
@@ -453,12 +465,15 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                         </td>
                       </tr>
                       @endforeach
+                    </tbody>
+                      @endif
                       @if(($fixedList ?? collect())->isEmpty() && ($customFields ?? collect())->isEmpty())
+                    <tbody>
                       <tr>
                         <td colspan="7" class="text-center text-muted py-3">No bike fields configured yet.</td>
                       </tr>
-                      @endif
                     </tbody>
+                      @endif
                   </table>
                 </div>
               </div>
@@ -493,12 +508,16 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                       if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
                       $inputOptions = (string) $row->input_config['options'];
                       }
+                      $isSchemaLocked = in_array($row->field_key, $moduleSchemaFieldKeys, true);
                       @endphp
                       <tr data-bike-field-key="{{ $row->field_key }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>
                         <td class="align-middle">
                           <span class="fw-semibold">{{ $fieldLabel }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
+                          @if($isSchemaLocked)
+                          <span class="badge bg-label-secondary ms-1">Database</span>
+                          @endif
                         </td>
                         <td class="align-middle text-center">
                           <div class="form-check form-switch d-inline-block mb-0">
@@ -510,7 +529,8 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                               data-input-type="{{ $row->input_type }}"
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-visible-current="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
-                              {{ ($row->is_required ?? false) ? 'checked' : '' }}>
+                              {{ ($row->is_required ?? false) ? 'checked' : '' }}
+                              title="Require this value when the field is shown on add/edit forms">
                           </div>
                         </td>
                         <td class="align-middle text-center">
@@ -523,7 +543,8 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                               data-input-type="{{ $row->input_type }}"
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-required-current="{{ ($row->is_required ?? false) ? 1 : 0 }}"
-                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}>
+                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}
+                              title="Show this field on add/edit forms when checked">
                           </div>
                         </td>
                         <td class="align-middle">
@@ -563,6 +584,7 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
                             data-input-type="{{ $row->input_type ?? 'text' }}"
                             data-input-config-options='@json($fixedInputOptions)'
                             data-category-id="{{ $row->category_id ?? '' }}"
+                            data-schema-locked="{{ $isSchemaLocked ? '1' : '0' }}"
                             title="Edit fixed field">
                             <i class="ti ti-pencil"></i>
                           </button>
@@ -1117,6 +1139,7 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
   }
 </style>
 @section('page-script')
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
   (function() {
     const meta = document.getElementById('riderInvoiceAssigningMeta');
@@ -1620,8 +1643,16 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
         catSelect.value = categoryId;
       }
 
-      document.getElementById('editBikeFixedIsVisible').checked = String(btn.dataset.isVisible) === '1';
-      document.getElementById('editBikeFixedIsRequired').checked = String(btn.dataset.isRequired) === '1';
+      var visEl = document.getElementById('editBikeFixedIsVisible');
+      var reqEl = document.getElementById('editBikeFixedIsRequired');
+      if (visEl) {
+        visEl.checked = String(btn.dataset.isVisible) === '1';
+        visEl.disabled = false;
+      }
+      if (reqEl) {
+        reqEl.checked = String(btn.dataset.isRequired) === '1';
+        reqEl.disabled = false;
+      }
       document.getElementById('editBikeFixedInputType').value = btn.dataset.inputType || 'text';
 
       const configOptionsRaw = btn.dataset.inputConfigOptions;
@@ -1799,10 +1830,74 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
     });
   }
 
-  document.addEventListener('DOMContentLoaded', initBikeFieldSortables);
+  function initBikeFieldAllTabSortables() {
+    if (typeof Sortable === 'undefined') return;
+    var reorderAllFixedUrl = "{{ route($settingsRoutePrefix . '.reorder-field-assignments-all', $settingsRouteParams) }}";
+    var reorderAllCustomUrl = "{{ route($settingsRoutePrefix . '.reorder-all-custom-fields', $settingsRouteParams) }}";
+
+    document.querySelectorAll('.bike-fields-all-fixed-sortable-tbody').forEach(function(tbody) {
+      if (tbody.dataset.sortableInit === '1') return;
+      new Sortable(tbody, {
+        handle: '.drag-handle',
+        draggable: 'tr[data-bike-field-key]',
+        animation: 150,
+        ghostClass: 'table-warning',
+        onEnd: function() {
+          var order = Array.from(tbody.querySelectorAll('tr[data-bike-field-key]')).map(function(tr) {
+            return tr.getAttribute('data-bike-field-key');
+          });
+          fetch(reorderAllFixedUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': '{{ csrf_token() }}',
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ order: order })
+          });
+        }
+      });
+      tbody.dataset.sortableInit = '1';
+    });
+
+    document.querySelectorAll('.bike-fields-all-custom-sortable-tbody').forEach(function(tbody) {
+      if (tbody.dataset.sortableInitAllCustom === '1') return;
+      new Sortable(tbody, {
+        handle: '.drag-handle',
+        draggable: 'tr[data-custom-field-id]',
+        animation: 150,
+        ghostClass: 'table-warning',
+        onEnd: function() {
+          var order = Array.from(tbody.querySelectorAll('tr[data-custom-field-id]')).map(function(tr) {
+            return parseInt(tr.getAttribute('data-custom-field-id'), 10);
+          });
+          fetch(reorderAllCustomUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': '{{ csrf_token() }}',
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ order: order })
+          });
+        }
+      });
+      tbody.dataset.sortableInitAllCustom = '1';
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    initBikeFieldSortables();
+    initBikeFieldAllTabSortables();
+  });
   document.querySelectorAll('#bikeFieldsCategoryTabs [data-bs-toggle="tab"]').forEach(function(tabBtn) {
     tabBtn.addEventListener('shown.bs.tab', function() {
-      setTimeout(initBikeFieldSortables, 50);
+      setTimeout(function() {
+        initBikeFieldSortables();
+        initBikeFieldAllTabSortables();
+      }, 50);
     });
   });
 </script>

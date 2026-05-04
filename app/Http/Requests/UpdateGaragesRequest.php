@@ -25,7 +25,8 @@ class UpdateGaragesRequest extends FormRequest
     public function rules()
     {
         $rules = Garages::$rules;
-        
+        unset($rules['garage_type']);
+
         return $rules;
     }
 }

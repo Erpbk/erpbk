@@ -189,7 +189,6 @@ class RtaFinesController extends AppBaseController
 
         try {
 
-            $service_accounts = \App\Support\CompanyQuery::table('accounts')->where('id', 1368)->where('account_type', 'Expense')->first();
             $fine = RtaFines::findOrFail($request->id);
             $fine->pay_account = $request->account;
 
@@ -230,32 +229,19 @@ class RtaFinesController extends AppBaseController
                 if ($fine->amount > 0) {
                     // Debit RTA Account
                     $TransactionService->recordTransaction([
-                        'account_id'     => $fine->rta_account_id,
+                        'account_id'     => HeadAccount::RTA_FINE,
                         'reference_id'   => $fine->id,
                         'reference_type' => 'RTA',
                         'trans_code'     => $trans_code,
                         'trans_date'     => $transDate,
                         'narration'      => $fine->detail ?? 'RTA Fine Payment',
-                        'debit'          => $fine->amount,
+                        'debit'          => $fine->amount + $fine->service_charges + $fine->vat,
                         'billing_month'  => $billingMonth,
                         'branch_id'      => $fine->branch_id
                     ]);
                 }
 
-                // 2. Service Charges
-                if ($fine->service_charges > 0) {
-                    $TransactionService->recordTransaction([
-                        'account_id'     => $service_accounts->id,
-                        'reference_id'   => $fine->id,
-                        'reference_type' => 'RTA',
-                        'trans_code'     => $trans_code,
-                        'trans_date'     => $transDate,
-                        'narration'      => $service_accounts->name . 'RTA Fine',
-                        'debit'          => $fine->service_charges,
-                        'branch_id'      => $fine->branch_id,
-                        'billing_month'  => $billingMonth,
-                    ]);
-                }
+
 
                 if ($fine->amount > 0) {
 
@@ -267,7 +253,7 @@ class RtaFinesController extends AppBaseController
                         'trans_code'     => $trans_code,
                         'trans_date'     => $transDate,
                         'narration'      => $fine->detail ?? 'RTA Fine Payment',
-                        'credit'         => $fine->amount + $fine->service_charges,
+                        'credit'         => $fine->amount + $fine->service_charges + $fine->vat,
                         'branch_id'      => $fine->branch_id,
                         'billing_month'  => $billingMonth,
                     ]);
@@ -359,7 +345,8 @@ class RtaFinesController extends AppBaseController
             ->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')
             ->orderBy('name', 'asc')
             ->get();
-        return view('rta_fines.create', compact('data', 'rtaAccounts'));
+        $rtaFineAccount = Accounts::where('id', \App\Helpers\HeadAccount::RTA_FINE)->first();
+        return view('rta_fines.create', compact('data', 'rtaAccounts', 'rtaFineAccount'));
     }
     /**
      * Store a newly created RtaFines in storage.
@@ -375,9 +362,9 @@ class RtaFinesController extends AppBaseController
         DB::beginTransaction();
 
         try {
-            $admin_accounts = \App\Support\CompanyQuery::table('accounts')->where('id', 1004)->first();
-            $service_accounts = \App\Support\CompanyQuery::table('accounts')->where('id', 1368)->first();
-            $vat_accounts = \App\Support\CompanyQuery::table('accounts')->where('id', 1023)->first();
+            $admin_accounts = HeadAccount::RTA_ADMIN_CHARGES;
+            $service_accounts = HeadAccount::RTA_SERVICE_CHARGES;
+            $vat_accounts = HeadAccount::VAT_PURCHASE_ACCOUNT;
             $input = $request->all();
             $bike = Bikes::findOrFail($input['bike_id']);
             $trans_code = Account::trans_code();
@@ -404,9 +391,6 @@ class RtaFinesController extends AppBaseController
             // Create RTA Fine
             $rtaFines = $this->rtaFinesRepository->create($input);
 
-            // Account IDs (replace with config or DB if needed)
-            $admin_fee_account_id = config('accounts.admin_fee_account_id', 302);
-            $service_charge_account_id = config('accounts.service_charge_account_id', 303);
 
             $TransactionService = new TransactionService();
             $billingMonth = $rtaFines->billing_month;
@@ -431,39 +415,26 @@ class RtaFinesController extends AppBaseController
             // --- 3. Admin Charges ---
             if ($request->admin_fee > 0) {
                 $TransactionService->recordTransaction([
-                    'account_id'     => $admin_accounts->id,
+                    'account_id'     => $admin_accounts,
                     'reference_id'   => $rtaFines->id,
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => $admin_accounts->name,
+                    'narration'      => 'RTA Admin Charges',
                     'credit'          => $request->admin_fee,
                     'branch_id'      => $bike->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
             }
-            // --- 2. Service Charges ---
-            if ($request->service_charges > 0) {
-                $TransactionService->recordTransaction([
-                    'account_id'     => $service_accounts->id,
-                    'reference_id'   => $rtaFines->id,
-                    'reference_type' => 'RTA',
-                    'trans_code'     => $trans_code,
-                    'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => $service_accounts->name . 'RTA Fine',
-                    'credit'          => $request->service_charges,
-                    'branch_id'      => $bike->branch_id,
-                    'billing_month'  => $billingMonth,
-                ]);
-            }
+
             if ($request->vat > 0) {
                 $TransactionService->recordTransaction([
-                    'account_id'     => $vat_accounts->id,
+                    'account_id'     => $vat_accounts,
                     'reference_id'   => $rtaFines->id,
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => 'VAT on RTA Fine',
+                    'narration'      => 'VAT on RTA Fine Payment',
                     'debit'         => $request->vat,
                     'billing_month'  => $billingMonth,
                     'branch_id'      => $bike->branch_id,
@@ -471,13 +442,13 @@ class RtaFinesController extends AppBaseController
             }
             if ($request->amount > 0) {
                 $TransactionService->recordTransaction([
-                    'account_id'     => $rtaFines->rta_account_id,
+                    'account_id'     => HeadAccount::RTA_FINE,
                     'reference_id'   => $rtaFines->id,
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
                     'narration'      => $rtaFines->detail ?? 'RTA Fine Received',
-                    'credit'         => $rtaFines->amount + $request->vat, // Total amount including VAT
+                    'credit'         => $rtaFines->amount + $rtaFines->service_charges + $request->vat, // Total amount including VAT
                     'branch_id'      => $bike->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
@@ -584,14 +555,14 @@ class RtaFinesController extends AppBaseController
             ->where('parent_id', 1235)
             ->orderBy('name', 'asc')
             ->get();
-
+        $rtaFineAccount = Accounts::where('id', \App\Helpers\HeadAccount::RTA_FINE)->first();
         if (empty($rtaFines)) {
             Flash::error('Rta Fines not found');
 
             return redirect(route('rtaFines.index'));
         }
 
-        return view('rta_fines.edit', compact('data', 'rtaFines', 'rtaAccounts'));
+        return view('rta_fines.edit', compact('data', 'rtaFines', 'rtaAccounts', 'rtaFineAccount'));
     }
 
     /**
@@ -613,8 +584,8 @@ class RtaFinesController extends AppBaseController
 
         try {
             $id = $request->id;
-            $admin_accounts   = \App\Support\CompanyQuery::table('accounts')->where('id', 1004)->first();
-            $service_accounts = \App\Support\CompanyQuery::table('accounts')->where('id', 1368)->first();
+            $admin_accounts   = HeadAccount::RTA_ADMIN_CHARGES;
+            $service_accounts = HeadAccount::RTA_SERVICE_CHARGES;
 
             $input = $request->all();
             $bike  = Bikes::findOrFail($input['bike_id']);
@@ -667,47 +638,46 @@ class RtaFinesController extends AppBaseController
 
             if ($request->admin_fee > 0) {
                 $this->upsertTransaction2([
-                    'account_id'     => $admin_accounts->id,
+                    'account_id'     => $admin_accounts,
                     'reference_id'   => $rtaFines->id,
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => $admin_accounts->name,
+                    'narration'      => 'RTA Admin Charges',
                     'debit'          => 0,
                     'credit'         => $request->admin_fee,
                     'branch_id'      => $rtaFines->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
             }
-
-            if ($request->service_charges > 0) {
-                $this->upsertTransaction2([
-                    'account_id'     => $service_accounts->id,
+            if ($request->vat > 0) {
+                $this->upsertTransaction4([
+                    'account_id'     => HeadAccount::VAT_PURCHASE_ACCOUNT,
                     'reference_id'   => $rtaFines->id,
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => $service_accounts->name . ' RTA Fine',
-                    'debit'          => 0,
-                    'credit'         => $request->service_charges,
-                    'branch_id'      => $rtaFines->branch_id,
+                    'narration'      => 'VAT on RTA Fine Payment',
+                    'debit'         => $request->vat,
                     'billing_month'  => $billingMonth,
+                    'branch_id'      => $rtaFines->branch_id,
                 ]);
             }
+
             $this->upsertTransaction3(
                 [
-                    'account_id'     => $rtaFines->rta_account_id,
+                    'account_id'     => HeadAccount::RTA_FINE,
                     'reference_id'   => $request->id,
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
                     'narration'      => $request->detail ?? 'RTA Fine Received',
                     'debit'          => 0,
-                    'credit'         => $rtaFines->amount,
+                    'credit'         => $rtaFines->amount + $rtaFines->service_charges + $request->vat,
                     'branch_id'      => $rtaFines->branch_id,
                     'billing_month'  => $billingMonth,
                 ],
-                $rta_account->rta_account_id
+                HeadAccount::RTA_FINE
             );
 
             /*
@@ -767,7 +737,7 @@ class RtaFinesController extends AppBaseController
                 $paidPaymentAccount = $paidVoucher->pay_account;
 
                 // Get service accounts (same as in payfine method)
-                $paidServiceAccounts = \App\Support\CompanyQuery::table('accounts')->where('name', 'Service Charges (RTA Fine)')->where('account_type', 'Expense')->first();
+                $paidServiceAccounts = HeadAccount::RTA_SERVICE_CHARGES;
 
                 // Get all transactions for this paid voucher
                 $paidTransactions = \App\Support\CompanyQuery::table('transactions')
@@ -799,7 +769,7 @@ class RtaFinesController extends AppBaseController
 
                     if ($isRtaAccount) {
                         // Update RTA account transaction
-                        $updateData['account_id'] = $rtaFines->rta_account_id;
+                        $updateData['account_id'] = HeadAccount::RTA_FINE;
                         $updateData['narration'] = $rtaFines->detail ?? 'RTA Fine Payment';
                         $updateData['debit'] = $rtaFines->amount;
                         $updateData['credit'] = 0;
@@ -915,7 +885,7 @@ class RtaFinesController extends AppBaseController
                 ]));
         }
     }
-    private function upsertTransaction3(array $data, $rta_account_id = null)
+    private function upsertTransaction3(array $data, $rta_account_id = HeadAccount::RTA_FINE)
     {
         // Find existing transaction by reference + type + code (NOT account_id)
         $existing = \App\Support\CompanyQuery::table('transactions')
@@ -928,6 +898,22 @@ class RtaFinesController extends AppBaseController
             \App\Support\CompanyQuery::table('transactions')
                 ->where('id', $existing->id)
                 ->update(array_merge($data, [
+                    'updated_at' => now(),
+                ]));
+        }
+    }
+    private function upsertTransaction4(array $data)
+    {
+        $existing = \App\Support\CompanyQuery::table('transactions')
+            ->where('reference_type', $data['reference_type'])
+            ->where('reference_id', $data['reference_id'])
+            ->where('account_id', HeadAccount::VAT_PURCHASE_ACCOUNT)
+            ->first();
+        if ($existing) {
+            \App\Support\CompanyQuery::table('transactions')
+                ->where('id', $existing->id)
+                ->update(array_merge($data, [
+                    'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
                     'updated_at' => now(),
                 ]));
         }

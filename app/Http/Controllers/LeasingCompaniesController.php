@@ -98,8 +98,7 @@ class LeasingCompaniesController extends AppBaseController
     $input = $request->all();
 
     //Adding Account and setting reference
-    $parentId = Accounts::where('name', 'Non-Current Liabilities')->where('account_type', 'Liability')->first()->id;
-    $parentAccount = Accounts::where('name', 'Leasing Companies')->where('account_type', 'Liability')->where('parent_id', $parentId)->first();
+    $parentAccount = Accounts::where('name', 'Leasing Companies')->where('account_type', 'Liability')->first();
     if (!$parentAccount) {
       Flash::error('Parent account "Leasing Companies" not found.');
     }

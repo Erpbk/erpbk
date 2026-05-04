@@ -7,15 +7,15 @@
     </div>
 
     <div class="col-md-4 form-group">
-        <label>Leasing Company</label>
+        <label>Customer</label>
         @php
-        $selectedLeasingCompany = isset($cloneFromInvoice) ? $cloneFromInvoice->leasing_company_id : (isset($invoice) ? $invoice->leasing_company_id : (isset($leasingCompany) && $leasingCompany ? $leasingCompany->id : null));
+        $selectedCustomer = isset($cloneFromInvoice) ? $cloneFromInvoice->customer_id : (isset($invoice) ? $invoice->customer_id : (isset($bikeRentCustomer) && $bikeRentCustomer ? $bikeRentCustomer->id : null));
         $isClone = isset($cloneFromInvoice);
         @endphp
-        {!! Form::select('leasing_company_id', $leasingCompanies, $selectedLeasingCompany, ['class' => 'form-select form-select-sm select2', 'id' => 'leasing_company_id', 'disabled' => $isClone]) !!}
+        {!! Form::select('customer_id', $bikeRentCustomers, $selectedCustomer, ['class' => 'form-select form-select-sm select2', 'id' => 'customer_id', 'disabled' => $isClone]) !!}
         @if($isClone)
-        <input type="hidden" name="leasing_company_id" value="{{ $selectedLeasingCompany }}">
-        <small class="text-muted">Leasing company is locked when cloning an invoice.</small>
+        <input type="hidden" name="customer_id" value="{{ $selectedCustomer }}">
+        <small class="text-muted">Customer is locked when cloning an invoice.</small>
         @endif
     </div>
 
@@ -31,7 +31,7 @@
     @if(isset($invoice) || isset($cloneFromInvoice))
     <div class="col-md-3 form-group">
         <label> Invoice Number <span class="text-danger">*</span></label>
-        <input type="text" name="leasing_company_invoice_number" class="form-control" value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->leasing_company_invoice_number : '') }}" placeholder="Invoice No." required>
+        <input type="text" name="customer_invoice_number" class="form-control" value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->customer_invoice_number : '') }}" placeholder="Invoice No." required>
     </div>
     @endif
     <div class="col-md-3 form-group">
@@ -238,12 +238,17 @@
     };
 
     $(document).ready(function() {
-        var defaultTax = {{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }};
+        var defaultTax = {
+            {
+                \
+                App\ Helpers\ Common::getSetting('vat_percentage') ?? 5
+            }
+        };
         var rentalByCompany = @json($rentalAmountByCompany ?? []);
         var $modalBody = $('#formajax').closest('.modal-body');
         if ($modalBody.length === 0) $modalBody = $('#modalTopbody');
         if ($.fn.select2) {
-            $('#leasing_company_id').select2({
+            $('#customer_id').select2({
                 dropdownParent: $modalBody.length ? $modalBody : $('body'),
                 width: '100%'
             });
@@ -257,7 +262,7 @@
             });
         }
 
-        $('#leasing_company_id').on('change', function() {
+        $('#customer_id').on('change', function() {
             var id = $(this).val();
             var rate = rentalByCompany[id] || 0;
             $('.rate').val(rate);
@@ -265,7 +270,14 @@
                 leasing_calculate_price($(this).find('.rate')[0]);
             });
         });
+        select2.init();
 
+        function select2.init() {
+            $('.select2').select2({
+                dropdownParent: $('#modalTopbody'),
+                allowClear: true
+            });
+        }
         $('#billing_month').on('change', function() {
             $('#rows-container .invoice-item-row').each(function() {
                 leasing_calculate_price($(this).find('.rate')[0]);
@@ -276,6 +288,7 @@
             $(this).closest('.invoice-item-row').remove();
             leasing_getTotal();
         });
+
 
         var leasingBikesOptions = @json($bikes ?? []);
         $('#add-new-row').off('click').on('click', function() {
@@ -306,4 +319,3 @@
         leasing_getTotal();
     });
 </script>
-

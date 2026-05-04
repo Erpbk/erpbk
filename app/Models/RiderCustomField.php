@@ -447,12 +447,15 @@ class RiderCustomField extends BaseModel
 
     /**
      * Build fields by category for the rider create/edit form: fixed fields (with display_label and order from assignments)
-     * plus custom fields per category. Each item: kind 'fixed'|'custom', and fixed has field_key, label, spec; custom has field (model).
+     * plus optional custom fields per category. Each item: kind 'fixed'|'custom', and fixed has field_key, label, spec; custom has field (model).
+     *
+     * @param  bool  $includeCustomFields  When false (default), only schema-backed (fixed) fields are returned.
      */
-    public static function fieldsByCategoryForForm(): array
+    public static function fieldsByCategoryForForm(bool $includeCustomFields = false): array
     {
         $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
         $categoryIds = $categories->pluck('id')->all();
+        $allowedFixedLookup = array_flip(self::allFixedFieldKeys());
         $fallbackMap = self::fixedFieldsSlugMap();
         $assignmentsAll = RiderFieldCategoryAssignment::with('category')
             ->whereIn('category_id', $categoryIds)
@@ -480,6 +483,9 @@ class RiderCustomField extends BaseModel
 
             if ($categoryAssignments->isNotEmpty()) {
                 foreach ($categoryAssignments as $a) {
+                    if (!isset($allowedFixedLookup[$a->field_key])) {
+                        continue;
+                    }
                     $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
                         ? trim($a->display_label)
                         : self::humanizeFieldKey($a->field_key);
@@ -511,6 +517,9 @@ class RiderCustomField extends BaseModel
             } else {
                 // If no visible category assignments exist, fall back to built-in fixed fields map.
                 foreach ($fallbackMap[$cat->slug] ?? [] as $fieldKey) {
+                    if (!isset($allowedFixedLookup[$fieldKey])) {
+                        continue;
+                    }
                     $fields[] = (object) [
                         'kind' => 'fixed',
                         'field_key' => $fieldKey,
@@ -520,12 +529,19 @@ class RiderCustomField extends BaseModel
                 }
             }
 
-            foreach ($customFieldsAll->where('category_id', $cat->id)->values() as $cf) {
-                $fields[] = (object) [
-                    'kind' => 'custom',
-                    'field' => $cf,
-                ];
+            if ($includeCustomFields) {
+                foreach ($customFieldsAll->where('category_id', $cat->id)->values() as $cf) {
+                    $fields[] = (object) [
+                        'kind' => 'custom',
+                        'field' => $cf,
+                    ];
+                }
             }
+
+            if ($fields === []) {
+                continue;
+            }
+
             $result[] = (object) [
                 'category' => $cat,
                 'fields' => $fields,

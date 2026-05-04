@@ -9,24 +9,14 @@ use App\Models\ModuleFieldCategoryAssignment;
 use App\Models\ModuleSettingCategory;
 use App\Models\RiderInvoiceAccountAssignment;
 use App\Models\Settings;
+use App\Support\ModuleFieldSource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ModuleSettingsController extends Controller
 {
-    protected array $defaultExcludedDbFields = [
-        'id',
-        'created_at',
-        'updated_at',
-        'deleted_at',
-        'created_by',
-        'updated_by',
-        'deleted_by',
-    ];
-
     protected function normalizeModuleKey(string $module): string
     {
         return str_replace('-', '_', strtolower(trim($module)));
@@ -60,56 +50,9 @@ class ModuleSettingsController extends Controller
         };
     }
 
-    protected function sourceTableMap(): array
-    {
-        return [
-            'bike_list' => 'bikes',
-            'cash_banks' => 'banks',
-            'riders_list' => 'riders',
-            'employees' => 'employees',
-            'customers' => 'customers',
-            'vendors' => 'vendors',
-            'recruiters' => 'recruiters',
-            'sims' => 'sims',
-            'fuel_cards' => 'fuel_cards',
-            'rta_fines' => 'rta_fines',
-            'rta_saliks' => 'salik_transactions',
-            'garages' => 'garages',
-            'suppliers' => 'suppliers',
-            'leasing_companies' => 'leasing_companies',
-            'expenses' => 'expenses',
-            'items_list' => 'items',
-            'garage_items' => 'garage_items',
-            'vouchers' => 'vouchers',
-            'accounts' => 'accounts',
-        ];
-    }
-
     protected function resolveModuleSourceTable(string $module): ?string
     {
-        $map = $this->sourceTableMap();
-        if (isset($map[$module]) && Schema::hasTable($map[$module])) {
-            return $map[$module];
-        }
-
-        $normalized = str_replace('-', '_', $module);
-        $base = preg_replace('/(_list|_settings|_overview|_report|_reports)$/', '', $normalized) ?: $normalized;
-        $candidates = array_values(array_unique([
-            $normalized,
-            $base,
-            Str::snake(Str::pluralStudly(Str::studly($base))),
-            Str::snake(Str::pluralStudly(Str::studly($normalized))),
-            Str::plural($base),
-            Str::singular($base),
-        ]));
-
-        foreach ($candidates as $candidate) {
-            if (Schema::hasTable($candidate)) {
-                return $candidate;
-            }
-        }
-
-        return null;
+        return ModuleFieldSource::resolveSourceTable($module);
     }
 
     protected function syncModuleFixedAssignmentsFromDb(string $module): ?string
@@ -119,9 +62,10 @@ class ModuleSettingsController extends Controller
             return null;
         }
 
+        $excluded = ModuleFieldSource::defaultExcludedFieldsForModule($module);
         $columns = array_values(array_filter(
             Schema::getColumnListing($table),
-            fn ($col) => !in_array($col, $this->defaultExcludedDbFields, true)
+            fn ($col) => !in_array($col, $excluded, true)
         ));
 
         foreach ($columns as $index => $column) {
@@ -131,13 +75,17 @@ class ModuleSettingsController extends Controller
                     'field_label' => ucwords(str_replace('_', ' ', $column)),
                     'display_label' => null,
                     'is_visible' => true,
-                    'is_required' => false,
+                    'is_required' => true,
                     'display_order' => $index + 1,
                 ]
             );
 
+            $dirty = false;
             if (!$assignment->wasRecentlyCreated && empty($assignment->field_label)) {
                 $assignment->field_label = ucwords(str_replace('_', ' ', $column));
+                $dirty = true;
+            }
+            if ($dirty) {
                 $assignment->save();
             }
         }
@@ -295,6 +243,7 @@ class ModuleSettingsController extends Controller
             'customFieldSourceTable' => 'module_custom_fields',
             'riderInvoiceAccountTree' => $riderInvoiceAccountTree,
             'riderInvoiceAssignments' => $riderInvoiceAssignments,
+            'moduleSchemaFieldKeys' => ModuleFieldSource::schemaFieldKeysForModule($module),
         ]);
     }
 
@@ -541,14 +490,18 @@ class ModuleSettingsController extends Controller
             'is_required' => 'nullable|boolean',
         ]);
 
+        $fieldKey = trim((string) $validated['field_key']);
+        $isVisible = filter_var((string) ($validated['is_visible'] ?? false), FILTER_VALIDATE_BOOLEAN);
+        $isRequired = filter_var((string) ($validated['is_required'] ?? false), FILTER_VALIDATE_BOOLEAN);
+
         $assignment = ModuleFieldCategoryAssignment::updateOrCreate(
-            ['module_key' => $module, 'field_key' => trim((string) $validated['field_key'])],
+            ['module_key' => $module, 'field_key' => $fieldKey],
             [
                 'field_label' => $validated['field_label'] ?? null,
                 'category_id' => $validated['category_id'] ?? null,
                 'display_label' => $validated['display_label'] ?? null,
-                'is_visible' => filter_var((string) ($validated['is_visible'] ?? false), FILTER_VALIDATE_BOOLEAN),
-                'is_required' => filter_var((string) ($validated['is_required'] ?? false), FILTER_VALIDATE_BOOLEAN),
+                'is_visible' => $isVisible,
+                'is_required' => $isRequired,
             ]
         );
 
@@ -584,18 +537,106 @@ class ModuleSettingsController extends Controller
             ->map(fn ($v) => (string) $v)
             ->all();
 
-        $position = 0;
         foreach ($order as $fieldKey) {
             if (!in_array($fieldKey, $allowedKeys, true)) {
-                continue;
+                return response()->json(['success' => false, 'message' => 'Invalid field order.'], 422);
             }
-            ModuleFieldCategoryAssignment::where('module_key', $module)
-                ->where('category_id', $categoryId)
+        }
+        if (count($order) !== count($allowedKeys)) {
+            return response()->json(['success' => false, 'message' => 'Invalid field order.'], 422);
+        }
+
+        $this->mergeModuleFixedFieldOrderForCategory($module, $categoryId, $order);
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    /**
+     * Full drag order for the "All Fields" tab (global display_order across all fixed assignments).
+     */
+    public function reorderAllFieldAssignments(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        $validated = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'string', 'max:120'],
+        ]);
+        $order = array_values(array_map('strval', $validated['order']));
+        $existing = ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $module)
+            ->pluck('field_key')
+            ->map(fn ($v) => (string) $v)
+            ->sort()
+            ->values()
+            ->all();
+        $sortedOrder = $order;
+        sort($sortedOrder);
+        if ($sortedOrder !== $existing || count($order) !== count($existing)) {
+            return response()->json(['success' => false, 'message' => 'Invalid field order.'], 422);
+        }
+
+        foreach ($order as $pos => $fieldKey) {
+            ModuleFieldCategoryAssignment::query()
+                ->where('module_key', $module)
                 ->where('field_key', $fieldKey)
-                ->update(['display_order' => $position++]);
+                ->update(['display_order' => $pos]);
         }
 
         return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    /**
+     * Replace one category's keys in the global order with a new permutation; renumber display_order for all rows.
+     *
+     * @param  list<string>  $orderedKeysInCategory
+     */
+    protected function mergeModuleFixedFieldOrderForCategory(string $module, int $categoryId, array $orderedKeysInCategory): void
+    {
+        $rows = ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $module)
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $globalKeys = $rows->pluck('field_key')->map(fn ($v) => (string) $v)->all();
+
+        $newGlobal = [];
+        $i = 0;
+        $n = count($globalKeys);
+        $blockInserted = false;
+
+        while ($i < $n) {
+            $k = $globalKeys[$i];
+            $row = $rows->firstWhere('field_key', $k);
+            if ((int) $row->category_id === $categoryId) {
+                if (!$blockInserted) {
+                    foreach ($orderedKeysInCategory as $nk) {
+                        $newGlobal[] = (string) $nk;
+                    }
+                    $blockInserted = true;
+                }
+                $i++;
+                while ($i < $n) {
+                    $k2 = $globalKeys[$i];
+                    $r2 = $rows->firstWhere('field_key', $k2);
+                    if ((int) $r2->category_id === $categoryId) {
+                        $i++;
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                $newGlobal[] = $k;
+                $i++;
+            }
+        }
+
+        foreach ($newGlobal as $pos => $fieldKey) {
+            ModuleFieldCategoryAssignment::query()
+                ->where('module_key', $module)
+                ->where('field_key', $fieldKey)
+                ->update(['display_order' => $pos]);
+        }
     }
 
     public function storeField(Request $request, string $company_slug, string $module)
@@ -712,19 +753,109 @@ class ModuleSettingsController extends Controller
         } else {
             $query->where('category_id', (int) $categoryId);
         }
-        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->sort()->values()->all();
+        $sortedOrder = $order;
+        sort($sortedOrder);
+        if ($sortedOrder !== $allowedIds || count($order) !== count($allowedIds)) {
+            return response()->json(['success' => false, 'message' => 'Invalid order.'], 422);
+        }
 
-        $position = 0;
-        foreach ($order as $id) {
-            if (!in_array($id, $allowedIds, true)) {
-                continue;
-            }
-            ModuleCustomField::where('module_key', $module)
+        $this->mergeModuleCustomFieldOrderForCategory($module, $categoryId, $order);
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    /**
+     * Full drag order for custom fields on the "All Fields" tab.
+     */
+    public function reorderAllCustomFields(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        $validated = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'integer', 'exists:module_custom_fields,id'],
+        ]);
+        $order = array_values(array_map('intval', $validated['order']));
+        $existing = ModuleCustomField::query()
+            ->where('module_key', $module)
+            ->pluck('id')
+            ->map(fn ($v) => (int) $v)
+            ->sort()
+            ->values()
+            ->all();
+        $sortedOrder = $order;
+        sort($sortedOrder);
+        if ($sortedOrder !== $existing || count($order) !== count($existing)) {
+            return response()->json(['success' => false, 'message' => 'Invalid order.'], 422);
+        }
+
+        foreach ($order as $pos => $id) {
+            ModuleCustomField::query()
+                ->where('module_key', $module)
                 ->where('id', $id)
-                ->update(['display_order' => $position++]);
+                ->update(['display_order' => $pos]);
         }
 
         return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    /**
+     * @param  list<int>  $orderedIdsInCategory
+     */
+    protected function mergeModuleCustomFieldOrderForCategory(string $module, ?int $categoryId, array $orderedIdsInCategory): void
+    {
+        $rows = ModuleCustomField::query()
+            ->where('module_key', $module)
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $inCategory = function ($row) use ($categoryId) {
+            if ($categoryId === null) {
+                return $row->category_id === null;
+            }
+
+            return (int) $row->category_id === (int) $categoryId;
+        };
+
+        $globalIds = $rows->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $newGlobal = [];
+        $i = 0;
+        $n = count($globalIds);
+        $blockInserted = false;
+
+        while ($i < $n) {
+            $id = $globalIds[$i];
+            $row = $rows->firstWhere('id', $id);
+            if ($inCategory($row)) {
+                if (!$blockInserted) {
+                    foreach ($orderedIdsInCategory as $nid) {
+                        $newGlobal[] = (int) $nid;
+                    }
+                    $blockInserted = true;
+                }
+                $i++;
+                while ($i < $n) {
+                    $id2 = $globalIds[$i];
+                    $r2 = $rows->firstWhere('id', $id2);
+                    if ($inCategory($r2)) {
+                        $i++;
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                $newGlobal[] = $id;
+                $i++;
+            }
+        }
+
+        foreach ($newGlobal as $pos => $fid) {
+            ModuleCustomField::query()
+                ->where('module_key', $module)
+                ->where('id', $fid)
+                ->update(['display_order' => $pos]);
+        }
     }
 
     public function storeDocumentType(Request $request, string $company_slug, string $module)

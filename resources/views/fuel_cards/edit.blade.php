@@ -9,10 +9,9 @@
                 {!! Form::text('card_number', null, ['class' => 'form-control']) !!}
             </div>
 
-            <!-- Company Field -->
             <div class="form-group col-sm-6">
-                {!! Form::label('card_type', 'Card type:') !!}
-                {!! Form::text('card_type', null, ['class' => 'form-control']) !!}
+                {!! Form::label('fuel_company_id', 'Fuel company:') !!}
+                {!! Form::select('fuel_company_id', \App\Models\FuelCompany::dropdown(), null, ['class' => 'form-control select2']) !!}
             </div>
         </div>
     </div>

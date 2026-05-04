@@ -60,18 +60,18 @@
             <tr>
                 <td style="font-weight: bold; background-color: #f0f0f0; width: 20%;">Invoice No:</td>
                 <td style="width: 30%;">{{ $invoice->invoice_number ?? 'LBI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT) }}</td>
-                <td style="font-weight: bold; background-color: #f0f0f0; width: 20%;">Leasing Company Invoice No:</td>
-                <td style="width: 30%;">{{ $invoice->leasing_company_invoice_number ?? 'N/A' }}</td>
+                <td style="font-weight: bold; background-color: #f0f0f0; width: 20%;">Customer invoice no:</td>
+                <td style="width: 30%;">{{ $invoice->customer_invoice_number ?? 'N/A' }}</td>
             </tr>
             <tr>
                 <td style="font-weight: bold; background-color: #f0f0f0;">Reference Number:</td>
                 <td>{{ $invoice->reference_number ?? 'N/A' }}</td>
-                <td style="font-weight: bold; background-color: #f0f0f0;">Leasing Company:</td>
-                <td>{{ $invoice->leasingCompany->name ?? 'N/A' }}</td>
+                <td style="font-weight: bold; background-color: #f0f0f0;">Customer:</td>
+                <td>{{ $invoice->customer->name ?? 'N/A' }}</td>
             </tr>
             <tr>
-                <td style="font-weight: bold; background-color: #f0f0f0;">TRN Number:</td>
-                <td>{{ $invoice->leasingCompany->trn_number ?? 'N/A' }}</td>
+                <td style="font-weight: bold; background-color: #f0f0f0;">Contact / email:</td>
+                <td>{{ $invoice->customer->company_contact ?? '—' }} @if($invoice->customer && $invoice->customer->email) / {{ $invoice->customer->email }} @endif</td>
                 <td style="font-weight: bold; background-color: #f0f0f0;">Billing Month:</td>
                 <td>{{ date('M-Y', strtotime($invoice->billing_month)) }}</td>
             </tr>

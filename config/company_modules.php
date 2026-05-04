@@ -50,6 +50,10 @@ return [
             'label' => 'Bikes',
             'primary_label_key' => 'bikes',
         ],
+        'bike_on_rent' => [
+            'label' => 'Bike on rent',
+            'primary_label_key' => 'bike_on_rent',
+        ],
         'sims' => [
             'label' => 'Sims',
             'primary_label_key' => 'sims',

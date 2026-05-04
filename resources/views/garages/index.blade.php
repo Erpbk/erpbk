@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title','garages')
 @section('content')
@@ -10,8 +10,8 @@
                 </div>
                 <div class="col-sm-6">
                   @can('garage_create')
-                    <a class="btn btn-primary action-btn show-modal"
-                    href="javascript:void(0);" data-size="md" data-title="New" data-action="{{ route('garages.create') }}">
+                    <a class="btn btn-primary action-btn show-modal float-end"
+                    href="javascript:void(0);" data-size="md" data-title="New Garage" data-action="{{ route('garages.create') }}">
                         Add New
                     </a>
                     @endcan

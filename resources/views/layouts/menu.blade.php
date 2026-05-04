@@ -292,9 +292,35 @@ $homeLink = $isAdminLogin
 </li> --}}
 @endcan
 @endif
+@if(\App\Support\CompanyModuleVisibility::enabled('bike_on_rent'))
+@can('bike_rent_view')
+<li class="menu-item {{ Route::is('bikeRentCompanies*') || Route::is('leasingCompanyBillingInvoices*') ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle ">
+    <i class="menu-icon tf-icons ti ti-motorbike"></i>
+    <div>{{ $menuLabels['bike_on_rent'] ?? 'Bike on rent' }}</div>
+  </a>
+  <ul class="menu-sub">
+    <li class="menu-item {{ Route::is('bikeRentCompanies*') ? 'active' : '' }}">
+      <a href="{{ route('bikeRentCompanies.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-users"></i>
+        <div>{{ $menuLabels['bike_rent_customers'] ?? 'Customers' }}</div>
+      </a>
+    </li>
+    @can('billing_invoice_view')
+    <li class="menu-item {{ Route::is('leasingCompanyBillingInvoices*') ? 'active' : '' }}">
+      <a href="{{ route('leasingCompanyBillingInvoices.index') }}" class="menu-link ">
+        <i class="menu-icon tf-icons ti ti-file-plus"></i>
+        <div>{{ $menuLabels['leasing_billing_invoice'] ?? 'Billing Invoice' }}</div>
+      </a>
+    </li>
+    @endcan
+  </ul>
+</li>
+@endcan
+@endif
 @if(\App\Support\CompanyModuleVisibility::enabled('sims'))
 @can('sim_view')
-<li class="menu-item {{ Route::is('sims*') || Route::is('simInvoices*') ? 'open' : '' }}">
+<li class="menu-item {{ Route::is('sims*') || Route::is('simInvoices*') || Route::is('simCompanies*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-device-sim"></i>
     <div>{{ $menuLabels['sims'] ?? 'Sims' }}</div>
@@ -314,13 +340,19 @@ $homeLink = $isAdminLogin
       </a>
     </li>
     @endcan
+    <li class="menu-item {{ Route::is('simCompanies*') ? 'active' : '' }}">
+      <a href="{{ route('simCompanies.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-building"></i>
+        <div>{{ $menuLabels['sim_companies'] ?? 'SIM Companies' }}</div>
+      </a>
+    </li>
   </ul>
 </li>
 @endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('fuel_cards'))
 @can('fuel_view')
-<li class="menu-item {{ Route::is('fuelCards*') ? 'open' : '' }} {{ Route::is('fuel_data*') ? 'open' : '' }}">
+<li class="menu-item {{ Route::is('fuelCards*') ? 'open' : '' }} {{ Route::is('fuel_data*') ? 'open' : '' }} {{ Route::is('fuelCompanies*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
     <i class="menu-icon tf-icons ti ti-gas-station"></i>
     <div>{{ $menuLabels['fuel_cards'] ?? 'Fuel Cards' }}</div>
@@ -334,6 +366,12 @@ $homeLink = $isAdminLogin
     <li class="menu-item {{ Route::is('fuel_data*') ? 'active' : '' }}">
       <a href="{{ route('fuel_data.index') }}" class="menu-link">
         <div>{{ $menuLabels['fuel_data'] ?? 'Fuel Transactions' }}</div>
+      </a>
+    </li>
+    <li class="menu-item {{ Route::is('fuelCompanies*') ? 'active' : '' }}">
+      <a href="{{ route('fuelCompanies.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-building"></i>
+        <div>{{ $menuLabels['fuel_companies'] ?? 'Fuel Companies' }}</div>
       </a>
     </li>
   </ul>
@@ -461,12 +499,6 @@ $homeLink = $isAdminLogin
     </li>
     @endcan
     @can('billing_invoice_view')
-    <li class="menu-item {{ Route::is('leasingCompanyBillingInvoices*') ? 'active' : '' }}">
-      <a href="{{ route('leasingCompanyBillingInvoices.index') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-file-plus"></i>
-        <div>{{ $menuLabels['leasing_billing_invoice'] ?? 'Billing Invoice' }}</div>
-      </a>
-    </li>
     <li class="menu-item {{ Route::is('leasingCompanies.receipt') ? 'active' : '' }}">
       <a href="{{ route('leasingCompanies.receipt') }}" class="menu-link ">
         <i class="menu-icon tf-icons ti ti-file-plus"></i>

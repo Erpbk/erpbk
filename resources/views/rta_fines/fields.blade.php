@@ -76,30 +76,7 @@
 </div>
 <div class="form-group col-sm-6">
     {!! Form::label('rta_account_id', 'Credit Account:', ['class' => 'required']) !!}
-    <select class="form select select2" required id="rta_account_id" name="rta_account_id">
-        <option value="">Select Account</option>
-        @foreach(($rtaAccounts ?? collect()) as $account)
-            <option value="{{ $account->id }}"
-                {{ (isset($rtaFines) && (string) $rtaFines->rta_account_id === (string) $account->id) || (!isset($rtaFines) && isset($data) && (string) $data->id === (string) $account->id) ? 'selected' : '' }}>
-                {{ $account->name }}
-            </option>
-        @endforeach
-    </select>
-</div>
-
-<div class="form-group col-sm-6">
-    {!! Form::label('attachment', 'Attachment:', ['class' => '']) !!}
-    {!! Form::file('attachment', ['class' => 'form-control', '']) !!}
-</div>
-<!-- Admin Charges Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('admin_fee', 'Admin Charges:', ['class' => '']) !!}
-    {!! Form::number('admin_fee', $data->admin_charges ?? '', ['class' => 'form-control','step'=>'any', 'readonly']) !!}
-</div>
-<!-- Service Charges Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('service_charges', 'Service Charges:', ['class' => '']) !!}
-    {!! Form::number('service_charges', $data->account_tax ?? '', ['class' => 'form-control','step'=>'any']) !!}
+    <input type="text" name="rta_account_id" value="{{ $rtaFineAccount->name ?? '' }}" readonly class="form-control">
 </div>
 <!-- Amount Field -->
 <div class="form-group col-sm-6">

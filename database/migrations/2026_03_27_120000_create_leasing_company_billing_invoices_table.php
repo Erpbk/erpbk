@@ -15,11 +15,11 @@ return new class extends Migration
         Schema::create('leasing_company_billing_invoices', function (Blueprint $table) {
             $table->id();
             $table->date('inv_date');
-            $table->integer('leasing_company_id');
+            $table->unsignedBigInteger('customer_id')->comment('Bike on rent customer (bike_rent_companies.id)');
             $table->date('billing_month');
             $table->string('invoice_number', 255)->nullable();
             $table->string('reference_number', 255)->nullable();
-            $table->string('leasing_company_invoice_number', 255)->nullable();
+            $table->string('customer_invoice_number', 255)->nullable();
             $table->text('descriptions')->nullable();
             $table->decimal('subtotal', 10, 2)->default(0);
             $table->decimal('vat', 10, 2)->default(0);
@@ -30,7 +30,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index('leasing_company_id');
+            $table->index('customer_id');
             $table->index('billing_month');
             $table->index('status');
         });

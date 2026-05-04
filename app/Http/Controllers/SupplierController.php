@@ -98,9 +98,8 @@ class SupplierController extends AppBaseController
 
 
     // Create or get parent "Supplier" account
-    $parentId = Accounts::where('name', 'Current Liabilities')->where('account_type', 'Liability')->first()->id;
-    $parentAccount = Accounts::where('name', 'Supplier')->where('account_type', 'Liability')->where('parent_id', $parentId)->first();
-    if (!$parentAccount) {
+    $parentId = Accounts::where('name', 'Supplier')->where('account_type', 'Liability')->first()->id;
+    if (!$parentId) {
       Flash::error('Parent account "Supplier" not found.');
     }
 
@@ -112,7 +111,7 @@ class SupplierController extends AppBaseController
       $account->account_code = 'SUP' . str_pad($supplier->id, 4, "0", STR_PAD_LEFT);
       $account->account_type = 'Liability';
       $account->name = $supplier->name;
-      $account->parent_id = $parentAccount->id;
+      $account->parent_id = $parentId;
       $account->ref_name = 'Supplier';
       $account->ref_id = $supplier->id;
       $account->status = 1;

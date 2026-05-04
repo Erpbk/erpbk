@@ -135,7 +135,7 @@ class RiderInvoicesRepository extends BaseRepository
     if ($invoice->vat > 0) {
 
       $transactionData = [
-        'account_id' => HeadAccount::TAX_ACCOUNT, //VAT Account asked to set by Adnan 08-05-2025
+        'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT, //VAT Account asked to set by Adnan 08-05-2025
         'reference_id' => $invoice->id,
         'reference_type' => 'Invoice',
         'trans_code' => $trans_code,
@@ -162,7 +162,7 @@ class RiderInvoicesRepository extends BaseRepository
 
 
     $transactionData = [
-      'account_id' => HeadAccount::SALARY_ACCOUNT, //Salary Account asked to set by Adnan 08-03-2025
+      'account_id' => HeadAccount::SALARY_ACCOUNT,
       'reference_id' => $invoice->id,
       'reference_type' => 'Invoice',
       'trans_code' => $trans_code,

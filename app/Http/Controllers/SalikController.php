@@ -326,8 +326,8 @@ class SalikController extends AppBaseController
             $adminCharges = $salik->admin_charges ?? 0;
             $rider = \App\Models\Riders::find($salik->rider_id);
             $riderAccountId = $rider && $rider->account_id ? $rider->account_id : null;
-            $salikAccountId = $salik->salik_account_id ?? null;
-            $adminAccountId = 1003; // Admin Charges (RTA Salik)
+            $salikAccountId = HeadAccount::SALIK_ASSET_ACCOUNT;
+            $adminAccountId = HeadAccount::SALIK_ADMIN_CHARGES;
             $transCode = $trans_code;
             $transDate = now();
             $billingMonth = date('Y-m-01', strtotime($salik->trip_date ?? $salik->billing_month));
@@ -569,7 +569,7 @@ class SalikController extends AppBaseController
             // Handle admin charges transaction
             if ($adminDifference != 0) {
                 $adminTransaction = Transactions::where('trans_code', $salikTransaction->trans_code)
-                    ->where('account_id', 1003)
+                    ->where('account_id', HeadAccount::SALIK_ADMIN_CHARGES)
                     ->where('credit', '>', 0)
                     ->first();
 
@@ -655,8 +655,8 @@ class SalikController extends AppBaseController
         $adminCharges = $salik->admin_charges ?? 0;
         $rider = Riders::find($salik->rider_id);
         $riderAccountId = $rider && $rider->account_id ? $rider->account_id : null;
-        $salikAccountId = $salik->salik_account_id ?? null;
-        $adminAccountId = 1003;
+        $salikAccountId = HeadAccount::SALIK_ASSET_ACCOUNT;
+        $adminAccountId = HeadAccount::SALIK_ADMIN_CHARGES;
         $transCode = Account::trans_code();
         $transDate = now();
         $billingMonth = date('Y-m-01', strtotime($validated['trip_date']));
@@ -734,7 +734,7 @@ class SalikController extends AppBaseController
         $transactionService = new TransactionService();
 
         $transactionService->recordTransaction([
-            'account_id'     => 1003, // Admin account
+            'account_id'     => $adminAccountId, // Admin account
             'reference_id'   => $referenceId,
             'reference_type' => 'Salik Voucher',
             'trans_code'     => $transCode,
@@ -1010,7 +1010,7 @@ class SalikController extends AppBaseController
             // Update the admin charges transaction if it exists
             if ($adminCharges > 0) {
                 $adminTransaction = Transactions::where('trans_code', $mainVoucherTransCode)
-                    ->where('account_id', 1003)
+                    ->where('account_id', HeadAccount::SALIK_ADMIN_CHARGES)
                     ->where('credit', '>', 0)
                     ->first();
 
@@ -1090,7 +1090,7 @@ class SalikController extends AppBaseController
 
         // Reverse admin charges if any
         if ($adminCharges > 0) {
-            $transactionService->updateLedger(1003, 0, $adminCharges, $billingMonth);
+            $transactionService->updateLedger(HeadAccount::SALIK_ADMIN_CHARGES, 0, $adminCharges, $billingMonth);
         }
 
         // Use helper method to update all narrations consistently
@@ -1188,7 +1188,7 @@ class SalikController extends AppBaseController
 
         // Reverse admin charges if any
         if ($salik->admin_charges > 0) {
-            $transactionService->updateLedger(1003, 0, $salik->admin_charges, $billingMonth);
+            $transactionService->updateLedger(HeadAccount::SALIK_ADMIN_CHARGES, 0, $salik->admin_charges, $billingMonth);
             \Log::info("Reversed admin charges: {$salik->admin_charges}");
         }
 

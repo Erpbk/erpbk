@@ -17,6 +17,9 @@ use App\Models\Recruiters;
 use App\Models\Riders;
 use App\Models\Bikes;
 use App\Models\Sims;
+use App\Models\SimCompany;
+use App\Models\BikeRentCompany;
+use App\Models\FuelCompany;
 use App\Models\Items;
 use App\Models\salik;
 use App\Models\RiderInvoices;
@@ -101,6 +104,24 @@ class TrashController extends Controller
             'name' => 'SIM Cards',
             'icon' => 'fa-sim-card',
             'display_columns' => ['number', 'company', 'status'],
+        ],
+        'sim_companies' => [
+            'model' => SimCompany::class,
+            'name' => 'SIM Companies',
+            'icon' => 'fa-building',
+            'display_columns' => ['name', 'email', 'company_contact'],
+        ],
+        'bike_rent_companies' => [
+            'model' => BikeRentCompany::class,
+            'name' => 'Bike on rent — Customers',
+            'icon' => 'fa-building',
+            'display_columns' => ['name', 'email', 'company_contact'],
+        ],
+        'fuel_companies' => [
+            'model' => FuelCompany::class,
+            'name' => 'Fuel Companies',
+            'icon' => 'fa-gas-pump',
+            'display_columns' => ['name', 'email', 'company_contact'],
         ],
         'items' => [
             'model' => Items::class,

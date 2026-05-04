@@ -50,7 +50,7 @@ class FuelDataImport implements ToCollection
                 $rowNumber = $rowIndex + 1; // +2 because skipping header and zero-based index
                 $this->totalRows++;
                 $rowCount++;
-                
+
                 if (empty($row[0])) {
                     $this->addFailedRow($rowNumber, $row, 'Empty row', 'Transaction number is empty');
                     continue;
@@ -97,12 +97,12 @@ class FuelDataImport implements ToCollection
                         continue;
                     }
 
-                    if(empty($vatAmount)) {
+                    if (empty($vatAmount)) {
                         $this->addFailedRow($rowNumber, $row, 'Missing VAT amount', 'VAT amount is required');
                         continue;
                     }
 
-                    if(empty($authCode) || empty($site) || empty($product)) {
+                    if (empty($authCode) || empty($site) || empty($product)) {
                         $this->addFailedRow($rowNumber, $row, 'Missing auth code, site, or product Name', 'Auth code, site, and product Name are required');
                         continue;
                     }
@@ -114,7 +114,7 @@ class FuelDataImport implements ToCollection
                         continue;
                     }
                     $transactionDateForStorage = $transactionDate->format('Y-m-d H:i:s');
-                    
+
                     $billingMonthCarbon = $this->parseBillingMonth($transactionDateForStorage);
                     if (!$billingMonthCarbon) {
                         $this->addFailedRow($rowNumber, $row, 'Invalid billing month', "Could not parse billing month from date {$transactionDateForStorage}");
@@ -155,16 +155,24 @@ class FuelDataImport implements ToCollection
                     // Find rider for the transaction date
                     $rider = $card->findRiderForDate($transactionDate->format('Y-m-d'));
                     if (!$rider) {
-                        $this->addFailedRow($rowNumber, $row, 'No rider found', 
-                            "No rider assigned to card {$cardNumber} on date {$transactionDate->format('Y-m-d')}");
+                        $this->addFailedRow(
+                            $rowNumber,
+                            $row,
+                            'No rider found',
+                            "No rider assigned to card {$cardNumber} on date {$transactionDate->format('Y-m-d')}"
+                        );
                         continue;
                     }
 
                     // Get rider account
                     $riderAccountId = $rider->account_id ?? null;
                     if (!$riderAccountId) {
-                        $this->addFailedRow($rowNumber, $row, 'No account found', 
-                            "No account found for rider: {$rider->name}");
+                        $this->addFailedRow(
+                            $rowNumber,
+                            $row,
+                            'No account found',
+                            "No account found for rider: {$rider->name}"
+                        );
                         continue;
                     }
 
@@ -198,7 +206,6 @@ class FuelDataImport implements ToCollection
                         'fuelData' => $fuelRecord,
                         'transCode' => Account::trans_code(),
                     ];
-
                 } catch (\Exception $e) {
                     $this->addFailedRow($rowNumber, $row, 'Processing error', $e->getMessage());
                     continue;
@@ -211,16 +218,15 @@ class FuelDataImport implements ToCollection
             }
 
             DB::commit();
-            
+
             \Log::info("Fuel Data import completed. Success: {$this->successCount}, Failed: " . count($this->failedRows));
-            
+
             return [
                 'success_count' => $this->successCount,
                 'failed_count' => count($this->failedRows),
                 'failed_rows' => $this->failedRows,
                 'total_rows' => $this->totalRows
             ];
-
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error("Fuel Data import failed: " . $e->getMessage());
@@ -314,7 +320,7 @@ class FuelDataImport implements ToCollection
         if (empty($plate)) {
             return null;
         }
-        
+
         // Split by hyphen and get the last part
         $parts = explode('-', $plate);
         return end($parts);
@@ -328,7 +334,7 @@ class FuelDataImport implements ToCollection
         \Log::info("Recording transactions for " . count($groups) . " groups of fuel data");
         $transactionService = new TransactionService();
 
-        foreach($groups as $group) {
+        foreach ($groups as $group) {
             $riderAccountId = $group['account_id'];
             $branchId = $group['branch_id'];
             $fuelData = $group['fuelData'];
@@ -337,7 +343,7 @@ class FuelDataImport implements ToCollection
 
             $serviceCharges = $fuelData->service_charges;
 
-            if($serviceCharges > 0) {
+            if ($serviceCharges > 0) {
                 // Record service charge transaction if not already recorded for this billing month
                 $transactionService->recordTransaction([
                     'account_id' => $riderAccountId,
@@ -349,6 +355,18 @@ class FuelDataImport implements ToCollection
                     'narration' => "Monthly service charges for fuel transactions",
                     'debit' => $this->serviceChargeAmount,
                     'credit' => 0,
+                    'billing_month' => $fuelData->billing_month,
+                ]);
+                $transactionService->recordTransaction([
+                    'account_id' => HeadAccount::FUEL_ADMIN_CHARGES,
+                    'branch_id' => $branchId,
+                    'reference_id' => $fuelData->id,
+                    'reference_type' => 'fuel',
+                    'trans_code' => $transCode,
+                    'trans_date' => $fuelData->trans_date->format('Y-m-d'),
+                    'narration' => 'Monthly service charges for fuel transactions',
+                    'debit' => 0,
+                    'credit' => $this->serviceChargeAmount,
                     'billing_month' => $fuelData->billing_month,
                 ]);
             }
@@ -369,7 +387,7 @@ class FuelDataImport implements ToCollection
 
             // Credit fuel account
             $transactionService->recordTransaction([
-                'account_id' => $this->fuelAccountId,
+                'account_id' => $fuelData->card->fuelCompany->account_id,
                 'branch_id' => $branchId,
                 'reference_id' => $fuelData->id,
                 'reference_type' => 'fuel',
@@ -381,10 +399,10 @@ class FuelDataImport implements ToCollection
                 'billing_month' => $fuelData->billing_month,
             ]);
 
-            if($fuelData->vat_amount > 0){
+            if ($fuelData->vat_amount > 0) {
                 // Credit fuel account
                 $transactionService->recordTransaction([
-                    'account_id' => $this->vatAccountId,
+                    'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
                     'branch_id' => $branchId,
                     'reference_id' => $fuelData->id,
                     'reference_type' => 'fuel',

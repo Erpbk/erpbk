@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Helpers\Account;
+use App\Helpers\HeadAccount;
 use App\Models\Salik;
 use App\Models\Bikes;
 use App\Models\Riders;
@@ -19,13 +20,11 @@ use Carbon\Carbon;
 
 class SalikImport implements ToCollection
 {
-    protected $salikAccountId;
     protected $adminChargePerSalik;
     protected $importBatchId;
 
-    public function __construct($salikAccountId, $adminChargePerSalik = 0)
+    public function __construct($adminChargePerSalik = 0)
     {
-        $this->salikAccountId = $salikAccountId;
         $this->adminChargePerSalik = $adminChargePerSalik;
         $this->importBatchId = 'batch_' . time() . '_' . Auth::id();
     }
@@ -396,7 +395,7 @@ class SalikImport implements ToCollection
     private function createSummaryVoucherForRider($groups)
     {
         $transactionService = new TransactionService();
-        $adminAccountId = 1003;
+        $adminAccountId = HeadAccount::SALIK_ADMIN_CHARGES;
 
         foreach ($groups as $group) {
             $rider          = $group['rider'];
@@ -427,7 +426,7 @@ class SalikImport implements ToCollection
             // 2. Credit Salik Account for EACH individual transaction (48 separate entries)
             foreach ($group['saliks'] as $salik) {
                 $transactionService->recordTransaction([
-                    'account_id'     => $this->salikAccountId,
+                    'account_id'     => HeadAccount::SALIK_ASSET_ACCOUNT,
                     'reference_id'   => $salik->id,
                     'reference_type' => 'Salik Voucher',
                     'trans_code'     => $transCode,
@@ -466,7 +465,7 @@ class SalikImport implements ToCollection
                 'remarks'       => "salik charges month of $billingMonthDisplay - Reference Number: {$firstSalik->transaction_id}",
                 'ref_id'        => $firstSalik->id,
                 'rider_id'      => $rider->id,
-                'payment_to'    => $this->salikAccountId,
+                'payment_to'    => HeadAccount::SALIK_ASSET_ACCOUNT,
                 'payment_from'  => $riderAccountId,
                 'Created_By'    => Auth::user()->id,
                 'branch_id'      => $firstSalik->branch_id,

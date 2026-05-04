@@ -120,7 +120,7 @@ class EmployeeInvoicesRepository extends BaseRepository
 
         if (($invoice->employee->vat ?? 0) == 1) {
             $transactionService->recordTransaction([
-                'account_id' => HeadAccount::TAX_ACCOUNT,
+                'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'EmployeeInvoice',
                 'trans_code' => $transCode,
@@ -143,7 +143,7 @@ class EmployeeInvoicesRepository extends BaseRepository
         ]);
 
         $transactionService->recordTransaction([
-            'account_id' => HeadAccount::SALARY_ACCOUNT,
+            'account_id' => HeadAccount::STAFF_ACCOUNT,
             'reference_id' => $invoice->id,
             'reference_type' => 'EmployeeInvoice',
             'trans_code' => $transCode,
@@ -161,4 +161,3 @@ class EmployeeInvoicesRepository extends BaseRepository
         return $invoice;
     }
 }
-

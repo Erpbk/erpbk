@@ -447,7 +447,9 @@ class RiderSettingsController extends Controller
                 return response()->json(['success' => false, 'message' => 'Database migration required. Run: php artisan migrate'], 500);
             }
 
-            $assignment = RiderFieldCategoryAssignment::where('field_key', $validated['field_key'])->first();
+            $assignment = RiderFieldCategoryAssignment::withoutGlobalScope('company')
+                ->where('field_key', $validated['field_key'])
+                ->first();
             if (!$assignment) {
                 return response()->json(['success' => false, 'message' => 'Assignment not found for field: ' . $validated['field_key']], 404);
             }

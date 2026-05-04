@@ -77,6 +77,7 @@ class ModuleSettingsController extends Controller
             'garages' => 'garages',
             'suppliers' => 'suppliers',
             'leasing_companies' => 'leasing_companies',
+            'bike_rent_companies' => 'bike_rent_companies',
             'expenses' => 'expenses',
             'items_list' => 'items',
             'garage_items' => 'garage_items',

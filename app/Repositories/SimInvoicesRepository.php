@@ -170,8 +170,8 @@ class SimInvoicesRepository extends BaseRepository
         $totalAmount = (float) $invoice->total_amount;
         $narration = 'SIM Invoice #' . ($invoice->invoice_number ?? $invoice->id) . ' - ' . ($invoice->descriptions ?? 'SIM Invoice');
 
-        $expenseAccountId = HeadAccount::LEASING_EXPENSE_ACCOUNT;
-        $vatAccountId = HeadAccount::TAX_ACCOUNT;
+        $expenseAccountId = HeadAccount::SIM_EXPENSE_ACCOUNT;
+        $vatAccountId = HeadAccount::VAT_PURCHASE_ACCOUNT;
 
         $expenseAccountExists = \App\Support\CompanyQuery::table('accounts')->where('id', $expenseAccountId)->whereNull('deleted_at')->exists();
         if (!$expenseAccountExists) {

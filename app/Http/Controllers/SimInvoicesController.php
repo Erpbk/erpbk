@@ -10,7 +10,7 @@ use App\Models\Sims;
 use App\Models\Transactions;
 use App\Models\VoucherType;
 use App\Models\Vouchers;
-use App\Models\Vendors;
+use App\Models\SimCompany;
 use App\Repositories\SimInvoicesRepository;
 use App\Traits\GlobalPagination;
 use Flash;
@@ -46,7 +46,7 @@ class SimInvoicesController extends AppBaseController
         }
 
         $data = $this->applyPagination($query, $paginationParams);
-        $vendors = Vendors::where('status', 1)->orderBy('name')->get();
+        $companies = SimCompany::where('status', 1)->orderBy('name')->get();
 
         if ($request->ajax()) {
             $tableData = view('sim_invoices.table', compact('data'))->render();
@@ -54,18 +54,18 @@ class SimInvoicesController extends AppBaseController
             return response()->json(['tableData' => $tableData, 'paginationLinks' => $paginationLinks]);
         }
 
-        return view('sim_invoices.index', compact('data', 'vendors'));
+        return view('sim_invoices.index', compact('data', 'companies'));
     }
 
-    public function create($company_slug, $vendorId = null)
+    public function create($company_slug, $companyId = null)
     {
-        $vendors = Vendors::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
+        $companies = SimCompany::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
         $sims = Sims::orderBy('number')->get()->mapWithKeys(function ($sim) {
             return [$sim->id => $sim->number . ' - ' . ($sim->company ?? '')];
         })->prepend('Select', '')->toArray();
-        $vendor = $vendorId ? Vendors::find($vendorId) : null;
+        $company = $companyId ? SimCompany::find($companyId) : null;
 
-        return view('sim_invoices.create', compact('vendors', 'sims', 'vendor'));
+        return view('sim_invoices.create', compact('companies', 'sims', 'company'));
     }
 
     public function createFromClone($company_slug, $id)
@@ -90,7 +90,7 @@ class SimInvoicesController extends AppBaseController
             ->first();
 
         if ($existingInvoice) {
-            $message = 'An invoice for this vendor already exists for ' . $nextMonthString . '.';
+            $message = 'An invoice for this company already exists for ' . $nextMonthString . '.';
             if (request()->ajax()) {
                 return response()->view('sim_invoices.modal_error', compact('message'), 200);
             }
@@ -98,7 +98,7 @@ class SimInvoicesController extends AppBaseController
             return redirect(route('simInvoices.index'));
         }
 
-        $vendors = Vendors::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
+        $companies = SimCompany::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
         $sims = Sims::where('vendor', $sourceInvoice->vendor_id)->orderBy('number')->get()->mapWithKeys(function ($sim) {
             return [$sim->id => $sim->number . ' - ' . ($sim->company ?? '')];
         })->prepend('Select', '')->toArray();
@@ -122,7 +122,7 @@ class SimInvoicesController extends AppBaseController
         ];
 
         $nextBillingMonth = $nextMonthString;
-        return view('sim_invoices.create', compact('vendors', 'sims', 'cloneItems', 'cloneFromInvoice', 'nextBillingMonth'));
+        return view('sim_invoices.create', compact('companies', 'sims', 'cloneItems', 'cloneFromInvoice', 'nextBillingMonth'));
     }
 
     public function store(Request $request)
@@ -131,7 +131,7 @@ class SimInvoicesController extends AppBaseController
             $request->validate([
                 'inv_date' => 'required|date',
                 'billing_month' => 'required',
-                'vendor_id' => 'required|exists:vendors,id',
+                'vendor_id' => 'required|exists:sim_companies,id',
                 'reference_number' => 'required|string|max:255',
                 'sim_id' => 'required|array|min:1',
                 'sim_id.*' => 'required',
@@ -184,12 +184,12 @@ class SimInvoicesController extends AppBaseController
         }
 
         $invoice->load('items');
-        $vendors = Vendors::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
+        $companies = SimCompany::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
         $sims = Sims::orderBy('number')->get()->mapWithKeys(function ($sim) {
             return [$sim->id => $sim->number . ' - ' . ($sim->company ?? '')];
         })->prepend('Select', '')->toArray();
 
-        return view('sim_invoices.edit', compact('invoice', 'vendors', 'sims'));
+        return view('sim_invoices.edit', compact('invoice', 'companies', 'sims'));
     }
 
     public function update(Request $request, $company_slug, $id)
@@ -204,7 +204,7 @@ class SimInvoicesController extends AppBaseController
             $request->validate([
                 'inv_date' => 'required|date',
                 'billing_month' => 'required',
-                'vendor_id' => 'required|exists:vendors,id',
+                'vendor_id' => 'required|exists:sim_companies,id',
                 'reference_number' => 'required|string|max:255',
                 'sim_id' => 'required|array|min:1',
                 'sim_id.*' => 'required|exists:sims,id',
@@ -348,9 +348,9 @@ class SimInvoicesController extends AppBaseController
 
     public function getSims($company_slug, $id)
     {
-        $vendor = Vendors::find($id);
-        if (empty($vendor)) {
-            return response()->json(['error' => 'Vendor not found'], 404);
+        $company = SimCompany::find($id);
+        if (empty($company)) {
+            return response()->json(['error' => 'Company not found'], 404);
         }
 
         $sims = Sims::where('vendor', $id)->orderBy('number')->get(['id', 'number', 'company']);

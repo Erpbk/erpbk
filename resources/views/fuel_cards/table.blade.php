@@ -9,7 +9,7 @@
    <thead class="text-center">
       <tr role="row">
          <th title="Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Number: activate to sort column ascending">Card Number</th>
-         <th title="Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Card Type</th>
+         <th title="Fuel company" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Fuel company: activate to sort column ascending">Fuel company</th>
          <th title="Bike" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Bike: activate to sort column ascending">Notification</th>
          <th title="User" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Balance: activate to sort column ascending">Rider</th>
          <th title="User" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Balance: activate to sort column ascending">Bike</th>
@@ -28,7 +28,7 @@
                {{$r->card_number}}
             </a>
          </td>
-         <td>{{$r->card_type}}</td>
+         <td>{{ $r->fuelCompany?->name ?? '—' }}</td>
          <td>
             @if((! $r->bike_no ?? 1 == $r->rider?->bikes?->plate ?? 0) && $r->status == 'Active')
                <br><a href="javascript:void(0);" data-size="lg" data-title="Update Bike Assignment" data-action="{{ route('fuelCards.update_assignment', $r->id) }}" class='show-modal btn btn-danger btn-sm'>

@@ -294,6 +294,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::resource('sims', App\Http\Controllers\SimsController::class);
     Route::get('sims/delete/{id}', [\App\Http\Controllers\SimsController::class, 'destroy'])->name('sims.delete');
+
+    Route::get('simCompanies/trash', [\App\Http\Controllers\SimCompaniesController::class, 'trash'])->name('simCompanies.trash');
+    Route::post('simCompanies/trash/{id}/restore', [\App\Http\Controllers\SimCompaniesController::class, 'restoreTrash'])->name('simCompanies.restore');
+    Route::delete('simCompanies/trash/{id}/force-destroy', [\App\Http\Controllers\SimCompaniesController::class, 'forceDestroyTrash'])->name('simCompanies.force-destroy');
+    Route::resource('simCompanies', App\Http\Controllers\SimCompaniesController::class);
+    Route::delete('simCompanies/delete/{id}', [\App\Http\Controllers\SimCompaniesController::class, 'destroy'])->name('simCompanies.delete');
     Route::get('simInvoices', [\App\Http\Controllers\SimInvoicesController::class, 'index'])->name('simInvoices.index');
     Route::get('simInvoices/create/{vendorId?}', [\App\Http\Controllers\SimInvoicesController::class, 'create'])->name('simInvoices.create');
     Route::get('simInvoices/create-from-clone/{id}', [\App\Http\Controllers\SimInvoicesController::class, 'createFromClone'])->name('simInvoices.createFromClone');
@@ -306,6 +312,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('simInvoices/vendor/{id}/sims', [\App\Http\Controllers\SimInvoicesController::class, 'getSims'])->name('simInvoices.getSims');
     Route::get('simInvoices/{id}/payment-voucher/create', [\App\Http\Controllers\SimInvoicesController::class, 'createPaymentVoucher'])->name('simInvoices.paymentVoucher.create');
     Route::post('simInvoices/{id}/payment-voucher', [\App\Http\Controllers\SimInvoicesController::class, 'storePaymentVoucher'])->name('simInvoices.paymentVoucher.store');
+
+    Route::get('bikeRentCompanies/trash', [\App\Http\Controllers\BikeRentCompaniesController::class, 'trash'])->name('bikeRentCompanies.trash');
+    Route::post('bikeRentCompanies/trash/{id}/restore', [\App\Http\Controllers\BikeRentCompaniesController::class, 'restoreTrash'])->name('bikeRentCompanies.restore');
+    Route::delete('bikeRentCompanies/trash/{id}/force-destroy', [\App\Http\Controllers\BikeRentCompaniesController::class, 'forceDestroyTrash'])->name('bikeRentCompanies.force-destroy');
+    Route::resource('bikeRentCompanies', App\Http\Controllers\BikeRentCompaniesController::class);
+    Route::delete('bikeRentCompanies/delete/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'destroy'])->name('bikeRentCompanies.delete');
 
     /* Rider section starts from here */
 
@@ -474,6 +486,13 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('fuel_data/summary', [\App\Http\Controllers\FuelDataController::class, 'monthlySummary'])->name('fuel_data.summary');
     Route::get('fuel_invoice/{rider_id}/{billing_month}', [\App\Http\Controllers\FuelDataController::class, 'show2'])->name('fuel_data.rider_monthly_summary');
     Route::resource('fuel_data', App\Http\Controllers\FuelDataController::class);
+
+    Route::get('fuelCompanies/trash', [\App\Http\Controllers\FuelCompaniesController::class, 'trash'])->name('fuelCompanies.trash');
+    Route::post('fuelCompanies/trash/{id}/restore', [\App\Http\Controllers\FuelCompaniesController::class, 'restoreTrash'])->name('fuelCompanies.restore');
+    Route::delete('fuelCompanies/trash/{id}/force-destroy', [\App\Http\Controllers\FuelCompaniesController::class, 'forceDestroyTrash'])->name('fuelCompanies.force-destroy');
+    Route::resource('fuelCompanies', App\Http\Controllers\FuelCompaniesController::class);
+    Route::delete('fuelCompanies/delete/{id}', [\App\Http\Controllers\FuelCompaniesController::class, 'destroy'])->name('fuelCompanies.delete');
+
     Route::resource('fuelCards', App\Http\Controllers\FuelCardController::class);
     Route::any('fuelcards/import', [\App\Http\Controllers\FuelCardController::class, 'import'])->name('fuelCards.import');
     Route::get('fuelcards/export', [\App\Http\Controllers\FuelCardController::class, 'export'])->name('fuelCards.export');
@@ -502,7 +521,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     // Leasing Company Billing Invoice Routes (separate module)
     Route::get('leasingCompanyBillingInvoices', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'index'])->name('leasingCompanyBillingInvoices.index');
-    Route::get('leasingCompanyBillingInvoices/create/{leasingCompanyId?}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'create'])->name('leasingCompanyBillingInvoices.create');
+    Route::get('leasingCompanyBillingInvoices/create/{customerId?}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'create'])->name('leasingCompanyBillingInvoices.create');
     Route::get('leasingCompanyBillingInvoices/create-from-clone/{id}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'createFromClone'])->name('leasingCompanyBillingInvoices.createFromClone');
     Route::post('leasingCompanyBillingInvoices/store', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'store'])->name('leasingCompanyBillingInvoices.store');
     Route::get('leasingCompanyBillingInvoices/{id}', [\App\Http\Controllers\LeasingCompanyBillingInvoicesController::class, 'show'])->name('leasingCompanyBillingInvoices.show');

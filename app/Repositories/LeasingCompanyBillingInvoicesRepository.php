@@ -17,11 +17,11 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
 {
     protected $fieldSearchable = [
         'inv_date',
-        'leasing_company_id',
+        'customer_id',
         'billing_month',
         'invoice_number',
         'reference_number',
-        'leasing_company_invoice_number',
+        'customer_invoice_number',
         'total_amount',
         'attachment',
         'status',
@@ -54,13 +54,13 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
             if ($id) {
                 $invoice = LeasingCompanyBillingInvoice::where('id', $id)->first();
 
-                $existingInvoice = LeasingCompanyBillingInvoice::where('leasing_company_id', $input['leasing_company_id'])
+                $existingInvoice = LeasingCompanyBillingInvoice::where('customer_id', $input['customer_id'])
                     ->where('billing_month', $input['billing_month'])
                     ->where('id', '!=', $id)
                     ->first();
 
                 if ($existingInvoice) {
-                    throw new \Exception('A billing invoice for this leasing company has already been generated for the selected billing month.');
+                    throw new \Exception('A billing invoice for this customer has already been generated for the selected billing month.');
                 }
 
                 if (isset($input['attachment']) && $invoice->attachment) {
@@ -70,12 +70,12 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
                 $invoice->update($input);
                 LeasingCompanyBillingInvoiceItem::where('inv_id', $id)->delete();
             } else {
-                $existingInvoice = LeasingCompanyBillingInvoice::where('leasing_company_id', $input['leasing_company_id'])
+                $existingInvoice = LeasingCompanyBillingInvoice::where('customer_id', $input['customer_id'])
                     ->where('billing_month', $input['billing_month'])
                     ->first();
 
                 if ($existingInvoice) {
-                    throw new \Exception('A billing invoice for this leasing company has already been generated for the selected billing month.');
+                    throw new \Exception('A billing invoice for this customer has already been generated for the selected billing month.');
                 }
 
                 $input['status'] = 0;
@@ -162,10 +162,10 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
 
     public function recordTransactionsForInvoice(LeasingCompanyBillingInvoice $invoice, $transCode = null)
     {
-        $invoice->load('leasingCompany');
-        $leasingCompany = $invoice->leasingCompany;
-        if (!$leasingCompany || !$leasingCompany->account_id) {
-            throw new \Exception('Leasing company does not have a linked ledger account. Please set the account before creating billing invoices.');
+        $invoice->load('customer');
+        $customer = $invoice->customer;
+        if (!$customer || !$customer->account_id) {
+            throw new \Exception('Customer does not have a linked ledger account. Please set the account before creating billing invoices.');
         }
 
         $trans_code = $transCode !== null ? $transCode : Account::trans_code();
@@ -173,9 +173,9 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
         $vatAmount = (float) $invoice->vat;
         $totalAmount = (float) $invoice->total_amount;
         $invoiceRef = $invoice->invoice_number ?: ('LBI-' . $invoice->id);
-        $narration = 'Leasing Billing Invoice #' . $invoiceRef . ' - ' . ($invoice->descriptions ?? 'Billing Invoice');
+        $narration = 'bike Rental Billing Invoice #' . $invoiceRef . ' - ' . ($invoice->descriptions ?? 'Billing Invoice');
 
-        $bikeRentalAccountId = HeadAccount::BIKE_RENTAL_ACCOUNT;
+        $bikeRentalAccountId = HeadAccount::VEHICAL_INCOME;
         $vatAccountId = HeadAccount::VAT_ON_SALES;
 
         $bikeRentalAccountExists = \App\Support\CompanyQuery::table('accounts')->where('id', $bikeRentalAccountId)->whereNull('deleted_at')->exists();
@@ -196,7 +196,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
             $transactionService->recordTransaction([
                 'account_id' => $bikeRentalAccountId,
                 'reference_id' => $invoice->id,
-                'reference_type' => 'LeasingCompanyBillingInvoice',
+                'reference_type' => 'bike Rental Invoice',
                 'trans_code' => $trans_code,
                 'trans_date' => $transDate,
                 'narration' => $narration,
@@ -208,7 +208,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
                 $transactionService->recordTransaction([
                     'account_id' => $vatAccountId,
                     'reference_id' => $invoice->id,
-                    'reference_type' => 'LeasingCompanyBillingInvoice',
+                    'reference_type' => 'bike Rental Invoice',
                     'trans_code' => $trans_code,
                     'trans_date' => $transDate,
                     'narration' => $narration . ' - VAT',
@@ -218,9 +218,9 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
             }
 
             $transactionService->recordTransaction([
-                'account_id' => $leasingCompany->account_id,
+                'account_id' => $customer->account_id,
                 'reference_id' => $invoice->id,
-                'reference_type' => 'LeasingCompanyBillingInvoice',
+                'reference_type' => 'bike Rental Invoice',
                 'trans_code' => $trans_code,
                 'trans_date' => $transDate,
                 'narration' => $narration,
@@ -228,7 +228,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
                 'billing_month' => $billingMonthStr,
             ], true);
         } catch (\Throwable $e) {
-            throw new \Exception('Failed to record transaction for Leasing Billing Invoice. ' . $e->getMessage(), 0, $e);
+            throw new \Exception('Failed to record transaction for bike Rental Billing Invoice. ' . $e->getMessage(), 0, $e);
         }
     }
 }

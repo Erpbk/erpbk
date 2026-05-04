@@ -1,6 +1,7 @@
 <script src="{{ asset('js/modal_custom.js') }}"></script>
 @php
 $items = \App\Models\Items::where('status', 1)->get();
+$garages = \App\Models\Garages::where('status', 1)->where('garage_type', 'internal')->pluck('name', 'id');
 @endphp
 
 <div class="row">
@@ -33,6 +34,10 @@ $items = \App\Models\Items::where('status', 1)->get();
         <label>Attachment</label>
         {!! Form::file('attachment', ['class' => 'form-control', 'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx']) !!}
         <small class="text-muted">Max: 5MB</small>
+    </div>
+    <div class="col-md-2 form-group">
+        <label>Garage</label>
+        {!! Form::select('garage_id', ['' => 'Select Garage'] + $garages->toArray(), isset($invoice) ? $invoice->garage_id : null, ['class' => 'form-select form-select-sm select2', 'required' => true]) !!}
     </div>
     @else
     <div class="col-md-2 form-group">

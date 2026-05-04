@@ -139,13 +139,13 @@
                                 data-balance="{{ $invoice->balance + ($invoice->partial_paid_amount[$payment->id] ?? 0) }}" 
                                 data-reference="{{ $invoice->invoice_number }}" 
                                 data-old-payment="{{ $invoice->partial_paid_amount[$payment->id] ?? 0 }}"
-                                data-customer-id="{{ $invoice->customer->id ?? $invoice->leasingCompany->id ?? $invoice->supplier->id }}"
-                                data-customer-name="{{ $invoice->customer->name ?? $invoice->leasingCompany->name ?? $invoice->supplier->name }}">
+                                data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id }}"
+                                data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name }}">
                                 <td class="text-center">
                                     <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" checked>
                                 </td>
                                 <td>{{ $invoice->invoice_number }}</td>
-                                <td>{{ $invoice->customer->name ?? $invoice->leasingCompany->name ?? $invoice->supplier->name ?? '-' }}</td>
+                                <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? '-' }}</td>
                                 <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                                 <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                                 <td class="text-right">{{ number_format(($invoice->paid_amount ?? 0) - ($invoice->partial_paid_amount[$payment->id] ?? 0), 2) }}</td>
@@ -165,13 +165,13 @@
                         <tr data-invoice-id="{{ $invoice->id }}" 
                             data-balance="{{ $invoice->balance }}" 
                             data-reference="{{ $invoice->invoice_number }}"
-                            data-customer-id="{{ $invoice->customer->id ?? $invoice->leasingCompany->id ?? $invoice->supplier->id }}"
-                            data-customer-name="{{ $invoice->customer->name ?? $invoice->leasingCompany->name ?? $invoice->supplier->name }}">
+                            data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id }}"
+                            data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name }}">
                             <td class="text-center">
                                 <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox">
                             </td>
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
-                            <td>{{ $invoice->customer->name ?? $invoice->leasingCompany->name ?? $invoice->supplier->name ?? '-' }}</td>
+                            <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? '-' }}</td>
                             <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                             <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                             <td class="text-right">{{ number_format($invoice->paid_amount ?? 0, 2) }}</td>

@@ -10,10 +10,10 @@
                     <td class="fw-bold text-primary">{{ $fuelCard->card_number ?? 'N/A' }}</td>
                 </tr>
                 <tr>
-                    <th class="ps-4">Card Type</th>
+                    <th class="ps-4">Fuel company</th>
                     <td>
                         <span class="badge bg-primary">
-                            {{ $fuelCard->card_type ?? 'Not specified' }}
+                            {{ $fuelCard->fuelCompany?->name ?? 'Not specified' }}
                         </span>
                     </td>
                 </tr>
@@ -162,10 +162,10 @@
                     </div>
 
                     <div class="row mb-2">
-                        <div class="col-5 font-weight-bold text-muted">Card Type:</div>
+                        <div class="col-5 font-weight-bold text-muted">Fuel company:</div>
                         <div class="col-7">
-                            @if($card->card_type)
-                            <span class="badge bg-primary">{{ $card->card_type }}</span>
+                            @if($card->fuelCompany)
+                            <span class="badge bg-primary">{{ $card->fuelCompany->name }}</span>
                             @else
                             N/A
                             @endif

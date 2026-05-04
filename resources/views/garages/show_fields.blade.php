@@ -1,3 +1,9 @@
+<!-- Type -->
+<div class="col-sm-12">
+    {!! Form::label('garage_type', 'Type:') !!}
+    <p>{{ ($garages->garage_type ?? 'external') === 'internal' ? 'Internal' : 'External' }}</p>
+</div>
+
 <!-- Name Field -->
 <div class="col-sm-12">
     {!! Form::label('name', 'Name:') !!}

@@ -136,9 +136,9 @@ class SimsController extends AppBaseController
         foreach ($preferredOrder as $key) {
             // Check if it's a valid column (either in DB or computed)
             if (in_array($key, $dbColumns) || array_key_exists($key, $computedColumns)) {
-                if($key == 'branch_id'){
+                if ($key == 'branch_id') {
                     $columns[] = ['data' => $key, 'title' => 'Branch'];
-                }else{
+                } else {
                     $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
                 }
                 $added[$key] = true;
@@ -187,11 +187,10 @@ class SimsController extends AppBaseController
         // Validation rules
         $rules = [
             'number' => 'required|string|min:10|max:13|unique:sims,number',
-            'company' => 'required|string',
             'emi' => 'required|min:15|max:25',
             'vendor' => 'nullable|integer',
             'fleet_supervisor' => 'nullable|string|max:50',
-            'branch_id' => 'required|numeric|exists:branches,id',
+            'branch_id' => 'nullable|numeric|exists:branches,id',
         ];
 
         // Custom validation messages

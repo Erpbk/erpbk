@@ -72,6 +72,15 @@
                     <input type="month" name="billing_month" class="form-control">
                 </div>
                 <div class="form-group col-md-12">
+                    <label for="garage_id">Garage (internal)</label>
+                    <select class="form-control" id="garage_id" name="garage_id">
+                        <option value="">All</option>
+                        @foreach(\App\Models\Garages::query()->where('status', 1)->where('garage_type', 'internal')->orderBy('name')->get() as $g)
+                        <option value="{{ $g->id }}" {{ (string) request('garage_id') === (string) $g->id ? 'selected' : '' }}>{{ $g->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group col-md-12">
                     <label for="inv_id">Invoice ID</label>
                     <input type="text" name="inv_id" class="form-control" placeholder="Filter By Invoice ID" value="{{ request('inv_id') }}">
                 </div>
@@ -133,6 +142,11 @@
         $('#supplier_id').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Supplier",
+            allowClear: true
+        });
+        $('#garage_id').select2({
+            dropdownParent: $('#searchTopbody'),
+            placeholder: "Garage",
             allowClear: true
         });
     });

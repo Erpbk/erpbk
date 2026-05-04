@@ -4,7 +4,8 @@ namespace App\Repositories;
 
 use App\Helpers\Account;
 use App\Helpers\HeadAccount;
-use App\Models\SupplierInvoicesItem; 
+use App\Models\Garages;
+use App\Models\SupplierInvoicesItem;
 use App\Models\SupplierInvoices;
 use App\Models\Transactions;
 use App\Repositories\BaseRepository;
@@ -29,7 +30,8 @@ class SupplierInvoicesRepository extends BaseRepository
         'total_amount',
         'billing_month',
         'gaurantee',
-        'notes'
+        'notes',
+        'garage_id',
     ];
 
     public function getFieldsSearchable(): array
@@ -57,18 +59,20 @@ class SupplierInvoicesRepository extends BaseRepository
             'item_vat' => 'nullable|array',
             'item_vat.*' => 'numeric|min:0|max:100',
         ];
-        if($request->has('is_invoice')){
+        if ($request->has('is_invoice')) {
             $rules['inv_date'] = 'required|date';
             $rules['billing_month'] = 'required|date_format:Y-m';
             $rules['attachment'] = 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120';
-        }else {
+            $rules['garage_id'] = 'required|exists:garages,id';
+        } else {
             $rules['order_date'] = 'required|date';
+            $rules['garage_id'] = 'nullable|exists:garages,id';
         }
         $request->validate($rules);
-        
+
         try {
             DB::beginTransaction();
-            
+
             // Handle attachment
             $attachmentPath = null;
             if ($request->hasFile('attachment')) {
@@ -77,27 +81,27 @@ class SupplierInvoicesRepository extends BaseRepository
                 $attachmentPath = $file->storeAs('supplier_invoices', $fileName, 'public');
                 $request['attachment'] = $attachmentPath;
             }
-            
+
             // Calculate totals
             $subtotal = 0;
             $vatTotal = 0;
             $grandTotal = 0;
             $itemsData = [];
-            
+
             foreach ($request->item_ids as $index => $itemId) {
                 $item = \App\Models\Items::find($itemId);
                 $quantity = $request->item_qty[$index];
                 $rate = $request->item_rate[$index];
                 $vatPercent = $request->item_vat[$index] ?? 0;
-                
+
                 $itemSubtotal = $quantity * $rate;
                 $itemVat = $itemSubtotal * ($vatPercent / 100);
                 $itemTotal = $itemSubtotal + $itemVat;
-                
+
                 $subtotal += $itemSubtotal;
                 $vatTotal += $itemVat;
                 $grandTotal += $itemTotal;
-                
+
                 $itemsData[] = [
                     'item_id' => $itemId,
                     'item_des' => $item->name,
@@ -108,41 +112,48 @@ class SupplierInvoicesRepository extends BaseRepository
                     'total_amount' => $itemTotal,
                 ];
             }
-            if($request->has('is_invoice'))
+            if ($request->has('is_invoice'))
                 $request['billing_month'] = $request['billing_month'] . '-01';
             $request['subtotal'] = $subtotal;
             $request['vat'] = $vatTotal;
             $request['total_amount'] = $grandTotal;
-            
-            if($id){
+
+            if ($id) {
                 $request['updated_by'] = auth()->id();
                 $invoice = SupplierInvoices::find($id);
                 $invoice->update($request->all());
                 $invoice->items()->delete();
-            }else {
+            } else {
                 $request['created_by'] = auth()->id();
                 $invoice = SupplierInvoices::create($request->all());
             }
-            
+
             // Create invoice items
             foreach ($itemsData as $itemData) {
                 $invoice->items()->create($itemData);
             }
 
-            if($request->has('is_invoice') && $request['is_invoice']) {
-                
+            if ($request->has('is_invoice') && $request['is_invoice']) {
+
                 //Create Transactions Against Invoice
                 $transCode = null;
-                if($id) {
+                if ($id) {
                     $transCode = Transactions::where('reference_type', 'SUP')
                         ->where('reference_id', $id)
                         ->value('trans_code');
-                    Transactions::where('trans_code',$transCode)->delete();
+                    Transactions::where('trans_code', $transCode)->delete();
                 }
-                if(!$transCode) {
+                if (!$transCode) {
                     $transCode = \App\Helpers\Account::trans_code();
                 }
-                $invoice->load('supplier');
+                $invoice->load('supplier', 'garage');
+                $debitInventoryAccountId = HeadAccount::GARAGE_ACCOUNT;
+                if ($invoice->garage_id) {
+                    $g = $invoice->garage ?? Garages::find($invoice->garage_id);
+                    if ($g && $g->account_id) {
+                        $debitInventoryAccountId = (int) $g->account_id;
+                    }
+                }
                 // Credit the Supplier Account
                 Transactions::create([
                     'trans_code' => $transCode,
@@ -157,13 +168,13 @@ class SupplierInvoicesRepository extends BaseRepository
                     'branch_id' => $invoice->supplier->branch_id,
                 ]);
 
-                //Debit Expense Account
+                // Debit internal garage / Garage Inventory (Asset)
                 Transactions::create([
-                    'trans_code' => $transCode, 
+                    'trans_code' => $transCode,
                     'trans_date' => $invoice->inv_date,
                     'reference_id' => $invoice->id,
                     'reference_type' => 'SUP',
-                    'account_id' => 1176, // will change after creating expense account for suppliers
+                    'account_id' => $debitInventoryAccountId,
                     'credit' => 0,
                     'debit' => $invoice->subtotal,
                     'billing_month' => $invoice->billing_month,
@@ -171,33 +182,32 @@ class SupplierInvoicesRepository extends BaseRepository
                     'narration' => $invoice->descriptions,
                 ]);
 
-                //Debit VAT on Purchase Account
-                if($invoice->vat > 0){
+                //Debit VAT on Purchase Account (VAT Purchase Account)
+                if ($invoice->vat > 0) {
                     Transactions::create([
-                        'trans_code' => $transCode, 
+                        'trans_code' => $transCode,
                         'trans_date' => $invoice->inv_date,
                         'reference_id' => $invoice->id,
                         'reference_type' => 'SUP',
-                        'account_id' => 1023,
+                        'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
                         'credit' => 0,
                         'debit' => $invoice->vat,
                         'billing_month' => $invoice->billing_month,
                         'branch_id' => $invoice->supplier->branch_id,
-                        'narration' => 'Vat on supplier invoice '.$invoice->inv_id,
+                        'narration' => 'Vat on supplier invoice ' . $invoice->inv_id,
                     ]);
                 }
             }
-            
+
             DB::commit();
-            
+
             return [
                 'success' => true
             ];
-                            
         } catch (\Exception $e) {
             DB::rollBack();
             return [
-                'success' => false, 
+                'success' => false,
                 'error' => $e->getMessage() . $e->getTraceAsString(),
             ];
         }

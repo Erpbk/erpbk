@@ -20,7 +20,7 @@ class BikeHistoryRepository extends BaseRepository
     {
         return $this->fieldSearchable;
     }
-bikeHistoryRepository
+
     public function model(): string
     {
         return BikeHistory::class;

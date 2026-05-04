@@ -12,6 +12,7 @@ interface HeadAccount
   const SALIK_ASSET_ACCOUNT = 2490; // Salik Asset Account
   const SALIK_ADMIN_CHARGES = 2476; // Salik Admin Charges Account
   const RTA_ADMIN_CHARGES = 2473; // RTA Admin Charges Account
+  const RTA_SERVICE_CHARGES = 2513; // RTA Service Charges Account
   const LEASING_EXPENSE_ACCOUNT = 2493; // Leasing Expense Account
   const VEHICAL_INCOME = 2502; // Vehical Income Account
   const BIKE_MAINTENANCE_ACCOUNT = 2468; // Bike Maintenance Account

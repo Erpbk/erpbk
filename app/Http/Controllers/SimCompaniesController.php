@@ -77,9 +77,12 @@ class SimCompaniesController extends AppBaseController
         }
 
         $input = $request->all();
-        $currentLiabilities = Accounts::where('name', 'Sims (Company)')->where('account_type', 'Liability')->where('parent_id', 1644)->first();
+        $currentLiabilities = Accounts::where('name', 'Sims (Company)')->where('account_type', 'Liability')->first();
         if (!$currentLiabilities) {
-            $message = 'Chart of accounts is missing a "Sims (Company)" (Liability) head. Add it in Chart of Accounts first.';
+            return response()->json([
+                'success' => false,
+                'message' => 'Parent account "Sims (Company)" not found.',
+            ], 422);
             if ($request->ajax()) {
                 return response()->json(['message' => $message], 422);
             }

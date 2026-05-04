@@ -9,12 +9,10 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-
-
     public function up(): void
     {
         Schema::table('items', function (Blueprint $table) {
-            $table->string('owner')->nullable();
+            $table->string('attachment')->nullable();
         });
     }
 
@@ -24,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('items', function (Blueprint $table) {
-            $table->dropColumn('owner');
+            $table->dropColumn('attachment');
         });
     }
 };

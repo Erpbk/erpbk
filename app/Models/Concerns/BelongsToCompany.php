@@ -2,10 +2,9 @@
 
 namespace App\Models\Concerns;
 
-use App\Models\Company;
+use App\Support\CompanyContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
 trait BelongsToCompany
@@ -50,45 +49,12 @@ trait BelongsToCompany
 
     protected function shouldApplyCompanyScope(): bool
     {
-        if (app()->runningInConsole()) {
-            return false;
-        }
-
-        return $this->hasCompanyColumn();
+        return CompanyContext::shouldApplyScope() && $this->hasCompanyColumn();
     }
 
     protected function resolveScopedCompanyId(): ?int
     {
-        $request = request();
-        if (!$request) {
-            return null;
-        }
-
-        $company = $request->attributes->get('company');
-        if ($company && isset($company->id)) {
-            return (int) $company->id;
-        }
-
-        if (Auth::check() && !empty(Auth::user()->company_id)) {
-            return (int) Auth::user()->company_id;
-        }
-
-        $companySlug = $request->route('company_slug') ?? $request->session()->get('company_slug');
-        if (empty($companySlug)) {
-            return null;
-        }
-
-        $resolvedCompany = Company::query()->where('slug', (string) $companySlug)->first();
-        if (!$resolvedCompany && is_numeric($companySlug)) {
-            $resolvedCompany = Company::query()->find((int) $companySlug);
-        }
-
-        if (!$resolvedCompany) {
-            return null;
-        }
-
-        $request->attributes->set('company', $resolvedCompany);
-        return (int) $resolvedCompany->id;
+        return CompanyContext::id();
     }
 
     protected function hasCompanyColumn(): bool

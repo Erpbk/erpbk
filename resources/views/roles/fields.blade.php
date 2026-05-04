@@ -49,7 +49,7 @@
           @foreach ($permissions as $item)
 
                 <div class="form-check me-3 me-lg-5">
-                    <input class="form-check-input" name="permission[]" id="{{$item->id}}" value="{{$item->name}}" type="checkbox"
+                    <input class="form-check-input" name="permission[]" id="{{$item->id}}" value="{{$item->id}}" type="checkbox"
                     @isset($rolePermissions[$item->id]) checked @endisset >
                     @php
                          $name = explode('_',$item->name,2);
@@ -84,7 +84,7 @@
             <div class="d-flex">
               @foreach ($permissions as $item)
               <div class="form-check me-3 me-lg-5">
-                <input class="form-check-input" name="permission[]" id="{{ $item->id }}" value="{{ $item->name }}" type="checkbox"
+                <input class="form-check-input" name="permission[]" id="{{ $item->id }}" value="{{ $item->id }}" type="checkbox"
                   @isset($rolePermissions[$item->id]) checked @endisset>
                 @php
                   $parts = explode('_', $item->name, 2);

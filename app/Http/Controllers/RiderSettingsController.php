@@ -336,7 +336,16 @@ class RiderSettingsController extends Controller
         if (!in_array($validated['field_key'], $keys, true)) {
             return response()->json(['success' => false, 'message' => 'Invalid field.'], 422);
         }
-        $assignment = RiderFieldCategoryAssignment::firstOrNew(['field_key' => $validated['field_key']]);
+        $assignment = RiderFieldCategoryAssignment::withoutGlobalScope('company')
+            ->where('field_key', $validated['field_key'])
+            ->first();
+        if (!$assignment) {
+            $assignment = new RiderFieldCategoryAssignment();
+            $assignment->field_key = $validated['field_key'];
+            if (Schema::hasColumn($assignment->getTable(), 'company_id')) {
+                $assignment->company_id = auth()->user()->company_id ?? null;
+            }
+        }
         $newCategoryId = (int) $validated['category_id'];
         $assignment->category_id = $newCategoryId;
         if (!$assignment->exists || (int) $assignment->getOriginal('category_id') !== $newCategoryId) {
@@ -675,6 +684,7 @@ class RiderSettingsController extends Controller
             'help_text' => 'nullable|string|max:1000',
             'data_type' => 'required|string|in:' . implode(',', array_keys(RiderCustomField::dataTypes())),
             'is_mandatory' => 'boolean',
+            'is_visible' => 'boolean',
             'prevent_duplicate_values' => 'boolean',
             'default_value' => 'nullable|string|max:500',
             'input_format' => 'nullable|string|max:100',
@@ -683,6 +693,7 @@ class RiderSettingsController extends Controller
         ]);
 
         $validated['is_mandatory'] = $request->boolean('is_mandatory');
+        $validated['is_visible'] = $request->boolean('is_visible', true);
         $validated['prevent_duplicate_values'] = $request->boolean('prevent_duplicate_values');
         $validated['help_text'] = $request->input('help_text');
         $validated['default_value'] = $request->input('default_value');
@@ -741,6 +752,7 @@ class RiderSettingsController extends Controller
             'help_text' => 'nullable|string|max:1000',
             'data_type' => 'required|string|in:' . implode(',', array_keys(RiderCustomField::dataTypes())),
             'is_mandatory' => 'boolean',
+            'is_visible' => 'boolean',
             'prevent_duplicate_values' => 'boolean',
             'default_value' => 'nullable|string|max:500',
             'input_format' => 'nullable|string|max:100',
@@ -752,6 +764,7 @@ class RiderSettingsController extends Controller
         $field->help_text = $request->input('help_text');
         $field->data_type = $validated['data_type'];
         $field->is_mandatory = $request->boolean('is_mandatory');
+        $field->is_visible = $request->boolean('is_visible', true);
         $field->prevent_duplicate_values = $request->boolean('prevent_duplicate_values');
         $field->default_value = $request->input('default_value');
         $field->input_format = $request->input('input_format');
@@ -788,6 +801,27 @@ class RiderSettingsController extends Controller
         return redirect()
             ->route('settings-panel.rider-settings.index')
             ->with('success', 'Custom field deleted.');
+    }
+
+    public function updateCustomFieldFlags(Request $request, $company_slug, $id)
+    {
+        $validated = $request->validate([
+            'is_mandatory' => 'required|boolean',
+            'is_visible' => 'required|boolean',
+        ]);
+
+        $field = RiderCustomField::findOrFail((int) $id);
+        $field->is_mandatory = filter_var($validated['is_mandatory'], FILTER_VALIDATE_BOOLEAN);
+        $field->is_visible = filter_var($validated['is_visible'], FILTER_VALIDATE_BOOLEAN);
+        $field->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Custom field settings updated.',
+            'id' => (int) $field->id,
+            'is_mandatory' => (bool) $field->is_mandatory,
+            'is_visible' => (bool) $field->is_visible,
+        ]);
     }
 
     /**

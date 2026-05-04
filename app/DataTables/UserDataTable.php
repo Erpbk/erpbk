@@ -42,6 +42,8 @@ class UserDataTable extends DataTable
 
     if ($companyId !== null) {
       $query->where('company_id', $companyId);
+    } elseif (auth()->user()?->company_id) {
+      $query->where('company_id', (int) auth()->user()->company_id);
     }
 
     return $query;

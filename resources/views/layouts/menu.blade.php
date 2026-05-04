@@ -2,14 +2,17 @@
 // Labels are editable in Settings > ERP Module Settings > [Module] > General; same source as ModuleSettingsController
 $menuLabels = $menuLabels ?? \App\Models\Settings::getMenuLabels();
 $companySlug = request()->route('company_slug') ?? session('company_slug');
-$homeLink = auth('admin')->check()
+$isAdminRoute = request()->routeIs('admin.*');
+$isAdminLogin = auth('admin')->check() && $isAdminRoute;
+$homeLink = $isAdminLogin
 ? route('admin.dashboard')
 : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
 @endphp
+@if(!$isAdminLogin)
 @if(\App\Support\CompanyModuleVisibility::enabled('dashboard'))
 @can('dashboard_view')
-<li class="menu-item {{ Route::is('/') ? 'active' : '' }}">
-  <a href="{{ $homeLink }}" class="menu-link ">
+<li class="menu-item {{ Route::is('home') || Route::is('/') ? 'active' : '' }}">
+  <a href="{{ $companySlug ? route('home', ['company_slug' => $companySlug]) : 'javascript:void(0);' }}" class="menu-link ">
     <i class="menu-icon tf-icons ti ti-layout-dashboard"></i>
     <div>{{ $menuLabels['dashboard'] ?? 'Dashboard' }}</div>
     {{-- <div class="badge bg-white text-dark rounded-pill ms-auto">2</div>  --}}
@@ -25,6 +28,11 @@ $homeLink = auth('admin')->check()
     <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
   </a>
   <ul class="menu-sub">
+    <li class="menu-item {{ Route::is('banks.*') ? 'active' : '' }} {{ Route::is('bank.*') ? 'active' : '' }} ">
+      <a href="{{ route('banks.index') }}" class="menu-link">
+        <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
+      </a>
+    </li>
     <li class="menu-item {{ Route::is('cheques.*') ? 'active' : '' }}">
       <a href="{{ route('cheques.index') }}" class="menu-link">
         <div>{{ $menuLabels['cheques'] ?? 'Cheques' }}</div>
@@ -38,11 +46,6 @@ $homeLink = auth('admin')->check()
     <li class="menu-item {{ Route::is('receipts.*') ? 'active' : '' }}">
       <a href="{{ route('receipts.index') }}" class="menu-link">
         <div>{{ $menuLabels['receipts'] ?? 'Receipts (Cash-In)' }}</div>
-      </a>
-    </li>
-    <li class="menu-item {{ Route::is('banks.*') ? 'active' : '' }} {{ Route::is('bank.*') ? 'active' : '' }} ">
-      <a href="{{ route('banks.index') }}" class="menu-link">
-        <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
       </a>
     </li>
   </ul>
@@ -562,6 +565,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endcan
 @endif
+@endif
 
 
 
@@ -569,7 +573,7 @@ $homeLink = auth('admin')->check()
 {{-- Admin Panel (global site settings) --}}
 @php($adminUser = auth('admin')->user())
 @php($canAccessSuperAdminPanel = $adminUser && $adminUser->hasRole('Super Admin'))
-@if($canAccessSuperAdminPanel)
+@if($isAdminLogin && $canAccessSuperAdminPanel)
 <li class="menu-header small text-uppercase mt-3">
   <span class="menu-header-text">{{ __('Admin Panel') }}</span>
 </li>
@@ -580,7 +584,7 @@ $homeLink = auth('admin')->check()
   </a>
 </li>
 @endif
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('companies_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('companies_view'))
 <li class="menu-item {{ Route::is('admin.companies*') ? 'active' : '' }}">
   <a href="{{ route('admin.companies.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-building-community"></i>
@@ -589,7 +593,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('blogs_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('blogs_view'))
 <li class="menu-item {{ Route::is('admin.blogs*') ? 'active' : '' }}">
   <a href="{{ route('admin.blogs.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-pencil"></i>
@@ -598,7 +602,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('testimonials_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('testimonials_view'))
 <li class="menu-item {{ Route::is('admin.testimonials*') ? 'active' : '' }}">
   <a href="{{ route('admin.testimonials.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-message-dots"></i>
@@ -607,7 +611,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('privacy_policy_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('privacy_policy_view'))
 <li class="menu-item {{ Route::is('admin.privacy-policy*') ? 'active' : '' }}">
   <a href="{{ route('admin.privacy-policy.edit') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-file-description"></i>
@@ -616,7 +620,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('terms_conditions_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('terms_conditions_view'))
 <li class="menu-item {{ Route::is('admin.terms-conditions*') ? 'active' : '' }}">
   <a href="{{ route('admin.terms-conditions.edit') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-file-description"></i>
@@ -625,7 +629,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel && $adminUser->hasPermission('users_view'))
+@if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('users_view'))
 <li class="menu-item {{ Route::is('admin.users*') ? 'active' : '' }}">
   <a href="{{ route('admin.users.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-users-group"></i>
@@ -634,7 +638,7 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
-@if($canAccessSuperAdminPanel)
+@if($isAdminLogin && $canAccessSuperAdminPanel)
 <li class="menu-item {{ Route::is('admin.permissions*') ? 'active' : '' }}">
   <a href="{{ route('admin.permissions.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-lock"></i>
@@ -643,6 +647,16 @@ $homeLink = auth('admin')->check()
 </li>
 @endif
 
+@if($isAdminLogin && $canAccessSuperAdminPanel)
+<li class="menu-item {{ Route::is('admin.accounts.fixed*') ? 'active' : '' }}">
+  <a href="{{ route('admin.accounts.fixed.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-pinned"></i>
+    <div>{{ __('Account Fixing') }}</div>
+  </a>
+</li>
+@endif
+
+@if(!$isAdminLogin)
 @canany(['account_view','gn_ledger'])
 <li class="menu-item {{ Route::is('accounts*') ? 'open' : '' }} ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
@@ -674,6 +688,7 @@ $homeLink = auth('admin')->check()
   </ul>
 </li>
 @endcanany
+@endif
 
 {{-- <li class="menu-item {{ Request::is('reports*') ? 'open' : '' }} ">
 <a href="javascript:void(0);" class="menu-link menu-toggle ">

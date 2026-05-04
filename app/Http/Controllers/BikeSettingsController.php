@@ -139,7 +139,7 @@ class BikeSettingsController extends Controller
         return $this->bikeSettingsIndexRedirect()->with('success', 'Category added.');
     }
 
-    public function updateCategory(Request $request, int $id)
+    public function updateCategory(Request $request, string $company_slug, int $id)
     {
         $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
         if ((bool) $category->is_system) {
@@ -156,7 +156,7 @@ class BikeSettingsController extends Controller
         return $this->bikeSettingsIndexRedirect()->with('success', 'Category updated.');
     }
 
-    public function destroyCategory(int $id)
+    public function destroyCategory(string $company_slug, int $id)
     {
         $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
         if ((bool) $category->is_system) {
@@ -223,6 +223,66 @@ class BikeSettingsController extends Controller
         return $this->bikeSettingsIndexRedirect((int) $assignment->category_id)->with('success', 'Field assignment updated.');
     }
 
+    public function reorderFieldAssignments(Request $request)
+    {
+        $validated = $request->validate([
+            'category_id' => ['required', 'integer', 'exists:bike_categories,id'],
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'string', 'max:80'],
+        ]);
+
+        $categoryId = (int) $validated['category_id'];
+        $order = array_values(array_unique(array_map('strval', $validated['order'])));
+
+        $allowedKeys = BikeFieldCategoryAssignment::query()
+            ->where('category_id', $categoryId)
+            ->pluck('field_key')
+            ->map(fn ($v) => (string) $v)
+            ->all();
+
+        $position = 0;
+        foreach ($order as $fieldKey) {
+            if (!in_array($fieldKey, $allowedKeys, true)) {
+                continue;
+            }
+            BikeFieldCategoryAssignment::where('category_id', $categoryId)
+                ->where('field_key', $fieldKey)
+                ->update(['display_order' => $position++]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    public function reorderFields(Request $request)
+    {
+        $validated = $request->validate([
+            'category_id' => ['nullable', 'integer', 'exists:bike_categories,id'],
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'integer', 'exists:bike_custom_fields,id'],
+        ]);
+
+        $categoryId = $validated['category_id'] ?? null;
+        $order = array_values(array_unique(array_map('intval', $validated['order'])));
+
+        $query = BikeCustomField::query()->whereIn('id', $order);
+        if ($categoryId === null) {
+            $query->whereNull('category_id');
+        } else {
+            $query->where('category_id', (int) $categoryId);
+        }
+        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->all();
+
+        $position = 0;
+        foreach ($order as $id) {
+            if (!in_array($id, $allowedIds, true)) {
+                continue;
+            }
+            BikeCustomField::where('id', $id)->update(['display_order' => $position++]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
     public function storeField(Request $request)
     {
         $allowedTypes = array_keys(BikeCustomField::dataTypes());
@@ -271,7 +331,7 @@ class BikeSettingsController extends Controller
             ->with('success', 'Custom field added.');
     }
 
-    public function updateField(Request $request, int $id)
+    public function updateField(Request $request, string $company_slug, int $id)
     {
         $field = BikeCustomField::where('id', $id)->firstOrFail();
 
@@ -311,7 +371,7 @@ class BikeSettingsController extends Controller
             ->with('success', 'Custom field updated.');
     }
 
-    public function destroyField(int $id)
+    public function destroyField(string $company_slug, int $id)
     {
         $field = BikeCustomField::where('id', $id)->firstOrFail();
         $activeCategoryId = $field->category_id !== null ? (int) $field->category_id : 0;
@@ -324,7 +384,7 @@ class BikeSettingsController extends Controller
      * Assign a bike custom field to a category (button-only in UI).
      * Supports moving to "Unassigned" by sending empty `category_id`.
      */
-    public function assignCustomFieldCategory(Request $request, int $id)
+    public function assignCustomFieldCategory(Request $request, string $company_slug, int $id)
     {
         $validated = $request->validate([
             'category_id' => ['required', 'integer', 'exists:bike_categories,id'],
@@ -364,7 +424,7 @@ class BikeSettingsController extends Controller
         return $this->bikeSettingsIndexRedirect()->with('success', 'Document type added.');
     }
 
-    public function updateDocumentType(Request $request, int $id)
+    public function updateDocumentType(Request $request, string $company_slug, int $id)
     {
         $field = BikeDocumentType::where('id', $id)->firstOrFail();
 
@@ -389,7 +449,7 @@ class BikeSettingsController extends Controller
         return $this->bikeSettingsIndexRedirect()->with('success', 'Document type updated.');
     }
 
-    public function destroyDocumentType(int $id)
+    public function destroyDocumentType(string $company_slug, int $id)
     {
         $field = BikeDocumentType::where('id', $id)->firstOrFail();
         $field->delete();

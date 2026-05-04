@@ -38,6 +38,7 @@ class Accounts extends BaseModel
     'notes',
     'opening_balance',
     'is_locked',
+    'is_fixed',
     'custom_field_values'
   ];
 
@@ -47,6 +48,7 @@ class Accounts extends BaseModel
     'account_type' => 'string',
     'opening_balance' => 'decimal:2',
     'is_locked' => 'boolean',
+    'is_fixed' => 'boolean',
     'custom_field_values' => 'array',
   ];
 
@@ -78,8 +80,9 @@ class Accounts extends BaseModel
   {
     $qualifiedCompany = $this->qualifyColumn('company_id');
     $qualifiedParent = $this->qualifyColumn('parent_id');
+    $qualifiedFixed = $this->qualifyColumn('is_fixed');
 
-    $builder->where(function (Builder $query) use ($qualifiedCompany, $qualifiedParent, $companyId): void {
+    $builder->where(function (Builder $query) use ($qualifiedCompany, $qualifiedParent, $qualifiedFixed, $companyId): void {
       $query
         // Shared main heads for all companies
         ->where(function (Builder $rootQuery) use ($qualifiedParent): void {
@@ -91,7 +94,9 @@ class Accounts extends BaseModel
             ->where($qualifiedParent, '!=', 0)
             ->whereNotNull($qualifiedParent)
             ->where($qualifiedCompany, $companyId);
-        });
+        })
+        // OR globally fixed accounts from admin panel
+        ->orWhere($qualifiedFixed, true);
     });
   }
 

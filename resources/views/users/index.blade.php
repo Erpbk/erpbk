@@ -88,7 +88,7 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
                             </div>
                             <h5 class="fw-bold mb-0">{{ $role->name }}</h5>
                         </div>
-                        <form action="{{ route($rolesRoute . '.destroy', $role->id) }}" method="POST" class="d-inline" id="formajax">
+                        <form action="{{ route($rolesRoute . '.destroy', $role->id) }}" method="POST" class="d-inline form-ajax-submit">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this role?')">

@@ -81,12 +81,12 @@ class VendorsController extends AppBaseController
     $input = $request->all();
 
     //Adding Account and setting reference
-
-    $parentAccount = Accounts::where('name', 'Vendors')->where('account_type', 'Liability')->where('parent_id', null)->first();
+    $parentId = Accounts::where('name', 'Current Liabilities')->where('account_type', 'Liability')->first()->id;
+    $parentAccount = Accounts::where('name', 'Vendors')->where('account_type', 'Liability')->where('parent_id', $parentId)->first();
     if (!$parentAccount) {
       Flash::error('Parent account "Vendor" not found.');
     }
-    try{
+    try {
       DB::beginTransaction();
       $vendor = $this->vendorsRepository->create($input);
 
@@ -104,24 +104,24 @@ class VendorsController extends AppBaseController
       $vendor->account_id = $account->id;
       $vendor->save();
       DB::commit();
-      if($request->ajax()){
+      if ($request->ajax()) {
         return response()->json([
           'message' => 'Vendor Added Successfully',
           'reload' => true,
-        ],200);
+        ], 200);
       }
       Flash::success('Vendor added successfully.');
       return redirect(route('vendors.index'));
-    }catch(\Exception $e){
-      \Log::error('error occured while creating vendor : '.$e->getMessage());
+    } catch (\Exception $e) {
+      \Log::error('error occured while creating vendor : ' . $e->getMessage());
       DB::rollBack();
-      if($request->ajax()){
+      if ($request->ajax()) {
         return response()->json([
-            'message' => 'Error: '.$e->getMessage(),
-            'reload' => true
-          ],500);
+          'message' => 'Error: ' . $e->getMessage(),
+          'reload' => true
+        ], 500);
       }
-      Flash::error('Error: '.$e->getMessage());
+      Flash::error('Error: ' . $e->getMessage());
       return redirect()->back();
     }
   }

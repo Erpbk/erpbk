@@ -425,7 +425,6 @@
 <script>
   (function() {
     var dataTypes = JSON.parse(document.getElementById('voucherSettingsDataTypes').textContent || '{}');
-    var baseUrl = '{{ url("/") }}';
     var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     var voucherTypesUrl = '{{ route("settings-panel.voucher-settings.types-table-body") }}';
     var voucherFieldsUrl = '{{ route("settings-panel.voucher-settings.fields-table-body") }}';
@@ -537,10 +536,11 @@
       e.preventDefault();
       var form = this;
       var id = form.querySelector('[name="id"]').value;
+      var updateUrl = form.dataset.updateUrl || (storeTypeUrl.replace(/\/$/, '') + '/' + encodeURIComponent(id));
       var fd = new FormData(form);
       fd.set('_method', 'PUT');
       fd.set('is_active', form.querySelector('#editVoucherTypeActive').checked ? '1' : '0');
-      fetch(baseUrl + '/settings-panel/voucher-settings/types/' + id, {
+      fetch(updateUrl, {
           method: 'POST',
           body: fd,
           headers: {
@@ -592,7 +592,9 @@
         document.getElementById('editVoucherTypeCode').value = editBtn.dataset.code;
         document.getElementById('editVoucherTypeLabel').value = editBtn.dataset.label;
         document.getElementById('editVoucherTypeActive').checked = editBtn.dataset.active === '1';
-        setEditVoucherTypeForm(document.getElementById('formEditVoucherType'), modules, allowEdit, allowDelete);
+        var editForm = document.getElementById('formEditVoucherType');
+        editForm.dataset.updateUrl = editBtn.dataset.updateUrl || '';
+        setEditVoucherTypeForm(editForm, modules, allowEdit, allowDelete);
         new bootstrap.Modal(document.getElementById('editVoucherTypeModal')).show();
       }
       var delBtn = e.target.closest('.delete-voucher-type');
@@ -610,10 +612,11 @@
           })
           .then(function(result) {
             if (!result.isConfirmed) return;
+            var deleteUrl = delBtn.dataset.deleteUrl || (storeTypeUrl.replace(/\/$/, '') + '/' + encodeURIComponent(id));
             var fd = new FormData();
             fd.set('_method', 'DELETE');
             fd.set('_token', csrf);
-            fetch(baseUrl + '/settings-panel/voucher-settings/types/' + id, {
+            fetch(deleteUrl, {
                 method: 'POST',
                 body: fd,
                 headers: {
@@ -840,7 +843,7 @@
         fd.delete(inp.name);
       });
       fd.append('config', JSON.stringify(config));
-      fetch(baseUrl + '/settings-panel/voucher-settings/fields/' + id, {
+      fetch(storeFieldUrl.replace(/\/$/, '') + '/' + encodeURIComponent(id), {
           method: 'POST',
           body: fd,
           headers: {
@@ -911,7 +914,7 @@
             var fd = new FormData();
             fd.set('_method', 'DELETE');
             fd.set('_token', csrf);
-            fetch(baseUrl + '/settings-panel/voucher-settings/fields/' + id, {
+            fetch(storeFieldUrl.replace(/\/$/, '') + '/' + encodeURIComponent(id), {
                 method: 'POST',
                 body: fd,
                 headers: {

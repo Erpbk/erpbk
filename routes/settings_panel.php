@@ -17,7 +17,7 @@ Route::get('settings-pane/{path?}', function (Request $request, ?string $path = 
 })->where('path', '.*');
 
 // Settings Panel (opens in separate window, Zoho-style admin)
-Route::prefix('settings-panel')->middleware('settings.panel')->group(function () {
+Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings'])->group(function () {
     Route::get('/', [App\Http\Controllers\SettingsPanelController::class, 'index'])->name('settings-panel.index');
     Route::match(['get', 'post'], '/company', [HomeController::class, 'settings'])->name('settings-panel.company');
     Route::get('/erp', [App\Http\Controllers\ErpSettingsController::class, 'index'])->name('settings-panel.erp');
@@ -82,6 +82,7 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::post('rider-settings/fields/{id}/assign-category', [App\Http\Controllers\RiderSettingsController::class, 'assignCustomFieldCategory'])->name('settings-panel.rider-settings.assign-custom-field-category');
     Route::put('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateField'])->name('settings-panel.rider-settings.update-field');
     Route::delete('rider-settings/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyField'])->name('settings-panel.rider-settings.destroy-field');
+    Route::post('rider-settings/fields/{id}/flags', [App\Http\Controllers\RiderSettingsController::class, 'updateCustomFieldFlags'])->name('settings-panel.rider-settings.update-custom-field-flags');
     Route::post('rider-settings/fields/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderFields'])->name('settings-panel.rider-settings.reorder-fields');
     Route::get('rider-settings/documents/table-body', [App\Http\Controllers\RiderSettingsController::class, 'documentTypesTableBody'])->name('settings-panel.rider-settings.document-types-table-body');
     Route::post('rider-settings/documents', [App\Http\Controllers\RiderSettingsController::class, 'storeDocumentType'])->name('settings-panel.rider-settings.store-document-type');
@@ -114,12 +115,14 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     Route::post('module-settings/bike_list/module-label', [App\Http\Controllers\BikeSettingsController::class, 'storeModuleLabel'])->name('settings-panel.bike-settings.store-module-label');
 
     Route::post('module-settings/bike_list/field-assignment', [App\Http\Controllers\BikeSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.bike-settings.update-field-assignment');
+    Route::post('module-settings/bike_list/field-assignments/reorder', [App\Http\Controllers\BikeSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.bike-settings.reorder-field-assignments');
     Route::post('module-settings/bike_list/categories', [App\Http\Controllers\BikeSettingsController::class, 'storeCategory'])->name('settings-panel.bike-settings.store-category');
     Route::put('module-settings/bike_list/categories/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateCategory'])->name('settings-panel.bike-settings.update-category');
     Route::delete('module-settings/bike_list/categories/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyCategory'])->name('settings-panel.bike-settings.destroy-category');
 
     // Bike custom fields
     Route::post('module-settings/bike_list/fields', [App\Http\Controllers\BikeSettingsController::class, 'storeField'])->name('settings-panel.bike-settings.store-field');
+    Route::post('module-settings/bike_list/fields/reorder', [App\Http\Controllers\BikeSettingsController::class, 'reorderFields'])->name('settings-panel.bike-settings.reorder-fields');
     Route::put('module-settings/bike_list/fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateField'])->name('settings-panel.bike-settings.update-field');
     Route::delete('module-settings/bike_list/fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyField'])->name('settings-panel.bike-settings.destroy-field');
     Route::post('module-settings/bike_list/assign-custom-field-category/{id}', [App\Http\Controllers\BikeSettingsController::class, 'assignCustomFieldCategory'])->name('settings-panel.bike-settings.assign-custom-field-category');
@@ -131,10 +134,12 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
 
     // Module settings for all ERP modules (Bike-style route pattern)
     Route::post('module-settings/{module}/field-assignment', [App\Http\Controllers\ModuleSettingsController::class, 'storeFieldAssignment'])->name('settings-panel.module-settings.update-field-assignment')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/field-assignments/reorder', [App\Http\Controllers\ModuleSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.module-settings.reorder-field-assignments')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/categories', [App\Http\Controllers\ModuleSettingsController::class, 'storeCategory'])->name('settings-panel.module-settings.store-category')->where('module', '[A-Za-z0-9_-]+');
     Route::put('module-settings/{module}/categories/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'updateCategory'])->name('settings-panel.module-settings.update-category')->where('module', '[A-Za-z0-9_-]+');
     Route::delete('module-settings/{module}/categories/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'destroyCategory'])->name('settings-panel.module-settings.destroy-category')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/fields', [App\Http\Controllers\ModuleSettingsController::class, 'storeField'])->name('settings-panel.module-settings.store-field')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/fields/reorder', [App\Http\Controllers\ModuleSettingsController::class, 'reorderFields'])->name('settings-panel.module-settings.reorder-fields')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/assign-custom-field-category/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'assignCustomFieldCategory'])->name('settings-panel.module-settings.assign-custom-field-category')->where('module', '[A-Za-z0-9_-]+');
     Route::put('module-settings/{module}/fields/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'updateField'])->name('settings-panel.module-settings.update-field')->where('module', '[A-Za-z0-9_-]+');
     Route::delete('module-settings/{module}/fields/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'destroyField'])->name('settings-panel.module-settings.destroy-field')->where('module', '[A-Za-z0-9_-]+');
@@ -145,6 +150,8 @@ Route::prefix('settings-panel')->middleware('settings.panel')->group(function ()
     // Module settings page + label update
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[A-Za-z0-9_-]+');
+    Route::get('module-settings/{module}/account-assigning/children', [App\Http\Controllers\ModuleSettingsController::class, 'riderInvoiceAccountChildren'])->name('settings-panel.module-settings.rider-invoice-account-children')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/account-assigning', [App\Http\Controllers\ModuleSettingsController::class, 'storeRiderInvoiceAccountAssigning'])->name('settings-panel.module-settings.store-rider-invoice-account-assigning')->where('module', '[A-Za-z0-9_-]+');
     // User Management, Activity Logs, Recycle Bin (moved into Settings)
 
     Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');

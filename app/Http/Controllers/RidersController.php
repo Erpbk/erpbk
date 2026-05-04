@@ -129,6 +129,10 @@ class RidersController extends AppBaseController
 
     RiderCustomField::query()
       ->where('is_mandatory', 1)
+      ->whereNotNull('category_id')
+      ->where(function ($q) {
+        $q->where('is_visible', 1)->orWhereNull('is_visible');
+      })
       ->get(['id'])
       ->each(function ($field) use (&$rules) {
         $rules['custom_field_values.' . $field->id] = 'required';
@@ -533,14 +537,15 @@ class RidersController extends AppBaseController
           ['name' => 'Riders', 'account_type' => 'Liability', 'parent_id' => null],
           ['name' => 'Riders', 'account_type' => 'Liability', 'account_code' => Account::code()]
         ); */
-
+      $parentId = Accounts::where('name', 'Current Liabilities')->where('account_type', 'Liability')->first()->id;
+      $parentAccount = Accounts::where('name', 'Riders')->where('account_type', 'Liability')->where('parent_id', $parentId)->first();
       $account = new Accounts();
       $account->account_code = 'RD' . str_pad($riders->rider_id, 4, "0", STR_PAD_LEFT);
       $account->name = $riders->name;
       $account->account_type = 'Liability';
       $account->ref_name = 'Rider';
       $account->company_id = auth()->user()->company_id;
-      $account->parent_id = HeadAccount::RIDER;
+      $account->parent_id = $parentAccount->id;
       $account->ref_id = $riders->id;
       $account->branch_id = $riders->branch_id;
       $account->save();

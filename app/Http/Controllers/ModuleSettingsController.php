@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Accounts;
 use App\Models\ModuleCustomField;
 use App\Models\ModuleDocumentType;
 use App\Models\ModuleFieldCategoryAssignment;
 use App\Models\ModuleSettingCategory;
+use App\Models\RiderInvoiceAccountAssignment;
 use App\Models\Settings;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -207,6 +210,69 @@ class ModuleSettingsController extends Controller
             ->orderBy('id')
             ->get();
 
+        $riderInvoiceAccountTree = [];
+        $riderInvoiceAssignments = ['debit' => [], 'credit' => []];
+        if ($module === 'invoices') {
+            // Eligible parents: shared chart heads (roots), company-created accounts, and globally fixed accounts.
+            $riderInvoiceParentAccounts = Accounts::query()
+                ->where(function ($query) use ($companyId): void {
+                    $query->where(function ($q): void {
+                        $q->whereNull('parent_id')->orWhere('parent_id', 0);
+                    });
+                    if ($companyId) {
+                        $query->orWhere(function ($q) use ($companyId): void {
+                            $q->where('company_id', $companyId)
+                                ->whereNotNull('parent_id')
+                                ->where('parent_id', '!=', 0);
+                        });
+                    }
+                    $query->orWhere('is_fixed', true);
+                })
+                ->orderBy('account_code')
+                ->get(['id', 'name', 'account_code', 'parent_id']);
+
+            $parentIds = $riderInvoiceParentAccounts->pluck('id')->all();
+            if ($parentIds !== []) {
+                $childrenByParent = Accounts::query()
+                    ->whereIn('parent_id', $parentIds)
+                    ->orderBy('account_code')
+                    ->get(['id', 'name', 'account_code', 'parent_id'])
+                    ->groupBy('parent_id');
+
+                foreach ($riderInvoiceParentAccounts as $parentAccount) {
+                    $kids = $childrenByParent->get($parentAccount->id, collect());
+                    $riderInvoiceAccountTree[] = [
+                        'parent_id' => (int) $parentAccount->id,
+                        'label' => $this->formatAccountPickerLabel($parentAccount),
+                        'children' => $kids->map(fn ($row) => [
+                            'id' => (int) $row->id,
+                            'text' => trim((string) (($row->account_code ? $row->account_code . ' — ' : '') . $row->name)),
+                        ])->values()->all(),
+                    ];
+                }
+                usort($riderInvoiceAccountTree, fn (array $a, array $b): int => strcmp($a['label'], $b['label']));
+            }
+
+            $assignments = RiderInvoiceAccountAssignment::query()
+                ->where('company_id', (int) $companyId)
+                ->where('module_key', 'invoices')
+                ->orderBy('side')
+                ->orderBy('parent_account_id')
+                ->orderBy('child_account_id')
+                ->get();
+
+            $riderInvoiceAssignments = [
+                'debit' => $assignments->where('side', 'debit')
+                    ->groupBy('parent_account_id')
+                    ->map(fn ($rows) => $rows->pluck('child_account_id')->map(fn ($id) => (int) $id)->values()->all())
+                    ->toArray(),
+                'credit' => $assignments->where('side', 'credit')
+                    ->groupBy('parent_account_id')
+                    ->map(fn ($rows) => $rows->pluck('child_account_id')->map(fn ($id) => (int) $id)->values()->all())
+                    ->toArray(),
+            ];
+        }
+
         return view('settings.bike_settings.index', [
             'moduleKey' => $module,
             'moduleLabel' => $moduleLabel,
@@ -227,7 +293,178 @@ class ModuleSettingsController extends Controller
             'settingsEntityName' => strtolower($moduleLabel),
             'fixedFieldSourceTable' => $moduleSourceTable ?: 'module_field_category_assignments',
             'customFieldSourceTable' => 'module_custom_fields',
+            'riderInvoiceAccountTree' => $riderInvoiceAccountTree,
+            'riderInvoiceAssignments' => $riderInvoiceAssignments,
         ]);
+    }
+
+    protected function ensureCompanyAdmin(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        $isCompanyAdmin = $user
+            && (
+                $user->hasRole('admin')
+                || $user->hasRole('Administrator')
+                || $user->hasRole('Super Admin')
+            );
+        abort_unless(
+            $isCompanyAdmin,
+            403,
+            'Only company admin can manage account assigning.'
+        );
+    }
+
+    protected function parseAssignmentsPayload(mixed $payload): array
+    {
+        $decoded = $payload;
+        if (is_string($decoded)) {
+            $decoded = json_decode($decoded, true);
+        }
+
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($decoded as $parentId => $childIds) {
+            $parentIdInt = (int) $parentId;
+            if ($parentIdInt <= 0 || !is_array($childIds)) {
+                continue;
+            }
+
+            $children = collect($childIds)
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
+
+            if (!empty($children)) {
+                $normalized[$parentIdInt] = $children;
+            }
+        }
+
+        return $normalized;
+    }
+
+    public function riderInvoiceAccountChildren(Request $request, string $company_slug, string $module): JsonResponse
+    {
+        $module = $this->normalizeModuleKey($module);
+        abort_unless($module === 'invoices', 404);
+        $this->ensureCompanyAdmin();
+
+        $validated = $request->validate([
+            'parent_id' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $parentId = (int) $validated['parent_id'];
+        $parentAccount = Accounts::query()->find($parentId);
+
+        if (!$parentAccount) {
+            return response()->json(['success' => false, 'message' => 'Invalid parent account.'], 422);
+        }
+
+        $parentBucketLine = __('Belongs under') . ': ' . $this->formatAccountPickerLabel($parentAccount);
+
+        $children = Accounts::query()
+            ->where('parent_id', $parentId)
+            ->orderBy('account_code')
+            ->get(['id', 'name', 'account_code'])
+            ->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'text' => trim((string) ($row->account_code ? $row->account_code . ' — ' : '') . $row->name),
+                'parent_context' => $parentBucketLine,
+            ])
+            ->values();
+
+        return response()->json(['success' => true, 'children' => $children]);
+    }
+
+    public function storeRiderInvoiceAccountAssigning(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        abort_unless($module === 'invoices', 404);
+        $this->ensureCompanyAdmin();
+
+        $companyId = (int) (optional(auth()->user())->company_id ?? 0);
+        abort_if($companyId <= 0, 422, 'Company context is required.');
+
+        $debit = $this->parseAssignmentsPayload($request->input('debit_assignments'));
+        $credit = $this->parseAssignmentsPayload($request->input('credit_assignments'));
+
+        if (empty($debit) || empty($credit)) {
+            return back()->with('error', 'Select at least one debit and one credit account assignment.');
+        }
+
+        $validateSide = function (array $sideAssignments, string $sideLabel): ?string {
+            $childToParent = [];
+            foreach ($sideAssignments as $parentId => $childIds) {
+                $parent = Accounts::query()->where('id', (int) $parentId)->first();
+
+                if (!$parent) {
+                    return "Invalid {$sideLabel} parent account selected.";
+                }
+
+                foreach ($childIds as $childId) {
+                    $childId = (int) $childId;
+                    $parentIdInt = (int) $parentId;
+                    $isDirectChild = Accounts::query()
+                        ->where('id', $childId)
+                        ->where('parent_id', $parentIdInt)
+                        ->exists();
+                    $isParentSelf = $childId === $parentIdInt;
+
+                    if (!$isDirectChild && !$isParentSelf) {
+                        return "Invalid {$sideLabel} child account selected.";
+                    }
+                    if (isset($childToParent[$childId])) {
+                        return "Duplicate {$sideLabel} child account selection is not allowed.";
+                    }
+                    $childToParent[$childId] = (int) $parentId;
+                }
+            }
+
+            return null;
+        };
+
+        if ($error = $validateSide($debit, 'debit')) {
+            return back()->with('error', $error);
+        }
+        if ($error = $validateSide($credit, 'credit')) {
+            return back()->with('error', $error);
+        }
+
+        $rows = [];
+        foreach (['debit' => $debit, 'credit' => $credit] as $side => $sideAssignments) {
+            foreach ($sideAssignments as $parentId => $childIds) {
+                foreach ($childIds as $childId) {
+                    $rows[] = [
+                        'company_id' => $companyId,
+                        'module_key' => 'invoices',
+                        'side' => $side,
+                        'parent_account_id' => (int) $parentId,
+                        'child_account_id' => (int) $childId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+            }
+        }
+
+        RiderInvoiceAccountAssignment::query()
+            ->where('company_id', $companyId)
+            ->where('module_key', 'invoices')
+            ->delete();
+
+        RiderInvoiceAccountAssignment::query()->insert($rows);
+
+        return back()->with('success', 'Rider invoice account assigning updated successfully.');
+    }
+
+    private function formatAccountPickerLabel(Accounts $account): string
+    {
+        return trim((string) (($account->account_code ? $account->account_code . ' — ' : '') . $account->name));
     }
 
     /**
@@ -328,6 +565,39 @@ class ModuleSettingsController extends Controller
         return back()->with('success', 'Field assignment saved.');
     }
 
+    public function reorderFieldAssignments(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        $validated = $request->validate([
+            'category_id' => ['required', 'integer', $this->categoryBelongsToModuleRule($module)],
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'string', 'max:120'],
+        ]);
+
+        $categoryId = (int) $validated['category_id'];
+        $order = array_values(array_unique(array_map('strval', $validated['order'])));
+
+        $allowedKeys = ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $module)
+            ->where('category_id', $categoryId)
+            ->pluck('field_key')
+            ->map(fn ($v) => (string) $v)
+            ->all();
+
+        $position = 0;
+        foreach ($order as $fieldKey) {
+            if (!in_array($fieldKey, $allowedKeys, true)) {
+                continue;
+            }
+            ModuleFieldCategoryAssignment::where('module_key', $module)
+                ->where('category_id', $categoryId)
+                ->where('field_key', $fieldKey)
+                ->update(['display_order' => $position++]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
     public function storeField(Request $request, string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);
@@ -422,6 +692,41 @@ class ModuleSettingsController extends Controller
         return back()->with('success', 'Custom field deleted.');
     }
 
+    public function reorderFields(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        $validated = $request->validate([
+            'category_id' => ['nullable', 'integer', $this->categoryBelongsToModuleRule($module)],
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'integer', 'exists:module_custom_fields,id'],
+        ]);
+
+        $categoryId = $validated['category_id'] ?? null;
+        $order = array_values(array_unique(array_map('intval', $validated['order'])));
+
+        $query = ModuleCustomField::query()
+            ->where('module_key', $module)
+            ->whereIn('id', $order);
+        if ($categoryId === null) {
+            $query->whereNull('category_id');
+        } else {
+            $query->where('category_id', (int) $categoryId);
+        }
+        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->all();
+
+        $position = 0;
+        foreach ($order as $id) {
+            if (!in_array($id, $allowedIds, true)) {
+                continue;
+            }
+            ModuleCustomField::where('module_key', $module)
+                ->where('id', $id)
+                ->update(['display_order' => $position++]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
     public function storeDocumentType(Request $request, string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);
@@ -431,9 +736,10 @@ class ModuleSettingsController extends Controller
             'type' => ['required', Rule::in(['single', 'dual'])],
             'front_label' => 'nullable|string|max:255',
             'back_label' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
         ]);
 
-        ModuleDocumentType::create([
+        $documentType = ModuleDocumentType::create([
             'module_key' => $module,
             'company_id' => optional(auth()->user())->company_id,
             'key' => trim((string) $validated['key']),
@@ -442,8 +748,16 @@ class ModuleSettingsController extends Controller
             'front_label' => $validated['front_label'] ?? null,
             'back_label' => $validated['back_label'] ?? null,
             'display_order' => ((int) ModuleDocumentType::where('module_key', $module)->max('display_order')) + 1,
-            'is_active' => true,
+            'is_active' => filter_var((string) ($validated['is_active'] ?? true), FILTER_VALIDATE_BOOLEAN),
         ]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Document type added.',
+                'id' => $documentType->id,
+            ]);
+        }
 
         return back()->with('success', 'Document type added.');
     }

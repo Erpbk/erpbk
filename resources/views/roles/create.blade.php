@@ -1,6 +1,5 @@
 @php $rolesRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.roles' : 'roles'; @endphp
-{!! Form::open(['route' => $rolesRoute . '.store','id'=>'formajax']) !!}
-{!! Form::hidden('company_id', auth()->user()->company_id) !!}
+{!! Form::open(['route' => $rolesRoute . '.store','id'=>'formajax', 'class' => 'form-ajax-submit', 'data-reload-table' => '0']) !!}
 @include('roles.fields')
 
 

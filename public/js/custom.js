@@ -432,13 +432,15 @@ function reloadDataTable() {
   }
 }
 
-$(document).on('submit', '#formajax', function (e) {
+$(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
   e.preventDefault();
   block();
 
+  var $form = $(this);
   let formID = 'formajax';
-  var action = $(this).attr('action');
+  var action = $form.attr('action');
   var formData = new FormData(this);
+  var shouldReloadTable = String($form.data('reload-table')) !== '0';
 
   // Dynamic fields ki values ko ek array mein store karein
   var values = [];
@@ -456,22 +458,27 @@ $(document).on('submit', '#formajax', function (e) {
 
   $.ajax({
     url: action,
-    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+    headers: {
+      'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+      'X-Requested-With': 'XMLHttpRequest',
+      Accept: 'application/json',
+    },
     type: 'POST',
     data: formData,
     contentType: false,
     cache: false,
     processData: false,
     beforeSend: function () {
-      $('#' + formID)
-        .find('.save_rec')
-        .hide();
-      $('#' + formID)
-        .find('.loader')
-        .show();
+      $form.find('.save_rec').hide();
+      $form.find('.loader').show();
     },
-    success: function (data) {
+    success: function (data, _textStatus, jqXHR) {
       unblock();
+      var ct = (jqXHR && jqXHR.getResponseHeader('Content-Type')) || '';
+      if (typeof data !== 'object' || data === null || (ct && ct.indexOf('application/json') === -1)) {
+        toastr.error('Save failed: server did not return JSON. Check validation or try again.');
+        return;
+      }
       if (data.message) {
         toastr.success(data.message);
       } else {
@@ -486,11 +493,13 @@ $(document).on('submit', '#formajax', function (e) {
             location.reload();
         }, 1000); // 1000ms = 1 seconds
       }
-      if ($('#reload_page').val() == 1) {
+      if ($form.find('#reload_page').val() == 1) {
         location.reload();
       }
       toggleModalTop('hide');
-      reloadDataTable();
+      if (shouldReloadTable) {
+        reloadDataTable();
+      }
     },
     error: function (ajaxcontent) {
       unblock();
@@ -518,15 +527,15 @@ $(document).on('submit', '#formajax', function (e) {
       // Handle Laravel validation errors
       if (ajaxcontent.responseJSON && ajaxcontent.responseJSON.errors) {
         vali = ajaxcontent.responseJSON.errors;
-        $('#' + formID + ' input').css('border', '1px solid #dfdfdf');
-        $('#' + formID + ' input')
+        $form.find('input').css('border', '1px solid #dfdfdf');
+        $form.find('input')
           .next('span')
           .remove();
 
         $.each(vali, function (index, value) {
-          $('#' + formID + " input[name~='" + index + "']").css('border', '1px solid red');
-          //$('#' + formID + " input[name~='" + index + "']").after('<span style="color:red;">' + value + '</span>');
-          $('#' + formID + " select[name~='" + index + "']")
+          $form.find("input[name~='" + index + "']").css('border', '1px solid red');
+          //$form.find("input[name~='" + index + "']").after('<span style="color:red;">' + value + '</span>');
+          $form.find("select[name~='" + index + "']")
             .parent()
             .find('.select2-container--default .select2-selection--single')
             .css('border', '1px solid red');
@@ -537,15 +546,13 @@ $(document).on('submit', '#formajax', function (e) {
         toastr.error('An error occurred. Please try again.');
       }
 
-      reloadDataTable();
+      if (shouldReloadTable) {
+        reloadDataTable();
+      }
     },
     complete: function () {
-      $('#' + formID)
-        .find('.save_rec')
-        .show();
-      $('#' + formID)
-        .find('.loader')
-        .hide();
+      $form.find('.save_rec').show();
+      $form.find('.loader').hide();
     }
   });
 });

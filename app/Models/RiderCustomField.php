@@ -114,6 +114,7 @@ class RiderCustomField extends BaseModel
         'input_format',
         'data_type',
         'is_mandatory',
+        'is_visible',
         'config',
         'category_id',
         'display_order',
@@ -121,6 +122,7 @@ class RiderCustomField extends BaseModel
 
     protected $casts = [
         'is_mandatory' => 'boolean',
+        'is_visible' => 'boolean',
         'prevent_duplicate_values' => 'boolean',
         'data_privacy' => 'array',
         'config' => 'array',
@@ -463,6 +465,9 @@ class RiderCustomField extends BaseModel
         })->values();
         $customFieldsAll = self::with('category')
             ->whereIn('category_id', $categoryIds)
+            ->where(function ($q) {
+                $q->where('is_visible', true)->orWhereNull('is_visible');
+            })
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -471,7 +476,7 @@ class RiderCustomField extends BaseModel
         $result = [];
         foreach ($categories as $cat) {
             $fields = [];
-            $categoryAssignments = $assignmentsAll->where('category_id', $cat->id)->values();
+            $categoryAssignments = $assignmentsVisible->where('category_id', $cat->id)->values();
 
             if ($categoryAssignments->isNotEmpty()) {
                 foreach ($categoryAssignments as $a) {
@@ -488,6 +493,12 @@ class RiderCustomField extends BaseModel
                     }
                     if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
                         $spec['options'] = $a->input_config['options'];
+                    }
+                    if (array_key_exists('is_required', $a->getAttributes())) {
+                        $rawRequired = $a->getRawOriginal('is_required');
+                        if ($rawRequired !== null) {
+                            $spec['required'] = (int) $rawRequired === 1;
+                        }
                     }
 
                     $fields[] = (object) [

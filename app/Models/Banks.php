@@ -51,18 +51,15 @@ class Banks extends BaseModel
   protected $dates = ['deleted_at'];
 
   public static array $rules = [
-    'name' => 'required|string|max:255',
-    'title' => 'required|string|max:255',
-    'account_no' => 'required|string|max:255',
-    'iban' => 'required|string|max:255',
-    'swift' => 'nullable|string|max:255',
-    'branch' => 'required|string|max:255',
-    'account_type' => 'nullable|string|max:100',
-    'balance' => 'nullable|numeric',
-
-    'notes' => 'nullable|string|max:255',
-    'created_at' => 'nullable',
-    'updated_at' => 'nullable'
+    'name' => 'string|max:255',
+    'title' => 'string|max:255',
+    'account_no' => 'string|max:255',
+    'iban' => 'string|max:255',
+    'swift' => 'string|max:255',
+    'branch' => 'string|max:255',
+    'account_type' => 'string|max:100',
+    'balance' => 'numeric',
+    'notes' => 'string|max:255',
   ];
 
   function account()
@@ -77,12 +74,12 @@ class Banks extends BaseModel
 
   public function branch()
   {
-      return $this->belongsTo(Branch::class, 'branch_id' , 'id');
+    return $this->belongsTo(Branch::class, 'branch_id', 'id');
   }
 
   public function getBranchNameAttribute()
   {
-    $branch = $this->branch_id ? $this->branch->name .' ( '. $this->branch->code .' )' : 'All' ; 
+    $branch = $this->branch_id ? $this->branch->name . ' ( ' . $this->branch->code . ' )' : 'All';
     return $branch;
   }
 }

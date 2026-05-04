@@ -23,7 +23,6 @@ class ChequesController extends Controller
     {
         $data = Cheques::latest('issue_date')->get();
         return view('cheques.index', compact('data'));
-
     }
 
     /**
@@ -32,11 +31,10 @@ class ChequesController extends Controller
     public function create()
     {
         $accountId = request()->input('id') ?? null;
-        if($accountId){
+        if ($accountId) {
             $bank = Banks::find($accountId);
-            return view('cheques.create',compact('bank'));
-        }
-        else
+            return view('cheques.create', compact('bank'));
+        } else
             return view('cheques.create');
     }
 
@@ -46,7 +44,7 @@ class ChequesController extends Controller
     public function store(Request $request)
     {
         // Validate the request
-        $validated = $request->validate([
+        $request->validate([
             'type' => 'required|in:payable,receiveable',
             'is_security' => 'sometimes|boolean',
             'cheque_number' => 'required|string|unique:cheques,cheque_number',
@@ -75,45 +73,43 @@ class ChequesController extends Controller
         }
         DB::beginTransaction();
         try {
-            
+
             $chequeData = [
-                'bank_id' => $validated['bank_id'] ?? null,
-                'type' => $validated['type'],
+                'bank_id' => $request['bank_id'] ?? null,
+                'type' => $request['type'],
                 'is_security' => $request->has('is_security'),
-                'cheque_number' => $validated['cheque_number'],
-                'amount' => $validated['amount'],
-                'issue_date' => $validated['issue_date'],
-                'cheque_date' => $validated['cheque_date'],
-                'billing_month' => $validated['billing_month'],
-                'reference' => $validated['reference'],
-                'description' => $validated['description'],
+                'cheque_number' => $request['cheque_number'],
+                'amount' => $request['amount'],
+                'issue_date' => $request['issue_date'],
+                'cheque_date' => $request['cheque_date'],
+                'billing_month' => $request['billing_month'],
+                'reference' => $request['reference'],
+                'description' => $request['description'],
                 'status' => 'Issued',
                 'created_by' => Auth::id(),
             ];
-
             // type-specific fields
             if ($request->type === 'payable') {
-                
+
                 $payeeAccount = Accounts::find($request->payee_account);
-                
+
                 $chequeData['payee_account'] = $request->payee_account;
                 $chequeData['payee_name'] = $request->payee_name ?? $payeeAccount->name;
                 $chequeData['branch_id'] = $payeeAccount->branch_id;
-                
+
                 $bank = Banks::find($request->bank_id);
-                $chequeData['payer_account'] = $bank->account_id ;
+                $chequeData['payer_account'] = $bank->account_id;
                 $chequeData['payer_name'] = $bank->name;
-                
             } else {
-                
+
                 $payerAccount = Accounts::find($request->payer_account);
-                
+
                 $chequeData['payer_account'] = $request->payer_account;
                 $chequeData['payer_name'] = $request->payer_name ?? $payerAccount->name;
                 $chequeData['branch_id'] = $payerAccount->branch_id;
-                
+
                 // Payee is the bank account
-                if($request->bank_id){
+                if ($request->bank_id) {
                     $bank = Banks::find($request->bank_id);
                     $chequeData['payee_account'] = $bank->account_id;
                     $chequeData['payee_name'] = $bank->name;
@@ -128,8 +124,8 @@ class ChequesController extends Controller
                 $chequeData['attachment'] = $filename;
             }
 
-            if($request['billing_month']){
-                $chequeData['billing_month'] = $validated['billing_month'].'-01';
+            if ($request['billing_month']) {
+                $chequeData['billing_month'] = $request['billing_month'] . '-01';
             }
 
             // Create cheque
@@ -139,11 +135,10 @@ class ChequesController extends Controller
                 'success' => true,
                 'message' => 'Cheque created successfully!',
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Cheque creation failed: ' . $e);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create cheque. Please try again. Error: ' . $e->getMessage()
@@ -172,7 +167,7 @@ class ChequesController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request,$comapny_slug, Cheques $cheque)
+    public function update(Request $request, $comapny_slug, Cheques $cheque)
     {
         $rules = [
             'cheque_number' => 'required|string|unique:cheques,cheque_number,' . $cheque->id,
@@ -202,7 +197,7 @@ class ChequesController extends Controller
 
         DB::beginTransaction();
         try {
-            
+
             $updateData = [
                 'bank_id' => $validated['bank_id'] ?? null,
                 'cheque_number' => $validated['cheque_number'],
@@ -222,7 +217,7 @@ class ChequesController extends Controller
                 $updateData['payee_account'] = $request->payee_account;
                 $updateData['payee_name'] = $request->payee_name ?? $payeeAccount->name;
                 $updateData['branch_id'] = $payeeAccount->branch_id;
-                
+
                 // Update payer from bank
                 $bank = Banks::find($cheque->bank_id);
                 $updateData['payer_account'] = $bank->account_id;
@@ -232,9 +227,9 @@ class ChequesController extends Controller
                 $updateData['payer_account'] = $request->payer_account;
                 $updateData['payer_name'] = $request->payer_name ?? $payerAccount->name;
                 $updateData['branch_id'] = $payerAccount->branch_id;
-                
+
                 // Update payee from bank
-                if($validated['bank_id']){
+                if ($validated['bank_id']) {
                     $bank = Banks::find($validated['bank_id']);
                     $updateData['payee_account'] = $bank->account_id;
                     $updateData['payee_name'] = $bank->name;
@@ -246,7 +241,7 @@ class ChequesController extends Controller
                 if ($cheque->attachment) {
                     Storage::delete('public/vouchers/' . $cheque->attachment);
                 }
-                
+
                 // Store new file
                 $file = $request->file('attachment');
                 $filename = time() . '_' . $file->getClientOriginalName();
@@ -254,8 +249,8 @@ class ChequesController extends Controller
                 $updateData['attachment'] = $filename;
             }
 
-            if($request['billing_month']){
-                $updateData['billing_month'] = $validated['billing_month'].'-01';
+            if ($request['billing_month']) {
+                $updateData['billing_month'] = $validated['billing_month'] . '-01';
             }
 
             // Update the cheque
@@ -268,11 +263,10 @@ class ChequesController extends Controller
                 'message' => 'Cheque updated successfully!',
                 'reload' => true,
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Cheque update error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update cheque. ' . $e->getMessage()
@@ -286,15 +280,15 @@ class ChequesController extends Controller
     public function destroy($comapny_slug, $id)
     {
         $cheque = Cheques::find($id);
-        $path = 'public/vouchers/'.$cheque->attachment;
+        $path = 'public/vouchers/' . $cheque->attachment;
         if ($cheque) {
-            
+
             DB::beginTransaction();
             try {
-                if($cheque->voucher_id) {
+                if ($cheque->voucher_id) {
                     Transactions::where('trans_code', $cheque->voucher->trans_code)->delete();
                     $cheque->voucher->delete();
-                    if($cheque->type === 'payable') {
+                    if ($cheque->type === 'payable') {
                         Payment::where('voucher_id', $cheque->voucher_id)->delete();
                     } else {
                         Receipt::where('voucher_id', $cheque->voucher_id)->delete();
@@ -304,7 +298,7 @@ class ChequesController extends Controller
                 DB::commit();
                 // Delete attachment file if exists
                 Storage::delete($path);
-                
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Cheque deleted successfully.'
@@ -326,12 +320,12 @@ class ChequesController extends Controller
     /**
      * Update the status of a cheque.
      */
-    public function statusForm(Request $request,$comapny_slug, $id)
+    public function statusForm(Request $request, $comapny_slug, $id)
     {
         $cheque = Cheques::findOrFail($id);
         return view('cheques.changeStatus', compact('cheque'));
     }
-    
+
     public function updateStatus(Request $request, $comapny_slug, $id)
     {
         $cheque = Cheques::findOrFail($id);
@@ -340,13 +334,13 @@ class ChequesController extends Controller
                 'success' => false,
                 'message' => 'Cheque not found.'
             ], 404);
-        }   
+        }
 
         // Validate the request
         $rules = [
             'status' => 'required|in:Issued,Cleared,Returned,Stop Payment,Lost',
         ];
-        
+
         // Add conditional validation
         if ($request->status === 'Cleared') {
             $rules['cleared_date'] = 'required|date';
@@ -359,47 +353,47 @@ class ChequesController extends Controller
             $rules['stop_payment_date'] = 'required|date';
             $rules['stop_payment_reason'] = 'required|string|max:255';
         }
-        
+
         $validated = $request->validate($rules);
-        
+
         DB::beginTransaction();
         try {
-            
+
             $updateData = [
                 'status' => $validated['status'],
                 'updated_by' => Auth::id(),
             ];
 
-            if($validated['status']==='Returned'){
+            if ($validated['status'] === 'Returned') {
                 $updateData['returned_date'] = $validated['returned_date'];
                 $updateData['return_reason'] = $validated['return_reason'];
-            }elseif($validated['status']==='Stop Payment'){
+            } elseif ($validated['status'] === 'Stop Payment') {
                 $updateData['stop_payment_date'] = $validated['stop_payment_date'];
                 $updateData['stop_payment_reason'] = $validated['stop_payment_reason'];
-            }elseif($validated['status']==='Cleared'){
+            } elseif ($validated['status'] === 'Cleared') {
                 $updateData['cleared_date'] = $validated['cleared_date'];
-                $updateData['billing_month'] = $validated['billing_month'].'-01';
+                $updateData['billing_month'] = $validated['billing_month'] . '-01';
                 $updateData['bank_id'] = $validated['bank_id'];
                 $bank = Banks::findOrFail($updateData['bank_id']);
-                if($cheque->type==='payable'){
+                if ($cheque->type === 'payable') {
                     $paymentData = [
                         'payee_account_id' => $cheque->payee_account,
                         'amount' => $cheque->amount,
                         'date_of_payment' => $validated['cleared_date'],
-                        'reference' => 'Cheque Cleared: '.$cheque->cheque_number,
+                        'reference' => 'Cheque Cleared: ' . $cheque->cheque_number,
                         'bank_id' => $bank->id,
                         'amount_type' => 'Cheque',
-                        'billing_month' => $validated['billing_month'].'-01',
+                        'billing_month' => $validated['billing_month'] . '-01',
                         'description' => $cheque->description,
                         'bank_charges' => 0,
                         'status' => '1',
-                        'attachment'=> $cheque->attachment,
+                        'attachment' => $cheque->attachment,
                         'branch_id' => $cheque->branch_id,
                         'created_by' => Auth::id(),
                     ];
                     $payment = Payment::create($paymentData);
                     $transCode = \App\Helpers\Account::trans_code();
-                    
+
                     // Credit the BANK account
                     Transactions::create([
                         'trans_code' => $transCode,
@@ -413,7 +407,7 @@ class ChequesController extends Controller
                         'narration' => $cheque->description,
                         'branch_id' => $cheque->branch_id,
                     ]);
-                    
+
                     // Debit payee account 
                     Transactions::create([
                         'trans_code' => $transCode,
@@ -444,31 +438,31 @@ class ChequesController extends Controller
                         'ref_id' => $payment->id,
                         'Created_By' => Auth::id(),
                         'status' => 1,
-                        'attach_file'=> $cheque->attachment,
+                        'attach_file' => $cheque->attachment,
                         'branch_id' => $cheque->branch_id,
                         'custom_field_values' => [],
                     ];
 
                     $voucher = Vouchers::create($voucherData);
-                    
+
                     // Update payment with voucher info and detailed account data
                     $payment->update([
                         'voucher_id' => $voucher->id,
                     ]);
                     $updateData['voucher_id'] = $voucher->id;
-                }else{
+                } else {
                     $receiptData = [
                         'payer_account_id' => $cheque->payer_account,
                         'amount' => $cheque->amount,
                         'date_of_receipt' => $validated['cleared_date'],
-                        'reference' => 'Cheque Cleared: '.$cheque->cheque_number,
+                        'reference' => 'Cheque Cleared: ' . $cheque->cheque_number,
                         'account_id' => $bank->account_id,
-                        'bank_id'=> $bank->id,
+                        'bank_id' => $bank->id,
                         'amount_type' => 'Cheque',
-                        'billing_month' => $validated['billing_month'].'-01',
+                        'billing_month' => $validated['billing_month'] . '-01',
                         'description' => $cheque->description,
                         'status' => '1',
-                        'attachment'=> $cheque->attachment,
+                        'attachment' => $cheque->attachment,
                         'branch_id' => $cheque->branch_id,
                         'created_by' => Auth::id(),
                     ];
@@ -518,7 +512,7 @@ class ChequesController extends Controller
                         'ref_id' => $receipt->id,
                         'Created_By' => Auth::id(),
                         'status' => 1,
-                        'attach_file'=> $cheque->attachment,
+                        'attach_file' => $cheque->attachment,
                         'branch_id' => $cheque->branch_id,
                         'custom_field_values' => [],
                     ];
@@ -531,22 +525,21 @@ class ChequesController extends Controller
             }
             // Update cheque
             $cheque->update($updateData);
-            
+
             DB::commit();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Cheque status updated successfully!',
                 'reload' => true,
             ]);
-            
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Cheque status update failed: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update cheque status. Please try again.'.$e->getMessage(),
+                'message' => 'Failed to update cheque status. Please try again.' . $e->getMessage(),
             ], 500);
         }
     }

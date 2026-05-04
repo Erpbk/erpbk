@@ -98,7 +98,8 @@ class LeasingCompaniesController extends AppBaseController
     $input = $request->all();
 
     //Adding Account and setting reference
-    $parentAccount = Accounts::where('name', 'Leasing Companies')->where('account_type', 'Liability')->first();
+    $parentAccount = Accounts::where('name', 'Leasing Companies')->where('account_type', 'Liability')->App\Http\Controllers\BranchController::edit(): Argument #1 ($branch) must be of type App\Models\Branch, string given, called in /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/Controller.php on line 54
+    first();
     if (!$parentAccount) {
       Flash::error('Parent account "Leasing Companies" not found.');
     }

@@ -81,10 +81,12 @@ class VendorsController extends AppBaseController
     $input = $request->all();
 
     //Adding Account and setting reference
-    $parentId = Accounts::where('name', 'Current Liabilities')->where('account_type', 'Liability')->first()->id;
-    $parentAccount = Accounts::where('name', 'Vendors')->where('account_type', 'Liability')->where('parent_id', $parentId)->first();
+    $parentAccount = Accounts::where('name', 'Vendors')->where('account_type', 'Liability')->first();
     if (!$parentAccount) {
-      Flash::error('Parent account "Vendor" not found.');
+      return response()->json([
+        'success' => false,
+        'message' => 'Parent account "Vendors" not found.',
+      ], 422);
     }
     try {
       DB::beginTransaction();
@@ -110,7 +112,10 @@ class VendorsController extends AppBaseController
           'reload' => true,
         ], 200);
       }
-      Flash::success('Vendor added successfully.');
+      return response()->json([
+        'success' => true,
+        'message' => 'Vendor added successfully.',
+      ], 200);
       return redirect(route('vendors.index'));
     } catch (\Exception $e) {
       \Log::error('error occured while creating vendor : ' . $e->getMessage());

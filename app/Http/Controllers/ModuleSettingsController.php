@@ -85,11 +85,6 @@ class ModuleSettingsController extends Controller
                 $assignment->field_label = ucwords(str_replace('_', ' ', $column));
                 $dirty = true;
             }
-            if (!$assignment->is_visible || !$assignment->is_required) {
-                $assignment->is_visible = true;
-                $assignment->is_required = true;
-                $dirty = true;
-            }
             if ($dirty) {
                 $assignment->save();
             }
@@ -501,7 +496,6 @@ class ModuleSettingsController extends Controller
         $isRequired = filter_var((string) ($validated['is_required'] ?? false), FILTER_VALIDATE_BOOLEAN);
         if ($isSchemaField) {
             $isVisible = true;
-            $isRequired = true;
         }
 
         $assignment = ModuleFieldCategoryAssignment::updateOrCreate(

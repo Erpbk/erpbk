@@ -142,12 +142,6 @@ class BikeSettingsController extends Controller
             $categoryId = (int) ($resolvedCategoryForField[$fieldKey] ?? $otherId);
             $assignment = BikeFieldCategoryAssignment::where('field_key', $fieldKey)->first();
             if ($assignment) {
-                if (!$assignment->is_visible || !$assignment->is_required) {
-                    $assignment->is_visible = true;
-                    $assignment->is_required = true;
-                    $assignment->save();
-                }
-
                 continue;
             }
 
@@ -308,7 +302,6 @@ class BikeSettingsController extends Controller
 
         if (ModuleFieldSource::isSchemaFieldKey('bike_list', $validated['field_key'])) {
             $assignment->is_visible = true;
-            $assignment->is_required = true;
         }
 
         $inputType = $validated['input_type'] !== null ? trim((string) $validated['input_type']) : null;

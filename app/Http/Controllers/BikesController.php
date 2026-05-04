@@ -429,7 +429,7 @@ class BikesController extends AppBaseController
       return response()->json(['errors' => ['error' => 'Bike not found!']], 422);
     }
 
-    $input = $this->normalizeBikeInputForDatabase($request->all(), false);
+    $input = $this->In the module field settings, there should be an option to mark any field as required or optional, allowing the user to enable or disable the ‘required’ status for any field.($request->all(), false);
     $bikes = $this->bikesRepository->update($input, $id);
     $bikes->updated_by = Auth::user()->id;
     $bikes->save();

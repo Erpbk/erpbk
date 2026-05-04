@@ -325,7 +325,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-visible-current="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
                               {{ ($row->is_required ?? false) ? 'checked' : '' }}
-                              @if($isSchemaLocked) disabled title="Required for database columns" @endif>
+                              title="Require this value when the field is shown on add/edit forms">
                           </div>
                         </td>
                         <td class="align-middle text-center">
@@ -530,7 +530,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                               data-input-config-options="{{ $inputOptions }}"
                               data-is-visible-current="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
                               {{ ($row->is_required ?? false) ? 'checked' : '' }}
-                              @if($isSchemaLocked) disabled title="Required for database columns" @endif>
+                              title="Require this value when the field is shown on add/edit forms">
                           </div>
                         </td>
                         <td class="align-middle text-center">
@@ -1652,7 +1652,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
       }
       if (reqEl) {
         reqEl.checked = String(btn.dataset.isRequired) === '1';
-        reqEl.disabled = schemaLocked;
+        reqEl.disabled = false;
       }
       document.getElementById('editBikeFixedInputType').value = btn.dataset.inputType || 'text';
 

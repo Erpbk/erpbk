@@ -175,7 +175,6 @@ class BikeSettingsController extends Controller
             ->get();
 
         $fixedAssignments = BikeFieldCategoryAssignment::with('category')
-            ->orderBy('category_id')
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -183,7 +182,6 @@ class BikeSettingsController extends Controller
         $fixedAssignmentsByCategory = $fixedAssignments->groupBy('category_id');
 
         $customFields = BikeCustomField::with('category')
-            ->orderBy('category_id')
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -355,17 +353,95 @@ class BikeSettingsController extends Controller
             ->map(fn ($v) => (string) $v)
             ->all();
 
-        $position = 0;
         foreach ($order as $fieldKey) {
             if (!in_array($fieldKey, $allowedKeys, true)) {
-                continue;
+                return response()->json(['success' => false, 'message' => 'Invalid field order.'], 422);
             }
-            BikeFieldCategoryAssignment::where('category_id', $categoryId)
+        }
+        if (count($order) !== count($allowedKeys)) {
+            return response()->json(['success' => false, 'message' => 'Invalid field order.'], 422);
+        }
+
+        $this->mergeBikeFixedFieldOrderForCategory($categoryId, $order);
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    public function reorderAllFieldAssignments(Request $request)
+    {
+        $validated = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'string', 'max:80'],
+        ]);
+        $order = array_values(array_map('strval', $validated['order']));
+        $existing = BikeFieldCategoryAssignment::query()
+            ->pluck('field_key')
+            ->map(fn ($v) => (string) $v)
+            ->sort()
+            ->values()
+            ->all();
+        $sortedOrder = $order;
+        sort($sortedOrder);
+        if ($sortedOrder !== $existing || count($order) !== count($existing)) {
+            return response()->json(['success' => false, 'message' => 'Invalid field order.'], 422);
+        }
+
+        foreach ($order as $pos => $fieldKey) {
+            BikeFieldCategoryAssignment::query()
                 ->where('field_key', $fieldKey)
-                ->update(['display_order' => $position++]);
+                ->update(['display_order' => $pos]);
         }
 
         return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    /**
+     * @param  list<string>  $orderedKeysInCategory
+     */
+    protected function mergeBikeFixedFieldOrderForCategory(int $categoryId, array $orderedKeysInCategory): void
+    {
+        $rows = BikeFieldCategoryAssignment::query()
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $globalKeys = $rows->pluck('field_key')->map(fn ($v) => (string) $v)->all();
+        $newGlobal = [];
+        $i = 0;
+        $n = count($globalKeys);
+        $blockInserted = false;
+
+        while ($i < $n) {
+            $k = $globalKeys[$i];
+            $row = $rows->firstWhere('field_key', $k);
+            if ((int) $row->category_id === $categoryId) {
+                if (!$blockInserted) {
+                    foreach ($orderedKeysInCategory as $nk) {
+                        $newGlobal[] = (string) $nk;
+                    }
+                    $blockInserted = true;
+                }
+                $i++;
+                while ($i < $n) {
+                    $k2 = $globalKeys[$i];
+                    $r2 = $rows->firstWhere('field_key', $k2);
+                    if ((int) $r2->category_id === $categoryId) {
+                        $i++;
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                $newGlobal[] = $k;
+                $i++;
+            }
+        }
+
+        foreach ($newGlobal as $pos => $fieldKey) {
+            BikeFieldCategoryAssignment::query()
+                ->where('field_key', $fieldKey)
+                ->update(['display_order' => $pos]);
+        }
     }
 
     public function reorderFields(Request $request)
@@ -385,17 +461,97 @@ class BikeSettingsController extends Controller
         } else {
             $query->where('category_id', (int) $categoryId);
         }
-        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->sort()->values()->all();
+        $sortedOrder = $order;
+        sort($sortedOrder);
+        if ($sortedOrder !== $allowedIds || count($order) !== count($allowedIds)) {
+            return response()->json(['success' => false, 'message' => 'Invalid order.'], 422);
+        }
 
-        $position = 0;
-        foreach ($order as $id) {
-            if (!in_array($id, $allowedIds, true)) {
-                continue;
-            }
-            BikeCustomField::where('id', $id)->update(['display_order' => $position++]);
+        $this->mergeBikeCustomFieldOrderForCategory($categoryId, $order);
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    public function reorderAllCustomFields(Request $request)
+    {
+        $validated = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'integer', 'exists:bike_custom_fields,id'],
+        ]);
+        $order = array_values(array_map('intval', $validated['order']));
+        $existing = BikeCustomField::query()
+            ->pluck('id')
+            ->map(fn ($v) => (int) $v)
+            ->sort()
+            ->values()
+            ->all();
+        $sortedOrder = $order;
+        sort($sortedOrder);
+        if ($sortedOrder !== $existing || count($order) !== count($existing)) {
+            return response()->json(['success' => false, 'message' => 'Invalid order.'], 422);
+        }
+
+        foreach ($order as $pos => $id) {
+            BikeCustomField::query()->where('id', $id)->update(['display_order' => $pos]);
         }
 
         return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    /**
+     * @param  list<int>  $orderedIdsInCategory
+     */
+    protected function mergeBikeCustomFieldOrderForCategory(?int $categoryId, array $orderedIdsInCategory): void
+    {
+        $rows = BikeCustomField::query()
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $inCategory = function ($row) use ($categoryId) {
+            if ($categoryId === null) {
+                return $row->category_id === null;
+            }
+
+            return (int) $row->category_id === (int) $categoryId;
+        };
+
+        $globalIds = $rows->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $newGlobal = [];
+        $i = 0;
+        $n = count($globalIds);
+        $blockInserted = false;
+
+        while ($i < $n) {
+            $id = $globalIds[$i];
+            $row = $rows->firstWhere('id', $id);
+            if ($inCategory($row)) {
+                if (!$blockInserted) {
+                    foreach ($orderedIdsInCategory as $nid) {
+                        $newGlobal[] = (int) $nid;
+                    }
+                    $blockInserted = true;
+                }
+                $i++;
+                while ($i < $n) {
+                    $id2 = $globalIds[$i];
+                    $r2 = $rows->firstWhere('id', $id2);
+                    if ($inCategory($r2)) {
+                        $i++;
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                $newGlobal[] = $id;
+                $i++;
+            }
+        }
+
+        foreach ($newGlobal as $pos => $fid) {
+            BikeCustomField::query()->where('id', $fid)->update(['display_order' => $pos]);
+        }
     }
 
     public function storeField(Request $request)

@@ -20,22 +20,53 @@ class ModuleFieldSettings
             ->get();
     }
 
+    /**
+     * Only keys that are real columns on the module's source table (predefined fixed fields).
+     *
+     * @return list<string>
+     */
+    public static function visibleFixedFieldKeys(string $moduleKey): array
+    {
+        $schemaKeys = ModuleFieldSource::schemaFieldKeysForModule($moduleKey);
+        $assignmentKeys = self::visibleAssignments($moduleKey)->pluck('field_key')->values()->all();
+
+        if ($schemaKeys !== []) {
+            $allowed = array_fill_keys($schemaKeys, true);
+
+            return array_values(array_filter($assignmentKeys, fn ($key) => isset($allowed[$key])));
+        }
+
+        return $assignmentKeys;
+    }
+
     public static function visibleFieldKeys(string $moduleKey): array
     {
-        return self::visibleAssignments($moduleKey)
-            ->pluck('field_key')
-            ->values()
-            ->all();
+        return self::visibleFixedFieldKeys($moduleKey);
     }
 
     public static function visibleFieldMap(string $moduleKey): array
     {
-        return self::visibleAssignments($moduleKey)
+        $base = self::visibleAssignments($moduleKey)
             ->mapWithKeys(function ($row) {
                 $label = trim((string) ($row->display_label ?: $row->field_label ?: ''));
                 return [$row->field_key => ($label !== '' ? $label : $row->field_key)];
             })
             ->all();
+
+        $schemaKeys = ModuleFieldSource::schemaFieldKeysForModule($moduleKey);
+        if ($schemaKeys === []) {
+            return $base;
+        }
+
+        $allowed = array_fill_keys($schemaKeys, true);
+
+        return array_filter(
+            $base,
+            static function (string $label, string $key) use ($allowed): bool {
+                return isset($allowed[$key]);
+            },
+            ARRAY_FILTER_USE_BOTH
+        );
     }
 }
 

@@ -25,7 +25,6 @@ class Items extends BaseModel
     'updated_by',
     'deleted_by',
     'ref_name',
-    'ref_id',
     'supplier_id',
     'status'
   ];
@@ -41,7 +40,6 @@ class Items extends BaseModel
   public static array $rules = [
     'name' => 'required|string|max:255',
     'ref_name' => 'required',
-    'ref_id' => 'required',
     'supplier_id' => 'nullable|exists:suppliers,id',
     'detail' => 'nullable|string|max:500',
     'price' => 'required|numeric',
@@ -58,15 +56,15 @@ class Items extends BaseModel
   }
   public function getOwnerAttribute()
   {
-    if($this->ref_name == 'customer')
+    if ($this->ref_name == 'customer')
       return Customers::find($this->ref_id);
-    else if($this->ref_name == 'supplier')
+    else if ($this->ref_name == 'supplier')
       return Supplier::find($this->ref_id);
-    else if($this->ref_name == 'leasingCompany')
+    else if ($this->ref_name == 'leasingCompany')
       return LeasingCompanies::find($this->ref_id);
-    else if($this->ref_name == 'garage')
+    else if ($this->ref_name == 'garage')
       return Garages::find($this->ref_id);
-    else if($this->ref_name == 'rider')
+    else if ($this->ref_name == 'rider')
       return Riders::find($this->ref_id);
     else
       null;

@@ -547,18 +547,106 @@ class ModuleSettingsController extends Controller
             ->map(fn ($v) => (string) $v)
             ->all();
 
-        $position = 0;
         foreach ($order as $fieldKey) {
             if (!in_array($fieldKey, $allowedKeys, true)) {
-                continue;
+                return response()->json(['success' => false, 'message' => 'Invalid field order.'], 422);
             }
-            ModuleFieldCategoryAssignment::where('module_key', $module)
-                ->where('category_id', $categoryId)
+        }
+        if (count($order) !== count($allowedKeys)) {
+            return response()->json(['success' => false, 'message' => 'Invalid field order.'], 422);
+        }
+
+        $this->mergeModuleFixedFieldOrderForCategory($module, $categoryId, $order);
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    /**
+     * Full drag order for the "All Fields" tab (global display_order across all fixed assignments).
+     */
+    public function reorderAllFieldAssignments(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        $validated = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'string', 'max:120'],
+        ]);
+        $order = array_values(array_map('strval', $validated['order']));
+        $existing = ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $module)
+            ->pluck('field_key')
+            ->map(fn ($v) => (string) $v)
+            ->sort()
+            ->values()
+            ->all();
+        $sortedOrder = $order;
+        sort($sortedOrder);
+        if ($sortedOrder !== $existing || count($order) !== count($existing)) {
+            return response()->json(['success' => false, 'message' => 'Invalid field order.'], 422);
+        }
+
+        foreach ($order as $pos => $fieldKey) {
+            ModuleFieldCategoryAssignment::query()
+                ->where('module_key', $module)
                 ->where('field_key', $fieldKey)
-                ->update(['display_order' => $position++]);
+                ->update(['display_order' => $pos]);
         }
 
         return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    /**
+     * Replace one category's keys in the global order with a new permutation; renumber display_order for all rows.
+     *
+     * @param  list<string>  $orderedKeysInCategory
+     */
+    protected function mergeModuleFixedFieldOrderForCategory(string $module, int $categoryId, array $orderedKeysInCategory): void
+    {
+        $rows = ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $module)
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $globalKeys = $rows->pluck('field_key')->map(fn ($v) => (string) $v)->all();
+
+        $newGlobal = [];
+        $i = 0;
+        $n = count($globalKeys);
+        $blockInserted = false;
+
+        while ($i < $n) {
+            $k = $globalKeys[$i];
+            $row = $rows->firstWhere('field_key', $k);
+            if ((int) $row->category_id === $categoryId) {
+                if (!$blockInserted) {
+                    foreach ($orderedKeysInCategory as $nk) {
+                        $newGlobal[] = (string) $nk;
+                    }
+                    $blockInserted = true;
+                }
+                $i++;
+                while ($i < $n) {
+                    $k2 = $globalKeys[$i];
+                    $r2 = $rows->firstWhere('field_key', $k2);
+                    if ((int) $r2->category_id === $categoryId) {
+                        $i++;
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                $newGlobal[] = $k;
+                $i++;
+            }
+        }
+
+        foreach ($newGlobal as $pos => $fieldKey) {
+            ModuleFieldCategoryAssignment::query()
+                ->where('module_key', $module)
+                ->where('field_key', $fieldKey)
+                ->update(['display_order' => $pos]);
+        }
     }
 
     public function storeField(Request $request, string $company_slug, string $module)
@@ -675,19 +763,109 @@ class ModuleSettingsController extends Controller
         } else {
             $query->where('category_id', (int) $categoryId);
         }
-        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->sort()->values()->all();
+        $sortedOrder = $order;
+        sort($sortedOrder);
+        if ($sortedOrder !== $allowedIds || count($order) !== count($allowedIds)) {
+            return response()->json(['success' => false, 'message' => 'Invalid order.'], 422);
+        }
 
-        $position = 0;
-        foreach ($order as $id) {
-            if (!in_array($id, $allowedIds, true)) {
-                continue;
-            }
-            ModuleCustomField::where('module_key', $module)
+        $this->mergeModuleCustomFieldOrderForCategory($module, $categoryId, $order);
+
+        return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    /**
+     * Full drag order for custom fields on the "All Fields" tab.
+     */
+    public function reorderAllCustomFields(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        $validated = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'integer', 'exists:module_custom_fields,id'],
+        ]);
+        $order = array_values(array_map('intval', $validated['order']));
+        $existing = ModuleCustomField::query()
+            ->where('module_key', $module)
+            ->pluck('id')
+            ->map(fn ($v) => (int) $v)
+            ->sort()
+            ->values()
+            ->all();
+        $sortedOrder = $order;
+        sort($sortedOrder);
+        if ($sortedOrder !== $existing || count($order) !== count($existing)) {
+            return response()->json(['success' => false, 'message' => 'Invalid order.'], 422);
+        }
+
+        foreach ($order as $pos => $id) {
+            ModuleCustomField::query()
+                ->where('module_key', $module)
                 ->where('id', $id)
-                ->update(['display_order' => $position++]);
+                ->update(['display_order' => $pos]);
         }
 
         return response()->json(['success' => true, 'message' => 'Order saved.']);
+    }
+
+    /**
+     * @param  list<int>  $orderedIdsInCategory
+     */
+    protected function mergeModuleCustomFieldOrderForCategory(string $module, ?int $categoryId, array $orderedIdsInCategory): void
+    {
+        $rows = ModuleCustomField::query()
+            ->where('module_key', $module)
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $inCategory = function ($row) use ($categoryId) {
+            if ($categoryId === null) {
+                return $row->category_id === null;
+            }
+
+            return (int) $row->category_id === (int) $categoryId;
+        };
+
+        $globalIds = $rows->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $newGlobal = [];
+        $i = 0;
+        $n = count($globalIds);
+        $blockInserted = false;
+
+        while ($i < $n) {
+            $id = $globalIds[$i];
+            $row = $rows->firstWhere('id', $id);
+            if ($inCategory($row)) {
+                if (!$blockInserted) {
+                    foreach ($orderedIdsInCategory as $nid) {
+                        $newGlobal[] = (int) $nid;
+                    }
+                    $blockInserted = true;
+                }
+                $i++;
+                while ($i < $n) {
+                    $id2 = $globalIds[$i];
+                    $r2 = $rows->firstWhere('id', $id2);
+                    if ($inCategory($r2)) {
+                        $i++;
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                $newGlobal[] = $id;
+                $i++;
+            }
+        }
+
+        foreach ($newGlobal as $pos => $fid) {
+            ModuleCustomField::query()
+                ->where('module_key', $module)
+                ->where('id', $fid)
+                ->update(['display_order' => $pos]);
+        }
     }
 
     public function storeDocumentType(Request $request, string $company_slug, string $module)

@@ -224,6 +224,7 @@ class SimsController extends AppBaseController
                 'errors' => ['error' => 'Failed to create SIM. Please try again.'],
                 'message' => 'Server error occurred.'
             ], 500);
+        }
     }
 
     /**

@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::table('items', function (Blueprint $table) {
             $table->string('owner')->nullable();
+            $table->string('attachment')->nullable();
         });
     }
 
@@ -25,6 +26,7 @@ return new class extends Migration
     {
         Schema::table('items', function (Blueprint $table) {
             $table->dropColumn('owner');
+            $table->dropColumn('attachment');
         });
     }
 };

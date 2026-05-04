@@ -34,7 +34,7 @@
 <!-- Rider Id Field -->
 <div class="form-group col-sm-6">
     <label class="">Bike:</label>
-    <select class="form select select2" required onchange="selectbike(this.value)" id="bike_id" name="bike_id">
+    <select class="form-select select2" required onchange="selectbike(this.value)" id="bike_id" name="bike_id">
         <option value=""></option>
         @foreach(DB::table('bikes')->where('status', 1)->orderBy('id', 'desc')->get() as $b)
         @php
@@ -48,7 +48,7 @@
 </div>
 <div class="form-group col-sm-6">
     <label class="">Debit Account:</label>
-    <select class="form select select2" required id="debit_account" name="debit_account">
+    <select class="form-select select2" required id="debit_account" name="debit_account">
         <option value=""></option>
         @if(isset($rtaFines))
         @php

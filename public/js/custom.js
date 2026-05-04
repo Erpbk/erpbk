@@ -742,6 +742,50 @@ function selectCC(pk) {
   });
 }); */
 
+function setItemTotal(row) {
+  const qty = parseFloat(row.find('.qty').val()) || 0;
+  const rate = parseFloat(row.find('.rate').val()) || 0;
+  const discount = parseFloat(row.find('.discount').val()) || 0;
+  const vat = parseFloat(row.find('.vat').val()) || 0;
+  const vatAmount = row.find('.vat_amount') ;
+  
+  let subtotal = qty * rate;
+  console.log('subtotal: '+subtotal);
+  if (discount > 0) {
+      subtotal -= discount;
+      console.log('subtotal after discount: '+subtotal);
+  }
+  let amount = 0;
+  if (vat > 0) {
+      amount = subtotal * (vat / 100);
+      subtotal += amount;
+  }
+  vatAmount.val(amount.toFixed(2));
+  
+  row.find('.amount').val(subtotal.toFixed(2));
+}
+
+function setTotal() {
+  let total = 0;
+  let subtotal = 0;
+  let vat = 0;
+  // Calculate sum of all item totals
+  $('#rows-container .row').each(function() {
+      const itemTotal = parseFloat($(this).find('.amount').val()) || 0;
+      const itemVatAmount = parseFloat($(this).find('.vat_amount').val()) || 0;
+      const itemQty = parseFloat($(this).find('.qty').val()) || 0;
+      const itemPrice = parseFloat($(this).find('.rate').val()) || 0;
+      const itemDiscount = parseFloat($(this).find('.discount').val()) || 0;
+      const itemSubtotal = (itemPrice * itemQty) - itemDiscount;
+      vat += itemVatAmount;
+      subtotal += itemSubtotal;
+      total += itemTotal;
+  });
+  $('#total').val(total.toFixed(2));
+  $('#subtotal').val(subtotal.toFixed(2));
+  $('#vat_total').val(vat.toFixed(2));
+}
+
 $(document).ready(function () {
   // Initialize select2 for the existing select elements
   if (window.jQuery && $.fn && $.fn.select2) {
@@ -751,7 +795,9 @@ $(document).ready(function () {
   }
 
   // Add new row by cloning the first row
-  $('#add-new-row').click(function () {
+  $(document).on('click', '#add-new-row', function (event) {
+    event.preventDefault();
+
     // Clone the first row
     const newRow = $('#rows-container .row:first').clone();
 
@@ -759,7 +805,6 @@ $(document).ready(function () {
     if (window.jQuery && $.fn && $.fn.select2 && newRow.find('.select2').data('select2')) {
       newRow.find('.select2').select2('destroy');
     }
-    //newRow.find('.select2').select2('destroy').end();
     newRow
       .find('select')
       .removeAttr('data-select2-id')
@@ -770,10 +815,10 @@ $(document).ready(function () {
     // Clear input, textarea, and select values in the cloned row
     newRow.find('input, textarea').val(''); // Clear inputs and textareas
     newRow.find('select').val(null).trigger('change'); // Reset the select value and trigger change
-    
+
     // Reset amount field to default value and remove data attribute
-    newRow.find('.amount').val('AED 0.00').removeAttr('data-numeric-value');
-    
+    newRow.find('.amount').attr('data-numeric-value', '0');
+
     // Set default values for qty, rate, discount, tax
     newRow.find('.qty').val('1');
     newRow.find('.rate').val('0');
@@ -786,13 +831,14 @@ $(document).ready(function () {
     // Reinitialize select2 for the newly added select element
     if (window.jQuery && $.fn && $.fn.select2) {
       $('.select2').select2({
+        dropdownParent: $('#modalTopbody'),
         allowClear: true
       });
     }
-    
+
     // Recalculate total after adding new row
     if (typeof getTotal === 'function') {
-      getTotal();
+      setTotal();
     }
   });
 
@@ -802,10 +848,42 @@ $(document).ready(function () {
       $(this).closest('.row').remove();
       // Recalculate total after removing row
       if (typeof getTotal === 'function') {
-        getTotal();
+        setTotal();
       }
     } else {
       alert('At least one row is required.');
+    }
+  });
+
+  $(document).on('input change', '.item', function() {
+    const row = $(this).closest('.row');
+    const selectedOption = $(this).find('option:selected');
+    const itemPrice = parseFloat(selectedOption.data('price')) || 0;
+    const itemVat = parseFloat(selectedOption.data('vat')) || 0;
+    row.find('.rate').val(itemPrice.toFixed(2));
+    row.find('.vat').val(itemVat.toFixed(2));
+    setItemTotal(row);
+    setTotal();
+  });
+
+  $(document).on('input change', '.qty, .rate, .discount, .vat', function() {
+      const row = $(this).closest('.row');
+      setItemTotal(row);
+      setTotal();
+  });
+
+  $('#checkall').on('change', function () {
+    var checked = $(this).is(':checked'); // Checkbox state
+    // Select all
+    if (checked) {
+      $('input:checkbox').each(function () {
+        $(this).prop('checked', true);
+      });
+    } else {
+      // Deselect All
+      $('input:checkbox').each(function () {
+        $(this).prop('checked', false);
+      });
     }
   });
 

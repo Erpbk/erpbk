@@ -37,14 +37,13 @@ class BikeMaintenanceController extends Controller
      */
     public function create()
     {
+        $items = Items::dropdown('garage');
         if(request()->id){
             $bike = Bikes::find(request()->id);
-            return view('bike-maintenance.create', compact('bike'));
+            return view('bike-maintenance.create', compact('bike','items'));
         }
-        else
-            $bike = null;
 
-        return view('bike-maintenance.create_general');
+        return view('bike-maintenance.create_general',compact('items'));
 
     }
 

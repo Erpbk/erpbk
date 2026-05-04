@@ -116,7 +116,7 @@ class RiderInvoicesController extends AppBaseController
   public function create()
   {
     $riders = Riders::dropdown();
-    $items = Items::dropdown();
+    $items = Items::dropdown('rider');
     return view('rider_invoices.create', compact('riders', 'items'));
   }
 
@@ -168,7 +168,7 @@ class RiderInvoicesController extends AppBaseController
       return redirect(route('riderInvoices.index'));
     }
     $riders = Riders::dropdown();
-    $items = Items::dropdown();
+    $items = Items::dropdown('rider');
 
     return view('rider_invoices.edit', compact('riders', 'items', 'invoice'));
   }

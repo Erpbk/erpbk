@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateItemsRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Items;
 use App\Models\RiderItemPrice;
+use App\Models\Riders;
 use App\Repositories\ItemsRepository;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
@@ -15,6 +16,7 @@ use App\Traits\TracksCascadingDeletions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Flash;
+use \Illuminate\Support\Facades\Storage;
 
 class ItemsController extends AppBaseController
 {
@@ -45,8 +47,8 @@ class ItemsController extends AppBaseController
     if ($request->has('code') && !empty($request->code)) {
       $query->where('code', $request->code);
     }
-    if ($request->has('customer_id') && !empty($request->customer_id)) {
-      $query->where('customer_id', $request->customer_id);
+    if ($request->has('owner') && !empty($request->owner)) {
+      $query->whereJsonContains('owner', $request->owner);
     }
     if ($request->has('supplier_id') && !empty($request->supplier_id)) {
       $query->where('supplier_id', $request->supplier_id);
@@ -57,7 +59,7 @@ class ItemsController extends AppBaseController
     $stats['total'] = $query->count();
     $stats['active'] = (clone $query)->where('status', 1)->count();
     $stats['inactive'] = (clone $query)->where('status', 2)->count();
-    $query->orderBy('ref_name')->orderBy('ref_id')->orderBy('name');
+    $query->orderBy('name');
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
     if ($request->ajax()) {
@@ -99,17 +101,39 @@ class ItemsController extends AppBaseController
    */
   public function store(CreateItemsRequest $request)
   {
-    $input = $request->all();
-
-    $items = $this->itemsRepository->create($input);
-    if($request->ajax()){
-      return response()->json([
-        'message' => 'Item created successfully',
-        'reload' => true,
-      ],200);
-    }
-    Flash::success('Item added successfully.');
-    return redirect()->back();
+      $input = $request->all();
+      
+      // Handle owner types - decode JSON from the form
+      if ($request->has('owner') && !empty($request->owner)) {
+          $ownerData = json_decode($request->owner, true);
+          $input['owner'] = $ownerData;
+      } else {
+          $input['owner'] = [];
+      }
+      $attachmentPath = null;
+      // Handle attachment file upload
+      if ($request->hasFile('attachment')) {
+          $file = $request->file('attachment');
+          $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+          $attachmentPath = $file->storeAs('items', $fileName, 'public');
+      }
+      $input['attachment'] = $attachmentPath;
+      // Handle status (checkbox returns '1' when checked, doesn't exist when unchecked)
+      // The hidden field sends '2' as fallback, but checkbox value '1' overrides when checked
+      $input['status'] = $request->has('status') && $request->status == '1' ? 1 : 2;
+      
+      // Create the item
+      $items = $this->itemsRepository->create($input);
+      
+      if($request->ajax()){
+          return response()->json([
+              'message' => 'Item created successfully',
+              'reload' => true,
+          ], 200);
+      }
+      
+      Flash::success('Item added successfully.');
+      return redirect()->back();
   }
 
   /**
@@ -149,19 +173,54 @@ class ItemsController extends AppBaseController
    */
   public function update($company_slug, $id, UpdateItemsRequest $request)
   {
-    $items = $this->itemsRepository->find($id);
-
-    if (empty($items)) {
-      Flash::error('Item not found!');
+    $input = $request->all();
+    
+    // Find the existing item
+    $item = $this->itemsRepository->find($id);
+    
+    if (empty($item)) {
+        Flash::error('Item not found');
+        return redirect()->back();
     }
-
-    $items = $this->itemsRepository->update($request->all(), $id);
+    
+    // Handle owner types - decode JSON from the form
+    if ($request->has('owner') && !empty($request->owner)) {
+        $ownerData = json_decode($request->owner, true);
+        $input['owner'] = $ownerData;
+    } else {
+        $input['owner'] = [];
+    }
+    
+    // Handle attachment file upload
+    $attachmentPath = $item->attachment; // Keep existing by default
+    
+    if ($request->hasFile('attachment')) {
+        // Delete old attachment if exists
+        if ($item->attachment && Storage::disk('public')->exists($item->attachment)) {
+            Storage::disk('public')->delete($item->attachment);
+        }
+        
+        $file = $request->file('attachment');
+        $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+        $attachmentPath = $file->storeAs('items', $fileName, 'public');
+    }
+    
+    $input['attachment'] = $attachmentPath;
+    
+    // Handle status (checkbox returns '1' when checked, doesn't exist when unchecked)
+    // The hidden field sends '2' as fallback, but checkbox value '1' overrides when checked
+    $input['status'] = $request->has('status') && $request->status == '1' ? 1 : 2;
+    
+    // Update the item
+    $item = $this->itemsRepository->update($input, $id);
+    
     if($request->ajax()){
-      return response()->json([
-        'message' => 'Item updated successfully',
-        'reload' => true,
-      ],200);
+        return response()->json([
+            'message' => 'Item updated successfully',
+            'reload' => true,
+        ], 200);
     }
+    
     Flash::success('Item updated successfully.');
     return redirect()->back();
   }
@@ -325,40 +384,128 @@ class ItemsController extends AppBaseController
   }
 
   public function getOwners(Request $request)
-    {
-        $request->validate([
-            'owner_type' => 'required|string'
-        ]);
-        
-        $ownerType = $request->owner_type;
-        $data = [];
-        
-        switch ($ownerType) {
-            case 'customer':
-                $data = \App\Models\Customers::select('id', 'name')->orderBy('name')->get();
-                break;
-            case 'leasingCompany':
-                $data = \App\Models\LeasingCompanies::select('id', 'name')->orderBy('name')->get();
-                break;
-            case 'supplier':
-                $data = \App\Models\Supplier::select('id', 'name')->orderBy('name')->get();
-                break;
-            case 'garage':
-                $data = \App\Models\Garages::select('id', 'name')->orderBy('name')->get();
-                break;
-            default:
-                $data = [];
-        }
-        $defaultOption = [
-          'id' => '',
-          'name' => 'All'
-        ];
-
-        $data = $data->prepend((object)$defaultOption);
-        
-        return response()->json([
-            'success' => true,
-            'data' => $data
-        ]);
+  {
+    $request->validate([
+      'owner_type' => 'required|string|in:customer,leasingCompany,supplier,garage',
+      'search' => 'nullable|string|max:255',
+      'page' => 'nullable|integer|min:1'
+    ]);
+    
+    $type = $request->owner_type;
+    $search = $request->search;
+    $page = $request->page ?? 1;
+    $perPage = 20;
+    
+    $model = $this->getOwnerModel($type);
+    if (!$model) {
+        return response()->json(['success' => false, 'data' => []]);
     }
+    
+    $query = $model::query();
+    
+    if ($search) {
+        $searchFields = $this->getSearchFields($type);
+        $query->where(function($q) use ($searchFields, $search) {
+            foreach ($searchFields as $field) {
+                $q->orWhere($field, 'LIKE', "%{$search}%");
+            }
+        });
+    }
+    
+    $owners = $query->paginate($perPage, ['*'], 'page', $page);
+    
+    return response()->json([
+        'success' => true,
+        'data' => $owners->items(),
+        'current_page' => $owners->currentPage(),
+        'has_more' => $owners->hasMorePages(),
+        'total' => $owners->total()
+    ]);
+  }
+
+  private function getSearchFields(string $type): array
+  {
+      $fields = [
+          'customer' => ['name', 'email', 'phone'],
+          'supplier' => ['name', 'company_name', 'email'],
+          'leasingCompany' => ['company_name', 'contact_person', 'email'],
+          'garage' => ['name', 'address', 'phone']
+      ];
+      
+      return $fields[$type] ?? ['name'];
+  }
+
+  private function getOwnerName($owner, string $type): string
+  {
+      switch ($type) {
+          case 'customer':
+              return $owner->name ?? 'Unnamed Customer';
+          case 'supplier':
+              return $owner->company_name ?? $owner->name ?? 'Unnamed Supplier';
+          case 'leasingCompany':
+              return $owner->company_name ?? 'Unnamed Leasing Company';
+          case 'garage':
+              return $owner->name ?? 'Unnamed Garage';
+          default:
+              return 'Unknown';
+      }
+  }
+
+  // Get owner model class
+  private function getOwnerModel(string $type)
+  {
+      $models = [
+          'customer' => \App\Models\Customers::class,
+          'supplier' => \App\Models\Supplier::class,
+          'leasingCompany' => \App\Models\LeasingCompanies::class,
+          'garage' => \App\Models\Garages::class,
+      ];
+      
+      return $models[$type] ?? null;
+  }
+
+  public function itemsByRider(Request $request, $company_slug, $rider_id)
+  {
+      try {
+          $riderId = $rider_id;
+          
+          if (!$riderId) {
+              return response()->json(['success' => false, 'items' => []]);
+          }
+          
+          // Get the rider with customer_id
+          $rider = Riders::find($riderId);
+          
+          if (!$rider) {
+              return response()->json(['success' => false, 'items' => []]);
+          }
+          
+          // Debug: Log the customer_id to check
+          \Log::info('Rider Customer ID: ' . $rider->customer_id);
+          
+          // Get items based on rider's customer_id
+          $items = Items::where(function($query) use ($rider) {
+              $query->whereJsonContains('ref_name->customer', (string)$rider->customer_id);
+              // Add more conditions if needed:
+              // ->orWhereJsonContains('ref_name->leasingCompany', (string)$rider->customer_id)
+              // ->orWhereJsonContains('ref_name->supplier', (string)$rider->customer_id);
+          })->pluck('name', 'id');
+          
+          // Debug: Log the items found
+          \Log::info('Items found: ' . $items->count());
+          
+          return response()->json([
+              'success' => true,
+              'items' => $items
+          ]);
+          
+      } catch (\Exception $e) {
+          \Log::error('Error loading items by rider: ' . $e->getMessage());
+          return response()->json([
+              'success' => false,
+              'message' => 'Error loading items',
+              'error' => $e->getMessage()
+          ]);
+      }
+  }
 }

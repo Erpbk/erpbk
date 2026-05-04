@@ -74,6 +74,10 @@ class AppServiceProvider extends ServiceProvider
         }
         if (!empty($company->name)) {
           $companyName = $company->name;
+
+          config([
+            'variables.templateName' => $company->name,
+          ]);
         }
       }
 

@@ -55,17 +55,23 @@ class EmployeeInvoicesRepository extends BaseRepository
             if ($exists) {
                 throw new \Exception('An invoice for this employee has already been generated for the selected billing month.');
             }
-
+            $input['vat'] = array_sum($input['vat_amount']);
+            $input['subtotal'] = $input['total_amount'] - $input['vat'];
+            \Log::info('input:',[ $input]);
             $invoice->update($input);
             EmployeeInvoiceItem::where('inv_id', $id)->delete();
         } else {
             $exists = EmployeeInvoices::where('employee_id', $input['employee_id'])
                 ->where('billing_month', $input['billing_month'])
-                ->first();
+                ->exists();
 
             if ($exists) {
                 throw new \Exception('An invoice for this employee has already been generated for the selected billing month.');
             }
+
+            $input['vat'] = array_sum($input['vat_amount']);
+            $input['subtotal'] = $input['total_amount'] - $input['vat'];
+            \Log::info('input:',[ $input]);
 
             $invoice = EmployeeInvoices::create($input);
         }
@@ -88,19 +94,14 @@ class EmployeeInvoicesRepository extends BaseRepository
                     'amount' => $amountValue,
                     'discount' => $request['discount'][$key],
                     'inv_id' => $invoice->id,
+                    'tax' => $request['tax'][$key]
                 ]);
             }
         }
 
-        $subtotal = EmployeeInvoiceItem::where('inv_id', $invoice->id)->sum('amount');
-        $total = $subtotal;
-        $vat = 0;
-
-        // Keep behavior same as rider invoices if vat flag exists on employee.
-        if (($invoice->employee->vat ?? 0) == 1) {
-            $vat = $total * (Common::getSetting('vat_percentage') / 100);
-            $total += $vat;
-        }
+        $subtotal = $invoice->subtotal;
+        $vat = $invoice->vat;
+        $total = $invoice->total_amount;
 
         $transactionService = new TransactionService();
 
@@ -118,14 +119,14 @@ class EmployeeInvoicesRepository extends BaseRepository
             $transCode = Account::trans_code();
         }
 
-        if (($invoice->employee->vat ?? 0) == 1) {
+        if ($invoice->vat > 0) {
             $transactionService->recordTransaction([
                 'account_id' => HeadAccount::TAX_ACCOUNT,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'EmployeeInvoice',
                 'trans_code' => $transCode,
                 'trans_date' => $invoice->inv_date,
-                'narration' => 'Employee Invoice #' . $invoice->id . ' - ' . $invoice->descriptions,
+                'narration' => 'Vat on Employee Invoice #' . $invoice->id,
                 'debit' => $vat ?? 0,
                 'billing_month' => $invoice->billing_month,
             ]);
@@ -137,7 +138,7 @@ class EmployeeInvoicesRepository extends BaseRepository
             'reference_type' => 'EmployeeInvoice',
             'trans_code' => $transCode,
             'trans_date' => $invoice->inv_date,
-            'narration' => 'Employee Invoice #' . $invoice->id . ' - ' . $invoice->descriptions,
+            'narration' => $invoice->descriptions ?? 'Employee Invoice #' . $invoice->id ,
             'credit' => $total ?? 0,
             'billing_month' => $invoice->billing_month,
         ]);
@@ -149,14 +150,9 @@ class EmployeeInvoicesRepository extends BaseRepository
             'trans_code' => $transCode,
             'trans_date' => $invoice->inv_date,
             'narration' => 'Employee Invoice #' . $invoice->id . ' - ' . $invoice->descriptions,
-            'debit' => $subtotal ?? 0,
+            'debit' => $total ?? 0,
             'billing_month' => $invoice->billing_month,
         ]);
-
-        $invoice->total_amount = $total;
-        $invoice->vat = $vat;
-        $invoice->subtotal = $subtotal;
-        $invoice->save();
 
         return $invoice;
     }

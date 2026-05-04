@@ -29,7 +29,7 @@ class Sims extends BaseModel
 
   protected $casts = [
     'number' => 'string',
-    'company_id' => 'string',
+    'company' => 'string',
     'fleet_supervisor' => 'string',
     'emi' => 'string',
     'vendor' => 'string',
@@ -42,7 +42,7 @@ class Sims extends BaseModel
 
   public static array $rules = [
     'number' => 'required|string|max:191',
-    'company_id' => 'required|exists:companies,id',
+    'company' => 'required|string|max:191',
     'branch_id' => 'required|exists:branches,id',
     'assign_to' => 'nullable',
     'created_by' => 'nullable',

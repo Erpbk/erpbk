@@ -193,7 +193,6 @@ class SimsController extends AppBaseController
             'vendor' => 'nullable|integer',
             'fleet_supervisor' => 'nullable|string|max:50',
             'branch_id' => 'required|numeric|exists:branches,id',
-            'company_id' => 'required|numeric|exists:companies,id',
         ];
 
         // Custom validation messages
@@ -202,8 +201,6 @@ class SimsController extends AppBaseController
             'number.min' => 'SIM number must be at least 10 characters long',
             'number.max' => 'SIM number cannot exceed 13 characters',
             'number.unique' => 'This SIM number already exists',
-            'company_id.required' => 'Company is required',
-            'company_id.exists' => 'Selected Company Does Not Exist',
             'company.max' => 'Telecom company name cannot exceed 191 characters',
             'emi.required' => 'EMI number is required',
             'emi.min' => 'EMI number must be at least 15 characters',

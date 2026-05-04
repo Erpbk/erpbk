@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SimExport;
 use App\Models\User;
+use App\Models\SimCompany;
 
 class SimsController extends AppBaseController
 {
@@ -188,6 +189,7 @@ class SimsController extends AppBaseController
         $rules = [
             'number' => 'required|string|min:10|max:13|unique:sims,number',
             'emi' => 'required|min:15|max:25',
+            'company' => 'nullable|string|max:191',
             'vendor' => 'nullable|integer',
             'fleet_supervisor' => 'nullable|string|max:50',
             'branch_id' => 'required|numeric|exists:branches,id',
@@ -202,6 +204,7 @@ class SimsController extends AppBaseController
             'number.unique' => 'This SIM number already exists',
             'company_id.required' => 'Company is required',
             'company_id.exists' => 'Selected Company Does Not Exist',
+            'company.max' => 'Telecom company name cannot exceed 191 characters',
             'emi.required' => 'EMI number is required',
             'emi.min' => 'EMI number must be at least 15 characters',
             'emi.max' => 'EMI number cannot exceed 20 characters',
@@ -209,10 +212,21 @@ class SimsController extends AppBaseController
             'branch_id.exists' => 'Selected Branch Does Not Exist',
         ];
 
+        $this->validate($request, $rules, $messages);
+
+        $input['company'] = $this->resolveSimTelecomCompany($input);
+        if ($input['company'] === '') {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => [
+                    'company' => [
+                        'Telecom company (e.g. du / etisalat) is required. Send a "company" value, choose a vendor with a known name, or use a UAE mobile number so it can be inferred from the prefix.',
+                    ],
+                ],
+            ], 422);
+        }
+
         try {
-            // Perform validation
-            $this->validate($request, $rules, $messages);
-            dd($input);
             $sims = Sims::create($input);
 
             return response()->json([
@@ -571,6 +585,37 @@ class SimsController extends AppBaseController
                 'message' => 'Server error occurred.' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString(),
             ], 500);
         }
+    }
+
+    /**
+     * `sims.company` stores the telecom operator (du / etisalat), not the business `company_id`.
+     */
+    private function resolveSimTelecomCompany(array $input): string
+    {
+        $fromRequest = trim((string) ($input['company'] ?? ''));
+        if ($fromRequest !== '') {
+            return $fromRequest;
+        }
+
+        if (!empty($input['vendor'])) {
+            $name = SimCompany::where('id', $input['vendor'])->value('name');
+            if (is_string($name) && trim($name) !== '') {
+                return trim($name);
+            }
+        }
+
+        $digits = preg_replace('/\D/', '', (string) ($input['number'] ?? ''));
+        if (strlen($digits) >= 3) {
+            $prefix = substr($digits, 0, 3);
+            if (in_array($prefix, ['052', '055'], true)) {
+                return 'du';
+            }
+            if (in_array($prefix, ['050', '054', '056', '058'], true)) {
+                return 'etisalat';
+            }
+        }
+
+        return '';
     }
 
     /**

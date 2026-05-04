@@ -16,7 +16,7 @@ class Sims extends BaseModel
   public $fillable = [
     'branch_id',
     'number',
-    'company_id',
+    'company',
     'assign_to',
     'created_by',
     'updated_by',

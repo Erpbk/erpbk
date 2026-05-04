@@ -9,14 +9,14 @@ use App\Traits\BranchScope;
 
 class Sims extends BaseModel
 {
-    use SoftDeletes, LogsActivity, BranchScope;
+  use SoftDeletes, LogsActivity, BranchScope;
 
   public $table = 'sims';
 
   public $fillable = [
     'branch_id',
     'number',
-    'company',
+    'company_id',
     'assign_to',
     'created_by',
     'updated_by',
@@ -29,7 +29,7 @@ class Sims extends BaseModel
 
   protected $casts = [
     'number' => 'string',
-    'company' => 'string',
+    'company_id' => 'string',
     'fleet_supervisor' => 'string',
     'emi' => 'string',
     'vendor' => 'string',
@@ -42,8 +42,8 @@ class Sims extends BaseModel
 
   public static array $rules = [
     'number' => 'required|string|max:191',
-    'company' => 'required|string|max:191',
-    'branch_id' => 'nullable|exists:branches,id',       
+    'company_id' => 'required|exists:companies,id',
+    'branch_id' => 'required|exists:branches,id',
     'assign_to' => 'nullable',
     'created_by' => 'nullable',
     'updated_by' => 'nullable',
@@ -57,7 +57,7 @@ class Sims extends BaseModel
 
   public function histories()
   {
-      return $this->hasMany(SimHistory::class, 'sim_id', 'id');
+    return $this->hasMany(SimHistory::class, 'sim_id', 'id');
   }
 
   public function riders()

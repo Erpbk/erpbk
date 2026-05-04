@@ -165,139 +165,126 @@
     </div>
     
     <h5 class="my-3">Maintenance Items</h5>
-    <div class="scrollbar p-2">
-        @if(!isset($items))
-            <div id="row-container">
-                <div class="row">
+    <div class="scrollbar p-2 border rounded">
+        <div class="row">
+            <div class="form-group col-md-2">
+                {!! Form::label('item', 'Item') !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::label('qty', 'Qty') !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::label('rate', 'Rate') !!}
+            </div>
+            <div class="form-group col-md-1">
+                {!! Form::label('vat', 'VAT(%)') !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::label('amount', 'Total Amount:') !!}
+            </div>
+            <div class="form-group col-md-2">
+                {!! Form::label('charge_to', 'Charge To') !!}
+            </div>
+        </div>
+        <div id="rows-container">  
+            @foreach ($items as $index => $item)
+            <div class="row mt-1">
                 <div class="form-group col-md-2">
-                    {!! Form::label('item', 'Item') !!}
                     <select name="item_id[]" class="form-control select2 item">
                         <option value="">Select</option>
-                        @foreach(\App\Models\Items::where('status', 1)->get() as $item)
-                        <option value="{{ $item->id }}">{{ $item->name }}</option>
+                        @foreach(\App\Models\Items::dropdown('garage') as $i)
+                        <option data-price="{{ $i->price }}" data-vat="{{ $i->vat }}" value="{{ $i->id }}" @if($i->id === $item->item_id) selected @endif>{{ $i->name }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="form-group col-md-2">
-                    {!! Form::label('qty', 'Qty') !!}
-                    {!! Form::number('quantity[]', 1, ['class' => 'form-control qty']) !!}
+                    {!! Form::number('quantity[]', $item->quantity ?? null, ['class' => 'form-control qty']) !!}
                 </div>
                 <div class="form-group col-md-2">
-                    {!! Form::label('rate', 'Rate') !!}
-                    {!! Form::number('rate[]', 0, ['class' => 'form-control rate', 'step' => 'any']) !!}
+                    {!! Form::number('rate[]', $item->rate ?? null, ['class' => 'form-control rate', 'step' => 'any']) !!}
                 </div>
+                {{-- <div class="form-group col-md-1">
+                    {!! Form::label('discount', 'Discount') !!}
+                    {!! Form::number('discount[]', $item->discount ?? null, ['class' => 'form-control discount', 'step' => 'any']) !!}
+                </div> --}}
                 <div class="form-group col-md-1">
-                    {!! Form::label('vat', 'VAT(%)') !!}
-                    {!! Form::number('vat[]', 0, ['class' => 'form-control vat', 'step' => 'any']) !!}
+                    {!! Form::number('vat[]', $item->vat ?? null, ['class' => 'form-control vat', 'step' => 'any']) !!}
                 </div>
                 <input type="hidden" name="vat_amount[]" value="0" class="vat_amount">
                 <div class="form-group col-md-2">
-                    {!! Form::label('amount', 'Total Amount:') !!}
-                    {!! Form::number('item_total[]', null, ['class' => 'form-control item_total', 'step' => 'any']) !!}
+                    {!! Form::number('item_total[]', $item->total_amount, ['class' => 'form-control amount', 'step' => 'any', 'readonly' => true]) !!}
                 </div>
                 <div class="form-group col-md-2">
-                    {!! Form::label('charge_to', 'Charge To') !!}
-                    
                     <select name="charge_to[]" class="form-control select2">
                         <option value="">Select</option>
-                        <option value="Company">Company</option>
-                        <option value="Rider">Rider</option>
+                        <option value="Company" {{ $item->charge_to == 'Company' ? 'selected' : '' }}>Company</option>
+                        <option value="Rider" {{ $item->charge_to == 'Rider' ? 'selected' : '' }}>Rider</option>
                     </select>
                 </div>
-            </div>
-        @else
-            <div id="row-container">  
-                @foreach ($items as $index => $item)
-                <div class="row">
-                    <div class="form-group col-md-2">
-                        {!! Form::label('item', 'Item') !!}
-                        <select name="item_id[]" class="form-control select2 item">
-                            <option value="">Select</option>
-                            @foreach(\App\Models\Items::where('status', 1)->get() as $i)
-                            <option data-price="{{ $item->price }}" value="{{ $i->id }}" @if($i->id === $item->item_id) selected @endif>{{ $i->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="form-group col-md-2">
-                        {!! Form::label('qty', 'Qty') !!}
-                        {!! Form::number('quantity[]', $item->quantity ?? null, ['class' => 'form-control qty']) !!}
-                    </div>
-                    <div class="form-group col-md-2">
-                        {!! Form::label('rate', 'Rate') !!}
-                        {!! Form::number('rate[]', $item->rate ?? null, ['class' => 'form-control rate', 'step' => 'any']) !!}
-                    </div>
-                    {{-- <div class="form-group col-md-1">
-                        {!! Form::label('discount', 'Discount') !!}
-                        {!! Form::number('discount[]', $item->discount ?? null, ['class' => 'form-control discount', 'step' => 'any']) !!}
-                    </div> --}}
-                    <div class="form-group col-md-1">
-                        {!! Form::label('vat', 'VAT(%)') !!}
-                        {!! Form::number('vat[]', $item->vat ?? null, ['class' => 'form-control vat', 'step' => 'any']) !!}
-                    </div>
-                    <input type="hidden" name="vat_amount[]" value="0" class="vat_amount">
-                    <div class="form-group col-md-2">
-                        {!! Form::label('amount', 'Amount') !!}
-                        {!! Form::number('item_total[]', $item->total_amount, ['class' => 'form-control item_total', 'step' => 'any', 'readonly' => true]) !!}
-                    </div>
-                    <div class="form-group col-md-2">
-                        {!! Form::label('charge_to', 'Charge To') !!}
-                        
-                        <select name="charge_to[]" class="form-control select2">
-                            <option value="">Select</option>
-                            <option value="Company" {{ $item->charge_to == 'Company' ? 'selected' : '' }}>Company</option>
-                            <option value="Rider" {{ $item->charge_to == 'Rider' ? 'selected' : '' }}>Rider</option>
-                        </select>
-                    </div>
-                    <div class="form-group col-md-1 d-flex align-items-end">
-                        <a href="javascript:void(0);" class="text-danger remove-row"><i class="fa fa-trash"></i></a>
-                    </div>
+                <div class="form-group col-md-1 d-flex align-items-end">
+                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
                 </div>
-                @endforeach
             </div>
-        @endif
+            @endforeach
+        </div>
     </div>
+    <div>
+        <button type="button" id="add-new-row" class="btn btn-success btn-sm">Add Item</button>
+    </div>
+    <br>
 
     <div class="d-flex justify-content-between align-items-center gap-3">
         <div>
-            <button type="button" id="add-row" class="btn btn-success btn-sm">Add Item</button>
         </div>
-        <div class="d-flex align-items-center">
-            <div class="input-group flex-nowrap">
-                <span class="input-group-text">Maintenance Cost</span>
-                <input type="number" name="total_cost" class="form-control" id="total_cost" readonly style="min-width: 120px;">
+        <div class="d-flex align-items-center gap-3">
+            <div class="input-group">
+                <span class="input-group-text bg-light">Subtotal</span>
+                <input type="number" name="subtotal" class="form-control" id="subtotal" readonly style="min-width: 150px;">
+            </div>
+            <div class="input-group">
+                <span class="input-group-text bg-light">VAT Amount</span>
+                <input type="number" name="vat_total" class="form-control" id="vat_total" readonly style="min-width: 150px;">
+            </div>
+            <div class="input-group">
+                <span class="input-group-text bg-primary text-white">Total</span>
+                <input type="number" name="total_amount" class="form-control" id="total" readonly style="min-width: 150px; font-weight: bold;" >
             </div>
         </div>
     </div>
 
     <div class="action-btn pt-3">
-        <button type="button" class="btn btn-default" data-bs-dismiss="modal">Cancel</button>
         {!! Form::submit('Save Maintenance Record', ['class' => 'btn btn-primary']) !!}
     </div>
 
 
 <script>
 $(document).ready(function() {
-    // Store jQuery objects for calculations
+    // Initialize select2
     $('.select2').select2({
+        allowClear: true,
         dropdownParent: $('#formajax'),
     });
+    
+    // Store jQuery objects for calculations
     const previousKm = $('#previous_km');
-    const maintenanceAt = $('#maintenance_at');
+    const currentKm = $('#current_km');
     const maintenanceKm = $('#maintenance_km');
     const overdueKm = $('#overdue_km');
     const costPerKm = $('#cost_per_km');
-    const overdueCost = $('#overdue_cost'); 
+    const overdueCost = $('#overdue_cost');
+    const riderInfo = $('#rider_info');
+    const riderIdHidden = $('#rider_id_hidden');
     
     function calculateOverdue() {
-        const prev = parseFloat(previousKm.val()) ;
-        const maintenance = parseFloat(maintenanceAt.val()) ;
+        const prev = parseFloat(previousKm.val());
+        const current = parseFloat(currentKm.val());
         const maintenanceInterval = parseFloat(maintenanceKm.val());
         overdueCost.val('');
         overdueKm.val('');
         
-        if (!isNaN(prev) && !isNaN(maintenance) && !isNaN(maintenanceInterval)) {
+        if (!isNaN(prev) && !isNaN(current) && !isNaN(maintenanceInterval)) {
             // Calculate overdue: Current - Previous - Maintenance Interval
-            const overdue = maintenance - prev - maintenanceInterval;
+            const overdue = current - prev - maintenanceInterval;
             
             // Only show positive overdue (if overdue > 0)
             overdueKm.val(overdue > 0 ? overdue.toFixed(3) : '0.000');
@@ -314,130 +301,39 @@ $(document).ready(function() {
     
     // Add event listeners to all calculation fields
     previousKm.on('input change', calculateOverdue);
-    maintenanceAt.on('input change', calculateOverdue);
+    currentKm.on('input change', calculateOverdue);
     maintenanceKm.on('input change', calculateOverdue);
     costPerKm.on('input change', calculateOverdue);
     
     // Initial calculations
     calculateOverdue();
+
     $('.row').each(function() {
         setItemTotal($(this));
     });
     setTotal();
 
-    $(document).on('input change', '.qty, .rate, .discount, .vat', function() {
-        const row = $(this).closest('.row');
-        setItemTotal(row);
-        setTotal();
-    });
-
-    $(document).on('change', '.item', function() {
-        const row = $(this).closest('.row');
+    $(document).on('change', '#bike_select', function(){
         const selectedOption = $(this).find('option:selected');
-        const itemPrice = parseFloat(selectedOption.data('price')) || 0;
-        row.find('.rate').val(itemPrice.toFixed(2));
-        setItemTotal(row);
-        setTotal();
-    });
+        const riderData = selectedOption.data('rider');
+        const riderId = selectedOption.data('rider-id');
+        const previousKmData = selectedOption.data('previous-km');
+        const maintenanceKmData = selectedOption.data('maintenance-km');
 
-    $(document).on('click', '.remove-row', function(e){
-        e.preventDefault();
-        $(this).closest('.row').remove();
-        setTotal();
+        
+        // Update rider information
+        riderInfo.val(riderData);
+        riderIdHidden.val(riderId);
+        previousKm.val(previousKmData);
+        maintenanceKm.val(maintenanceKmData);
+        
+        calculateOverdue();
+        toggleRiderChargeOption();
+        $(this).select2('close');
     });
-
-    // Add row button click
-    $('#add-row').click(addNewRow);
 
     toggleRiderChargeOption();
 });
-
-function addNewRow(){
-    const newRow = $(`
-        <div class="row">
-            <div class="form-group col-md-3">
-                {!! Form::label('item', 'Item') !!}
-                <select name="item_id[]" class="form-control select2 item">
-                    <option value="">Select</option>
-                    @foreach(\App\Models\Items::where('status', 1)->get() as $item)
-                    <option value="{{ $item->id }}">{{ $item->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="form-group col-md-2">
-                {!! Form::label('qty', 'Qty') !!}
-                {!! Form::number('quantity[]', 1, ['class' => 'form-control qty']) !!}
-            </div>
-            <div class="form-group col-md-2">
-                {!! Form::label('rate', 'Rate') !!}
-                {!! Form::number('rate[]', 0, ['class' => 'form-control rate', 'step' => 'any']) !!}
-            </div>
-            <div class="form-group col-md-1">
-                {!! Form::label('discount', 'Discount') !!}
-                {!! Form::number('discount[]', 0, ['class' => 'form-control discount', 'step' => 'any']) !!}
-            </div>
-            <div class="form-group col-md-1">
-                {!! Form::label('vat', 'VAT(%)') !!}
-                {!! Form::number('vat[]', 0, ['class' => 'form-control vat', 'step' => 'any']) !!}
-            </div>
-            <input type="hidden" name="vat_amount[]" value="0" class="vat_amount">
-            <div class="form-group col-md-2">
-                {!! Form::label('amount', 'Total Amount:') !!}
-                {!! Form::number('item_total[]', null, ['class' => 'form-control item_total', 'step' => 'any']) !!}
-            </div>
-                <div class="form-group col-md-1 d-flex align-items-end">
-                    <a href="javascript:void(0);" class="text-danger remove-row"><i class="fa fa-trash"></i></a>
-                </div>
-            </div>
-        </div>
-    `);
-    
-    // Append to container
-    $('#row-container').append(newRow);
-    
-    // Initialize select2 for the new row's select element
-    newRow.find('.select2').select2({
-        dropdownParent: $('#formajax'),
-        allowClear: true
-    });
-    
-    // Calculate total
-    setItemTotal(newRow);
-    setTotal();
-    toggleRiderChargeOption();
-}
-
-function setItemTotal(row) {
-    const qty = parseFloat(row.find('.qty').val()) || 0;
-    const rate = parseFloat(row.find('.rate').val()) || 0;
-    const discount = parseFloat(row.find('.discount').val()) || 0;
-    const vat = parseFloat(row.find('.vat').val()) || 0;
-    const vatAmount = row.find('.vat_amount');
-    
-    let subtotal = qty * rate;
-    if (discount > 0) {
-        subtotal -= discount;
-    }
-    let amount = 0;
-    if (vat > 0) {
-        amount= subtotal * (vat / 100);
-        subtotal += amount;
-        vatAmount.val(amount);
-    }
-    
-    row.find('.item_total').val(subtotal.toFixed(2));
-}
-
-function setTotal() {
-    let total = 0;
-    
-    // Calculate sum of all item totals
-    $('.row').each(function() {
-        const itemTotal = parseFloat($(this).find('.item_total').val()) || 0;
-        total += itemTotal;
-    });
-    $('#total_cost').val(total.toFixed(2));
-}
 
 function toggleRiderChargeOption() {
     const riderText = $('#rider_info').val().trim();
@@ -458,6 +354,7 @@ function toggleRiderChargeOption() {
         }
     });
 }
+
 </script>
 
 {!! Form::close() !!}

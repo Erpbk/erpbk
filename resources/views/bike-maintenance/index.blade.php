@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title','Bike Maintenance')
 @push('third_party_stylesheets')
 <style>
     .table-responsive {

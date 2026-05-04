@@ -3,8 +3,8 @@
 return [
   "creatorName" => "LimeCircles",
   "creatorUrl" => "https://limecircles.com",
-  "templateName" => "Express Fast",
-  "templateSuffix" => "Express Fast",
+  "templateName" => "Tenant",
+  "templateSuffix" => "SkyPathWorld",
   "templateVersion" => "1.0.0",
   "templateFree" => false,
   "templateDescription" => "Express Fast",

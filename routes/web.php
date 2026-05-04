@@ -420,7 +420,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::any('rider/invoice-import', [\App\Http\Controllers\RiderInvoicesController::class, 'import'])->name('rider.invoice_import');
     Route::any('rider/invoice-import-paid', [\App\Http\Controllers\RiderInvoicesController::class, 'importPaid'])->name('riderInvoices.importPaid');
     Route::any('rider/invoice-mark-paid/{id}', [\App\Http\Controllers\RiderInvoicesController::class, 'markAsPaid'])->name('riderInvoices.markAsPaid');
-    Route::get('search_item_price/{RID}/{itemID}', [\App\Http\Controllers\ItemsController::class, 'search_item_price']);
+    Route::get('search_item_price/{RID}/{itemID}', [ItemsController::class, 'search_item_price']);
     Route::get('riderInvoices/delete/{id}', [\App\Http\Controllers\RiderInvoicesController::class, 'destroy'])->name('riderInvoices.delete');
     Route::post('riderInvoices/bulk-delete', [\App\Http\Controllers\RiderInvoicesController::class, 'bulkDelete'])->name('riderInvoices.bulkDelete');
     Route::resource('employeeInvoices', App\Http\Controllers\EmployeeInvoicesController::class);
@@ -453,7 +453,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::get('/get-item-price/{id}', [ItemsController::class, 'getItemPrice'])->name('item.getPrice');
     Route::get('items/delete/{id}', [ItemsController::class, 'destroy'])->name('items.delete');
-    Route::get('/get-owners', [ItemsController::class, 'getOwners'])->name('get-owners');
+    Route::any('items/get-owners', [ItemsController::class, 'getOwners'])->name('items.get-owners');
+    Route::any('items/get-rider-items/{rider_id}', [ItemsController::class, 'itemsByRider'])->name('items.rider');
 
     Route::resource('files', FilesController::class);
 

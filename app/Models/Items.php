@@ -24,9 +24,10 @@ class Items extends BaseModel
     'created_by',
     'updated_by',
     'deleted_by',
-    'ref_name',
+    'owner',
     'supplier_id',
-    'status'
+    'status',
+    'attachment'
   ];
 
   protected $casts = [
@@ -34,40 +35,54 @@ class Items extends BaseModel
     'detail' => 'string',
     'price' => 'decimal:2',
     'cost' => 'decimal:2',
-    'vat' => 'decimal:2'
+    'vat' => 'decimal:2',
+    'owner' => 'array',
   ];
 
   public static array $rules = [
     'name' => 'required|string|max:255',
-    'ref_name' => 'required',
+    'owner' => 'required',
     'supplier_id' => 'nullable|exists:suppliers,id',
     'detail' => 'nullable|string|max:500',
     'price' => 'required|numeric',
     'cost' => 'required|numeric',
     'vat' => 'nullable|numeric',
     'created_at' => 'nullable',
-    'updated_at' => 'nullable'
+    'updated_at' => 'nullable',
+    'attachment' => 'nullable'
   ];
 
-  public static function dropdown()
+  public static function dropdown($type)
   {
-    $query = self::select('id', 'name')->pluck('name', 'id')->prepend('Select', '');
-    return $query;
+    $items = self::where('status',1)->whereJsonContains('owner',$type)->get();
+    return $items;
   }
-  public function getOwnerAttribute()
+  public function getOwnersAttribute()
   {
-    if ($this->ref_name == 'customer')
-      return Customers::find($this->ref_id);
-    else if ($this->ref_name == 'supplier')
-      return Supplier::find($this->ref_id);
-    else if ($this->ref_name == 'leasingCompany')
-      return LeasingCompanies::find($this->ref_id);
-    else if ($this->ref_name == 'garage')
-      return Garages::find($this->ref_id);
-    else if ($this->ref_name == 'rider')
-      return Riders::find($this->ref_id);
-    else
-      null;
+    if(!$this->owner)
+      return null;
+    if (is_array($this->owner) && !empty($this->owner)) {
+      
+        $typeColors = [
+            'customer' => '#28a745',      // Green
+            'supplier' => '#007bff',      // Blue
+            'leasingCompany' => '#ffc107', // Yellow
+            'garage' => '#dc3545',        // Red
+            'rider' => '#17a2b8',         // Teal
+        ];
+        
+        $ownerNames = [];
+        
+        foreach ($this->owner as $type) {
+
+              $color = $typeColors[$type] ?? '#6c757d';
+              $ownerNames[] =  '<span style="color: ' . $color . '; font-weight: bold;">' . ucfirst($type) . '</span>';
+            }
+        
+        return $ownerNames;
+    }
+    
+    return null;
   }
   public function supplier()
   {

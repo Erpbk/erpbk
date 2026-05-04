@@ -17,9 +17,9 @@
             <th>Employee</th>
             <th>Descriptions</th>
             <th>Project</th>
-            <th>Subtotal</th>
-            <th>Vat</th>
-            <th>Total Amount</th>
+            <th>Subtotal (AED)</th>
+            <th>Vat (AED)</th>
+            <th>Total (AED)</th>
             <th>Status</th>
             <th>Action</th>
         </tr>
@@ -33,9 +33,9 @@
                 <td>{{ optional($r->employee)->employee_id }} - {{ optional($r->employee)->name }}</td>
                 <td>{{ $r->descriptions }}</td>
                 <td>{{ $r->zone }}</td>
-                <td>AED {{ number_format($r->subtotal, 2) }}</td>
+                <td>{{ number_format($r->subtotal, 2) }}</td>
                 <td>{{ number_format($r->vat ?? 0, 2) }}</td>
-                <td>AED {{ number_format($r->total_amount, 2) }}</td>
+                <td>{{ number_format($r->total_amount, 2) }}</td>
                 <td>
                     @if($r->status == 1)
                         <span class="badge bg-success">Paid</span>

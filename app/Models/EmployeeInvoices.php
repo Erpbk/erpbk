@@ -38,6 +38,7 @@ class EmployeeInvoices extends BaseModel
         'inv_date' => 'date',
         'perfect_attendance' => 'float',
         'total_amount' => 'float',
+        'subtotal' =>  'float',
         'vat' => 'float',
         'status' => 'integer',
     ];

@@ -8,9 +8,8 @@
                 </div>
             </div>
 
-            <div class="card-footer">
-                {!! Form::submit('Save', ['class' => 'btn btn-primary']) !!}
-                <a href="{{ route('riderInvoices.index') }}" class="btn btn-default"> Cancel </a>
+            <div class="card-footer text-end mt-3">
+                {!! Form::submit('Save Invoice', ['class' => 'btn btn-primary']) !!}
             </div>
 
             {!! Form::close() !!}

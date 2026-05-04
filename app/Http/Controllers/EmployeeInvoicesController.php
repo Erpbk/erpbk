@@ -78,7 +78,8 @@ class EmployeeInvoicesController extends AppBaseController
     public function create()
     {
         $employees = Employee::dropdown();
-        $items = Items::dropdown();
+        $items = Items::dropdown('employee');
+
         return view('employee_invoices.create', compact('employees', 'items'));
     }
 
@@ -114,7 +115,7 @@ class EmployeeInvoicesController extends AppBaseController
         }
 
         $employees = Employee::dropdown();
-        $items = Items::dropdown();
+        $items = Items::dropdown('employee');
         return view('employee_invoices.edit', compact('invoice', 'employees', 'items'));
     }
 

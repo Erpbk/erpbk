@@ -1,5 +1,12 @@
 ﻿@extends('layouts.app')
 @section('title','Items')
+@push('third_party_stylesheets')
+<style>
+    .table-responsive {
+        max-height: calc(100vh - 280px);
+    }
+</style>
+@endpush
 @section('content')
 <section class="content-header ">
         @include('flash::message')
@@ -10,7 +17,7 @@
                     <div class="action-dropdown-container">
                         <button class="action-dropdown-btn" id="addBikeDropdownBtn">
                             <i class="ti ti-plus"></i>
-                            <span>Add Fuel Card</span>
+                            <span>Add New</span>
                             <i class="ti ti-chevron-down"></i>
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
@@ -50,7 +57,7 @@
                     </div>
                     <div class="form-group col-md-12">
                         <label for="owner_type">Owner Type</label>
-                        <select class="form-control " id="owner_type1" name="ref_name">
+                        <select class="form-control " id="owner_type1" name="owner">
                             <option value="">Select</option>
                             <option value="customer">Customer</option>
                             <option value="leasingCompany">Leasing Company</option>
@@ -179,7 +186,7 @@ $(document).ready(function () {
             
             // Make AJAX request to get owners
             $.ajax({
-                url: "{{ route('get-owners') }}",
+                url: "{{ route('items.get-owners') }}",
                 type: "GET",
                 data: {
                     _token: "{{ csrf_token() }}",

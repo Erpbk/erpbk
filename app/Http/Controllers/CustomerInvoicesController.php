@@ -128,7 +128,7 @@ class CustomerInvoicesController extends Controller
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
                 'attachment' => $attachmentPath,
-                'branch_id' => \App\Models\Customers::where('id' . $request->customer_id)->value('branch_id'),
+                'branch_id' => \App\Models\Customers::where('id', $request->customer_id)->value('branch_id'),
             ]);
 
             // Create invoice items
@@ -322,7 +322,7 @@ class CustomerInvoicesController extends Controller
                 'subtotal' => $subtotal,
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
-                'branch_id' => \App\Models\Customers::where('id' . $request->customer_id)->value('branch_id'),
+                'branch_id' => \App\Models\Customers::where('id', $request->customer_id)->value('branch_id'),
                 'attachment' => $attachmentPath,
             ]);
 

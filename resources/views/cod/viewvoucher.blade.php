@@ -30,7 +30,7 @@
                     <h5>COD Details</h5>
                     <p><strong>Rider:</strong> {{ $cod->rider ? $cod->rider->rider_id . ' - ' . $cod->rider->name : 'N/A' }}</p>
                     <p><strong>Transaction Date:</strong> {{ App\Helpers\General::DateFormat($cod->transaction_date) }}</p>
-                    <p><strong>Amount:</strong> AED {{ number_format($cod->amount, 2) }}</p>
+                    <p><strong>Amount:</strong> {{ \App\Helpers\Currency::format($cod->amount, 2) }}</p>
                     <p><strong>Status:</strong>
                         <span class="badge badge-{{ $cod->status == 'paid' ? 'success' : ($cod->status == 'unpaid' ? 'danger' : 'warning') }}">
                             {{ ucfirst($cod->status) }}

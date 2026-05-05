@@ -44,7 +44,7 @@
                 </tr>
                 <tr>
                     <th>Amount</th>
-                    <td>AED {{ number_format($salik->amount, 2) }}</td>
+                    <td>{{ \App\Helpers\Currency::format($salik->amount, 2) }}</td>
                 </tr>
                 <tr>
                     <th>Status</th>

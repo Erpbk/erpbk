@@ -79,9 +79,9 @@
                                 <th>Billing Month</th>
                                 <th>Transaction Count</th>
                                 <th>Total Quantity (L)</th>
-                                <th>Subtotal (AED)</th>
-                                <th>VAT (AED)</th>
-                                <th>Total Amount (AED)</th>
+                                <th>Subtotal ({{ \App\Helpers\Currency::code() }})</th>
+                                <th>VAT ({{ \App\Helpers\Currency::code() }})</th>
+                                <th>Total Amount ({{ \App\Helpers\Currency::code() }})</th>
                             </tr>
                         </thead>
                         <tbody>

@@ -405,7 +405,7 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
                   <span>Balance:</span><br> 
                   <b class="float-right">
                     @if(isset($account) && $account)
-                    {{  App\Helpers\Accounts::getBalance($account->id) }} AED
+                    {{  App\Helpers\Accounts::getBalance($account->id) }} {{ \App\Helpers\Currency::code() }}
                     @else
                     0.00
                     @endif
@@ -418,7 +418,7 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
                 </div>
                 <div class="user_list_content">
                   <span>Salary:</span><br> 
-                  <b class="float-right">{{ number_format($employee->salary ?? 0, 2) }} AED</b>
+                  <b class="float-right">{{ number_format($employee->salary ?? 0, 2) }} {{ \App\Helpers\Currency::code() }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">

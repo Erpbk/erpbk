@@ -72,19 +72,19 @@
                 <div class="label">
                     <i class="fa fa-times-circle"></i>total Overdue cost
                 </div>
-                <div class="value" id="overdue_maintenance">AED {{ $stats['overdue_cost'] ?? 0 }}</div>
+                <div class="value" id="overdue_maintenance">{{ \App\Helpers\Currency::symbol() }} {{ $stats['overdue_cost'] ?? 0 }}</div>
             </div>
             <div class="total-card total-black">
                 <div class="label">
                     <i class="fa fa-times-circle"></i>total Overdue charged
                 </div>
-                <div class="value" id="overdue_maintenance">AED {{ $stats['overdue_charged'] ?? 0 }}</div>
+                <div class="value" id="overdue_maintenance">{{ \App\Helpers\Currency::symbol() }} {{ $stats['overdue_charged'] ?? 0 }}</div>
             </div>
             <div class="total-card total-green">
                 <div class="label">
                     <i class="fa fa-times-circle"></i>total maint. cost
                 </div>
-                <div class="value" id="overdue_maintenance">AED {{ $stats['maint_cost'] ?? 0 }}</div>
+                <div class="value" id="overdue_maintenance">{{ \App\Helpers\Currency::symbol() }} {{ $stats['maint_cost'] ?? 0 }}</div>
             </div>
         </div>
 

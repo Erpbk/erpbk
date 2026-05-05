@@ -259,7 +259,7 @@
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Salary</label>
-                <p>{{ $employee->salary ? number_format($employee->salary, 2) . ' AED' : '-' }}</p>
+                <p>{{ $employee->salary ? number_format($employee->salary, 2) . ' {{ \App\Helpers\Currency::code() }}' : '-' }}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Company Email</label>

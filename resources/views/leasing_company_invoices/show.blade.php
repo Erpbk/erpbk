@@ -221,7 +221,7 @@
                 <th rowspan="2" class="secondary-header">Rate (Monthly)</th>
                 <th rowspan="2" class="secondary-header">Amount</th>
                 <th colspan="2" class="secondary-header">VAT</th>
-                <th rowspan="2" class="accent-total">Total (In AED)</th>
+                <th rowspan="2" class="accent-total">Total (In {{ \App\Helpers\Currency::code() }})</th>
             </tr>
             <tr>
                 <th class="secondary-header">Rate</th>
@@ -265,7 +265,7 @@
         <!-- Amount in Words -->
         <table class="no-border">
             <tr>
-                <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ \App\Helpers\Helpers::numberToWords($invoice->total_amount ?? 0) }} AED Only</td>
+                <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ \App\Helpers\Helpers::numberToWords($invoice->total_amount ?? 0) }} {{ \App\Helpers\Currency::code() }} Only</td>
             </tr>
         </table>
 

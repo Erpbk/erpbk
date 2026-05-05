@@ -58,7 +58,7 @@
                         </select>
                     </div>
                     <div class="col-md-3 form-group">
-                        <label>Rental Amount (AED) <span class="text-danger">*</span></label>
+                        <label>Rental Amount ({{ \App\Helpers\Currency::code() }}) <span class="text-danger">*</span></label>
                         <input type="number" step="0.01" name="rental_amount[]" class="form-control rental-amount"
                             value="0" placeholder="0.00" required>
                     </div>
@@ -103,7 +103,7 @@
                     </select>
                 </div>
                 <div class="col-md-3 form-group">
-                    <label>Rental Amount (AED) <span class="text-danger">*</span></label>
+                    <label>Rental Amount ({{ \App\Helpers\Currency::code() }}) <span class="text-danger">*</span></label>
                     <input type="number" step="0.01" name="rental_amount[]" class="form-control rental-amount" 
                         value="0" placeholder="0.00" required>
                 </div>

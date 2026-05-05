@@ -54,7 +54,7 @@
     }
 @endphp
 
-<div class="col-md-3 form-group col-3">
+<div class="{{ !empty($fullWidth) ? 'col-md-12 col-12' : 'col-md-3 col-3' }} form-group">
     <label>{{ $item->kind === 'fixed' ? $item->label : $item->field->label }}</label>
     <p>{{ $displayValue }}</p>
 </div>

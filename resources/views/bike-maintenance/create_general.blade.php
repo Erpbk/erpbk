@@ -105,7 +105,7 @@
             <div class="form-group col-md-3">
                 {!! Form::label('overdue_cost_per_km', 'Cost Per Overdue KM', ['class' => 'required']) !!}
                 <div class="input-group">
-                    <span class="input-group-text">AED</span>
+                    <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
                     {!! Form::number('overdue_cost_per_km', 1, [
                         'class' => 'form-control', 
                         'step' => '0.01', 
@@ -121,7 +121,7 @@
             <div class="form-group col-md-3">
                 {!! Form::label('overdue_cost', 'Overdue Cost') !!}
                 <div class="input-group">
-                    <span class="input-group-text">AED</span>
+                    <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
                     {!! Form::number('overdue_cost', null, [
                         'class' => 'form-control', 
                         'step' => '0.01',

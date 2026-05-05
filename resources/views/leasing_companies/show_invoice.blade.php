@@ -197,7 +197,7 @@
                         </tr>
                         <tr>
                             <td style="border: none; padding: 0;"><strong>Currency:</strong></td>
-                            <td style="border: none; padding: 0; text-align: right;"><strong>AED</strong></td>
+                            <td style="border: none; padding: 0; text-align: right;"><strong>{{ \App\Helpers\Currency::code() }}</strong></td>
                         </tr>
                     </table>
                 </td>
@@ -210,7 +210,7 @@
                 <th class="secondary-header">Bike Number</th>
                 <th class="secondary-header">Rate</th>
                 <th class="secondary-header">Tax</th>
-                <th class="accent-total">Amount (AED)</th>
+                <th class="accent-total">Amount ({{ \App\Helpers\Currency::code() }})</th>
             </tr>
             @php
             $periodStart = date('01/m/Y', strtotime($invoice->billing_month));

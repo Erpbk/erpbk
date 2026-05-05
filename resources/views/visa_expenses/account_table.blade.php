@@ -44,7 +44,7 @@
          @php
          $balance = \App\Models\visa_expenses::where('rider_id', $r->id)->sum('amount');
          @endphp
-         <td>@if($balance == '') - @else AED {{ $balance ?? '-' }} @endif</td>
+         <td>@if($balance == '') - @else {{ \App\Helpers\Currency::symbol() }} {{ $balance ?? '-' }} @endif</td>
          <td>{{ \App\Helpers\Common::UserName($r->Created_By) }}</td>
          <td>{{ \App\Helpers\Common::UserName($r->Updated_By) }}</td>
          <td>

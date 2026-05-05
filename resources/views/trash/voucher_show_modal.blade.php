@@ -159,8 +159,8 @@
                 <tr style="background-color: #e9ecef;">
                     <td colspan="2" style="text-align: right;"><strong>Total:</strong></td>
                     <td></td>
-                    <td style="text-align: center;"><strong>AED {{ \App\Helpers\Account::show_bal_format($totalD) }}</strong></td>
-                    <td style="text-align: center;"><strong>AED {{ \App\Helpers\Account::show_bal_format($totalC) }}</strong></td>
+                    <td style="text-align: center;"><strong>{{ \App\Helpers\Currency::symbol() }} {{ \App\Helpers\Account::show_bal_format($totalD) }}</strong></td>
+                    <td style="text-align: center;"><strong>{{ \App\Helpers\Currency::symbol() }} {{ \App\Helpers\Account::show_bal_format($totalC) }}</strong></td>
                 </tr>
             </tfoot>
         </table>

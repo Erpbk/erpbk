@@ -61,25 +61,25 @@
 <!-- Amount Field -->
 <div class="col-sm-12">
     {!! Form::label('amount', 'Amount:') !!}
-    <p>AED {{ number_format($rtaFines->amount, 2) }}</p>
+    <p>{{ \App\Helpers\Currency::format($rtaFines->amount, 2) }}</p>
 </div>
 
 <!-- Service Charges Field -->
 <div class="col-sm-12">
     {!! Form::label('service_charges', 'Service Charges:') !!}
-    <p>AED {{ number_format($rtaFines->service_charges, 2) }}</p>
+    <p>{{ \App\Helpers\Currency::format($rtaFines->service_charges, 2) }}</p>
 </div>
 
 <!-- Admin Fee Field -->
 <div class="col-sm-12">
     {!! Form::label('admin_fee', 'Admin Fee:') !!}
-    <p>AED {{ number_format($rtaFines->admin_fee, 2) }}</p>
+    <p>{{ \App\Helpers\Currency::format($rtaFines->admin_fee, 2) }}</p>
 </div>
 
 <!-- Total Amount Field -->
 <div class="col-sm-12">
     {!! Form::label('total_amount', 'Total Amount:') !!}
-    <p>AED {{ number_format($rtaFines->total_amount, 2) }}</p>
+    <p>{{ \App\Helpers\Currency::format($rtaFines->total_amount, 2) }}</p>
 </div>
 
 <!-- Status Field -->

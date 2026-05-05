@@ -39,7 +39,7 @@
         <span class="text-muted">#</span><strong class="ms-1">{{ $voucher_number }}</strong>
       </div>
       <div class="col-auto text-muted">Date: {{ \Carbon\Carbon::parse($voucher->trans_date)->format('d M Y') }}</div>
-      <div class="col-auto fw-semibold">Amount: AED {{ number_format($voucher->amount, 2) }}</div>
+      <div class="col-auto fw-semibold">Amount: {{ \App\Helpers\Currency::format($voucher->amount, 2) }}</div>
       @if($voucher->reference_number)
         <div class="col-12 text-muted small">Reference Number: {{ $voucher->reference_number }}</div>
       @endif
@@ -86,8 +86,8 @@
         </tr>
         <tr class="fw-semibold">
           <td colspan="3" class="text-end">Total</td>
-          <td class="text-end">AED {{ \App\Helpers\Account::show_bal_format($totalD) }}</td>
-          <td class="text-end">AED {{ \App\Helpers\Account::show_bal_format($totalC) }}</td>
+          <td class="text-end">{{ \App\Helpers\Currency::symbol() }} {{ \App\Helpers\Account::show_bal_format($totalD) }}</td>
+          <td class="text-end">{{ \App\Helpers\Currency::symbol() }} {{ \App\Helpers\Account::show_bal_format($totalC) }}</td>
         </tr>
       </tfoot>
     </table>
@@ -120,5 +120,5 @@
   </div>
 
   {{-- Data for panel footer --}}
-  <div id="voucher-panel-current" data-number="{{ $voucher_number }}" data-amount="AED {{ number_format($voucher->amount, 2) }}" style="display: none;" aria-hidden="true"></div>
+  <div id="voucher-panel-current" data-number="{{ $voucher_number }}" data-amount="{{ \App\Helpers\Currency::format($voucher->amount, 2) }}" style="display: none;" aria-hidden="true"></div>
 </div>

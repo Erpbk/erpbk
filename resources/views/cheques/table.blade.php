@@ -55,7 +55,7 @@
                     @endif
                 @endif
             </td>
-            <td>AED {{ number_format($cheque->amount, 2) }}</td>
+            <td>{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</td>
             <td>
                 @if($cheque->voucher_id)
                     <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $cheque->voucher_id) }}" class="text-primary show-voucher-panel" data-title="Voucher Against Cheque#{{ $cheque->cheque_number }}" data-collapse-sidebar="1">

@@ -28,14 +28,16 @@ class BranchController extends Controller
     public function create(string $company_slug)
     {
         $parents = Branch::active()->get();
+        $currentCompany = request()->attributes->get('company');
+        $companyCountry = (string) ($currentCompany->country ?? '');
         $branchTypes = [
             'headquarters' => 'Headquarters',
             'branch' => 'Branch',
             'warehouse' => 'Warehouse',
             'grage' => 'Garage',
         ];
-        
-        return view('branches.create', compact('parents', 'branchTypes'));
+
+        return view('branches.create', compact('parents', 'branchTypes', 'companyCountry'));
     }
 
     /**
@@ -49,6 +51,7 @@ class BranchController extends Controller
             'code' => 'required|string|max:100|unique:branches,code',
             'contact' => 'nullable|string|max:255',
             'address' => 'required|string|max:255',
+            'city' => 'nullable|string|max:255',
             'parent_branch_id' => 'nullable|exists:branches,id',
             'branch_type' => 'required|in:headquarters,branch,warehouse,grage',
             'is_active' => 'sometimes|boolean',
@@ -59,7 +62,7 @@ class BranchController extends Controller
             DB::beginTransaction();
             $data['is_active'] = $request->has('is_active') ? true : false;
             $data['created_by'] = auth()->id();
-            
+
             // Ensure only one headquarters
             if ($request->branch_type === 'headquarters') {
                 Branch::where('branch_type', 'headquarters')->update(['branch_type' => 'branch']);
@@ -78,10 +81,9 @@ class BranchController extends Controller
             }
             Flash::success('Branch created successfully.');
             return redirect()->route('settings-panel.branches.index');
-
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
@@ -107,16 +109,16 @@ class BranchController extends Controller
         ]);
 
         $statistics = $branch->getStatistics();
-        
+
         // Get recent related records
         $recentUsers = $branch->users()->latest()->take(5)->get();
         $recentEmployees = $branch->employees()->latest()->take(5)->get();
-        
+
         return view('branches.show', compact(
-            'branch', 
-            'statistics', 
-            'recentUsers', 
-            'recentEmployees', 
+            'branch',
+            'statistics',
+            'recentUsers',
+            'recentEmployees',
             'recentCustomers'
         ));
     }
@@ -127,22 +129,24 @@ class BranchController extends Controller
     public function edit(string $company_slug, Branch $branch)
     {
         // Prevent setting self as parent
+        $currentCompany = request()->attributes->get('company');
+        $companyCountry = (string) ($currentCompany->country ?? '');
         $parents = Branch::active()
             ->where('id', '!=', $branch->id)
-            ->where(function($query) use ($branch) {
+            ->where(function ($query) use ($branch) {
                 $query->whereNull('parent_branch_id')
                     ->orWhere('parent_branch_id', '!=', $branch->id);
             })
             ->get();
-            
+
         $branchTypes = [
             'headquarters' => 'Headquarters',
             'branch' => 'Branch',
             'warehouse' => 'Warehouse',
             'grage' => 'Garage',
         ];
-        
-        return view('branches.edit', compact('branch', 'parents', 'branchTypes'));
+
+        return view('branches.edit', compact('branch', 'parents', 'branchTypes', 'companyCountry'));
     }
 
     /**
@@ -155,6 +159,7 @@ class BranchController extends Controller
             'code' => 'required|string|max:100|unique:branches,code,' . $branch->id,
             'contact' => 'nullable|string|max:255',
             'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:255',
             'parent_branch_id' => 'nullable|exists:branches,id|not_in:' . $branch->id,
             'branch_type' => 'required|in:headquarters,branch,warehouse,grage',
             'is_active' => 'sometimes|boolean',
@@ -189,10 +194,9 @@ class BranchController extends Controller
             }
             Flash::success('Branch updated successfully.');
             return redirect()->route('settings-panel.branches.index');
-
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
@@ -223,7 +227,7 @@ class BranchController extends Controller
 
         // Check for related records
         $statistics = $branch->getStatistics();
-        $hasRecords = array_filter($statistics, function($count) {
+        $hasRecords = array_filter($statistics, function ($count) {
             return $count > 0;
         });
 
@@ -251,10 +255,9 @@ class BranchController extends Controller
 
             return redirect()->route('settings-panel.branches.index')
                 ->with('success', $message);
-
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             if (request()->ajax()) {
                 return response()->json([
                     'success' => false,
@@ -278,7 +281,7 @@ class BranchController extends Controller
             ->map(function ($branch) {
                 return $this->formatBranchForTree($branch);
             });
-        
+
         return response()->json([
             'success' => true,
             'data' => $rootBranch
@@ -316,7 +319,7 @@ class BranchController extends Controller
     public function getStatistics(string $company_slug, Branch $branch)
     {
         $statistics = $branch->getStatistics();
-        
+
         // Add additional stats
         $statistics['total_children_recursive'] = $branch->descendants()->count();
         $statistics['is_headquarters'] = $branch->isHeadquarters();

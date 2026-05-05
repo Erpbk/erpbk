@@ -54,9 +54,9 @@
          <td>
             {{ DB::table('customers')->where('id' , $rider->customer_id)->first()->name ?? '-'}}
          </td>
-         <td>AED {{ number_format($r->subtotal, 2) }}</td>
+         <td>{{ \App\Helpers\Currency::format($r->subtotal, 2) }}</td>
          <td>{{ $r->vat }}</td>
-         <td>AED {{ number_format($r->total_amount, 2) }}</td>
+         <td>{{ \App\Helpers\Currency::format($r->total_amount, 2) }}</td>
          <td>
             @if($r->status == 1)
             <span class="badge  bg-success">Paid</span>

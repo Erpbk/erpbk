@@ -69,7 +69,7 @@
                         </td>
 
                         <td>
-                            AED {{ number_format($record->total_cost,2) }}
+                            {{ \App\Helpers\Currency::format($record->total_cost,2) }}
                         </td>
 
                         <td>

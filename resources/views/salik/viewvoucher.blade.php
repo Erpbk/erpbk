@@ -85,7 +85,7 @@
                                 </tr>
                                 <tr>
                                     <th>Amount</th>
-                                    <td class="text-end">AED {{ number_format($data->amount, 2) }}</td>
+                                    <td class="text-end">{{ \App\Helpers\Currency::format($data->amount, 2) }}</td>
                                 </tr>
                                 <tr>
                                     <th>Status</th>

@@ -469,7 +469,7 @@
               If a rider/driver works fewer than <b>26 days</b>, works less than <b>11 hours</b> a day, has an on-time delivery rate below
             </p>
             <h2 style="padding-top: 1pt;padding-left: 5pt;text-indent: 0pt;text-align: left;">
-              90%<span class="p">, or completes fewer than</span> 200 orders <span class="p">in a month, they will be charged a fine of</span> AED 50 <span class="p">for each day they fall short.</span>
+              90%<span class="p">, or completes fewer than</span> 200 orders <span class="p">in a month, they will be charged a fine of</span> {{ \App\Helpers\Currency::code() }} 50 <span class="p">for each day they fall short.</span>
             </h2>
           </li>
         </ol>
@@ -525,7 +525,7 @@
           </li>
         </ol>
         <p style="padding-top: 8pt;padding-left: 5pt;text-indent: 0pt;line-height: 111%;text-align: left;">
-          Any rider/driver who leaves or is terminated from the job will be liable to pay an early termination penalty of <b>AED 1,000</b>.
+          Any rider/driver who leaves or is terminated from the job will be liable to pay an early termination penalty of <b>{{ \App\Helpers\Currency::code() }} 1,000</b>.
         </p>
       </li>
       <li data-list-text="4">
@@ -569,7 +569,7 @@
               Uniform and Behavior:
             </h2>
             <p style="padding-top: 8pt;padding-left: 5pt;text-indent: 0pt;line-height: 112%;text-align: justify;">
-              The company shall ensure that pickup and delivery associates are always in clean and tidy uniforms and must display good behavior toward customers and all stores. Unacceptable behavior, such as intoxication during working hours or fighting, will result in immediate termination and a penalty of <b>AED 1,000</b>.
+              The company shall ensure that pickup and delivery associates are always in clean and tidy uniforms and must display good behavior toward customers and all stores. Unacceptable behavior, such as intoxication during working hours or fighting, will result in immediate termination and a penalty of <b>{{ \App\Helpers\Currency::code() }} 1,000</b>.
             </p>
           </li>
           <li data-list-text="e">
@@ -579,7 +579,7 @@
           </li>
         </ol>
         <p style="padding-top: 8pt;padding-left: 5pt;text-indent: 0pt;line-height: 112%;text-align: justify;">
-          The company ensures that pickup and delivery meet the scheduled times assigned by the supervisor. Any delays must be reported. If reported late without prior notification, a deduction of <b>AED 50</b> will be made for delays over 30 minutes; any delays exceeding <b>30 minutes</b> will be treated as no pay.
+          The company ensures that pickup and delivery meet the scheduled times assigned by the supervisor. Any delays must be reported. If reported late without prior notification, a deduction of <b>{{ \App\Helpers\Currency::code() }} 50</b> will be made for delays over 30 minutes; any delays exceeding <b>30 minutes</b> will be treated as no pay.
         </p>
       </li>
       <li data-list-text="6">
@@ -623,7 +623,7 @@
               Unauthorized Use of Vehicles:
             </h2>
             <p style="padding-top: 9pt;padding-left: 5pt;text-indent: 0pt;line-height: 111%;text-align: left;">
-              Vehicles (Bike/Car) that are branded and used for personal services or by unauthorized persons will be considered a breach of this contract. A penalty of <b>AED 1,000</b> will be charged, and the contract will be terminated.
+              Vehicles (Bike/Car) that are branded and used for personal services or by unauthorized persons will be considered a breach of this contract. A penalty of <b>{{ \App\Helpers\Currency::code() }} 1,000</b> will be charged, and the contract will be terminated.
             </p>
           </li>
           <li data-list-text="b">

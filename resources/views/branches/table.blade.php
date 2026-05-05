@@ -5,6 +5,7 @@
             <th>Code</th>
             <th>Name</th>
             <th>Contact</th>
+            <th>City</th>
             <th>Address</th>
             <th>Parent Branch</th>
             <th>Type</th>
@@ -19,6 +20,7 @@
             <td>{{ $branch->code ?? '-' }}</td>
             <td>{{ $branch->name }}</td>
             <td>{{ $branch->contact ?? '-' }}</td>
+            <td>{{ $branch->city ?? '-' }}</td>
             <td>{{ $branch->address }}</td>
             <td>{{ $branch->parent->name ?? '-' }}</td>
             <td><span class="badge bg-label-primary">{{ $branch->type }}</span></td>

@@ -30,7 +30,7 @@
                     <h5>Penalty Details</h5>
                     <p><strong>Rider:</strong> {{ $penalty->rider ? $penalty->rider->rider_id . ' - ' . $penalty->rider->name : 'N/A' }}</p>
                     <p><strong>Transaction Date:</strong> {{ App\Helpers\General::DateFormat($penalty->transaction_date) }}</p>
-                    <p><strong>Amount:</strong> AED {{ number_format($penalty->amount, 2) }}</p>
+                    <p><strong>Amount:</strong> {{ \App\Helpers\Currency::format($penalty->amount, 2) }}</p>
                     <p><strong>Status:</strong>
                         <span class="badge badge-{{ $penalty->status == 'paid' ? 'success' : ($penalty->status == 'unpaid' ? 'danger' : 'warning') }}">
                             {{ ucfirst($penalty->status) }}

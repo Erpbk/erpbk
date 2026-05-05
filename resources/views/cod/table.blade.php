@@ -25,7 +25,7 @@
                     @endif
                 </td>
                 <td>{{ App\Helpers\General::DateFormat($cod->transaction_date) }}</td>
-                <td>AED {{ number_format($cod->amount, 2) }}</td>
+                <td>{{ \App\Helpers\Currency::format($cod->amount, 2) }}</td>
                 <td>
                     <span class="badge badge-{{ $cod->status == 'paid' ? 'success' : ($cod->status == 'unpaid' ? 'danger' : 'warning') }}">
                         {{ ucfirst($cod->status) }}

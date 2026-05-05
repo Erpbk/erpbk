@@ -73,7 +73,7 @@
             <div class="col-md-6">
                     {!! Form::label('amount', 'Amount', ['class' => ['form-label', 'required']]) !!}
                     <div class="input-group">
-                        <span class="input-group-text">AED</span>
+                        <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
                         {!! Form::number('amount', old('amount'), [
                             'class' => 'form-control' . ($errors->has('amount') ? ' is-invalid' : ''),
                             'required' => true,

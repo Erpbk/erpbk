@@ -82,7 +82,7 @@
                     </div>
                     <div class="total-card total-1">
                         <div class="label"><i class="fa fa-times-circle"></i>Total Amount</div>
-                        <div class="value" id="avg_ontime">AED {{ number_format($totalAmount ?? 0, 2) }}</div>
+                        <div class="value" id="avg_ontime">{{ \App\Helpers\Currency::format($totalAmount ?? 0, 2) }}</div>
                     </div>
                     <div class="total-card total-red">
                         <div class="label"><i class="fas fa-stamp"></i>Missing Bikes</div>
@@ -139,7 +139,7 @@
                                     </td>
                                     <td>
                                         <span class="fw-bold text-success">
-                                            AED {{ number_format($record['amount'], 2) }}
+                                            {{ \App\Helpers\Currency::format($record['amount'], 2) }}
                                         </span>
                                     </td>
                                     <td>
@@ -177,7 +177,7 @@
                                 <tr>
                                     <td colspan="4" class="text-end fw-bold">Total Amount:</td>
                                     <td class="fw-bold text-success">
-                                        AED {{ number_format($totalAmount ?? 0, 2) }}
+                                        {{ \App\Helpers\Currency::format($totalAmount ?? 0, 2) }}
                                     </td>
                                     <td colspan="6"></td>
                                 </tr>

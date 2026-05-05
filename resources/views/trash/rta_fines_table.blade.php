@@ -62,8 +62,8 @@
             @endif
          </td>
          <td>{{ $r->plate_no }}</td>
-         <td>AED {{ number_format($r->amount, 2) }}</td>
-         <td>AED {{ number_format($r->total_amount, 2) }}</td>
+         <td>{{ \App\Helpers\Currency::format($r->amount, 2) }}</td>
+         <td>{{ \App\Helpers\Currency::format($r->total_amount, 2) }}</td>
          <td>
             @if($r->status == 'paid')
             <span class="badge bg-success">Paid</span>

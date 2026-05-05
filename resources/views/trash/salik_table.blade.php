@@ -38,7 +38,7 @@
          <td>{{ $r->direction }}</td>
          <td>{{ $r->tag_number }}</td>
          <td>{{ $r->plate }}</td>
-         <td>AED {{ number_format($r->total_amount, 2) }}</td>
+         <td>{{ \App\Helpers\Currency::format($r->total_amount, 2) }}</td>
          <td>
             <small class="text-muted">
                <i class="fa fa-clock-o"></i> {{ $item['deleted_at']->format('d M Y h:i A') }}

@@ -26,8 +26,26 @@
         </div>
         <div class="card-body">
             <div class="row">
-                @foreach($group->fields as $item)
-                @include('bikes._show_field', ['item' => $item])
+                @php
+                $isNoteOrDetailField = function ($item) {
+                    $key = strtolower((string) ($item->field_key ?? ''));
+                    $label = strtolower((string) ($item->kind === 'fixed' ? ($item->label ?? '') : ($item->field->label ?? '')));
+                    return str_contains($key, 'note')
+                        || str_contains($key, 'detail')
+                        || str_contains($label, 'note')
+                        || str_contains($label, 'detail');
+                };
+
+                $regularFields = collect($group->fields)->filter(fn ($item) => !$isNoteOrDetailField($item));
+                $noteFields = collect($group->fields)->filter(fn ($item) => $isNoteOrDetailField($item));
+                @endphp
+
+                @foreach($regularFields as $item)
+                @include('bikes._show_field', ['item' => $item, 'fullWidth' => false])
+                @endforeach
+
+                @foreach($noteFields as $item)
+                @include('bikes._show_field', ['item' => $item, 'fullWidth' => true])
                 @endforeach
             </div>
         </div>

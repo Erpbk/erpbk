@@ -188,7 +188,7 @@
                 </div>
                 
                 <div class="col-md-3 form-group mb-3">
-                    <label>Salary (AED)</label>
+                    <label>Salary ({{ \App\Helpers\Currency::code() }})</label>
                     <input type="number" step="0.01" class="form-control form-control-sm" name="salary" 
                            value="{{ old('salary', $employee->salary ?? '') }}">
                 </div>

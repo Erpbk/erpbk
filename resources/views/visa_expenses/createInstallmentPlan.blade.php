@@ -169,7 +169,7 @@
                         <div class="form-group">
                             <label for="installment_${i}" class="form-label">Installment ${i + 1} - ${formattedMonth}</label>
                             <div class="input-group">
-                                <span class="input-group-text">AED</span>
+                                <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
                                 <input type="number" 
                                        step="0.01" 
                                        min="0" 
@@ -284,14 +284,14 @@
                 html += `<tr>
                     <td>${i + 1}</td>
                     <td>${formattedMonth}</td>
-                    <td>AED ${installmentAmounts[i].toFixed(2)}</td>
+                    <td>{{ \App\Helpers\Currency::code() }} ${installmentAmounts[i].toFixed(2)}</td>
                     <td><span class="badge bg-warning">Pending</span></td>
                 </tr>`;
             }
 
             const currentTotal = installmentAmounts.reduce((sum, amount) => sum + amount, 0);
             html += '</tbody>';
-            html += '<tfoot><tr><td colspan="2"><strong>Total</strong></td><td><strong>AED ' + currentTotal.toFixed(2) + '</strong></td><td></td></tr></tfoot>';
+            html += '<tfoot><tr><td colspan="2"><strong>Total</strong></td><td><strong>{{ \App\Helpers\Currency::code() }} ' + currentTotal.toFixed(2) + '</strong></td><td></td></tr></tfoot>';
             html += '</table></div>';
 
             $('#installment-preview').html(html);

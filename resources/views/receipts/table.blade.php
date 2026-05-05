@@ -20,7 +20,7 @@
                 <td>{{ $receipt->reference?? '-' }}</td>
                 <td>{{ $receipt->payerAccount->account_code .'-'.  $receipt->payerAccount->name}}</td>
                 <td>{{ $receipt->payeeAccount->account_code . '-' .  $receipt->payeeAccount->name}}</td>
-                <td>AED {{ number_format($receipt->amount, 2) }}</td>
+                <td>{{ \App\Helpers\Currency::format($receipt->amount) }}</td>
                 <td>
                     <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $receipt->voucher_id) }}" class="text-primary show-voucher-panel" data-title="Receipt Voucher" data-collapse-sidebar="1">
                         {{ $receipt->voucher->voucher_type . '-'. $receipt->voucher_id }}

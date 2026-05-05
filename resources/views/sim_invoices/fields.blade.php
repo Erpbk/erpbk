@@ -66,9 +66,9 @@
             </div>
             <div class="col-md-1 form-group"><label>Qty</label><input type="number" name="qty[]" value="1" class="form-control qty" readonly></div>
             <div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" value="{{ $item->days ?? 1 }}" class="form-control days" min="1" onchange="sim_calculate_price(this);"></div>
-            <div class="col-md-2 form-group"><label>Monthly Rate (AED)</label><input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01" onchange="sim_calculate_price(this);"></div>
+            <div class="col-md-2 form-group"><label>Monthly Rate ({{ \App\Helpers\Currency::code() }})</label><input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01" onchange="sim_calculate_price(this);"></div>
             <div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" value="{{ $item->tax_rate }}" class="form-control tax" step="0.01" onchange="sim_calculate_price(this);"></div>
-            <div class="col-md-2 form-group"><label>Tax Amount (AED)</label><input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtEdit, 2) }}" data-numeric-value="{{ $taxAmtEdit }}"></div>
+            <div class="col-md-2 form-group"><label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label><input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtEdit, 2) }}" data-numeric-value="{{ $taxAmtEdit }}"></div>
             <div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalEdit, 2) }}" data-numeric-value="{{ $lineTotalEdit }}"></div>
             <div class="form-group col-md-1 d-flex align-items-end"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>
         </div>
@@ -89,9 +89,9 @@
             </div>
             <div class="col-md-1 form-group"><label>Qty</label><input type="number" name="qty[]" value="1" class="form-control qty" readonly></div>
             <div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" value="{{ $item['days'] }}" class="form-control days" min="1" onchange="sim_calculate_price(this);"></div>
-            <div class="col-md-2 form-group"><label>Monthly Rate (AED)</label><input type="number" name="rental_amount[]" value="{{ $item['rental_amount'] }}" class="form-control rate" step="0.01" onchange="sim_calculate_price(this);"></div>
+            <div class="col-md-2 form-group"><label>Monthly Rate ({{ \App\Helpers\Currency::code() }})</label><input type="number" name="rental_amount[]" value="{{ $item['rental_amount'] }}" class="form-control rate" step="0.01" onchange="sim_calculate_price(this);"></div>
             <div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" value="{{ $item['tax_rate'] }}" class="form-control tax" step="0.01" onchange="sim_calculate_price(this);"></div>
-            <div class="col-md-2 form-group"><label>Tax Amount (AED)</label><input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtClone, 2) }}" data-numeric-value="{{ $taxAmtClone }}"></div>
+            <div class="col-md-2 form-group"><label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label><input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtClone, 2) }}" data-numeric-value="{{ $taxAmtClone }}"></div>
             <div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalClone, 2) }}" data-numeric-value="{{ $lineTotalClone }}"></div>
             <div class="form-group col-md-1 d-flex align-items-end"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>
         </div>
@@ -105,9 +105,9 @@
             </div>
             <div class="col-md-1 form-group"><label>Qty</label><input type="number" name="qty[]" value="1" class="form-control qty" readonly></div>
             <div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" class="form-control days" min="1" value="1" onchange="sim_calculate_price(this);"></div>
-            <div class="col-md-2 form-group"><label>Rate (AED)</label><input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onchange="sim_calculate_price(this);"></div>
+            <div class="col-md-2 form-group"><label>Rate ({{ \App\Helpers\Currency::code() }})</label><input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onchange="sim_calculate_price(this);"></div>
             <div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="{{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }}" onchange="sim_calculate_price(this);"></div>
-            <div class="col-md-2 form-group"><label>Tax Amount (AED)</label><input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0"></div>
+            <div class="col-md-2 form-group"><label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label><input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0"></div>
             <div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0"></div>
             <div class="form-group col-md-1 d-flex align-items-end"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>
         </div>
@@ -187,9 +187,9 @@
                 '<div class="col-md-2 form-group"><label>SIM <span class="text-danger">*</span></label><select name="sim_id[]" class="form-select form-select-sm select2 sim-select" required>' + opts + '</select></div>' +
                 '<div class="col-md-1 form-group"><label>Qty</label><input type="number" name="qty[]" value="1" class="form-control qty" readonly></div>' +
                 '<div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" class="form-control days" min="1" value="1" onchange="sim_calculate_price(this);"></div>' +
-                '<div class="col-md-2 form-group"><label>Monthly Rate (AED)</label><input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onchange="sim_calculate_price(this);"></div>' +
+                '<div class="col-md-2 form-group"><label>Monthly Rate ({{ \App\Helpers\Currency::code() }})</label><input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onchange="sim_calculate_price(this);"></div>' +
                 '<div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="' + defaultTax + '" onchange="sim_calculate_price(this);"></div>' +
-                '<div class="col-md-2 form-group"><label>Tax Amount (AED)</label><input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0"></div>' +
+                '<div class="col-md-2 form-group"><label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label><input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0"></div>' +
                 '<div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0"></div>' +
                 '<div class="form-group col-md-1 d-flex align-items-end"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>' +
                 '</div>';

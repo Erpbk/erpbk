@@ -46,6 +46,7 @@ class Bikes extends BaseModel
   ];
 
   protected $casts = [
+    'branch_id' => 'integer',
     'plate' => 'string',
     'vehicle_type' => 'string',
     'chassis_number' => 'string',

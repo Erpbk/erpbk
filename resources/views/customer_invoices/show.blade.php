@@ -232,11 +232,11 @@
                     <th class="secondary-header" style="width: 5%;">Sr.</th>
                     <th class="secondary-header" style="width: 40%;">Product / Service Description</th>
                     <th class="secondary-header" style="width: 8%;">Qty</th>
-                    <th class="secondary-header" style="width: 12%;">Rate (AED)</th>
-                    <th class="secondary-header" style="width: 12%;">Amount (AED)</th>
+                    <th class="secondary-header" style="width: 12%;">Rate ({{ \App\Helpers\Currency::code() }})</th>
+                    <th class="secondary-header" style="width: 12%;">Amount ({{ \App\Helpers\Currency::code() }})</th>
                     <th class="secondary-header" style="width: 10%;">VAT (%)</th>
                     <th class="secondary-header" style="width: 12%;">VAT Amount</th>
-                    <th class="accent-total" style="width: 13%;">Total (AED)</th>
+                    <th class="accent-total" style="width: 13%;">Total ({{ \App\Helpers\Currency::code() }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -277,7 +277,7 @@
         <table class="no-border">
             <tr>
                 <td class="amount-highlight" style="padding: 8px; font-size: 13px;">
-                    <b>Total Invoice Amount in Words:</b> {{ \App\Helpers\Helpers::numberToWords($invoice->total ?? $running_total) }} AED Only
+                    <b>Total Invoice Amount in Words:</b> {{ \App\Helpers\Helpers::numberToWords($invoice->total ?? $running_total) }} {{ \App\Helpers\Currency::code() }} Only
                 </td>
             </tr>
         </table>

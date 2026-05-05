@@ -178,7 +178,7 @@
             id="subtotal_display"
             class="form-control bg-light"
             readonly
-            value="AED {{ number_format((old('qty', $data?->qty ?? 0) * old('price', $data?->price ?? 0)), 2) }}">
+            value="{{ \App\Helpers\Currency::format((old('qty', $data?->qty ?? 0) * old('price', $data?->price ?? 0)), 2) }}">
         <input type="hidden" name="subtotal" id="subtotal" value="{{ old('subtotal', $data->subtotal ?? '') }}">
     </div>
 
@@ -188,7 +188,7 @@
             id="total_display"
             class="form-control bg-light"
             readonly
-            value="AED {{ number_format((old('qty', $data?->qty ?? 0) * old('price', $data?->price ?? 0) + old('vat_amount', $data?->vat_amount ?? 0)), 2) }}">
+            value="{{ \App\Helpers\Currency::format((old('qty', $data?->qty ?? 0) * old('price', $data?->price ?? 0) + old('vat_amount', $data?->vat_amount ?? 0)), 2) }}">
         <input type="hidden" name="total" id="total" value="{{ old('total', $data->total ?? '') }}">
     </div>
 </div>
@@ -211,8 +211,8 @@
             let subtotal = qty * price;
             let total = subtotal + vat;
 
-            $('#subtotal_display').val('AED ' + subtotal.toFixed(2));
-            $('#total_display').val('AED ' + total.toFixed(2));
+            $('#subtotal_display').val('{{ \App\Helpers\Currency::code() }} ' + subtotal.toFixed(2));
+            $('#total_display').val('{{ \App\Helpers\Currency::code() }} ' + total.toFixed(2));
             $('#subtotal').val(subtotal.toFixed(2));
             $('#total').val(total.toFixed(2));
         }

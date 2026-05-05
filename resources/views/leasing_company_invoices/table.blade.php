@@ -31,9 +31,9 @@
             @endphp
             <span class="badge bg-info">{{ $bikeCount }} bike(s)</span>
          </td>
-         <td>AED {{ number_format($invoice->subtotal ?? 0, 2) }}</td>
-         <td>AED {{ number_format($invoice->vat ?? 0, 2) }}</td>
-         <td><strong>AED {{ number_format($invoice->total_amount ?? 0, 2) }}</strong></td>
+         <td>{{ \App\Helpers\Currency::format($invoice->subtotal ?? 0, 2) }}</td>
+         <td>{{ \App\Helpers\Currency::format($invoice->vat ?? 0, 2) }}</td>
+         <td><strong>{{ \App\Helpers\Currency::format($invoice->total_amount ?? 0, 2) }}</strong></td>
          <td>
             @if($invoice->attachment)
             <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank">
@@ -46,7 +46,7 @@
             <span class="badge bg-success">Paid</span>
             @elseif($invoice->status == 3)
             <span class="badge bg-warning">Partially Paid</span>
-            <small>AED {{ $invoice->balance }} Due</small>
+            <small>{{ \App\Helpers\Currency::symbol() }} {{ $invoice->balance }} Due</small>
             @else
             <span class="badge bg-danger">Unpaid</span>
             @endif

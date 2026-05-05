@@ -34,7 +34,7 @@
         <div class="col-lg-3 col-6">
             <div class="small-box bg-success">
                 <div class="inner">
-                    <h3>AED {{ number_format($statistics['paid_amount'], 2) }}</h3>
+                    <h3>{{ \App\Helpers\Currency::format($statistics['paid_amount'], 2) }}</h3>
                     <p>Paid Amount</p>
                 </div>
                 <div class="icon">
@@ -45,7 +45,7 @@
         <div class="col-lg-3 col-6">
             <div class="small-box bg-warning">
                 <div class="inner">
-                    <h3>AED {{ number_format($statistics['unpaid_amount'], 2) }}</h3>
+                    <h3>{{ \App\Helpers\Currency::format($statistics['unpaid_amount'], 2) }}</h3>
                     <p>Unpaid Amount</p>
                 </div>
                 <div class="icon">

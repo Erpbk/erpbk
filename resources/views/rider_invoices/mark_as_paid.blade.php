@@ -61,7 +61,7 @@
                         </tr>
                         <tr>
                             <td><strong>Total Amount:</strong></td>
-                            <td><span class="badge bg-primary fs-6">AED {{ number_format($invoice->total_amount, 2) }}</span></td>
+                            <td><span class="badge bg-primary fs-6">{{ \App\Helpers\Currency::format($invoice->total_amount, 2) }}</span></td>
                         </tr>
                         <tr>
                             <td><strong>Current Status:</strong></td>
@@ -101,7 +101,7 @@
                         <div class="form-group">
                             <label>Payment Amount</label>
                             <input type="text" class="form-control"
-                                value="AED {{ number_format($invoice->total_amount, 2) }}"
+                                value="{{ \App\Helpers\Currency::format($invoice->total_amount, 2) }}"
                                 readonly>
                             <small class="form-text text-muted">
                                 This amount will be debited from rider's account and credited to the selected bank account.
@@ -116,8 +116,8 @@
                             <h6><i class="fas fa-info-circle"></i> Payment Process:</h6>
                             <ul class="mb-0">
                                 <li>Invoice status will be changed from "Unpaid" to "Paid"</li>
-                                <li>Rider's account will be debited with AED {{ number_format($invoice->total_amount, 2) }}</li>
-                                <li>Selected bank account will be credited with AED {{ number_format($invoice->total_amount, 2) }}</li>
+                                <li>Rider's account will be debited with {{ \App\Helpers\Currency::format($invoice->total_amount, 2) }}</li>
+                                <li>Selected bank account will be credited with {{ \App\Helpers\Currency::format($invoice->total_amount, 2) }}</li>
                                 <li>A voucher entry will be created for this transaction</li>
                             </ul>
                         </div>

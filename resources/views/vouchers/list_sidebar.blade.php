@@ -42,7 +42,7 @@
             </div>
           @endif
           <div class="d-flex flex-column align-items-end flex-shrink-0 text-end">
-            <span class="small fw-medium">AED {{ number_format($voucher->amount, 2) }}</span>
+            <span class="small fw-medium">{{ \App\Helpers\Currency::format($voucher->amount, 2) }}</span>
             <span class="badge bg-label-success py-0" style="font-size: 0.65rem;">PUBLISHED</span>
           </div>
         </a>

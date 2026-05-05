@@ -38,7 +38,15 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
     </div>
     <div class="col-md-2 form-group">
         <label>Garage</label>
-        {!! Form::select('garage_id', ['' => 'Select Garage'] + $garages->toArray(), isset($invoice) ? $invoice->garage_id : null, ['class' => 'form-select form-select-sm select2', 'required' => true]) !!}
+        <select class="form-select" id="garage_id" name="garage_id" required>
+            <option value="">Select Garage</option>
+            @foreach($garages as $garage)
+            <option value="{{ $garage->id }}"
+                {{ isset($invoice) && $invoice->garage_id == $garage->id ? 'selected' : '' }}>
+                {{ $garage->name }}
+            </option>
+            @endforeach
+        </select>
     </div>
     @else
     <div class="col-md-2 form-group">

@@ -116,19 +116,19 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                 </thead>
                 <tbody>
                   @foreach($categories as $cat)
-                  <tr>
-                    <td>{{ $cat->label }}</td>
+                  <tr data-category-row-id="{{ $cat->id }}">
+                    <td><span class="js-category-label">{{ $cat->label }}</span></td>
                     <td>{!! $cat->is_system ? '<span class="badge bg-secondary">Yes</span>' : '<span class="badge bg-light text-dark border">No</span>' !!}</td>
                     <td>
                       @if(!$cat->is_system)
-                      <form action="{{ route($settingsRoutePrefix . '.update-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline-flex gap-2 align-items-center">
+                      <form action="{{ route($settingsRoutePrefix . '.update-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline-flex gap-2 align-items-center js-ajax-category-update-form" data-category-id="{{ $cat->id }}">
                         @csrf
                         @method('PUT')
                         <input type="text" name="label" value="{{ $cat->label }}" required maxlength="255" class="form-control form-control-sm" style="max-width: 260px">
                         <button class="btn btn-sm btn-primary" type="submit"><i class="ti ti-pencil"></i></button>
                       </form>
 
-                      <form action="{{ route($settingsRoutePrefix . '.destroy-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline ms-2" onsubmit="return confirm('Delete this category?')">
+                      <form action="{{ route($settingsRoutePrefix . '.destroy-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline ms-2 js-ajax-category-delete-form" data-category-id="{{ $cat->id }}">
                         @csrf
                         @method('DELETE')
                         <button class="btn btn-sm btn-danger" type="submit"><i class="ti ti-trash"></i></button>
@@ -817,7 +817,12 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                         </select>
                       </div>
 
-                      <div class="col-md-12">
+                      <div class="col-md-12" id="editBikeFixedInputPreviewWrap">
+                        <label class="form-label">Preview</label>
+                        <div id="editBikeFixedInputPreview"></div>
+                      </div>
+
+                      <div class="col-md-12" id="editBikeFixedOptionsWrap">
                         <label class="form-label">Dropdown options (one per line)</label>
                         <input type="hidden" name="input_config_options" id="editBikeFixedInputConfigOptionsHidden" value="">
                         <div id="editBikeFixedOptionsRows" class="d-flex flex-column gap-2"></div>
@@ -1141,6 +1146,103 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
+  (function() {
+    function showBikeCategoryAjaxMessage(type, message) {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: type,
+          title: type === 'success' ? 'Success' : 'Error',
+          text: message || (type === 'success' ? 'Done.' : 'Request failed.'),
+        });
+        return;
+      }
+      alert(message || (type === 'success' ? 'Done.' : 'Request failed.'));
+    }
+
+    function submitBikeCategoryAjaxForm(form) {
+      var submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+      var formData = new FormData(form);
+
+      return fetch(form.action, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          }
+        })
+        .then(function(response) {
+          return response.json().catch(function() {
+            return {};
+          }).then(function(data) {
+            if (!response.ok || data.success === false) {
+              return Promise.reject(data);
+            }
+            return data;
+          });
+        })
+        .finally(function() {
+          if (submitBtn) submitBtn.disabled = false;
+        });
+    }
+
+    document.addEventListener('submit', function(e) {
+      var updateForm = e.target.closest('.js-ajax-category-update-form');
+      if (updateForm) {
+        e.preventDefault();
+        submitBikeCategoryAjaxForm(updateForm)
+          .then(function(data) {
+            var categoryId = updateForm.dataset.categoryId || '';
+            var row = document.querySelector('tr[data-category-row-id="' + categoryId + '"]');
+            var labelInput = updateForm.querySelector('input[name="label"]');
+            var newLabel = (data && data.category && data.category.label) ? data.category.label : (labelInput ? labelInput.value : '');
+            if (row) {
+              var labelEl = row.querySelector('.js-category-label');
+              if (labelEl) labelEl.textContent = newLabel;
+            }
+            showBikeCategoryAjaxMessage('success', (data && data.message) ? data.message : 'Category updated.');
+          })
+          .catch(function(error) {
+            showBikeCategoryAjaxMessage('error', (error && error.message) ? error.message : 'Could not update category.');
+          });
+        return;
+      }
+
+      var deleteForm = e.target.closest('.js-ajax-category-delete-form');
+      if (!deleteForm) return;
+      e.preventDefault();
+
+      var proceed = function() {
+        submitBikeCategoryAjaxForm(deleteForm)
+          .then(function(data) {
+            var categoryId = deleteForm.dataset.categoryId || '';
+            var row = document.querySelector('tr[data-category-row-id="' + categoryId + '"]');
+            if (row) row.remove();
+            showBikeCategoryAjaxMessage('success', (data && data.message) ? data.message : 'Category deleted.');
+          })
+          .catch(function(error) {
+            showBikeCategoryAjaxMessage('error', (error && error.message) ? error.message : 'Could not delete category.');
+          });
+      };
+
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Delete category?',
+          text: 'This action cannot be undone.',
+          showCancelButton: true,
+          confirmButtonText: 'Delete',
+          cancelButtonText: 'Cancel',
+        }).then(function(result) {
+          if (result.isConfirmed) proceed();
+        });
+      } else if (confirm('Delete this category?')) {
+        proceed();
+      }
+    });
+  })();
+
   (function() {
     const meta = document.getElementById('riderInvoiceAssigningMeta');
     const isAccountAssigningAvailable = !!meta && meta.dataset.enabled === 'true';
@@ -1598,6 +1700,41 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
     });
   }
 
+  function bikeRenderFixedInputPreview(inputType) {
+    var preview = document.getElementById('editBikeFixedInputPreview');
+    if (!preview) return;
+    var type = String(inputType || 'text').toLowerCase();
+    var html = '';
+    if (type === 'textarea') {
+      html = '<textarea class="form-control" rows="3" placeholder="Sample textarea"></textarea>';
+    } else if (type === 'number' || type === 'decimal') {
+      html = '<input type="number" class="form-control" placeholder="0">';
+    } else if (type === 'date') {
+      html = '<input type="date" class="form-control">';
+    } else if (type === 'datetime') {
+      html = '<input type="datetime-local" class="form-control">';
+    } else if (type === 'dropdown') {
+      html = '<select class="form-select"><option value="">Select option</option></select>';
+    } else if (type === 'checkbox') {
+      html = '<div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="editBikeFixedPreviewCheck"><label class="form-check-label" for="editBikeFixedPreviewCheck">Sample checkbox</label></div>';
+    } else {
+      html = '<input type="text" class="form-control" placeholder="Sample text">';
+    }
+    preview.innerHTML = html;
+  }
+
+  function bikeToggleFixedDropdownOptions(inputType) {
+    var type = String(inputType || 'text').toLowerCase();
+    var wrap = document.getElementById('editBikeFixedOptionsWrap');
+    if (!wrap) return;
+    wrap.style.display = (type === 'dropdown') ? '' : 'none';
+  }
+
+  function bikeUpdateFixedTypeUI(inputType) {
+    bikeRenderFixedInputPreview(inputType);
+    bikeToggleFixedDropdownOptions(inputType);
+  }
+
   function bikeInitOptionRowButtons() {
     // Add modal (new custom field)
     const addBtn = document.getElementById('addBikeFieldOptionRowBtn');
@@ -1616,6 +1753,12 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
     if (editFixedAddBtn && editFixedRows && editFixedHidden) {
       editFixedAddBtn.addEventListener('click', function() {
         bikeCreateOptionRow(editFixedRows, editFixedHidden, '');
+      });
+    }
+    var editFixedTypeSelect = document.getElementById('editBikeFixedInputType');
+    if (editFixedTypeSelect) {
+      editFixedTypeSelect.addEventListener('change', function() {
+        bikeUpdateFixedTypeUI(editFixedTypeSelect.value);
       });
     }
 
@@ -1660,6 +1803,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
         reqEl.disabled = false;
       }
       document.getElementById('editBikeFixedInputType').value = btn.dataset.inputType || 'text';
+      bikeUpdateFixedTypeUI(btn.dataset.inputType || 'text');
 
       const configOptionsRaw = btn.dataset.inputConfigOptions;
       const configOptions = bikeSafeJsonParse(configOptionsRaw, '');
@@ -1701,6 +1845,13 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
         document.getElementById('editBikeCustomConfigOptionsHidden'),
         configOptions || ''
       );
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var editFixedTypeSelect = document.getElementById('editBikeFixedInputType');
+    if (editFixedTypeSelect) {
+      bikeUpdateFixedTypeUI(editFixedTypeSelect.value || 'text');
     }
   });
 

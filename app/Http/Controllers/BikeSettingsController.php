@@ -244,17 +244,58 @@ class BikeSettingsController extends Controller
 
     public function storeCategory(Request $request)
     {
-        return $this->bikeSettingsIndexRedirect()->with('error', 'Category functionality is disabled for Bike Settings.');
+        $validated = $request->validate([
+            'label' => 'required|string|max:255',
+        ]);
+
+        $validated['display_order'] = (int) $this->bikeCategoryQuery()->max('display_order') + 1;
+        $validated['is_system'] = false;
+        $validated['slug'] = null;
+
+        if ($this->bikeCategoryCompanyScoped()) {
+            $validated['company_id'] = $this->bikeCategoryCompanyId();
+        }
+
+        BikeCategory::create($validated);
+
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Category added.');
     }
 
     public function updateCategory(Request $request, string $company_slug, int $id)
     {
-        return $this->bikeSettingsIndexRedirect()->with('error', 'Category functionality is disabled for Bike Settings.');
+        $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
+        if ((bool) $category->is_system) {
+            return redirect()->back()->with('error', 'System categories cannot be edited.');
+        }
+
+        $validated = $request->validate([
+            'label' => 'required|string|max:255',
+        ]);
+
+        $category->label = $validated['label'];
+        $category->save();
+
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Category updated.');
     }
 
     public function destroyCategory(string $company_slug, int $id)
     {
-        return $this->bikeSettingsIndexRedirect()->with('error', 'Category functionality is disabled for Bike Settings.');
+        $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
+        if ((bool) $category->is_system) {
+            return redirect()->back()->with('error', 'System categories cannot be deleted.');
+        }
+
+        if (BikeFieldCategoryAssignment::where('category_id', $category->id)->exists()) {
+            return redirect()->back()->with('error', 'Category has fixed field assignments. Remove/reassign them first.');
+        }
+
+        if (BikeCustomField::where('category_id', $category->id)->exists()) {
+            return redirect()->back()->with('error', 'Category has custom fields. Remove/reassign them first.');
+        }
+
+        $category->delete();
+
+        return $this->bikeSettingsIndexRedirect()->with('success', 'Category deleted.');
     }
 
     public function updateFieldAssignment(Request $request)
@@ -328,7 +369,7 @@ class BikeSettingsController extends Controller
         $allowedKeys = BikeFieldCategoryAssignment::query()
             ->where('category_id', $categoryId)
             ->pluck('field_key')
-            ->map(fn ($v) => (string) $v)
+            ->map(fn($v) => (string) $v)
             ->all();
 
         foreach ($order as $fieldKey) {
@@ -354,7 +395,7 @@ class BikeSettingsController extends Controller
         $order = array_values(array_map('strval', $validated['order']));
         $existing = BikeFieldCategoryAssignment::query()
             ->pluck('field_key')
-            ->map(fn ($v) => (string) $v)
+            ->map(fn($v) => (string) $v)
             ->sort()
             ->values()
             ->all();
@@ -383,7 +424,7 @@ class BikeSettingsController extends Controller
             ->orderBy('id')
             ->get();
 
-        $globalKeys = $rows->pluck('field_key')->map(fn ($v) => (string) $v)->all();
+        $globalKeys = $rows->pluck('field_key')->map(fn($v) => (string) $v)->all();
         $newGlobal = [];
         $i = 0;
         $n = count($globalKeys);
@@ -439,7 +480,7 @@ class BikeSettingsController extends Controller
         } else {
             $query->where('category_id', (int) $categoryId);
         }
-        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->sort()->values()->all();
+        $allowedIds = $query->pluck('id')->map(fn($v) => (int) $v)->sort()->values()->all();
         $sortedOrder = $order;
         sort($sortedOrder);
         if ($sortedOrder !== $allowedIds || count($order) !== count($allowedIds)) {
@@ -460,7 +501,7 @@ class BikeSettingsController extends Controller
         $order = array_values(array_map('intval', $validated['order']));
         $existing = BikeCustomField::query()
             ->pluck('id')
-            ->map(fn ($v) => (int) $v)
+            ->map(fn($v) => (int) $v)
             ->sort()
             ->values()
             ->all();
@@ -495,7 +536,7 @@ class BikeSettingsController extends Controller
             return (int) $row->category_id === (int) $categoryId;
         };
 
-        $globalIds = $rows->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $globalIds = $rows->pluck('id')->map(fn($v) => (int) $v)->all();
         $newGlobal = [];
         $i = 0;
         $n = count($globalIds);
@@ -635,7 +676,16 @@ class BikeSettingsController extends Controller
      */
     public function assignCustomFieldCategory(Request $request, string $company_slug, int $id)
     {
-        return $this->bikeSettingsIndexRedirect()->with('error', 'Category functionality is disabled for Bike Settings.');
+        $validated = $request->validate([
+            'category_id' => ['nullable', 'integer', 'exists:bike_categories,id'],
+        ]);
+
+        $field = BikeCustomField::where('id', $id)->firstOrFail();
+        $field->category_id = isset($validated['category_id']) ? (int) $validated['category_id'] : null;
+        $field->save();
+
+        $activeCategoryId = $field->category_id !== null ? (int) $field->category_id : 0;
+        return $this->bikeSettingsIndexRedirect($activeCategoryId)->with('success', 'Custom field moved.');
     }
 
     public function storeDocumentType(Request $request)
@@ -697,4 +747,3 @@ class BikeSettingsController extends Controller
         return $this->bikeSettingsIndexRedirect()->with('success', 'Document type deleted.');
     }
 }
-

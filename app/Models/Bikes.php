@@ -24,6 +24,7 @@ class Bikes extends BaseModel
     'engine',
     'company',
     'rider_id',
+    'rental_company_id',
     'notes',
     'created_by',
     'updated_by',
@@ -120,6 +121,10 @@ class Bikes extends BaseModel
   public function LeasingCompany()
   {
     return $this->belongsTo(LeasingCompanies::class, 'company');
+  }
+
+  public function rentalCompany(){
+    return $this->belongsTo(BikeRentCompany::class, 'rental_company_id', 'id');
   }
 
   public function customer()

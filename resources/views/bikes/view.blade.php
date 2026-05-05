@@ -666,13 +666,16 @@
                     <div class="info-content">
                         @php
                             $rider = $bikes->rider;
-                            $riderName = $rider->name ?? 'Not Assigned';
+                            $company = $bikes->rentalCompany;
+                            $Name = $rider->name ?? $company->name ?? 'Not Assigned';
                         @endphp
-                        <span class="info-label">Rider</span>
+                        <span class="info-label">Rider/Company</span>
                         @if($rider)
-                            <a href="{{ route('riders.show', $rider->id) }}">{{ $riderName }}</a>
+                            <a href="{{ route('riders.show', $rider->id) }}">{{ $Name }}</a>
+                        @elseif($company)
+                            <a href="{{ route('bikeRentCompanies.show', $company->id) }}">{{ $Name }}</a>
                         @else
-                            <span>{{ $riderName }}</span>
+                            <span>{{ $Name }}</span>
                         @endif
                     </div>
                 </li>
@@ -746,7 +749,7 @@
             </a>
             @endcan
             @can('bike_assign_edit')
-                @if($bikes->rider_id)
+                @if($bikes->rider_id || $bikes->rental_company_id)
                 <a href="javascript:void(0);" 
                 class="btn-compact btn-view-assignment show-modal"
                 data-size="xl"

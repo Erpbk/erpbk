@@ -92,14 +92,16 @@
     }
 </style>
 @endpush
-
+@php
+    $bike = $bikeHistory->first()->bike;
+@endphp
 @section('page_content')
 <div class="table-responsive">
     <table id="dataTableBuilder">
         <thead>
             <tr>
                 <th>Bike</th>
-                <th>Rider</th>
+                <th>Rider/Company</th>
                 <th>Project</th>
                 <th>Assign</th>
                 <th>By</th>
@@ -114,7 +116,7 @@
             <tr class="text-center">
                 <td>
                     <span class="bike-plate">
-                        {{ DB::table('bikes')->where('id', $r->bike_id)->first()->plate }}
+                        {{ $bike?->plate ?? 'N/A' }}
                     </span>
                 </td>
                 <td>
@@ -122,10 +124,16 @@
                     <a href="{{ route('riders.show', $r->rider_id) }}"
                         class="table-link"
                         target="_blank">
-                        {{ DB::Table('riders')->where('id', $r->rider_id)->first()->name }}
+                        {{ $r->rider->name }}
+                    </a>
+                    @elseif($r->rental_company_id)
+                    <a href="{{ route('bikeRentCompanies.show', $r->rental_company_id) }}"
+                        class="table-link"
+                        target="_blank">
+                        {{ $r->rentalCompany->name }}
                     </a>
                     @else
-                    <span class="text-muted">-</span>
+                    <span class="text-muted">dfjgje</span>
                     @endif
                 </td>
                 <td>
@@ -134,13 +142,8 @@
                     </span>
                 </td>
                 <td>
-                    @php
-                    $contract = DB::table('bike_histories')->find($r->id);
-                    @endphp
-
-                    @isset($contract)
                     <div>
-                        <a href="{{ route('bikes.assignContract', $contract->id) }}"
+                        <a href="{{ route('bikes.assignContract', $r->id) }}"
                             class="date-display"
                             data-toggle="tooltip"
                             title="View assignment details"
@@ -149,9 +152,9 @@
                         </a>
 
                         <!-- Contract file button -->
-                        @if($contract->contract)
+                        @if($r->contract)
                         <div class="mt-1">
-                            <a href="{{ Storage::url('app/contract/'.$contract->contract) }}"
+                            <a href="{{ Storage::url('app/contract/'.$r->contract) }}"
                                 class="contract-btn btn btn-success btn-sm"
                                 data-toggle="tooltip"
                                 title="View contract"
@@ -161,9 +164,6 @@
                         </div>
                         @endif
                     </div>
-                    @else
-                    <span class="text-muted">-</span>
-                    @endisset
                 </td>
                 <td>
                     <span class="user-name">
@@ -171,13 +171,8 @@
                     </span>
                 </td>
                 <td>
-                    @php
-                    $contract = DB::table('bike_histories')->find($r->id);
-                    @endphp
-
-                    @isset($contract)
-                    <div>
-                        <a href="{{ route('bikes.returnContract', $contract->id) }}"
+                    @if($r->return_date)
+                        <a href="{{ route('bikes.returnContract', $r->id) }}"
                             class="date-display"
                             data-toggle="tooltip"
                             title="View assignment details"
@@ -187,7 +182,7 @@
                     </div>
                     @else
                     <span class="text-muted">-</span>
-                    @endisset
+                    @endif
                 </td>
                 <td>
                     <span class="user-name">

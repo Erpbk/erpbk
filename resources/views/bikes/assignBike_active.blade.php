@@ -1,8 +1,8 @@
 @php
-$bike = DB::table('bikes')->where('id', $id)->first(); 
+$bike = \App\Models\Bikes::find($id); 
 $vehicleTypeName = '';
 if ($bike && $bike->vehicle_type) {
-$vehicleModel = DB::table('vehicle_models')->where('id', $bike->vehicle_type)->first();
+$vehicleModel = \App\Models\VehicleModels::find($bike->vehicle_type);
 $vehicleTypeName = $vehicleModel ? strtolower($vehicleModel->name) : '';
 }
 
@@ -17,7 +17,6 @@ $selectedDesignation = 'Driver';
 $selectedDesignation = 'Cyclist';
 }
 @endphp
-<script src="{{ asset('js/modal_custom.js') }}"></script>
 <form action="{{ route('bikes.assign_rider', $id) }}" method="post" id="formajax">
     @csrf
     <input type="hidden" name="bike_id" value="{{$id}}" />
@@ -27,15 +26,27 @@ $selectedDesignation = 'Cyclist';
             <label>Status</label>
             <input type="text" name="warehouse" class="form-control" readonly placeholder="Active" value="Active">
         </div>
-        <div class="col-md-3 form-group" id="rider_select">
-            <label>Change Rider</label>
-            {!! Form::select('rider_id',\App\Models\Riders::dropdown(), '' ,['class' => 'form-select select2 ','id'=>'rider_id']) !!}
-        </div>
         <div class="col-md-3 form-group">
+            <label>Assign To</label>
+            <select name="assign_type" id="assign_type" class="form-select select2">
+                <option value="">Select Type</option>
+                <option value="rider">Rider</option>
+                <option value="company">Company</option>
+            </select>
+        </div>
+        <div class="col-md-3 form-group hidden-field" id="rider_select">
+            <label>Rider</label>
+            {!! Form::select('rider_id',\App\Models\Riders::dropdown(), '' ,['class' => 'form-select select2','id'=>'rider_id']) !!}
+        </div>
+        <div class="col-md-3 form-group hidden-field" id="company_select">
+            <label>Company</label>
+            {!! Form::select('rental_company_id',\App\Models\BikeRentCompany::pluck('name', 'id'), '' ,['class' => 'form-select select2','id'=>'company_id']) !!}
+        </div>
+        <div class="col-md-3 form-group hidden-field" id="designation_field">
             <label>Designation</label>
             <input type="text" name="designation" class="form-control" readonly placeholder="Designation" value="{{ $selectedDesignation }}">
         </div>
-        <div class="col-md-3 form-group">
+        <div class="col-md-3 form-group hidden-field" id="project_field">
             {!! Form::label('customer_id', 'Project') !!}
             {!! Form::select('customer_id',\App\Models\Customers::dropdown(),'',
             ['class' => 'form-select select2', 'id' => 'customer_id']) !!}
@@ -62,7 +73,14 @@ $selectedDesignation = 'Cyclist';
 </form>
 <!--row-->
 
+<style>
+    .hidden-field {
+        display: none !important;
+    }
+</style>
+
 <script>
+    var vehicleTypeName = '{{ $vehicleTypeName }}';
 
     function updateDesignationBasedOnVehicleType() {
         var designation = '';
@@ -80,8 +98,49 @@ $selectedDesignation = 'Cyclist';
         }
     }
 
+    // Toggle visibility of rider and company selects based on assign_type
+    function toggleAssignmentFields() {
+        var assignType = $('#assign_type').val();
+        console.log('Toggle called with type:', assignType);
+        
+        if (assignType === 'rider') {
+            console.log('Showing rider fields');
+            $('#rider_select').removeClass('hidden-field').show();
+            $('#company_select').addClass('hidden-field').hide();
+            $('#designation_field').removeClass('hidden-field').show();
+            $('#project_field').removeClass('hidden-field').show();
+            $('#company_id').val('').trigger('change');
+        } else if (assignType === 'company') {
+            console.log('Showing company fields');
+            $('#company_select').removeClass('hidden-field').show();
+            $('#rider_select').addClass('hidden-field').hide();
+            $('#designation_field').addClass('hidden-field').hide();
+            $('#project_field').addClass('hidden-field').hide();
+            $('#rider_id').val('').trigger('change');
+        } else {
+            console.log('Hiding all fields');
+            $('#rider_select').addClass('hidden-field').hide();
+            $('#company_select').addClass('hidden-field').hide();
+            $('#designation_field').addClass('hidden-field').hide();
+            $('#project_field').addClass('hidden-field').hide();
+            $('#rider_id').val('').trigger('change');
+            $('#company_id').val('').trigger('change');
+        }
+    }
+
     // Update designation on page load
     $(document).ready(function() {
+        console.log('Document ready');
         updateDesignationBasedOnVehicleType();
+        $('.select2').select2({
+            allowClear: true,
+            dropdownParent: $('#modalTopbody')
+        });
+        
+        // Handle assign type change - use both change and select2:select for select2
+        $('#assign_type').on('change', function() {
+            console.log('Change event triggered');
+            toggleAssignmentFields();
+        });
     });
 </script>

@@ -40,7 +40,7 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     @endphp
 
     @if (($spec['type'] ?? 'text') === 'select')
-    {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
+    {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), ['class' => 'fw-bold' . ($req ? ' required' : '')]) !!}
     @php
     $dropdownKey = $spec['dropdown'] ?? null;
     $opts = [];
@@ -116,7 +116,7 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     ]
     ) !!}
     @elseif (($spec['type'] ?? '') === 'textarea')
-    {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
+    {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), ['class' => 'fw-bold' . ($req ? ' required' : '')]) !!}
     {!! Form::textarea(
     $item->field_key,
     $value,
@@ -142,7 +142,7 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
         ) !!}
     </div>
     @else
-    {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
+    {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), ['class' => 'fw-bold' . ($req ? ' required' : '')]) !!}
     {!! Form::input(
     $spec['type'] ?? 'text',
     $item->field_key,
@@ -166,7 +166,7 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     $f = $item->field;
     $req = $f->is_mandatory ?? false;
     @endphp
-    {!! Form::label($name, $f->label . ($req ? ':' : ''), $req ? ['class' => 'required'] : []) !!}
+    {!! Form::label($name, $f->label . ($req ? ':' : ''), ['class' => 'fw-bold' . ($req ? ' required' : '')]) !!}
     @if ($f->help_text)
     <p class="form-text small text-muted mb-1">{{ $f->help_text }}</p>
     @endif
@@ -204,14 +204,14 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     }
     }
     @endphp
-                {!! Form::select($name, $dd, $value, ['class' => 'form-select select2', 'required' => $req]) !!}
+    {!! Form::select($name, $dd, $value, ['class' => 'form-select select2', 'required' => $req]) !!}
     @break
 
     @case('checkbox')
     <div class="form-check mt-2">
         <input type="hidden" name="{{ $name }}" value="0" />
         {!! Form::checkbox($name, '1', filter_var($value, FILTER_VALIDATE_BOOLEAN), ['class' => 'form-check-input', 'id' => 'cf_' . $f->id]) !!}
-        {!! Form::label('cf_' . $f->id, 'Yes', ['class' => 'form-check-label']) !!}
+        {!! Form::label('cf_' . $f->id, 'Yes', ['class' => 'form-check-label ']) !!}
     </div>
     @break
 

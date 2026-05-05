@@ -15,7 +15,7 @@ $settingsFieldsTabLabel = $settingsFieldsTabLabel ?? 'Bike Fields';
 $settingsEntityName = $settingsEntityName ?? 'bike';
 $fixedFieldSourceTable = $fixedFieldSourceTable ?? 'bike_field_category_assignments';
 $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
-$isRiderInvoicesModule = ($moduleKey ?? '') === 'invoices';
+$isRiderInvoicesModule = in_array(($moduleKey ?? ''), ['invoices', 'customer_invoices'], true);
 $riderInvoiceAccountTree = $riderInvoiceAccountTree ?? [];
 $riderInvoiceAssignments = $riderInvoiceAssignments ?? ['debit' => [], 'credit' => []];
 $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['admin', 'Administrator', 'Super Admin']);
@@ -57,13 +57,6 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
               {{ $settingsFieldsTabLabel }}
             </button>
           </li>
-          @if($isRiderInvoicesModule && $canManageAccountAssigning)
-          <li class="nav-item" role="presentation">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-account-assigning" type="button" role="tab">
-              Account Assigning
-            </button>
-          </li>
-          @endif
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs" type="button" role="tab">
               Documents
@@ -666,99 +659,6 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
             </div>
           </div>
 
-          @if($isRiderInvoicesModule && $canManageAccountAssigning)
-          <div class="tab-pane fade account-assigning-pane" id="tab-account-assigning" role="tabpanel">
-            @if(empty($riderInvoiceAccountTree))
-            <p class="text-muted mb-0">{{ __('No ledger accounts with sub-accounts are available. Create sub-accounts under your chart heads first.') }}</p>
-            @else
-            <form method="POST" action="{{ route($settingsRoutePrefix . '.store-rider-invoice-account-assigning', $settingsRouteParams) }}" id="riderInvoiceAccountAssigningForm">
-              @csrf
-              <input type="hidden" name="debit_assignments" id="debitAssignmentsInput" value="">
-              <input type="hidden" name="credit_assignments" id="creditAssignmentsInput" value="">
-              <div id="riderInvoiceAssigningMeta"
-                data-enabled="{{ ($isRiderInvoicesModule && $canManageAccountAssigning) ? 'true' : 'false' }}"
-                data-initial-assignments='@json($riderInvoiceAssignments)'
-                hidden></div>
-
-              <div class="row g-4">
-                <div class="col-12 col-xl-6">
-                  <div class="card border">
-                    <div class="card-header">
-                      <h6 class="mb-0">Debit Accounts</h6>
-                    </div>
-                    <div class="card-body">
-                      <div class="mb-3">
-                        <label class="form-label">{{ __('Accounts') }}</label>
-                        <p class="text-muted small mb-2">{{ __('Each group is a ledger account. Choose the parent itself or one of its sub-accounts.') }}</p>
-                        <div id="debitParentRows" class="d-flex flex-column gap-2">
-                          <div class="d-flex align-items-start gap-2 account-parent-row">
-                            <div class="flex-grow-1">
-                              <select class="form-select js-rider-invoice-account-assignment" data-side="debit" data-placeholder="{{ __('Select debit account') }}">
-                                <option value="">{{ __('Select debit account') }}</option>
-                                @foreach($riderInvoiceAccountTree as $group)
-                                <option value="{{ $group['parent_id'] }}" data-parent-id="{{ $group['parent_id'] }}" data-is-parent="1">{{ $group['label'] }}</option>
-                                @foreach($group['children'] as $child)
-                                <option value="{{ $child['id'] }}" data-parent-id="{{ $group['parent_id'] }}">{{ $child['text'] }}</option>
-                                @endforeach
-                                @endforeach
-                              </select>
-                            </div>
-                            <button type="button" class="btn btn-outline-danger btn-sm js-remove-parent-row d-none mt-1" title="{{ __('Remove row') }}">
-                              <i class="ti ti-trash"></i>
-                            </button>
-                          </div>
-                        </div>
-                        <button type="button" class="btn btn-outline-primary btn-sm mt-2 js-add-parent-row" data-side="debit">
-                          <i class="ti ti-plus me-1"></i>{{ __('Add line') }}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="col-12 col-xl-6">
-                  <div class="card border">
-                    <div class="card-header">
-                      <h6 class="mb-0">Credit Accounts</h6>
-                    </div>
-                    <div class="card-body">
-                      <div class="mb-3">
-                        <label class="form-label">{{ __('Accounts') }}</label>
-                        <p class="text-muted small mb-2">{{ __('Each group is a ledger account. Choose the parent itself or one of its sub-accounts.') }}</p>
-                        <div id="creditParentRows" class="d-flex flex-column gap-2">
-                          <div class="d-flex align-items-start gap-2 account-parent-row">
-                            <div class="flex-grow-1">
-                              <select class="form-select js-rider-invoice-account-assignment" data-side="credit" data-placeholder="{{ __('Select credit account') }}">
-                                <option value="">{{ __('Select credit account') }}</option>
-                                @foreach($riderInvoiceAccountTree as $group)
-                                <option value="{{ $group['parent_id'] }}" data-parent-id="{{ $group['parent_id'] }}" data-is-parent="1">{{ $group['label'] }}</option>
-                                @foreach($group['children'] as $child)
-                                <option value="{{ $child['id'] }}" data-parent-id="{{ $group['parent_id'] }}">{{ $child['text'] }}</option>
-                                @endforeach
-                                @endforeach
-                              </select>
-                            </div>
-                            <button type="button" class="btn btn-outline-danger btn-sm js-remove-parent-row d-none mt-1" title="{{ __('Remove row') }}">
-                              <i class="ti ti-trash"></i>
-                            </button>
-                          </div>
-                        </div>
-                        <button type="button" class="btn btn-outline-primary btn-sm mt-2 js-add-parent-row" data-side="credit">
-                          <i class="ti ti-plus me-1"></i>{{ __('Add line') }}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="d-flex justify-content-end mt-4">
-                <button type="submit" class="btn btn-primary">{{ __('Save Account Assigning') }}</button>
-              </div>
-            </form>
-            @endif
-          </div>
-          @endif
 
           {{-- Edit Bike Fixed Field Modal --}}
           <div class="modal fade" id="editBikeFixedFieldModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">

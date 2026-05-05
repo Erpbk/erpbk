@@ -85,16 +85,17 @@ class CustomersController extends AppBaseController
   public function store(CreateCustomersRequest $request)
   {
     $input = $request->all();
-
-    $customers = $this->customersRepository->create($input);
-
-
-    $parentAccount = Accounts::where('name', 'Customers')->where('account_type', 'Asset')->where('parent_id', null)->first();
-    if (!$parentAccount) {
-      Flash::error('Parent account "Customers" not found.');
+    $exist = Customers::where('name', $input['name'])->where('branch_id', $input['branch_id'])->first();
+    if ($exist) {
+      Flash::error('Customer already exists.');
       return redirect(route('customers.index'));
     }
-    try{
+    $parentAccount = Accounts::where('name', 'Customer')->where('account_type', 'Asset')->first();
+    if (!$parentAccount) {
+      Flash::error('Parent account "Customer" not found.');
+      return redirect(route('customers.index'));
+    }
+    try {
       $customers = $this->customersRepository->create($input);
       $account = new Accounts();
       $account->account_code = 'CS' . str_pad($customers->id, 4, '0', STR_PAD_LEFT);
@@ -109,22 +110,22 @@ class CustomersController extends AppBaseController
 
       $customers->account_id = $account->id;
       $customers->save();
-      if($request->ajax()){
+      if ($request->ajax()) {
         return response()->json([
           'mesaage' => 'Customer Added Successfully.',
           'reload' => true
-        ],200);
+        ], 200);
       }
       Flash::success('Customer added successfully.');
       return redirect(route('customers.index'));
-    }catch(\Exception $e){
-      \Log::error('error creating customer: '.$e->getMessage());
-      if($request->ajax()){
+    } catch (\Exception $e) {
+      \Log::error('error creating customer: ' . $e->getMessage());
+      if ($request->ajax()) {
         return response()->json([
-          'mesaage' => 'Error: '.$e->getMessage(),
-        ],500);
+          'mesaage' => 'Error: ' . $e->getMessage(),
+        ], 500);
       }
-      Flash::error('Error creating customer: '.$e->getMessage());
+      Flash::error('Error creating customer: ' . $e->getMessage());
       return redirect(route('customers.index'));
     }
   }
@@ -175,8 +176,13 @@ class CustomersController extends AppBaseController
 
     $customers = $this->customersRepository->update($request->all(), $id);
 
-    $customers->account->status = $customers->status;
-    $customers->save();
+    // Update linked account safely via relation model instance.
+    $account = $customers->account;
+    if ($account) {
+      $account->status = $customers->status;
+      $account->branch_id = $customers->branch_id;
+      $account->save();
+    }
 
     Flash::success('Customer updated successfully.');
     return redirect(route('customers.index'));
@@ -253,7 +259,7 @@ class CustomersController extends AppBaseController
   public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
   {
     $customer = Customers::find($id);
-    if(!$customer){
+    if (!$customer) {
       Flash::error('Customer not found');
       return redirect(route('customers.index'));
     }
@@ -266,19 +272,19 @@ class CustomersController extends AppBaseController
     $details = $this->getDetails($customer->account_id);
     $account_id = $customer->account_id;
 
-    return $ledgerDataTable->with(['account_id' => $account_id])->render('customers.customer_ledger', compact('customer','details'));
+    return $ledgerDataTable->with(['account_id' => $account_id])->render('customers.customer_ledger', compact('customer', 'details'));
   }
 
   public function files($company_slug, $id, FilesDataTable $filesDataTable)
   {
     $customer = Customers::find($id);
-    if(!$customer){
+    if (!$customer) {
       Flash::error('Customer not found');
       return redirect(route('customers.index'));
     }
     $files = Files::where(['type' => 'customer', 'type_id' => $id])->latest('id')->get();
     $details = $this->getDetails($customer->account_id);
-    return view('customers.document', compact('files','details','customer'));
+    return view('customers.document', compact('files', 'details', 'customer'));
   }
 
   public function payments(Request $request, $company_slug, $id)
@@ -297,7 +303,7 @@ class CustomersController extends AppBaseController
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
     $details = $this->getDetails($customer->account_id);
-    return view('customers.payments', compact('data', 'customer','details'));
+    return view('customers.payments', compact('data', 'customer', 'details'));
   }
 
   public function receipts(Request $request, $company_slug, $id)
@@ -310,28 +316,29 @@ class CustomersController extends AppBaseController
     }
 
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Receipt::query()->latest('date_of_receipt')->with('payerAccount','payeeAccount');
+    $query = Receipt::query()->latest('date_of_receipt')->with('payerAccount', 'payeeAccount');
     $query->where('payer_account_id', $customer->account_id);
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
     $details = $this->getDetails($customer->account_id);
-    return view('customers.receipts', compact('data', 'customer','details'));
+    return view('customers.receipts', compact('data', 'customer', 'details'));
   }
 
-  public function cReceipts(Request $request){
+  public function cReceipts(Request $request)
+  {
     $account_ids = Customers::all()->pluck('account_id')->toArray();
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Receipt::query()->latest('date_of_receipt');
     $query->whereIn('payer_account_id', $account_ids);
     $data = $this->applyPagination($query, $paginationParams);
     return view('customers.receipt', compact('data'));
-
   }
 
-  public function invoices(Request $request, $company_slug, $id){
+  public function invoices(Request $request, $company_slug, $id)
+  {
     $customer = Customers::find($id);
-    if(!$customer){
+    if (!$customer) {
       Flash::error('customer not found');
       return redirect()->back();
     }
@@ -339,10 +346,11 @@ class CustomersController extends AppBaseController
     $query = CustomerInvoices::query()->latest('billing_month')->where('customer_id', $id);
     $invoices = $this->applyPagination($query, $paginationParams);
     $details = $this->getDetails($customer->account_id);
-    return view('customers.invoice', compact('invoices','customer','details'));
+    return view('customers.invoice', compact('invoices', 'customer', 'details'));
   }
 
-  private function getDetails($accountId){
+  private function getDetails($accountId)
+  {
     $currentMonthStart = \Carbon\Carbon::now()->startOfMonth()->format('Y-m-d');
     $currentMonthEnd = \Carbon\Carbon::now()->endOfMonth()->format('Y-m-d');
     $transactions = Transactions::where('account_id', $accountId)->get();
@@ -354,7 +362,8 @@ class CustomersController extends AppBaseController
     $credit = $transactions->sum('credit');
     $debit = $transactions->sum('debit');
     $balance = $debit - $credit;
-    return ['currentMonthCredit' => $currentMonthCredit,
+    return [
+      'currentMonthCredit' => $currentMonthCredit,
       'currentMonthDebit' => $currentMonthDebit,
       'netFlow' => $netFlow,
       'credit' => $credit,

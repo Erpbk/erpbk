@@ -15,6 +15,19 @@ use Illuminate\Validation\Rule;
 
 class BikeSettingsController extends Controller
 {
+    /**
+     * Fixed bike fields hidden from Bike Settings and Bike form.
+     */
+    protected array $hiddenFixedFieldKeys = [
+        'company_id',
+        'current_km',
+        'maintanence_km',
+        'maintenance_km',
+        'previous_km',
+        'customer_id',
+        'emirates',
+    ];
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -137,6 +150,9 @@ class BikeSettingsController extends Controller
             }
         }
 
+        $fieldKeys = array_values(array_filter($fieldKeys, function ($fieldKey) {
+            return !in_array($fieldKey, $this->hiddenFixedFieldKeys, true);
+        }));
         sort($fieldKeys);
         foreach ($fieldKeys as $fieldKey) {
             $categoryId = (int) ($resolvedCategoryForField[$fieldKey] ?? $otherId);
@@ -171,7 +187,11 @@ class BikeSettingsController extends Controller
         $fixedAssignments = BikeFieldCategoryAssignment::with('category')
             ->orderBy('display_order')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->reject(function ($assignment) {
+                return in_array((string) $assignment->field_key, $this->hiddenFixedFieldKeys, true);
+            })
+            ->values();
 
         $fixedAssignmentsByCategory = $fixedAssignments->groupBy('category_id');
 
@@ -224,65 +244,24 @@ class BikeSettingsController extends Controller
 
     public function storeCategory(Request $request)
     {
-        $validated = $request->validate([
-            'label' => 'required|string|max:255',
-        ]);
-
-        $validated['display_order'] = (int) $this->bikeCategoryQuery()->max('display_order') + 1;
-        $validated['is_system'] = false;
-        $validated['slug'] = null;
-
-        if ($this->bikeCategoryCompanyScoped()) {
-            $validated['company_id'] = $this->bikeCategoryCompanyId();
-        }
-
-        BikeCategory::create($validated);
-
-        return $this->bikeSettingsIndexRedirect()->with('success', 'Category added.');
+        return $this->bikeSettingsIndexRedirect()->with('error', 'Category functionality is disabled for Bike Settings.');
     }
 
     public function updateCategory(Request $request, string $company_slug, int $id)
     {
-        $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
-        if ((bool) $category->is_system) {
-            return redirect()->back()->with('error', 'System categories cannot be edited.');
-        }
-
-        $validated = $request->validate([
-            'label' => 'required|string|max:255',
-        ]);
-
-        $category->label = $validated['label'];
-        $category->save();
-
-        return $this->bikeSettingsIndexRedirect()->with('success', 'Category updated.');
+        return $this->bikeSettingsIndexRedirect()->with('error', 'Category functionality is disabled for Bike Settings.');
     }
 
     public function destroyCategory(string $company_slug, int $id)
     {
-        $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
-        if ((bool) $category->is_system) {
-            return redirect()->back()->with('error', 'System categories cannot be deleted.');
-        }
-
-        if (BikeFieldCategoryAssignment::where('category_id', $category->id)->exists()) {
-            return redirect()->back()->with('error', 'Category has fixed field assignments. Remove/reassign them first.');
-        }
-
-        if (BikeCustomField::where('category_id', $category->id)->exists()) {
-            return redirect()->back()->with('error', 'Category has custom fields. Remove/reassign them first.');
-        }
-
-        $category->delete();
-
-        return $this->bikeSettingsIndexRedirect()->with('success', 'Category deleted.');
+        return $this->bikeSettingsIndexRedirect()->with('error', 'Category functionality is disabled for Bike Settings.');
     }
 
     public function updateFieldAssignment(Request $request)
     {
         $validated = $request->validate([
             'field_key' => ['required', 'string', 'max:80', 'exists:bike_field_category_assignments,field_key'],
-            'category_id' => ['required', 'integer', 'exists:bike_categories,id'],
+            'category_id' => ['nullable', 'integer', 'exists:bike_categories,id'],
             'display_label' => ['nullable', 'string', 'max:255'],
             'is_visible' => ['nullable', 'boolean'],
             'is_required' => ['nullable', 'boolean'],
@@ -291,8 +270,18 @@ class BikeSettingsController extends Controller
         ]);
 
         $assignment = BikeFieldCategoryAssignment::where('field_key', $validated['field_key'])->firstOrFail();
+        if (in_array((string) $assignment->field_key, $this->hiddenFixedFieldKeys, true)) {
+            if (!$request->wantsJson() && !$request->ajax()) {
+                return $this->bikeSettingsIndexRedirect()->with('error', 'This field is hidden and cannot be edited.');
+            }
+            return response()->json([
+                'success' => false,
+                'message' => 'This field is hidden and cannot be edited.',
+            ], 422);
+        }
 
-        $assignment->category_id = (int) $validated['category_id'];
+        // Keep existing category; category moving is disabled for simplified assignment flow.
+        $assignment->category_id = (int) $assignment->category_id;
 
         $displayLabel = $validated['display_label'] !== null ? trim((string) $validated['display_label']) : null;
         $assignment->display_label = ($displayLabel === '' ? null : $displayLabel);
@@ -646,16 +635,7 @@ class BikeSettingsController extends Controller
      */
     public function assignCustomFieldCategory(Request $request, string $company_slug, int $id)
     {
-        $validated = $request->validate([
-            'category_id' => ['required', 'integer', 'exists:bike_categories,id'],
-        ]);
-
-        $field = BikeCustomField::where('id', $id)->firstOrFail();
-        $field->category_id = (int) $validated['category_id'];
-        $field->save();
-
-        $activeCategoryId = (int) $field->category_id;
-        return $this->bikeSettingsIndexRedirect($activeCategoryId)->with('success', 'Custom field moved.');
+        return $this->bikeSettingsIndexRedirect()->with('error', 'Category functionality is disabled for Bike Settings.');
     }
 
     public function storeDocumentType(Request $request)

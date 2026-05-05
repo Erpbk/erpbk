@@ -1,6 +1,15 @@
 @php
     $bikeCategories = $bikeCategories ?? \App\Models\BikeCategory::orderBy('display_order')->orderBy('id')->get();
     $fieldsByCategory = $fieldsByCategory ?? \App\Models\BikeCustomField::fieldsByCategoryForForm();
+    $hiddenFieldKeys = [
+        'company_id',
+        'current_km',
+        'maintanence_km',
+        'maintenance_km',
+        'previous_km',
+        'customer_id',
+        'emirates',
+    ];
     $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
 @endphp
 
@@ -25,8 +34,14 @@
                                 || str_contains($label, 'detail');
                         };
 
-                        $regularFields = collect($group->fields)->filter(fn ($item) => !$isNoteOrDetailField($item));
-                        $noteFields = collect($group->fields)->filter(fn ($item) => $isNoteOrDetailField($item));
+                        $visibleGroupFields = collect($group->fields)->filter(function ($item) use ($hiddenFieldKeys) {
+                            if (($item->kind ?? '') !== 'fixed') {
+                                return true;
+                            }
+                            return !in_array((string) ($item->field_key ?? ''), $hiddenFieldKeys, true);
+                        });
+                        $regularFields = $visibleGroupFields->filter(fn ($item) => !$isNoteOrDetailField($item));
+                        $noteFields = $visibleGroupFields->filter(fn ($item) => $isNoteOrDetailField($item));
                     @endphp
 
                     @foreach($regularFields as $item)
@@ -49,6 +64,7 @@
         <div class="card-body">
             <div class="row">
                 @foreach(\App\Models\BikeCustomField::fixedFieldsSlugMap()['bike_info'] as $fieldKey)
+                    @continue(in_array($fieldKey, $hiddenFieldKeys, true))
                     @php
                         $spec = \App\Models\BikeCustomField::fixedFieldInputSpecs()[$fieldKey] ?? ['type' => 'text'];
                     @endphp

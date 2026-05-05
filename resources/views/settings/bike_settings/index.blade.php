@@ -20,6 +20,7 @@ $riderInvoiceAccountTree = $riderInvoiceAccountTree ?? [];
 $riderInvoiceAssignments = $riderInvoiceAssignments ?? ['debit' => [], 'credit' => []];
 $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['admin', 'Administrator', 'Super Admin']);
 $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
+$categoryFeatureEnabled = false;
 @endphp
 
 <div class="row">
@@ -47,11 +48,13 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
               General
             </button>
           </li>
-          <li class="nav-item" role="presentation">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-categories" type="button" role="tab">
-              Categories
-            </button>
-          </li>
+          @if($categoryFeatureEnabled)
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-categories" type="button" role="tab">
+                Categories
+              </button>
+            </li>
+          @endif
           <li class="nav-item" role="presentation">
             <button class="nav-link {{ $showBikeFieldsMainTab ? 'active' : '' }}" data-bs-toggle="tab" data-bs-target="#tab-bike-fields" type="button" role="tab">
               {{ $settingsFieldsTabLabel }}
@@ -89,6 +92,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
           </div>
 
           {{-- Tab: Categories --}}
+          @if($categoryFeatureEnabled)
           <div class="tab-pane fade" id="tab-categories" role="tabpanel">
             <div class="card mb-4">
               <div class="card-body">
@@ -148,6 +152,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
               </table>
             </div>
           </div>
+          @endif
 
           {{-- Tab: Bike Fields --}}
           <div class="tab-pane fade {{ $showBikeFieldsMainTab ? 'show active' : '' }}" id="tab-bike-fields" role="tabpanel">
@@ -183,15 +188,19 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                           </select>
                         </div>
 
-                        <div class="col-md-3">
-                          <label class="form-label">Category</label>
-                          <select name="category_id" class="form-select">
-                            <option value="">Unassigned</option>
-                            @foreach($categories as $cat)
-                            <option value="{{ $cat->id }}">{{ $cat->label }}</option>
-                            @endforeach
-                          </select>
-                        </div>
+                        @if($categoryFeatureEnabled)
+                          <div class="col-md-3">
+                            <label class="form-label">Category</label>
+                            <select name="category_id" class="form-select">
+                              <option value="">Unassigned</option>
+                              @foreach($categories as $cat)
+                              <option value="{{ $cat->id }}">{{ $cat->label }}</option>
+                              @endforeach
+                            </select>
+                          </div>
+                        @else
+                          <input type="hidden" name="category_id" value="">
+                        @endif
 
                         <div class="col-md-2">
                           <div class="form-check mt-4">
@@ -279,10 +288,10 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                       <tr>
                         <th style="width: 48px;" class="text-center" title="{{ __('Drag to reorder') }}"></th>
                         <th>Field</th>
-                        <th>Current category</th>
+                        @if($categoryFeatureEnabled)<th>Current category</th>@endif
                         <th class="text-center">Required</th>
                         <th class="text-center">Show in form</th>
-                        <th>Move to category</th>
+                        @if($categoryFeatureEnabled)<th>Move to category</th>@endif
                         <th class="text-end">Actions</th>
                       </tr>
                     </thead>
@@ -311,9 +320,11 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                           <span class="badge bg-label-secondary ms-1">Database</span>
                           @endif
                         </td>
-                        <td class="align-middle">
-                          <span class="badge bg-label-info">{{ $categoryLabel }}</span>
-                        </td>
+                        @if($categoryFeatureEnabled)
+                          <td class="align-middle">
+                            <span class="badge bg-label-info">{{ $categoryLabel }}</span>
+                          </td>
+                        @endif
                         <td class="align-middle text-center">
                           <div class="form-check form-switch d-inline-block mb-0">
                             <input type="checkbox"
@@ -342,6 +353,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                               title="Show this field on add/edit forms when checked">
                           </div>
                         </td>
+                        @if($categoryFeatureEnabled)
                         <td class="align-middle">
                           <form action="{{ route($settingsRoutePrefix . '.update-field-assignment', $settingsRouteParams) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
@@ -363,6 +375,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                             <button type="submit" class="btn btn-sm btn-outline-primary">Move</button>
                           </form>
                         </td>
+                        @endif
                         <td class="align-middle text-end">
                           @php
                           $fixedInputOptions = '';
@@ -405,29 +418,33 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                           <span class="fw-semibold">{{ $customField->label }}</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
-                        <td class="align-middle">
-                          @if($cat)
-                          <span class="badge bg-label-info">{{ $catLabel }}</span>
-                          @else
-                          <span class="badge bg-label-warning">Unassigned</span>
-                          @endif
-                        </td>
+                        @if($categoryFeatureEnabled)
+                          <td class="align-middle">
+                            @if($cat)
+                            <span class="badge bg-label-info">{{ $catLabel }}</span>
+                            @else
+                            <span class="badge bg-label-warning">Unassigned</span>
+                            @endif
+                          </td>
+                        @endif
                         <td class="align-middle text-center">{{ $isReq ? 'Yes' : 'No' }}</td>
                         <td class="align-middle text-center">-</td>
-                        <td class="align-middle">
-                          <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
-                            @csrf
-                            <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
-                              <option value="">Select category</option>
-                              @foreach($categories as $dst)
-                              <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>
-                                {{ $dst->label }}
-                              </option>
-                              @endforeach
-                            </select>
-                            <button type="submit" class="btn btn-sm btn-outline-primary">Move</button>
-                          </form>
-                        </td>
+                        @if($categoryFeatureEnabled)
+                          <td class="align-middle">
+                            <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
+                              @csrf
+                              <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
+                                <option value="">Select category</option>
+                                @foreach($categories as $dst)
+                                <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>
+                                  {{ $dst->label }}
+                                </option>
+                                @endforeach
+                              </select>
+                              <button type="submit" class="btn btn-sm btn-outline-primary">Move</button>
+                            </form>
+                          </td>
+                        @endif
                         <td class="align-middle text-end">
                           @php
                           $customConfigOptions = '';
@@ -470,7 +487,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                       @if(($fixedList ?? collect())->isEmpty() && ($customFields ?? collect())->isEmpty())
                     <tbody>
                       <tr>
-                        <td colspan="7" class="text-center text-muted py-3">No bike fields configured yet.</td>
+                        <td colspan="{{ $categoryFeatureEnabled ? '7' : '5' }}" class="text-center text-muted py-3">No bike fields configured yet.</td>
                       </tr>
                     </tbody>
                       @endif
@@ -479,6 +496,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
               </div>
 
               {{-- Category tabs: fixed + custom --}}
+              @if($categoryFeatureEnabled)
               @foreach($categories as $cat)
               @php
               $fixedRows = $fixedAssignmentsByCategory[$cat->id] ?? collect();
@@ -663,6 +681,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                 </div>
               </div>
               @endforeach
+              @endif
             </div>
           </div>
 
@@ -783,14 +802,18 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                         <input type="text" name="display_label" id="editBikeFixedDisplayLabel" class="form-control">
                       </div>
 
-                      <div class="col-md-4">
-                        <label class="form-label">Category</label>
-                        <select name="category_id" id="editBikeFixedCategoryId" class="form-select" required>
-                          @foreach($categories as $cat)
-                          <option value="{{ $cat->id }}">{{ $cat->label }}</option>
-                          @endforeach
-                        </select>
-                      </div>
+                      @if($categoryFeatureEnabled)
+                        <div class="col-md-4">
+                          <label class="form-label">Category</label>
+                          <select name="category_id" id="editBikeFixedCategoryId" class="form-select" required>
+                            @foreach($categories as $cat)
+                            <option value="{{ $cat->id }}">{{ $cat->label }}</option>
+                            @endforeach
+                          </select>
+                        </div>
+                      @else
+                        <input type="hidden" name="category_id" id="editBikeFixedCategoryId" value="">
+                      @endif
 
                       <div class="col-md-4">
                         <div class="form-check mt-4">
@@ -876,15 +899,19 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                         </div>
                       </div>
 
-                      <div class="col-md-4">
-                        <label class="form-label">Category</label>
-                        <select name="category_id" id="editBikeCustomCategoryId" class="form-select">
-                          <option value="">Unassigned</option>
-                          @foreach($categories as $cat)
-                          <option value="{{ $cat->id }}">{{ $cat->label }}</option>
-                          @endforeach
-                        </select>
-                      </div>
+                      @if($categoryFeatureEnabled)
+                        <div class="col-md-4">
+                          <label class="form-label">Category</label>
+                          <select name="category_id" id="editBikeCustomCategoryId" class="form-select">
+                            <option value="">Unassigned</option>
+                            @foreach($categories as $cat)
+                            <option value="{{ $cat->id }}">{{ $cat->label }}</option>
+                            @endforeach
+                          </select>
+                        </div>
+                      @else
+                        <input type="hidden" name="category_id" id="editBikeCustomCategoryId" value="">
+                      @endif
 
                       <div class="col-md-6">
                         <label class="form-label">Default value</label>

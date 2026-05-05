@@ -2,6 +2,7 @@
 @php
 $items = \App\Models\Items::dropdown('garage');
 $items = $items->merge(\App\Models\Items::dropdown('supplier'));
+$garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'internal')->get();
 @endphp
 
 <div class="row">
@@ -161,7 +162,7 @@ $items = $items->merge(\App\Models\Items::dropdown('supplier'));
     <div class="append-line"></div>
     <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
         <div>
-            
+
         </div>
         <div class="d-flex align-items-center gap-3">
             <div class="input-group">
@@ -174,7 +175,7 @@ $items = $items->merge(\App\Models\Items::dropdown('supplier'));
             </div>
             <div class="input-group">
                 <span class="input-group-text bg-primary text-white">Total</span>
-                <input type="number" name="total_amount" class="form-control" id="total" readonly style="min-width: 150px; font-weight: bold;" >
+                <input type="number" name="total_amount" class="form-control" id="total" readonly style="min-width: 150px; font-weight: bold;">
             </div>
         </div>
     </div>
@@ -200,6 +201,6 @@ $items = $items->merge(\App\Models\Items::dropdown('supplier'));
             setItemTotal($(this));
         });
         setTotal();
-        
+
     });
 </script>

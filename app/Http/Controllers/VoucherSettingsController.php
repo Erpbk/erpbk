@@ -21,7 +21,16 @@ class VoucherSettingsController extends Controller
      */
     public function index()
     {
-        $voucherTypes = VoucherType::with('moduleAssignments')->orderBy('display_order')->orderBy('id')->get();
+        $voucherTypes = VoucherType::withoutGlobalScope('company')
+            ->with(['moduleAssignmentsAllCompanies' => function ($query) {
+                $query->withoutGlobalScope('company');
+            }])
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+        $voucherTypes->each(function (VoucherType $type): void {
+            $type->setRelation('moduleAssignments', $type->getRelation('moduleAssignmentsAllCompanies'));
+        });
         $customFields = VoucherCustomField::orderBy('display_order')->orderBy('id')->get();
         $dataTypes = VoucherCustomField::dataTypes();
         $moduleLabel = Settings::getMenuLabel('voucher_settings');
@@ -181,7 +190,16 @@ class VoucherSettingsController extends Controller
 
     public function typesTableBody()
     {
-        $voucherTypes = VoucherType::with('moduleAssignments')->orderBy('display_order')->orderBy('id')->get();
+        $voucherTypes = VoucherType::withoutGlobalScope('company')
+            ->with(['moduleAssignmentsAllCompanies' => function ($query) {
+                $query->withoutGlobalScope('company');
+            }])
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+        $voucherTypes->each(function (VoucherType $type): void {
+            $type->setRelation('moduleAssignments', $type->getRelation('moduleAssignmentsAllCompanies'));
+        });
         return view('settings.voucher_settings._voucher_types_tbody', compact('voucherTypes'));
     }
 

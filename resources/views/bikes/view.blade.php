@@ -685,7 +685,7 @@
                     <div class="info-content">
                         <span class="info-label">Leasing Company</span>
                         <span class="info-value">
-                            {{ $bikes->leasingComopany ? $bikes->leasingCompany->name : 'N/A' }}
+                            {{ $bikes->leasingCompany->name ?? 'N/A' }}
                         </span>
                     </div>
                 </li>

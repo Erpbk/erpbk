@@ -22,9 +22,9 @@
             <td class="text-start small">{{ \Illuminate\Support\Str::limit($row->address, 40) }}</td>
             <td class="text-start small">
                 @if($row->account)
-                    {{ $row->account->account_code }} — {{ $row->account->name }}
+                {{ $row->account->account_code }} — {{ $row->account->name }}
                 @else
-                    —
+                —
                 @endif
             </td>
             <td>
@@ -36,12 +36,12 @@
             </td>
             <td>
                 <div class="btn-group">
-                    @can('bike_rent_edit')
+                    @can('bike_edit')
                     <a href="javascript:void(0);" data-action="{{ route('bikeRentCompanies.edit', $row->id) }}" class="btn btn-info btn-sm show-modal" data-size="lg" data-title="Update customer">
                         <i class="fa fa-edit"></i>
                     </a>
                     @endcan
-                    @can('bike_rent_delete')
+                    @can('bike_delete')
                     <a href="javascript:void(0);" onclick='confirmDelete("{{ route('bikeRentCompanies.delete', $row->id) }}")' class="btn btn-danger btn-sm confirm-modal" data-size="lg" data-title="Delete Item">
                         <i class="fa fa-trash"></i>
                     </a>

@@ -12,7 +12,7 @@
                 <h3>Bike on rent — Customers</h3>
             </div>
             <div class="col-sm-6">
-                @can('bike_rent_create')
+                @can('bike_create')
                 <a class="btn btn-primary float-right show-modal action-btn"
                     href="javascript:void(0);" data-action="{{ route('bikeRentCompanies.create') }}" data-title="Add customer" data-size="lg">
                     Add New
@@ -97,7 +97,9 @@
                 $.ajax({
                     url: url,
                     type: 'DELETE',
-                    data: { _token: '{{ csrf_token() }}' },
+                    data: {
+                        _token: '{{ csrf_token() }}'
+                    },
                     success: function(response) {
                         $('#loading-overlay').hide();
                         Swal.fire({
@@ -106,7 +108,9 @@
                             html: response.message,
                             showConfirmButton: true,
                             confirmButtonText: 'OK'
-                        }).then(() => { location.reload(); });
+                        }).then(() => {
+                            location.reload();
+                        });
                     },
                     error: function(xhr) {
                         $('#loading-overlay').hide();
@@ -116,7 +120,11 @@
                         } else if (xhr.responseJSON && xhr.responseJSON.message) {
                             errorMessage = xhr.responseJSON.message;
                         }
-                        Swal.fire({ icon: 'error', title: 'Error!', html: errorMessage });
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            html: errorMessage
+                        });
                     }
                 });
             }

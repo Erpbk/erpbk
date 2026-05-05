@@ -3,7 +3,7 @@
 <style>
    #dataTableBuilder {
       margin-bottom: 0;
-      min-width: 800px; 
+      min-width: 800px;
       width: 100%;
    }
 
@@ -62,15 +62,17 @@
          transform: scale(1);
          box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
       }
+
       70% {
          transform: scale(1.02);
          box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);
       }
+
       100% {
          transform: scale(1);
          box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
       }
-    }
+   }
 </style>
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="">
@@ -106,6 +108,7 @@
          @case('rider_id')
          @php
          $rider = DB::table('riders')->where('id', $r->rider_id)->first();
+
          @endphp
          <td tabindex="0">{{ $rider->rider_id ?? '-' }}</td>
          @break
@@ -191,45 +194,45 @@
          </td>
          @break
          @case('expiry_date')
-            @php
-               $expiryDate = $r->expiry_date? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : null;
-               $isExpiring = false;
-               $isExpired = false;
-               
-               if ($expiryDate) {
-                  $expiry = \Carbon\Carbon::parse($expiryDate);
-                  $now = \Carbon\Carbon::now();
-                  
-                  if ($expiry->isPast()) {
-                     $isExpired = true;
-                  } elseif ($expiry->diffInDays($now) <= 30) {
-                     $isExpiring = true;
-                  }
-               }
+         @php
+         $expiryDate = $r->expiry_date? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : null;
+         $isExpiring = false;
+         $isExpired = false;
+
+         if ($expiryDate) {
+         $expiry = \Carbon\Carbon::parse($expiryDate);
+         $now = \Carbon\Carbon::now();
+
+         if ($expiry->isPast()) {
+         $isExpired = true;
+         } elseif ($expiry->diffInDays($now) <= 30) {
+            $isExpiring=true;
+            }
+            }
             @endphp
             <td>
             @if($expiryDate)
-                  @if($isExpired)
-                     <span class="badge badge-danger" style="animation: pulse 1s infinite; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); color: white; border: 2px solid #b91c1c;">
-                        {{ $expiryDate }}
-                     </span>
-                  @elseif($isExpiring)
-                     <span class="badge badge-warning" style="animation: pulse 1.5s infinite; background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); color: white; border: 2px solid #d97706;">
-                        {{ $expiryDate }} (SOON!)
-                     </span>
-                  @else
-                     <span>{{ $expiryDate }}</span>
-                  @endif
+            @if($isExpired)
+            <span class="badge badge-danger" style="animation: pulse 1s infinite; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); color: white; border: 2px solid #b91c1c;">
+               {{ $expiryDate }}
+            </span>
+            @elseif($isExpiring)
+            <span class="badge badge-warning" style="animation: pulse 1.5s infinite; background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); color: white; border: 2px solid #d97706;">
+               {{ $expiryDate }} (SOON!)
+            </span>
             @else
-                  <span>-</span>
+            <span>{{ $expiryDate }}</span>
+            @endif
+            @else
+            <span>-</span>
             @endif
             </td>
-         @break
-         @default
-         <td tabindex="0">{{ data_get($r, $key, '-') }}</td>
-         @endswitch
-         @endforeach
-         <td></td>
+            @break
+            @default
+            <td tabindex="0">{{ data_get($r, $key, '-') }}</td>
+            @endswitch
+            @endforeach
+            <td></td>
       </tr>
       @endforeach
    </tbody>

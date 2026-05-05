@@ -31,7 +31,7 @@
     $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyclistHideFields, true)) ? ' hide-if-cyclist' : '';
 @endphp
 
-<div class="form-group col-sm-4{{ $wrapperExtraClass }}">
+<div class="form-group {{ !empty($fullWidth) ? 'col-sm-12' : 'col-sm-4' }}{{ $wrapperExtraClass }}">
     @if ($item->kind === 'fixed')
         @php
             $spec = $item->spec ?? [];

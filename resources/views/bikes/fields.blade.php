@@ -77,20 +77,18 @@
 @endif
 
 <script>
-    // Bikes use this to hide/show cyclist-only fields.
-    $(document).ready(function() {
+    (function() {
         function initBikeFormSelect2(scope) {
-            if (!window.jQuery || !$.fn || !$.fn.select2) {
+            if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
                 return;
             }
 
+            var $ = window.jQuery;
             var $scope = scope ? $(scope) : $(document);
             $scope.find('select.select2').each(function() {
                 var $el = $(this);
                 var $modalParent = $el.closest('.modal, .offcanvas');
-                var options = {
-                    width: '100%',
-                };
+                var options = { width: '100%' };
 
                 if ($modalParent.length) {
                     options.dropdownParent = $modalParent;
@@ -109,27 +107,34 @@
         }
 
         function toggleCyclistFields() {
-            let selectedText = $("#vehicle_type option:selected").text().toLowerCase();
+            var vehicleTypeEl = document.getElementById('vehicle_type');
+            if (!vehicleTypeEl) return;
 
-            if (selectedText === "cyclist") {
-                $(".hide-if-cyclist").hide();
-            } else {
-                $(".hide-if-cyclist").show();
-            }
+            var selectedOption = vehicleTypeEl.options[vehicleTypeEl.selectedIndex];
+            var selectedText = (selectedOption ? selectedOption.text : '').toLowerCase();
+            var cyclistOnlyHiddenEls = document.querySelectorAll('.hide-if-cyclist');
+
+            cyclistOnlyHiddenEls.forEach(function(el) {
+                el.style.display = selectedText === 'cyclist' ? 'none' : '';
+            });
         }
 
-        // Run on page load
-        toggleCyclistFields();
-        initBikeFormSelect2(document);
-
-        // Run when vehicle type changes
-        $("#vehicle_type").change(function() {
+        document.addEventListener('DOMContentLoaded', function() {
             toggleCyclistFields();
+            initBikeFormSelect2(document);
+
+            var vehicleTypeEl = document.getElementById('vehicle_type');
+            if (vehicleTypeEl) {
+                vehicleTypeEl.addEventListener('change', toggleCyclistFields);
+            }
         });
 
         // Ensure Select2 works when bike forms are loaded inside modals via AJAX.
-        $(document).on('shown.bs.modal shown.bs.offcanvas', function(e) {
+        document.addEventListener('shown.bs.modal', function(e) {
             initBikeFormSelect2(e.target);
         });
-    });
+        document.addEventListener('shown.bs.offcanvas', function(e) {
+            initBikeFormSelect2(e.target);
+        });
+    })();
 </script>

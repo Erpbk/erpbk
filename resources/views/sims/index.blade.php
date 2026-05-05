@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title','Sims')
 
@@ -711,5 +711,48 @@ setInterval(function() {
         }
     });
 }, 500);
+
+// Keep action dropdown visible outside scroll/overflow containers.
+$(document).on('shown.bs.dropdown', '#table-data .sim-table-action-dropdown', function() {
+    var $dropdown = $(this);
+    var $toggle = $dropdown.find('[data-bs-toggle="dropdown"]').first();
+    var $menu = $dropdown.find('.sim-table-dropdown-menu').first();
+    if (!$toggle.length || !$menu.length) return;
+
+    var toggleRect = $toggle[0].getBoundingClientRect();
+    var menuWidth = $menu.outerWidth() || 180;
+    var menuHeight = $menu.outerHeight() || 0;
+    var left = toggleRect.right - menuWidth;
+    var top = toggleRect.bottom + 4;
+
+    if (left < 8) left = 8;
+    var maxLeft = window.innerWidth - menuWidth - 8;
+    if (left > maxLeft) left = maxLeft;
+
+    var maxBottom = window.innerHeight - 8;
+    if (top + menuHeight > maxBottom) {
+        top = Math.max(8, toggleRect.top - menuHeight - 4);
+    }
+
+    $menu.data('dropdown-parent', $dropdown);
+    $menu.appendTo('body').css({
+        position: 'fixed',
+        top: top + 'px',
+        left: left + 'px',
+        zIndex: 2000
+    });
+});
+
+$(document).on('hide.bs.dropdown', '#table-data .sim-table-action-dropdown', function() {
+    var $dropdown = $(this);
+    var $menu = $('.sim-table-dropdown-menu[aria-labelledby="' + $dropdown.find('[data-bs-toggle="dropdown"]').attr('id') + '"]');
+    if (!$menu.length) return;
+    $menu.css({
+        position: '',
+        top: '',
+        left: '',
+        zIndex: 1050
+    }).appendTo($dropdown);
+});
 </script>
 @endsection

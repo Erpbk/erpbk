@@ -16,7 +16,7 @@
          </tr>
       </thead>
       <tbody>
-         @forelse($invoices as $invoice)
+         @foreach($invoices as $invoice)
          <tr class="text-center">
             <td>
                <a href="{{ route('customer_invoices.show', $invoice) }}" target="_blank">
@@ -77,11 +77,7 @@
                </div>
             </td>
          </tr>
-         @empty
-         <tr>
-            <td colspan="11" class="text-center"><h3 class="mt-4">No invoices found.</h3></td>
-         </tr>
-         @endforelse
+         @endforeach
       </tbody>
    </table>
 </div>
@@ -99,6 +95,9 @@
         "autoWidth": true, // Better column width handling
         "dom": "<'row'<'col-md-12'tr>>" +
             "<'row mt-2'<'col-md-6'i><'col-md-6 d-flex justify-content-end'p>>",
+        "language": {
+            "emptyTable": "No invoices found."
+        }
     });
     $('#quickSearch').on('keyup change', function() {
         $('#dataTableBuilder').DataTable().search(this.value).draw();

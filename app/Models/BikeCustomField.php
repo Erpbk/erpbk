@@ -133,6 +133,7 @@ class BikeCustomField extends BaseModel
             'previous_km',
             'customer_id',
             'emirates',
+            'rider_id',
         ];
     }
 

@@ -207,25 +207,9 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
         $totalAmount = (float) $invoice->total_amount;
         $narration = "Leasing Company Invoice #" . ($invoice->invoice_number ?? $invoice->id) . ' - ' . ($invoice->descriptions ?? 'Rental Invoice');
 
-        // Validate required accounts exist
+        // Fixed chart accounts are seeded and referenced by constant IDs.
         $expenseAccountId = HeadAccount::LEASING_EXPENSE_ACCOUNT;
         $vatAccountId = HeadAccount::VAT_PURCHASE_ACCOUNT;
-
-        $expenseAccountExists = \App\Support\CompanyQuery::table('accounts')->where('id', $expenseAccountId)->whereNull('deleted_at')->exists();
-        if (!$expenseAccountExists) {
-            throw new \Exception(
-                'Leasing expense account (ID ' . $expenseAccountId . ') not found in Chart of Accounts. ' .
-                    'Please run: php artisan migrate (to create it) or add this account manually in Chart of Accounts.'
-            );
-        }
-
-        $vatAccountExists = \App\Support\CompanyQuery::table('accounts')->where('id', $vatAccountId)->whereNull('deleted_at')->exists();
-        if (!$vatAccountExists) {
-            throw new \Exception(
-                'VAT account (ID ' . $vatAccountId . ') not found in Chart of Accounts. ' .
-                    'Please add this account in Chart of Accounts.'
-            );
-        }
 
         $transDate = $invoice->inv_date ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d');
         $billingMonthStr = $invoice->billing_month ? \Carbon\Carbon::parse($invoice->billing_month)->format('Y-m-d') : date('Y-m-01');

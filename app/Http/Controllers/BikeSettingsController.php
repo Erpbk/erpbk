@@ -26,6 +26,7 @@ class BikeSettingsController extends Controller
         'previous_km',
         'customer_id',
         'emirates',
+        'rider_id',
     ];
 
     public function __construct()
@@ -265,6 +266,9 @@ class BikeSettingsController extends Controller
     {
         $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
         if ((bool) $category->is_system) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'System categories cannot be edited.'], 422);
+            }
             return redirect()->back()->with('error', 'System categories cannot be edited.');
         }
 
@@ -275,25 +279,53 @@ class BikeSettingsController extends Controller
         $category->label = $validated['label'];
         $category->save();
 
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Category updated.',
+                'category' => [
+                    'id' => (int) $category->id,
+                    'label' => (string) $category->label,
+                ],
+            ]);
+        }
+
         return $this->bikeSettingsIndexRedirect()->with('success', 'Category updated.');
     }
 
-    public function destroyCategory(string $company_slug, int $id)
+    public function destroyCategory(Request $request, string $company_slug, int $id)
     {
         $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
         if ((bool) $category->is_system) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'System categories cannot be deleted.'], 422);
+            }
             return redirect()->back()->with('error', 'System categories cannot be deleted.');
         }
 
         if (BikeFieldCategoryAssignment::where('category_id', $category->id)->exists()) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Category has fixed field assignments. Remove/reassign them first.'], 422);
+            }
             return redirect()->back()->with('error', 'Category has fixed field assignments. Remove/reassign them first.');
         }
 
         if (BikeCustomField::where('category_id', $category->id)->exists()) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Category has custom fields. Remove/reassign them first.'], 422);
+            }
             return redirect()->back()->with('error', 'Category has custom fields. Remove/reassign them first.');
         }
 
         $category->delete();
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Category deleted.',
+                'category_id' => $id,
+            ]);
+        }
 
         return $this->bikeSettingsIndexRedirect()->with('success', 'Category deleted.');
     }
@@ -321,8 +353,10 @@ class BikeSettingsController extends Controller
             ], 422);
         }
 
-        // Keep existing category; category moving is disabled for simplified assignment flow.
-        $assignment->category_id = (int) $assignment->category_id;
+        // Keep current category when empty is submitted; otherwise move to selected category.
+        if (isset($validated['category_id']) && $validated['category_id'] !== null && $validated['category_id'] !== '') {
+            $assignment->category_id = (int) $validated['category_id'];
+        }
 
         $displayLabel = $validated['display_label'] !== null ? trim((string) $validated['display_label']) : null;
         $assignment->display_label = ($displayLabel === '' ? null : $displayLabel);
@@ -370,6 +404,8 @@ class BikeSettingsController extends Controller
             ->where('category_id', $categoryId)
             ->pluck('field_key')
             ->map(fn($v) => (string) $v)
+            ->reject(fn($fieldKey) => in_array((string) $fieldKey, $this->hiddenFixedFieldKeys, true))
+            ->values()
             ->all();
 
         foreach ($order as $fieldKey) {

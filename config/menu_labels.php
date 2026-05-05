@@ -23,6 +23,8 @@ return [
         'customer_list'        => 'customer list',
         'customer_invoices'    => 'Invoices',
         'customer_receipts'    => 'Payments Received',
+        'receipts'             => 'Receipts',
+        'payments'             => 'Payments',
         'vendors'              => 'Vendors',
         'recruiters'           => 'Recruiters',
         'riders'               => 'Riders',

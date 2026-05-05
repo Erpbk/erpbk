@@ -34,6 +34,10 @@ return [
             'label' => 'Customers',
             'primary_label_key' => 'customers',
         ],
+        'customer_invoices' => [
+            'label' => 'Customer Invoices',
+            'primary_label_key' => 'customer_invoices',
+        ],
         'vendors' => [
             'label' => 'Vendors',
             'primary_label_key' => 'vendors',

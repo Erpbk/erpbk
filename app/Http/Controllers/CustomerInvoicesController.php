@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\CustomerInvoices;
+use App\Models\Customers;
 use App\Models\Transactions;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use \Illuminate\Support\Facades\DB;
 use \Illuminate\Support\Facades\Storage;
+use App\Helpers\HeadAccount;
 
 class CustomerInvoicesController extends Controller
 {
@@ -15,25 +18,25 @@ class CustomerInvoicesController extends Controller
      */
     public function index(Request $request)
     {
-        $query = CustomerInvoices::with(['items','customer'])->orderBy('inv_date','desc');
+        $query = CustomerInvoices::with(['items', 'customer'])->orderBy('inv_date', 'desc');
         if ($request->has('customer_id') && $request->customer_id) {
             $query->where('customer_id', $request->customer_id);
         }
-        
+
         // Filter by billing month
         if ($request->has('billing_month') && $request->billing_month) {
-            $query->where('billing_month', $request->billing_month.'-01');
+            $query->where('billing_month', $request->billing_month . '-01');
         }
 
         if ($request->has('branch_id') && $request->branch_id) {
             $query->where('branch_id', $request->branch_id);
         }
 
-        if($request->has('reference') && $request->reference){
-            $query->where('reference','Like',$request->reference);
+        if ($request->has('reference') && $request->reference) {
+            $query->where('reference', 'Like', $request->reference);
         }
         $invoices = $query->get();
-        return view('customer_invoices.index',compact('invoices'));
+        return view('customer_invoices.index', compact('invoices'));
     }
 
     /**
@@ -44,7 +47,8 @@ class CustomerInvoicesController extends Controller
         $invoiceId = request()->input('invoice_id') ?? null;
         $customer_id = request()->input('customer_id') ?? null;
         $invoice = $invoiceId ? CustomerInvoices::find($invoiceId) : null;
-        return view('customer_invoices.create',compact('invoice','customer_id'));
+        $branches = Branch::whereIn('id', app('user_branches'))->get();
+        return view('customer_invoices.create', compact('invoice', 'customer_id', 'branches'));
     }
 
     /**
@@ -70,10 +74,10 @@ class CustomerInvoicesController extends Controller
             'item_vat' => 'nullable|array',
             'item_vat.*' => 'numeric|min:0|max:100',
         ]);
-        
+
         try {
             DB::beginTransaction();
-            
+
             // Handle attachment
             $attachmentPath = null;
             if ($request->hasFile('attachment')) {
@@ -81,27 +85,27 @@ class CustomerInvoicesController extends Controller
                 $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
                 $attachmentPath = $file->storeAs('customer_invoices', $fileName, 'public');
             }
-            
+
             // Calculate totals
             $subtotal = 0;
             $vatTotal = 0;
             $grandTotal = 0;
             $itemsData = [];
-            
+
             foreach ($request->item_ids as $index => $itemId) {
                 $item = \App\Models\Items::find($itemId);
                 $quantity = $request->item_qty[$index];
                 $rate = $request->item_rate[$index];
                 $vatPercent = $request->item_vat[$index] ?? 0;
-                
+
                 $itemSubtotal = $quantity * $rate;
                 $itemVat = $itemSubtotal * ($vatPercent / 100);
                 $itemTotal = $itemSubtotal + $itemVat;
-                
+
                 $subtotal += $itemSubtotal;
                 $vatTotal += $itemVat;
                 $grandTotal += $itemTotal;
-                
+
                 $itemsData[] = [
                     'item_id' => $itemId,
                     'item_name' => $item->name,
@@ -112,12 +116,12 @@ class CustomerInvoicesController extends Controller
                     'total_amount' => $itemTotal,
                 ];
             }
-            
+
             // Create invoice
             $invoice = CustomerInvoices::create([
                 'customer_id' => $request->customer_id, // Assuming company_id maps to customer_id
                 'inv_date' => $request->inv_date,
-                'billing_month' => $request->billing_month.'-01',
+                'billing_month' => $request->billing_month . '-01',
                 'date_from' => $request->date_from,
                 'date_to' => $request->date_to,
                 'description' => $request->description,
@@ -126,9 +130,9 @@ class CustomerInvoicesController extends Controller
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
                 'attachment' => $attachmentPath,
-                'branch_id' => \App\Models\Customers::where('id'. $request->customer_id)->value('branch_id'),
+                'branch_id' => Customers::where('id', $request->customer_id)->value('branch_id'),
             ]);
-            
+
             // Create invoice items
             foreach ($itemsData as $itemData) {
                 $invoice->items()->create($itemData);
@@ -136,6 +140,10 @@ class CustomerInvoicesController extends Controller
 
             //Create Transactions Against Invoice
             $transCode = \App\Helpers\Account::trans_code();
+            $customerAccountId = (int) Customers::where('id', $request->customer_id)->value('account_id');
+            if ($customerAccountId <= 0) {
+                throw new \RuntimeException('Selected customer has no linked account.');
+            }
 
             // DEBIT the customer account
             Transactions::create([
@@ -143,36 +151,36 @@ class CustomerInvoicesController extends Controller
                 'trans_date' => $invoice->inv_date,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'CI',
-                'account_id' => $invoice->customer->account_id,
+                'account_id' => $customerAccountId,
                 'credit' => 0,
                 'debit' => $invoice->total,
                 'billing_month' => $invoice->billing_month,
-                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : '.$invoice->description,
+                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : ' . $invoice->description,
                 'branch_id' => $invoice->branch_id,
             ]);
 
             //Credit Sales Account
             Transactions::create([
-                'trans_code' => $transCode, 
+                'trans_code' => $transCode,
                 'trans_date' => $invoice->inv_date,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'CI',
-                'account_id' => 1099,
+                'account_id' => HeadAccount::SALES_ACCOUNT,
                 'credit' => $invoice->subtotal,
                 'debit' => 0,
                 'billing_month' => $invoice->billing_month,
                 'branch_id' => $invoice->branch_id,
-                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : '.$invoice->description,
+                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : ' . $invoice->description,
             ]);
 
             //Credit VAT Account
-            if($invoice->vat > 0){
+            if ($invoice->vat > 0) {
                 Transactions::create([
-                    'trans_code' => $transCode, 
+                    'trans_code' => $transCode,
                     'trans_date' => $invoice->inv_date,
                     'reference_id' => $invoice->id,
                     'reference_type' => 'CI',
-                    'account_id' => 1025,
+                    'account_id' => HeadAccount::VAT_ON_SALES,
                     'credit' => $invoice->vat,
                     'debit' => 0,
                     'billing_month' => $invoice->billing_month,
@@ -180,23 +188,22 @@ class CustomerInvoicesController extends Controller
                     'narration' => $invoice->description,
                 ]);
             }
-            
+
             DB::commit();
-            
+
             return response()->json([
                 'message' => 'Invoice created successfully!',
                 'redirect' => route('customer_invoices.show', $invoice->id)
             ], 201);
-                            
         } catch (\Exception $e) {
             DB::rollBack();
-            if($request->ajax()){
+            if ($request->ajax()) {
                 return response()->json([
-                    'message' => 'Error'.$e->getMessage(),
-                    ],500);
+                    'message' => 'Error' . $e->getMessage(),
+                ], 500);
             }
             return back()->with('error', 'Failed to create invoice: ' . $e->getMessage())
-                        ->withInput();
+                ->withInput();
         }
     }
 
@@ -206,16 +213,15 @@ class CustomerInvoicesController extends Controller
     public function show(Request $request, $company_slug, $id)
     {
         $invoice = CustomerInvoices::find($id);
-        if(!$invoice){
-            if($request->ajax()){
-                return response()->json(['message' => 'Invoice Does not exist'],500);
+        if (!$invoice) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Invoice Does not exist'], 500);
             }
             Flash::error('Invoice Not Found');
             return redirect()->back();
         }
-        $invoice->load(['items','customer']);
-        return view('customer_invoices.show',compact('invoice'));
-        
+        $invoice->load(['items', 'customer']);
+        return view('customer_invoices.show', compact('invoice'));
     }
 
     /**
@@ -322,7 +328,7 @@ class CustomerInvoicesController extends Controller
                 'subtotal' => $subtotal,
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
-                'branch_id' => \App\Models\Customers::where('id'. $request->customer_id)->value('branch_id'),
+                'branch_id' => Customers::where('id', $request->customer_id)->value('branch_id'),
                 'attachment' => $attachmentPath,
             ]);
 
@@ -333,45 +339,49 @@ class CustomerInvoicesController extends Controller
             foreach ($itemsData as $itemData) {
                 $invoice->items()->create($itemData);
             }
-            
+
             $transactions = Transactions::where(['reference_id' =>  $invoice->id, 'reference_type' => 'CI'])->get();
             $transCode = $transactions->first()->trans_code;
+            $customerAccountId = (int) Customers::where('id', $request->customer_id)->value('account_id');
+            if ($customerAccountId <= 0) {
+                throw new \RuntimeException('Selected customer has no linked account.');
+            }
             // DEBIT the customer account
             Transactions::create([
                 'trans_code' => $transCode,
                 'trans_date' => $invoice->inv_date,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'CI',
-                'account_id' => $invoice->customer->account_id,
+                'account_id' => $customerAccountId,
                 'credit' => 0,
                 'debit' => $invoice->total,
                 'billing_month' => $invoice->billing_month,
-                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : '.$invoice->description,
+                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : ' . $invoice->description,
                 'branch_id' => $invoice->branch_id,
             ]);
 
             //Credit Sales Account
             Transactions::create([
-                'trans_code' => $transCode, 
+                'trans_code' => $transCode,
                 'trans_date' => $invoice->inv_date,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'CI',
-                'account_id' => 1099,
+                'account_id' => HeadAccount::SALES_ACCOUNT,
                 'credit' => $invoice->subtotal,
                 'debit' => 0,
                 'billing_month' => $invoice->billing_month,
                 'branch_id' => $invoice->branch_id,
-                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : '.$invoice->description,
+                'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : ' . $invoice->description,
             ]);
 
             //Credit VAT Account
-            if($invoice->vat > 0){
+            if ($invoice->vat > 0) {
                 Transactions::create([
-                    'trans_code' => $transCode, 
+                    'trans_code' => $transCode,
                     'trans_date' => $invoice->inv_date,
                     'reference_id' => $invoice->id,
                     'reference_type' => 'CI',
-                    'account_id' => 1025,
+                    'account_id' => HeadAccount::VAT_ON_SALES,
                     'credit' => $invoice->vat,
                     'debit' => 0,
                     'billing_month' => $invoice->billing_month,
@@ -383,8 +393,7 @@ class CustomerInvoicesController extends Controller
             DB::commit();
 
             return redirect()->route('customer_invoices.show', $invoice)
-                            ->with('success', 'Invoice updated successfully!');
-
+                ->with('success', 'Invoice updated successfully!');
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -395,7 +404,7 @@ class CustomerInvoicesController extends Controller
             }
 
             return back()->with('error', 'Failed to update invoice: ' . $e->getMessage())
-                        ->withInput();
+                ->withInput();
         }
     }
 
@@ -415,7 +424,7 @@ class CustomerInvoicesController extends Controller
             }
 
             Transactions::where(['reference_id' =>  $invoice->id, 'reference_type' => 'CI'])->delete();
-            
+
             // 🔥 Delete related items
             $invoice->items()->delete();
 
@@ -434,8 +443,7 @@ class CustomerInvoicesController extends Controller
             }
 
             return redirect()->route('customer_invoices.index')
-                            ->with('success', 'Invoice deleted successfully!');
-
+                ->with('success', 'Invoice deleted successfully!');
         } catch (\Exception $e) {
             DB::rollBack();
 

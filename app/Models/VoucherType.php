@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\CompanyContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class VoucherType extends BaseModel
 {
@@ -23,14 +25,39 @@ class VoucherType extends BaseModel
 
     public function moduleAssignments(): HasMany
     {
-        return $this->hasMany(VoucherTypeModuleAssignment::class, 'voucher_type_id');
+        $relation = $this->hasMany(VoucherTypeModuleAssignment::class, 'voucher_type_id');
+        $companyId = CompanyContext::id();
+        $assignmentTable = (new VoucherTypeModuleAssignment())->getTable();
+        if ($companyId && Schema::hasColumn($assignmentTable, 'company_id')) {
+            $relation->where($assignmentTable . '.company_id', $companyId);
+        }
+
+        return $relation;
+    }
+
+    public function moduleAssignmentsAllCompanies(): HasMany
+    {
+        return $this->hasMany(VoucherTypeModuleAssignment::class, 'voucher_type_id')
+            ->withoutGlobalScope('company');
+    }
+
+    protected static function queryForCurrentCompany(): Builder
+    {
+        $query = static::query();
+        $companyId = CompanyContext::id();
+        $table = (new static())->getTable();
+
+        if ($companyId && Schema::hasColumn($table, 'company_id')) {
+            $query->where($table . '.company_id', $companyId);
+        }
+
+        return $query;
     }
 
     public function getModuleKeysAttribute(): array
     {
-        $moduleKeys = $this->relationLoaded('moduleAssignments')
-            ? $this->moduleAssignments->pluck('module_key')->all()
-            : $this->moduleAssignments()->pluck('module_key')->all();
+        $moduleMap = static::defaultModuleAssignmentMap();
+        $moduleKeys = $moduleMap[(string) $this->code] ?? [];
 
         return array_values(array_unique($moduleKeys));
     }
@@ -55,6 +82,57 @@ class VoucherType extends BaseModel
     }
 
     /**
+     * Seeded/default voucher type -> module assignments used across the ERP.
+     * These act as a fallback when assignment rows are missing.
+     *
+     * @return array<string, list<string>>
+     */
+    protected static function defaultModuleAssignmentMap(): array
+    {
+        return [
+            'JV' => ['vouchers', 'rta_fines', 'visa_expense'],
+            'LV' => ['vouchers', 'visa_expense'],
+            'RFV' => ['vouchers', 'rta_fines'],
+            'VL' => ['vouchers', 'visa_expense'],
+            'AL' => ['riders', 'vouchers'],
+            'SV' => ['vouchers', 'rta_saliks'],
+            'COD' => ['riders', 'vouchers'],
+            'PN' => ['riders', 'vouchers'],
+            'INC' => ['riders', 'vouchers'],
+            'PAY' => ['riders', 'vouchers'],
+            'VC' => ['riders', 'vouchers'],
+            'RI' => ['riders_list', 'invoices', 'vouchers'],
+            'GV' => ['garage_items', 'vouchers'],
+            'RV' => ['cash_banks', 'vouchers'],
+            'PV' => ['cash_banks', 'cheques', 'vouchers'],
+            'EXP' => ['expenses', 'vouchers'],
+            'VP' => ['vat', 'vouchers'],
+        ];
+    }
+
+    /**
+     * Default voucher type codes that belong to a module.
+     *
+     * @return list<string>
+     */
+    protected static function defaultCodesForModule(string $moduleKey): array
+    {
+        $allowedModules = array_keys(static::availableModules());
+        if (!in_array($moduleKey, $allowedModules, true)) {
+            return [];
+        }
+
+        $codes = [];
+        foreach (static::defaultModuleAssignmentMap() as $code => $moduleKeys) {
+            if (in_array($moduleKey, $moduleKeys, true)) {
+                $codes[] = $code;
+            }
+        }
+
+        return array_values(array_unique($codes));
+    }
+
+    /**
      * Sync module assignments with optional per-module can_edit and can_delete flags.
      *
      * @param array $moduleKeys List of module_key to assign
@@ -63,28 +141,7 @@ class VoucherType extends BaseModel
      */
     public function syncModules(array $moduleKeys, array $canEditByModule = [], array $canDeleteByModule = []): void
     {
-        $allowedKeys = array_keys(static::availableModules());
-        $moduleKeys = collect($moduleKeys)
-            ->filter(fn($moduleKey) => is_string($moduleKey) && in_array($moduleKey, $allowedKeys, true))
-            ->unique()
-            ->values()
-            ->all();
-
-        if (empty($moduleKeys)) {
-            $this->moduleAssignments()->delete();
-            return;
-        }
-
-        $this->moduleAssignments()->whereNotIn('module_key', $moduleKeys)->delete();
-
-        foreach ($moduleKeys as $moduleKey) {
-            $canEdit = $canEditByModule[$moduleKey] ?? true;
-            $canDelete = $canDeleteByModule[$moduleKey] ?? true;
-            $assignment = $this->moduleAssignments()->firstOrNew(['module_key' => $moduleKey]);
-            $assignment->can_edit = $canEdit;
-            $assignment->can_delete = $canDelete;
-            $assignment->save();
-        }
+        // Module mapping is fixed in code (defaultModuleAssignmentMap), so DB assignments are ignored.
     }
 
     /**
@@ -93,10 +150,7 @@ class VoucherType extends BaseModel
      */
     public function getAllowEditInVoucherModuleAttribute(): bool
     {
-        $a = $this->relationLoaded('moduleAssignments')
-            ? $this->moduleAssignments->firstWhere('module_key', 'vouchers')
-            : $this->moduleAssignments()->where('module_key', 'vouchers')->first();
-        return $a ? (bool) $a->can_edit : false;
+        return in_array('vouchers', $this->module_keys, true);
     }
 
     /**
@@ -105,10 +159,7 @@ class VoucherType extends BaseModel
      */
     public function getAllowDeleteInVoucherModuleAttribute(): bool
     {
-        $a = $this->relationLoaded('moduleAssignments')
-            ? $this->moduleAssignments->firstWhere('module_key', 'vouchers')
-            : $this->moduleAssignments()->where('module_key', 'vouchers')->first();
-        return $a ? (bool) $a->can_delete : false;
+        return in_array('vouchers', $this->module_keys, true);
     }
 
     /**
@@ -119,28 +170,22 @@ class VoucherType extends BaseModel
      */
     public static function getEditDeleteFlagsByModule(string $moduleKey): array
     {
-        $assignments = static::query()
-            ->with('moduleAssignments')
-            ->get()
-            ->flatMap(function (VoucherType $type) use ($moduleKey) {
-                $a = $type->moduleAssignments->firstWhere('module_key', $moduleKey);
-                if (!$a) {
-                    return [];
-                }
-                return [$type->code => [
-                    'can_edit' => (bool) $a->can_edit,
-                    'can_delete' => (bool) $a->can_delete,
-                ]];
-            });
+        $defaultCodes = static::defaultCodesForModule($moduleKey);
+        $flags = [];
+        foreach ($defaultCodes as $code) {
+            $flags[$code] = [
+                'can_edit' => true,
+                'can_delete' => true,
+            ];
+        }
 
-        return $assignments->all();
+        return $flags;
     }
 
     public function scopeForModule(Builder $query, string $moduleKey): Builder
     {
-        return $query->whereHas('moduleAssignments', function (Builder $builder) use ($moduleKey) {
-            $builder->where('module_key', $moduleKey);
-        });
+        // Module assignment checks are disabled project-wide.
+        return $query;
     }
 
     /**
@@ -148,7 +193,8 @@ class VoucherType extends BaseModel
      */
     public static function activeOrdered()
     {
-        return static::where('is_active', true)
+        return static::queryForCurrentCompany()
+            ->where('is_active', true)
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -159,7 +205,8 @@ class VoucherType extends BaseModel
      */
     public static function codeLabelMap(): array
     {
-        return static::orderBy('display_order')->orderBy('id')
+        return static::queryForCurrentCompany()
+            ->orderBy('display_order')->orderBy('id')
             ->pluck('label', 'code')
             ->toArray();
     }
@@ -169,7 +216,8 @@ class VoucherType extends BaseModel
      */
     public static function activeCodeLabelMap(): array
     {
-        return static::where('is_active', true)
+        return static::queryForCurrentCompany()
+            ->where('is_active', true)
             ->orderBy('display_order')
             ->orderBy('id')
             ->pluck('label', 'code')
@@ -178,8 +226,8 @@ class VoucherType extends BaseModel
 
     public static function activeCodeLabelMapForModule(string $moduleKey): array
     {
-        return static::where('is_active', true)
-            ->forModule($moduleKey)
+        return static::queryForCurrentCompany()
+            ->where('is_active', true)
             ->orderBy('display_order')
             ->orderBy('id')
             ->pluck('label', 'code')
@@ -192,11 +240,8 @@ class VoucherType extends BaseModel
      */
     public static function activeCodeLabelMapForModuleWithEditAccess(string $moduleKey): array
     {
-        return static::where('is_active', true)
-            ->whereHas('moduleAssignments', function (Builder $q) use ($moduleKey) {
-                $q->where('module_key', $moduleKey)
-                    ->where('can_edit', true);
-            })
+        return static::queryForCurrentCompany()
+            ->where('is_active', true)
             ->orderBy('display_order')
             ->orderBy('id')
             ->pluck('label', 'code')
@@ -209,9 +254,9 @@ class VoucherType extends BaseModel
      */
     public static function isCodeAllowedForModule(string $code, string $moduleKey): bool
     {
-        return static::where('code', $code)
+        return static::queryForCurrentCompany()
+            ->where('code', $code)
             ->where('is_active', true)
-            ->forModule($moduleKey)
             ->exists();
     }
 }

@@ -17,6 +17,21 @@ use Illuminate\Validation\Rule;
 
 class ModuleSettingsController extends Controller
 {
+    /**
+     * Invoice-like modules that require account assigning setup.
+     *
+     * @return list<string>
+     */
+    protected function accountAssignableInvoiceModules(): array
+    {
+        return ['invoices', 'customer_invoices'];
+    }
+
+    protected function isAccountAssignableInvoiceModule(string $module): bool
+    {
+        return in_array($module, $this->accountAssignableInvoiceModules(), true);
+    }
+
     protected function normalizeModuleKey(string $module): string
     {
         return str_replace('-', '_', strtolower(trim($module)));
@@ -160,7 +175,7 @@ class ModuleSettingsController extends Controller
 
         $riderInvoiceAccountTree = [];
         $riderInvoiceAssignments = ['debit' => [], 'credit' => []];
-        if ($module === 'invoices') {
+        if ($this->isAccountAssignableInvoiceModule($module)) {
             // Eligible parents: shared chart heads (roots), company-created accounts, and globally fixed accounts.
             $riderInvoiceParentAccounts = Accounts::query()
                 ->where(function ($query) use ($companyId): void {
@@ -203,7 +218,7 @@ class ModuleSettingsController extends Controller
 
             $assignments = RiderInvoiceAccountAssignment::query()
                 ->where('company_id', (int) $companyId)
-                ->where('module_key', 'invoices')
+                ->where('module_key', $module)
                 ->orderBy('side')
                 ->orderBy('parent_account_id')
                 ->orderBy('child_account_id')
@@ -300,7 +315,7 @@ class ModuleSettingsController extends Controller
     public function riderInvoiceAccountChildren(Request $request, string $company_slug, string $module): JsonResponse
     {
         $module = $this->normalizeModuleKey($module);
-        abort_unless($module === 'invoices', 404);
+        abort_unless($this->isAccountAssignableInvoiceModule($module), 404);
         $this->ensureCompanyAdmin();
 
         $validated = $request->validate([
@@ -333,7 +348,7 @@ class ModuleSettingsController extends Controller
     public function storeRiderInvoiceAccountAssigning(Request $request, string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);
-        abort_unless($module === 'invoices', 404);
+        abort_unless($this->isAccountAssignableInvoiceModule($module), 404);
         $this->ensureCompanyAdmin();
 
         $companyId = (int) (optional(auth()->user())->company_id ?? 0);
@@ -390,7 +405,7 @@ class ModuleSettingsController extends Controller
                 foreach ($childIds as $childId) {
                     $rows[] = [
                         'company_id' => $companyId,
-                        'module_key' => 'invoices',
+                        'module_key' => $module,
                         'side' => $side,
                         'parent_account_id' => (int) $parentId,
                         'child_account_id' => (int) $childId,
@@ -403,12 +418,12 @@ class ModuleSettingsController extends Controller
 
         RiderInvoiceAccountAssignment::query()
             ->where('company_id', $companyId)
-            ->where('module_key', 'invoices')
+            ->where('module_key', $module)
             ->delete();
 
         RiderInvoiceAccountAssignment::query()->insert($rows);
 
-        return back()->with('success', 'Rider invoice account assigning updated successfully.');
+        return back()->with('success', 'Invoice account assigning updated successfully.');
     }
 
     private function formatAccountPickerLabel(Accounts $account): string

@@ -112,7 +112,7 @@ class VoucherSettingsController extends Controller
 
     public function updateType(Request $request, string $company_slug, $id)
     {
-        $type = VoucherType::findOrFail($id);
+        $type = VoucherType::withoutGlobalScope('company')->findOrFail($id);
         $allowedModules = array_keys(VoucherType::availableModules());
         $companyId = CompanyContext::id();
         $validated = $request->validate([
@@ -170,7 +170,7 @@ class VoucherSettingsController extends Controller
 
     public function destroyType(string $company_slug, $id)
     {
-        $type = VoucherType::findOrFail($id);
+        $type = VoucherType::withoutGlobalScope('company')->findOrFail($id);
         $type->delete();
 
         if (request()->wantsJson() || request()->ajax()) {
@@ -183,7 +183,9 @@ class VoucherSettingsController extends Controller
     {
         $request->validate(['order' => 'required|array', 'order.*' => 'integer|exists:voucher_types,id']);
         foreach ($request->input('order') as $position => $id) {
-            VoucherType::where('id', $id)->update(['display_order' => $position]);
+            VoucherType::withoutGlobalScope('company')
+                ->where('id', $id)
+                ->update(['display_order' => $position]);
         }
         return response()->json(['success' => true, 'message' => 'Order saved.']);
     }

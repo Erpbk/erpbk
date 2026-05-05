@@ -18,4 +18,5 @@ interface HeadAccount
   const GARAGE_ACCOUNT = 2491; // Garage Items Account
   const SALARY_ACCOUNT = 2492; // Salary Account
   const STAFF_ACCOUNT = 2464; // Staff Account
+  const SALES_ACCOUNT = 2514; // Sales Account
 }

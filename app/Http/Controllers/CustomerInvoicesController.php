@@ -8,6 +8,7 @@ use App\Models\Branch;
 use Illuminate\Http\Request;
 use \Illuminate\Support\Facades\DB;
 use \Illuminate\Support\Facades\Storage;
+use App\Helpers\HeadAccount;
 
 class CustomerInvoicesController extends Controller
 {
@@ -159,7 +160,7 @@ class CustomerInvoicesController extends Controller
                 'trans_date' => $invoice->inv_date,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'CI',
-                'account_id' => 1099,
+                'account_id' => HeadAccount::SALES_ACCOUNT,
                 'credit' => $invoice->subtotal,
                 'debit' => 0,
                 'billing_month' => $invoice->billing_month,
@@ -174,7 +175,7 @@ class CustomerInvoicesController extends Controller
                     'trans_date' => $invoice->inv_date,
                     'reference_id' => $invoice->id,
                     'reference_type' => 'CI',
-                    'account_id' => 1025,
+                    'account_id' => HeadAccount::VAT_ON_SALES,
                     'credit' => $invoice->vat,
                     'debit' => 0,
                     'billing_month' => $invoice->billing_month,
@@ -356,7 +357,7 @@ class CustomerInvoicesController extends Controller
                 'trans_date' => $invoice->inv_date,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'CI',
-                'account_id' => 1099,
+                'account_id' => HeadAccount::SALES_ACCOUNT,
                 'credit' => $invoice->subtotal,
                 'debit' => 0,
                 'billing_month' => $invoice->billing_month,
@@ -371,7 +372,7 @@ class CustomerInvoicesController extends Controller
                     'trans_date' => $invoice->inv_date,
                     'reference_id' => $invoice->id,
                     'reference_type' => 'CI',
-                    'account_id' => 1025,
+                    'account_id' => HeadAccount::VAT_ON_SALES,
                     'credit' => $invoice->vat,
                     'debit' => 0,
                     'billing_month' => $invoice->billing_month,

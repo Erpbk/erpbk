@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CustomerInvoices;
+use App\Models\Customers;
 use App\Models\Transactions;
 use App\Models\Branch;
 use Illuminate\Http\Request;
@@ -129,7 +130,7 @@ class CustomerInvoicesController extends Controller
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
                 'attachment' => $attachmentPath,
-                'branch_id' => \App\Models\Customers::where('id', $request->customer_id)->value('branch_id'),
+                'branch_id' => Customers::where('id', $request->customer_id)->value('branch_id'),
             ]);
 
             // Create invoice items
@@ -139,6 +140,10 @@ class CustomerInvoicesController extends Controller
 
             //Create Transactions Against Invoice
             $transCode = \App\Helpers\Account::trans_code();
+            $customerAccountId = (int) Customers::where('id', $request->customer_id)->value('account_id');
+            if ($customerAccountId <= 0) {
+                throw new \RuntimeException('Selected customer has no linked account.');
+            }
 
             // DEBIT the customer account
             Transactions::create([
@@ -146,7 +151,7 @@ class CustomerInvoicesController extends Controller
                 'trans_date' => $invoice->inv_date,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'CI',
-                'account_id' => $invoice->customer->account_id,
+                'account_id' => $customerAccountId,
                 'credit' => 0,
                 'debit' => $invoice->total,
                 'billing_month' => $invoice->billing_month,
@@ -323,7 +328,7 @@ class CustomerInvoicesController extends Controller
                 'subtotal' => $subtotal,
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
-                'branch_id' => \App\Models\Customers::where('id', $request->customer_id)->value('branch_id'),
+                'branch_id' => Customers::where('id', $request->customer_id)->value('branch_id'),
                 'attachment' => $attachmentPath,
             ]);
 
@@ -337,13 +342,17 @@ class CustomerInvoicesController extends Controller
 
             $transactions = Transactions::where(['reference_id' =>  $invoice->id, 'reference_type' => 'CI'])->get();
             $transCode = $transactions->first()->trans_code;
+            $customerAccountId = (int) Customers::where('id', $request->customer_id)->value('account_id');
+            if ($customerAccountId <= 0) {
+                throw new \RuntimeException('Selected customer has no linked account.');
+            }
             // DEBIT the customer account
             Transactions::create([
                 'trans_code' => $transCode,
                 'trans_date' => $invoice->inv_date,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'CI',
-                'account_id' => $invoice->customer->account_id,
+                'account_id' => $customerAccountId,
                 'credit' => 0,
                 'debit' => $invoice->total,
                 'billing_month' => $invoice->billing_month,

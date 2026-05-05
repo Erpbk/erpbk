@@ -9,6 +9,7 @@
         'previous_km',
         'customer_id',
         'emirates',
+        'rider_id',
     ];
     $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
 @endphp
@@ -78,6 +79,35 @@
 <script>
     // Bikes use this to hide/show cyclist-only fields.
     $(document).ready(function() {
+        function initBikeFormSelect2(scope) {
+            if (!window.jQuery || !$.fn || !$.fn.select2) {
+                return;
+            }
+
+            var $scope = scope ? $(scope) : $(document);
+            $scope.find('select.select2').each(function() {
+                var $el = $(this);
+                var $modalParent = $el.closest('.modal, .offcanvas');
+                var options = {
+                    width: '100%',
+                };
+
+                if ($modalParent.length) {
+                    options.dropdownParent = $modalParent;
+                } else {
+                    var $formParent = $el.closest('#formajax');
+                    if ($formParent.length) {
+                        options.dropdownParent = $formParent;
+                    }
+                }
+
+                if ($el.data('select2')) {
+                    $el.select2('destroy');
+                }
+                $el.select2(options);
+            });
+        }
+
         function toggleCyclistFields() {
             let selectedText = $("#vehicle_type option:selected").text().toLowerCase();
 
@@ -90,10 +120,16 @@
 
         // Run on page load
         toggleCyclistFields();
+        initBikeFormSelect2(document);
 
         // Run when vehicle type changes
         $("#vehicle_type").change(function() {
             toggleCyclistFields();
+        });
+
+        // Ensure Select2 works when bike forms are loaded inside modals via AJAX.
+        $(document).on('shown.bs.modal shown.bs.offcanvas', function(e) {
+            initBikeFormSelect2(e.target);
         });
     });
 </script>

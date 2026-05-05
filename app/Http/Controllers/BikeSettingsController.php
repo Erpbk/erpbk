@@ -26,6 +26,7 @@ class BikeSettingsController extends Controller
         'previous_km',
         'customer_id',
         'emirates',
+        'rider_id',
     ];
 
     public function __construct()

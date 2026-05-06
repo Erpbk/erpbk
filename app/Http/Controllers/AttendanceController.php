@@ -404,6 +404,8 @@ class AttendanceController extends Controller
         $selectedDate = $request->get('date', now()->format('Y-m-d'));
         $userType = $request->get('user_type', 'employee');
         $usersId = $request->get('user_id', 'all');
+        $viewMode = $request->get('view_mode', 'ten_days');
+        $viewStart = max(1, (int) $request->get('view_start', 1));
 
         $date = Carbon::parse($selectedDate);
         $startOfMonth = $date->copy()->startOfMonth();
@@ -432,10 +434,23 @@ class AttendanceController extends Controller
             $attendancesByUser[$userId][$dateKey] = $attendance;
         }
 
+        // Build date window based on selected view mode
+        $windowSize = 10;
+        if ($viewMode === 'week') {
+            $windowSize = 7;
+        } elseif ($viewMode === 'month') {
+            $windowSize = $daysInMonth;
+            $viewStart = 1;
+        } else {
+            $viewMode = 'ten_days';
+        }
+        $viewStart = min($viewStart, $daysInMonth);
+        $windowEnd = min($viewStart + $windowSize - 1, $daysInMonth);
+
         // Prepare days array
         $days = [];
         $dates = [];
-        for ($day = 1; $day <= 7; $day++) {
+        for ($day = $viewStart; $day <= $windowEnd; $day++) {
             $currentDate = $startOfMonth->copy()->addDays($day - 1);
             $dateString = $currentDate->format('Y-m-d');
             $dates[] = $dateString;
@@ -521,7 +536,8 @@ class AttendanceController extends Controller
         ];
 
         $totalUsers = $users->count();
-        $totalDays = $daysInMonth;
+        $totalDays = count($dates);
+        $monthTotalDays = $daysInMonth;
         $totalAttendances = $totalUsers * $totalDays;
         $presentRate = 0;
         $absentRate = 0;
@@ -534,6 +550,10 @@ class AttendanceController extends Controller
         }
         $prevMonth = $date->copy()->subMonth()->format('Y-m-d');
         $nextMonth = $date->copy()->addMonth()->format('Y-m-d');
+        $prevStart = max(1, $viewStart - $windowSize);
+        $nextStart = min(max(1, $daysInMonth - $windowSize + 1), $viewStart + $windowSize);
+        $hasPrevWindow = $viewStart > 1;
+        $hasNextWindow = $windowEnd < $daysInMonth;
 
         return view('attendance.summary', compact(
             'users',
@@ -541,6 +561,8 @@ class AttendanceController extends Controller
             'date',
             'userType',
             'usersId',
+            'viewMode',
+            'viewStart',
             'summary',
             'presentRate',
             'absentRate',
@@ -548,8 +570,13 @@ class AttendanceController extends Controller
             'totalAttendances',
             'totalUsers',
             'totalDays',
+            'monthTotalDays',
             'prevMonth',
-            'nextMonth'
+            'nextMonth',
+            'prevStart',
+            'nextStart',
+            'hasPrevWindow',
+            'hasNextWindow'
         ));
     }
 

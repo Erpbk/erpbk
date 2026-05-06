@@ -20,7 +20,7 @@
         </tr>
     </thead>
     <tbody>
-        @forelse($attendances as $attendance)
+        @foreach($attendances as $attendance)
         @php
         $user = $attendance->user;
         $checkInTime = $attendance->check_in ?? null;
@@ -132,20 +132,7 @@
                 </div>
             </td>
         </tr>
-        @empty
-        <tr>
-            <td colspan="10" class="text-center py-5">
-                <div class="empty-state">
-                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                    <h5>No Attendance Records Found</h5>
-                    <p class="text-muted">Try adjusting your filters or create a new record.</p>
-                    <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="md" data-title="Add New Attendance Record" data-action="{{ route('attendance.create') }}">
-                        <i class="fas fa-plus-circle"></i> Add New Record
-                    </a>
-                </div>
-            </td>
-        </tr>
-        @endforelse
+        @endforeach
     </tbody>
 </table>
 
@@ -154,7 +141,12 @@
 <script>
     $(document).ready(function() {
         $.fn.dataTable.ext.errMode = 'none';
-        $('#dataTableBuilder').DataTable({
+        const table = $('#dataTableBuilder');
+        if ($.fn.DataTable.isDataTable(table)) {
+            table.DataTable().destroy();
+        }
+
+        table.DataTable({
             "paging": true, // Enable DataTables pagination
             "pageLength": 50, // Items per page
             "searching": false, // Enable search
@@ -163,6 +155,9 @@
             "autoWidth": true, // Better column width handling
             "dom": "<'row'<'col-md-12'tr>>" +
                 "<'row mt-2'<'col-md-6'i><'col-md-6 d-flex justify-content-end'p>>",
+            "language": {
+                "emptyTable": "No attendance records found for the selected filters."
+            }
         });
         // Delete attendance
         $(document).on('click', '.delete-attendance', function(e) {

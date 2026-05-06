@@ -175,12 +175,16 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
         $invoiceRef = $invoice->invoice_number ?: ('LBI-' . $invoice->id);
         $narration = 'bike Rental Billing Invoice #' . $invoiceRef . ' - ' . ($invoice->descriptions ?? 'Billing Invoice');
 
-        $bikeRentalAccountId = HeadAccount::VEHICAL_INCOME;
-        $vatAccountId = HeadAccount::VAT_ON_SALES;
-
-        $vatAccountExists = \App\Support\CompanyQuery::table('accounts')->where('id', $vatAccountId)->whereNull('deleted_at')->exists();
-        if (!$vatAccountExists) {
-            throw new \Exception('VAT account (ID ' . $vatAccountId . ') not found in Chart of Accounts.');
+        $vehicalIncomeAccountId = HeadAccount::VEHICAL_INCOME;
+        $vatOnSalesAccountId = HeadAccount::VAT_ON_SALES;
+        if (!$vehicalIncomeAccountId) {
+            throw new \Exception('Bike rental account not found in Chart of Accounts.');
+        }
+        if (!$vatOnSalesAccountId) {
+            throw new \Exception('VAT account not found in Chart of Accounts.');
+        }
+        if (!$customer->account_id) {
+            throw new \Exception('Customer does not have a linked ledger account. Please set the account before creating billing invoices.');
         }
 
         $transDate = $invoice->inv_date ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d');
@@ -189,7 +193,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
         $transactionService = new TransactionService();
         try {
             $transactionService->recordTransaction([
-                'account_id' => $bikeRentalAccountId,
+                'account_id' => $vehicalIncomeAccountId,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'bike Rental Invoice',
                 'trans_code' => $trans_code,
@@ -201,7 +205,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
 
             if ($vatAmount > 0) {
                 $transactionService->recordTransaction([
-                    'account_id' => $vatAccountId,
+                    'account_id' => $vatOnSalesAccountId,
                     'reference_id' => $invoice->id,
                     'reference_type' => 'bike Rental Invoice',
                     'trans_code' => $trans_code,

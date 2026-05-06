@@ -118,6 +118,10 @@ class Bikes extends BaseModel
   {
     return $this->belongsTo(Riders::class, 'rider_id', 'id');
   }
+  public function history()
+  {
+    return $this->hasMany(BikeHistory::class, 'bike_id', 'id');
+  }
   public function LeasingCompany()
   {
     return $this->belongsTo(LeasingCompanies::class, 'company');

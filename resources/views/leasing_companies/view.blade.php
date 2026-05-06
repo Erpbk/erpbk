@@ -68,6 +68,13 @@ $balance = $debit - $credit;
           <span class="fw-semibold">Ledger</span>
         </a>
       </li>
+      <li class="nav-item" role="presentation">
+        <a class="nav-link @if(Route::is('leasingCompany.bikes')) active @endif d-flex align-items-center justify-content-center py-3"
+          href="{{ route('leasingCompany.bikes', $leasingCompany->id) }}">
+          <i class="fas fa-bicycle fa-lg me-2"></i>
+          <span class="fw-semibold">Bikes</span>
+        </a>
+      </li>
     </ul>
   </div>
 </div>

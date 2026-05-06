@@ -515,6 +515,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::resource('leasingCompanies', App\Http\Controllers\LeasingCompaniesController::class);
     Route::delete('leasingCompanies/delete/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroy'])->name('leasingCompanies.delete');
+    Route::get('leasingCompanies/bikes/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'bikes'])->name('leasingCompany.bikes');
     // Leasing Companies Trash Routes
     Route::get('leasingCompanies/trash', [\App\Http\Controllers\LeasingCompaniesController::class, 'trash'])->name('leasingCompanies.trash');
     Route::post('leasingCompanies/trash/{id}/restore', [\App\Http\Controllers\LeasingCompaniesController::class, 'restoreTrash'])->name('leasingCompanies.restore');

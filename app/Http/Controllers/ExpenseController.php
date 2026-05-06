@@ -37,7 +37,7 @@ class ExpenseController extends AppBaseController
      */
     private function getExpenseAccountIds(): array
     {
-        return ExpenseAccount::pluck('account_id')->all();
+        return Accounts::where('account_type', 'Expense')->pluck('id')->all();
     }
 
     /**
@@ -211,11 +211,6 @@ class ExpenseController extends AppBaseController
 
         $this->saveCustomFieldValues($account, $request->input('custom_field_values', []));
 
-        ExpenseAccount::firstOrCreate(
-            ['account_id' => $account->id],
-            ['account_id' => $account->id]
-        );
-
         return response()->json(['message' => 'Expense account added successfully.']);
     }
 
@@ -311,8 +306,6 @@ class ExpenseController extends AppBaseController
         if ($ledgerEntriesCount > 0) {
             return redirect()->route('expenses.index')->with('error', "Cannot delete account. This account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.");
         }
-
-        ExpenseAccount::where('account_id', $account->id)->delete();
         $account->delete();
 
         return redirect()->route('expenses.index')->with('success', 'Expense account deleted successfully.');

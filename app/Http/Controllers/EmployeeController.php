@@ -165,6 +165,62 @@ class EmployeeController extends Controller
         return view('employees.show', compact('employee', 'nationalities', 'branches', 'departments'));
     }
 
+    public function files($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $nationalities = \App\Models\Countries::all();
+        $branches = \App\Models\Branch::active()->get();
+        $departments = \App\Models\Departments::all();
+
+        return view('employees.files', compact('employee', 'nationalities', 'branches', 'departments'));
+    }
+
+    public function salary($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $nationalities = \App\Models\Countries::all();
+        $branches = \App\Models\Branch::active()->get();
+        $departments = \App\Models\Departments::all();
+
+        return view('employees.salary', compact('employee', 'nationalities', 'branches', 'departments'));
+    }
+
+    public function attendance($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $nationalities = \App\Models\Countries::all();
+        $branches = \App\Models\Branch::active()->get();
+        $departments = \App\Models\Departments::all();
+
+        return view('employees.attendance', compact('employee', 'nationalities', 'branches', 'departments'));
+    }
+
+    public function leaves($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $nationalities = \App\Models\Countries::all();
+        $branches = \App\Models\Branch::active()->get();
+        $departments = \App\Models\Departments::all();
+
+        return view('employees.leaves', compact('employee', 'nationalities', 'branches', 'departments'));
+    }
+
+    public function timeline($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $nationalities = \App\Models\Countries::all();
+        $branches = \App\Models\Branch::active()->get();
+        $departments = \App\Models\Departments::all();
+
+        return view('employees.timeline', compact('employee', 'nationalities', 'branches', 'departments'));
+    }
+
+    public function voucher($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        return view('employees.voucher', compact('employee'));
+    }
+
     /**
      * Show the form for editing the specified resource.
      */

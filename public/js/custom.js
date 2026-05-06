@@ -147,6 +147,7 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
         if (typeof initializeModalContent === 'function') {
             initializeModalContent();
         }
+        initSelect2ForScope('#rightSideModalBody');
     });
     
     // Show modal
@@ -327,6 +328,7 @@ $('body').on('click', '.show-modal', function () {
   }
   $('#modalTopTitle').text(title);
   $('#modalTopbody').load(action, function () {
+    initSelect2ForScope('#modalTopbody');
     unblock();
   });
 
@@ -663,11 +665,24 @@ function unblock() {
   dropdownParent: $('#modalTop'),
             allowClear: true
 }); */
-if (window.jQuery && $.fn && $.fn.select2) {
-  $('.select2').select2({
-    /* dropdownParent: $('.card ') */
-    allowClear: true
+function initSelect2ForScope(scope) {
+  if (!window.jQuery || !$.fn || !$.fn.select2) return;
+  var $scope = scope ? $(scope) : $(document);
+  $scope.find('select').each(function () {
+    var $el = $(this);
+    if ($el.hasClass('select2-hidden-accessible')) return;
+    if ($el.is('[data-no-select2]')) return;
+    if ($el.closest('.no-select2').length) return;
+    if ($el.is('[multiple]')) {
+      $el.select2({ width: '100%' });
+    } else {
+      $el.select2({ width: '100%', allowClear: true });
+    }
   });
+}
+
+if (window.jQuery && $.fn && $.fn.select2) {
+  initSelect2ForScope(document);
 }
 
 $("select[name='country']").on('change', function () {
@@ -794,12 +809,8 @@ function setTotal() {
 }
 
 $(document).ready(function () {
-  // Initialize select2 for the existing select elements
-  if (window.jQuery && $.fn && $.fn.select2) {
-    $('.select2').select2({
-      allowClear: true
-    });
-  }
+  // Initialize select2 for all existing select elements
+  initSelect2ForScope(document);
 
   // Add new row by cloning the first row
   $(document).on('click', '#add-new-row', function (event) {
@@ -835,13 +846,8 @@ $(document).ready(function () {
     // Append the new row to the container
     $('#rows-container').append(newRow);
 
-    // Reinitialize select2 for the newly added select element
-    if (window.jQuery && $.fn && $.fn.select2) {
-      $('.select2').select2({
-        dropdownParent: $('#modalTopbody'),
-        allowClear: true
-      });
-    }
+    // Reinitialize select2 for newly added row elements
+    initSelect2ForScope(newRow);
 
     // Recalculate total after adding new row
     if (typeof getTotal === 'function') {

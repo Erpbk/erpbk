@@ -11,25 +11,11 @@
             <div class="col-sm-6">
             </div>
             <div class="col-sm-6">
-                @can('bike_rent_create')
-                    <div class="action-buttons d-flex justify-content-end">
-                        <div class="action-dropdown-container">
-                            <button class="action-dropdown-btn" id="addBikeDropdownBtn">
-                                <i class="ti ti-plus"></i>
-                                <span>Add New</span>
-                                <i class="ti ti-chevron-down"></i>
-                            </button>
-                            <div class="action-dropdown-menu" id="addBikeDropdown">
-                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Customer" data-action="{{ route('bikeRentCompanies.create') }}">
-                                    <i class="ti ti-plus"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">New Customer</div>
-                                        <div class="action-dropdown-item-desc">Add a new Customer</div>
-                                    </div>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+                @can('bike_create')
+                <a class="btn btn-primary float-right show-modal action-btn"
+                    href="javascript:void(0);" data-action="{{ route('bikeRentCompanies.create') }}" data-title="Add customer" data-size="lg">
+                    Add New
+                </a>
                 @endcan
             </div>
         </div>
@@ -128,7 +114,9 @@
                 $.ajax({
                     url: url,
                     type: 'DELETE',
-                    data: { _token: '{{ csrf_token() }}' },
+                    data: {
+                        _token: '{{ csrf_token() }}'
+                    },
                     success: function(response) {
                         $('#loading-overlay').hide();
                         Swal.fire({
@@ -137,7 +125,9 @@
                             html: response.message,
                             showConfirmButton: true,
                             confirmButtonText: 'OK'
-                        }).then(() => { location.reload(); });
+                        }).then(() => {
+                            location.reload();
+                        });
                     },
                     error: function(xhr) {
                         $('#loading-overlay').hide();
@@ -147,7 +137,11 @@
                         } else if (xhr.responseJSON && xhr.responseJSON.message) {
                             errorMessage = xhr.responseJSON.message;
                         }
-                        Swal.fire({ icon: 'error', title: 'Error!', html: errorMessage });
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            html: errorMessage
+                        });
                     }
                 });
             }

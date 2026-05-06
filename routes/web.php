@@ -232,6 +232,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::resource('employees', App\Http\Controllers\EmployeeController::class);
     Route::get('/employees/{id}/ledger', [App\Http\Controllers\EmployeeController::class, 'ledger'])->name('employee.ledger');
+    Route::get('/employees/{id}/files', [App\Http\Controllers\EmployeeController::class, 'files'])->name('employee.files');
+    Route::get('/employees/{id}/salary', [App\Http\Controllers\EmployeeController::class, 'salary'])->name('employee.salary');
+    Route::get('/employees/{id}/attendance', [App\Http\Controllers\EmployeeController::class, 'attendance'])->name('employee.attendance');
+    Route::get('/employees/{id}/leaves', [App\Http\Controllers\EmployeeController::class, 'leaves'])->name('employee.leaves');
+    Route::get('/employees/{id}/timeline', [App\Http\Controllers\EmployeeController::class, 'timeline'])->name('employee.timeline');
+    Route::get('/employees/{id}/voucher', [App\Http\Controllers\EmployeeController::class, 'voucher'])->name('employees.voucher');
     Route::post('/employees/update-status', [App\Http\Controllers\EmployeeController::class, 'updateStatus'])->name('employee.update-status');
     Route::post('/employees/{id}/update-section', [App\Http\Controllers\EmployeeController::class, 'updateSection'])->name('employees.updateSection');
 

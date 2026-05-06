@@ -41,19 +41,6 @@ class VoucherType extends BaseModel
             ->withoutGlobalScope('company');
     }
 
-    protected static function queryForCurrentCompany(): Builder
-    {
-        $query = static::query();
-        $companyId = CompanyContext::id();
-        $table = (new static())->getTable();
-
-        if ($companyId && Schema::hasColumn($table, 'company_id')) {
-            $query->where($table . '.company_id', $companyId);
-        }
-
-        return $query;
-    }
-
     public function getModuleKeysAttribute(): array
     {
         $moduleMap = static::defaultModuleAssignmentMap();
@@ -193,7 +180,7 @@ class VoucherType extends BaseModel
      */
     public static function activeOrdered()
     {
-        return static::queryForCurrentCompany()
+        return static::query()
             ->where('is_active', true)
             ->orderBy('display_order')
             ->orderBy('id')
@@ -205,7 +192,7 @@ class VoucherType extends BaseModel
      */
     public static function codeLabelMap(): array
     {
-        return static::queryForCurrentCompany()
+        return static::query()
             ->orderBy('display_order')->orderBy('id')
             ->pluck('label', 'code')
             ->toArray();
@@ -216,7 +203,7 @@ class VoucherType extends BaseModel
      */
     public static function activeCodeLabelMap(): array
     {
-        return static::queryForCurrentCompany()
+        return static::query()
             ->where('is_active', true)
             ->orderBy('display_order')
             ->orderBy('id')
@@ -226,7 +213,7 @@ class VoucherType extends BaseModel
 
     public static function activeCodeLabelMapForModule(string $moduleKey): array
     {
-        return static::queryForCurrentCompany()
+        return static::query()
             ->where('is_active', true)
             ->orderBy('display_order')
             ->orderBy('id')
@@ -240,7 +227,7 @@ class VoucherType extends BaseModel
      */
     public static function activeCodeLabelMapForModuleWithEditAccess(string $moduleKey): array
     {
-        return static::queryForCurrentCompany()
+        return static::query()
             ->where('is_active', true)
             ->orderBy('display_order')
             ->orderBy('id')
@@ -254,7 +241,7 @@ class VoucherType extends BaseModel
      */
     public static function isCodeAllowedForModule(string $code, string $moduleKey): bool
     {
-        return static::queryForCurrentCompany()
+        return static::query()
             ->where('code', $code)
             ->where('is_active', true)
             ->exists();

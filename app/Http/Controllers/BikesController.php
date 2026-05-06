@@ -665,18 +665,18 @@ class BikesController extends AppBaseController
         $message = "*Bike* 🏍️\n";
         $message .= "────────────────\n";
         $message .= "*Bike No:* {$bike->plate}\n";
-        if($rider){
+        if ($rider) {
           $message .= "*ID:* {$rider->rider_id}\n";
           $message .= "*Name:* {$rider->name}\n";
-        }else {
+        } else {
           $message .= "*Rental Company:* {$company->name}\n";
-        } 
+        }
         if ($request->warehouse == 'Absconded')
           $message .= "*Absconding Date:* {$request->return_date}\n";
         else
           $message .= "*Return Date:* {$request->return_date}\n";
         $message .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
-        if($rider){
+        if ($rider) {
           $message .= "*Project:* {$bike->customer->name}\n";
         }
         $message .= "*Emirates:* {$bike->emirates}\n";
@@ -698,15 +698,14 @@ class BikesController extends AppBaseController
           $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
           $bike->update(['rider_id' => null, 'warehouse' => 'Return', 'customer_id' => null]);
         } elseif ($request->warehouse == 'Return') {
-          if($rider){
+          if ($rider) {
             $rider->update([
-                'status'      => 3,
-                'designation' => null,
-                'customer_id' => null,
-              ]);
+              'status'      => 3,
+              'designation' => null,
+              'customer_id' => null,
+            ]);
             $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
-
-          }else {
+          } else {
             $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date);
           }
           $bike->update([
@@ -908,7 +907,7 @@ class BikesController extends AppBaseController
 
         $historyMessage .= "*Assign Date:* {$request->note_date}\n";
         $historyMessage .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
-        if($assignType == 'rider'){
+        if ($assignType == 'rider') {
           $project = \App\Support\CompanyQuery::table('customers')->where('id', $customer_id)->first();
           $historyMessage .= "*Project:* {$project->name}\n";
         }
@@ -924,7 +923,7 @@ class BikesController extends AppBaseController
           $rider->customer_id = $customer_id;
           $rider->emirate_hub = $bike->emirates;
           $rider->save();
-          
+
           $bike->update([
             'rider_id' => $request->rider_id,
             'rental_company_id' => null,

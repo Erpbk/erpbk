@@ -1,6 +1,15 @@
 @extends('employees.view')
 
 @section('page-content')
+@if(isset($fieldsByCategory) && count($fieldsByCategory) > 0)
+@include('employees.show_fields_by_category')
+@else
+<div class="alert alert-info mb-0">No assigned employee fields found in settings.</div>
+@endif
+@endsection
+
+
+@section('page-content')
 <style>
     .edit-form {
         background-color: #f8f9fa;
@@ -116,7 +125,7 @@
             </button>
         </div>
     </div>
-    
+
     <!-- Display Section -->
     <div class="card-body display-section" id="display-personal">
         <div class="row">
@@ -128,10 +137,10 @@
                 <label>Date of Birth</label>
                 <p>
                     @if($employee->dob)
-                        {{ $employee->dob->format('d M Y') }}
-                        <small class="text-muted">({{ $employee->dob->age }} years)</small>
+                    {{ $employee->dob->format('d M Y') }}
+                    <small class="text-muted">({{ $employee->dob->age }} years)</small>
                     @else
-                        -
+                    -
                     @endif
                 </p>
             </div>
@@ -176,9 +185,9 @@
                     <select class="form-control form-control-sm select2" name="nationality_id">
                         <option value="">Select Nationality</option>
                         @foreach($nationalities as $nationality)
-                            <option value="{{ $nationality->id }}" {{ $employee->nationality_id == $nationality->id ? 'selected' : '' }}>
-                                {{ $nationality->name }}
-                            </option>
+                        <option value="{{ $nationality->id }}" {{ $employee->nationality_id == $nationality->id ? 'selected' : '' }}>
+                            {{ $nationality->name }}
+                        </option>
                         @endforeach
                     </select>
                 </div>
@@ -226,7 +235,7 @@
             </button>
         </div>
     </div>
-    
+
     <!-- Display Section -->
     <div class="card-body display-section" id="display-employment">
         <div class="row">
@@ -250,16 +259,16 @@
                 <label>Date of Joining</label>
                 <p>
                     @if($employee->doj)
-                        {{ $employee->doj->format('d M Y') }}
-                        <small class="text-muted">({{ $employee->doj->diffForHumans() }})</small>
+                    {{ $employee->doj->format('d M Y') }}
+                    <small class="text-muted">({{ $employee->doj->diffForHumans() }})</small>
                     @else
-                        -
+                    -
                     @endif
                 </p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Salary</label>
-                <p>{{ $employee->salary ? number_format($employee->salary, 2) . ' {{ \App\Helpers\Currency::code() }}' : '-' }}</p>
+                <p>{{ $employee->salary ? number_format($employee->salary, 2) . ' ' . \App\Helpers\Currency::code() : '-' }}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Company Email</label>
@@ -282,7 +291,7 @@
                     <select class="form-control form-control-sm select2" name="department_id">
                         <option value="">Select Department</option>
                         @foreach($departments as $department)
-                            <option value="{{ $department->id }}" {{ $employee->department_id == $department->id ? 'selected' : '' }}>{{ $department->name }}</option>
+                        <option value="{{ $department->id }}" {{ $employee->department_id == $department->id ? 'selected' : '' }}>{{ $department->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -295,7 +304,7 @@
                     <select class="form-control form-control-sm select2" name="branch_id">
                         <option value="">Select Branch</option>
                         @foreach($branches as $branch)
-                            <option value="{{ $branch->id }}" {{ $employee->branch_id == $branch->id ? 'selected' : '' }}>{{ $branch->name .' ('. $branch->code .')' }}</option>
+                        <option value="{{ $branch->id }}" {{ $employee->branch_id == $branch->id ? 'selected' : '' }}>{{ $branch->name .' ('. $branch->code .')' }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -339,7 +348,7 @@
             </button>
         </div>
     </div>
-    
+
     <!-- Display Section -->
     <div class="card-body display-section" id="display-documents">
         <div class="row">
@@ -362,83 +371,83 @@
             <div class="col-md-3 form-group col-3">
                 <label>Emirates ID Expiry</label>
                 @php
-                    $emirateExpiryClass = '';
-                    $emirateBadge = '';
-                    if($employee->emirate_expiry) {
-                        $today = \Carbon\Carbon::today();
-                        $expiry = $employee->emirate_expiry;
-                        $daysLeft = $today->diffInDays($expiry, false);
-                        
-                        if($expiry->isPast()) {
-                            $emirateExpiryClass = 'expired';
-                            $emirateBadge = '<span class="badge-expired">Expired</span>';
-                        } elseif($daysLeft <= 30) {
-                            $emirateExpiryClass = 'expiring-soon';
-                            $emirateBadge = '<span class="badge-expiring">Expiring Soon ('.$daysLeft.' days)</span>';
-                        } else {
-                            $emirateExpiryClass = 'valid';
-                            $emirateBadge = '<span class="badge-valid">Valid</span>';
-                        }
+                $emirateExpiryClass = '';
+                $emirateBadge = '';
+                if($employee->emirate_expiry) {
+                $today = \Carbon\Carbon::today();
+                $expiry = $employee->emirate_expiry;
+                $daysLeft = $today->diffInDays($expiry, false);
+
+                if($expiry->isPast()) {
+                $emirateExpiryClass = 'expired';
+                $emirateBadge = '<span class="badge-expired">Expired</span>';
+                } elseif($daysLeft <= 30) {
+                    $emirateExpiryClass='expiring-soon' ;
+                    $emirateBadge='<span class="badge-expiring">Expiring Soon (' .$daysLeft.' days)</span>';
+                    } else {
+                    $emirateExpiryClass = 'valid';
+                    $emirateBadge = '<span class="badge-valid">Valid</span>';
                     }
-                @endphp
-                <p class="{{ $emirateExpiryClass }}">
-                    {{ $employee->emirate_expiry ? $employee->emirate_expiry->format('d M Y') : '-' }}
-                    {!! $emirateBadge !!}
-                </p>
+                    }
+                    @endphp
+                    <p class="{{ $emirateExpiryClass }}">
+                        {{ $employee->emirate_expiry ? $employee->emirate_expiry->format('d M Y') : '-' }}
+                        {!! $emirateBadge !!}
+                    </p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Passport Expiry</label>
                 @php
-                    $passportExpiryClass = '';
-                    $passportBadge = '';
-                    if($employee->passport_expiry) {
-                        $today = \Carbon\Carbon::today();
-                        $expiry = $employee->passport_expiry;
-                        $daysLeft = $today->diffInDays($expiry, false);
-                        
-                        if($expiry->isPast()) {
-                            $passportExpiryClass = 'expired';
-                            $passportBadge = '<span class="badge-expired">Expired</span>';
-                        } elseif($daysLeft <= 90) {
-                            $passportExpiryClass = 'expiring-soon';
-                            $passportBadge = '<span class="badge-expiring">Expiring Soon ('.$daysLeft.' days)</span>';
-                        } else {
-                            $passportExpiryClass = 'valid';
-                            $passportBadge = '<span class="badge-valid">Valid</span>';
-                        }
+                $passportExpiryClass = '';
+                $passportBadge = '';
+                if($employee->passport_expiry) {
+                $today = \Carbon\Carbon::today();
+                $expiry = $employee->passport_expiry;
+                $daysLeft = $today->diffInDays($expiry, false);
+
+                if($expiry->isPast()) {
+                $passportExpiryClass = 'expired';
+                $passportBadge = '<span class="badge-expired">Expired</span>';
+                } elseif($daysLeft <= 90) {
+                    $passportExpiryClass='expiring-soon' ;
+                    $passportBadge='<span class="badge-expiring">Expiring Soon (' .$daysLeft.' days)</span>';
+                    } else {
+                    $passportExpiryClass = 'valid';
+                    $passportBadge = '<span class="badge-valid">Valid</span>';
                     }
-                @endphp
-                <p class="{{ $passportExpiryClass }}">
-                    {{ $employee->passport_expiry ? $employee->passport_expiry->format('d M Y') : '-' }}
-                    {!! $passportBadge !!}
-                </p>
+                    }
+                    @endphp
+                    <p class="{{ $passportExpiryClass }}">
+                        {{ $employee->passport_expiry ? $employee->passport_expiry->format('d M Y') : '-' }}
+                        {!! $passportBadge !!}
+                    </p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Visa Expiry</label>
                 @php
-                    $visaExpiryClass = '';
-                    $visaBadge = '';
-                    if($employee->visa_expiry) {
-                        $today = \Carbon\Carbon::today();
-                        $expiry = $employee->visa_expiry;
-                        $daysLeft = $today->diffInDays($expiry, false);
-                        
-                        if($expiry->isPast()) {
-                            $visaExpiryClass = 'expired';
-                            $visaBadge = '<span class="badge-expired">Expired</span>';
-                        } elseif($daysLeft <= 30) {
-                            $visaExpiryClass = 'expiring-soon';
-                            $visaBadge = '<span class="badge-expiring">Expiring Soon ('.$daysLeft.' days)</span>';
-                        } else {
-                            $visaExpiryClass = 'valid';
-                            $visaBadge = '<span class="badge-valid">Valid</span>';
-                        }
+                $visaExpiryClass = '';
+                $visaBadge = '';
+                if($employee->visa_expiry) {
+                $today = \Carbon\Carbon::today();
+                $expiry = $employee->visa_expiry;
+                $daysLeft = $today->diffInDays($expiry, false);
+
+                if($expiry->isPast()) {
+                $visaExpiryClass = 'expired';
+                $visaBadge = '<span class="badge-expired">Expired</span>';
+                } elseif($daysLeft <= 30) {
+                    $visaExpiryClass='expiring-soon' ;
+                    $visaBadge='<span class="badge-expiring">Expiring Soon (' .$daysLeft.' days)</span>';
+                    } else {
+                    $visaExpiryClass = 'valid';
+                    $visaBadge = '<span class="badge-valid">Valid</span>';
                     }
-                @endphp
-                <p class="{{ $visaExpiryClass }}">
-                    {{ $employee->visa_expiry ? $employee->visa_expiry->format('d M Y') : '-' }}
-                    {!! $visaBadge !!}
-                </p>
+                    }
+                    @endphp
+                    <p class="{{ $visaExpiryClass }}">
+                        {{ $employee->visa_expiry ? $employee->visa_expiry->format('d M Y') : '-' }}
+                        {!! $visaBadge !!}
+                    </p>
             </div>
         </div>
     </div>
@@ -504,7 +513,7 @@
             </button>
         </div>
     </div>
-    
+
     <!-- Display Section -->
     <div class="card-body display-section" id="display-notes">
         <div class="row">
@@ -548,7 +557,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Display Section -->
     <div class="card-body">
         <div class="row">
@@ -597,7 +606,7 @@
             const editForm = $('#edit-' + section);
             const displaySection = $('#display-' + section);
             const card = $(this).closest('.card');
-            
+
             // Toggle between display and edit
             if (displaySection.is(':visible')) {
                 // Switch to edit mode
@@ -605,7 +614,7 @@
                     editForm.slideDown(200);
                 });
                 $(this).html('<i class="ti ti-x me-1"></i>').removeClass('btn-primary').addClass('btn-secondary');
-                
+
                 // Initialize Select2 for this section's dropdowns
                 editForm.find('.select2').select2({
                     width: '100%',
@@ -626,7 +635,7 @@
             const editForm = $('#edit-' + section);
             const displaySection = $('#display-' + section);
             const editBtn = $(this).closest('.card').find('.edit-btn');
-            
+
             // Switch back to display mode
             editForm.slideUp(200, function() {
                 displaySection.slideDown(200);

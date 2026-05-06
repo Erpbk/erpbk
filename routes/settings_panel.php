@@ -110,6 +110,15 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         );
     })->name('settings-panel.module-settings.rider-settings-alias');
 
+    // Employee Settings (separate module-settings stack using module_key=employees)
+    Route::get('employee-settings', function (\Illuminate\Http\Request $request) {
+        $companySlug = (string) ($request->route('company_slug') ?? '');
+        return redirect()->route(
+            'settings-panel.module-settings.index',
+            array_merge(['company_slug' => $companySlug, 'module' => 'employees'], $request->query())
+        );
+    })->name('settings-panel.employee-settings.index');
+
     // Bike Settings: mount under module-settings/bike_list
     // (So the sidebar route `settings-panel/module-settings/bike_list` opens bike settings.)
     Route::post('module-settings/bike_list/module-label', [App\Http\Controllers\BikeSettingsController::class, 'storeModuleLabel'])->name('settings-panel.bike-settings.store-module-label');

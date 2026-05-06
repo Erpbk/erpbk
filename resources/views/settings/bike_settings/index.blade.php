@@ -15,7 +15,7 @@ $settingsFieldsTabLabel = $settingsFieldsTabLabel ?? 'Bike Fields';
 $settingsEntityName = $settingsEntityName ?? 'bike';
 $fixedFieldSourceTable = $fixedFieldSourceTable ?? 'bike_field_category_assignments';
 $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
-$isRiderInvoicesModule = ($moduleKey ?? '') === 'invoices';
+$isRiderInvoicesModule = in_array(($moduleKey ?? ''), ['invoices', 'customer_invoices'], true);
 $riderInvoiceAccountTree = $riderInvoiceAccountTree ?? [];
 $riderInvoiceAssignments = $riderInvoiceAssignments ?? ['debit' => [], 'credit' => []];
 $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['admin', 'Administrator', 'Super Admin']);
@@ -57,13 +57,6 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
               {{ $settingsFieldsTabLabel }}
             </button>
           </li>
-          @if($isRiderInvoicesModule && $canManageAccountAssigning)
-          <li class="nav-item" role="presentation">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-account-assigning" type="button" role="tab">
-              Account Assigning
-            </button>
-          </li>
-          @endif
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs" type="button" role="tab">
               Documents
@@ -116,19 +109,19 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                 </thead>
                 <tbody>
                   @foreach($categories as $cat)
-                  <tr>
-                    <td>{{ $cat->label }}</td>
+                  <tr data-category-row-id="{{ $cat->id }}">
+                    <td><span class="js-category-label">{{ $cat->label }}</span></td>
                     <td>{!! $cat->is_system ? '<span class="badge bg-secondary">Yes</span>' : '<span class="badge bg-light text-dark border">No</span>' !!}</td>
                     <td>
                       @if(!$cat->is_system)
-                      <form action="{{ route($settingsRoutePrefix . '.update-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline-flex gap-2 align-items-center">
+                      <form action="{{ route($settingsRoutePrefix . '.update-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline-flex gap-2 align-items-center js-ajax-category-update-form" data-category-id="{{ $cat->id }}">
                         @csrf
                         @method('PUT')
                         <input type="text" name="label" value="{{ $cat->label }}" required maxlength="255" class="form-control form-control-sm" style="max-width: 260px">
                         <button class="btn btn-sm btn-primary" type="submit"><i class="ti ti-pencil"></i></button>
                       </form>
 
-                      <form action="{{ route($settingsRoutePrefix . '.destroy-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline ms-2" onsubmit="return confirm('Delete this category?')">
+                      <form action="{{ route($settingsRoutePrefix . '.destroy-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline ms-2 js-ajax-category-delete-form" data-category-id="{{ $cat->id }}">
                         @csrf
                         @method('DELETE')
                         <button class="btn btn-sm btn-danger" type="submit"><i class="ti ti-trash"></i></button>
@@ -286,11 +279,11 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                         <th class="text-end">Actions</th>
                       </tr>
                     </thead>
-                      @php
-                      $fixedList = $fixedAssignments ?? collect();
-                      $fixedOffset = 0;
-                      @endphp
-                      @if($fixedList->isNotEmpty())
+                    @php
+                    $fixedList = $fixedAssignments ?? collect();
+                    $fixedOffset = 0;
+                    @endphp
+                    @if($fixedList->isNotEmpty())
                     <tbody class="bike-fields-all-fixed-sortable-tbody">
                       @foreach($fixedList as $rowIndex => $row)
                       @php
@@ -352,8 +345,8 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                             <input type="hidden" name="input_type" value="{{ $row->input_type }}">
                             <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
 
-                            <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
-                              <option value="">Select category</option>
+                            <select name="category_id" class="form-select form-select-sm" style="width: 180px;">
+                              <option value="">Keep current</option>
                               @foreach($categories as $dst)
                               <option value="{{ $dst->id }}" {{ (int)$row->category_id === (int)$dst->id ? 'selected' : '' }}>
                                 {{ $dst->label }}
@@ -389,9 +382,9 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                       </tr>
                       @endforeach
                     </tbody>
-                      @endif
+                    @endif
 
-                      @if(($customFields ?? collect())->isNotEmpty())
+                    @if(($customFields ?? collect())->isNotEmpty())
                     <tbody class="bike-fields-all-custom-sortable-tbody">
                       @foreach(($customFields ?? collect()) as $customIndex => $customField)
                       @php
@@ -417,8 +410,8 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                         <td class="align-middle">
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
-                            <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
-                              <option value="">Select category</option>
+                            <select name="category_id" class="form-select form-select-sm" style="width: 180px;">
+                              <option value="">Unassigned</option>
                               @foreach($categories as $dst)
                               <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>
                                 {{ $dst->label }}
@@ -466,14 +459,14 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                       </tr>
                       @endforeach
                     </tbody>
-                      @endif
-                      @if(($fixedList ?? collect())->isEmpty() && ($customFields ?? collect())->isEmpty())
+                    @endif
+                    @if(($fixedList ?? collect())->isEmpty() && ($customFields ?? collect())->isEmpty())
                     <tbody>
                       <tr>
                         <td colspan="7" class="text-center text-muted py-3">No bike fields configured yet.</td>
                       </tr>
                     </tbody>
-                      @endif
+                    @endif
                   </table>
                 </div>
               </div>
@@ -557,8 +550,8 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                             <input type="hidden" name="input_type" value="{{ $row->input_type }}">
                             <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
 
-                            <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
-                              <option value="">Select category</option>
+                            <select name="category_id" class="form-select form-select-sm" style="width: 180px;">
+                              <option value="">Keep current</option>
                               @foreach($categories as $dst)
                               <option value="{{ $dst->id }}" {{ (int)$cat->id === (int)$dst->id ? 'selected' : '' }}>{{ $dst->label }}</option>
                               @endforeach
@@ -604,8 +597,8 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                         <td class="align-middle">
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
-                            <select name="category_id" class="form-select form-select-sm" style="width: 180px;" required>
-                              <option value="">Select category</option>
+                            <select name="category_id" class="form-select form-select-sm" style="width: 180px;">
+                              <option value="">Unassigned</option>
                               @foreach($categories as $dst)
                               <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>
                                 {{ $dst->label }}
@@ -666,99 +659,6 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
             </div>
           </div>
 
-          @if($isRiderInvoicesModule && $canManageAccountAssigning)
-          <div class="tab-pane fade account-assigning-pane" id="tab-account-assigning" role="tabpanel">
-            @if(empty($riderInvoiceAccountTree))
-            <p class="text-muted mb-0">{{ __('No ledger accounts with sub-accounts are available. Create sub-accounts under your chart heads first.') }}</p>
-            @else
-            <form method="POST" action="{{ route($settingsRoutePrefix . '.store-rider-invoice-account-assigning', $settingsRouteParams) }}" id="riderInvoiceAccountAssigningForm">
-              @csrf
-              <input type="hidden" name="debit_assignments" id="debitAssignmentsInput" value="">
-              <input type="hidden" name="credit_assignments" id="creditAssignmentsInput" value="">
-              <div id="riderInvoiceAssigningMeta"
-                data-enabled="{{ ($isRiderInvoicesModule && $canManageAccountAssigning) ? 'true' : 'false' }}"
-                data-initial-assignments='@json($riderInvoiceAssignments)'
-                hidden></div>
-
-              <div class="row g-4">
-                <div class="col-12 col-xl-6">
-                  <div class="card border">
-                    <div class="card-header">
-                      <h6 class="mb-0">Debit Accounts</h6>
-                    </div>
-                    <div class="card-body">
-                      <div class="mb-3">
-                        <label class="form-label">{{ __('Accounts') }}</label>
-                        <p class="text-muted small mb-2">{{ __('Each group is a ledger account. Choose the parent itself or one of its sub-accounts.') }}</p>
-                        <div id="debitParentRows" class="d-flex flex-column gap-2">
-                          <div class="d-flex align-items-start gap-2 account-parent-row">
-                            <div class="flex-grow-1">
-                              <select class="form-select js-rider-invoice-account-assignment" data-side="debit" data-placeholder="{{ __('Select debit account') }}">
-                                <option value="">{{ __('Select debit account') }}</option>
-                                @foreach($riderInvoiceAccountTree as $group)
-                                <option value="{{ $group['parent_id'] }}" data-parent-id="{{ $group['parent_id'] }}" data-is-parent="1">{{ $group['label'] }}</option>
-                                @foreach($group['children'] as $child)
-                                <option value="{{ $child['id'] }}" data-parent-id="{{ $group['parent_id'] }}">{{ $child['text'] }}</option>
-                                @endforeach
-                                @endforeach
-                              </select>
-                            </div>
-                            <button type="button" class="btn btn-outline-danger btn-sm js-remove-parent-row d-none mt-1" title="{{ __('Remove row') }}">
-                              <i class="ti ti-trash"></i>
-                            </button>
-                          </div>
-                        </div>
-                        <button type="button" class="btn btn-outline-primary btn-sm mt-2 js-add-parent-row" data-side="debit">
-                          <i class="ti ti-plus me-1"></i>{{ __('Add line') }}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="col-12 col-xl-6">
-                  <div class="card border">
-                    <div class="card-header">
-                      <h6 class="mb-0">Credit Accounts</h6>
-                    </div>
-                    <div class="card-body">
-                      <div class="mb-3">
-                        <label class="form-label">{{ __('Accounts') }}</label>
-                        <p class="text-muted small mb-2">{{ __('Each group is a ledger account. Choose the parent itself or one of its sub-accounts.') }}</p>
-                        <div id="creditParentRows" class="d-flex flex-column gap-2">
-                          <div class="d-flex align-items-start gap-2 account-parent-row">
-                            <div class="flex-grow-1">
-                              <select class="form-select js-rider-invoice-account-assignment" data-side="credit" data-placeholder="{{ __('Select credit account') }}">
-                                <option value="">{{ __('Select credit account') }}</option>
-                                @foreach($riderInvoiceAccountTree as $group)
-                                <option value="{{ $group['parent_id'] }}" data-parent-id="{{ $group['parent_id'] }}" data-is-parent="1">{{ $group['label'] }}</option>
-                                @foreach($group['children'] as $child)
-                                <option value="{{ $child['id'] }}" data-parent-id="{{ $group['parent_id'] }}">{{ $child['text'] }}</option>
-                                @endforeach
-                                @endforeach
-                              </select>
-                            </div>
-                            <button type="button" class="btn btn-outline-danger btn-sm js-remove-parent-row d-none mt-1" title="{{ __('Remove row') }}">
-                              <i class="ti ti-trash"></i>
-                            </button>
-                          </div>
-                        </div>
-                        <button type="button" class="btn btn-outline-primary btn-sm mt-2 js-add-parent-row" data-side="credit">
-                          <i class="ti ti-plus me-1"></i>{{ __('Add line') }}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="d-flex justify-content-end mt-4">
-                <button type="submit" class="btn btn-primary">{{ __('Save Account Assigning') }}</button>
-              </div>
-            </form>
-            @endif
-          </div>
-          @endif
 
           {{-- Edit Bike Fixed Field Modal --}}
           <div class="modal fade" id="editBikeFixedFieldModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
@@ -817,7 +717,12 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
                         </select>
                       </div>
 
-                      <div class="col-md-12">
+                      <div class="col-md-12" id="editBikeFixedInputPreviewWrap">
+                        <label class="form-label">Preview</label>
+                        <div id="editBikeFixedInputPreview"></div>
+                      </div>
+
+                      <div class="col-md-12" id="editBikeFixedOptionsWrap">
                         <label class="form-label">Dropdown options (one per line)</label>
                         <input type="hidden" name="input_config_options" id="editBikeFixedInputConfigOptionsHidden" value="">
                         <div id="editBikeFixedOptionsRows" class="d-flex flex-column gap-2"></div>
@@ -1142,6 +1047,103 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
   (function() {
+    function showBikeCategoryAjaxMessage(type, message) {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: type,
+          title: type === 'success' ? 'Success' : 'Error',
+          text: message || (type === 'success' ? 'Done.' : 'Request failed.'),
+        });
+        return;
+      }
+      alert(message || (type === 'success' ? 'Done.' : 'Request failed.'));
+    }
+
+    function submitBikeCategoryAjaxForm(form) {
+      var submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+      var formData = new FormData(form);
+
+      return fetch(form.action, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          }
+        })
+        .then(function(response) {
+          return response.json().catch(function() {
+            return {};
+          }).then(function(data) {
+            if (!response.ok || data.success === false) {
+              return Promise.reject(data);
+            }
+            return data;
+          });
+        })
+        .finally(function() {
+          if (submitBtn) submitBtn.disabled = false;
+        });
+    }
+
+    document.addEventListener('submit', function(e) {
+      var updateForm = e.target.closest('.js-ajax-category-update-form');
+      if (updateForm) {
+        e.preventDefault();
+        submitBikeCategoryAjaxForm(updateForm)
+          .then(function(data) {
+            var categoryId = updateForm.dataset.categoryId || '';
+            var row = document.querySelector('tr[data-category-row-id="' + categoryId + '"]');
+            var labelInput = updateForm.querySelector('input[name="label"]');
+            var newLabel = (data && data.category && data.category.label) ? data.category.label : (labelInput ? labelInput.value : '');
+            if (row) {
+              var labelEl = row.querySelector('.js-category-label');
+              if (labelEl) labelEl.textContent = newLabel;
+            }
+            showBikeCategoryAjaxMessage('success', (data && data.message) ? data.message : 'Category updated.');
+          })
+          .catch(function(error) {
+            showBikeCategoryAjaxMessage('error', (error && error.message) ? error.message : 'Could not update category.');
+          });
+        return;
+      }
+
+      var deleteForm = e.target.closest('.js-ajax-category-delete-form');
+      if (!deleteForm) return;
+      e.preventDefault();
+
+      var proceed = function() {
+        submitBikeCategoryAjaxForm(deleteForm)
+          .then(function(data) {
+            var categoryId = deleteForm.dataset.categoryId || '';
+            var row = document.querySelector('tr[data-category-row-id="' + categoryId + '"]');
+            if (row) row.remove();
+            showBikeCategoryAjaxMessage('success', (data && data.message) ? data.message : 'Category deleted.');
+          })
+          .catch(function(error) {
+            showBikeCategoryAjaxMessage('error', (error && error.message) ? error.message : 'Could not delete category.');
+          });
+      };
+
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Delete category?',
+          text: 'This action cannot be undone.',
+          showCancelButton: true,
+          confirmButtonText: 'Delete',
+          cancelButtonText: 'Cancel',
+        }).then(function(result) {
+          if (result.isConfirmed) proceed();
+        });
+      } else if (confirm('Delete this category?')) {
+        proceed();
+      }
+    });
+  })();
+
+  (function() {
     const meta = document.getElementById('riderInvoiceAssigningMeta');
     const isAccountAssigningAvailable = !!meta && meta.dataset.enabled === 'true';
     if (!isAccountAssigningAvailable) {
@@ -1242,12 +1244,18 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 
     function readRowSelection(select) {
       if (!select || !select.value) {
-        return { parentId: 0, childId: 0 };
+        return {
+          parentId: 0,
+          childId: 0
+        };
       }
       const opt = select.options[select.selectedIndex];
       const childId = Number(select.value);
       const parentId = opt && opt.getAttribute('data-parent-id') ? Number(opt.getAttribute('data-parent-id')) : 0;
-      return { parentId: parentId, childId: childId };
+      return {
+        parentId: parentId,
+        childId: childId
+      };
     }
 
     function applyAssignmentSelectionToState(side, select) {
@@ -1592,6 +1600,41 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
     });
   }
 
+  function bikeRenderFixedInputPreview(inputType) {
+    var preview = document.getElementById('editBikeFixedInputPreview');
+    if (!preview) return;
+    var type = String(inputType || 'text').toLowerCase();
+    var html = '';
+    if (type === 'textarea') {
+      html = '<textarea class="form-control" rows="3" placeholder="Sample textarea"></textarea>';
+    } else if (type === 'number' || type === 'decimal') {
+      html = '<input type="number" class="form-control" placeholder="0">';
+    } else if (type === 'date') {
+      html = '<input type="date" class="form-control">';
+    } else if (type === 'datetime') {
+      html = '<input type="datetime-local" class="form-control">';
+    } else if (type === 'dropdown') {
+      html = '<select class="form-select"><option value="">Select option</option></select>';
+    } else if (type === 'checkbox') {
+      html = '<div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="editBikeFixedPreviewCheck"><label class="form-check-label" for="editBikeFixedPreviewCheck">Sample checkbox</label></div>';
+    } else {
+      html = '<input type="text" class="form-control" placeholder="Sample text">';
+    }
+    preview.innerHTML = html;
+  }
+
+  function bikeToggleFixedDropdownOptions(inputType) {
+    var type = String(inputType || 'text').toLowerCase();
+    var wrap = document.getElementById('editBikeFixedOptionsWrap');
+    if (!wrap) return;
+    wrap.style.display = (type === 'dropdown') ? '' : 'none';
+  }
+
+  function bikeUpdateFixedTypeUI(inputType) {
+    bikeRenderFixedInputPreview(inputType);
+    bikeToggleFixedDropdownOptions(inputType);
+  }
+
   function bikeInitOptionRowButtons() {
     // Add modal (new custom field)
     const addBtn = document.getElementById('addBikeFieldOptionRowBtn');
@@ -1610,6 +1653,12 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
     if (editFixedAddBtn && editFixedRows && editFixedHidden) {
       editFixedAddBtn.addEventListener('click', function() {
         bikeCreateOptionRow(editFixedRows, editFixedHidden, '');
+      });
+    }
+    var editFixedTypeSelect = document.getElementById('editBikeFixedInputType');
+    if (editFixedTypeSelect) {
+      editFixedTypeSelect.addEventListener('change', function() {
+        bikeUpdateFixedTypeUI(editFixedTypeSelect.value);
       });
     }
 
@@ -1654,6 +1703,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
         reqEl.disabled = false;
       }
       document.getElementById('editBikeFixedInputType').value = btn.dataset.inputType || 'text';
+      bikeUpdateFixedTypeUI(btn.dataset.inputType || 'text');
 
       const configOptionsRaw = btn.dataset.inputConfigOptions;
       const configOptions = bikeSafeJsonParse(configOptionsRaw, '');
@@ -1695,6 +1745,13 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
         document.getElementById('editBikeCustomConfigOptionsHidden'),
         configOptions || ''
       );
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var editFixedTypeSelect = document.getElementById('editBikeFixedInputType');
+    if (editFixedTypeSelect) {
+      bikeUpdateFixedTypeUI(editFixedTypeSelect.value || 'text');
     }
   });
 
@@ -1854,7 +1911,9 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
               'Accept': 'application/json',
               'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ order: order })
+            body: JSON.stringify({
+              order: order
+            })
           });
         }
       });
@@ -1880,7 +1939,9 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
               'Accept': 'application/json',
               'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ order: order })
+            body: JSON.stringify({
+              order: order
+            })
           });
         }
       });

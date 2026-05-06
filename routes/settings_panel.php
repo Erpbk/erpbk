@@ -110,6 +110,15 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         );
     })->name('settings-panel.module-settings.rider-settings-alias');
 
+    // Employee Settings (separate module-settings stack using module_key=employees)
+    Route::get('employee-settings', function (\Illuminate\Http\Request $request) {
+        $companySlug = (string) ($request->route('company_slug') ?? '');
+        return redirect()->route(
+            'settings-panel.module-settings.index',
+            array_merge(['company_slug' => $companySlug, 'module' => 'employees'], $request->query())
+        );
+    })->name('settings-panel.employee-settings.index');
+
     // Bike Settings: mount under module-settings/bike_list
     // (So the sidebar route `settings-panel/module-settings/bike_list` opens bike settings.)
     Route::post('module-settings/bike_list/module-label', [App\Http\Controllers\BikeSettingsController::class, 'storeModuleLabel'])->name('settings-panel.bike-settings.store-module-label');
@@ -154,8 +163,6 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     // Module settings page + label update
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[A-Za-z0-9_-]+');
-    Route::get('module-settings/{module}/account-assigning/children', [App\Http\Controllers\ModuleSettingsController::class, 'riderInvoiceAccountChildren'])->name('settings-panel.module-settings.rider-invoice-account-children')->where('module', '[A-Za-z0-9_-]+');
-    Route::post('module-settings/{module}/account-assigning', [App\Http\Controllers\ModuleSettingsController::class, 'storeRiderInvoiceAccountAssigning'])->name('settings-panel.module-settings.store-rider-invoice-account-assigning')->where('module', '[A-Za-z0-9_-]+');
     // User Management, Activity Logs, Recycle Bin (moved into Settings)
 
     Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');

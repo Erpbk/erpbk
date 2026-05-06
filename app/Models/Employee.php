@@ -21,10 +21,7 @@ class Employee extends BaseModel
         'employee_id',
         'name',
         'company_email',
-        'personal_email',
-        'personal_contact',
         'company_contact',
-        'emergency_contact',
         'nationality_id',
         'department_id',
         'designation',
@@ -44,6 +41,7 @@ class Employee extends BaseModel
         'account_id',
         'profile_image',
         'notes',
+        'custom_field_values',
         'created_by',
         'updated_by',
     ];
@@ -60,6 +58,7 @@ class Employee extends BaseModel
         'emirate_expiry' => 'date',
         'passport_expiry' => 'date',
         'salary' => 'decimal:2',
+        'custom_field_values' => 'array',
     ];
 
     /**

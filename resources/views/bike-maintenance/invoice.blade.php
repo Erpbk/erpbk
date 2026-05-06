@@ -295,7 +295,7 @@
             @if($maintenance->overdue_km > 0)
                 <div class="detail-item">
                     <span class="detail-label">Overdue Cost Per KM:</span>
-                    <span class="detail-value">AED {{ number_format($maintenance->overdue_cost_per_km, 2) }}</span>
+                    <span class="detail-value">{{ \App\Helpers\Currency::format($maintenance->overdue_cost_per_km, 2) }}</span>
                 </div>
             @else
                 <div class="detail-item">
@@ -334,10 +334,10 @@
                 <th class="secondary-header">Item</th>
                 <th class="secondary-header">Description</th>
                 <th class="secondary-header">Quantity</th>
-                <th class="secondary-header">Rate (AED)</th>
+                <th class="secondary-header">Rate ({{ \App\Helpers\Currency::code() }})</th>
                 <th class="secondary-header">Discount</th>
                 <th class="secondary-header">VAT(%)</th>
-                <th class="secondary-header">Total (AED)</th>
+                <th class="secondary-header">Total ({{ \App\Helpers\Currency::code() }})</th>
             </tr>
             @php
                 $riderItems = $maintenance->maintenanceItems->where('charge_to','Rider');
@@ -407,7 +407,7 @@
         <div style="margin-top: 20px; text-align: right;">
             <div style="display: inline-block; padding: 15px; background: #004aad; color: white; border-radius: 5px;">
                 <div style="font-size: 16px; margin-bottom: 5px; text-align: center;">Grand Total</div>
-                <div style="font-size: 24px; font-weight: bold;">AED {{ number_format($maintenance->total_cost + ($overdue ? $overdue_cost:0), 2) }}</div>
+                <div style="font-size: 24px; font-weight: bold;">{{ \App\Helpers\Currency::format($maintenance->total_cost + ($overdue ? $overdue_cost:0), 2) }}</div>
             </div>
         </div>
 

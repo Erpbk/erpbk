@@ -8,7 +8,7 @@
                 <div>
                     <strong class="me-2">Cheque:</strong> 
                     <span class="fw-bold">{{ $cheque->cheque_number }}</span>
-                    <span class="badge bg-secondary ms-2">AED {{ number_format($cheque->amount, 2) }}</span>
+                    <span class="badge bg-secondary ms-2">{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</span>
                 </div>
                 <div class="text-end">
                     @php
@@ -32,9 +32,9 @@
         <div class="alert alert-danger p-2">
             <i class="fas fa-info-circle me-2"></i>
             @if($cheque->type == 'receievable')
-                Marking this cheque as <strong>Cleared</strong> will automatically generate a receipt of <strong>AED {{ number_format($cheque->amount, 2) }}</strong> from <strong>{{ $cheque->payer->account_code .'-'. $cheque->payer->name }}</strong> to <strong>{{ $cheque->payee->account_code .'-'. $cheque->payee->name }}</strong>. Please ensure the Cheque reflects the correct payment details.
+                Marking this cheque as <strong>Cleared</strong> will automatically generate a receipt of <strong>{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</strong> from <strong>{{ $cheque->payer->account_code .'-'. $cheque->payer->name }}</strong> to <strong>{{ $cheque->payee->account_code .'-'. $cheque->payee->name }}</strong>. Please ensure the Cheque reflects the correct payment details.
             @else
-                Marking this cheque as <strong>Cleared</strong> will automatically generate a payment of <strong>AED {{ number_format($cheque->amount, 2) }}</strong> from <strong>{{ $cheque->payer->account_code .'-'. $cheque->payer->name }}</strong> to <strong>{{ $cheque->payee->account_code .'-'. $cheque->payee->name}}</strong>. Please ensure the Cheque reflects the correct payment details.
+                Marking this cheque as <strong>Cleared</strong> will automatically generate a payment of <strong>{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</strong> from <strong>{{ $cheque->payer->account_code .'-'. $cheque->payer->name }}</strong> to <strong>{{ $cheque->payee->account_code .'-'. $cheque->payee->name}}</strong>. Please ensure the Cheque reflects the correct payment details.
             @endif
         </div>
     </div>

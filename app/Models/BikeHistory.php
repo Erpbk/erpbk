@@ -14,6 +14,7 @@ class BikeHistory extends BaseModel
   public $fillable = [
     'bike_id',
     'rider_id',
+    'rental_company_id',
     'notes',
     'note_date',
     'return_date',
@@ -55,5 +56,10 @@ class BikeHistory extends BaseModel
   public function bike()
   {
     return $this->belongsTo(Bikes::class, 'bike_id', 'id');
+  }
+
+  public function rentalCompany()
+  {
+    return $this->belongsTo(BikeRentCompany::class, 'rental_company_id', 'id');
   }
 }

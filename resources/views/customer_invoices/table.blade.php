@@ -16,7 +16,7 @@
          </tr>
       </thead>
       <tbody>
-         @forelse($invoices as $invoice)
+         @foreach($invoices as $invoice)
          <tr class="text-center">
             <td>
                <a href="{{ route('customer_invoices.show', $invoice) }}" target="_blank">
@@ -26,9 +26,9 @@
             <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
             <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
             <td>{{ $invoice->Customer->name ?? '-' }}</td>
-            <td>AED {{ number_format($invoice->subtotal ?? 0, 2) }}</td>
-            <td>AED {{ number_format($invoice->vat ?? 0, 2) }}</td>
-            <td><strong>AED {{ number_format($invoice->total ?? 0, 2) }}</strong></td>
+            <td>{{ \App\Helpers\Currency::format($invoice->subtotal ?? 0) }}</td>
+            <td>{{ \App\Helpers\Currency::format($invoice->vat ?? 0) }}</td>
+            <td><strong>{{ \App\Helpers\Currency::format($invoice->total ?? 0) }}</strong></td>
             <td>
                @if($invoice->attachment)
                <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank">
@@ -43,7 +43,7 @@
                   <span class="badge bg-success">Paid</span>
                @elseif($invoice->status == 'partially_paid')
                   <span class="badge bg-warning">Partially Paid</span>
-                  <small>(AED {{ number_format(($invoice->total - array_sum($invoice->partial_paid_amount ?? [])), 2) }} due)</small>
+                  <small>({{ \App\Helpers\Currency::format(($invoice->total - array_sum($invoice->partial_paid_amount ?? []))) }} due)</small>
                @else
                   <span class="badge bg-secondary">Unpaid</span>
                @endif
@@ -77,11 +77,7 @@
                </div>
             </td>
          </tr>
-         @empty
-         <tr>
-            <td colspan="11" class="text-center"><h3 class="mt-4">No invoices found.</h3></td>
-         </tr>
-         @endforelse
+         @endforeach
       </tbody>
    </table>
 </div>
@@ -99,6 +95,9 @@
         "autoWidth": true, // Better column width handling
         "dom": "<'row'<'col-md-12'tr>>" +
             "<'row mt-2'<'col-md-6'i><'col-md-6 d-flex justify-content-end'p>>",
+        "language": {
+            "emptyTable": "No invoices found."
+        }
     });
     $('#quickSearch').on('keyup change', function() {
         $('#dataTableBuilder').DataTable().search(this.value).draw();

@@ -7,7 +7,7 @@
             <div class="text-muted small">{{ $cheque->reference ?? 'No reference' }}</div>
         </div>
         <div class="text-end">
-            <div class="fw-bold text-success fs-4 mb-1">AED {{ number_format($cheque->amount, 2) }}</div>
+            <div class="fw-bold text-success fs-4 mb-1">{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</div>
             @php
                 $badgeClasses = [
                     'Issued' => 'bg-primary',

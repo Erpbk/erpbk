@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Helpers\Currency;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Fortify\Fortify;
 use Illuminate\Support\Facades\URL;
@@ -83,6 +84,8 @@ class AppServiceProvider extends ServiceProvider
 
       $view->with('companyLogoUrl', $logoUrl);
       $view->with('companyDisplayName', $companyName);
+      $view->with('appCurrencyCode', Currency::code());
+      $view->with('appCurrencySymbol', Currency::symbol());
     });
 
     Relation::morphMap([

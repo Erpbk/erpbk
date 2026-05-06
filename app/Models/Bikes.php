@@ -24,6 +24,7 @@ class Bikes extends BaseModel
     'engine',
     'company',
     'rider_id',
+    'rental_company_id',
     'notes',
     'created_by',
     'updated_by',
@@ -46,6 +47,7 @@ class Bikes extends BaseModel
   ];
 
   protected $casts = [
+    'branch_id' => 'integer',
     'plate' => 'string',
     'vehicle_type' => 'string',
     'chassis_number' => 'string',
@@ -116,9 +118,17 @@ class Bikes extends BaseModel
   {
     return $this->belongsTo(Riders::class, 'rider_id', 'id');
   }
+  public function history()
+  {
+    return $this->hasMany(BikeHistory::class, 'bike_id', 'id');
+  }
   public function LeasingCompany()
   {
     return $this->belongsTo(LeasingCompanies::class, 'company');
+  }
+
+  public function rentalCompany(){
+    return $this->belongsTo(BikeRentCompany::class, 'rental_company_id', 'id');
   }
 
   public function customer()

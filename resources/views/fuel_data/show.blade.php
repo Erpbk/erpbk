@@ -278,9 +278,9 @@
                     <th class="secondary-header" style="width: 15%;">Bike</th>
                     <th class="secondary-header" style="width: 10%;">Product</th>
                     <th class="secondary-header" style="width: 10%;">Qty (L)</th>
-                    <th class="secondary-header" style="width: 10%;">Price/L (AED)</th>
-                    <th class="secondary-header" style="width: 10%;">Vat (AED)</th>
-                    <th class="secondary-header" style="width: 15%;">Total (AED)</th>
+                    <th class="secondary-header" style="width: 10%;">Price/L ({{ \App\Helpers\Currency::code() }})</th>
+                    <th class="secondary-header" style="width: 10%;">Vat ({{ \App\Helpers\Currency::code() }})</th>
+                    <th class="secondary-header" style="width: 15%;">Total ({{ \App\Helpers\Currency::code() }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -309,21 +309,21 @@
             <tbody>
                 <tr>
                     <td><strong>Subtotal:</strong></td>
-                    <td class="num">AED {{ number_format($summary->total_subtotal, 2) }}</td>
+                    <td class="num">{{ \App\Helpers\Currency::format($summary->total_subtotal, 2) }}</td>
                 </tr>
                 <tr>
                     <td><strong>VAT Amount:</strong></td>
-                    <td class="num">AED {{ number_format($summary->total_vat, 2) }}</td>
+                    <td class="num">{{ \App\Helpers\Currency::format($summary->total_vat, 2) }}</td>
                 </tr>
                 @if($transaction->service_charges > 0)
                 <tr>
                     <td><strong>Service Charges:</strong></td>
-                    <td class="num">AED {{ number_format($transaction->service_charges, 2) }}</td>
+                    <td class="num">{{ \App\Helpers\Currency::format($transaction->service_charges, 2) }}</td>
                 </tr>
                 @endif
                 <tr style="background: #004aad; color: white;">
                     <td><strong>Total Amount:</strong></td>
-                    <td class="num"><strong>AED {{ number_format($summary->total_amount + $transaction->service_charges, 2) }}</strong></td>
+                    <td class="num"><strong>{{ \App\Helpers\Currency::format($summary->total_amount + $transaction->service_charges, 2) }}</strong></td>
                 </tr>
             </tbody>
         </table>
@@ -339,7 +339,7 @@
         <div style="margin-top: 30px; text-align: right;">
             <div style="display: inline-block; padding: 15px; background: #004aad; color: white; border-radius: 5px;">
                 <div style="font-size: 16px; margin-bottom: 5px; text-align: center;">Grand Total</div>
-                <div style="font-size: 24px; font-weight: bold;">AED {{ number_format($summary->total_amount + $transaction->service_charges, 2) }}</div>
+                <div style="font-size: 24px; font-weight: bold;">{{ \App\Helpers\Currency::format($summary->total_amount + $transaction->service_charges, 2) }}</div>
             </div>
         </div>
 

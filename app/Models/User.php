@@ -106,7 +106,7 @@ class User extends Authenticatable
   public function branchDropdown($all = null)
   {
     if ($all) {
-      return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->prepend('All', null)->toArray();
+      return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id', 'code')->prepend('select', '')->prepend('All', null)->toArray();
     } else {
       return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->toArray();
     }

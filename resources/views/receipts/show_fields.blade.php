@@ -16,7 +16,7 @@
 <!-- Amount Field -->
 <div class="col-sm-12">
     {!! Form::label('amount', 'Amount:') !!}
-    <p>AED {{ number_format($receipt->amount, 2) }}</p>
+    <p>{{ \App\Helpers\Currency::format($receipt->amount) }}</p>
 </div>
 <!-- Date of Receipt Field -->
 <div class="col-sm-12">

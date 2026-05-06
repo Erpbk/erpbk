@@ -13,6 +13,7 @@ class BikesRepository extends BaseRepository
         'color',
         'model',
         'model_type',
+        'branch_id',
         'engine',
         'company',
         'rider_id',

@@ -287,9 +287,9 @@
                 <tr>
                     <th class="secondary-header" style="width: 40%;">Item</th>
                     <th class="secondary-header" style="width: 15%;">Quantity</th>
-                    <th class="secondary-header" style="width: 15%;">Rate (AED)</th>
-                    <th class="secondary-header" style="width: 15%;">VAT (AED)</th>
-                    <th class="secondary-header" style="width: 15%;">Amount (AED)</th>
+                    <th class="secondary-header" style="width: 15%;">Rate ({{ \App\Helpers\Currency::code() }})</th>
+                    <th class="secondary-header" style="width: 15%;">VAT ({{ \App\Helpers\Currency::code() }})</th>
+                    <th class="secondary-header" style="width: 15%;">Amount ({{ \App\Helpers\Currency::code() }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -330,7 +330,7 @@
         <div style="margin-top: 20px; text-align: right;">
             <div style="display: inline-block; padding: 15px; background: #004aad; color: white; border-radius: 5px;">
                 <div style="font-size: 16px; margin-bottom: 5px; text-align: center;">Grand Total</div>
-                <div style="font-size: 24px; font-weight: bold;">AED {{ number_format($total??0, 2) }}</div>
+                <div style="font-size: 24px; font-weight: bold;">{{ \App\Helpers\Currency::format($total??0, 2) }}</div>
             </div>
         </div>
 

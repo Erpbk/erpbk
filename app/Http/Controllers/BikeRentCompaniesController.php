@@ -5,7 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CreateBikeRentCompaniesRequest;
 use App\Http\Requests\UpdateBikeRentCompaniesRequest;
 use App\Models\Accounts;
+use App\Models\Receipt;
+use App\Models\Files;
+use App\Models\Bikes;
+use App\Models\Transactions;
+use App\DataTables\FilesDataTable;
+use App\DataTables\LedgerDataTable;
 use App\Models\BikeRentCompany;
+use App\Models\LeasingCompanyBillingInvoice;
 use App\Repositories\BikeRentCompaniesRepository;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
@@ -27,7 +34,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_rent_view')) {
+        if (!auth()->user()->hasPermissionTo('bike_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -64,7 +71,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('bike_rent_create')) {
+        if (!auth()->user()->hasPermissionTo('bike_create')) {
             abort(403, 'Unauthorized action.');
         }
         return view('bike_rent_companies.create');
@@ -72,7 +79,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function store(CreateBikeRentCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_rent_create')) {
+        if (!auth()->user()->hasPermissionTo('bike_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -126,7 +133,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function show($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_rent_view')) {
+        if (!auth()->user()->hasPermissionTo('bike_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -143,7 +150,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function edit($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_rent_edit')) {
+        if (!auth()->user()->hasPermissionTo('bike_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -158,7 +165,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function update($company_slug, $id, UpdateBikeRentCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_rent_edit')) {
+        if (!auth()->user()->hasPermissionTo('bike_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -184,7 +191,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_rent_delete')) {
+        if (!auth()->user()->hasPermissionTo('bike_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -265,4 +272,125 @@ class BikeRentCompaniesController extends AppBaseController
             'index_route' => 'bikeRentCompanies.index',
         ];
     }
+
+    public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
+  {
+    $customer = BikeRentCompany::find($id);
+    if (!$customer) {
+      Flash::error('Customer not found');
+      return redirect()->back();
+    }
+
+    if (empty($customer->account_id)) {
+      Flash::error('Customer account not linked. Please assign an account first.');
+      return redirect()->back();
+    }
+
+    $details = $this->getDetails($customer->account_id);
+    $account_id = $customer->account_id;
+
+    return $ledgerDataTable->with(['account_id' => $account_id])->render('bike_rent_companies.ledger', compact('customer', 'details'));
+  }
+
+  public function files($company_slug, $id, FilesDataTable $filesDataTable)
+  {
+    $customer = BikeRentCompany::find($id);
+    if (!$customer) {
+      Flash::error('Customer not found');
+      return redirect()->back();
+    }
+    $files = Files::where(['type' => 'rentCompany', 'type_id' => $id])->latest('id')->get();
+    $details = $this->getDetails($customer->account_id);
+    return view('bike_rent_companies.files', compact('files', 'details', 'customer'));
+  }
+
+  public function receipts(Request $request, $company_slug, $id)
+  {
+    $customer = BikeRentCompany::find($id);
+
+    if (empty($customer)) {
+      Flash::error('Customer not found');
+      return redirect()->back();
+    }
+
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Receipt::query()->latest('date_of_receipt')->with('payerAccount', 'payeeAccount');
+    $query->where('payer_account_id', $customer->account_id);
+
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    $details = $this->getDetails($customer->account_id);
+    return view('bike_rent_companies.receipts', compact('data', 'customer', 'details'));
+  }
+
+  public function allReceipts(Request $request)
+  {
+    $account_ids = BikeRentCompany::all()->pluck('account_id')->toArray();
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Receipt::query()->latest('date_of_receipt');
+    $query->whereIn('payer_account_id', $account_ids);
+    $data = $this->applyPagination($query, $paginationParams);
+    return view('bike_rent_companies.all_receipts', compact('data'));
+  }
+
+  public function invoices(Request $request, $company_slug, $id)
+  {
+    $customer = BikeRentCompany::find($id);
+    if (!$customer) {
+      Flash::error('Vehicle rental Company not found');
+      return redirect()->back();
+    }
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = LeasingCompanyBillingInvoice::query()->latest('billing_month')->where('customer_id', $id);
+    $invoices = $this->applyPagination($query, $paginationParams);
+    $details = $this->getDetails($customer->account_id);
+    return view('bike_rent_companies.invoices', compact('invoices', 'customer', 'details'));
+  }
+
+  public function bikes(Request $request, $company_slug, $id)
+  {
+    $customer = BikeRentCompany::find($id);
+    if (!$customer) {
+      Flash::error('Vehicle rental Company not found');
+      return redirect()->back();
+    }
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Bikes::query()
+    ->with(['history' => function($q) use ($customer) {
+        $q->where('rental_company_id', $customer->id)
+          ->orderBy('note_date', 'desc');
+    }])
+    ->where(function($query) use ($customer) {
+        $query->where('rental_company_id', $customer->id)
+            ->orWhereHas('history', function($subQuery) use ($customer) {
+                $subQuery->where('rental_company_id', $customer->id);
+            });
+    });
+    $bikes = $this->applyPagination($query, $paginationParams);
+    $details = $this->getDetails($customer->account_id);
+    return view('bike_rent_companies.bikes', compact('bikes', 'customer', 'details'));
+  }
+
+  private function getDetails($accountId)
+  {
+    $currentMonthStart = \Carbon\Carbon::now()->startOfMonth()->format('Y-m-d');
+    $currentMonthEnd = \Carbon\Carbon::now()->endOfMonth()->format('Y-m-d');
+    $transactions = Transactions::where('account_id', $accountId)->get();
+    $currentMonthCredit = $transactions->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])->sum('credit');
+    $currentMonthDebit = $transactions->whereBetween('trans_date', [$currentMonthStart, $currentMonthEnd])->sum('debit');
+    $netFlow = $currentMonthDebit - $currentMonthCredit;
+
+    // Calculate balance
+    $credit = $transactions->sum('credit');
+    $debit = $transactions->sum('debit');
+    $balance = $debit - $credit;
+    return [
+      'currentMonthCredit' => $currentMonthCredit,
+      'currentMonthDebit' => $currentMonthDebit,
+      'netFlow' => $netFlow,
+      'credit' => $credit,
+      'debit' => $debit,
+      'balance' => $balance
+    ];
+  }
 }

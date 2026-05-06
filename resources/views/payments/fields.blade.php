@@ -103,7 +103,7 @@
             {!! Form::label('amount', 'Payment Amount:') !!}
             <div class="input-group">
                 <div class="input-group-prepend">
-                    <span class="input-group-text">AED</span>
+                    <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
                 </div>
                 {!! Form::number('amount', isset($payment) ? ($payment->amount - $payment->bank_charges) : null, ['class' => 'form-control cr_amount', 'step' => 'any', 'placeholder' => 'Enter amount', 'id' => 'payment_amount']) !!}
             </div>
@@ -210,7 +210,7 @@
             {!! Form::label('bank_charges', 'Bank Charges Amount:') !!}
             <div class="input-group">
                 <div class="input-group-prepend">
-                    <span class="input-group-text">AED</span>
+                    <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
                 </div>
                 {!! Form::number('bank_charges', null, ['class' => 'form-control bank_charges', 'step' => 'any', 'placeholder' => 'Enter bank charges', 'id' => 'bank_charges', 'min' => '0']) !!}
             </div>
@@ -251,7 +251,7 @@
                             <strong>Payment Amount:</strong>
                         </div>
                         <div class="col-md-6 text-right">
-                            AED <span id="display_amount">0.00</span>
+                            {{ \App\Helpers\Currency::code() }} <span id="display_amount">0.00</span>
                         </div>
                     </div>
                     @if((isset($invoices) && $invoices->count() > 0) || (isset($existingInvoices) && $existingInvoices->count() > 0))
@@ -260,7 +260,7 @@
                             <strong>Total Invoice Payment:</strong>
                         </div>
                         <div class="col-md-6 text-right">
-                            AED <span id="total_invoice_payment">0.00</span>
+                            {{ \App\Helpers\Currency::code() }} <span id="total_invoice_payment">0.00</span>
                         </div>
                     </div>
                     <div class="row mt-2">
@@ -268,7 +268,7 @@
                             <strong>Difference:</strong>
                         </div>
                         <div class="col-md-6 text-right">
-                            <span id="payment_difference" class="text-success">AED 0.00</span>
+                            <span id="payment_difference" class="text-success">{{ \App\Helpers\Currency::code() }} 0.00</span>
                         </div>
                     </div>
                     @endif
@@ -277,7 +277,7 @@
                             <strong>Bank Charges:</strong>
                         </div>
                         <div class="col-md-6 text-right">
-                            AED <span id="display_charges">0.00</span>
+                            {{ \App\Helpers\Currency::code() }} <span id="display_charges">0.00</span>
                         </div>
                     </div>
                     <hr class="my-2">
@@ -286,7 +286,7 @@
                             <strong>Total:</strong>
                         </div>
                         <div class="col-md-6 text-right">
-                            AED <span id="total_debit">0.00</span>
+                            {{ \App\Helpers\Currency::code() }} <span id="total_debit">0.00</span>
                         </div>
                     </div>
                 </div>
@@ -540,7 +540,7 @@ $(document).ready(function() {
         var totalPayment = parseFloat($('#total_invoice_payment').text()) || 0;
         var difference = paymentAmount - totalPayment;
         
-        $('#payment_difference').text('AED ' + difference.toFixed(2));
+        $('#payment_difference').text('{{ \App\Helpers\Currency::code() }} ' + difference.toFixed(2));
         
         if (Math.abs(difference) < 0.01) {
             $('#payment_difference').removeClass('text-danger').removeClass('text-warning').addClass('text-success');

@@ -17,8 +17,8 @@
             @php
             $balance = DB::table('saliks')->where('salik_account_id' , $r->id)->sum('total_amount')
             @endphp
-            <td>@if($balance == '') - @else AED {{ $balance ?? '-' }} @endif</td>
-            <td>@if($r->admin_charges == '') - @else AED {{ $r->admin_charges }}@endif</td>
+            <td>@if($balance == '') - @else {{ \App\Helpers\Currency::symbol() }} {{ $balance ?? '-' }} @endif</td>
+            <td>@if($r->admin_charges == '') - @else {{ \App\Helpers\Currency::symbol() }} {{ $r->admin_charges }}@endif</td>
             <td>
                 @if($r->status == 1)
                 <span class="badge  bg-success">Active</span>

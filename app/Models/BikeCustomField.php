@@ -125,6 +125,15 @@ class BikeCustomField extends BaseModel
             'updated_by',
             'deleted_by',
             'custom_field_values',
+            // Hidden from bike settings + bike add/edit form by requirement.
+            'company_id',
+            'current_km',
+            'maintanence_km',
+            'maintenance_km',
+            'previous_km',
+            'customer_id',
+            'emirates',
+            'rider_id',
         ];
     }
 

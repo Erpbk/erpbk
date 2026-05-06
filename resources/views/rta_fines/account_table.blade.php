@@ -22,10 +22,10 @@
          $admin_charges = DB::table('rta_fines')->where('rta_account_id' , $r->id)->sum('admin_fee');
          $total_amount = DB::table('rta_fines')->where('rta_account_id' , $r->id)->sum('total_amount');
          @endphp
-         <td>@if($balance == '') - @else AED {{ $balance ?? '-' }} @endif</td>
-         <td>@if($account_tax == '') - @else AED {{ $account_tax }}@endif</td>
-         <td>@if($admin_charges == '') - @else AED {{ $admin_charges }}@endif</td>
-         <td>@if($total_amount == '') - @else AED {{ $total_amount ?? '-' }} @endif</td>
+         <td>@if($balance == '') - @else {{ \App\Helpers\Currency::symbol() }} {{ $balance ?? '-' }} @endif</td>
+         <td>@if($account_tax == '') - @else {{ \App\Helpers\Currency::symbol() }} {{ $account_tax }}@endif</td>
+         <td>@if($admin_charges == '') - @else {{ \App\Helpers\Currency::symbol() }} {{ $admin_charges }}@endif</td>
+         <td>@if($total_amount == '') - @else {{ \App\Helpers\Currency::symbol() }} {{ $total_amount ?? '-' }} @endif</td>
          <td>
             @if($r->status == 1)
             <span class="badge  bg-success">Active</span>

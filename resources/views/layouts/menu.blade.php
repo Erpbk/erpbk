@@ -293,7 +293,7 @@ $homeLink = $isAdminLogin
 @endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('bike_on_rent'))
-@can('bike_rent_view')
+@can('bike_view')
 <li class="menu-item {{ Route::is('bikeRentCompanies*') || Route::is('leasingCompanyBillingInvoices*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-motorbike"></i>
@@ -314,6 +314,13 @@ $homeLink = $isAdminLogin
       </a>
     </li>
     @endcan
+    {{-- Payments Receieved --}}
+    <li class="menu-item {{ Route::is('bikeRentCompanies.all_receipts') ? 'active' : '' }}">
+      <a href="{{ route('bikeRentCompanies.all_receipts') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-receipt"></i>
+        <div>{{ $menuLabels['bike_rent_customer_receipts'] ?? 'Payments Received' }}</div>
+      </a>
+    </li>
   </ul>
 </li>
 @endcan

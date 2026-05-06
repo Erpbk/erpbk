@@ -31,7 +31,7 @@
             <td>{{ $r->direction }}</td>
             <td>{{ $r->tag_number }}</td>
             <td>{{ $r->plate }}</td>
-            <td>AED {{ number_format($r->total_amount, 2) }}</td>
+            <td>{{ \App\Helpers\Currency::format($r->total_amount, 2) }}</td>
             <td>
                 <div class="dropdown">
                     <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

@@ -165,8 +165,8 @@
                 <tr style="border-top: 1px solid #000; background-color: #dfdfdf;">
                     <td colspan="2" style="padding: 10px;text-align: center;"></td>
                     <th style="padding: 10px;text-align: right;">Total:</th>
-                    <th style="padding: 10px;text-align: center;">AED{{ \App\Helpers\Account::show_bal_format($totalD) }}</th>
-                    <th style="padding: 10px;text-align: center;">AED{{ \App\Helpers\Account::show_bal_format($totalC) }}</th>
+                    <th style="padding: 10px;text-align: center;">{{ \App\Helpers\Currency::symbol() }} {{ \App\Helpers\Account::show_bal_format($totalD) }}</th>
+                    <th style="padding: 10px;text-align: center;">{{ \App\Helpers\Currency::symbol() }} {{ \App\Helpers\Account::show_bal_format($totalC) }}</th>
                 </tr>
             </tfoot>
         </table>

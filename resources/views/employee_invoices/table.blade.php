@@ -17,9 +17,9 @@
             <th>Employee</th>
             <th>Descriptions</th>
             <th>Project</th>
-            <th>Subtotal (AED)</th>
-            <th>Vat (AED)</th>
-            <th>Total (AED)</th>
+            <th>Subtotal ({{ \App\Helpers\Currency::code() }})</th>
+            <th>Vat ({{ \App\Helpers\Currency::code() }})</th>
+            <th>Total ({{ \App\Helpers\Currency::code() }})</th>
             <th>Status</th>
             <th>Action</th>
         </tr>

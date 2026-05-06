@@ -18,165 +18,173 @@
 
   /* Status Cards Styling */
   .status-card {
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-      border: 2px solid #dee2e6;
-      border-radius: 12px;
-      padding: 16px;
-      min-width: 180px;
-      flex: 1;
-      max-width: 220px;
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    padding: 16px;
+    min-width: 180px;
+    flex: 1;
+    max-width: 220px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
   }
-  
+
   .status-card.active-success {
-      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-      border-color: #28a745;
-      color: white;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border-color: #28a745;
+    color: white;
   }
-  
+
   .status-card.active-info {
-      background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
-      border-color: #17a2b8;
-      color: white;
+    background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+    border-color: #17a2b8;
+    color: white;
   }
-  
+
   .status-card.active-danger {
-      background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
-      border-color: #dc3545;
-      color: white;
+    background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+    border-color: #dc3545;
+    color: white;
   }
-  
+
   .status-card .status-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.2);
-      font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    font-size: 20px;
   }
-  
+
   .status-card.active-success .status-icon,
   .status-card.active-info .status-icon,
   .status-card.active-danger .status-icon {
-      background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.3);
   }
-  
+
   .status-card .status-content {
-      flex: 1;
+    flex: 1;
   }
-  
+
   .status-card .status-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 4px;
-      color: #495057;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #495057;
   }
-  
+
   .status-card.active-success .status-title,
   .status-card.active-info .status-title,
   .status-card.active-danger .status-title {
-      color: white;
+    color: white;
   }
-  
+
   .status-card .status-subtitle {
-      font-size: 12px;
-      color: #6c757d;
-      font-weight: 500;
+    font-size: 12px;
+    color: #6c757d;
+    font-weight: 500;
   }
-  
+
   .status-card.active-success .status-subtitle,
   .status-card.active-info .status-subtitle,
   .status-card.active-danger .status-subtitle {
-      color: rgba(255, 255, 255, 0.9);
+    color: rgba(255, 255, 255, 0.9);
   }
-  
+
   .status-options {
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(0,0,0,0.1);
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
   }
-  
+
   .status-option {
-      padding: 4px 0;
+    padding: 4px 0;
   }
-  
+
   .status-option span {
-      font-size: 13px;
-      font-weight: 500;
+    font-size: 13px;
+    font-weight: 500;
   }
-  
+
   .status-card.active-success .status-option span,
   .status-card.active-info .status-option span,
   .status-card.active-danger .status-option span {
-      color: white;
+    color: white;
   }
-  
+
   .status-toggle {
-      display: flex;
-      align-items: center;
+    display: flex;
+    align-items: center;
   }
-  
+
   .status-radio {
-      display: none;
+    display: none;
   }
-  
+
   .toggle-switch {
-      position: relative;
-      width: 40px;
-      height: 20px;
-      background: #ccc;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: background 0.3s ease;
-      display: inline-block;
+    position: relative;
+    width: 40px;
+    height: 20px;
+    background: #ccc;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    display: inline-block;
   }
-  
+
   .toggle-switch::after {
-      content: '';
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 16px;
-      height: 16px;
-      background: white;
-      border-radius: 50%;
-      transition: transform 0.3s ease;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
-  
-  .status-radio:checked + .toggle-switch::after {
-      transform: translateX(20px);
+
+  .status-radio:checked+.toggle-switch::after {
+    transform: translateX(20px);
   }
-  
-  .status-radio-active:checked + .toggle-switch {
-      background: #28a745;
+
+  .status-radio-active:checked+.toggle-switch {
+    background: #28a745;
   }
-  
-  .status-radio-leave:checked + .toggle-switch {
-      background: #17a2b8;
+
+  .status-radio-leave:checked+.toggle-switch {
+    background: #17a2b8;
   }
-  
-  .status-radio-inactive:checked + .toggle-switch {
-      background: #dc3545;
+
+  .status-radio-inactive:checked+.toggle-switch {
+    background: #dc3545;
   }
-  
+
   .status-card.loading {
-      opacity: 0.7;
-      pointer-events: none;
+    opacity: 0.7;
+    pointer-events: none;
   }
-  
+
   .status-card.loading .toggle-switch {
-      animation: pulse 1s infinite;
+    animation: pulse 1s infinite;
   }
-  
+
   @keyframes pulse {
-      0% { opacity: 1; }
-      50% { opacity: 0.5; }
-      100% { opacity: 1; }
+    0% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.5;
+    }
+
+    100% {
+      opacity: 1;
+    }
   }
 
   /* Responsive design */
@@ -224,7 +232,7 @@
 // Ledger-linked account for balance display (create form has no employee yet)
 $account = null;
 if (!request()->routeIs('employees.create') && isset($employee) && !empty($employee->account_id)) {
-    $account = App\Models\Accounts::find($employee->account_id);
+$account = App\Models\Accounts::find($employee->account_id);
 }
 @endphp
 
@@ -236,27 +244,27 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
         <div class="profile-img">
           @php
           if(isset($employee)) {
-            $profile = DB::table('files')
-                      ->where('type', 'employee')
-                      ->where('type_id', $employee->id)
-                      ->where(function($query) {
-                          $query->where('name', 'LIKE', '%photo%')
-                                ->orWhere('name', 'LIKE', '%Photo%')
-                                ->orWhere('name', 'LIKE', '%picture%') 
-                                ->orWhere('name', 'LIKE', '%Picture%')
-                                ->orWhere('name', 'LIKE', '%profile%')
-                                ->orWhere('name', 'LIKE', '%Profile%');
-                      })
-                      ->first();
-            
-            if($employee->profile_image)
-              $image_name = asset('storage/' . $employee->profile_image);
-            elseif (isset($profile))
-              $image_name = asset('storage2/'. $profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
-            else
-              $image_name = asset('uploads/default.png');
+          $profile = DB::table('files')
+          ->where('type', 'employee')
+          ->where('type_id', $employee->id)
+          ->where(function($query) {
+          $query->where('name', 'LIKE', '%photo%')
+          ->orWhere('name', 'LIKE', '%Photo%')
+          ->orWhere('name', 'LIKE', '%picture%')
+          ->orWhere('name', 'LIKE', '%Picture%')
+          ->orWhere('name', 'LIKE', '%profile%')
+          ->orWhere('name', 'LIKE', '%Profile%');
+          })
+          ->first();
+
+          if($employee->profile_image)
+          $image_name = asset('storage/' . $employee->profile_image);
+          elseif (isset($profile))
+          $image_name = asset('storage2/'. $profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
+          else
+          $image_name = asset('uploads/default.png');
           }else {
-            $image_name = asset('uploads/default.png');
+          $image_name = asset('uploads/default.png');
           }
           @endphp
           <img src="{{ $image_name }}" id="output" width="270" class="profile-user-img img-fluid" />
@@ -281,10 +289,10 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
                     </b>
                   </h6>
                 </div>
-                <div class="text-end" style="width: 14%;"  id="photo-icon">
-                    <i class="ti ti-edit ti-sm"
-                        style="border: 2px solid #9593997a !important; border-radius: 24px; padding: 8px; cursor: pointer;">
-                    </i>
+                <div class="text-end" style="width: 14%;" id="photo-icon">
+                  <i class="ti ti-edit ti-sm"
+                    style="border: 2px solid #9593997a !important; border-radius: 24px; padding: 8px; cursor: pointer;">
+                  </i>
                 </div>
               </div>
             </div>
@@ -317,21 +325,12 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
             </script>
 
             <ul class="p-0 mb-3">
-              <li class="list-group-item pb-1 user_list d-flex align-items-center">
-                <div class="icons me-2">
-                  <i class="ti ti-mail ti-sm me-1_5"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Personal Email:</span><br> 
-                  <b class="float-right">{{ $employee->personal_email ?? 'not-set' }}</b>
-                </div>
-              </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
                 <div class="icons me-2">
                   <i class="ti ti-mail ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Company Email:</span><br> 
+                  <span>Company Email:</span><br>
                   <b class="float-right">{{ $employee->company_email ?? 'not-set' }}</b>
                 </div>
               </li>
@@ -363,7 +362,7 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
                   <i class="ti ti-flag ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Nationality:</span><br> 
+                  <span>Nationality:</span><br>
                   <b class="float-right">{{ $employee->nationality->name ?? 'not-set' }}</b>
                 </div>
               </li>
@@ -387,7 +386,7 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
                   <i class="ti ti-calendar-due ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Date Of Joining:</span><br> 
+                  <span>Date Of Joining:</span><br>
                   <b class="float-right">
                     @if(isset($employee->doj))
                     {{ \Carbon\Carbon::parse($employee->doj)->format('d M Y') }}
@@ -402,10 +401,10 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
                   <i class="ti ti-cash-banknote ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Balance:</span><br> 
+                  <span>Balance:</span><br>
                   <b class="float-right">
                     @if(isset($account) && $account)
-                    {{  App\Helpers\Accounts::getBalance($account->id) }} AED
+                    {{ App\Helpers\Accounts::getBalance($account->id) }} {{ \App\Helpers\Currency::code() }}
                     @else
                     0.00
                     @endif
@@ -417,8 +416,8 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
                   <i class="ti ti-cash ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Salary:</span><br> 
-                  <b class="float-right">{{ number_format($employee->salary ?? 0, 2) }} AED</b>
+                  <span>Salary:</span><br>
+                  <b class="float-right">{{ number_format($employee->salary ?? 0, 2) }} {{ \App\Helpers\Currency::code() }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -426,7 +425,7 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
                   <i class="ti ti-id ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Emirates ID:</span><br> 
+                  <span>Emirates ID:</span><br>
                   <b class="float-right">{{ $employee->emirate_id ?? 'not-set' }}</b>
                 </div>
               </li>
@@ -435,7 +434,7 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
                   <i class="ti ti-building ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Department:</span><br> 
+                  <span>Department:</span><br>
                   <b class="float-right">{{ $employee->department->name ?? $employee->department_id ?? 'not-set' }}</b>
                 </div>
               </li>
@@ -444,92 +443,18 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
                   <i class="ti ti-briefcase ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Branch:</span><br> 
+                  <span>Branch:</span><br>
                   <b class="float-right">{{ $employee->branch->name ?? 'not-set' }}</b>
                 </div>
               </li>
             </ul>
           </ul>
-          
-          @if(isset($employee))
-          <!-- Status Card -->
-            <div class="status-card" id="employee-status-card" data-employee-id="{{ $employee->id }}">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div class="status-icon">
-                        <i class="ti ti-user-check"></i>
-                    </div>
-                    <div class="status-content">
-                        <div class="status-title">Employee Status</div>
-                        <div class="status-subtitle" id="current-status-text">
-                            @if($employee->status == 'active')
-                                Active Employee
-                            @elseif($employee->status == 'on_leave')
-                                Currently on Leave
-                            @elseif($employee->status == 'inactive')
-                                Inactive Employee
-                            @else
-                                Not Set
-                            @endif
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="status-options">
-                    <div class="status-option mb-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="ti ti-user-check me-2 text-success"></i>Active</span>
-                            <div class="status-toggle">
-                                <input type="radio"
-                                    class="status-radio status-radio-active"
-                                    name="employee_status"
-                                    id="status-active-{{ $employee->id }}"
-                                    data-employee-id="{{ $employee->id }}"
-                                    data-status="active"
-                                    {{ $employee->status == 'active' ? 'checked' : '' }}>
-                                <label for="status-active-{{ $employee->id }}" class="toggle-switch"></label>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="status-option mb-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="ti ti-calendar-off me-2 text-info"></i>On Leave</span>
-                            <div class="status-toggle">
-                                <input type="radio"
-                                    class="status-radio status-radio-leave"
-                                    name="employee_status"
-                                    id="status-leave-{{ $employee->id }}"
-                                    data-employee-id="{{ $employee->id }}"
-                                    data-status="on_leave"
-                                    {{ $employee->status == 'on_leave' ? 'checked' : '' }}>
-                                <label for="status-leave-{{ $employee->id }}" class="toggle-switch"></label>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="status-option">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="ti ti-user-x me-2 text-danger"></i>Inactive</span>
-                            <div class="status-toggle">
-                                <input type="radio"
-                                    class="status-radio status-radio-inactive"
-                                    name="employee_status"
-                                    id="status-inactive-{{ $employee->id }}"
-                                    data-employee-id="{{ $employee->id }}"
-                                    data-status="inactive"
-                                    {{ $employee->status == 'inactive' ? 'checked' : '' }}>
-                                <label for="status-inactive-{{ $employee->id }}" class="toggle-switch"></label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-          @endif
+
         </div>
       </div>
     </div>
   </div>
-  
+
   <div class="col-xl-9 col-md-9 col-lg-7 order-0 order-md-1 position-relative">
     <div class="nav-align-top mb-4" style="position: sticky; top: 0; z-index: 1000; width: 100%;">
       <div class="card" style="z-index: 1;">
@@ -629,7 +554,7 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
         </div>
       </div>
     </div>
-    
+
     <div style="margin-top: 20px; position: relative;">
       @yield('page-content')
     </div>
@@ -641,414 +566,235 @@ if (!request()->routeIs('employees.create') && isset($employee) && !empty($emplo
 
 @section('page-script')
 <script>
-$(document).ready(function() {
-    // Photo upload toggle
-    $('#photo-icon').on('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const photoForm = $('#photo-upload-form');
-        const icon = $(this).find('i');
-        
-        // Toggle photo upload form visibility with animation
-        if (photoForm.is(':visible')) {
-            photoForm.slideUp(200);
-            icon.attr('class', 'ti ti-edit ti-sm')
-                .css({
-                    'border': '2px solid #9593997a',
-                    'color': '#000'
-                });
-        } else {
-            photoForm.slideDown(200);
-            icon.attr('class', 'ti ti-x ti-sm')
-                .css({
-                    'border': '2px solid #dc3545',
-                    'color': '#dc3545'
-                });
-        }
-    });
-
-    // Close photo form when clicking outside
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('#photo-iconicon, #photo-upload-form').length) {
-            const photoForm = $('#photo-upload-form');
-            if (photoForm.is(':visible')) {
-                photoForm.slideUp(200);
-                $('#photo-icon i').attr('class', 'ti ti-edit ti-sm')
-                    .css({
-                        'border': '2px solid #9593997a',
-                        'color': ''
-                    });
-            }
-        }
-    });
-
-    // Prevent closing when clicking inside the form
-    $('#photo-upload-form').on('click', function(e) {
-        e.stopPropagation();
-    });
-
-    // Photo upload form submission
-    $('#formAjax2').on('submit', function(e) {
-        e.preventDefault();
-        
-        const form = $(this);
-        const formData = new FormData(this);
-        const submitBtn = form.find('button[type="submit"]');
-        const originalText = submitBtn.html();
-        
-        // Validate file selection
-        if (!$('#upload').val()) {
-            toastr.warning('Please select an image first');
-            return;
-        }
-        
-        // Add loading state
-        submitBtn.html('<i class="fa fa-spinner fa-spin"></i> Uploading...').prop('disabled', true);
-        
-        $.ajax({
-            url: form.attr('action'),
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Update image with cache busting
-                    const timestamp = new Date().getTime();
-                    $('#output').attr('src', response.image_url + '?' + timestamp);
-                    toastr.success('Photo uploaded successfully');
-                    
-                    // Close form
-                    $('#photo-upload-form').slideUp(200);
-                    $('#photo-icon i').attr('class', 'ti ti-edit ti-sm')
-                        .css({
-                            'border': '2px solid #9593997a',
-                            'color': ''
-                        });
-                    
-                    // Reset form
-                    form[0].reset();
-                } else {
-                    toastr.error(response.message || 'Error uploading photo');
-                }
-            },
-            error: function(xhr) {
-                if (xhr.status === 422) {
-                    const errors = xhr.responseJSON.errors;
-                    let errorMsg = '';
-                    $.each(errors, function(key, value) {
-                        errorMsg += value[0] + '\n';
-                    });
-                    toastr.error(errorMsg);
-                } else {
-                    toastr.error('Error uploading photo');
-                }
-            },
-            complete: function() {
-                submitBtn.html(originalText).prop('disabled', false);
-            }
-        });
-    });
-
+  $(document).ready(function() {
     // Responsive Navigation Handler
     class ResponsiveNavigation {
-        constructor() {
-            this.mainNav = $('#mainNavigation')[0];
-            this.overflowContainer = $('#overflowItems')[0];
-            this.dropdownButton = $('#actiondropdown')[0];
-            this.allNavItems = [];
-            this.init();
+      constructor() {
+        this.mainNav = $('#mainNavigation')[0];
+        this.overflowContainer = $('#overflowItems')[0];
+        this.dropdownButton = $('#actiondropdown')[0];
+        this.allNavItems = [];
+        this.init();
+      }
+
+      init() {
+        this.allNavItems = Array.from(this.mainNav.querySelectorAll('.nav-item')).map(item => {
+          const priorityClass = Array.from(item.classList).find(cls => cls.startsWith('nav-priority-'));
+          const priority = priorityClass ? parseInt(priorityClass.split('-')[2]) : 999;
+          return {
+            element: item,
+            priority: priority,
+            html: item.outerHTML,
+            isActive: $(item).find('.nav-link.active').length > 0
+          };
+        }).sort((a, b) => a.priority - b.priority);
+
+        this.handleResize();
+
+        let resizeTimeout;
+        $(window).on('resize', () => {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => this.handleResize(), 100);
+        });
+      }
+
+      handleResize() {
+        this.resetNavigation();
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            this.redistributeItems();
+          });
+        });
+      }
+
+      resetNavigation() {
+        $(this.overflowContainer).empty();
+        $(this.mainNav).empty();
+        this.allNavItems.forEach(item => {
+          $(this.mainNav).append(item.element);
+        });
+      }
+
+      redistributeItems() {
+        const container = this.mainNav.closest('.card-body');
+        if (!container) return;
+
+        const containerWidth = container.getBoundingClientRect().width;
+        const dropdownWidth = $(this.dropdownButton).outerWidth() + 10;
+
+        let currentWidth = 0;
+        const visibleItems = [];
+        const overflowItems = [];
+
+        const itemWidths = this.allNavItems.map(item => {
+          const width = this.getItemWidth(item.element);
+          return {
+            item,
+            width
+          };
+        });
+
+        const containerStyles = window.getComputedStyle(container);
+        const containerPadding = parseFloat(containerStyles.paddingLeft) + parseFloat(containerStyles.paddingRight);
+        const safetyMargin = 20;
+        const usableWidth = containerWidth - containerPadding - safetyMargin;
+        const availableWidth = usableWidth - dropdownWidth;
+
+        for (let i = 0; i < itemWidths.length; i++) {
+          const {
+            item,
+            width
+          } = itemWidths[i];
+
+          if (currentWidth + width <= availableWidth) {
+            currentWidth += width;
+            visibleItems.push(item);
+          } else {
+            overflowItems.push(item);
+          }
         }
 
-        init() {
-            this.allNavItems = Array.from(this.mainNav.querySelectorAll('.nav-item')).map(item => {
-                const priorityClass = Array.from(item.classList).find(cls => cls.startsWith('nav-priority-'));
-                const priority = priorityClass ? parseInt(priorityClass.split('-')[2]) : 999;
-                return {
-                    element: item,
-                    priority: priority,
-                    html: item.outerHTML,
-                    isActive: $(item).find('.nav-link.active').length > 0
-                };
-            }).sort((a, b) => a.priority - b.priority);
-
-            this.handleResize();
-
-            let resizeTimeout;
-            $(window).on('resize', () => {
-                clearTimeout(resizeTimeout);
-                resizeTimeout = setTimeout(() => this.handleResize(), 100);
-            });
+        if (visibleItems.length === 0 && this.allNavItems.length > 0) {
+          visibleItems.push(this.allNavItems[0]);
+          overflowItems.unshift(...this.allNavItems.slice(1));
         }
 
-        handleResize() {
-            this.resetNavigation();
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    this.redistributeItems();
-                });
-            });
+        this.updateNavigation(visibleItems, overflowItems);
+      }
+
+      getItemWidth(element) {
+        const $clone = $(element).clone();
+        $clone.css({
+          visibility: 'hidden',
+          position: 'absolute',
+          whiteSpace: 'nowrap',
+          top: '-9999px',
+          left: '-9999px',
+          pointerEvents: 'none',
+          zIndex: '-1'
+        });
+
+        $(this.mainNav.parentNode).append($clone);
+        const width = Math.ceil($clone[0].getBoundingClientRect().width) + 6;
+        $clone.remove();
+        return width;
+      }
+
+      updateNavigation(visibleItems, overflowItems) {
+        $(this.mainNav).empty();
+        visibleItems.forEach(item => {
+          $(this.mainNav).append(item.element);
+        });
+
+        $(this.overflowContainer).empty();
+
+        if (overflowItems.length > 0) {
+          $(this.dropdownButton).css('display', 'flex');
+
+          const navigationItems = overflowItems.filter(item => !$(item.element).hasClass('nav-action-item'));
+          const actionItems = overflowItems.filter(item => $(item.element).hasClass('nav-action-item'));
+
+          navigationItems.forEach(item => {
+            const dropdownItem = this.createDropdownItem(item);
+            $(this.overflowContainer).append(dropdownItem);
+          });
+
+          if (navigationItems.length > 0 && actionItems.length > 0) {
+            $(this.overflowContainer).append('<div class="dropdown-divider"></div>');
+            $(this.overflowContainer).append('<h6 class="dropdown-header">Actions</h6>');
+          }
+
+          actionItems.forEach(item => {
+            const dropdownItem = this.createDropdownItem(item);
+            $(this.overflowContainer).append(dropdownItem);
+          });
+        } else {
+          $(this.dropdownButton).css('display', 'none');
+        }
+      }
+
+      createDropdownItem(navItem) {
+        const $link = $(navItem.element).find('.nav-link');
+        const href = $link.attr('href');
+        const $icon = $link.find('i');
+        const text = $link.text().trim();
+        const isActive = $link.hasClass('active');
+        const isActionItem = $(navItem.element).hasClass('nav-action-item');
+
+        const $dropdownItem = $('<a>', {
+          class: `dropdown-item overflow-nav-item ${isActive ? 'active' : ''}`,
+          href: href
+        });
+
+        if (isActionItem) {
+          const dataAction = $link.data('action');
+          const dataSize = $link.data('size');
+          const dataTitle = $link.data('title');
+
+          if (dataAction) $dropdownItem.attr('data-action', dataAction);
+          if (dataSize) $dropdownItem.attr('data-size', dataSize);
+          if (dataTitle) $dropdownItem.attr('data-title', dataTitle);
+
+          if ($link.hasClass('show-modal')) {
+            $dropdownItem.addClass('show-modal');
+          }
         }
 
-        resetNavigation() {
-            $(this.overflowContainer).empty();
-            $(this.mainNav).empty();
-            this.allNavItems.forEach(item => {
-                $(this.mainNav).append(item.element);
-            });
+        if ($icon.length) {
+          const $iconClone = $icon.clone();
+          $iconClone.attr('class', $icon.attr('class').replace('me-1_5', 'me-2'));
+          $dropdownItem.append($iconClone);
         }
 
-        redistributeItems() {
-            const container = this.mainNav.closest('.card-body');
-            if (!container) return;
+        $dropdownItem.append(document.createTextNode(text));
 
-            const containerWidth = container.getBoundingClientRect().width;
-            const dropdownWidth = $(this.dropdownButton).outerWidth() + 10;
-
-            let currentWidth = 0;
-            const visibleItems = [];
-            const overflowItems = [];
-
-            const itemWidths = this.allNavItems.map(item => {
-                const width = this.getItemWidth(item.element);
-                return { item, width };
-            });
-
-            const containerStyles = window.getComputedStyle(container);
-            const containerPadding = parseFloat(containerStyles.paddingLeft) + parseFloat(containerStyles.paddingRight);
-            const safetyMargin = 20;
-            const usableWidth = containerWidth - containerPadding - safetyMargin;
-            const availableWidth = usableWidth - dropdownWidth;
-
-            for (let i = 0; i < itemWidths.length; i++) {
-                const { item, width } = itemWidths[i];
-
-                if (currentWidth + width <= availableWidth) {
-                    currentWidth += width;
-                    visibleItems.push(item);
-                } else {
-                    overflowItems.push(item);
-                }
-            }
-
-            if (visibleItems.length === 0 && this.allNavItems.length > 0) {
-                visibleItems.push(this.allNavItems[0]);
-                overflowItems.unshift(...this.allNavItems.slice(1));
-            }
-
-            this.updateNavigation(visibleItems, overflowItems);
-        }
-
-        getItemWidth(element) {
-            const $clone = $(element).clone();
-            $clone.css({
-                visibility: 'hidden',
-                position: 'absolute',
-                whiteSpace: 'nowrap',
-                top: '-9999px',
-                left: '-9999px',
-                pointerEvents: 'none',
-                zIndex: '-1'
-            });
-            
-            $(this.mainNav.parentNode).append($clone);
-            const width = Math.ceil($clone[0].getBoundingClientRect().width) + 6;
-            $clone.remove();
-            return width;
-        }
-
-        updateNavigation(visibleItems, overflowItems) {
-            $(this.mainNav).empty();
-            visibleItems.forEach(item => {
-                $(this.mainNav).append(item.element);
-            });
-
-            $(this.overflowContainer).empty();
-
-            if (overflowItems.length > 0) {
-                $(this.dropdownButton).css('display', 'flex');
-                
-                const navigationItems = overflowItems.filter(item => !$(item.element).hasClass('nav-action-item'));
-                const actionItems = overflowItems.filter(item => $(item.element).hasClass('nav-action-item'));
-
-                navigationItems.forEach(item => {
-                    const dropdownItem = this.createDropdownItem(item);
-                    $(this.overflowContainer).append(dropdownItem);
-                });
-
-                if (navigationItems.length > 0 && actionItems.length > 0) {
-                    $(this.overflowContainer).append('<div class="dropdown-divider"></div>');
-                    $(this.overflowContainer).append('<h6 class="dropdown-header">Actions</h6>');
-                }
-
-                actionItems.forEach(item => {
-                    const dropdownItem = this.createDropdownItem(item);
-                    $(this.overflowContainer).append(dropdownItem);
-                });
-            } else {
-                $(this.dropdownButton).css('display', 'none');
-            }
-        }
-
-        createDropdownItem(navItem) {
-            const $link = $(navItem.element).find('.nav-link');
-            const href = $link.attr('href');
-            const $icon = $link.find('i');
-            const text = $link.text().trim();
-            const isActive = $link.hasClass('active');
-            const isActionItem = $(navItem.element).hasClass('nav-action-item');
-
-            const $dropdownItem = $('<a>', {
-                class: `dropdown-item overflow-nav-item ${isActive ? 'active' : ''}`,
-                href: href
-            });
-
-            if (isActionItem) {
-                const dataAction = $link.data('action');
-                const dataSize = $link.data('size');
-                const dataTitle = $link.data('title');
-
-                if (dataAction) $dropdownItem.attr('data-action', dataAction);
-                if (dataSize) $dropdownItem.attr('data-size', dataSize);
-                if (dataTitle) $dropdownItem.attr('data-title', dataTitle);
-
-                if ($link.hasClass('show-modal')) {
-                    $dropdownItem.addClass('show-modal');
-                }
-            }
-
-            if ($icon.length) {
-                const $iconClone = $icon.clone();
-                $iconClone.attr('class', $icon.attr('class').replace('me-1_5', 'me-2'));
-                $dropdownItem.append($iconClone);
-            }
-
-            $dropdownItem.append(document.createTextNode(text));
-
-            return $dropdownItem[0];
-        }
+        return $dropdownItem[0];
+      }
     }
 
     // Initialize responsive navigation
     const responsiveNav = new ResponsiveNavigation();
 
-    // Status  handlers
-    $('.status-radio').on('change', function() {
-      const employeeId = $(this).data('employee-id');
-      const newStatus = $(this).data('status');
-      const card = $('#employee-status-card');
-      
-      // Add loading state
-      card.addClass('loading');
-      
-      // Make AJAX request
-      $.ajax({
-          url: '{{ route("employee.update-status") }}',
-          method: 'POST',
-          data: {
-              _token: '{{ csrf_token() }}',
-              employee_id: employeeId,
-              status: newStatus
-          },
-          success: function(response) {
-              if (response.success) {
-                  // Update card color based on status
-                  card.removeClass('active-success active-info active-danger');
-                  
-                  if (newStatus === 'active') {
-                      $('#current-status-text').text('Active Employee');
-                  } else if (newStatus === 'on leave') {
-                      $('#current-status-text').text('Currently on Leave');
-                  } else if (newStatus === 'inactive') {
-                      $('#current-status-text').text('Inactive Employee');
-                  }
-                  
-                  // Update header badge
-                  const $badge = $('.badge.bg-label-success, .badge.bg-label-danger, .badge.bg-label-warning');
-                  $badge.removeClass('bg-label-success bg-label-danger bg-label-warning');
-                  if (newStatus === 'active') {
-                      $badge.addClass('bg-label-success').text('Active');
-                  } else if (newStatus === 'inactive') {
-                      $badge.addClass('bg-label-danger').text('Inactive');
-                  } else if (newStatus === 'on_leave') {
-                      $badge.addClass('bg-label-info').text('On Leave');
-                  }
-                  
-                  showNotification(response.message, 'success');
-              } else {
-                  showNotification('Error: ' + response.message, 'error');
-                  // Revert radio button
-                  $(this).prop('checked', false);
-                  // Set original checked status
-                  const originalStatus = '{{ $employee->status ?? 'not-set' }}';
-                  $(`.status-radio[data-status="${originalStatus}"]`).prop('checked', true);
-              }
-          },
-          error: function(xhr) {
-            // Revert radio button
-            const originalStatus = '{{ $employee->status ?? 'not-set' }}';
-            $(`.status-radio[data-status="${originalStatus}"]`).prop('checked', true);
-            if (xhr.status === 422) {
-                const errors = xhr.responseJSON.errors;
-                let errorMsg = '';
-                $.each(errors, function(key, value) {
-                    errorMsg += value[0] + '\n';
-                });
-                toastr.error(errorMsg);
-            } else {
-                showNotification('An error occurred while updating status: ' + xhr.responseJSON.message, 'error');
-            }
-          },
-          complete: function() {
-              card.removeClass('loading');
-          }
-      });
-    });
-
     // Function to show notifications
     function showNotification(message, type) {
-        const $notification = $('<div>', {
-            class: `notification notification-${type}`,
-            html: `
+      const $notification = $('<div>', {
+        class: `notification notification-${type}`,
+        html: `
                 <div class="notification-content">
                     <i class="ti ti-${type === 'success' ? 'check' : 'x'}"></i>
                     <span>${message}</span>
                 </div>
             `,
-            css: {
-                position: 'fixed',
-                top: '20px',
-                right: '20px',
-                background: type === 'success' ? '#28a745' : '#dc3545',
-                color: 'white',
-                padding: '12px 20px',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                zIndex: 9999,
-                animation: 'slideIn 0.3s ease',
-                maxWidth: '300px'
-            }
-        });
+        css: {
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: type === 'success' ? '#28a745' : '#dc3545',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          zIndex: 9999,
+          animation: 'slideIn 0.3s ease',
+          maxWidth: '300px'
+        }
+      });
 
-        $('body').append($notification);
+      $('body').append($notification);
 
+      setTimeout(() => {
+        $notification.css('animation', 'slideOut 0.3s ease');
         setTimeout(() => {
-            $notification.css('animation', 'slideOut 0.3s ease');
-            setTimeout(() => {
-                $notification.remove();
-            }, 300);
-        }, 3000);
+          $notification.remove();
+        }, 300);
+      }, 3000);
     }
 
     // Add CSS for notifications if not already present
     if (!$('#notification-styles').length) {
-        $('<style>', {
-            id: 'notification-styles',
-            text: `
+      $('<style>', {
+        id: 'notification-styles',
+        text: `
                 @keyframes slideIn {
                     from { transform: translateX(100%); opacity: 0; }
                     to { transform: translateX(0); opacity: 1; }
@@ -1063,8 +809,8 @@ $(document).ready(function() {
                     gap: 8px;
                 }
             `
-        }).appendTo('head');
+      }).appendTo('head');
     }
-});
+  });
 </script>
 @endsection

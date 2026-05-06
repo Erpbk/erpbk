@@ -123,15 +123,15 @@
                                 </tr>
                                 <tr>
                                     <th>Service Charges</th>
-                                    <td class="text-end">AED {{ number_format($accounts->account_tax , 2) }}</td>
+                                    <td class="text-end">{{ \App\Helpers\Currency::format($accounts->account_tax , 2) }}</td>
                                 </tr>
                                 <tr>
                                     <th>Fine</th>
-                                    <td class="text-end">AED {{ number_format($data->amount , 2)  }}</td>
+                                    <td class="text-end">{{ \App\Helpers\Currency::format($data->amount , 2) }}</td>
                                 </tr>
                                 <tr>
                                     <th>Total Amount</th>
-                                    <td class="text-end">AED {{ number_format($data->total_amount, 2)  }}</td>
+                                    <td class="text-end">{{ \App\Helpers\Currency::format($data->total_amount, 2) }}</td>
                                 </tr>
                                 <tr>
                                     <th>View Files</th>

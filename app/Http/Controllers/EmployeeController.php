@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\ModuleCustomField;
+use App\Models\ModuleDocumentType;
+use App\Models\ModuleFieldCategoryAssignment;
+use App\Models\ModuleSettingCategory;
 use App\Models\Transactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -10,18 +14,190 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Accounts;
 use App\DataTables\LedgerDataTable;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Laracasts\Flash\Flash;
 
 class EmployeeController extends Controller
 {
+    private const EMPLOYEE_MODULE_KEY = 'employees';
+    private const EMPLOYEE_HIDDEN_FIELD_KEYS = [
+        'personal_email',
+        'personal_contact',
+        'emergency_contact',
+        'status',
+        'profile_image',
+        'account_id',
+    ];
+
+    private function employeeHiddenFieldLookup(): array
+    {
+        return array_flip(self::EMPLOYEE_HIDDEN_FIELD_KEYS);
+    }
+
+    private function employeeFieldsByCategory(): array
+    {
+        $moduleKey = self::EMPLOYEE_MODULE_KEY;
+        $categories = ModuleSettingCategory::query()
+            ->where('module_key', $moduleKey)
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+        $categoryIds = $categories->pluck('id')->all();
+        $employeeColumns = array_flip(Schema::getColumnListing('employees'));
+        $hiddenLookup = $this->employeeHiddenFieldLookup();
+        $assignmentQuery = ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $moduleKey)
+            ->orderBy('display_order')
+            ->orderBy('id');
+        if (!empty($categoryIds)) {
+            $assignmentQuery->whereIn('category_id', $categoryIds);
+        } else {
+            $assignmentQuery->whereRaw('1 = 0');
+        }
+        $fixedAssignments = $assignmentQuery->get()->filter(function ($assignment) {
+            return (bool) ($assignment->is_visible ?? true);
+        });
+        $customQuery = ModuleCustomField::query()
+            ->where('module_key', $moduleKey)
+            ->orderBy('display_order')
+            ->orderBy('id');
+        if (!empty($categoryIds)) {
+            $customQuery->whereIn('category_id', $categoryIds);
+        } else {
+            $customQuery->whereRaw('1 = 0');
+        }
+        $customFields = $customQuery->get();
+
+        $normalized = [];
+        foreach ($categories as $category) {
+            $items = [];
+            foreach ($fixedAssignments->where('category_id', $category->id) as $assignment) {
+                if (!isset($employeeColumns[$assignment->field_key]) || isset($hiddenLookup[$assignment->field_key])) {
+                    continue;
+                }
+                $spec = ['type' => 'text'];
+                if ($assignment->field_key === 'branch_id') {
+                    $spec['type'] = 'select';
+                }
+                if (!empty($assignment->input_type)) {
+                    $spec['type'] = $assignment->input_type === 'dropdown' ? 'select' : $assignment->input_type;
+                }
+                if (is_array($assignment->input_config) && array_key_exists('options', $assignment->input_config)) {
+                    $spec['options'] = $assignment->input_config['options'];
+                }
+                $spec['required'] = (bool) ($assignment->is_required ?? false);
+
+                $items[] = (object) [
+                    'kind' => 'fixed',
+                    'field_key' => $assignment->field_key,
+                    'label' => !empty($assignment->display_label) ? $assignment->display_label : (!empty($assignment->field_label) ? $assignment->field_label : ucwords(str_replace('_', ' ', $assignment->field_key))),
+                    'spec' => $spec,
+                ];
+            }
+            foreach ($customFields->where('category_id', $category->id) as $field) {
+                $items[] = (object) [
+                    'kind' => 'custom',
+                    'field' => $field,
+                ];
+            }
+
+            if (!empty($items)) {
+                $normalized[] = (object) [
+                    'category' => $category,
+                    'fields' => $items,
+                ];
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function employeeDynamicFieldRules(): array
+    {
+        $rules = [];
+        $moduleKey = self::EMPLOYEE_MODULE_KEY;
+        $employeeColumns = array_flip(Schema::getColumnListing('employees'));
+
+        ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $moduleKey)
+            ->where('is_required', true)
+            ->where(function ($q) {
+                $q->where('is_visible', true)->orWhereNull('is_visible');
+            })
+            ->get(['field_key'])
+            ->each(function ($assignment) use (&$rules, $employeeColumns) {
+                $fieldKey = (string) $assignment->field_key;
+                if (isset($employeeColumns[$fieldKey])) {
+                    if (!isset($this->employeeHiddenFieldLookup()[$fieldKey])) {
+                        $rules[$fieldKey] = 'required';
+                    }
+                }
+            });
+
+        ModuleCustomField::query()
+            ->where('module_key', $moduleKey)
+            ->whereNotNull('category_id')
+            ->where('is_mandatory', true)
+            ->get(['id'])
+            ->each(function ($field) use (&$rules) {
+                $rules['custom_field_values.' . $field->id] = 'required';
+            });
+
+        return $rules;
+    }
+
+    private function applyEmployeeDynamicInput(array &$validated, Request $request): void
+    {
+        $hiddenLookup = $this->employeeHiddenFieldLookup();
+        foreach (ModuleFieldCategoryAssignment::query()->where('module_key', self::EMPLOYEE_MODULE_KEY)->get(['field_key']) as $assignment) {
+            $fieldKey = (string) $assignment->field_key;
+            if ($fieldKey !== '' && !isset($hiddenLookup[$fieldKey]) && $request->has($fieldKey)) {
+                $validated[$fieldKey] = $request->input($fieldKey);
+            }
+        }
+        $validated['custom_field_values'] = $request->input('custom_field_values', []);
+    }
+
+    private function employeeTableLabels(): array
+    {
+        $labels = [
+            'employee_id' => 'Employee ID',
+            'name' => 'Name',
+            'company_contact' => 'Contact',
+            'branch_id' => 'Branch',
+            'department_id' => 'Department',
+            'designation' => 'Designation',
+            'doj' => 'Date of Joining',
+            'documents_expiry' => 'Documents Expiry',
+            'status' => 'Status',
+            'actions' => 'Actions',
+        ];
+
+        ModuleFieldCategoryAssignment::query()
+            ->where('module_key', self::EMPLOYEE_MODULE_KEY)
+            ->whereIn('field_key', ['employee_id', 'name', 'company_contact', 'branch_id', 'department_id', 'designation', 'doj', 'status'])
+            ->get(['field_key', 'display_label', 'field_label'])
+            ->each(function ($assignment) use (&$labels) {
+                $fieldKey = (string) $assignment->field_key;
+                $label = trim((string) ($assignment->display_label ?: $assignment->field_label ?: ''));
+                if ($label !== '' && isset($labels[$fieldKey])) {
+                    $labels[$fieldKey] = $label;
+                }
+            });
+
+        return $labels;
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
         $employees = Employee::all()->sortBy('name')->load('branch', 'department', 'nationality');
+        $employeeTableLabels = $this->employeeTableLabels();
 
-        return view('employees.index', compact('employees'));
+        return view('employees.index', compact('employees', 'employeeTableLabels'));
     }
 
     /**
@@ -34,7 +210,9 @@ class EmployeeController extends Controller
         $departments = \App\Models\Departments::all();
         $accounts = \App\Models\Accounts::where('ref_name', 'Rider')->get();
         $empId = 'EMP-' . ((Employee::latest()->first()->id ?? 0) + 1001);
-        return view('employees.create', compact('nationalities', 'branches', 'departments', 'accounts', 'empId'));
+        $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $fieldsByCategory = $this->employeeFieldsByCategory();
+        return view('employees.create', compact('nationalities', 'branches', 'departments', 'accounts', 'empId', 'riderCategories', 'fieldsByCategory'));
     }
 
     /**
@@ -43,14 +221,11 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         // Validate the request
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'employee_id' => 'required|string',
             'name' => 'required|string|max:255',
             'company_email' => 'required|email|unique:employees,company_email',
-            'personal_email' => 'required|email|unique:employees,personal_email',
-            'personal_contact' => 'nullable|string|max:20',
             'company_contact' => 'nullable|string|max:20',
-            'emergency_contact' => 'nullable|string|max:20',
             'nationality_id' => 'required|exists:countries,id',
             'department_id' => 'nullable|exists:departments,id',
             'designation' => 'nullable|string|max:255',
@@ -71,7 +246,7 @@ class EmployeeController extends Controller
             'notes' => 'nullable|string',
             'account' => 'required|in:new,existing',
             'account_id' => 'nullable|required_if:account,existing|exists:accounts,id',
-        ]);
+        ], $this->employeeDynamicFieldRules()));
 
         try {
             DB::beginTransaction();
@@ -84,6 +259,8 @@ class EmployeeController extends Controller
 
             // Set created_by
             $validated['created_by'] = auth()->id();
+
+            $this->applyEmployeeDynamicInput($validated, $request);
 
             // Create employee
             $employee = Employee::create($validated);
@@ -140,7 +317,7 @@ class EmployeeController extends Controller
             }
 
             // Log the error
-            \Log::error('Employee creation failed: ' . $e->getMessage());
+            Log::error('Employee creation failed: ' . $e->getMessage());
 
             if (request()->ajax()) {
                 return response()->json([
@@ -162,7 +339,144 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
-        return view('employees.show', compact('employee', 'nationalities', 'branches', 'departments'));
+        $fieldsByCategory = $this->employeeFieldsByCategory();
+        $result = $employee->toArray();
+        return view('employees.show_clean', compact('employee', 'nationalities', 'branches', 'departments', 'fieldsByCategory', 'result'));
+    }
+
+    public function files($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $nationalities = \App\Models\Countries::all();
+        $branches = \App\Models\Branch::active()->get();
+        $departments = \App\Models\Departments::all();
+        $companyId = optional(auth()->user())->company_id;
+
+        $documentTypes = ModuleDocumentType::query()
+            ->where('module_key', self::EMPLOYEE_MODULE_KEY)
+            ->where('is_active', true)
+            ->where(function ($query) use ($companyId) {
+                $query->whereNull('company_id');
+                if (!empty($companyId)) {
+                    $query->orWhere('company_id', $companyId);
+                }
+            })
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $expectedFiles = ['single' => [], 'dual' => []];
+        foreach ($documentTypes as $documentType) {
+            $key = strtolower(trim((string) $documentType->key));
+            if ($key === '') {
+                continue;
+            }
+
+            if ($documentType->type === 'dual') {
+                $expectedFiles['dual'][$key] = [
+                    'front' => trim((string) ($documentType->front_label ?: (ucwords(str_replace('_', ' ', $key)) . ' Front'))),
+                    'back' => trim((string) ($documentType->back_label ?: (ucwords(str_replace('_', ' ', $key)) . ' Back'))),
+                ];
+            } else {
+                $expectedFiles['single'][$key] = trim((string) ($documentType->label ?: ucwords(str_replace('_', ' ', $key))));
+            }
+        }
+
+        $files = \App\Support\CompanyQuery::table('files')
+            ->where('type', 'employee')
+            ->where('type_id', $id)
+            ->get();
+
+        $missingFiles = [];
+
+        foreach ($expectedFiles['single'] as $key => $name) {
+            $found = false;
+            foreach ($files as $employeeFile) {
+                if (str_contains(strtolower((string) $employeeFile->name), $key)) {
+                    $found = true;
+                    break;
+                }
+            }
+
+            if (!$found) {
+                $missingFiles[$key] = $name;
+            }
+        }
+
+        foreach ($expectedFiles['dual'] as $key => $sides) {
+            $foundFront = false;
+            $foundBack = false;
+            foreach ($files as $employeeFile) {
+                $name = strtolower((string) $employeeFile->name);
+                if (!str_contains($name, $key)) {
+                    continue;
+                }
+
+                if (str_contains($name, 'back') || str_contains($name, 'second')) {
+                    $foundBack = true;
+                } elseif (str_contains($name, 'front') || str_contains($name, 'first')) {
+                    $foundFront = true;
+                } else {
+                    $foundFront = true;
+                    $foundBack = true;
+                }
+            }
+
+            if (!$foundFront) {
+                $missingFiles[$key . '_front'] = $sides['front'];
+            }
+            if (!$foundBack) {
+                $missingFiles[$key . '_back'] = $sides['back'];
+            }
+        }
+
+        return view('employees.files', compact('employee', 'nationalities', 'branches', 'departments', 'missingFiles', 'files'));
+    }
+
+    public function salary($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $nationalities = \App\Models\Countries::all();
+        $branches = \App\Models\Branch::active()->get();
+        $departments = \App\Models\Departments::all();
+
+        return view('employees.salary', compact('employee', 'nationalities', 'branches', 'departments'));
+    }
+
+    public function attendance($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $nationalities = \App\Models\Countries::all();
+        $branches = \App\Models\Branch::active()->get();
+        $departments = \App\Models\Departments::all();
+
+        return view('employees.attendance', compact('employee', 'nationalities', 'branches', 'departments'));
+    }
+
+    public function leaves($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $nationalities = \App\Models\Countries::all();
+        $branches = \App\Models\Branch::active()->get();
+        $departments = \App\Models\Departments::all();
+
+        return view('employees.leaves', compact('employee', 'nationalities', 'branches', 'departments'));
+    }
+
+    public function timeline($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $nationalities = \App\Models\Countries::all();
+        $branches = \App\Models\Branch::active()->get();
+        $departments = \App\Models\Departments::all();
+
+        return view('employees.timeline', compact('employee', 'nationalities', 'branches', 'departments'));
+    }
+
+    public function voucher($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        return view('employees.voucher', compact('employee'));
     }
 
     /**
@@ -173,7 +487,9 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
-        return view('employees.edit', compact('employee', 'nationalities', 'branches', 'departments'));
+        $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $fieldsByCategory = $this->employeeFieldsByCategory();
+        return view('employees.edit', compact('employee', 'nationalities', 'branches', 'departments', 'riderCategories', 'fieldsByCategory'));
     }
 
     /**
@@ -181,14 +497,11 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, $comapny_slug, Employee $employee)
     {
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'employee_id' => 'required|string',
             'name' => 'required|string|max:255',
             'company_email' => 'required|email|unique:employees,company_email,' . $employee->id,
-            'personal_email' => 'required|email|unique:employees,personal_email,' . $employee->id,
-            'personal_contact' => 'nullable|string|max:20',
             'company_contact' => 'nullable|string|max:20',
-            'emergency_contact' => 'nullable|string|max:20',
             'nationality_id' => 'required|exists:countries,id',
             'department_id' => 'nullable|exists:departments,id',
             'designation' => 'nullable|string|max:255',
@@ -207,7 +520,9 @@ class EmployeeController extends Controller
             'address' => 'nullable|string',
             'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'notes' => 'nullable|string',
-        ]);
+        ], $this->employeeDynamicFieldRules()));
+
+        $this->applyEmployeeDynamicInput($validated, $request);
 
         // Handle file upload
         if ($request->hasFile('profile_image')) {
@@ -289,7 +604,7 @@ class EmployeeController extends Controller
         $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
-            \Log::error('Employee section update validation failed', [
+            Log::error('Employee section update validation failed', [
                 'employee_id' => $employee->id,
                 'section' => $section,
                 'errors' => $validator->errors()->toArray()
@@ -336,9 +651,6 @@ class EmployeeController extends Controller
                     'name' => 'required|string|max:255',
                     'dob' => 'required|date',
                     'nationality_id' => 'required|exists:countries,id',
-                    'personal_email' => 'nullable|email|max:255',
-                    'personal_contact' => 'nullable|string|max:20',
-                    'emergency_contact' => 'nullable|string|max:20',
                     'address' => 'nullable|string'
                 ];
 
@@ -407,7 +719,7 @@ class EmployeeController extends Controller
                 'message' => 'Employee status updated successfully',
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to update employee status', [
+            Log::error('Failed to update employee status', [
                 'employee_id' => $request->employee_id,
                 'status' => $request->status,
                 'error' => $e->getMessage()

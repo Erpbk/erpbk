@@ -520,9 +520,9 @@
                <div class="editable-div" id="declarationText" contenteditable="false" style="min-height: 170px; border: none; padding: 8px;">
 I undertake to preserve and use the bike for the purpose for which I received it and acknowledge that I am fully responsible for its maintenance and care. I commit to return the bike to the company upon its request or at the end of the contract, in the same condition as I received it.
 
-In the event of non-return, I agree to pay an amount of <b>AED 8,000</b> for the bike and <b>AED 2,000</b> for Noon Assets (Delivery Bag & Noon Uniform with accessories), totaling <b>AED 10,000</b>.
+In the event of non-return, I agree to pay an amount of <b>{{ \App\Helpers\Currency::code() }} 8,000</b> for the bike and <b>{{ \App\Helpers\Currency::code() }} 2,000</b> for Noon Assets (Delivery Bag & Noon Uniform with accessories), totaling <b>{{ \App\Helpers\Currency::code() }} 10,000</b>.
 
-I acknowledge that it is my responsibility to return the bike to the company upon termination of employment. Should I fail to do so, I shall be liable to pay the monthly rent of <b>AED 600</b>, any RTA fines, Salik charges, and any damages to the bike until it is returned in good working condition.
+I acknowledge that it is my responsibility to return the bike to the company upon termination of employment. Should I fail to do so, I shall be liable to pay the monthly rent of <b>{{ \App\Helpers\Currency::code() }} 600</b>, any RTA fines, Salik charges, and any damages to the bike until it is returned in good working condition.
                </div>
             </div>
             
@@ -567,7 +567,7 @@ I acknowledge that it is my responsibility to return the bike to the company upo
                         <span class="clause-number">1.</span> Excess Mileage Charges
                     </div>
                     <p class="text-justify ms-3">
-                        The Rider shall comply with the approved mileage limit assigned by the Company. In case of excess usage, the Rider agrees to pay <b>AED 1 (One Dirham) per additional kilometer</b>, which may be deducted from salary or any other dues in accordance with UAE labor Law.
+                        The Rider shall comply with the approved mileage limit assigned by the Company. In case of excess usage, the Rider agrees to pay <b>{{ \App\Helpers\Currency::code() }} 1 (One Dirham) per additional kilometer</b>, which may be deducted from salary or any other dues in accordance with UAE labor Law.
                     </p>
                 </div>
                 
@@ -617,7 +617,7 @@ I acknowledge that it is my responsibility to return the bike to the company upo
                         <span class="clause-number">6.</span> Traffic Fines, Salik & Administrative Charges
                     </div>
                     <p class="text-justify ms-3">
-                        The Rider shall be fully responsible for all <b>RTA traffic fines</b> incurred during the course of employment. In addition, an <b>administrative handling fee of AED 25 per fine</b> and <b>Salik charges of AED 0.5 per transaction</b> shall be applicable. These amounts may be deducted from the Rider's salary or dues, subject to legal limits.
+                        The Rider shall be fully responsible for all <b>RTA traffic fines</b> incurred during the course of employment. In addition, an <b>administrative handling fee of {{ \App\Helpers\Currency::code() }} 25 per fine</b> and <b>Salik charges of {{ \App\Helpers\Currency::code() }} 0.5 per transaction</b> shall be applicable. These amounts may be deducted from the Rider's salary or dues, subject to legal limits.
                     </p>
                 </div>
                 

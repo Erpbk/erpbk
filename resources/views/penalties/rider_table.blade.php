@@ -15,7 +15,7 @@
             <tr>
                 <td>{{ $penalty->id }}</td>
                 <td>{{ App\Helpers\General::DateFormat($penalty->transaction_date) }}</td>
-                <td>AED {{ number_format($penalty->amount, 2) }}</td>
+                <td>{{ \App\Helpers\Currency::format($penalty->amount, 2) }}</td>
                 <td>
                     <span class="badge badge-{{ $penalty->status == 'paid' ? 'success' : ($penalty->status == 'unpaid' ? 'danger' : 'warning') }}">
                         {{ ucfirst($penalty->status) }}

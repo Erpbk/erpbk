@@ -32,7 +32,7 @@
 <!-- Amount Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('amount', 'Amount:', ['class' => 'readonly']) !!}
-    {!! Form::text('amount', 'AED ' . number_format($data->amount, 2), ['class' => 'form-control', 'readonly']) !!}
+    {!! Form::text('amount', '{{ \App\Helpers\Currency::code() }} ' . number_format($data->amount, 2), ['class' => 'form-control', 'readonly']) !!}
 </div>
 <!-- Status Field -->
 <div class="form-group col-sm-6">

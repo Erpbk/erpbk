@@ -21,6 +21,7 @@ class Branch extends BaseModel
         'code',
         'contact',
         'address',
+        'city',
         'parent_branch_id',
         'branch_type',
         'is_active',

@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title','Traffic Fine Details')
 @section('content')
@@ -105,7 +105,7 @@
                                 </tr>
                                 <tr>
                                     <th>Amount</th>
-                                    <td class="text-end">AED {{ number_format($data->amount , 2)  }}</td>
+                                    <td class="text-end">{{ \App\Helpers\Currency::format($data->amount , 2) }}</td>
                                 </tr>
                                 @if($data->payment_status == 'paid')
                                 <tr>

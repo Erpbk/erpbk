@@ -23,9 +23,9 @@
                 <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
                 <td>{{ $invoice->vendor->name ?? '-' }}</td>
                 <td><span class="badge bg-info">{{ $invoice->items->count() }} sim(s)</span></td>
-                <td>AED {{ number_format($invoice->subtotal ?? 0, 2) }}</td>
-                <td>AED {{ number_format($invoice->vat ?? 0, 2) }}</td>
-                <td><strong>AED {{ number_format($invoice->total_amount ?? 0, 2) }}</strong></td>
+                <td>{{ \App\Helpers\Currency::format($invoice->subtotal ?? 0, 2) }}</td>
+                <td>{{ \App\Helpers\Currency::format($invoice->vat ?? 0, 2) }}</td>
+                <td><strong>{{ \App\Helpers\Currency::format($invoice->total_amount ?? 0, 2) }}</strong></td>
                 <td>
                     @if($invoice->status == 1)
                         <span class="badge bg-success">Paid</span>

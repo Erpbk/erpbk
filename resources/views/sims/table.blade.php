@@ -99,11 +99,11 @@
           @endif
         </td>
         <td style="position: relative;">
-            <div class="dropdown">
+            <div class="dropdown sim-table-action-dropdown">
                <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
-               <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
+               <div class="dropdown-menu dropdown-menu-end sim-table-dropdown-menu" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
                   @can('sim_assign_edit')
                      @if(!$r->assign_to)
                         <a href="javascript:void(0);" data-size="lg" data-title="Assign Sim" data-action="{{ route('sims.assign', $r->id) }}" class='show-modal dropdown-item waves-effect'>
@@ -121,8 +121,9 @@
                   </a>
                   @endcan
                   @can('sim_delete')
-                  <a href="#" class='dropdown-item waves-effect' 
-                    onclick="confirmDelete('{{ route('sims.delete', $r->id) }}')">
+                  <a href="#" class='dropdown-item waves-effect'
+                    data-delete-url="{{ route('sims.delete', $r->id) }}"
+                    onclick="confirmDelete(this.dataset.deleteUrl)">
                     <i class="fa fa-trash my-1"></i> Delete
                   </a>
                   @endcan

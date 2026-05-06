@@ -63,7 +63,7 @@
                 @endphp
                 @if($overdue_cost >0)
                 <small class="text-danger">
-                    AED {{ number_format($overdue_cost, 2) }}
+                    {{ \App\Helpers\Currency::format($overdue_cost, 2) }}
                 </small><br>
                 @if($maintenance->overdue_paidby === 'Rider')
                 <small class="text-muted">Charged</small>
@@ -73,7 +73,7 @@
                 @endif
             </td>
             <td>
-                <strong>AED {{ number_format($maintenance->total_cost ?? 0, 2) }}</strong>
+                <strong>{{ \App\Helpers\Currency::format($maintenance->total_cost ?? 0, 2) }}</strong>
             </td>
             <td style="white-space: nowrap">
                 <a href="{{ route('bike-maintenance.invoice', $maintenance) }}"

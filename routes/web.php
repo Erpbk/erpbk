@@ -232,6 +232,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::resource('employees', App\Http\Controllers\EmployeeController::class);
     Route::get('/employees/{id}/ledger', [App\Http\Controllers\EmployeeController::class, 'ledger'])->name('employee.ledger');
+    Route::get('/employees/{id}/files', [App\Http\Controllers\EmployeeController::class, 'files'])->name('employee.files');
+    Route::get('/employees/{id}/salary', [App\Http\Controllers\EmployeeController::class, 'salary'])->name('employee.salary');
+    Route::get('/employees/{id}/attendance', [App\Http\Controllers\EmployeeController::class, 'attendance'])->name('employee.attendance');
+    Route::get('/employees/{id}/leaves', [App\Http\Controllers\EmployeeController::class, 'leaves'])->name('employee.leaves');
+    Route::get('/employees/{id}/timeline', [App\Http\Controllers\EmployeeController::class, 'timeline'])->name('employee.timeline');
+    Route::get('/employees/{id}/voucher', [App\Http\Controllers\EmployeeController::class, 'voucher'])->name('employees.voucher');
     Route::post('/employees/update-status', [App\Http\Controllers\EmployeeController::class, 'updateStatus'])->name('employee.update-status');
     Route::post('/employees/{id}/update-section', [App\Http\Controllers\EmployeeController::class, 'updateSection'])->name('employees.updateSection');
 
@@ -318,7 +324,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::delete('bikeRentCompanies/trash/{id}/force-destroy', [\App\Http\Controllers\BikeRentCompaniesController::class, 'forceDestroyTrash'])->name('bikeRentCompanies.force-destroy');
     Route::resource('bikeRentCompanies', App\Http\Controllers\BikeRentCompaniesController::class);
     Route::delete('bikeRentCompanies/delete/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'destroy'])->name('bikeRentCompanies.delete');
-
+    Route::get('bikeRentCompanies/ledger/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'ledger'])->name('bikeRentCompanies.ledger');
+    Route::get('bikeRentCompanies/files/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'files'])->name('bikeRentCompanies.files');
+    Route::get('bikeRentCompanies/invoices/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'invoices'])->name('bikeRentCompanies.invoices');
+    Route::get('bikeRentCompany/receipts', [\App\Http\Controllers\BikeRentCompaniesController::class, 'allReceipts'])->name('bikeRentCompanies.all_receipts');
+    Route::get('bikeRentCompanies/receipts/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'receipts'])->name('bikeRentCompanies.receipts');
+    Route::get('bikeRentCompanies/bikes/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'bikes'])->name('bikeRentCompanies.bikes');
     /* Rider section starts from here */
 
     Route::resource('riders', App\Http\Controllers\RidersController::class);

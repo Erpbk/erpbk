@@ -21,7 +21,7 @@
 <!-- Amount Field -->
 <div class="col-sm-12">
     {!! Form::label('amount', 'Amount:') !!}
-    <p>AED {{ number_format($payment->amount, 2) }}</p>
+    <p>{{ \App\Helpers\Currency::format($payment->amount) }}</p>
 </div>
 <!-- Date of Invoice Field -->
 <div class="col-sm-12">

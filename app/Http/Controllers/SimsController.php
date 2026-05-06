@@ -19,6 +19,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SimExport;
 use App\Models\User;
 use App\Models\SimCompany;
+use Illuminate\Support\Facades\Schema;
 
 class SimsController extends AppBaseController
 {
@@ -384,6 +385,12 @@ class SimsController extends AppBaseController
 
             try {
                 $rider = Riders::find($input['assign_to']);
+                if (!$rider) {
+                    return response()->json([
+                        'errors' => ['assign_to' => ['Selected rider not found.']],
+                        'message' => 'Validation failed.'
+                    ], 422);
+                }
                 $input['status'] = 1; // Set SIM status to active upon assignment
                 $input['branch_id'] = $rider->branch_id;
                 $sims->update($input);
@@ -396,9 +403,14 @@ class SimsController extends AppBaseController
                     'rider_id' => $input['assign_to'],
                 ]);
 
-                Riders::where('id', $input['assign_to'])->update(['company_contact' => $sims->number]);
+                if (Schema::hasColumn('riders', 'company_contact')) {
+                    Riders::where('id', $input['assign_to'])->update(['company_contact' => $sims->number]);
+                }
             } catch (\Exception $e) {
-                \Log::error('Error assigning SIM: ' . $e->getMessage());
+                \Log::error('Error assigning SIM: ' . $e->getMessage(), [
+                    'sim_id' => $sims->id,
+                    'assign_to' => $input['assign_to'] ?? null,
+                ]);
                 return response()->json([
                     'errors' => ['error' => 'Failed to assign SIM. Please try again.'],
                     'message' => 'Server error occurred.'
@@ -457,8 +469,10 @@ class SimsController extends AppBaseController
             $input['status'] = 0; // Set status to inactive
             $sims->update($input);
 
-            // Clear company_contact of the rider who had this SIM
-            $rider->update(['company_contact' => null]);
+            // Clear company_contact of the rider who had this SIM (only if column exists).
+            if ($rider && Schema::hasColumn('riders', 'company_contact')) {
+                Riders::where('id', $rider->id)->update(['company_contact' => null]);
+            }
 
             $history = $sims->histories()->orderBy('created_at', 'desc')->first();
             if ($history) {

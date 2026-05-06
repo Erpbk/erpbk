@@ -26,7 +26,7 @@
         </div>
         <div class="col-md-4 form-group">
             <label>Amount</label>
-            <input type="text" class="form-control" value="AED {{ number_format($invoice->total_amount ?? 0, 2) }}" readonly>
+            <input type="text" class="form-control" value="{{ \App\Helpers\Currency::format($invoice->total_amount ?? 0, 2) }}" readonly>
         </div>
     </div>
 </div>

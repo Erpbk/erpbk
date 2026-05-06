@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\ModuleCustomField;
+use App\Models\ModuleDocumentType;
 use App\Models\ModuleFieldCategoryAssignment;
 use App\Models\ModuleSettingCategory;
 use App\Models\Transactions;
@@ -349,8 +350,87 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
+        $companyId = optional(auth()->user())->company_id;
 
-        return view('employees.files', compact('employee', 'nationalities', 'branches', 'departments'));
+        $documentTypes = ModuleDocumentType::query()
+            ->where('module_key', self::EMPLOYEE_MODULE_KEY)
+            ->where('is_active', true)
+            ->where(function ($query) use ($companyId) {
+                $query->whereNull('company_id');
+                if (!empty($companyId)) {
+                    $query->orWhere('company_id', $companyId);
+                }
+            })
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $expectedFiles = ['single' => [], 'dual' => []];
+        foreach ($documentTypes as $documentType) {
+            $key = strtolower(trim((string) $documentType->key));
+            if ($key === '') {
+                continue;
+            }
+
+            if ($documentType->type === 'dual') {
+                $expectedFiles['dual'][$key] = [
+                    'front' => trim((string) ($documentType->front_label ?: (ucwords(str_replace('_', ' ', $key)) . ' Front'))),
+                    'back' => trim((string) ($documentType->back_label ?: (ucwords(str_replace('_', ' ', $key)) . ' Back'))),
+                ];
+            } else {
+                $expectedFiles['single'][$key] = trim((string) ($documentType->label ?: ucwords(str_replace('_', ' ', $key))));
+            }
+        }
+
+        $files = \App\Support\CompanyQuery::table('files')
+            ->where('type', 'employee')
+            ->where('type_id', $id)
+            ->get();
+
+        $missingFiles = [];
+
+        foreach ($expectedFiles['single'] as $key => $name) {
+            $found = false;
+            foreach ($files as $employeeFile) {
+                if (str_contains(strtolower((string) $employeeFile->name), $key)) {
+                    $found = true;
+                    break;
+                }
+            }
+
+            if (!$found) {
+                $missingFiles[$key] = $name;
+            }
+        }
+
+        foreach ($expectedFiles['dual'] as $key => $sides) {
+            $foundFront = false;
+            $foundBack = false;
+            foreach ($files as $employeeFile) {
+                $name = strtolower((string) $employeeFile->name);
+                if (!str_contains($name, $key)) {
+                    continue;
+                }
+
+                if (str_contains($name, 'back') || str_contains($name, 'second')) {
+                    $foundBack = true;
+                } elseif (str_contains($name, 'front') || str_contains($name, 'first')) {
+                    $foundFront = true;
+                } else {
+                    $foundFront = true;
+                    $foundBack = true;
+                }
+            }
+
+            if (!$foundFront) {
+                $missingFiles[$key . '_front'] = $sides['front'];
+            }
+            if (!$foundBack) {
+                $missingFiles[$key . '_back'] = $sides['back'];
+            }
+        }
+
+        return view('employees.files', compact('employee', 'nationalities', 'branches', 'departments', 'missingFiles', 'files'));
     }
 
     public function salary($comapny_slug, $id)

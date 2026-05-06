@@ -158,14 +158,45 @@ class EmployeeController extends Controller
         $validated['custom_field_values'] = $request->input('custom_field_values', []);
     }
 
+    private function employeeTableLabels(): array
+    {
+        $labels = [
+            'employee_id' => 'Employee ID',
+            'name' => 'Name',
+            'company_contact' => 'Contact',
+            'branch_id' => 'Branch',
+            'department_id' => 'Department',
+            'designation' => 'Designation',
+            'doj' => 'Date of Joining',
+            'documents_expiry' => 'Documents Expiry',
+            'status' => 'Status',
+            'actions' => 'Actions',
+        ];
+
+        ModuleFieldCategoryAssignment::query()
+            ->where('module_key', self::EMPLOYEE_MODULE_KEY)
+            ->whereIn('field_key', ['employee_id', 'name', 'company_contact', 'branch_id', 'department_id', 'designation', 'doj', 'status'])
+            ->get(['field_key', 'display_label', 'field_label'])
+            ->each(function ($assignment) use (&$labels) {
+                $fieldKey = (string) $assignment->field_key;
+                $label = trim((string) ($assignment->display_label ?: $assignment->field_label ?: ''));
+                if ($label !== '' && isset($labels[$fieldKey])) {
+                    $labels[$fieldKey] = $label;
+                }
+            });
+
+        return $labels;
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
         $employees = Employee::all()->sortBy('name')->load('branch', 'department', 'nationality');
+        $employeeTableLabels = $this->employeeTableLabels();
 
-        return view('employees.index', compact('employees'));
+        return view('employees.index', compact('employees', 'employeeTableLabels'));
     }
 
     /**

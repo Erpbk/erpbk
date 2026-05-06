@@ -131,29 +131,20 @@
             <label for="ref_type" class="form-label fw-bold">
                 User Type <span class="text-danger">*</span>
             </label>
-            @php($selectedType = old('ref_type', $refType ?? ''))
+            @php
+            $selectedType = old('ref_type', $refType ?? ($attendance->ref_type ?? request('ref_type', 'employee')));
+            @endphp
             <div class="btn-group w-100" role="group">
-
                 @if($selectedType === 'employee')
                 <input type="radio" class="btn-check" name="ref_type" id="type_employee"
-                    value="employee" checked autocomplete="off" required>
+                    value="employee" {{ $selectedType === 'employee' ? 'checked' : '' }} autocomplete="off" required>
                 <label class="btn btn-outline-primary" for="type_employee">
                     <i class="fas fa-user-tie me-2"></i>Employee
                 </label>
-                @elseif($selectedType === 'rider')
+                @endif
+                @if($selectedType === 'rider')
                 <input type="radio" class="btn-check" name="ref_type" id="type_rider"
-                    value="rider" checked autocomplete="off" required>
-                <label class="btn btn-outline-primary" for="type_rider">
-                    <i class="fas fa-motorcycle me-2"></i>Rider
-                </label>
-                @else
-                <input type="radio" class="btn-check" name="ref_type" id="type_employee"
-                    value="employee" autocomplete="off" required>
-                <label class="btn btn-outline-primary" for="type_employee">
-                    <i class="fas fa-user-tie me-2"></i>Employee
-                </label>
-                <input type="radio" class="btn-check" name="ref_type" id="type_rider"
-                    value="rider" autocomplete="off" required>
+                    value="rider" {{ $selectedType === 'rider' ? 'checked' : '' }} autocomplete="off" required>
                 <label class="btn btn-outline-primary" for="type_rider">
                     <i class="fas fa-motorcycle me-2"></i>Rider
                 </label>
@@ -288,23 +279,20 @@
         var initialRefId = "{{ $refId ?? '' }}";
         var oldRefType = "{{ old('ref_type', '') }}";
         var oldRefId = "{{ old('ref_id', '') }}";
-        var selectedRefType = oldRefType || initialRefType;
+        var selectedRefType = oldRefType || initialRefType || 'employee';
         var selectedRefId = oldRefId || initialRefId;
 
-        if (selectedRefType) {
-            // Find and check the correct radio button
-            $('input[name="ref_type"][value="' + selectedRefType + '"]').prop('checked', true);
-            // Manually trigger the change event to load users
-            loadUsers(selectedRefType, selectedRefId);
-            if (selectedRefId) {
-                // We need to wait for users to load then set the value
-                var checkInterval = setInterval(function() {
-                    if ($('#form_ref_id option[value="' + selectedRefId + '"]').length > 0) {
-                        $('#form_ref_id').val(selectedRefId).trigger('change');
-                        clearInterval(checkInterval);
-                    }
-                }, 100);
-            }
+        // Ensure selected type is reflected and users are loaded on first render
+        $('input[name="ref_type"][value="' + selectedRefType + '"]').prop('checked', true);
+        loadUsers(selectedRefType, selectedRefId);
+        if (selectedRefId) {
+            // We need to wait for users to load then set the value
+            var checkInterval = setInterval(function() {
+                if ($('#form_ref_id option[value="' + selectedRefId + '"]').length > 0) {
+                    $('#form_ref_id').val(selectedRefId).trigger('change');
+                    clearInterval(checkInterval);
+                }
+            }, 100);
         }
         // Load users when user type is selected
         $('input[name="ref_type"]').change(function() {

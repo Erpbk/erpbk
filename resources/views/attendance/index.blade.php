@@ -19,7 +19,7 @@
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
                         @can('attendance_create')
-                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Attendance Record" data-action="{{ route('attendance.create') }}">
+                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Attendance Record" data-action="{{ route('attendance.create', request('ref_type')) }}">
                             <i class="ti ti-plus"></i>
                             <span>Add New Record</span>
                         </a>

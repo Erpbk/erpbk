@@ -189,7 +189,7 @@
                 <tr>
                     <td class="text-start">
                         <div>
-                            <span class="fw-semibold">{{ $user->name }}</span>
+                            <span class="fw-semibold"><a target="_blank" href="@if($user->type == 'employee')   {{ route('employees.show', $user->id) }} @elseif($user->type == 'rider') {{ route('riders.show', $user->id) }} @endif">{{ $user->name }}</a></span>
                             <br><span class="text-muted" style="white-space: nowrap;">{{ ($user->designation ?? '') . '-' . $user->branch?->name}}</span>
                         </div>
                     </td>
@@ -232,17 +232,18 @@
                     }
                     } else {
                     $badgeClass = 'bg-light text-black border';
-                    $statusText = '-';
+                    $statusText = '+';
                     }
                     @endphp
 
                     <td class="text-center align-middle p-1">
                         <a href="javascript:void(0)" class="show-modal"
                             @if( $attendance && $attendance['exists'] ) data-action="{{ route('attendance.edit', App\Models\Attendance::find($attendance['id'])) }}" data-title="Edit Attendance ( {{ \Carbon\Carbon::parse($day['date'])->format('d M Y') }} )"
-                            @else data-action="{{ route('attendance.create') }}?ref_type={{ $user->type }}&ref_id={{ $user->id }}&date={{ $day['date'] }}" data-title="Mark Attendance ( {{ \Carbon\Carbon::parse($day['date'])->format('d M Y') }} )"
+                            @else data-action="{{ route('attendance.create', $user->type) }}?ref_type={{ $user->type }}&ref_id={{ $user->id }}&date={{ $day['date'] }}" data-title="Mark Attendance ( {{ \Carbon\Carbon::parse($day['date'])->format('d M Y') }} )"
                             @endif>
-                            <span class="badge {{ $badgeClass }} rounded-pill px-3 py-2"
-                                style="cursor: pointer; min-width: 45px;"
+                            @if($attendance && $attendance['exists'])
+                            <span class="badge {{ $badgeClass }} rounded px-3 py-2"
+                                style="cursor: pointer; min-width: 115px;height: 55px; font-size: 13px;"
                                 data-bs-toggle="tooltip"
                                 title="{{ 
                                                     $attendance && $attendance['exists'] ? (
@@ -257,6 +258,22 @@
                                 <br>{{ 'In: '.($attendance['check_in'] ?? '') }}<br>{{ 'Out: '.($attendance['check_out'] ?? '') }}
                                 @endif
                             </span>
+                            @else
+                            <span class="badge {{ $badgeClass }} rounded px-3 py-2"
+                                style="cursor: pointer; min-width: 115px;height: 55px; font-size: 37px;"
+                                data-bs-toggle="tooltip"
+                                title="{{ 
+                                                    $attendance && $attendance['exists'] ? (
+                                                        ($attendance['check_in'] ? 'In: ' . $attendance['check_in'] : '' )
+                                                        . ($attendance['check_out'] ? ' | Out: ' . $attendance['check_out'] :'' )
+                                                        . ((!$attendance['check_in'] && !$attendance['check_out']) ? 'Click to edit' : '')
+                                                        . ($attendance['notes'] ? ' Note: ' . $attendance['notes'] : '')
+                                                        ) 
+                                                    : 'Click to mark attendance' }}">
+                                {{ $statusText }}
+                            </span>
+                            @endif
+
                         </a>
                     </td>
                     @endforeach

@@ -59,13 +59,13 @@ class AttendanceController extends Controller
     /**
      * Show the form for creating a new attendance record.
      */
-    public function create()
+    public function create($company_slug, $refType)
     {
-        if (request()->has('ref_type')) {
-            $refType = request()->get('ref_type');
+        if ($refType) {
+            $refTypes = $refType;
             $refId = request()->get('ref_id');
             $date = request()->get('date', date('Y-m-d'));
-            return view('attendance.create', compact('refType', 'refId', 'date'));
+            return view('attendance.create', compact('refTypes', 'refId', 'date'));
         }
         return view('attendance.create');
     }
@@ -138,10 +138,18 @@ class AttendanceController extends Controller
      */
     public function edit($company_slug, Attendance $attendance)
     {
-        $employees = Employee::all();
-        $riders = Riders::all();
+        $attendance->load('user');
+        $refType = $attendance->ref_type;
+        $employees = collect();
+        $riders = collect();
 
-        return view('attendance.edit', compact('attendance', 'employees', 'riders'));
+        if ($refType == 'employee') {
+            $employees = Employee::all();
+        } else {
+            $riders = Riders::all();
+        }
+        dd($attendance);
+        return view('attendance.edit', compact('attendance', 'refType', 'employees', 'riders'));
     }
 
     /**

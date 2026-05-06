@@ -52,7 +52,7 @@
                     {{ ucfirst($attendance->ref_type) }}
                 </span>
             </td>
-            <td style="text-align: left;">{{ $user->name ?? 'N/A' }}</td>
+            <td style="text-align: center;"> <a target="_blank" href="@if($attendance->ref_type == 'employee')   {{ route('employees.show', $user->id) }} @elseif($attendance->ref_type == 'rider') {{ route('riders.show', $user->id) }} @endif">{{ $user->name ?? 'N/A' }}</a> </td>
             <td style="white-space: nowrap">{{ $attendance->date->format('d M Y') }}</td>
             <td>
                 @if($checkInTime)
@@ -110,14 +110,9 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $attendance->id }}" style="z-index: 1050;">
-                        @can('attendance_view')
-                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="View {{ $attendance->name }}" data-action="{{ route('attendance.show', $attendance) }}">
-                            <i class="fa fa-eye my-1"></i> View
-                        </a>
-                        @endcan
 
                         @can('attendance_edit')
-                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="md" data-title="Edit Attendance" data-action="{{ route('attendance.edit', $attendance) }}">
+                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="md" data-title="Edit Attendance" data-action="{{ route('attendance.create', $attendance->ref_type, $attendance->id) }}">
                             <i class="fa fa-edit my-1"></i> Edit
                         </a>
                         @endcan

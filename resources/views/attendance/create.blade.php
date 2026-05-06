@@ -132,7 +132,7 @@
                 User Type <span class="text-danger">*</span>
             </label>
             @php
-            $selectedType = old('ref_type', $refType ?? ($attendance->ref_type ?? request('ref_type', 'employee')));
+            $selectedType = $refTypes ?? 'employee';
             @endphp
             <div class="btn-group w-100" role="group">
                 @if($selectedType === 'employee')
@@ -275,7 +275,7 @@
 <script>
     $(document).ready(function() {
         console.log('create for script loaded');
-        var initialRefType = "{{ $refType ?? '' }}";
+        var initialRefType = "{{ $refTypes ?? '' }}";
         var initialRefId = "{{ $refId ?? '' }}";
         var oldRefType = "{{ old('ref_type', '') }}";
         var oldRefId = "{{ old('ref_id', '') }}";

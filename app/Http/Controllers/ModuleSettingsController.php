@@ -148,6 +148,10 @@ class ModuleSettingsController extends Controller
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
+        $hiddenFieldKeys = array_flip(ModuleFieldSource::defaultExcludedFieldsForModule($module));
+        $fixedAssignments = $fixedAssignments
+            ->filter(fn ($row) => !isset($hiddenFieldKeys[(string) $row->field_key]))
+            ->values();
 
         $customFields = ModuleCustomField::with('category')
             ->where('module_key', $module)

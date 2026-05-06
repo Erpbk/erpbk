@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\ModuleCustomField;
+use App\Models\ModuleFieldCategoryAssignment;
+use App\Models\ModuleSettingCategory;
 use App\Models\Transactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -10,10 +13,131 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Accounts;
 use App\DataTables\LedgerDataTable;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Laracasts\Flash\Flash;
 
 class EmployeeController extends Controller
 {
+    private const EMPLOYEE_MODULE_KEY = 'employees';
+
+    private function employeeFieldsByCategory(): array
+    {
+        $moduleKey = self::EMPLOYEE_MODULE_KEY;
+        $categories = ModuleSettingCategory::query()
+            ->where('module_key', $moduleKey)
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+        $categoryIds = $categories->pluck('id')->all();
+        $employeeColumns = array_flip(Schema::getColumnListing('employees'));
+        $assignmentQuery = ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $moduleKey)
+            ->orderBy('display_order')
+            ->orderBy('id');
+        if (!empty($categoryIds)) {
+            $assignmentQuery->whereIn('category_id', $categoryIds);
+        } else {
+            $assignmentQuery->whereRaw('1 = 0');
+        }
+        $fixedAssignments = $assignmentQuery->get()->filter(function ($assignment) {
+            return (bool) ($assignment->is_visible ?? true);
+        });
+        $customQuery = ModuleCustomField::query()
+            ->where('module_key', $moduleKey)
+            ->orderBy('display_order')
+            ->orderBy('id');
+        if (!empty($categoryIds)) {
+            $customQuery->whereIn('category_id', $categoryIds);
+        } else {
+            $customQuery->whereRaw('1 = 0');
+        }
+        $customFields = $customQuery->get();
+
+        $normalized = [];
+        foreach ($categories as $category) {
+            $items = [];
+            foreach ($fixedAssignments->where('category_id', $category->id) as $assignment) {
+                if (!isset($employeeColumns[$assignment->field_key])) {
+                    continue;
+                }
+                $spec = ['type' => 'text'];
+                if (!empty($assignment->input_type)) {
+                    $spec['type'] = $assignment->input_type === 'dropdown' ? 'select' : $assignment->input_type;
+                }
+                if (is_array($assignment->input_config) && array_key_exists('options', $assignment->input_config)) {
+                    $spec['options'] = $assignment->input_config['options'];
+                }
+                $spec['required'] = (bool) ($assignment->is_required ?? false);
+
+                $items[] = (object) [
+                    'kind' => 'fixed',
+                    'field_key' => $assignment->field_key,
+                    'label' => !empty($assignment->display_label) ? $assignment->display_label : (!empty($assignment->field_label) ? $assignment->field_label : ucwords(str_replace('_', ' ', $assignment->field_key))),
+                    'spec' => $spec,
+                ];
+            }
+            foreach ($customFields->where('category_id', $category->id) as $field) {
+                $items[] = (object) [
+                    'kind' => 'custom',
+                    'field' => $field,
+                ];
+            }
+
+            if (!empty($items)) {
+                $normalized[] = (object) [
+                    'category' => $category,
+                    'fields' => $items,
+                ];
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function employeeDynamicFieldRules(): array
+    {
+        $rules = [];
+        $moduleKey = self::EMPLOYEE_MODULE_KEY;
+        $employeeColumns = array_flip(Schema::getColumnListing('employees'));
+
+        ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $moduleKey)
+            ->where('is_required', true)
+            ->where(function ($q) {
+                $q->where('is_visible', true)->orWhereNull('is_visible');
+            })
+            ->get(['field_key'])
+            ->each(function ($assignment) use (&$rules, $employeeColumns) {
+                $fieldKey = (string) $assignment->field_key;
+                if (isset($employeeColumns[$fieldKey])) {
+                    $rules[$fieldKey] = 'required';
+                }
+            });
+
+        ModuleCustomField::query()
+            ->where('module_key', $moduleKey)
+            ->whereNotNull('category_id')
+            ->where('is_mandatory', true)
+            ->get(['id'])
+            ->each(function ($field) use (&$rules) {
+                $rules['custom_field_values.' . $field->id] = 'required';
+            });
+
+        return $rules;
+    }
+
+    private function applyEmployeeDynamicInput(array &$validated, Request $request): void
+    {
+        foreach (ModuleFieldCategoryAssignment::query()->where('module_key', self::EMPLOYEE_MODULE_KEY)->get(['field_key']) as $assignment) {
+            $fieldKey = (string) $assignment->field_key;
+            if ($fieldKey !== '' && $request->has($fieldKey)) {
+                $validated[$fieldKey] = $request->input($fieldKey);
+            }
+        }
+        $validated['custom_field_values'] = $request->input('custom_field_values', []);
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -34,7 +158,9 @@ class EmployeeController extends Controller
         $departments = \App\Models\Departments::all();
         $accounts = \App\Models\Accounts::where('ref_name', 'Rider')->get();
         $empId = 'EMP-' . ((Employee::latest()->first()->id ?? 0) + 1001);
-        return view('employees.create', compact('nationalities', 'branches', 'departments', 'accounts', 'empId'));
+        $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $fieldsByCategory = $this->employeeFieldsByCategory();
+        return view('employees.create', compact('nationalities', 'branches', 'departments', 'accounts', 'empId', 'riderCategories', 'fieldsByCategory'));
     }
 
     /**
@@ -43,7 +169,7 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         // Validate the request
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'employee_id' => 'required|string',
             'name' => 'required|string|max:255',
             'company_email' => 'required|email|unique:employees,company_email',
@@ -71,7 +197,7 @@ class EmployeeController extends Controller
             'notes' => 'nullable|string',
             'account' => 'required|in:new,existing',
             'account_id' => 'nullable|required_if:account,existing|exists:accounts,id',
-        ]);
+        ], $this->employeeDynamicFieldRules()));
 
         try {
             DB::beginTransaction();
@@ -84,6 +210,8 @@ class EmployeeController extends Controller
 
             // Set created_by
             $validated['created_by'] = auth()->id();
+
+            $this->applyEmployeeDynamicInput($validated, $request);
 
             // Create employee
             $employee = Employee::create($validated);
@@ -140,7 +268,7 @@ class EmployeeController extends Controller
             }
 
             // Log the error
-            \Log::error('Employee creation failed: ' . $e->getMessage());
+            Log::error('Employee creation failed: ' . $e->getMessage());
 
             if (request()->ajax()) {
                 return response()->json([
@@ -162,7 +290,9 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
-        return view('employees.show', compact('employee', 'nationalities', 'branches', 'departments'));
+        $fieldsByCategory = $this->employeeFieldsByCategory();
+        $result = $employee->toArray();
+        return view('employees.show', compact('employee', 'nationalities', 'branches', 'departments', 'fieldsByCategory', 'result'));
     }
 
     public function files($comapny_slug, $id)
@@ -229,7 +359,9 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
-        return view('employees.edit', compact('employee', 'nationalities', 'branches', 'departments'));
+        $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $fieldsByCategory = $this->employeeFieldsByCategory();
+        return view('employees.edit', compact('employee', 'nationalities', 'branches', 'departments', 'riderCategories', 'fieldsByCategory'));
     }
 
     /**
@@ -237,7 +369,7 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, $comapny_slug, Employee $employee)
     {
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'employee_id' => 'required|string',
             'name' => 'required|string|max:255',
             'company_email' => 'required|email|unique:employees,company_email,' . $employee->id,
@@ -263,7 +395,9 @@ class EmployeeController extends Controller
             'address' => 'nullable|string',
             'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'notes' => 'nullable|string',
-        ]);
+        ], $this->employeeDynamicFieldRules()));
+
+        $this->applyEmployeeDynamicInput($validated, $request);
 
         // Handle file upload
         if ($request->hasFile('profile_image')) {
@@ -345,7 +479,7 @@ class EmployeeController extends Controller
         $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
-            \Log::error('Employee section update validation failed', [
+            Log::error('Employee section update validation failed', [
                 'employee_id' => $employee->id,
                 'section' => $section,
                 'errors' => $validator->errors()->toArray()
@@ -463,7 +597,7 @@ class EmployeeController extends Controller
                 'message' => 'Employee status updated successfully',
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to update employee status', [
+            Log::error('Failed to update employee status', [
                 'employee_id' => $request->employee_id,
                 'status' => $request->status,
                 'error' => $e->getMessage()

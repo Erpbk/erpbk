@@ -300,7 +300,7 @@ $homeLink = $isAdminLogin
     <div>{{ $menuLabels['bike_on_rent'] ?? 'Bike on rent' }}</div>
   </a>
   <ul class="menu-sub">
-    <li class="menu-item {{ Route::is('bikeRentCompanies*') ? 'active' : '' }}">
+    <li class="menu-item {{ Route::is('bikeRentCompanies.*') && !Route::is('bikeRentCompanies.all_receipts') ? 'active' : '' }}">
       <a href="{{ route('bikeRentCompanies.index') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-users"></i>
         <div>{{ $menuLabels['bike_rent_customers'] ?? 'Customers' }}</div>

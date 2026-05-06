@@ -1,4 +1,4 @@
-<script src="{{ asset('js/modal_custom.js') }}"></script>
+
 
 <div class="row">
     <div class="col-md-2 form-group">
@@ -12,7 +12,7 @@
         $selectedCustomer = isset($cloneFromInvoice) ? $cloneFromInvoice->customer_id : (isset($invoice) ? $invoice->customer_id : (isset($bikeRentCustomer) && $bikeRentCustomer ? $bikeRentCustomer->id : null));
         $isClone = isset($cloneFromInvoice);
         @endphp
-        {!! Form::select('customer_id', $bikeRentCustomers, $selectedCustomer, ['class' => 'form-select form-select-sm select2', 'id' => 'customer_id', 'disabled' => $isClone]) !!}
+        {!! Form::select('customer_id', $bikeRentCustomers, $selectedCustomer, ['class' => 'form-select select2', 'id' => 'customer_id', 'disabled' => $isClone]) !!}
         @if($isClone)
         <input type="hidden" name="customer_id" value="{{ $selectedCustomer }}">
         <small class="text-muted">Customer is locked when cloning an invoice.</small>
@@ -142,7 +142,7 @@
         <div class="row mb-2 invoice-item-row">
             <div class="col-md-2 form-group">
                 <label>Bike <span class="text-danger">*</span></label>
-                {!! Form::select('bike_id[]', $bikes ?? [], null, ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+                {!! Form::select('bike_id[]', $bikes ?? [], null, ['class' => 'form-select select2 bike-select', 'required' => true]) !!}
             </div>
             <div class="col-md-1 form-group">
                 <label>Qty</label>
@@ -238,6 +238,10 @@
     };
 
     $(document).ready(function() {
+        $('.select2').select2({
+            dropdownParent: $('#modalTopbody'),
+            allowClear: true
+        });
         var defaultTax = {
             {
                 \
@@ -245,22 +249,6 @@
             }
         };
         var rentalByCompany = @json($rentalAmountByCompany ?? []);
-        var $modalBody = $('#formajax').closest('.modal-body');
-        if ($modalBody.length === 0) $modalBody = $('#modalTopbody');
-        if ($.fn.select2) {
-            $('#customer_id').select2({
-                dropdownParent: $modalBody.length ? $modalBody : $('body'),
-                width: '100%'
-            });
-            $('.bike-select').each(function() {
-                if (!$(this).hasClass('select2-hidden-accessible')) {
-                    $(this).select2({
-                        dropdownParent: $modalBody.length ? $modalBody : $('body'),
-                        width: '100%'
-                    });
-                }
-            });
-        }
 
         $('#customer_id').on('change', function() {
             var id = $(this).val();
@@ -270,14 +258,6 @@
                 leasing_calculate_price($(this).find('.rate')[0]);
             });
         });
-        select2.init();
-
-        function select2.init() {
-            $('.select2').select2({
-                dropdownParent: $('#modalTopbody'),
-                allowClear: true
-            });
-        }
         $('#billing_month').on('change', function() {
             $('#rows-container .invoice-item-row').each(function() {
                 leasing_calculate_price($(this).find('.rate')[0]);
@@ -310,7 +290,7 @@
             if ($.fn.select2) {
                 var $modalBody = $('#formajax').closest('.modal-body');
                 $('#rows-container .invoice-item-row:last .bike-select').select2({
-                    dropdownParent: $modalBody.length ? $modalBody : $('body'),
+                    dropdownParent: $('#modalTopbody'),
                     width: '100%'
                 });
             }

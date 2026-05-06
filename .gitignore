@@ -69,3 +69,4 @@ yarn-error.log
 # Misc
 *.sql
 *.sqlite
+app/Helpers/HeadAccount.php

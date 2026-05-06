@@ -33,6 +33,15 @@ class ModuleFieldSource
     {
         return match ($table) {
             'bikes' => ['custom_field_values'],
+            'employees' => [
+                'personal_email',
+                'personal_contact',
+                'emergency_contact',
+                'status',
+                'profile_image',
+                'account_id',
+                'custom_field_values',
+            ],
             default => [],
         };
     }

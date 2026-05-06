@@ -20,6 +20,19 @@ use Laracasts\Flash\Flash;
 class EmployeeController extends Controller
 {
     private const EMPLOYEE_MODULE_KEY = 'employees';
+    private const EMPLOYEE_HIDDEN_FIELD_KEYS = [
+        'personal_email',
+        'personal_contact',
+        'emergency_contact',
+        'status',
+        'profile_image',
+        'account_id',
+    ];
+
+    private function employeeHiddenFieldLookup(): array
+    {
+        return array_flip(self::EMPLOYEE_HIDDEN_FIELD_KEYS);
+    }
 
     private function employeeFieldsByCategory(): array
     {
@@ -31,6 +44,7 @@ class EmployeeController extends Controller
             ->get();
         $categoryIds = $categories->pluck('id')->all();
         $employeeColumns = array_flip(Schema::getColumnListing('employees'));
+        $hiddenLookup = $this->employeeHiddenFieldLookup();
         $assignmentQuery = ModuleFieldCategoryAssignment::query()
             ->where('module_key', $moduleKey)
             ->orderBy('display_order')
@@ -58,10 +72,13 @@ class EmployeeController extends Controller
         foreach ($categories as $category) {
             $items = [];
             foreach ($fixedAssignments->where('category_id', $category->id) as $assignment) {
-                if (!isset($employeeColumns[$assignment->field_key])) {
+                if (!isset($employeeColumns[$assignment->field_key]) || isset($hiddenLookup[$assignment->field_key])) {
                     continue;
                 }
                 $spec = ['type' => 'text'];
+                if ($assignment->field_key === 'branch_id') {
+                    $spec['type'] = 'select';
+                }
                 if (!empty($assignment->input_type)) {
                     $spec['type'] = $assignment->input_type === 'dropdown' ? 'select' : $assignment->input_type;
                 }
@@ -111,7 +128,9 @@ class EmployeeController extends Controller
             ->each(function ($assignment) use (&$rules, $employeeColumns) {
                 $fieldKey = (string) $assignment->field_key;
                 if (isset($employeeColumns[$fieldKey])) {
-                    $rules[$fieldKey] = 'required';
+                    if (!isset($this->employeeHiddenFieldLookup()[$fieldKey])) {
+                        $rules[$fieldKey] = 'required';
+                    }
                 }
             });
 
@@ -129,9 +148,10 @@ class EmployeeController extends Controller
 
     private function applyEmployeeDynamicInput(array &$validated, Request $request): void
     {
+        $hiddenLookup = $this->employeeHiddenFieldLookup();
         foreach (ModuleFieldCategoryAssignment::query()->where('module_key', self::EMPLOYEE_MODULE_KEY)->get(['field_key']) as $assignment) {
             $fieldKey = (string) $assignment->field_key;
-            if ($fieldKey !== '' && $request->has($fieldKey)) {
+            if ($fieldKey !== '' && !isset($hiddenLookup[$fieldKey]) && $request->has($fieldKey)) {
                 $validated[$fieldKey] = $request->input($fieldKey);
             }
         }
@@ -173,10 +193,7 @@ class EmployeeController extends Controller
             'employee_id' => 'required|string',
             'name' => 'required|string|max:255',
             'company_email' => 'required|email|unique:employees,company_email',
-            'personal_email' => 'required|email|unique:employees,personal_email',
-            'personal_contact' => 'nullable|string|max:20',
             'company_contact' => 'nullable|string|max:20',
-            'emergency_contact' => 'nullable|string|max:20',
             'nationality_id' => 'required|exists:countries,id',
             'department_id' => 'nullable|exists:departments,id',
             'designation' => 'nullable|string|max:255',
@@ -292,7 +309,7 @@ class EmployeeController extends Controller
         $departments = \App\Models\Departments::all();
         $fieldsByCategory = $this->employeeFieldsByCategory();
         $result = $employee->toArray();
-        return view('employees.show', compact('employee', 'nationalities', 'branches', 'departments', 'fieldsByCategory', 'result'));
+        return view('employees.show_clean', compact('employee', 'nationalities', 'branches', 'departments', 'fieldsByCategory', 'result'));
     }
 
     public function files($comapny_slug, $id)
@@ -373,10 +390,7 @@ class EmployeeController extends Controller
             'employee_id' => 'required|string',
             'name' => 'required|string|max:255',
             'company_email' => 'required|email|unique:employees,company_email,' . $employee->id,
-            'personal_email' => 'required|email|unique:employees,personal_email,' . $employee->id,
-            'personal_contact' => 'nullable|string|max:20',
             'company_contact' => 'nullable|string|max:20',
-            'emergency_contact' => 'nullable|string|max:20',
             'nationality_id' => 'required|exists:countries,id',
             'department_id' => 'nullable|exists:departments,id',
             'designation' => 'nullable|string|max:255',
@@ -526,9 +540,6 @@ class EmployeeController extends Controller
                     'name' => 'required|string|max:255',
                     'dob' => 'required|date',
                     'nationality_id' => 'required|exists:countries,id',
-                    'personal_email' => 'nullable|email|max:255',
-                    'personal_contact' => 'nullable|string|max:20',
-                    'emergency_contact' => 'nullable|string|max:20',
                     'address' => 'nullable|string'
                 ];
 

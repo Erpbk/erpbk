@@ -35,6 +35,8 @@ if (($item->kind ?? '') === 'fixed') {
                     foreach ($parsedOptions as $opt) {
                         $opts[$opt] = $opt;
                     }
+                } elseif ($item->field_key === 'branch_id') {
+                    $opts = \App\Models\Branch::active()->pluck('name', 'id')->prepend('Select', '')->toArray();
                 }
             @endphp
             {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select'] + ($req ? ['required' => true] : [])) !!}

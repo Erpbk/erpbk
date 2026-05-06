@@ -107,7 +107,7 @@ class BikeMaintenanceController extends Controller
             }
             $this->chargeInvoice($maintenance, $data);
             DB::commit();
-            return response()->json(['message' => 'Maintenance Record Created Successfully.'], 200);
+            return response()->json(['message' => 'Maintenance Record Created Successfully.', 'reload' => true], 200);
         } catch (\Exception $e) {
             DB::rollBack();
             if ($path)
@@ -548,7 +548,7 @@ class BikeMaintenanceController extends Controller
 
             $itemsTotal += $calculated;
         }
-
+        \Log::info('itemsTotal: '.$itemsTotal.' ,cost: '.$request->total_cost);
         if (round($itemsTotal, 2) !== round((float) $request->total_cost, 2)) {
             throw new \Exception("Maintenance total mismatch.");
         }

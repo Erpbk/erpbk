@@ -37,15 +37,15 @@ class AttendanceController extends Controller
             $query->where('status', $request->status);
         }
 
-        if($request->has('from_date') && $request->from_date) {
+        if ($request->has('from_date') && $request->from_date) {
             $query->whereDate('date', '>=', $request->from_date);
         }
 
-        if($request->has('to_date') && $request->to_date) {
+        if ($request->has('to_date') && $request->to_date) {
             $query->whereDate('date', '<=', $request->to_date);
         }
 
-        if(!$request->has('date') && !$request->has('from_date') && !$request->has('to_date')) {
+        if (!$request->has('date') && !$request->has('from_date') && !$request->has('to_date')) {
             $query->currentMonth();
         }
 
@@ -61,7 +61,7 @@ class AttendanceController extends Controller
      */
     public function create()
     {
-        if(request()->has('ref_type')){
+        if (request()->has('ref_type')) {
             $refType = request()->get('ref_type');
             $refId = request()->get('ref_id');
             $date = request()->get('date', date('Y-m-d'));
@@ -84,12 +84,12 @@ class AttendanceController extends Controller
             'status' => 'required|in:present,absent,late,half day,holiday,on leave',
             'notes' => 'nullable|string|max:500'
         ];
-        if($request->ref_type === 'employee') {
+        if ($request->ref_type === 'employee') {
             $rules['ref_id'] .= '|exists:employees,id';
         } else {
             $rules['ref_id'] .= '|exists:riders,id';
         }
-        if($request->status === 'present' || $request->status === 'late' || $request->status === 'half day') {
+        if ($request->status === 'present' || $request->status === 'late' || $request->status === 'half day') {
             $rules['check_in'] = 'required';
         }
         $validated = $request->validate($rules);
@@ -140,7 +140,7 @@ class AttendanceController extends Controller
     {
         $employees = Employee::all();
         $riders = Riders::all();
-        
+
         return view('attendance.edit', compact('attendance', 'employees', 'riders'));
     }
 
@@ -157,9 +157,9 @@ class AttendanceController extends Controller
             'status' => 'required|in:present,absent,late,half day, holiday, on leave',
             'notes' => 'nullable|string|max:500'
         ];
-        if($request->status === 'present' || $request->status === 'late' || $request->status === 'half day') {
+        if ($request->status === 'present' || $request->status === 'late' || $request->status === 'half day') {
             $rules['check_in'] = 'required';
-        }else {
+        } else {
             $rules['check_in'] = 'nullable';
         }
         $validated = $request->validate($rules);
@@ -193,10 +193,10 @@ class AttendanceController extends Controller
 
         $attendance->update($validated);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Attendance record updated successfully.',
-            ]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Attendance record updated successfully.',
+        ]);
     }
 
     /**
@@ -204,7 +204,7 @@ class AttendanceController extends Controller
      */
     public function destroy($company_slug, Attendance $attendance)
     {
-        try{
+        try {
             $attendance->delete();
             return response()->json(['success' => true, 'message' => 'Attendance record deleted successfully.', 'reload' => true]);
         } catch (\Exception $e) {
@@ -268,7 +268,7 @@ class AttendanceController extends Controller
                 if (!empty($attendanceData['check_in'])) {
                     $data['check_in'] = $attendanceData['check_in'];;
                 }
-                
+
                 if (!empty($attendanceData['check_out'])) {
                     $data['check_out'] = $attendanceData['check_out'];
                 }
@@ -291,7 +291,7 @@ class AttendanceController extends Controller
                 );
 
                 $successCount++;
-                
+
                 // Store result for this user
                 $results[] = [
                     'user_id' => $attendanceData['ref_id'],
@@ -313,17 +313,16 @@ class AttendanceController extends Controller
             // Return redirect response for normal form submission
             return redirect()->back()
                 ->with('success', "{$successCount} attendance records marked successfully.");
-            
         } catch (\Exception $e) {
-                \Log::error('Error marking bulk attendance: ' . $e->getMessage(), ['stack' => $e->getTraceAsString()]);
-                // Return JSON error response for AJAX
+            \Log::error('Error marking bulk attendance: ' . $e->getMessage(), ['stack' => $e->getTraceAsString()]);
+            // Return JSON error response for AJAX
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Server error: ' . $e->getMessage()
                 ], 500);
             }
-            
+
             return redirect()->back()
                 ->with('error', 'Error marking attendance: ' . $e->getMessage())
                 ->withInput();
@@ -333,10 +332,10 @@ class AttendanceController extends Controller
 
     /**
      * Export attendance to CSV
-     */public function export(Request $request)
+     */ public function export(Request $request)
     {
         $query = Attendance::with('user');
-        if($request->date){
+        if ($request->date) {
             $query->where('date', $request->date);
         } else {
             if ($request->from_date) {
@@ -350,10 +349,10 @@ class AttendanceController extends Controller
         if ($request->ref_type) {
             $query->where('ref_type', $request->ref_type);
         }
-        if($request->ref_id){
+        if ($request->ref_id) {
             $query->where('ref_id', $request->ref_id);
         }
-        if($request->status) {
+        if ($request->status) {
             $query->where('status', $request->status);
         }
 
@@ -368,10 +367,9 @@ class AttendanceController extends Controller
             if ($attendances->isEmpty()) {
 
                 fputcsv($handle, ['No records found for the selected criteria.']);
-
             } else {
 
-                fputcsv($handle, ['Type','ID','Name','Date','Check In','Check Out','Status','Notes','Created At']);
+                fputcsv($handle, ['Type', 'ID', 'Name', 'Date', 'Check In', 'Check Out', 'Status', 'Notes', 'Created At']);
 
                 foreach ($attendances as $attendance) {
 
@@ -398,7 +396,6 @@ class AttendanceController extends Controller
             }
 
             fclose($handle);
-
         }, $filename);
     }
 
@@ -406,20 +403,20 @@ class AttendanceController extends Controller
     {
         $selectedDate = $request->get('date', now()->format('Y-m-d'));
         $userType = $request->get('user_type', 'employee');
-        $usersId = $request->get('user_id','all');
-        
+        $usersId = $request->get('user_id', 'all');
+
         $date = Carbon::parse($selectedDate);
         $startOfMonth = $date->copy()->startOfMonth();
         $endOfMonth = $date->copy()->endOfMonth();
         $daysInMonth = $date->daysInMonth;
-        
+
         // Get all users based on type
         $users = $this->getUsersForSummary($userType, $usersId);
-        
+
         // Get attendance for the month
         $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
             ->get();
-        
+
         // Group attendances by ref_id for easier access
         $attendancesByUser = [];
         foreach ($attendances as $attendance) {
@@ -428,17 +425,17 @@ class AttendanceController extends Controller
                 $attendancesByUser[$userId] = [];
             }
             // Use date as key for easy lookup
-            $dateKey = $attendance->date instanceof Carbon 
-                ? $attendance->date->format('Y-m-d') 
+            $dateKey = $attendance->date instanceof Carbon
+                ? $attendance->date->format('Y-m-d')
                 : Carbon::parse($attendance->date)->format('Y-m-d');
-            
+
             $attendancesByUser[$userId][$dateKey] = $attendance;
         }
-        
+
         // Prepare days array
         $days = [];
         $dates = [];
-        for ($day = 1; $day <= $daysInMonth; $day++) {
+        for ($day = 1; $day <= 7; $day++) {
             $currentDate = $startOfMonth->copy()->addDays($day - 1);
             $dateString = $currentDate->format('Y-m-d');
             $dates[] = $dateString;
@@ -450,7 +447,7 @@ class AttendanceController extends Controller
                 'is_today' => $currentDate->isToday(),
             ];
         }
-        
+
         // Prepare user attendance data
         foreach ($users as $user) {
             $attendance_data = [];
@@ -461,14 +458,14 @@ class AttendanceController extends Controller
             $user->total_holiday = 0;
             $user->total_leave = 0;
             $user->total_unmarked = 0;
-            
+
             // Get attendances for this user
             $userAttendances = $attendancesByUser[$user->id] ?? [];
-            
+
             foreach ($dates as $dateString) {
                 if (isset($userAttendances[$dateString])) {
                     $attendance = $userAttendances[$dateString];
-                    
+
                     $attendance_data[$dateString] = [
                         'exists' => true,
                         'id' => $attendance->id,
@@ -477,9 +474,9 @@ class AttendanceController extends Controller
                         'check_out' => $attendance->check_out ? Carbon::parse($attendance->check_out)->format('h:i A') : null,
                         'notes' => $attendance->notes
                     ];
-                    
+
                     // Count totals
-                    switch($attendance->status) {
+                    switch ($attendance->status) {
                         case 'present':
                             $user->total_present++;
                             break;
@@ -511,7 +508,7 @@ class AttendanceController extends Controller
             }
             $user->attendance_data = $attendance_data;
         }
-        
+
         // Calculate summary statistics
         $summary = [
             'total_present' => $users->sum('total_present'),
@@ -530,18 +527,18 @@ class AttendanceController extends Controller
         $absentRate = 0;
         $unmarkRate = 0;
 
-        if($totalAttendances > 0){
-            $presentRate = round(($summary['total_present'] / $totalAttendances) * 100) ;
-            $absentRate = round(($summary['total_absent'] / $totalAttendances) * 100) ;
+        if ($totalAttendances > 0) {
+            $presentRate = round(($summary['total_present'] / $totalAttendances) * 100);
+            $absentRate = round(($summary['total_absent'] / $totalAttendances) * 100);
             $unmarkRate = round(($summary['total_unmarked'] / $totalAttendances) * 100);
         }
         $prevMonth = $date->copy()->subMonth()->format('Y-m-d');
         $nextMonth = $date->copy()->addMonth()->format('Y-m-d');
-        
+
         return view('attendance.summary', compact(
-            'users', 
-            'days', 
-            'date', 
+            'users',
+            'days',
+            'date',
             'userType',
             'usersId',
             'summary',
@@ -555,34 +552,34 @@ class AttendanceController extends Controller
             'nextMonth'
         ));
     }
-        
-        /**
-         * Get users for summary based on type
-         */
-        private function getUsersForSummary($userType, $userId)
+
+    /**
+     * Get users for summary based on type
+     */
+    private function getUsersForSummary($userType, $userId)
     {
         $users = null;
-        
+
         if ($userType === 'employee') {
-            if($userId === 'all') {
+            if ($userId === 'all') {
                 $users = Employee::active()->with('branch')->select('id', 'name', 'employee_id', 'branch_id', 'designation')
                     ->get()
-                    ->map(function($item) {
+                    ->map(function ($item) {
                         $item->type = 'employee';
                         $item->type_label = 'Employee';
                         $item->type_badge_class = 'bg-primary';
                         return $item;
                     });
                 // Debug - see what's loaded
-        \Log::info('All users - first user branch:', [
-            'has_branch' => isset($users->first()->branch),
-            'branch_data' => $users->first()->branch ? $users->first()->branch->toArray() : null,
-            'branch_relation_loaded' => $users->first()->relationLoaded('branch')
-        ]);
+                \Log::info('All users - first user branch:', [
+                    'has_branch' => isset($users->first()->branch),
+                    'branch_data' => $users->first()->branch ? $users->first()->branch->toArray() : null,
+                    'branch_relation_loaded' => $users->first()->relationLoaded('branch')
+                ]);
             } else {
-                $users = Employee::with('branch')->where('id',$userId)
+                $users = Employee::with('branch')->where('id', $userId)
                     ->get()
-                    ->map(function($item){
+                    ->map(function ($item) {
                         $item->type = 'employee';
                         $item->type_label = 'Employee';
                         $item->type_badge_class = 'bg-primary';
@@ -590,21 +587,21 @@ class AttendanceController extends Controller
                     });
             }
         }
-        
+
         if ($userType === 'rider') {
-            if($userId === 'all') {
+            if ($userId === 'all') {
                 $users = Riders::active()->select('id', 'name', 'rider_id')
                     ->get()
-                    ->map(function($item) {
+                    ->map(function ($item) {
                         $item->type = 'rider';
                         $item->type_label = 'Rider';
                         $item->type_badge_class = 'bg-success';
                         return $item;
                     });
             } else {
-                $users = Riders::with('branch')->where('id',$userId)
+                $users = Riders::with('branch')->where('id', $userId)
                     ->get()
-                    ->map(function($item){
+                    ->map(function ($item) {
                         $item->type = 'rider';
                         $item->type_label = 'Rider';
                         $item->type_badge_class = 'bg-success';
@@ -612,11 +609,11 @@ class AttendanceController extends Controller
                     });
             }
         }
-        
+
         // Sort by name and reset keys
         return $users->sortBy('name')->values();
     }
-    
+
     /**
      * Export summary to Excel/CSV
      */
@@ -661,7 +658,7 @@ class AttendanceController extends Controller
             $handle = fopen('php://output', 'w');
 
             // Excel UTF-8 support
-            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
             $header = ['ID', 'Name', 'Type'];
 
@@ -727,7 +724,6 @@ class AttendanceController extends Controller
                             default:
                                 $row[] = '-';
                         }
-
                     } else {
                         $row[] = '-';
                     }
@@ -741,7 +737,6 @@ class AttendanceController extends Controller
             }
 
             fclose($handle);
-
         }, $filename);
     }
 }

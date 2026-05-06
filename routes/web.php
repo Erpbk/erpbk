@@ -318,7 +318,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::delete('bikeRentCompanies/trash/{id}/force-destroy', [\App\Http\Controllers\BikeRentCompaniesController::class, 'forceDestroyTrash'])->name('bikeRentCompanies.force-destroy');
     Route::resource('bikeRentCompanies', App\Http\Controllers\BikeRentCompaniesController::class);
     Route::delete('bikeRentCompanies/delete/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'destroy'])->name('bikeRentCompanies.delete');
-
+    Route::get('bikeRentCompanies/ledger/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'ledger'])->name('bikeRentCompanies.ledger');
+    Route::get('bikeRentCompanies/files/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'files'])->name('bikeRentCompanies.files');
+    Route::get('bikeRentCompanies/invoices/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'invoices'])->name('bikeRentCompanies.invoices');
+    Route::get('bikeRentCompany/receipts', [\App\Http\Controllers\BikeRentCompaniesController::class, 'allReceipts'])->name('bikeRentCompanies.all_receipts');
+    Route::get('bikeRentCompanies/receipts/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'receipts'])->name('bikeRentCompanies.receipts');
+    Route::get('bikeRentCompanies/bikes/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'bikes'])->name('bikeRentCompanies.bikes');
     /* Rider section starts from here */
 
     Route::resource('riders', App\Http\Controllers\RidersController::class);

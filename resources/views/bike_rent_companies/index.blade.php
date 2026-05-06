@@ -6,80 +6,111 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 <section class="content-header">
-    <div class="container-fluid">
+    <div class="container">
         <div class="row mb-2">
             <div class="col-sm-6">
-                <h3>Bike on rent — Customers</h3>
             </div>
             <div class="col-sm-6">
                 @can('bike_rent_create')
-                <a class="btn btn-primary float-right show-modal action-btn"
-                    href="javascript:void(0);" data-action="{{ route('bikeRentCompanies.create') }}" data-title="Add customer" data-size="lg">
-                    Add New
-                </a>
-                @endcan
-                <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Filter customers</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body" id="searchTopbody">
-                                <form id="filterForm" action="{{ route('bikeRentCompanies.index') }}" method="GET">
-                                    <div class="row">
-                                        <div class="form-group col-md-4">
-                                            <label for="name">Name</label>
-                                            <input type="text" name="name" class="form-control" value="{{ request('name') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="email">Email</label>
-                                            <input type="text" name="email" class="form-control" value="{{ request('email') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="status">Status</label>
-                                            <select class="form-control" id="status" name="status">
-                                                <option value="" selected>All</option>
-                                                <option value="1" {{ request('status') == 1 ? 'selected' : '' }}>Active</option>
-                                                <option value="2" {{ request('status') == 2 ? 'selected' : '' }}>Inactive</option>
-                                            </select>
-                                        </div>
-                                        @if(auth()->user()->hasMultiplebranches())
-                                        <div class="form-group col-md-4">
-                                            <label for="branch_id">Branch</label>
-                                            <select class="form-control" id="branch_id" name="branch_id">
-                                                @foreach(auth()->user()->branchDropdown() as $id => $name)
-                                                <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        @endif
-                                        <div class="col-md-12 form-group text-center">
-                                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter</button>
-                                        </div>
+                    <div class="action-buttons d-flex justify-content-end">
+                        <div class="action-dropdown-container">
+                            <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                                <i class="ti ti-plus"></i>
+                                <span>Add New</span>
+                                <i class="ti ti-chevron-down"></i>
+                            </button>
+                            <div class="action-dropdown-menu" id="addBikeDropdown">
+                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Customer" data-action="{{ route('bikeRentCompanies.create') }}">
+                                    <i class="ti ti-plus"></i>
+                                    <div>
+                                        <div class="action-dropdown-item-text">New Customer</div>
+                                        <div class="action-dropdown-item-desc">Add a new Customer</div>
                                     </div>
-                                </form>
+                                </a>
                             </div>
                         </div>
                     </div>
-                </div>
+                @endcan
             </div>
         </div>
     </div>
 </section>
 
-<div class="content px-3">
+<!-- Filter Sidebar -->
+<div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+    <div class="filter-header">
+        <h5>Filter Customers</h5>
+        <button type="button" class="btn-close" id="closeSidebar"></button>
+    </div>
+    <div class="filter-body" id="searchTopbody">
+        <form id="filterForm" action="{{ route('bikeRentCompanies.index') }}" method="GET">
+            <div class="row">
+                <div class="form-group col-md-12">
+                    <label for="company_name">Filter by Customer</label>
+                    <select class="form-control select2" id="name" name="name">
+                        @php
+                        $customers = \App\Models\BikeRentCompany::active()->get();
+                        @endphp
+                        <option value="" selected>Select</option>
+                        @foreach($customers as $company)
+                        <option value="{{ $company->name }}" {{ request('name') == $company->name ? 'selected' : '' }}>{{ $company->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="status">Filter by Status</label>
+                    <select class="form-control select2" id="status" name="status">
+                        <option value="" selected>Select</option>
+                        <option value="1" {{ request('status') == 1 ? 'selected' : '' }}>Active</option>
+                        <option value="2" {{ request('status') == 2 ? 'selected' : '' }}>In Active</option>
+                    </select>
+                </div>
+                @if(auth()->user()->hasMultiplebranches())
+                <div class="form-group col-md-12">
+                    <label for="branch_id">Branch</label>
+                    <select class="form-control select2" id="branch_id" name="branch_id">
+                        @foreach(auth()->user()->branchDropdown() as $id => $branchName)
+                        <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $branchName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+                <div class="col-md-12 form-group text-center">
+                    <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Filter Overlay -->
+<div id="filterOverlay" class="filter-overlay"></div>
+
+<div class="content">
+
     @include('flash::message')
+
     <div class="clearfix"></div>
+
     <div class="card">
+        <div class="card-header text-end">
+            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
+        </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
             @include('bike_rent_companies.table', ['data' => $data])
         </div>
     </div>
 </div>
-@endsection
 
+@endsection
 @section('page-script')
+<script type="text/javascript">
+    $(document).ready(function() {
+        $('.select2').select2({
+            dropdownParent: $('#filterSidebar'),
+            allowClear: true
+        });
+    });
+</script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script type="text/javascript">
     function confirmDelete(url) {
@@ -122,42 +153,5 @@
             }
         });
     }
-    $(document).ready(function() {
-        $('#status').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Status",
-            allowClear: true
-        });
-    });
-</script>
-<script type="text/javascript">
-    $(document).ready(function() {
-        $('#filterForm').on('submit', function(e) {
-            e.preventDefault();
-            $('#loading-overlay').show();
-            $('#searchModal').modal('hide');
-            const loaderStartTime = Date.now();
-            let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
-            let formData = $.param(filteredFields);
-            $.ajax({
-                url: "{{ route('bikeRentCompanies.index') }}",
-                type: "GET",
-                data: formData,
-                success: function(data) {
-                    $('#table-data').html(data.tableData);
-                    let newUrl = "{{ route('bikeRentCompanies.index') }}" + (formData ? '?' + formData : '');
-                    history.pushState(null, '', newUrl);
-                    const elapsed = Date.now() - loaderStartTime;
-                    const remaining = 500 - elapsed;
-                    setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-                },
-                error: function() {
-                    const elapsed = Date.now() - loaderStartTime;
-                    const remaining = 500 - elapsed;
-                    setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-                }
-            });
-        });
-    });
 </script>
 @endsection

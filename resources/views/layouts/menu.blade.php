@@ -314,6 +314,13 @@ $homeLink = $isAdminLogin
       </a>
     </li>
     @endcan
+    {{-- Payments Receieved --}}
+    <li class="menu-item {{ Route::is('bikeRentCompanies.all_receipts') ? 'active' : '' }}">
+      <a href="{{ route('bikeRentCompanies.all_receipts') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-receipt"></i>
+        <div>{{ $menuLabels['bike_rent_customer_receipts'] ?? 'Payments Received' }}</div>
+      </a>
+    </li>
   </ul>
 </li>
 @endcan

@@ -238,14 +238,6 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
-        @can('visaexpense_view')
-        <li class="menu-item {{ Request::is('settings-panel/visa-statuses*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.visa-statuses.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-list-check"></i>
-            <div>{{ $settingsPanelLabels['visa_status_types'] ?? 'Visa Status Types' }}</div>
-          </a>
-        </li>
-        @endcan
         @foreach($erpModuleMenu as $menuItem)
         @php
         $parentKey = $menuItem['key'];

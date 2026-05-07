@@ -4,20 +4,57 @@
 
 @section('content')
 @can('attendance_view')
+<style>
+    .attendance-summary-card {
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .summary-toolbar {
+        background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 100%);
+        border-bottom: 1px solid #e5ecf6;
+    }
+
+    .mode-toggle .btn {
+        min-width: 108px;
+    }
+
+    .status-chip {
+        font-size: 0.78rem;
+        letter-spacing: 0.01em;
+    }
+
+    .attendance-table thead th {
+        background: #e8f2ff;
+    }
+
+    .attendance-table td,
+    .attendance-table th {
+        vertical-align: middle;
+    }
+</style>
 <div class="container-fluid m-0 p-0">
     <!-- Header Section with Navigation -->
-    <div class="d-flex justify-content-between align-items-center mb-4 p-4">
-        <h3 class="mb-0">
-            <i class="fas fa-calendar-check text-primary me-2"></i>
-            Attendance Summary
-        </h3>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 p-4 bg-white rounded-4 shadow-sm">
+        <div>
+            <h3 class="mb-1">
+                <i class="fas fa-calendar-check text-primary me-2"></i>
+                Attendance Summary
+            </h3>
+            <p class="text-muted mb-0">Track status by day with quick week, 10-day, and month views.</p>
+        </div>
+        <div class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle rounded-pill px-3 py-2 text-black">
+            <i class="fas fa-calendar-alt me-1"></i>{{ $date->format('F Y') }}
+        </div>
     </div>
 
     <!-- Summary Table -->
-    <div class="card shadow-sm border-0">
+    <div class="card shadow-sm border-0 attendance-summary-card">
 
-        <div class="card-body">
+        <div class="card-body summary-toolbar">
             <form method="GET" action="{{ route('attendance.summary') }}" class="row g-3" id="summaryFilter">
+                <input type="hidden" name="view_mode" id="view_mode" value="{{ $viewMode }}">
+                <input type="hidden" name="view_start" id="view_start" value="{{ $viewStart }}">
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">
                         <i class="fas fa-calendar me-1"></i>Month
@@ -49,7 +86,7 @@
                 <div class="col-md-3 text-end">
                     <label class="form-label fw-semibold">&nbsp;</label>
                     <div>
-                        <a href="{{ route('attendance.summary.export') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}"
+                        <a href="{{ route('attendance.summary.export') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}"
                             class="btn btn-success" target="_blank">
                             <i class="fas fa-file-excel me-2"></i>Export to Excel
                         </a>
@@ -96,41 +133,48 @@
 </div>
 </div> --}}
 
-<!-- Legend -->
-<div class="d-flex flex-wrap gap-2 m-3 p-2">
-    <span class="badge bg-success px-3 py-2 rounded-pill">
-        <i class="fas fa-check-circle me-1"></i>P - Present
-    </span>
-    <span class="badge bg-danger px-3 py-2 rounded-pill">
-        <i class="fas fa-times-circle me-1"></i>A - Absent
-    </span>
-    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
-        <i class="fas fa-clock me-1"></i>L - Late
-    </span>
-    <span class="badge bg-info px-3 py-2 rounded-pill">
-        <i class="fas fa-adjust me-1"></i>HD - Half Day
-    </span>
-    <span class="badge bg-secondary px-3 py-2 rounded-pill">
-        <i class="fas fa-umbrella-beach me-1"></i>H - Holiday
-    </span>
-    <span class="badge bg-dark px-3 py-2 rounded-pill">
-        <i class="fas fa-plane-departure me-1"></i>OL - On Leave
-    </span>
-    <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">
-        <i class="fas fa-minus-circle me-1"></i>- No Record
-    </span>
-    <span class="badge bg-primary rounded-pill px-3 py-2 ms-auto">
-        {{ $users->count() }} Users • {{ $totalDays }} Days
-    </span>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 m-3 p-2">
+    <div class="btn-group mode-toggle" role="group" aria-label="Summary view modes">
+        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&view_mode=week&view_start=1"
+            class="btn {{ $viewMode === 'week' ? 'btn-primary' : 'btn-outline-primary' }}">
+            <i class="fas fa-calendar-week me-1"></i>1 Week
+        </a>
+        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&view_mode=ten_days&view_start=1"
+            class="btn {{ $viewMode === 'ten_days' ? 'btn-primary' : 'btn-outline-primary' }}">
+            <i class="fas fa-calendar-day me-1"></i>10 Days
+        </a>
+        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&view_mode=month&view_start=1"
+            class="btn {{ $viewMode === 'month' ? 'btn-primary' : 'btn-outline-primary' }}">
+            <i class="fas fa-calendar-alt me-1"></i>Full Month
+        </a>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&view_mode={{ $viewMode }}&view_start={{ $prevStart }}"
+            class="btn btn-outline-secondary {{ !$hasPrevWindow ? 'disabled' : '' }}"
+            aria-disabled="{{ !$hasPrevWindow ? 'true' : 'false' }}">
+            <i class="fas fa-chevron-left"></i>
+        </a>
+        <span class="badge bg-light text-dark border rounded-pill px-3 py-2">
+            {{ $days[0]['number'] ?? 0 }} - {{ end($days)['number'] ?? 0 }} of {{ $monthTotalDays }} Days
+        </span>
+        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&view_mode={{ $viewMode }}&view_start={{ $nextStart }}"
+            class="btn btn-outline-secondary {{ !$hasNextWindow ? 'disabled' : '' }}"
+            aria-disabled="{{ !$hasNextWindow ? 'true' : 'false' }}">
+            <i class="fas fa-chevron-right"></i>
+        </a>
+    </div>
 </div>
+
+
 <div class="card-body p-2">
     <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
-        <table class="table mb-0">
+        <table class="table attendance-table mb-0">
             <thead class="table-info" style="position: sticky; top: 0; z-index: 10;">
                 <tr>
                     <th class="text-start" style="min-width: 200px; color: black !important;">Name</th>
 
-                    <th class="text-center" style=" color: black !important;">Total Present</th>
+                    <th class="text-center" style=" color: black !important;">Total <br> Present</th>
 
                     @foreach($days as $day)
                     <th class="text-center  {{ $day['is_today'] ? 'bg-info' : '' }}" style="min-width: 50px; color: black !important;">
@@ -145,7 +189,7 @@
                 <tr>
                     <td class="text-start">
                         <div>
-                            <span class="fw-semibold">{{ $user->name }}</span>
+                            <span class="fw-semibold"><a target="_blank" href="@if($user->type == 'employee')   {{ route('employees.show', $user->id) }} @elseif($user->type == 'rider') {{ route('riders.show', $user->id) }} @endif">{{ $user->name }}</a></span>
                             <br><span class="text-muted" style="white-space: nowrap;">{{ ($user->designation ?? '') . '-' . $user->branch?->name}}</span>
                         </div>
                     </td>
@@ -188,17 +232,18 @@
                     }
                     } else {
                     $badgeClass = 'bg-light text-black border';
-                    $statusText = '-';
+                    $statusText = '+';
                     }
                     @endphp
 
                     <td class="text-center align-middle p-1">
                         <a href="javascript:void(0)" class="show-modal"
                             @if( $attendance && $attendance['exists'] ) data-action="{{ route('attendance.edit', App\Models\Attendance::find($attendance['id'])) }}" data-title="Edit Attendance ( {{ \Carbon\Carbon::parse($day['date'])->format('d M Y') }} )"
-                            @else data-action="{{ route('attendance.create') }}?ref_type={{ $user->type }}&ref_id={{ $user->id }}&date={{ $day['date'] }}" data-title="Mark Attendance ( {{ \Carbon\Carbon::parse($day['date'])->format('d M Y') }} )"
+                            @else data-action="{{ route('attendance.create', $user->type) }}?ref_type={{ $user->type }}&ref_id={{ $user->id }}&date={{ $day['date'] }}" data-title="Mark Attendance ( {{ \Carbon\Carbon::parse($day['date'])->format('d M Y') }} )"
                             @endif>
-                            <span class="badge {{ $badgeClass }} rounded-pill px-3 py-2"
-                                style="cursor: pointer; min-width: 45px;"
+                            @if($attendance && $attendance['exists'])
+                            <span class="badge {{ $badgeClass }} rounded px-3 py-2"
+                                style="cursor: pointer; min-width: 115px;height: 55px; font-size: 13px;"
                                 data-bs-toggle="tooltip"
                                 title="{{ 
                                                     $attendance && $attendance['exists'] ? (
@@ -213,6 +258,22 @@
                                 <br>{{ 'In: '.($attendance['check_in'] ?? '') }}<br>{{ 'Out: '.($attendance['check_out'] ?? '') }}
                                 @endif
                             </span>
+                            @else
+                            <span class="badge {{ $badgeClass }} rounded px-3 py-2"
+                                style="cursor: pointer; min-width: 115px;height: 55px; font-size: 37px;"
+                                data-bs-toggle="tooltip"
+                                title="{{ 
+                                                    $attendance && $attendance['exists'] ? (
+                                                        ($attendance['check_in'] ? 'In: ' . $attendance['check_in'] : '' )
+                                                        . ($attendance['check_out'] ? ' | Out: ' . $attendance['check_out'] :'' )
+                                                        . ((!$attendance['check_in'] && !$attendance['check_out']) ? 'Click to edit' : '')
+                                                        . ($attendance['notes'] ? ' Note: ' . $attendance['notes'] : '')
+                                                        ) 
+                                                    : 'Click to mark attendance' }}">
+                                {{ $statusText }}
+                            </span>
+                            @endif
+
                         </a>
                     </td>
                     @endforeach
@@ -252,6 +313,9 @@
 
 @section('page-script')
 <script>
+    const prevWindowUrl = "{{ route('attendance.summary') . '?date=' . $date->format('Y-m-d') . '&user_type=' . $userType . '&user_id=' . $usersId . '&view_mode=' . $viewMode . '&view_start=' . $prevStart }}";
+    const nextWindowUrl = "{{ route('attendance.summary') . '?date=' . $date->format('Y-m-d') . '&user_type=' . $userType . '&user_id=' . $usersId . '&view_mode=' . $viewMode . '&view_start=' . $nextStart }}";
+
     $(document).ready(function() {
         loadUsers('{{ $userType }}');
         // Initialize Bootstrap tooltips
@@ -338,9 +402,9 @@
     // Keyboard navigation
     $(document).keydown(function(e) {
         if (e.ctrlKey && e.key === 'ArrowLeft') {
-            window.location.href = '{{ route("attendance.summary")}}?date={{ $prevMonth }}&user_type={{ $userType }}';
+            window.location.href = prevWindowUrl;
         } else if (e.ctrlKey && e.key === 'ArrowRight') {
-            window.location.href = '{{ route("attendance.summary")}}?date={{ $nextMonth }}&user_type={{ $userType }}';
+            window.location.href = nextWindowUrl;
         }
     });
 </script>

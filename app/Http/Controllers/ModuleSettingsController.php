@@ -9,6 +9,7 @@ use App\Models\ModuleFieldCategoryAssignment;
 use App\Models\ModuleSettingCategory;
 use App\Models\RiderInvoiceAccountAssignment;
 use App\Models\Settings;
+use App\Models\VisaStatus;
 use App\Support\ModuleFieldSource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -239,6 +240,13 @@ class ModuleSettingsController extends Controller
                     ->toArray(),
             ];
         }
+        $visaStatuses = collect();
+        if ($module === 'visa_expense') {
+            $visaStatuses = VisaStatus::query()
+                ->orderBy('display_order')
+                ->orderBy('name')
+                ->get();
+        }
 
         return view('settings.bike_settings.index', [
             'moduleKey' => $module,
@@ -263,6 +271,7 @@ class ModuleSettingsController extends Controller
             'riderInvoiceAccountTree' => $riderInvoiceAccountTree,
             'riderInvoiceAssignments' => $riderInvoiceAssignments,
             'moduleSchemaFieldKeys' => ModuleFieldSource::schemaFieldKeysForModule($module),
+            'visaStatuses' => $visaStatuses,
         ]);
     }
 

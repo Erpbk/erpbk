@@ -1,95 +1,48 @@
-﻿@extends('riders.view')
+@extends('riders.view')
 @section('title','Visa Expenses')
 @section('page_content')
-  {{-- Visa Expenses --}}
-  <div class="content">
-    @include('flash::message')
-    <div class="clearfix"></div>
-    <div class="card">
-      <div class="card-header d-flex justify-content-between">
-        <div class="col-sm-6">
-          <h3>Visa Expense </h3>
-        </div>
-        <div class="col-sm-6">
-          @can('visaexpense_create')
-          <a class="btn btn-primary action-btn show-modal"
-            href="javascript:void(0);" data-action="{{ route('VisaExpense.create' , $account->id) }}" data-size="lg" data-title="New expense Ticket">
-            Add New
-          </a>
-          @endcan
-        </div>
+@php
+  $accountId = $account->id;
+  $totalUnpaid = DB::table('visa_expenses')->where('payment_status', 'unpaid')->where('expense_account_id', $accountId)->sum('amount');
+  $totalPaid = DB::table('visa_expenses')->where('payment_status', 'paid')->where('expense_account_id', $accountId)->sum('amount');
+  $unpaidCount = DB::table('visa_expenses')->where('expense_account_id', $accountId)->where('payment_status', 'unpaid')->count();
+  $paidCount = DB::table('visa_expenses')->where('expense_account_id', $accountId)->where('payment_status', 'paid')->count();
+@endphp
+
+<div class="content">
+  @include('flash::message')
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <h3 class="mb-0">Visa Expense - {{ $account->name }}</h3>
+      @can('visaexpense_create')
+      <a class="btn btn-primary action-btn show-modal"
+        href="javascript:void(0);" data-action="{{ route('VisaExpense.create' , $account->id) }}" data-size="lg" data-title="New expense entry">
+        Add New Expense
+      </a>
+      @endcan
+    </div>
+    <div class="totals-cards pt-3">
+      <div class="total-card total-red">
+          <div class="label">Total Unpaid Amount</div>
+          <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalUnpaid, 2) }}</div>
       </div>
-      <div class="totals-cards pt-3">
-        <div class="total-card total-red">
-            <div class="label"><i class="fa fa-times-circle"></i>Total Unpaid Amount</div>
-            <div class="value" id="avg_ontime">{{ DB::table('visa_expenses')->where('payment_status' , 'unpaid')->where('rider_id', $account->id)->sum('amount') }}</div>
-        </div>
-        <div class="total-card total-green">
-            <div class="label"><i class="far fa-money-bill-alt"></i>Total Paid Amount</div>
-            <div class="value" id="total_hours">{{ DB::table('visa_expenses')->where('payment_status' , 'paid')->where('rider_id', $account->id)->sum('amount') }}</div>
-        </div>
-        <div class="total-card total-red">
-            <div class="label"><i class="fa fa-times-circle"></i>Unpaid Expenses</div>
-            <div class="value" id="total_rejected">{{ DB::Table('visa_expenses')->where('rider_id' , $account->id)->where('payment_status' , 'unpaid')->get()->count() }}</div>
-        </div>
-        <div class="total-card total-green">
-            <div class="label"><i class="fa fa-ticket"></i>Paid Expenses</div>
-            <div class="value" id="total_orders">{{ DB::Table('visa_expenses')->where('rider_id' , $account->id)->where('payment_status' , 'paid')->get()->count() }}</div>
-        </div>
+      <div class="total-card total-green">
+          <div class="label">Total Paid Amount</div>
+          <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalPaid, 2) }}</div>
       </div>
-      <div class="card-body table-responsive px-2 py-0" id="table-data">
-        @include('visa_expenses.table', ['data' => $data])
+      <div class="total-card total-red">
+          <div class="label">Unpaid Expenses</div>
+          <div class="value">{{ $unpaidCount }}</div>
       </div>
+      <div class="total-card total-green">
+          <div class="label">Paid Expenses</div>
+          <div class="value">{{ $paidCount }}</div>
+      </div>
+    </div>
+    <div class="card-body table-responsive px-2 py-0" id="table-data">
+      @include('visa_expenses.table', ['data' => $data])
     </div>
   </div>
-
-  {{-- Visa Installment Plan --}}
-  <div class="content">
-    @include('flash::message')
-    <div class="clearfix"></div>
-
-    <div class="card">
-      <div class="card-header d-flex justify-content-between">
-        <div class="col-sm-6">
-          <h3>Visa Installments </h3>
-        </div>
-        <div class="col-sm-6">
-          @can('visaloan_create')
-          <a class="btn btn-sm btn-success action-btn show-modal"
-              href="javascript:void(0);" data-action="{{ route('VisaExpense.createInstallmentPlanForm', $account->id) }}" data-size="lg" data-title="Create Installment Entry">
-              <i class="fa fa-plus"></i>Installment Plan
-          </a>
-          @endcan
-          @if($installmentData->count() > 0)
-          <a href="{{ route('VisaExpense.generateInstallmentInvoice', $account->id) }}"
-              class="btn btn-sm btn-info action-btn mx-2 " target="_blank">
-              <i class="fa fa-file-invoice"></i>Invoice
-          </a>
-          @endif
-        </div>
-      </div>
-      <div class="totals-cards pt-3">
-        <div class="total-card total-red">
-            <div class="label"><i class="fa fa-times-circle"></i>Total Unpaid Amount</div>
-            <div class="value" id="avg_ontime">{{ DB::table('visa_installment_plans')->where('status' , 'pending')->where('rider_id', $account->id)->sum('amount') }}</div>
-        </div>
-        <div class="total-card total-green">
-            <div class="label"><i class="far fa-money-bill-alt"></i>Total Paid Amount</div>
-            <div class="value" id="total_hours">{{ DB::table('visa_installment_plans')->where('status' , 'paid')->where('rider_id', $account->id)->sum('amount') }}</div>
-        </div>
-        <div class="total-card total-red">
-            <div class="label"><i class="fa fa-times-circle"></i>Unpaid Installments</div>
-            <div class="value" id="total_rejected">{{ DB::Table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'pending')->get()->count() }}</div>
-        </div>
-        <div class="total-card total-green">
-            <div class="label"><i class="fa fa-ticket"></i>Paid Installments</div>
-            <div class="value" id="total_orders">{{ DB::Table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'paid')->get()->count() }}</div>
-        </div>
-      </div>
-      <div class="card-body table-responsive px-2 py-0" id="table-data">
-          @include('visa_expenses.installmentPlanTable', ['data' => $installmentData, 'account' => $account])
-      </div>
-    </div>
 </div>
 @endsection
 @section('page-script')
@@ -206,6 +159,64 @@
         rows.forEach(row => tbody.appendChild(row));
       });
     });
+  });
+</script>
+
+<script>
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.js-inline-update-btn');
+    if (!btn) return;
+
+    var row = btn.closest('tr[data-row-id]');
+    if (!row) return;
+
+    var updateUrl = btn.getAttribute('data-update-url');
+    var id = btn.getAttribute('data-id');
+    var amount = row.querySelector('.js-inline-amount')?.value || '';
+    var date = row.querySelector('.js-inline-date')?.value || '';
+    var billingMonth = row.querySelector('.js-inline-billing-month')?.value || '';
+
+    var formData = new FormData();
+    formData.append('_token', '{{ csrf_token() }}');
+    formData.append('id', id);
+    formData.append('amount', amount);
+    formData.append('date', date);
+    formData.append('billing_month', billingMonth);
+
+    fetch(updateUrl, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.success && typeof Swal !== 'undefined') {
+        Swal.fire({ icon: 'success', title: 'Saved', text: data.message || 'Updated successfully', timer: 1200, showConfirmButton: false });
+        return;
+      }
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not update row.' });
+      }
+    })
+    .catch(function() {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Could not update row.' });
+      }
+    });
+  });
+</script>
+
+<script>
+  document.addEventListener('click', function(e) {
+    var deleteLink = e.target.closest('.js-delete-visa-expense');
+    if (!deleteLink) return;
+    var url = deleteLink.getAttribute('data-delete-url');
+    if (url) {
+      confirmDelete(url);
+    }
   });
 </script>
 

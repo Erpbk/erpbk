@@ -17,6 +17,7 @@ use App\Models\LedgerEntry;
 use App\Models\visa_installment_plan;
 use App\Models\Transactions;
 use App\Models\VisaStatus;
+use App\Models\ExpenseAccount;
 use App\Repositories\VisaExpensesRepository;
 use App\Services\TransactionService;
 use App\Support\CompanyAuthRedirect;
@@ -51,66 +52,59 @@ class VisaexpenseController extends AppBaseController
             abort(403, 'Unauthorized action.');
         }
 
-        $parent = Accounts::where('name', 'Visa Expense')->first();
-        // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $userBranches = app('user_branches');
-        $query = Accounts::query()
-            ->select('accounts.*','riders.rider_id', 'riders.person_code', 'riders.labor_card_number', 'riders.policy_no')
-            ->leftJoin('riders', 'accounts.ref_id', '=', 'riders.id')
-            ->orderBy('accounts.id', 'desc')
-            ->where('accounts.parent_id', $parent->id);
+        $query = ExpenseAccount::query()
+            ->with('rider')
+            ->orderByDesc('id');
 
-        // Apply branch filtering (if not admin)
         if (!auth()->user()->isAdmin()) {
             if (!empty($userBranches)) {
-                // User has branches: filter by them
-                $query->where(function ($q) use ($userBranches){
-                    $q->whereIn('riders.branch_id', $userBranches);
-                    $q->orWhere('riders.branch_id', null);
+                $query->whereHas('rider', function ($q) use ($userBranches) {
+                    $q->whereIn('branch_id', $userBranches)->orWhereNull('branch_id');
                 });
-                
             } else {
-                // User has NO branches: only show accounts with branchless riders
-                $query->whereNull('riders.branch_id');
+                $query->whereHas('rider', function ($q) {
+                    $q->whereNull('branch_id');
+                });
             }
         }
 
-        // Existing filters
-        if ($request->has('account_code') && !empty($request->account_code)) {
-            $query->where('account_code', 'like', '%' . $request->account_code . '%');
-        }
-
-        if ($request->has('name') && !empty($request->name)) {
+        if ($request->filled('name')) {
             $query->where('name', 'like', '%' . $request->name . '%');
         }
 
-        // Payment status filter
-        if ($request->has('payment_status') && !empty($request->payment_status)) {
-            $paymentStatus = $request->payment_status;
+        if ($request->filled('quick_search')) {
+            $term = trim((string) $request->quick_search);
+            $query->where(function ($q) use ($term) {
+                $q->where('name', 'like', '%' . $term . '%')
+                    ->orWhereHas('rider', function ($qr) use ($term) {
+                        $qr->where('name', 'like', '%' . $term . '%')
+                            ->orWhere('rider_id', 'like', '%' . $term . '%')
+                            ->orWhere('person_code', 'like', '%' . $term . '%');
+                    });
+            });
+        }
 
-            if ($paymentStatus === 'paid') {
-                // Show accounts where ALL visa_expense records are paid
-                $query->whereHas('visa_expenses', function ($q) {
-                    // Account must have at least one visa_expense record
-                    $q->select('rider_id');
-                })->whereDoesntHave('visa_expenses', function ($q) {
-                    // And no visa_expense record should be unpaid
-                    $q->where('payment_status', 'unpaid');
-                });
-            } elseif ($paymentStatus === 'unpaid') {
-                // Show accounts that have at least one unpaid visa_expense record
-                $query->whereHas('visa_expenses', function ($q) {
+        if ($request->filled('payment_status')) {
+            $status = $request->payment_status;
+            if ($status === 'paid') {
+                $query->whereHas('visaExpenses')
+                    ->whereDoesntHave('visaExpenses', function ($q) {
+                        $q->where('payment_status', 'unpaid');
+                    });
+            } elseif ($status === 'unpaid') {
+                $query->whereHas('visaExpenses', function ($q) {
                     $q->where('payment_status', 'unpaid');
                 });
             }
         }
+
         $statsQuery = clone $query;
-        // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
-        $riders = Riders::all();
-        $riderIds = $statsQuery->pluck('rider_id')->toArray();
-        $visaAccounts = visa_expenses::whereIn('rider_id', $riderIds)->get();
+        $riders = Riders::where('status', 1)->orderBy('name')->get();
+        $expenseAccountIds = $statsQuery->pluck('id')->toArray();
+        $visaAccounts = visa_expenses::whereIn('expense_account_id', $expenseAccountIds)->get();
         $stats = [
             'unpaid_accounts' => $visaAccounts->where('payment_status', 'unpaid')->count(),
             'paid_amount' => $visaAccounts->where('payment_status', 'paid')->sum('amount'),
@@ -120,7 +114,6 @@ class VisaexpenseController extends AppBaseController
         if ($request->ajax()) {
             $tableData = view('visa_expenses.account_table', [
                 'data' => $data,
-                'parent' => $parent,
             ])->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
@@ -133,61 +126,82 @@ class VisaexpenseController extends AppBaseController
 
         return view('visa_expenses.account_index', [
             'data' => $data,
-            'parent' => $parent,
             'riders' => $riders,
             'stats' => $stats,
-            'riderIds' => $riderIds,
+            'riderIds' => $expenseAccountIds,
         ]);
     }
     public function accountcreate(Request $request)
     {
-        $rider = \App\Support\CompanyQuery::table('riders')->where('id', $request->rider_id)->first();
-        $parent = Accounts::where('name', 'Visa Expense')->first();
-        if (!$parent) {
-            Flash::error('Parent account "Visa Expense" not found.');
-            return redirect()->back();
-        }
-        $exists = Accounts::where('name', $rider->name)->where('parent_id', $parent->id)->exists();
+        $request->validate([
+            'rider_id' => 'required|exists:riders,id',
+        ]);
+        $rider = Riders::findOrFail($request->rider_id);
+        $exists = ExpenseAccount::where('rider_id', $rider->id)->exists();
         if ($exists) {
-            Flash::error('Account with this name already exists.');
+            Flash::error('Visa expense account already exists for this rider.');
             return redirect()->back();
         }
-        $newdata = new Accounts();
-        $newdata->name = $rider->name;
-        $newdata->parent_id = $parent->id;
-        $newdata->account_type = 'Expense';
-        $newdata->ref_id = $request->rider_id;
-        $newdata->status = 1;
-        $newdata->save();
-        $newdata->account_code = 'ACCT-' . str_pad($newdata->id, 5, '0', STR_PAD_LEFT);
-        $newdata->created_by = auth()->user()->id;
-        $newdata->save();
-        Flash::success('Account added successfully.');
+
+        DB::beginTransaction();
+        try {
+            $expenseAccount = ExpenseAccount::create([
+                'name' => $rider->name,
+                'rider_id' => $rider->id,
+                'account_id' => $rider->account_id,
+                'company_id' => auth()->user()->company_id ?? null,
+            ]);
+
+            $activeStatuses = VisaStatus::query()
+                ->where('is_active', 1)
+                ->orderBy('display_order')
+                ->get();
+
+            foreach ($activeStatuses as $status) {
+                visa_expenses::create([
+                    'trans_date' => Carbon::today()->format('Y-m-d'),
+                    'trans_code' => Account::trans_code(),
+                    'date' => Carbon::today()->format('Y-m-d'),
+                    'rider_id' => $expenseAccount->id, // legacy compatibility
+                    'expense_account_id' => $expenseAccount->id,
+                    'visa_status' => $status->name,
+                    'detail' => $status->description ?? ('Auto-generated from active visa status: ' . $status->name),
+                    'reference_number' => 'VS-' . $expenseAccount->id . '-' . $status->id,
+                    'billing_month' => Carbon::today()->startOfMonth()->format('Y-m-d'),
+                    'amount' => (float) ($status->default_fee ?? 0),
+                    'payment_status' => 'unpaid',
+                ]);
+            }
+
+            DB::commit();
+            Flash::success('Visa expense account created and active status entries generated.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Flash::error('Error creating visa expense account: ' . $e->getMessage());
+        }
         return redirect()->back();
     }
     public function editaccount(Request $request)
     {
-        $parent = Accounts::where('name', 'RTA Fines')->first();
-        if (!$parent) {
-            Flash::error('Parent account "RTA Fines" not found.');
-        }
-        $newdata = Accounts::find($request->id);
-        $newdata->name = $request->name;
-        $newdata->parent_id = $parent->id;
-        $newdata->account_type = 'Expense';
-        $newdata->status = 1;
-        $newdata->save();
-        $newdata->account_code = 'ACCT-' . str_pad($newdata->id, 5, '0', STR_PAD_LEFT);
-        $newdata->updated_by = auth()->user()->id;
-        $newdata->save();
-        Flash::success('Account Updated successfully.');
+        $request->validate([
+            'id' => 'required|exists:expense_accounts,id',
+            'rider_id' => 'required|exists:riders,id',
+        ]);
+        $rider = Riders::findOrFail($request->rider_id);
+        $account = ExpenseAccount::findOrFail($request->id);
+        $account->rider_id = $rider->id;
+        $account->name = $rider->name;
+        $account->save();
+        Flash::success('Visa expense account updated successfully.');
         return redirect()->back();
     }
 
     public function deleteaccount($company_slug, $id)
     {
         // Check if any visa_expenses exist for this account
-        $hasExpenses = visa_expenses::where('rider_id', $id)->exists();
+        $hasExpenses = visa_expenses::where('expense_account_id', $id)
+            ->Where('payment_status', 'paid')
+            ->exists();
 
         if ($hasExpenses) {
             Flash::error('Cannot delete account. Visa Expense entries exist for this account.');
@@ -217,9 +231,8 @@ class VisaexpenseController extends AppBaseController
         }
 
         // Check if any vouchers exist for this account related to visa expenses
-        $account = Accounts::findOrFail($id);
-        $riderId = $account->ref_id;
-
+        $account = ExpenseAccount::findOrFail($id);
+        $riderId = $account->rider_id;
         if ($riderId) {
             $hasVouchers = Vouchers::where('rider_id', $riderId)
                 ->where(function ($query) {
@@ -235,7 +248,8 @@ class VisaexpenseController extends AppBaseController
         }
 
         // No related records — safe to delete
-        Accounts::where('id', $id)->delete();
+        $visaexpense = visa_expenses::where('expense_account_id', $id)->delete();
+        ExpenseAccount::where('id', $id)->delete();
         Flash::success('Account deleted successfully.');
         return redirect()->back();
     }
@@ -251,13 +265,15 @@ class VisaexpenseController extends AppBaseController
             abort(403, 'Unauthorized action.');
         }
 
-        // Auto-mark installments silently in the background
-        $this->checkAndAutoMarkInstallments($id);
+        // Installment flow is temporarily hidden for visa expense accounts.
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = visa_expenses::query()
             ->with('vouchers')
-            ->orderBy('id', 'asc')->where('rider_id', $id);
+            ->orderBy('id', 'asc')
+            ->where(function ($q) use ($id) {
+                $q->where('expense_account_id', $id)->orWhere('rider_id', $id);
+            });
         if ($request->has('trans_date') && !empty($request->trans_date)) {
             $fromDate = \Carbon\Carbon::createFromFormat('Y-m-d', $request->trans_date);
             $query->where('trans_date', $fromDate);
@@ -280,11 +296,11 @@ class VisaexpenseController extends AppBaseController
 
         $installmentQuery = visa_installment_plan::query()
             ->with('vouchers')
-            ->where('rider_id', $id)
+            ->whereRaw('1 = 0')
             ->orderBy('date', 'asc');
         $installmentData = $this->applyPagination($installmentQuery, $paginationParams);
 
-        $account = Accounts::where('id', $id)->first();
+        $account = ExpenseAccount::with('rider')->where('id', $id)->first();
         if ($request->ajax()) {
             $tableData = view('visa_expenses.table', [
                 'data' => $data,
@@ -298,7 +314,7 @@ class VisaexpenseController extends AppBaseController
         }
         $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
         $riders = null;
-        \Log::info('visa expense entries',['rider_id' => $id, 'rider' => $riders]);
+        \Log::info('visa expense entries', ['rider_id' => $id, 'rider' => $riders]);
         return view('visa_expenses.index', [
             'data' => $data,
             'installmentData' => $installmentData,
@@ -313,7 +329,7 @@ class VisaexpenseController extends AppBaseController
      */
     public function create($id)
     {
-        $data = Accounts::where('id', $id)->first();
+        $data = ExpenseAccount::where('id', $id)->first();
         $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
         return view('visa_expenses.create', compact('data', 'visaStatuses'));
     }
@@ -324,13 +340,13 @@ class VisaexpenseController extends AppBaseController
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'rider_id'       => 'required|exists:accounts,id',
+            'rider_id'       => 'required|exists:expense_accounts,id',
             'visa_status'    => [
                 'required',
                 'string',
                 'max:255',
                 Rule::unique('visa_expenses')->where(function ($query) use ($request) {
-                    return $query->where('rider_id', $request->rider_id)->where('deleted_at', null);
+                    return $query->where('expense_account_id', $request->rider_id)->where('deleted_at', null);
                 }),
             ],
             'billing_month'  => 'required|date_format:Y-m',
@@ -346,6 +362,7 @@ class VisaexpenseController extends AppBaseController
             $trans_date = Carbon::today();
             $visaExpenses = visa_expenses::create([
                 'rider_id'       => $validated['rider_id'],
+                'expense_account_id' => $validated['rider_id'],
                 'visa_status'    => $validated['visa_status'],
                 'billing_month'  => $billingMonth,
                 'date'           => $request->date,
@@ -365,10 +382,10 @@ class VisaexpenseController extends AppBaseController
             return redirect()->back()->withInput();
         }
     }
-    public function viewvoucher($id)
+    public function viewvoucher($company_slug, $id)
     {
         $data = visa_expenses::where('id', $id)->first();
-        $accounts = Accounts::where('id', $data->rider_id)->first();
+        $accounts = ExpenseAccount::where('id', $data->expense_account_id ?? $data->rider_id)->first();
         return view('visa_expenses.viewvoucher', compact('data', 'accounts'));
     }
     public function installmentPlan(Request $request, $id)
@@ -483,7 +500,7 @@ class VisaexpenseController extends AppBaseController
 
             // Get the rider account (visa expense account)
             $riderAccount = Accounts::findOrFail($validated['rider_id']);
-            $branch_id = Riders::where('id',$riderAccount->ref_id)->get('branch_id');
+            $branch_id = Riders::where('id', $riderAccount->ref_id)->get('branch_id');
 
 
 
@@ -589,7 +606,7 @@ class VisaexpenseController extends AppBaseController
                     'reference_type' => 'VL',
                     'trans_code' => $trans_code,
                     'trans_date' => $trans_date,
-                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment ' . ($i + 1 + $existingInstallmentCount) ,
+                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment ' . ($i + 1 + $existingInstallmentCount),
                     'debit' => $installmentAmount,
                     'branch_id' => $branch_id,
                     'billing_month' => $billingMonth,
@@ -603,7 +620,7 @@ class VisaexpenseController extends AppBaseController
                     'reference_type' => 'VL',
                     'trans_code' => $trans_code,
                     'trans_date' => $trans_date,
-                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment ' . ($i + 1 + $existingInstallmentCount) ,
+                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment ' . ($i + 1 + $existingInstallmentCount),
                     'credit' => $installmentAmount,
                     'branch_id' => $branch_id,
                     'billing_month' => $billingMonth,
@@ -1762,7 +1779,7 @@ class VisaexpenseController extends AppBaseController
     public function edit(string $id)
     {
         $visaExpenses = visa_expenses::find($id);
-        $data = Accounts::where('id', $visaExpenses->rider_id)->first();
+        $data = ExpenseAccount::where('id', $visaExpenses->expense_account_id ?? $visaExpenses->rider_id)->first();
         if (empty($visaExpenses)) {
             Flash::error('Visa Expenses not found');
 
@@ -1832,6 +1849,34 @@ class VisaexpenseController extends AppBaseController
         }
 
         return redirect()->back();
+    }
+
+    public function inlineUpdate(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'id' => 'required|exists:visa_expenses,id',
+            'amount' => 'required|numeric|min:0',
+            'date' => 'required|date',
+            'billing_month' => 'required|date_format:Y-m',
+        ]);
+
+        $row = visa_expenses::findOrFail($validated['id']);
+        $row->amount = $validated['amount'];
+        $row->date = $validated['date'];
+        $row->billing_month = $validated['billing_month'] . '-01';
+        $row->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Visa expense updated.',
+            'amount' => number_format((float) $row->amount, 2),
+            'date' => Carbon::parse($row->date)->format('Y-m-d'),
+            'billing_month' => Carbon::parse($row->billing_month)->format('Y-m'),
+        ]);
     }
 
 

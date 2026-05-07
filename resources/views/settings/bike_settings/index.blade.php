@@ -20,6 +20,8 @@ $riderInvoiceAccountTree = $riderInvoiceAccountTree ?? [];
 $riderInvoiceAssignments = $riderInvoiceAssignments ?? ['debit' => [], 'credit' => []];
 $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['admin', 'Administrator', 'Super Admin']);
 $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
+$showVisaStatusManagementTab = ($moduleKey ?? '') === 'visa_expense';
+$visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'visa_expense']) . '#tab-visa-status-management';
 @endphp
 
 <div class="row">
@@ -47,6 +49,13 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
               General
             </button>
           </li>
+          @if($showVisaStatusManagementTab)
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-visa-status-management" type="button" role="tab">
+              Visa Status Management
+            </button>
+          </li>
+          @endif
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-categories" type="button" role="tab">
               Categories
@@ -80,6 +89,157 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
               </div>
             </form>
           </div>
+
+          @if($showVisaStatusManagementTab)
+          <div class="tab-pane fade" id="tab-visa-status-management" role="tabpanel">
+            <div class="d-flex justify-content-end mb-3">
+              @can('visaexpense_create')
+              <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaStatusModal">
+                <i class="ti ti-plus me-1"></i> Add New Status
+              </button>
+              @endcan
+            </div>
+            <div class="table-responsive">
+              @include('visa_statuses.table', [
+              'visaStatuses' => $visaStatuses ?? collect(),
+              'visaRoute' => 'settings-panel.visa-statuses',
+              'embeddedVisaStatusManager' => true,
+              'visaStatusReturnTo' => $visaStatusSettingsReturnUrl
+              ])
+            </div>
+          </div>
+
+          <div class="modal fade" id="createVisaStatusModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+              <div class="modal-content">
+                <form method="POST" action="{{ route('settings-panel.visa-statuses.store', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) }}">
+                  @csrf
+                  <input type="hidden" name="return_to" value="{{ $visaStatusSettingsReturnUrl }}">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Create Visa Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <label class="form-label required">Name</label>
+                        <input type="text" name="name" class="form-control" required maxlength="255">
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Code</label>
+                        <input type="text" name="code" class="form-control" maxlength="20">
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Category</label>
+                        <select name="category" class="form-select">
+                          <option value="Document">Document</option>
+                          <option value="Permit">Permit</option>
+                          <option value="License">License</option>
+                          <option value="Insurance">Insurance</option>
+                          <option value="Other" selected>Other</option>
+                        </select>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Default Fee</label>
+                        <input type="number" name="default_fee" class="form-control" min="0" step="0.01" value="0.00">
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Display Order</label>
+                        <input type="number" name="display_order" class="form-control" min="1">
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="3" maxlength="500"></textarea>
+                      </div>
+                      <div class="col-12 d-flex gap-4">
+                        <div class="form-check">
+                          <input type="checkbox" name="is_active" id="create_visa_is_active" class="form-check-input" value="1" checked>
+                          <label class="form-check-label" for="create_visa_is_active">Active</label>
+                        </div>
+                        <div class="form-check">
+                          <input type="checkbox" name="is_required" id="create_visa_is_required" class="form-check-input" value="1">
+                          <label class="form-check-label" for="create_visa_is_required">Required</label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal fade" id="editVisaStatusModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+              <div class="modal-content">
+                <form id="editVisaStatusForm" method="POST" action="#">
+                  @csrf
+                  @method('PUT')
+                  <input type="hidden" name="return_to" value="{{ $visaStatusSettingsReturnUrl }}">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Update Visa Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <label class="form-label required">Name</label>
+                        <input type="text" name="name" id="editVisaStatusName" class="form-control" required maxlength="255">
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Code</label>
+                        <input type="text" name="code" id="editVisaStatusCode" class="form-control" maxlength="20">
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Category</label>
+                        <select name="category" id="editVisaStatusCategory" class="form-select">
+                          <option value="Document">Document</option>
+                          <option value="Permit">Permit</option>
+                          <option value="License">License</option>
+                          <option value="Insurance">Insurance</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Default Fee</label>
+                        <input type="number" name="default_fee" id="editVisaStatusDefaultFee" class="form-control" min="0" step="0.01">
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Display Order</label>
+                        <input type="number" name="display_order" id="editVisaStatusDisplayOrder" class="form-control" min="1">
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" id="editVisaStatusDescription" class="form-control" rows="3" maxlength="500"></textarea>
+                      </div>
+                      <div class="col-12 d-flex gap-4">
+                        <div class="form-check">
+                          <input type="checkbox" name="is_active" id="editVisaStatusIsActive" class="form-check-input" value="1">
+                          <label class="form-check-label" for="editVisaStatusIsActive">Active</label>
+                        </div>
+                        <div class="form-check">
+                          <input type="checkbox" name="is_required" id="editVisaStatusIsRequired" class="form-check-input" value="1">
+                          <label class="form-check-label" for="editVisaStatusIsRequired">Required</label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div
+            id="visa-status-manager-config"
+            data-edit-url-template="{{ route('settings-panel.visa-statuses.update', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'visa_status' => '__ID__']) }}"
+            hidden></div>
+          @endif
 
           {{-- Tab: Categories --}}
           <div class="tab-pane fade" id="tab-categories" role="tabpanel">
@@ -1963,6 +2123,142 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
   });
 </script>
 <script>
+  var visaStatusConfig = document.getElementById('visa-status-manager-config');
+  if (visaStatusConfig) {
+  var visaStatusSortableInstance = null;
+
+  function initVisaStatusSortable() {
+    if (typeof Sortable === 'undefined') return;
+    var tbody = document.getElementById('visa-statuses-tbody');
+    if (!tbody || tbody.querySelectorAll('tr[data-id]').length === 0) return;
+
+    if (visaStatusSortableInstance) {
+      visaStatusSortableInstance.destroy();
+    }
+
+    visaStatusSortableInstance = new Sortable(tbody, {
+      handle: '.visa-drag-handle',
+      animation: 150,
+      ghostClass: 'table-warning',
+      onEnd: function() {
+        var order = Array.from(tbody.querySelectorAll('tr[data-id]')).map(function(row) {
+          return row.getAttribute('data-id');
+        });
+
+        fetch("{{ route('settings-panel.visa-statuses.reorder', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) }}", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            order: order
+          })
+        }).then(function(response) {
+          return response.json();
+        }).then(function(data) {
+          if (!data.success && typeof Swal !== 'undefined') {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'Could not save order.'
+            });
+          }
+        }).catch(function() {
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Could not save order.'
+            });
+          }
+        });
+      }
+    });
+  }
+
+  function confirmDelete(url) {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete it!'
+      }).then(function(result) {
+        if (!result.isConfirmed) return;
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.style.display = 'none';
+        var csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = '_token';
+        csrfToken.value = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        form.appendChild(csrfToken);
+        var method = document.createElement('input');
+        method.type = 'hidden';
+        method.name = '_method';
+        method.value = 'DELETE';
+        form.appendChild(method);
+        document.body.appendChild(form);
+        form.submit();
+      });
+      return;
+    }
+    if (confirm('Are you sure?')) {
+      window.location.href = url;
+    }
+  }
+
+  document.addEventListener('click', function(e) {
+    var deleteBtn = e.target.closest('.js-visa-status-delete-btn');
+    if (deleteBtn) {
+      confirmDelete(deleteBtn.getAttribute('data-delete-url') || '');
+      return;
+    }
+
+    var editBtn = e.target.closest('.js-visa-status-edit-btn');
+    if (!editBtn) return;
+
+    var editUrlTemplate = visaStatusConfig.getAttribute('data-edit-url-template') || '';
+    var form = document.getElementById('editVisaStatusForm');
+    if (!form) return;
+    form.action = editUrlTemplate.replace('__ID__', String(editBtn.dataset.id || ''));
+
+    document.getElementById('editVisaStatusName').value = editBtn.dataset.name || '';
+    document.getElementById('editVisaStatusCode').value = editBtn.dataset.code || '';
+    document.getElementById('editVisaStatusCategory').value = editBtn.dataset.category || 'Other';
+    document.getElementById('editVisaStatusDefaultFee').value = editBtn.dataset.defaultFee || 0;
+    document.getElementById('editVisaStatusDisplayOrder').value = editBtn.dataset.displayOrder || '';
+    document.getElementById('editVisaStatusDescription').value = editBtn.dataset.description || '';
+    document.getElementById('editVisaStatusIsRequired').checked = String(editBtn.dataset.isRequired || '0') === '1';
+    document.getElementById('editVisaStatusIsActive').checked = String(editBtn.dataset.isActive || '0') === '1';
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    initVisaStatusSortable();
+    if (window.location.hash === '#tab-visa-status-management') {
+      var visaTabBtn = document.querySelector('[data-bs-target="#tab-visa-status-management"]');
+      if (visaTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+        bootstrap.Tab.getOrCreateInstance(visaTabBtn).show();
+      } else if (visaTabBtn) {
+        visaTabBtn.click();
+      }
+    }
+  });
+
+  var visaStatusTabBtn = document.querySelector('[data-bs-target="#tab-visa-status-management"]');
+  if (visaStatusTabBtn) {
+    visaStatusTabBtn.addEventListener('shown.bs.tab', function() {
+      setTimeout(initVisaStatusSortable, 50);
+    });
+  }
+  }
+
   document.addEventListener('click', function(e) {
     const btn = e.target.closest('.btn-edit-module-document-type');
     if (!btn) return;

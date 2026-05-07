@@ -1009,4 +1009,17 @@ class LeasingCompaniesController extends AppBaseController
 
     return $ledgerDataTable->with(['account_id' => $account_id])->render('leasing_companies.ledger', compact('files', 'leasingCompany'));
   }
+
+  public function bikes(Request $request, $company_slug, $id)
+  {
+    $leasingCompany = $this->leasingCompaniesRepository->find($id);
+    if (!$leasingCompany) {
+      Flash::error('Leasing` Company not found');
+      return redirect()->back();
+    }
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Bikes::query()->where('company',$leasingCompany->id);
+    $bikes = $this->applyPagination($query, $paginationParams);
+    return view('leasingCompanies.bikes', compact('bikes', 'leasingCompany'));
+  }
 }

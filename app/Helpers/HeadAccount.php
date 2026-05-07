@@ -20,4 +20,5 @@ interface HeadAccount
   const SALARY_ACCOUNT = 2492; // Salary Account
   const STAFF_ACCOUNT = 2464; // Staff Account
   const SALES_ACCOUNT = 2514; // Sales Account
+  const VISA_EXPENSE_ACCOUNT = 2515; // Visa Expense Account
 }

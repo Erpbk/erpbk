@@ -1,121 +1,103 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title','Visa Expenses')
 @section('content')
-    <section class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h3>Visa Accounts</h3>
-                </div>
-                <div class="col-sm-6">
-                    <a class="btn btn-primary action-btn show-modal"
-                       href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#createaccount">
-                        Add New Accounts
-                    </a>
-                    <div class="modal modal-default filtetmodal fade" id="createaccount" tabindex="-1" data-bs-backdrop="static"role="dialog" aria-hidden="true">
-                       <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-                          <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Add New Account</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                             <div class="modal-body" id="searchTopbody">
-                                <form action="{{ route('VisaExpense.accountcreate') }}" method="POST">
-                                    @csrf
-                                    <div class="row">
-                                        <div class="form-group col-md-12">
-                                            <label for="rider_id">Select Rider</label>
-                                            <select class="form-control " id="rider_id" name="rider_id">
-                                                <option value="" selected>Select</option>
-                                                @foreach($riders as $r)
-                                                <option value="{{ $r->id }}">{{ $r->rider_id }} - {{ $r->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="col-md-12 form-group text-center">
-                                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Submit</button>
-                                        </div>
-                                    </div>
-                                </form>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                    <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static"role="dialog" aria-hidden="true">
-                       <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-                          <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Filter Accounts</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                             <div class="modal-body" id="searchTopbody">
-                                <form id="filterForm" action="{{ route('VisaExpense.index') }}" method="GET">
-                                    <div class="row">
-                                        <div class="form-group col-md-4">
-                                            <label for="name">Name</label>
-                                            <input type="text" name="name" class="form-control" placeholder="Enter Account Name" >
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="account_code">Account Code</label>
-                                            <input type="number" name="account_code" class="form-control" placeholder="Enter Account Code" >
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="payment_status">Payment Status</label>
-                                            <select class="form-control " id="" name="payment_status">
-                                                <option value="" selected>Select</option>
-                                                <option value="paid" {{ request('payment_status') === 'paid' ? 'selected' : '' }}>Paid</option>
-                                                <option {{ request('payment_status') === 'paid' ? 'selected' : '' }} value="unpaid">unpaid</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-12 form-group text-center">
-                                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                                        </div>
-                                    </div>
-                                </form>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                </div>
-            </div>
+<section class="content-header">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h3 class="mb-0">Visa Expense Accounts</h3>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createaccount">
+                <i class="fa fa-plus me-1"></i> Create Expense Account
+            </button>
         </div>
-    </section>
+    </div>
+</section>
 
-    <div class="content">
-        @include('flash::message')
-        <div class="clearfix"></div>
+<div class="content">
+    @include('flash::message')
+    <div class="card mb-3">
+        <div class="card-body">
+            <form id="filterForm" action="{{ route('VisaExpense.index') }}" method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Quick Search</label>
+                    <input type="text" name="quick_search" class="form-control" placeholder="Rider ID, name, person code" value="{{ request('quick_search') }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Account Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="Account name" value="{{ request('name') }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Payment Status</label>
+                    <select class="form-select" name="payment_status" id="payment_status">
+                        <option value="">All</option>
+                        <option value="paid" {{ request('payment_status') === 'paid' ? 'selected' : '' }}>Paid</option>
+                        <option value="unpaid" {{ request('payment_status') === 'unpaid' ? 'selected' : '' }}>Unpaid</option>
+                    </select>
+                </div>
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary"><i class="fa fa-search me-1"></i> Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        <div class="card">
-            <div class="card-header d-flex justify-content-between">
-                <div class="card-search">
-                    <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
-                </div>
-                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#searchModal"> <i class="fa fa-search"></i> Filter</button>
+    <div class="card mb-3">
+        <div class="totals-cards">
+            <div class="total-card total-blue">
+                <div class="label">Total Accounts</div>
+                <div class="value">{{ $data->total() }}</div>
             </div>
-            <div class="totals-cards">
-                <div class="total-card total-blue">
-                    <div class="label"><i class="fa fa-motorcycle"></i>Total Accounts</div>
-                    <div class="value" id="total_orders"> {{ $data->total() }}</div>
-                </div>
-                <div class="total-card total-black">
-                    <div class="label"><i class="fa fa-check-circle"></i>UnPaid Visa Expenses</div>
-                    <div class="value" id="avg_ontime"> {{ $stats['unpaid_accounts'] }}</div>
-                </div>
-                <div class="total-card total-green">
-                    <div class="label"><i class="fa fa-check-circle"></i>Paid Amount</div>
-                    <div class="value" id="avg_ontime"> {{ $stats['paid_amount'] }}</div>
-                </div>
-                <div class="total-card total-red">
-                    <div class="label"><i class="fa fa-times-circle"></i>Unpaid Amount</div>
-                    <div class="value" id="total_rejected"> {{ $stats['unpaid_amount'] }}</div>
-                </div>
+            <div class="total-card total-black">
+                <div class="label">Unpaid Entries</div>
+                <div class="value">{{ $stats['unpaid_accounts'] }}</div>
             </div>
-            <div class="card-body table-responsive px-2 py-0"  id="table-data">
-                @include('visa_expenses.account_table', ['data' => $data])
+            <div class="total-card total-green">
+                <div class="label">Paid Amount</div>
+                <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $stats['paid_amount'], 2) }}</div>
+            </div>
+            <div class="total-card total-red">
+                <div class="label">Unpaid Amount</div>
+                <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $stats['unpaid_amount'], 2) }}</div>
             </div>
         </div>
     </div>
+
+    <div class="card">
+        <div class="card-body table-responsive px-2 py-0" id="table-data">
+            @include('visa_expenses.account_table', ['data' => $data])
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createaccount" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Visa Expense Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ route('VisaExpense.accountcreate') }}" method="POST">
+                    @csrf
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="rider_id" class="form-label">Select Rider</label>
+                            <select class="form-select" id="rider_id" name="rider_id" required>
+                                <option value="">Select</option>
+                                @foreach($riders as $r)
+                                <option value="{{ $r->id }}">{{ $r->rider_id }} - {{ $r->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-12 text-end">
+                            <button type="submit" class="btn btn-primary">Create</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -136,114 +118,24 @@ function confirmDelete(url) {
     })
 }
 $(document).ready(function () {
-    $('#parent_id').select2({
-        dropdownParent: $('#searchTopbody'),
-        placeholder: "Add Parent Account",
-            allowClear: true
-    });
     $('#rider_id').select2({
-        dropdownParent: $('#searchTopbody'),
+        dropdownParent: $('#createaccount'),
         placeholder: "Rider",
             allowClear: true
     });
-    
-    $('#bike_id').select2({
-        dropdownParent: $('#searchTopbody'),
-        placeholder: "Filter By Bike Plate",
-            allowClear: true
-    });
     $('#payment_status').select2({
-        dropdownParent: $('#searchTopbody'),
+        dropdownParent: $('#filterForm'),
         placeholder: "Filter By Payment Status",
             allowClear: true
     });
 });
-$('div[id^="editaccount"]').on('shown.bs.modal', function () {
-    $(this).find('.rider-select').select2({
-        dropdownParent: $(this).find('.modal-body'),
-        placeholder: "Filter By Rider ID",
-            allowClear: true
-    });
+
+$(document).on('click', '.js-delete-expense-account', function () {
+    var url = $(this).data('delete-url');
+    if (url) {
+        confirmDelete(url);
+    }
 });
-</script>
-
-<script type="text/javascript">
-$(document).ready(function () {
-    $('#filterForm').on('submit', function (e) {
-        e.preventDefault();
-
-        $('#loading-overlay').show();
-        $('#searchModal').modal('hide');
-
-        const loaderStartTime = Date.now();
-
-        // Exclude _token and empty fields
-        let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
-        let formData = $.param(filteredFields);
-
-        $.ajax({
-            url: "{{ route('VisaExpense.index') }}",
-            type: "GET",
-            data: formData,
-            success: function (data) {
-                $('#table-data').html(data.tableData);
-
-                // Update URL
-                let newUrl = "{{ route('VisaExpense.index') }}" + (formData ? '?' + formData : '');
-                history.pushState(null, '', newUrl);
-
-                
-                // Ensure loader is visible at least 3s
-                const elapsed = Date.now() - loaderStartTime;
-                const remaining = 1000 - elapsed;
-                setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-            },
-            error: function (xhr, status, error) {
-                console.error(error);
-
-                const elapsed = Date.now() - loaderStartTime;
-                const remaining = 1000 - elapsed;
-                setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
-            }
-        });
-    });
-});
-</script>
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const table = document.querySelector('#dataTableBuilder');
-    const headers = table.querySelectorAll('th.sorting');
-    const tbody = table.querySelector('tbody');
-
-    headers.forEach((header, colIndex) => {
-      header.addEventListener('click', () => {
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-        const isAsc = header.classList.contains('sorted-asc');
-
-        // Clear previous sort classes
-        headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
-
-        // Add new sort direction
-        header.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
-
-        // Sort logic
-        rows.sort((a, b) => {
-          let aText = a.children[colIndex]?.textContent.trim().toLowerCase();
-          let bText = b.children[colIndex]?.textContent.trim().toLowerCase();
-
-          const aVal = isNaN(aText) ? aText : parseFloat(aText);
-          const bVal = isNaN(bText) ? bText : parseFloat(bText);
-
-          if (aVal < bVal) return isAsc ? 1 : -1;
-          if (aVal > bVal) return isAsc ? -1 : 1;
-          return 0;
-        });
-
-        // Re-append sorted rows
-        rows.forEach(row => tbody.appendChild(row));
-      });
-    });
-  });
 </script>
 @endsection
 

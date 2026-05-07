@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\VisaStatus;
 use App\Support\CompanyAuthRedirect;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Flash;
 use DB;
 
@@ -129,7 +130,7 @@ class VisaStatusController extends Controller
             DB::commit();
 
             Flash::success('Visa Status added successfully.');
-            return redirect()->route($this->visaStatusesIndexRoute());
+            return $this->redirectAfterAction($request);
         } catch (\Exception $e) {
             DB::rollBack();
             Flash::error('Error: ' . $e->getMessage());
@@ -198,7 +199,7 @@ class VisaStatusController extends Controller
             DB::commit();
 
             Flash::success('Visa Status updated successfully.');
-            return redirect()->route($this->visaStatusesIndexRoute());
+            return $this->redirectAfterAction($request);
         } catch (\Exception $e) {
             DB::rollBack();
             Flash::error('Error: ' . $e->getMessage());
@@ -232,7 +233,7 @@ class VisaStatusController extends Controller
 
             $visaStatus->delete();
             Flash::success('Visa Status deleted successfully.');
-            return redirect()->route($this->visaStatusesIndexRoute());
+            return $this->redirectAfterAction(request());
         } catch (\Exception $e) {
             Flash::error('Error: ' . $e->getMessage());
             return redirect()->back();
@@ -259,7 +260,7 @@ class VisaStatusController extends Controller
 
             $status = $visaStatus->is_active ? 'activated' : 'deactivated';
             Flash::success("Visa Status {$status} successfully.");
-            return redirect()->route($this->visaStatusesIndexRoute());
+            return $this->redirectAfterAction(request());
         } catch (\Exception $e) {
             Flash::error('Error: ' . $e->getMessage());
             return redirect()->back();
@@ -291,5 +292,15 @@ class VisaStatusController extends Controller
     {
         $name = request()->route()?->getName() ?? '';
         return str_starts_with($name, 'settings-panel.') ? 'settings-panel.visa-statuses.index' : 'visa-statuses.index';
+    }
+
+    private function redirectAfterAction(Request $request): RedirectResponse
+    {
+        $returnTo = $request->input('return_to');
+        if (is_string($returnTo) && $returnTo !== '') {
+            return redirect()->to($returnTo);
+        }
+
+        return redirect()->route($this->visaStatusesIndexRoute());
     }
 }

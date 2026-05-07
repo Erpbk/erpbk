@@ -114,3 +114,14 @@ $name = 'custom_field_values[' . $field->id . ']';
 </div>
 @endforeach
 @endisset
+
+<script>
+$(document).ready(function() {
+    
+    // Initialize select2
+    $('.select2').select2({
+        allowClear: true,
+        dropdownParent: $('#modalTopbody')
+    });
+});
+</script>

@@ -247,7 +247,7 @@
             </div>
             <div class="input-group">
                 <span class="input-group-text bg-primary text-white">Total</span>
-                <input type="number" name="total_amount" class="form-control" id="total" readonly style="min-width: 150px; font-weight: bold;" >
+                <input type="number" name="total_cost" class="form-control" id="total" readonly style="min-width: 150px; font-weight: bold;" >
             </div>
         </div>
     </div>

@@ -245,6 +245,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('attendance/export', [\App\Http\Controllers\AttendanceController::class, 'export'])->name('attendance.export');
     Route::get('attendance/summary/export', [\App\Http\Controllers\AttendanceController::class, 'exportSummary'])->name('attendance.summary.export');
     Route::resource('attendance', App\Http\Controllers\AttendanceController::class);
+    Route::get('/attendance/create/{refType}', [App\Http\Controllers\AttendanceController::class, 'create'])->name('attendance.create');
     Route::post('attendance/bulk-mark', [\App\Http\Controllers\AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
     Route::get('attendance/users/{refType}', [\App\Http\Controllers\AttendanceController::class, 'getUsers'])->name('attendance.users');
 
@@ -255,6 +256,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::post('visa-statuses/reorder', [App\Http\Controllers\VisaStatusController::class, 'reorder'])->name('visa-statuses.reorder');
     Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('visa-statuses.toggle-active');
     Route::post('VisaExpense/store', [\App\Http\Controllers\VisaexpenseController::class, 'store'])->name('VisaExpense.store');
+    Route::post('VisaExpense/inline-update', [\App\Http\Controllers\VisaexpenseController::class, 'inlineUpdate'])->name('VisaExpense.inlineUpdate');
     Route::get('VisaExpense/edit/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'edit'])->name('VisaExpense.edit');
     Route::post('VisaExpense/update', [\App\Http\Controllers\VisaexpenseController::class, 'update'])->name('VisaExpense.update');
     Route::get('VisaExpense/create/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'create'])->name('VisaExpense.create');
@@ -515,6 +517,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::resource('leasingCompanies', App\Http\Controllers\LeasingCompaniesController::class);
     Route::delete('leasingCompanies/delete/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'destroy'])->name('leasingCompanies.delete');
+    Route::get('leasingCompanies/bikes/{id}', [\App\Http\Controllers\LeasingCompaniesController::class, 'bikes'])->name('leasingCompany.bikes');
     // Leasing Companies Trash Routes
     Route::get('leasingCompanies/trash', [\App\Http\Controllers\LeasingCompaniesController::class, 'trash'])->name('leasingCompanies.trash');
     Route::post('leasingCompanies/trash/{id}/restore', [\App\Http\Controllers\LeasingCompaniesController::class, 'restoreTrash'])->name('leasingCompanies.restore');

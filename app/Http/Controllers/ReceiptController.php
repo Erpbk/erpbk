@@ -205,9 +205,8 @@ class ReceiptController extends Controller
                         $partialAmount = $invoice->partial_paid_amount ?? [];
                         $partialAmount[$receipt->id] = $paymentAmount;
                         if ($paymentAmount > 0) {
-
                             // Update the invoice status based on the payment
-                            if ($paymentAmount >= ($invoice->total - ($invoice->paid_amount ?? 0))) {
+                            if ($paymentAmount == ($invoice->total - ($invoice->paid_amount ?? 0))) {
                                 $invoice->update(['status' => 'paid', 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
                             } else {
                                 $invoice->update(['status' => 'partially_paid', 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
@@ -223,7 +222,7 @@ class ReceiptController extends Controller
                         if ($paymentAmount > 0) {
 
                             // Update the invoice status based on the payment
-                            if ($paymentAmount == $invoice->total) {
+                            if ($paymentAmount == ($invoice->total_amount - ($invoice->paid_amount ?? 0))) {
                                 $invoice->update(['status' => 1, 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);
                             } else {
                                 $invoice->update(['status' => 3, 'partial_paid_amount' => $partialAmount, 'updated_by' => auth()->id()]);

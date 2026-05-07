@@ -39,12 +39,12 @@
                       <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $row->id }}" style="z-index: 1050;">
-                      @can('bike_rent_edit')
+                      @can('bike_edit')
                           <a href="javascript:void(0);" class="dropdown-item waves-effect show-modal" data-size="lg" data-title="Update customer" data-action="{{ route('bikeRentCompanies.edit', $row->id) }}">
                               <i class="fa fa-edit my-1"></i> Edit
                           </a>
                       @endcan
-                      @can('bike_rent_delete')
+                      @can('bike_delete')
                           <a href="javascript:void(0);" onclick="confirmDelete('{{ route('bikeRentCompanies.delete', $row->id) }}')" class="dropdown-item waves-effect">
                               <i class="fa fa-trash"></i> Delete
                           </a>

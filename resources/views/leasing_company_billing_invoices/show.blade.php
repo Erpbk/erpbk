@@ -1,165 +1,511 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <title>Leasing Company Billing Invoice #{{ $invoice->invoice_number ?? $invoice->id }} Month: {{ date('M-Y', strtotime($invoice->billing_month)) }}</title>
     <style>
-        body { font-family: Calibri, Arial, sans-serif; font-size: 12px; color: #000; margin: 0; padding: 0; }
-        .invoice-box { width: 850px; margin: auto; padding: 10px; border: 1px solid #000; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-        th, td { border: 1px solid #000; padding: 4px 6px; font-size: 12px; }
-        th { background: #d9e1f2; font-weight: bold; }
-        td.num { text-align: right; }
-        .no-border td { border: none; padding: 3px 6px; }
-        .primary-header { background: #211c1d; color: white; font-weight: bold; }
+        /* ----- RESET & GLOBAL (modern card design from supplier invoice) ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 12px;
+            color: #000;
+            background: #eef2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .invoice-box {
+            max-width: 1100px;
+            width: 100%;
+            margin: 0 auto;
+            background: white;
+            padding: 20px 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ----- TABLES (clean border style) ----- */
+        .invoice-box table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+        .invoice-box th,
+        .invoice-box td {
+            border: 1px solid #ddd;
+            padding: 8px 10px;
+            font-size: 12px;
+            vertical-align: top;
+        }
+        .invoice-box th {
+            background: #004aad;
+            color: white;
+            font-weight: 600;
+            text-align: center;
+        }
+        .invoice-box td {
+            text-align: left;
+        }
+        .invoice-box td.num {
+            text-align: right;
+        }
+        .no-border td {
+            border: none;
+            padding: 4px 6px;
+        }
+
+        /* ----- HEADER STYLES (aligned with fuel/supplier design) ----- */
+        .primary-header { background: #211c1d; color: white; }
         .secondary-header { background: #004aad; color: white; font-weight: bold; }
-        .accent-total { background: #5271ff; color: white; font-weight: bold; }
-        .light-header { background: #e6f1ff; color: #004aad; font-weight: bold; }
-        .amount-highlight { background: #2A62FF; font-weight: bold; color: #FFFFFF; }
+        .accent-total { background: #5271ff; color: white; }
+        .light-header { background: #e6f1ff; color: #004aad; }
+        .amount-highlight { background: #2A62FF; color: white; }
         .success-highlight { background: #004aad; color: white; font-weight: bold; }
-        .print-btn { position: fixed; top: 10px; right: 10px; background: #004aad; color: #fff; border: none; padding: 8px 12px; font-size: 12px; cursor: pointer; border-radius: 3px; z-index: 9999; }
-        .print-btn:hover { background: #2A62FF; }
+
+        /* ----- PRINT BUTTONS & CONTROLS (matching modern template) ----- */
+        .print-btn {
+            background: #004aad;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-block;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+        .print-btn:hover {
+            background: #2A62FF;
+        }
+        .controls {
+            position: sticky;
+            top: 10px;
+            z-index: 100;
+            display: flex;
+            gap: 12px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            margin-bottom: 20px;
+            width: 95%;
+            justify-self: center;
+            margin-left: auto;
+            margin-right: auto;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        /* ----- CARD LAYOUT (modern cards from fuel invoice) ----- */
+        .supplier-card, .details-card {
+            padding: 16px 18px;
+            margin-bottom: 0;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        .invoice-box .card-header {
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #004aad;
+            background-color: white !important;
+        }
+        .invoice-box .card-header strong {
+            color: #004aad;
+            font-size: 15px;
+            letter-spacing: 0.3px;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 12px 8px;
+            align-items: baseline;
+        }
+        .detail-label {
+            font-weight: 700;
+            color: #2c3e66;
+            font-size: 12px;
+        }
+        .detail-value {
+            color: #1e293b;
+            font-weight: 500;
+        }
+        .flex-row-cards {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .flex-row-cards > div {
+            flex: 1;
+            min-width: 260px;
+        }
+
+        /* description block */
+        .description-block {
+            background: #f8fafc;
+            border-left: 4px solid #004aad;
+            padding: 12px 18px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+        .description-block strong {
+            color: #004aad;
+            font-size: 13px;
+        }
+
+        /* Notes section */
+        .notes-section {
+            margin: 20px 0;
+            padding: 12px 16px;
+            background: #fef9e6;
+            border-left: 4px solid #ffb347;
+            border-radius: 8px;
+        }
+
+        /* Grand Total */
+        .grand-total-wrapper {
+            margin-top: 28px;
+            text-align: right;
+        }
+        .grand-total-card {
+            display: inline-block;
+            padding: 12px 28px;
+            background: #004aad;
+            color: white;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,74,173,0.2);
+        }
+        .grand-total-card div:first-child {
+            font-size: 14px;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .grand-total-card div:last-child {
+            font-size: 26px;
+            font-weight: 800;
+        }
+
+        /* footer */
+        .footer-note {
+            margin-top: 28px;
+            text-align: center;
+            font-size: 11px;
+            color: #5b6e8c;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 16px;
+            margin-top: auto;
+        }
+
+        /* items table + summary styling */
+        .items-table th, .items-table td {
+            border: 1px solid #ccc;
+        }
+        .items-table th {
+            background: #004aad;
+            color: white;
+            font-weight: 600;
+            text-align: center;
+        }
+        .summary-grid {
+            
+        }
+        .summary-table {
+            
+        }
+        .summary-table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+        }
+        .words-highlight {
+            background: #2A62FF;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 30px;
+            display: inline-block;
+            font-size: 12px;
+            margin-top: 15px;
+        }
         @media print {
-            body, *, .primary-header, .secondary-header, .accent-total, .light-header, .amount-highlight, .success-highlight { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .print-btn, .no-print { display: none !important; }
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+            .invoice-box {
+                box-shadow: none;
+                padding: 10px;
+                max-width: 100%;
+                border-radius: 0;
+            }
+            .controls {
+                display: none !important;
+            }
+            .supplier-card, .details-card {
+                box-shadow: none;
+                border: 1px solid #ccc;
+                break-inside: avoid;
+            }
+            .grand-total-card {
+                background: #004aad !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            th, .secondary-header, .card-header strong, .amount-highlight, .success-highlight {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+        @media (max-width: 700px) {
+            .flex-row-cards {
+                flex-direction: column;
+            }
+            .invoice-box {
+                padding: 15px;
+            }
+            .summary-table {
+                width: 100%;
+            }
         }
     </style>
 </head>
-
 <body>
-    <div class="no-print" style="position: fixed; top: 10px; right: 10px; z-index: 9999; display: flex; gap: 10px;">
-        <button type="button" class="print-btn" onclick="window.print()">Print</button>
-        <a href="{{ route('leasingCompanyBillingInvoices.edit', $invoice->id) }}" class="print-btn" style="text-decoration: none; display: inline-block; padding: 8px 12px;">Edit</a>
-        <a href="{{ route('leasingCompanyBillingInvoices.index') }}" class="print-btn" style="text-decoration: none; display: inline-block; padding: 8px 12px;">Back to List</a>
-    </div>
+<div class="controls no-print">
+    <button type="button" class="print-btn" onclick="printModalContent()">Print Invoice</button>
+</div>
 
-    <div class="invoice-box">
-        @php $settings = DB::table('settings')->pluck('value', 'name')->toArray(); @endphp
-        <table width="100%" style="font-family: sans-serif;">
-            <tr>
-                <td width="33.33%"><img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" /></td>
-                <td width="33.33%" style="text-align: center;">
-                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ $settings['company_name'] ?? '' }}</h4>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{ $settings['company_address'] ?? '' }}</p>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TRN {{ $settings['vat_number'] ?? '' }}</p>
-                </td>
-                <td width="33.33%"></td>
-            </tr>
-        </table>
+<div class="invoice-box">
+    @php
+        // Fetch settings for company info (matching supplier design)
+        $settings = [];
+        try {
+            $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+        } catch (\Exception $e) {
+            $settings = [];
+        }
+        $companyName = $settings['company_name'] ?? ($invoice->customer->company_name ?? 'Leasing Company');
+        $companyAddress = $settings['company_address'] ?? 'Dubai, UAE';
+        $vatNumber = $settings['vat_number'] ?? 'TRN 123456789';
+        $companyPhone = $settings['company_phone'] ?? '+971 4 123 4567';
+        $companyEmail = $settings['company_email'] ?? 'info@leasingco.ae';
+        
+        $subtotal = $invoice->subtotal ?? 0;
+        $totalVat = $invoice->vat ?? 0;
+        $grandTotal = $invoice->total_amount ?? ($subtotal + $totalVat);
+    @endphp
 
-        <table style="width: 100%; margin-bottom: 10px;">
-            <tr>
-                <td colspan="4" class="primary-header" style="border: 1px solid #000; padding: 10px; text-align: center; font-size: 18px;">
-                    LEASING COMPANY BILLING INVOICE
-                </td>
-            </tr>
-        </table>
+    <!-- HEADER: modern layout with logo, company details and title -->
+    <table style="margin-bottom: 20px; border: none; background: transparent;">
+        <tr style="border: none;">
+            <td style="width: 33%; border: none !important; vertical-align: middle;">
+                @if(file_exists(public_path('assets/img/logo-full.png')))
+                    <img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" alt="logo" />
+                @else
+                    <h3 style="color:#004aad;">{{ $companyName }}</h3>
+                @endif
+            </td>
+            <td style="width: 34%; text-align: center; border: none !important;">
+                <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ $companyName }}</h4>
+                <p style="margin: 3px 0; font-size: 12px;">{{ $companyAddress }}</p>
+                <p style="margin: 3px 0; font-size: 12px;">TRN {{ $vatNumber }}</p>
+            </td>
+            <td style="width: 33%; text-align: center; border: none !important;">
+                <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 22px;">RENTAL BILL</h2>
+            </td>
+        </tr>
+    </table>
 
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
-            <tr>
-                <td style="font-weight: bold; background-color: #f0f0f0; width: 20%;">Invoice No:</td>
-                <td style="width: 30%;">{{ $invoice->invoice_number ?? 'LBI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT) }}</td>
-                <td style="font-weight: bold; background-color: #f0f0f0; width: 20%;">Customer invoice no:</td>
-                <td style="width: 30%;">{{ $invoice->customer_invoice_number ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td style="font-weight: bold; background-color: #f0f0f0;">Reference Number:</td>
-                <td>{{ $invoice->reference_number ?? 'N/A' }}</td>
-                <td style="font-weight: bold; background-color: #f0f0f0;">Customer:</td>
-                <td>{{ $invoice->customer->name ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td style="font-weight: bold; background-color: #f0f0f0;">Contact / email:</td>
-                <td>{{ $invoice->customer->company_contact ?? '—' }} @if($invoice->customer && $invoice->customer->email) / {{ $invoice->customer->email }} @endif</td>
-                <td style="font-weight: bold; background-color: #f0f0f0;">Billing Month:</td>
-                <td>{{ date('M-Y', strtotime($invoice->billing_month)) }}</td>
-            </tr>
-        </table>
+    <!-- CARD LAYOUT: Customer card + Invoice details card (flex row) -->
+    <div class="flex-row-cards">
+        <!-- Customer Details Card (similar to supplier card) -->
+        <div class="supplier-card">
+            <div class="card-header">
+                <strong>🏢 Customer Details</strong>
+            </div>
+            <div class="details-grid">
+                <span class="detail-label">Customer Name:</span>
+                <span class="detail-value">{{ $invoice->customer->name ?? '—' }}</span>
 
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
-            <tr>
-                <td style="font-weight: bold; background-color: #f0f0f0; width: 20%;">Description:</td>
-                <td style="width: 80%;">{{ $invoice->descriptions ?? 'N/A' }}</td>
-            </tr>
-        </table>
+                <span class="detail-label">Company Name:</span>
+                <span class="detail-value">{{ $invoice->customer->company_name ?? ($invoice->customer->name ?? '—') }}</span>
 
-        <table>
-            <tr>
-                <th rowspan="2" class="secondary-header">Sr.</th>
-                <th rowspan="2" class="secondary-header">Product / Service Description</th>
-                <th rowspan="2" class="secondary-header">Qty</th>
-                <th rowspan="2" class="secondary-header">Days</th>
-                <th rowspan="2" class="secondary-header">Rate (Monthly)</th>
-                <th rowspan="2" class="secondary-header">Amount</th>
-                <th colspan="2" class="secondary-header">VAT</th>
-                <th rowspan="2" class="accent-total">Total (In {{ \App\Helpers\Currency::code() }})</th>
-            </tr>
-            <tr>
-                <th class="secondary-header">Rate</th>
-                <th class="secondary-header">Amount</th>
-            </tr>
-            @php $running_total = 0; @endphp
-            @foreach($invoice->items as $key => $item)
-            @php
-            $vatRate = $item->tax_rate ?? 0;
-            $vatAmtRow = $item->tax_amount ?? 0;
-            $rowTotal = $item->total_amount ?? ($item->rental_amount + $vatAmtRow);
-            $proratedAmount = $rowTotal - $vatAmtRow;
-            $running_total += $rowTotal;
-            @endphp
-            <tr>
-                <td>{{ $key + 1 }}</td>
-                <td>Bike # {{ $item->bike->plate ?? 'N/A' }} ({{ DB::table('bikes')->where('id', $item->bike_id)->first()->emirates ?? 'N/A' }})</td>
-                <td class="num">1</td>
-                <td class="num">{{ $item->days ?? 1 }}</td>
-                <td class="num">{{ number_format($item->rental_amount, 2) }}</td>
-                <td class="num">{{ number_format($proratedAmount, 2) }}</td>
-                <td>{{ number_format($vatRate, 0) }}%</td>
-                <td class="num">{{ number_format($item->tax_amount ?? 0, 2) }}</td>
-                <td class="num">{{ number_format($running_total, 2) }}</td>
-            </tr>
-            @endforeach
-            <tr class="accent-total">
-                <td></td>
-                <td style="font-weight: bold;">Total Bikes:</td>
-                <td style="text-align: right;">{{ $invoice->items->count() ?? 0 }} Bikes</td>
-                <td colspan="5" style="text-align:right; padding: 8px;">ITEMS TOTAL</td>
-                <td colspan="2" class="num" style="padding: 8px; font-size: 14px;">{{ number_format($invoice->total_amount ?? 0, 2) }}</td>
-            </tr>
-        </table>
-
-        <table class="no-border">
-            <tr>
-                <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ \App\Helpers\Helpers::numberToWords($invoice->total_amount ?? 0) }} {{ \App\Helpers\Currency::code() }} Only</td>
-            </tr>
-        </table>
-
-        <table>
-            <tr class="light-header">
-                <td style="padding: 6px;">Total Amount (before VAT):</td>
-                <td class="num" style="padding: 6px;">{{ number_format($invoice->subtotal ?? 0, 2) }}</td>
-            </tr>
-            @if(($invoice->vat ?? 0) > 0)
-            <tr class="light-header">
-                <td style="padding: 6px;">Add: VAT</td>
-                <td class="num" style="padding: 6px;">{{ number_format($invoice->vat ?? 0, 2) }}</td>
-            </tr>
-            @endif
-            <tr class="success-highlight">
-                <td style="padding: 8px; font-size: 14px;">TOTAL AMOUNT:</td>
-                <td class="num" style="padding: 8px; font-size: 14px;">{{ number_format($invoice->total_amount ?? 0, 2) }}</td>
-            </tr>
-        </table>
-
-        @if($invoice->notes)
-        <div style="margin-top: 15px; padding: 10px; background: #f0f0f0; border: 1px solid #000;">
-            <strong>Notes:</strong><br>
-            {{ $invoice->notes }}
+                <span class="detail-label">Contact:</span>
+                <span class="detail-value">{{ $invoice->customer->company_contact ?? '—' }}</span>
+                
+                <span class="detail-label">Email:</span>
+                <span class="detail-value">{{ $invoice->customer->email ?? '—' }}</span>
+            </div>
         </div>
-        @endif
+
+        <!-- Invoice Details Card (modern) -->
+        <div class="details-card">
+            <div class="card-header">
+                <strong>📄 Invoice Details</strong>
+            </div>
+            <div class="details-grid">
+                <span class="detail-label">Invoice No:</span>
+                <span class="detail-value">{{ $invoice->invoice_number ?? 'LBI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT) }}</span>
+
+                <span class="detail-label">Customer Invoice No:</span>
+                <span class="detail-value">{{ $invoice->customer_invoice_number ?? 'N/A' }}</span>
+
+                <span class="detail-label">Reference Number:</span>
+                <span class="detail-value">{{ $invoice->reference_number ?? 'N/A' }}</span>
+
+                <span class="detail-label">Billing Month:</span>
+                <span class="detail-value">{{ date('M-Y', strtotime($invoice->billing_month)) }}</span>
+            </div>
+        </div>
     </div>
+
+    <!-- Description Section (unified with supplier design) -->
+    @if(!empty($invoice->descriptions))
+    <div class="description-block">
+        <strong>📝 Description</strong><br>
+        <span style="color: #334155;">{{ $invoice->descriptions }}</span>
+    </div>
+    @endif
+
+    <!-- Items Table (with all leasing columns: bike, days, rate, VAT etc) -->
+    @if($invoice->items && $invoice->items->count() > 0)
+    <div style="overflow-x: auto;">
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 28%;">Product / Service Description</th>
+                    <th style="width: 6%;">Qty</th>
+                    <th style="width: 8%;">Days</th>
+                    <th style="width: 12%;">Rate (Monthly)</th>
+                    <th style="width: 12%;">Amount (excl. VAT)</th>
+                    <th style="width: 8%;">VAT Rate</th>
+                    <th style="width: 10%;">VAT Amount</th>
+                    <th style="width: 12%;">Total ({{ \App\Helpers\Currency::code() ?? 'AED' }})</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php $runningTotalDisplay = 0; @endphp
+                @foreach($invoice->items as $key => $item)
+                    @php
+                        $vatRate = $item->tax_rate ?? 0;
+                        $vatAmtRow = $item->tax_amount ?? 0;
+                        $rowTotal = $item->total_amount ?? ($item->rental_amount + $vatAmtRow);
+                        $proratedAmount = $rowTotal - $vatAmtRow;
+                        $runningTotalDisplay += $rowTotal;
+                        // Bike plate and emirates extraction
+                        $bikePlate = $item->bike->plate ?? 'N/A';
+                        $bikeEmirates = '';
+                        if(isset($item->bike_id) && $item->bike_id) {
+                            try {
+                                $bikeData = DB::table('bikes')->where('id', $item->bike_id)->first();
+                                $bikeEmirates = $bikeData->emirates ?? 'N/A';
+                            } catch(\Exception $e) { $bikeEmirates = 'N/A'; }
+                        }
+                    @endphp
+                    <tr>
+                        <td class="num">{{ $loop->iteration }}</td>
+                        <td>Bike # {{ $bikePlate }} ({{ $bikeEmirates }})</td>
+                        <td class="num">{{ number_format($item->qty ?? 1, 2) }}</td>
+                        <td class="num">{{ number_format($item->days ?? 1, 2) }}</td>
+                        <td class="num">{{ number_format($item->rental_amount ?? 0, 2) }}</td>
+                        <td class="num">{{ number_format($proratedAmount, 2) }}</td>
+                        <td class="num">{{ number_format($vatRate, 0) }}%</td>
+                        <td class="num">{{ number_format($vatAmtRow, 2) }}</td>
+                        <td class="num">{{ number_format($rowTotal, 2) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Financial summary card (styled like supplier invoice) -->
+    <div style="display: flex;
+            justify-content: flex-end;
+            margin-top: 15px;">
+        <table style="width: 45%;
+            min-width: 280px;
+            border: 1px solid #e2e8f0;
+            background: white;">
+            <thead>
+                <tr><th colspan="2" class="secondary-header" style="background:#004aad;">Financial Summary</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="font-weight: 600;">Total Bikes:</td>
+                    <td class="num">{{ $invoice->items->count() ?? 0 }}</td>
+                </tr>
+                <tr>
+                    <td style="font-weight: 600;">Total Amount (before VAT):</td>
+                    <td class="num">{{ \App\Helpers\Currency::format($subtotal, 2) ?? number_format($subtotal, 2) }}</td>
+                </tr>
+                @if(($totalVat) > 0)
+                <tr>
+                    <td style="font-weight: 600;">VAT</td>
+                    <td class="num">{{ \App\Helpers\Currency::format($totalVat, 2) ?? number_format($totalVat, 2) }}</td>
+                </tr>
+                @endif
+            </tbody>
+        </table>
+    </div>
+
+    @else
+    <div style="text-align: center; padding: 30px; background: #f9f9fc; border: 1px solid #e9ecef; border-radius: 12px; margin: 20px 0;">
+        <p style="margin: 0; color: #5b6e8c;">📭 No items recorded for this leasing invoice</p>
+    </div>
+    @endif
+
+    <!-- Notes Section (modern consistent notes) -->
+    @if($invoice->notes)
+    <div class="notes-section">
+        <strong>📌 Notes:</strong><br>
+        {{ $invoice->notes }}
+    </div>
+    @endif
+
+    <!-- Grand Total Card (consistent with supplier design) -->
+    <div class="grand-total-wrapper">
+        <div class="grand-total-card">
+            <div>GRAND TOTAL</div>
+            <div>{{ \App\Helpers\Currency::format($grandTotal, 2) ?? number_format($grandTotal, 2) }}</div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-note">
+        <p>Thank you for your business!</p>
+        <p>For any queries, please contact: {{ $companyPhone }} | {{ $companyEmail }}</p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Format all numeric cells with commas & decimals (consistent modern design)
+        document.querySelectorAll('.num').forEach(function(element) {
+            let rawText = element.innerText.trim();
+            if(rawText.includes(',') && !rawText.includes('NaN')) return;
+            let num = parseFloat(rawText.replace(/,/g, ''));
+            if (!isNaN(num) && rawText !== '') {
+                let formatted = num.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                if(element.innerText !== formatted) {
+                    element.innerText = formatted;
+                }
+            }
+        });
+    });
+</script>
 </body>
-
 </html>
-

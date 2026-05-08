@@ -24,10 +24,8 @@
 {{-- Parent Account: only Expense-related accounts (roots and children from Expense tree); main parents in bold --}}
 <div class="form-group col-sm-6">
   {!! Form::label('parent_id', 'Parent Account:') !!}
-  <select name="parent_id" class="form-control form-select select2">
-    <option value="">Select</option>
-    {!! App\Helpers\Accounts::dropdown($parents, isset($accounts) ? $accounts->parent_id : null, null, '', true) !!}
-  </select>
+  <input type="hidden" value="{{ $parent->id }}" name="parent_id">
+  {!! Form::text('parent', $parent->name , ['class' => 'form-control', 'readonly']) !!}
 </div>
 
 <!-- Opening Balance Field -->

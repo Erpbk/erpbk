@@ -19,7 +19,7 @@
          @foreach($invoices as $invoice)
          <tr class="text-center">
             <td>
-               <a href="{{ route('customer_invoices.show', $invoice) }}" target="_blank">
+               <a href="javascript:void(0);" data-action="{{ route('customer_invoices.show', $invoice) }}" class="show-modal-right">
                   {{ $invoice->invoice_number ?? '-' }}
                </a>
          </td>
@@ -54,11 +54,6 @@
                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown">
-                     @can('customer_invoice_create')
-                     <a href="javascript:void(0);" data-action="{{ route('customer_invoice.edit', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Invoice">
-                        <i class="fa fa-edit mx-1"></i> Edit
-                     </a>
-                     @endcan
                      @can('customer_invoice_create')
                      <a href="javascript:void(0);" data-action="{{ route('customer_invoice.clone', $invoice) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Clone Invoice">
                         <i class="fa fa-copy mx-1 text-primary"></i> Clone

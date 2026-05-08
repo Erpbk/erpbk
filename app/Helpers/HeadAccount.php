@@ -6,8 +6,8 @@ interface HeadAccount
 {
   const VAT_ON_SALES = 1025; // VAT on Sales Account
   const RTA_FINE = 2497; // RTA Fine Account
-  const SIM_EXPENSE_ACCOUNT = 2483; // SIM Expense Account
-  const VAT_PURCHASE_ACCOUNT = 2487; // VAT Purchase Account
+  const SIM_EXPENSE_ACCOUNT = 2394; // SIM Expense Account
+  const VAT_PURCHASE_ACCOUNT = 2395; // VAT Purchase Account
   const FUEL_ADMIN_CHARGES = 2501; // Fuel Admin Charges Account
   const SALIK_ASSET_ACCOUNT = 2490; // Salik Asset Account
   const SALIK_ADMIN_CHARGES = 2476; // Salik Admin Charges Account
@@ -19,4 +19,5 @@ interface HeadAccount
   const SALARY_ACCOUNT = 2492; // Salary Account
   const STAFF_ACCOUNT = 2464; // Staff Account
   const SALES_ACCOUNT = 2514; // Sales Account
+  const OTHER_EXPENSES = 2388;
 }

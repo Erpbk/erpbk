@@ -43,7 +43,7 @@
          <td>
             <input type="checkbox" class="invoice-checkbox" value="{{ $r->id }}" onchange="updateDeleteButton()">
          </td>
-         <td>{{ $r->id }}</td>
+         <td><a href="javascript:void(0);" data-action="{{ route('riderInvoices.show', $r->id) }}" class="show-modal-right">{{ $r->id }}</a></td>
          <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
          <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
          @php
@@ -70,11 +70,6 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
-                  @can('riderinvoice_view')
-                  <a href="{{ route('riderInvoices.show', $r->id) }}" class='dropdown-item waves-effect' target="_blank">
-                     <i class="fa fa-eye mx-1"></i> View
-                  </a>
-                  @endcan
                   @can('riderinvoice_edit')
                   <a href="javascript:void(0);" data-action="{{ route('riderInvoices.edit', $r->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Invoice">
                      <i class="fa fa-edit mx-1"></i> Update

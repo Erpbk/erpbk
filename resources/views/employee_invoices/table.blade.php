@@ -27,7 +27,7 @@
     <tbody>
         @foreach($data as $r)
             <tr class="text-center">
-                <td>{{ $r->id }}</td>
+                <td><a href="javascript:void(0);" data-action="{{ route('employeeInvoices.show', $r->id) }}" class="show-modal-right">{{ $r->id }}</td>
                 <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
                 <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
                 <td>{{ optional($r->employee)->employee_id }} - {{ optional($r->employee)->name }}</td>
@@ -49,11 +49,6 @@
                             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
-                            @can('employeeinvoice_view')
-                                <a href="{{ route('employeeInvoices.show', $r->id) }}" class="dropdown-item waves-effect" target="_blank">
-                                    <i class="fa fa-eye mx-1"></i> View
-                                </a>
-                            @endcan
                             @can('employeeinvoice_edit')
                                 <a href="javascript:void(0);" data-action="{{ route('employeeInvoices.edit', $r->id) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Update Invoice">
                                     <i class="fa fa-edit mx-1"></i> Update

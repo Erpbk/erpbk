@@ -1,371 +1,305 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <title>RiderID: {{$riderInvoice->rider->rider_id}} Month: {{date('M-Y',strtotime($riderInvoice->billing_month))}}</title>
     <style>
+        /* ----- RESET & GLOBAL (modern card style from supplier/leasing invoice) ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
             font-family: Calibri, Arial, sans-serif;
             font-size: 12px;
             color: #000;
+            background: #eef2f5;
             margin: 0;
-            padding: 0;
+            padding: 20px;
         }
-
         .invoice-box {
-            width: 850px;
-            margin: auto;
-            padding: 10px;
-            border: 1px solid #000;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            background: white;
+            padding: 20px 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
-        .header {
-            text-align: center;
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-
-        table {
+        /* ----- TABLES CLEAN BORDER (modern structure) ----- */
+        .invoice-box table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
-
-        th,
-        td {
-            border: 1px solid #000;
-            padding: 4px 6px;
+        .invoice-box th,
+        .invoice-box td {
+            border: 1px solid #ddd;
+            padding: 8px 10px;
             font-size: 12px;
+            vertical-align: top;
         }
-
-        th {
-            background: #d9e1f2;
-            font-weight: bold;
+        .invoice-box th {
+            background: #004aad;
+            color: white;
+            font-weight: 600;
+            text-align: center;
         }
-
-        td.num {
+        .invoice-box td {
+            text-align: left;
+        }
+        .invoice-box td.num {
             text-align: right;
         }
-
         .no-border td {
             border: none;
-            padding: 3px 6px;
+            padding: 4px 6px;
         }
 
-        .highlight {
-            background: #f0f0f0;
-            font-weight: bold;
+        /* ----- HEADER STYLES (same premium palette) ----- */
+        .primary-header { background: #211c1d; color: white; font-weight: bold; }
+        .secondary-header { background: #004aad; color: white; font-weight: bold; }
+        .accent-total { background: #5271ff; color: white; font-weight: bold; }
+        .light-header { background: #e6f1ff; color: #004aad; font-weight: bold; }
+        .amount-highlight { background: #2A62FF; color: white; font-weight: bold; }
+        .success-highlight { background: #004aad; color: white; font-weight: bold; }
+        .yellow-highlight { background: #ffff00; font-weight: bold; padding: 8px; }
+        .dark-accent { background: #211c1d; color: white; font-weight: bold; }
+
+        /* ----- PRINT BUTTONS & CONTROLS (supplier style) ----- */
+        .print-btn {
+            background: #004aad;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 6px;
+            text-decoration: none;
+            display: inline-block;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+        .print-btn:hover {
+            background: #2A62FF;
+        }
+        .controls {
+            position: sticky;
+            top: 10px;
+            z-index: 100;
+            display: flex;
+            gap: 12px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            width: 95%;
+            justify-self: center;
+            margin-left: auto;
+            margin-right: auto;
+            justify-content: flex-end;
         }
 
-        .green {
-            background: #92d050;
-            font-weight: bold;
+        /* ----- CARD LAYOUT (matching leasing invoice modern card style) ----- */
+        .rider-card, .details-card {
+            padding: 16px 18px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .invoice-box .card-header {
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #004aad;
+            background-color: white !important;
+        }
+        .invoice-box .card-header strong {
+            color: #004aad;
+            font-size: 15px;
+            letter-spacing: 0.3px;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 12px 8px;
+            align-items: baseline;
+        }
+        .detail-item {
+            display: contents;
+        }
+        .detail-label {
+            font-weight: 700;
+            color: #2c3e66;
+            font-size: 12px;
+        }
+        .detail-value {
+            color: #1e293b;
+            font-weight: 500;
+        }
+        .flex-row-cards {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .flex-row-cards > div {
+            flex: 1;
+            min-width: 280px;
         }
 
+        /* description / notes sections */
+        .description-block {
+            background: #f8fafc;
+            border-left: 4px solid #004aad;
+            padding: 12px 18px;
+            margin: 16px 0;
+            border-radius: 10px;
+        }
+        .notes-section {
+            margin: 20px 0;
+            padding: 12px 16px;
+            background: #fef9e6;
+            border-left: 4px solid #ffb347;
+            border-radius: 8px;
+        }
+
+        /* items table enhancement */
+        .items-table th, .items-table td {
+            border: 1px solid #ccc;
+        }
+        .items-table th {
+            background: #004aad;
+            color: white;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        /* financial summary compact card / right side */
+        .financial-summary {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+        .financial-summary table {
+            width: 45%;
+            min-width: 270px;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* grand total modern badge */
+        .grand-total-wrapper {
+            margin-top: 24px;
+            text-align: right;
+        }
+        .grand-total-card {
+            display: inline-block;
+            padding: 12px 28px;
+            background: #004aad;
+            color: white;
+            border-radius: 30px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,74,173,0.2);
+        }
+        .grand-total-card div:first-child {
+            font-size: 14px;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .grand-total-card div:last-child {
+            font-size: 26px;
+            font-weight: 800;
+        }
+
+        .footer-note {
+            margin-top: 28px;
+            text-align: center;
+            font-size: 11px;
+            color: #5b6e8c;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 16px;
+            margin-top: auto;
+        }
         .yellow {
             background: #ffff00;
             font-weight: bold;
             padding: 3px 6px;
             display: inline-block;
         }
-
         .red {
             color: red;
             font-weight: bold;
         }
 
-        .primary-header {
-            background: #211c1d;
-            color: white;
-            font-weight: bold;
-        }
-
-        .secondary-header {
-            background: #004aad;
-            color: white;
-            font-weight: bold;
-        }
-
-        .accent-total {
-            background: #5271ff;
-            color: white;
-            font-weight: bold;
-        }
-
-        .light-header {
-            background: #e6f1ff;
-            color: #004aad;
-            font-weight: bold;
-        }
-
-        .amount-highlight {
-            background: #2A62FF;
-            font-weight: bold;
-            color: #FFFFFF;
-        }
-
-        .success-highlight {
-            background: #004aad;
-            color: white;
-            font-weight: bold;
-        }
-
-        .dark-accent {
-            background: #211c1d;
-            color: white;
-            font-weight: bold;
-        }
-
-        .footer-note {
-            font-size: 11px;
-            margin-top: 10px;
-            color: red;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        .sign-box {
-            margin-top: 25px;
-            text-align: right;
-            font-weight: bold;
-        }
-
-        .sign-box span {
-            display: block;
-            margin-top: 8px;
-        }
-
-        .print-btn {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: #004aad;
-            color: #fff;
-            border: none;
-            padding: 8px 12px;
-            font-size: 12px;
-            cursor: pointer;
-            border-radius: 3px;
-            z-index: 9999;
-        }
-
-        .print-btn:hover {
-            background: #2A62FF;
-        }
-
-        /* Print styles to ensure background colors print without changing design */
         @media print {
-
-            body,
-            *,
-            .primary-header,
-            .secondary-header,
-            .accent-total,
-            .light-header,
-            .amount-highlight,
-            .success-highlight,
-            .dark-accent,
-            .green,
-            .yellow,
-            .red {
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+            .invoice-box {
+                box-shadow: none;
+                padding: 12px;
+                border-radius: 0;
+            }
+            .controls {
+                display: none !important;
+            }
+            .rider-card, .details-card {
+                box-shadow: none;
+                border: 1px solid #ccc;
+                break-inside: avoid;
+            }
+            th, .secondary-header, .card-header strong, .grand-total-card {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
-
-            .print-btn {
-                display: none !important;
+        }
+        @media (max-width: 700px) {
+            .flex-row-cards {
+                flex-direction: column;
+            }
+            .invoice-box {
+                padding: 15px;
+            }
+            .financial-summary table {
+                width: 100%;
             }
         }
     </style>
 </head>
-
 <body>
 
-    <button type="button" class="print-btn" onclick="window.print()">Print</button>
+<div class="controls no-print">
+    <button type="button" class="print-btn" onclick="printModalContent()">Print Invoice</button>
+</div>
 
-    <div class="invoice-box">
-        <!-- Header Table -->
-        @php
+<div class="invoice-box">
+    @php
         $settings = DB::table('settings')->pluck('value', 'name')->toArray();
-        @endphp
-        <table width="100%" style="font-family: sans-serif;">
-            <tr>
-                <td width="33.33%"><img src="{{ $companyLogoUrl ?? URL::asset('assets/img/logo-full.png') }}" width="150" /></td>
-
-                <td width="33.33%" style="text-align: center;">
-                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{$settings['company_name'] ?? ''}}</h4>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{$settings['company_address'] ?? ''}}</p>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;"> TRN {{$settings['vat_number'] ?? ''}}</p>
-                </td>
-            </tr>
-
-        </table>
-        <table style="width: 100%; margin-bottom: 10px;">
-            <tr>
-                <td colspan="4" class="primary-header" style="border: 1px solid #000; padding: 10px; text-align: center; font-size: 18px;">
-                    RIDER INVOICE
-                </td>
-            </tr>
-        </table>
-        <!-- Invoice and Rider Info Combined -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Invoice No:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{ \App\Helpers\General::inv_sch($riderInvoice->id,$riderInvoice->created_at) }}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Joining Date:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{$riderInvoice->rider->doj}}</td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Invoice Date:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{ $riderInvoice->created_at->format("d/m/Y") }}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Zone:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{$riderInvoice->zone}}</td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Service Period From:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{date('d-m-y', strtotime($riderInvoice->billing_month))}}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Service Period To:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{date('t-m-y', strtotime($riderInvoice->billing_month))}}</td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Road Permit No:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;"></td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Bike No:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{@$riderInvoice->bike->plate}}</td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Insurance Policy No:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;"></td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Billing Month:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{date('M-Y',strtotime($riderInvoice->billing_month))}}</td>
-            </tr>
-        </table>
-
-        <!-- Rider Details Section -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
-            <tr>
-                <td colspan="4" class="light-header" style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 14px;">
-                    RIDER DETAILS
-                </td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Rider No:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;">{{$riderInvoice->rider->id}}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0; width: 20%;">Rider Status:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; width: 30%;" @if(in_array($riderInvoice->rider->status,[3,4,5])) style="border: 1px solid #000; padding: 4px 6px; color:red;" @endif>{{ App\Helpers\General::RiderStatus($riderInvoice->rider->status) }}</td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Rider ID:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{$riderInvoice->rider->rider_id }}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Working Days:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{$riderInvoice->working_days}} | Off: {{@$riderInvoice->off}}</td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Rider Name:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{$riderInvoice->rider->name}}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Perfect Attendance:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{$riderInvoice->perfect_attendance}}</td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Client:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{@$riderInvoice->rider->vendor->name }}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Rejection:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; color: red;">{{@$riderInvoice->rejection}}</td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Mobile:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{@$riderInvoice->rider->sim->number }}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Performance:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{@$riderInvoice->performance}}</td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Fleet Supervisor:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{@$riderInvoice->rider->fleet_supervisor }}</td>
-                <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #f0f0f0;">Sup. Contact:</td>
-                <td style="border: 1px solid #000; padding: 4px 6px;">{{@$riderInvoice->rider->company_contact }}</td>
-            </tr>
-        </table>
-
-        <!-- Main Table -->
-        <table>
-            <tr>
-                <th rowspan="2" class="secondary-header">Sr.</th>
-                <th rowspan="2" class="secondary-header">Product / Service Description</th>
-                <th rowspan="2" class="secondary-header">FMO</th>
-                <th rowspan="2" class="secondary-header">Qty</th>
-                <th rowspan="2" class="secondary-header">Rate</th>
-                <th rowspan="2" class="secondary-header">Amount</th>
-                <th colspan="2" class="secondary-header">VAT</th>
-                <th rowspan="2" class="accent-total">Total (In {{ \App\Helpers\Currency::code() }})</th>
-            </tr>
-            <tr>
-                <th class="secondary-header">Rate</th>
-                <th class="secondary-header">Amount</th>
-            </tr>
-            @php
-            $total = 0;
-            $total_qty = 0;
-            $running_total = 0;
-            $vat_percentage = Common::getSetting('vat_percentage');
-
-            @endphp
-            @foreach($riderInvoice->items as $key=>$val)
-            @php
-            $total += $val->amount;
-            $total_qty += $val->qty;
-            $vatRate = $riderInvoice->vat > 0 ? $vat_percentage : 0;
-            $vatAmtRow = $riderInvoice->vat > 0 ? $val->amount * $vatRate / 100 : 0;
-            $rowTotal = $val->amount + $vatAmtRow;
-            $running_total += $rowTotal;
-            @endphp
-            <tr>
-                <td>{{ $key+1 }}</td>
-                <td>{{ $val->riderInv_item }} {{ \App\Models\Items::where('id',$val->item_id)->value('name') }}</td>
-                <td>{{ strtoupper(date('M\'y', strtotime($riderInvoice->billing_month))) }}</td>
-                <td class="num">{{ $val->qty == 0 ? '-' : $val->qty }}</td>
-                <td class="num">{{ $val->rate == 0 ? '-' : number_format($val->rate, 2) }}</td>
-                <td class="num">{{ number_format($val->amount, 2) }}</td>
-                <td>{{ number_format($vatRate, 0) }}%</td>
-                <td class="num">{{ number_format($vatAmtRow, 2) }}</td>
-                <td class="num">{{ number_format($running_total, 2) }}</td>
-            </tr>
-            @endforeach
-
-            @php
-            // Preserve items-only total (includes VAT per row if applied)
-            $items_total = $running_total;
-            @endphp
-            @php
-            $deliveryfee = DB::table('items')->where('name', 'Delivery fees')->first();
-
-            // Calculate total orders from delivery fee item
-            $totalOrders = 0;
-            $totalOrderValue = 0;
-
-            if ($deliveryfee && isset($deliveryfee->id)) {
-            // Find the delivery fee item in the rider invoice items
+        $total = 0;
+        $total_qty = 0;
+        $running_total = 0;
+        $vat_percentage = Common::getSetting('vat_percentage');
+        $deliveryfee = DB::table('items')->where('name', 'Delivery fees')->first();
+        $totalOrders = 0;
+        $totalOrderValue = 0;
+        if ($deliveryfee && isset($deliveryfee->id)) {
             $deliveryFeeItem = collect($riderInvoice->items)->firstWhere('item_id', $deliveryfee->id);
-
             if ($deliveryFeeItem && $deliveryFeeItem->qty > 0) {
-            // Calculate total orders: qty * price
-            $totalOrders = $deliveryFeeItem->qty;
-            $totalOrderValue = $deliveryFeeItem->qty * $deliveryfee->price;
+                $totalOrders = $deliveryFeeItem->qty;
+                $totalOrderValue = $deliveryFeeItem->qty * $deliveryfee->price;
             }
-            }
-            @endphp
-            <tr class="accent-total">
-                <td colspan="3" style="text-align:right; padding: 8px;">Total Orders ({{date('M-Y',strtotime($riderInvoice->billing_month))}})</td>
-                <td class="num">{{ number_format($totalOrders, 0) }}</td>
-                <td colspan="4" style="text-align:right; padding: 8px;">ITEMS TOTAL</td>
-                <td class="num" style="padding: 8px; font-size: 14px;">{{ number_format($items_total, 2) }}</td>
-            </tr>
-        </table>
-
-        @php
+        }
+        // adjustments
         $billing_month = date('M-y', strtotime($riderInvoice->billing_month));
-        // Fetch selected adjustments
         $fines = DB::Table('rta_fines')->where('billing_month' , $riderInvoice->billing_month)->where('rider_id' , $riderInvoice->rider->id)->sum('total_amount');
         $salik = DB::Table('saliks')->where('billing_month' , $billing_month)->where('rider_id' , $riderInvoice->rider->id)->sum('total_amount');
         $cod = DB::table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'COD')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
@@ -373,161 +307,261 @@
         $incentive = DB::table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'INC')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
         $advance_salary = DB::table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'AL')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
         $vendor_charges = DB::table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'VC')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
-        // Previous balance from account transactions (sum of debit - credit before invoice month)
         $rider_balance = 0;
         if($riderInvoice->rider && $riderInvoice->rider->account_id) {
-        $monthStart = date('Y-m-01', strtotime($riderInvoice->billing_month));
-        $rider_balance = \App\Models\Transactions::where('account_id', $riderInvoice->rider->account_id)
-        ->whereDate('billing_month', '<', $monthStart)
-            ->sum(\DB::raw('debit - credit'));
-            }
+            $monthStart = date('Y-m-01', strtotime($riderInvoice->billing_month));
+            $rider_balance = \App\Models\Transactions::where('account_id', $riderInvoice->rider->account_id)
+                ->whereDate('billing_month', '<', $monthStart)
+                ->sum(\DB::raw('debit - credit'));
+        }
+        $total_deductions = ($fines > 0 ? $fines : 0) + ($salik > 0 ? $salik : 0) + ($cod > 0 ? $cod : 0) + ($penalty > 0 ? $penalty : 0) + ($advance_salary > 0 ? $advance_salary : 0) + ($vendor_charges > 0 ? $vendor_charges : 0) + ($rider_balance > 0 ? $rider_balance : 0);
+        $total_additions = ($incentive > 0 ? $incentive : 0) + ($rider_balance < 0 ? abs($rider_balance) : 0);
+        $totalBeforeTax = 0;
+        $finalAmount = 0;
+        $paid_amount = 0;
+        $rider_balance_final = 0;
+    @endphp
 
-            // Build totals
-            $total_deductions = ($fines > 0 ? $fines : 0)
-            + ($salik > 0 ? $salik : 0)
-            + ($cod > 0 ? $cod : 0)
-            + ($penalty > 0 ? $penalty : 0)
-            + ($advance_salary > 0 ? $advance_salary : 0)
-            + ($vendor_charges > 0 ? $vendor_charges : 0)
-            + ($rider_balance > 0 ? $rider_balance : 0); // positive balance is deduction
+    <!-- Header: Logo + Company + Title (modern card style) -->
+    <table style="margin-bottom: 20px; border: none; background: transparent;">
+        <tr style="border: none;">
+            <td style="width: 33%; border: none !important; vertical-align: middle;">
+                <img src="{{ $companyLogoUrl ?? URL::asset('assets/img/logo-full.png') }}" width="150" alt="logo" />
+            </td>
+            <td style="width: 34%; text-align: center; border: none !important;">
+                <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ $settings['company_name'] ?? '' }}</h4>
+                <p style="margin: 3px 0; font-size: 12px;">{{ $settings['company_address'] ?? '' }}</p>
+                <p style="margin: 3px 0; font-size: 12px;">TRN {{ $settings['vat_number'] ?? '' }}</p>
+            </td>
+            <td style="width: 33%; text-align: center; border: none !important;">
+                <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 24px;">RIDER INVOICE</h2>
+            </td>
+        </tr>
+    </table>
 
-            $total_additions = ($incentive > 0 ? $incentive : 0)
-            + ($rider_balance < 0 ? abs($rider_balance) : 0); // negative balance is addition
+    <!-- Two card layout: Rider Details + Invoice Reference (exactly like leasing invoice) -->
+    <div class="flex-row-cards">
+        <!-- Rider Main Card -->
+        <div class="rider-card">
+            <div class="card-header">
+                <strong>👤 Rider Details</strong>
+            </div>
+            <div class="details-grid">
+                <span class="detail-label">Rider ID:</span>
+                <span class="detail-value">{{$riderInvoice->rider->rider_id}}</span>
+                <span class="detail-label">Rider Name:</span>
+                <span class="detail-value">{{$riderInvoice->rider->name}}</span>
+                <span class="detail-label">Rider Status:</span>
+                <span class="detail-value" @if(in_array($riderInvoice->rider->status,[3,4,5])) style="color:red;" @endif>{{ App\Helpers\General::RiderStatus($riderInvoice->rider->status) }}</span>
+                <span class="detail-label">Mobile:</span>
+                <span class="detail-value">{{@$riderInvoice->rider->sim->number}}</span>
+                <span class="detail-label">Joining Date:</span>
+                <span class="detail-value">{{$riderInvoice->rider->doj}}</span>
+                <span class="detail-label">Client:</span>
+                <span class="detail-value">{{@$riderInvoice->rider->vendor->name}}</span>
+                <span class="detail-label">Fleet Supervisor:</span>
+                <span class="detail-value">{{@$riderInvoice->rider->fleet_supervisor}}</span>
+                <span class="detail-label">Sup. Contact:</span>
+                <span class="detail-value">{{@$riderInvoice->rider->company_contact}}</span>
+                <span class="detail-label">Working Days:</span>
+                <span class="detail-value">{{$riderInvoice->working_days}} | Off: {{@$riderInvoice->off}}</span>
+                <span class="detail-label">Perfect Attendance:</span>
+                <span class="detail-value">{{$riderInvoice->perfect_attendance}}</span>
+                <span class="detail-label">Rejection:</span>
+                <span class="detail-value red">{{@$riderInvoice->rejection}}</span>
+                <span class="detail-label">Performance:</span>
+                <span class="detail-value">{{@$riderInvoice->performance}}</span>
+            </div>
+        </div>
 
-                $finalAmount=$items_total - $total_deductions + $total_additions;
-                @endphp
-
-                <!-- Deductions Section -->
-                <table>
-                    <tr>
-                        <th colspan="5" class="secondary-header">Deductions</th>
-                    </tr>
-                    @if($rider_balance > 0)
-                    <tr>
-                        <td colspan="4">Previous Balance (Deduction)</td>
-                        <td class="num">-{{ number_format(abs($rider_balance), 2) }}</td>
-                    </tr>
-                    @endif
-                    @if($fines > 0)
-                    <tr>
-                        <td colspan="4">RTA Fine Charges</td>
-                        <td class="num">-{{ number_format($fines, 2) }}</td>
-                    </tr>
-                    @endif
-                    @if($salik > 0)
-                    <tr>
-                        <td colspan="4">Salik Charges</td>
-                        <td class="num">-{{ number_format($salik, 2) }}</td>
-                    </tr>
-                    @endif
-                    @if($cod > 0)
-                    <tr>
-                        <td colspan="4">COD Amount</td>
-                        <td class="num">-{{ number_format($cod, 2) }}</td>
-                    </tr>
-                    @endif
-                    @if($penalty > 0)
-                    <tr>
-                        <td colspan="4">Penalty Amount</td>
-                        <td class="num">-{{ number_format($penalty, 2) }}</td>
-                    </tr>
-                    @endif
-                    @if($advance_salary > 0)
-                    <tr>
-                        <td colspan="4">Advance Loan</td>
-                        <td class="num">-{{ number_format($advance_salary, 2) }}</td>
-                    </tr>
-                    @endif
-                    @if($vendor_charges > 0)
-                    <tr>
-                        <td colspan="4">Vendor Charges</td>
-                        <td class="num">-{{ number_format($vendor_charges, 2) }}</td>
-                    </tr>
-                    @endif
-                    <tr class="accent-total">
-                        <td colspan="4" style="text-align:right; padding: 8px;">Total Deductions</td>
-                        <td class="num" style="padding: 8px; font-size: 14px;">-{{ number_format($total_deductions, 2) }}</td>
-                    </tr>
-                </table>
-
-                <!-- Additions Section -->
-                @if($incentive > 0)
-                <table>
-                    <tr>
-                        <th colspan="5" class="secondary-header">Additions</th>
-                    </tr>
-                    @if($rider_balance < 0)
-                        <tr>
-                        <td colspan="4">Previous Balance (Addition)</td>
-                        <td class="num">+{{ number_format(abs($rider_balance), 2) }}</td>
-                        </tr>
-                        @endif
-                        <tr>
-                            <td colspan="4">Incentive Amount</td>
-                            <td class="num">+{{ number_format($incentive, 2) }}</td>
-                        </tr>
-                        <tr class="accent-total">
-                            <td colspan="4" style="text-align:right; padding: 8px;">Total Additions</td>
-                            <td class="num" style="padding: 8px; font-size: 14px;">+{{ number_format($total_additions, 2) }}</td>
-                        </tr>
-                </table>
-                @endif
-
-                <!-- Amount in Words -->
-                <table class="no-border">
-                    <tr>
-                        <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ $finalAmount }} {{ \App\Helpers\Currency::code() }}</td>
-                    </tr>
-                </table>
-
-                <!-- Summary -->
-                @php
-                $totalBeforeTax = $total;
-                $vatAmount = $riderInvoice->vat > 0 ? $total * $vat_percentage / 100 : 0;
-                $totalAfterTax = $totalBeforeTax + $vatAmount;
-                @endphp
-                <table>
-                    <tr class="light-header">
-                        <td style="padding: 6px;">Total Amount before charges:</td>
-                        <td class="num" style="padding: 6px;">{{ number_format($totalBeforeTax, 2) }}</td>
-                    </tr>
-                    @if($vatAmount > 0)
-                    <tr class="light-header">
-                        <td style="padding: 6px;">Add: VAT - {{ $vat_percentage }}%</td>
-                        <td class="num" style="padding: 6px;">{{ number_format($vatAmount, 2) }}</td>
-                    </tr>
-                    @endif
-                    <tr class="success-highlight">
-                        <td style="padding: 8px; font-size: 14px;">TOTAL AMOUNT AFTER CHARGES:</td>
-                        <td class="num" style="padding: 8px; font-size: 14px;">{{ number_format($finalAmount, 2) }}</td>
-                    </tr>
-                    @php
-                    $paid_amount = DB::table('vouchers')->where('ref_id', $riderInvoice->rider->id)->where('voucher_type', 'PAY')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
-                    $rider_balance = $paid_amount - $finalAmount;
-                    @endphp
-                    <tr class="amount-highlight">
-                        <td style="padding: 6px;">Paid Amount to Rider:</td>
-                        <td class="num" style="padding: 6px;">{{ number_format($paid_amount, 2) }}</td>
-                    </tr>
-                    <tr class="amount-highlight">
-                        <td style="padding: 6px;">Rider Balance:</td>
-                        <td class="num" style="padding: 6px;">{{ number_format($rider_balance, 2) }}</td>
-                    </tr>
-                </table>
-
-                <!-- Footer -->
-                <div class="footer-note">
-                    {{$riderInvoice->notes ?? 'Note : If a rider\'s monthly orders are less than 400 or if they have attendance for less than 26 days or less than 10 hours of login time in a day, we will charge them half of their bike rent and mobile bill, and they will not be eligible for minimum guarantee fees.'}}
-                </div>
-
-                <!-- Signature -->
-                <div class="sign-box">
-                    For Rider Name <br>
-                    <span class="yellow">{{$riderInvoice->rider->name}}</span>
-                    <span>### Sign</span>
-                </div>
+        <!-- Invoice & Service Period Card -->
+        <div class="details-card">
+            <div class="card-header">
+                <strong>📄 Invoice Summary</strong>
+            </div>
+            <div class="details-grid">
+                <span class="detail-label">Invoice No:</span>
+                <span class="detail-value">{{ \App\Helpers\General::inv_sch($riderInvoice->id,$riderInvoice->created_at) }}</span>
+                <span class="detail-label">Invoice Date:</span>
+                <span class="detail-value">{{ $riderInvoice->created_at->format("d/m/Y") }}</span>
+                <span class="detail-label">Billing Month:</span>
+                <span class="detail-value">{{date('M-Y',strtotime($riderInvoice->billing_month))}}</span>
+                <span class="detail-label">Service Period:</span>
+                <span class="detail-value">{{date('d-m-y', strtotime($riderInvoice->billing_month))}} to {{date('t-m-y', strtotime($riderInvoice->billing_month))}}</span>
+                <span class="detail-label">Zone:</span>
+                <span class="detail-value">{{$riderInvoice->zone}}</span>
+                <span class="detail-label">Bike No:</span>
+                <span class="detail-value">{{@$riderInvoice->bike->plate}}</span>
+                <span class="detail-label">Road Permit No:</span>
+                <span class="detail-value">—</span>
+                <span class="detail-label">Insurance Policy No:</span>
+                <span class="detail-value">—</span>
+            </div>
+        </div>
     </div>
 
-</body>
+    <!-- Items Table (modern card style, like leasing invoice) -->
+    @if($riderInvoice->items && $riderInvoice->items->count() > 0)
+    <div style="overflow-x: auto; margin-top: 5px;">
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Sr.</th>
+                    <th>Product / Service Description</th>
+                    <th>FMO</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                    <th>VAT Rate</th>
+                    <th>VAT Amount</th>
+                    <th>Total ({{ \App\Helpers\Currency::code() }})</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php $running_total = 0; @endphp
+                @foreach($riderInvoice->items as $key=>$val)
+                @php
+                    $total += $val->amount;
+                    $total_qty += $val->qty;
+                    $vatRate = $riderInvoice->vat > 0 ? $vat_percentage : 0;
+                    $vatAmtRow = $riderInvoice->vat > 0 ? $val->amount * $vatRate / 100 : 0;
+                    $rowTotal = $val->amount + $vatAmtRow;
+                    $running_total += $rowTotal;
+                @endphp
+                <tr>
+                    <td class="num">{{ $key+1 }}</td>
+                    <td>{{ $val->riderInv_item }} {{ \App\Models\Items::where('id',$val->item_id)->value('name') }}</td>
+                    <td>{{ strtoupper(date('M\'y', strtotime($riderInvoice->billing_month))) }}</td>
+                    <td class="num">{{ $val->qty == 0 ? '-' : $val->qty }}</td>
+                    <td class="num">{{ $val->rate == 0 ? '-' : number_format($val->rate, 2) }}</td>
+                    <td class="num">{{ number_format($val->amount, 2) }}</td>
+                    <td class="num">{{ number_format($vatRate, 0) }}%</td>
+                    <td class="num">{{ number_format($vatAmtRow, 2) }}</td>
+                    <td class="num">{{ number_format($running_total, 2) }}</td>
+                </tr>
+                @endforeach
+                @php $items_total = $running_total; @endphp
+                <tr class="accent-total">
+                    <td colspan="3" style="text-align:right; font-weight:bold;">Total Orders ({{date('M-Y',strtotime($riderInvoice->billing_month))}})</td>
+                    <td class="num">{{ number_format($totalOrders, 0) }}</td>
+                    <td colspan="4" style="text-align:right; font-weight:bold;">ITEMS TOTAL</td>
+                    <td class="num" style="font-weight:bold;">{{ number_format($items_total, 2) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
+    <!-- Deductions Table (clean bordered) -->
+    @if($total_deductions > 0 || $fines > 0 || $salik > 0 || $cod > 0 || $penalty > 0 || $advance_salary > 0 || $vendor_charges > 0 || $rider_balance > 0)
+    <table style="margin-top: 12px;">
+        <thead>
+            <tr><th colspan="5" class="secondary-header">Deductions</th></tr>
+        </thead>
+        <tbody>
+            @if($rider_balance > 0)
+            <tr><td colspan="4">Previous Balance (Deduction)</td><td class="num">-{{ number_format(abs($rider_balance), 2) }}</td></tr>
+            @endif
+            @if($fines > 0)
+            <tr><td colspan="4">RTA Fine Charges</td><td class="num">-{{ number_format($fines, 2) }}</td></tr>
+            @endif
+            @if($salik > 0)
+            <tr><td colspan="4">Salik Charges</td><td class="num">-{{ number_format($salik, 2) }}</td></tr>
+            @endif
+            @if($cod > 0)
+            <tr><td colspan="4">COD Amount</td><td class="num">-{{ number_format($cod, 2) }}</td></tr>
+            @endif
+            @if($penalty > 0)
+            <tr><td colspan="4">Penalty Amount</td><td class="num">-{{ number_format($penalty, 2) }}</td></tr>
+            @endif
+            @if($advance_salary > 0)
+            <tr><td colspan="4">Advance Loan</td><td class="num">-{{ number_format($advance_salary, 2) }}</td></tr>
+            @endif
+            @if($vendor_charges > 0)
+            <tr><td colspan="4">Vendor Charges</td><td class="num">-{{ number_format($vendor_charges, 2) }}</td></tr>
+            @endif
+            <tr class="accent-total"><td colspan="4" style="text-align:right;">Total Deductions</td><td class="num">-{{ number_format($total_deductions, 2) }}</td></tr>
+        </tbody>
+    </table>
+    @endif
+
+    <!-- Additions Section -->
+    @if($total_additions > 0)
+    <table style="margin-top: 8px;">
+        <thead><tr><th colspan="5" class="secondary-header">Additions</th></tr></thead>
+        <tbody>
+            @if($rider_balance < 0)
+            <tr><td colspan="4">Previous Balance (Addition)</td><td class="num">+{{ number_format(abs($rider_balance), 2) }}</td></tr>
+            @endif
+            @if($incentive > 0)
+            <tr><td colspan="4">Incentive Amount</td><td class="num">+{{ number_format($incentive, 2) }}</td></tr>
+            @endif
+            <tr class="accent-total"><td colspan="4" style="text-align:right;">Total Additions</td><td class="num">+{{ number_format($total_additions, 2) }}</td></tr>
+        </tbody>
+    </table>
+    @endif
+
+    <!-- Financial Summary Compact (Right) + Grand Total (badge) -->
+    @php
+        $finalAmount = $items_total - $total_deductions + $total_additions;
+        $paid_amount = DB::table('vouchers')->where('ref_id', $riderInvoice->rider->id)->where('voucher_type', 'PAY')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
+        $rider_balance_final = $paid_amount - $finalAmount;
+    @endphp
+    <div class="financial-summary">
+        <table>
+            <thead><tr><th colspan="2" class="secondary-header">Financial Summary</th></tr></thead>
+            <tbody>
+                <tr><td style="font-weight: 600;">Subtotal (Items)</td><td class="num">{{ number_format($total, 2) }}</td></tr>
+                @if($riderInvoice->vat > 0)<tr><td>VAT ({{$vat_percentage}}%)</td><td class="num">{{ number_format($total * $vat_percentage / 100, 2) }}</td></tr>@endif
+                <tr><td>Total Deductions</td><td class="num">-{{ number_format($total_deductions, 2) }}</td></tr>
+                <tr><td>Total Additions</td><td class="num">+{{ number_format($total_additions, 2) }}</td></tr>
+                <tr class="success-highlight"><td><strong>NET PAYABLE</strong></td><td class="num"><strong>{{ number_format($finalAmount, 2) }}</strong></td></tr>
+                <tr><td>Paid Amount to Rider</td><td class="num">{{ number_format($paid_amount, 2) }}</td></tr>
+                <tr><td>Rider Balance</td><td class="num">{{ number_format($rider_balance_final, 2) }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Grand Total Card (modern badge) -->
+    <div class="grand-total-wrapper">
+        <div class="grand-total-card">
+            <div>TOTAL INVOICE AMOUNT</div>
+            <div>{{ \App\Helpers\Currency::format($finalAmount, 2) }}</div>
+        </div>
+    </div>
+
+    <!-- Notes & Footer -->
+    <div class="notes-section">
+        <strong>📌 Note:</strong><br>
+        {{$riderInvoice->notes ?? 'If a rider\'s monthly orders are less than 400 or they have attendance for less than 26 days or less than 10 hours of login time in a day, we will charge them half of their bike rent and mobile bill, and they will not be eligible for minimum guarantee fees.'}}
+    </div>
+
+    <div style="text-align: right; margin-top: 30px;">
+        <div>
+            <br><br><br>
+            <span style="display: inline-block; border-top: 2px solid #000; padding-top: 8px; font-weight: bold;">{{$riderInvoice->rider->name}}</span>
+            <br>
+        </div>
+    </div>
+    <div style="height: 20px;"></div>
+    <div style="position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 11px; color: #5b6e8c; border-top: 1px solid #e2e8f0; padding-top: 16px; padding-bottom: 0px; background: white; width: 100%; z-index: 1000;">
+        <p style="margin: 0; background: white;">Thank you for your partnership! For queries reach: {{ $settings['company_phone'] ?? 'Company Phone' }} | {{ $settings['company_email'] ?? 'Company Email' }}</p>
+    </div>
+    @else
+    <div style="text-align: center; padding: 40px;"><p>No invoice items found for this period.</p></div>
+    @endif
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.num').forEach(function(el) {
+            let raw = el.innerText.trim();
+            let num = parseFloat(raw.replace(/,/g, ''));
+            if (!isNaN(num) && raw !== '') {
+                let formatted = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                if (el.innerText !== formatted) el.innerText = formatted;
+            }
+        });
+    });
+</script>
+</body>
 </html>

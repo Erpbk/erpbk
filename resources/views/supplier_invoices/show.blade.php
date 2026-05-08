@@ -4,363 +4,452 @@
     <meta charset="UTF-8">
     <title>Supplier Invoice #{{ $supplierInvoice->inv_id }}</title>
     <style>
+        /* ----- RESET & GLOBAL ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
             font-family: Calibri, Arial, sans-serif;
             font-size: 12px;
             color: #000;
+            background: #eef2f5;
             margin: 0;
-            padding: 0;
+            padding: 20px;
         }
-
         .invoice-box {
-            width: 850px;
-            margin: auto;
-            padding: 10px;
-            border: 1px solid #000;
+            max-width: 1100px;
+            width: 100%;
+            margin: 0 auto;
+            background: white;
+            padding: 20px 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
-        table {
+        /* ----- TABLES (clean border style) ----- */
+        .invoice-box table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
-
-        th, td {
-            border: 1px solid #000;
-            padding: 4px 6px;
+        .invoice-box th,
+        .invoice-box td {
+            border: 1px solid #ddd;
+            padding: 8px 10px;
             font-size: 12px;
+            vertical-align: top;
         }
-
-        th {
-            background: #d9e1f2;
-            font-weight: bold;
-        }
-
-        td.num {
-            text-align: right;
-        }
-
-        .no-border td {
-            border: none;
-            padding: 3px 6px;
-        }
-
-        .primary-header {
-            background: #211c1d;
-            color: white;
-            font-weight: bold;
-        }
-
-        .secondary-header {
+        .invoice-box th {
             background: #004aad;
             color: white;
-            font-weight: bold;
+            font-weight: 600;
+            text-align: center;
+        }
+        .invoice-box td {
+            text-align: left;
+        }
+        .invoice-box td.num {
+            text-align: right;
+        }
+        .no-border td {
+            border: none;
+            padding: 4px 6px;
         }
 
-        .accent-total {
-            background: #5271ff;
-            color: white;
-            font-weight: bold;
-        }
+        /* ----- HEADER STYLES (alignment with fuel design) ----- */
+        .primary-header { background: #211c1d; color: white; }
+        .secondary-header { background: #004aad; color: white; font-weight: bold; }
+        .accent-total { background: #5271ff; color: white; }
+        .light-header { background: #e6f1ff; color: #004aad; }
+        .amount-highlight { background: #2A62FF; color: white; }
+        .yellow-highlight { background: #ffff00; font-weight: bold; padding: 8px; }
 
-        .light-header {
-            background: #e6f1ff;
-            color: #004aad;
-            font-weight: bold;
-        }
-
-        .amount-highlight {
-            background: #2A62FF;
-            font-weight: bold;
-            color: #FFFFFF;
-        }
-
-        .yellow-highlight {
-            background: #ffff00;
-            font-weight: bold;
-            padding: 8px;
-        }
-
+        /* ----- PRINT BUTTONS & CONTROLS (same as fuel invoice) ----- */
         .print-btn {
             background: #004aad;
             color: #fff;
             border: none;
-            padding: 8px 12px;
-            font-size: 12px;
+            padding: 8px 16px;
+            font-size: 13px;
             cursor: pointer;
-            border-radius: 3px;
+            border-radius: 4px;
             text-decoration: none;
             display: inline-block;
+            font-weight: 500;
+            transition: 0.2s;
         }
-
         .print-btn:hover {
             background: #2A62FF;
         }
+        .controls {
+            position: sticky;
+            top: 10px;
+            z-index: 100;
+            display: flex;
+            gap: 12px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            margin-bottom: 20px;
+            width: 95%;
+            justify-self: center;
+            margin-left: auto;
+            margin-right: auto;
+            justify-content: flex-end;
+        }
+
+        /* ----- CARD LAYOUT (matching fuel invoice) ----- */
+        .supplier-card, .details-card {
+            padding: 16px 18px;
+            margin-bottom: 0;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        .invoice-box .card-header {
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #004aad;
+            background-color: white !important;
+        }
+        .invoice-box .card-header strong {
+            color: #004aad;
+            font-size: 15px;
+            letter-spacing: 0.3px;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 12px 8px;
+            align-items: baseline;
+        }
+        .detail-item {
+            display: contents;
+        }
+        .detail-label {
+            font-weight: 700;
+            color: #2c3e66;
+            font-size: 12px;
+        }
+        .detail-value {
+            color: #1e293b;
+            font-weight: 500;
+        }
+        .flex-row-cards {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .flex-row-cards > div {
+            flex: 1;
+            min-width: 240px;
+        }
+
+        /* description section */
+        .description-block {
+            background: #f8fafc;
+            border-left: 4px solid #004aad;
+            padding: 12px 18px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+        .description-block strong {
+            color: #004aad;
+            font-size: 13px;
+        }
+
+        /* Notes section */
+        .notes-section {
+            margin: 20px 0;
+            padding: 12px 16px;
+            background: #fef9e6;
+            border-left: 4px solid #ffb347;
+            border-radius: 8px;
+        }
+
+        /* Grand Total */
+        .grand-total-wrapper {
+            margin-top: 28px;
+            text-align: right;
+        }
+        .grand-total-card {
+            display: inline-block;
+            padding: 12px 28px;
+            background: #004aad;
+            color: white;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,74,173,0.2);
+        }
+        .grand-total-card div:first-child {
+            font-size: 14px;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .grand-total-card div:last-child {
+            font-size: 26px;
+            font-weight: 800;
+        }
+
+        /* footer */
+        .footer-note {
+            margin-top: 28px;
+            text-align: center;
+            font-size: 11px;
+            color: #5b6e8c;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 16px;
+            margin-top: auto;
+        }
+
+        /* table improvements: consistent like fuel invoice */
+        .items-table th, .items-table td {
+            border: 1px solid #ccc;
+        }
+        .items-table th {
+            background: #004aad;
+            color: white;
+            font-weight: 600;
+            text-align: center;
+        }
+        .items-table td {
+            padding: 8px 10px;
+        }
+        .invoice-box tfoot tr td {
+            background: #f1f5f9;
+            font-weight: 600;
+        }
 
         @media print {
-            body, *, .primary-header, .secondary-header, .accent-total, 
-            .light-header, .amount-highlight, .yellow-highlight {
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+            .invoice-box {
+                box-shadow: none;
+                padding: 10px;
+                max-width: 100%;
+                border-radius: 0;
+            }
+            .controls {
+                display: none !important;
+            }
+            .supplier-card, .details-card {
+                box-shadow: none;
+                border: 1px solid #ccc;
+                break-inside: avoid;
+            }
+            .grand-total-card {
+                background: #004aad !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
-            
-            .no-print {
-                display: none !important;
+            th, .secondary-header, .card-header strong {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
-            
+        }
+
+        /* responsive */
+        @media (max-width: 700px) {
+            .flex-row-cards {
+                flex-direction: column;
+            }
             .invoice-box {
-                max-width: 100% !important;
-                width: 100% !important;
-                margin: auto !important;
-                padding: 10px !important;
-                border: none !important;
-                box-sizing: border-box !important;
+                padding: 15px;
             }
-        }
-        
-        .controls {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 9999;
-            display: flex;
-            gap: 10px;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        
-        .details-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin: 10px 10px;
-        }
-        
-        .detail-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .detail-label {
-            font-weight: bold;
-            color: #555;
-        }
-        
-        .detail-value {
-            color: #333;
-        }
-        
-        .total-section {
-            background: #f0f8ff;
-            padding: 15px;
-            border: 2px solid #004aad;
-            margin: 15px 0;
-            border-radius: 5px;
-        }
-        
-        .total-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 14px;
-            padding: 5px 0;
-        }
-        
-        .grand-total {
-            font-size: 18px;
-            font-weight: bold;
-            color: #004aad;
-            border-top: 2px solid #004aad;
-            padding-top: 10px;
-            margin-top: 10px;
-        }
-
-        .supplier-card {
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .card-header {
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #004aad;
-        }
-
-        .card-header strong {
-            color: #004aad;
-            font-size: 14px;
         }
     </style>
 </head>
 <body>
-    <div class="controls no-print">
-        <button type="button" class="print-btn" onclick="window.print()">Print</button>
-        <a href="{{ route('supplier_invoices.index') }}" class="print-btn">Back to List</a>
+<div class="controls no-print">
+    <button type="button" class="print-btn" onclick="printModalContent()">Print Invoice</button>
+</div>
+
+<div class="invoice-box">
+    <!-- HEADER SECTION (consistent with fuel invoice: logo + company + title) -->
+    @php
+        $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+        $total = $supplierInvoice->items->sum('total_amount');
+        $total_vat = $supplierInvoice->items->sum('tax_amount');
+    @endphp
+    <table style="margin-bottom: 20px; border: none; background: transparent;">
+        <tr style="border: none;">
+            <td style="width: 33%; border: none !important; vertical-align: middle;">
+                @if(file_exists(public_path('assets/img/logo-full.png')))
+                    <img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" alt="logo" />
+                @else
+                    <h3 style="color:#004aad;">{{ $settings['company_name'] ?? 'Company Name' }}</h3>
+                @endif
+            </td>
+            <td style="width: 34%; text-align: center; border: none !important;">
+                <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ $settings['company_name'] ?? 'Company Name' }}</h4>
+                <p style="margin: 3px 0; font-size: 12px;">{{ $settings['company_address'] ?? 'Company Address' }}</p>
+                <p style="margin: 3px 0; font-size: 12px;">TRN {{ $settings['vat_number'] ?? 'TRN Number' }}</p>
+            </td>
+            <td style="width: 33%; text-align: center; border: none !important;">
+                <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 22px;">SUPPLIER INVOICE</h2>
+            </td>
+        </tr>
+    </table>
+
+    <!-- CARD LAYOUT: supplier details + invoice details (exactly like fuel invoice's rider+summary structure) -->
+    <div class="flex-row-cards">
+        <!-- Supplier Information Card (similar to Rider Card) -->
+        <div class="supplier-card">
+            <div class="card-header">
+                <strong>📇 Supplier Details</strong>
+            </div>
+            <div class="details-grid">
+                <span class="detail-label">Supplier Name:</span>
+                <span class="detail-value">{{ $supplierInvoice->supplier->name ?? '—' }}</span>
+
+                <span class="detail-label">Company Name:</span>
+                <span class="detail-value">{{ $supplierInvoice->supplier->company_name ?? '—' }}</span>
+
+                <span class="detail-label">Contact:</span>
+                <span class="detail-value">{{ $supplierInvoice->supplier->phone ?? '—' }}</span>
+                
+                @if(!empty($supplierInvoice->supplier->email))
+                <span class="detail-label">Email:</span>
+                <span class="detail-value">{{ $supplierInvoice->supplier->email }}</span>
+                @endif
+            </div>
+        </div>
+
+        <!-- Invoice Details Card (similar to Invoice Details in fuel invoice) -->
+        <div class="details-card">
+            <div class="card-header">
+                <strong>📄 Invoice Details</strong>
+            </div>
+            <div class="details-grid">
+                <span class="detail-label">Invoice #:</span>
+                <span class="detail-value">{{ $supplierInvoice->inv_id }}</span>
+
+                <span class="detail-label">Invoice Date:</span>
+                <span class="detail-value">{{ $supplierInvoice->inv_date?->format('d M Y') ?? '—' }}</span>
+
+                <span class="detail-label">Billing Month:</span>
+                <span class="detail-value">{{ $supplierInvoice->billing_month ? date('M Y', strtotime($supplierInvoice->billing_month)) : '—' }}</span>
+
+                <span class="detail-label">Garage:</span>
+                <span class="detail-value">{{ $supplierInvoice->garage?->name ?? '—' }}</span>
+
+                <span class="detail-label">Created By:</span>
+                <span class="detail-value">{{ $supplierInvoice->updatedBy?->name ?? $supplierInvoice->createdBy?->name ?? '—' }}</span>
+            </div>
+        </div>
     </div>
 
-    <div class="invoice-box">
-        <!-- Header Table -->
-        @php
-        $settings = DB::table('settings')->pluck('value', 'name')->toArray();
-        @endphp
-        <table width="100%" style="font-family: sans-serif;">
-            <tr>
-                <td width="33.33%" style="border: none !important;">
-                    @if(file_exists(public_path('assets/img/logo-full.png')))
-                    <img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" />
-                    @else
-                    <h3>{{ $settings['company_name'] ?? 'Company Name' }}</h3>
-                    @endif
-                </td>
-                <td width="33.33%" style="text-align: center; border: none !important;">
-                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ $settings['company_name'] ?? 'Company Name' }}</h4>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{ $settings['company_address'] ?? 'Company Address' }}</p>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TRN {{ $settings['vat_number'] ?? 'TRN Number' }}</p>
-                </td>
-                <td width="33.33%" style="text-align: center; border: none !important;">
-                    <h2 style="margin: 0; font-weight: bold;">
-                            Supplier Invoice
-                    </h2>
-                </td>
-            </tr>
-        </table>
+    <!-- Description Section (if exists) styled like fuel note but elegant -->
+    @if($supplierInvoice->descriptions)
+    <div class="description-block">
+        <strong>📝 Description</strong><br>
+        <span style="color: #334155;">{{ $supplierInvoice->descriptions }}</span>
+    </div>
+    @endif
 
-        <!-- Invoice Details Section -->
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <!-- Supplier Information Card -->
-            <div class="supplier-card" style="flex: 1;">
-                <div class="card-header">
-                    <strong>Supplier Details</strong>
-                </div>
-                <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center;">
-                    
-                    <div style="font-weight: 600; color: #555;">Supplier Name:</div>
-                    <div>{{ $supplierInvoice->supplier->name }}</div>
-                    
-                    <div style="font-weight: 600; color: #555;">Company Name:</div>
-                    <div>{{ $supplierInvoice->supplier->company_name }}</div>
-                    
-                    <div style="font-weight: 600; color: #555;">Contact:</div>
-                    <div>{{ $supplierInvoice->supplier->phone }}</div>
-                </div>
-            </div>
-            
-            <!-- Invoice Details Card -->
-            <div class="supplier-card" style="flex: 1;">
-                <div class="card-header">
-                    <strong>Invoice Details</strong>
-                </div>
-                <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center;">
-                    
-                    <div style="font-weight: 600; color: #555;">Invoice #:</div>
-                    <div>{{ $supplierInvoice->inv_id }}</div>
-                    
-                    <div style="font-weight: 600; color: #555;">Invoice Date:</div>
-                    <div>{{ $supplierInvoice->inv_date?->format('d M Y') ?? '' }}</div>
-                    
-                    <div style="font-weight: 600; color: #555;">Billing Month:</div>
-                    <div>{{ date('M Y', strtotime($supplierInvoice->billing_month)) }}</div>
+    <!-- Additional Notes Section (same as supplier original but visually aligned) -->
+    @if($supplierInvoice->notes)
+    <div class="notes-section">
+        <strong>📌 Additional Notes:</strong><br>
+        {{ $supplierInvoice->notes }}
+    </div>
+    @endif
 
-                    <div style="font-weight: 600; color: #555;">Garage:</div>
-                    <div>{{ $supplierInvoice->garage?->name ?? '—' }}</div>
-
-                    <div style="font-weight: 600; color: #555;">Created By:</div>
-                    <div>{{ $supplierInvoice->updatedBy?->name ?? $supplierInvoice->createdBy?->name ?? ''}}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Description Section -->
-        @if($supplierInvoice->descriptions)
-        <div style="margin: 10px; padding-bottom: 8px; border-bottom: 2px solid #004aad;">
-            <strong style="color: #004aad; font-size: 14px;">Description</strong>
-        </div>
-        <div class="details-grid">
-            <div class="detail-item">
-                <span class="detail-label">Description:</span>
-                <span class="detail-value">{{ $supplierInvoice->descriptions }}</span>
-            </div>
-        </div>
-        @endif
-
-        <!-- Items Table -->
-        @if($supplierInvoice->items->count() > 0)
-        <table>
+    <!-- Items Table (styled like fuel transaction table, but with supplier items) -->
+    @if($supplierInvoice->items && $supplierInvoice->items->count() > 0)
+    <div style="overflow-x: auto;">
+        <table class="items-table">
             <thead>
                 <tr>
-                    <th class="secondary-header" style="width: 40%;">Item</th>
-                    <th class="secondary-header" style="width: 15%;">Quantity</th>
-                    <th class="secondary-header" style="width: 15%;">Rate ({{ \App\Helpers\Currency::code() }})</th>
-                    <th class="secondary-header" style="width: 15%;">VAT ({{ \App\Helpers\Currency::code() }})</th>
-                    <th class="secondary-header" style="width: 15%;">Amount ({{ \App\Helpers\Currency::code() }})</th>
+                    <th style="width: 38%;">Item Description</th>
+                    <th style="width: 12%;">Quantity</th>
+                    <th style="width: 15%;">Rate ({{ \App\Helpers\Currency::code() }})</th>
+                    <th style="width: 15%;">VAT ({{ \App\Helpers\Currency::code() }})</th>
+                    <th style="width: 20%;">Amount ({{ \App\Helpers\Currency::code() }})</th>
                 </tr>
             </thead>
             <tbody>
-                @php $total = $supplierInvoice->items->sum('total_amount'); $total_vat = $supplierInvoice->items->sum('tax_amount'); @endphp
-                @foreach($supplierInvoice->items as $key => $val)
-                    <tr>
-                        <td>{{ $val->item_des}}</td>
-                        <td class="num">{{ number_format($val->qty, 2) }}</td>
-                        <td class="num">{{ number_format($val->rate, 2) }}</td>
-                        <td class="num">{{ number_format($val->tax_amount, 2) }}</td>
-                        <td class="num">{{ number_format($val->total_amount, 2) }}</td>
-                    </tr>
+                @foreach($supplierInvoice->items as $item)
+                <tr>
+                    <td>{{ $item->item_des ?? '—' }}</td>
+                    <td class="num">{{ number_format($item->qty ?? 0, 2) }}</td>
+                    <td class="num">{{ number_format($item->rate ?? 0, 2) }}</td>
+                    <td class="num">{{ number_format($item->tax_amount ?? 0, 2) }}</td>
+                    <td class="num">{{ number_format($item->total_amount ?? 0, 2) }}</td>
+                </tr>
                 @endforeach
             </tbody>
-            <tfoot>
-                <tr style="border-top: 1px solid #000;">
-                    <td colspan="3" style="text-align: right; padding: 8px;"><strong>Subtotal:</strong></td>
-                    <td class="num" style="padding: 8px;"><strong>{{ number_format($total_vat ?? 0, 2) }}</strong></td>
-                    <td class="num" style="padding: 8px;"><strong>{{ number_format($total??0 - $total_vat??0, 2) }}</strong></td>
-                </tr>
-            </tfoot>
         </table>
-        @else
-        <div style="text-align: center; padding: 20px; background: #f9f9f9; border: 1px solid #ddd;">
-            <p style="margin: 0;">No items recorded for this invoice</p>
-        </div>
-        @endif
+    </div>
+    
+    <!-- Financial mini summary (like fuel invoice's financial summary but integrated in clean way) -->
+    <div style="display: flex; justify-content: flex-end; margin-top: 5px;">
+        <table style="width: 45%; min-width: 260px; border: 1px solid #e2e8f0;">
+            <thead>
+                <tr><th colspan="2" class="secondary-header" style="background:#004aad;">Financial Summary</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="font-weight: 600;">Subtotal (excl. VAT):</td>
+                    <td class="num">{{ \App\Helpers\Currency::format(($total??0) - ($total_vat??0), 2) }}</td>
+                </tr>
+                <tr>
+                    <td style="font-weight: 600;">VAT Amount:</td>
+                    <td class="num">{{ \App\Helpers\Currency::format($total_vat??0, 2) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    @else
+    <div style="text-align: center; padding: 30px; background: #f9f9fc; border: 1px solid #e9ecef; border-radius: 12px; margin: 20px 0;">
+        <p style="margin: 0; color: #5b6e8c;">📭 No items recorded for this invoice</p>
+    </div>
+    @endif
 
-        <!-- Notes Section -->
-        @if($supplierInvoice->notes)
-        <div style="margin-top: 15px; padding: 10px; background: #f0f0f0; border: 1px solid #000;">
-            <strong>Additional Notes:</strong><br>
-            {{ $supplierInvoice->notes }}
-        </div>
-        @endif
-
-        <!-- Grand Total -->
-        <div style="margin-top: 20px; text-align: right;">
-            <div style="display: inline-block; padding: 15px; background: #004aad; color: white; border-radius: 5px;">
-                <div style="font-size: 16px; margin-bottom: 5px; text-align: center;">Grand Total</div>
-                <div style="font-size: 24px; font-weight: bold;">{{ \App\Helpers\Currency::format($total??0, 2) }}</div>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div style="margin-top: 20px; text-align: center; font-size: 11px; color: #666;">
-            <p>Thank you for your business!</p>
-            <p>For any queries, please contact: {{ $settings['company_phone'] ?? 'Company Phone' }} | {{ $settings['company_email'] ?? 'Company Email' }}</p>
+    <!-- Grand Total (exactly like fuel invoice: background badge style) -->
+    <div class="grand-total-wrapper">
+        <div class="grand-total-card">
+            <div>GRAND TOTAL</div>
+            <div>{{ \App\Helpers\Currency::format($total??0, 2) }}</div>
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Format numbers with commas
-            document.querySelectorAll('.num').forEach(function(element) {
-                let text = element.textContent;
-                let num = parseFloat(text);
-                if (!isNaN(num)) {
-                    element.textContent = num.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    });
+    <!-- Footer (same as fuel invoice) -->
+    <div class="footer-note">
+        <p>Thank you for your business!</p>
+        <p>For any queries, please contact: {{ $settings['company_phone'] ?? 'Company Phone' }} | {{ $settings['company_email'] ?? 'Company Email' }}</p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Format all .num cells with comma separators (consistent with numeric values)
+        document.querySelectorAll('.num').forEach(function(element) {
+            let rawText = element.innerText.trim();
+            let num = parseFloat(rawText.replace(/,/g, ''));
+            if (!isNaN(num) && rawText !== '') {
+                let formatted = num.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                // avoid double formatting if already formatted
+                if(element.innerText !== formatted) {
+                    element.innerText = formatted;
                 }
-            });
+            }
         });
-    </script>
+    });
+</script>
 </body>
 </html>

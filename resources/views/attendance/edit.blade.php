@@ -16,18 +16,22 @@
                 User Type <span class="text-danger">*</span>
             </label>
             <div class="btn-group w-100" role="group">
+                @if ($attendance->ref_type === 'employee')
                 <input type="radio" class="btn-check" name="ref_type" id="type_employee"
                     value="employee" {{ $selectedType === 'employee' ? 'checked' : '' }}
                     autocomplete="off" required>
                 <label class="btn btn-outline-primary" for="type_employee">
                     <i class="fas fa-user-tie me-2"></i>Employee
                 </label>
+                @endif
+                @if ($attendance->ref_type === 'rider')
                 <input type="radio" class="btn-check" name="ref_type" id="type_rider"
                     value="rider" {{ $selectedType === 'rider' ? 'checked' : '' }}
                     autocomplete="off" required>
                 <label class="btn btn-outline-primary" for="type_rider">
                     <i class="fas fa-motorcycle me-2"></i>Rider
                 </label>
+                @endif
             </div>
             @error('ref_type')
             <div class="text-danger small mt-1">{{ $message }}</div>

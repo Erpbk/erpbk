@@ -2,6 +2,20 @@
 
 @section('title','Traffic Fine Details')
 @section('content')
+@php
+$rider = DB::table('riders')->where('id', $accounts->rider_id)->first();
+$riderVisaBalance = DB::table('visa_expenses')
+    ->where('expense_account_id', $accounts->id)
+    ->sum('amount');
+$riderPaidTotal = DB::table('visa_expenses')
+    ->where('expense_account_id', $accounts->id)
+    ->where('payment_status', 'paid')
+    ->sum('amount');
+$riderUnpaidTotal = DB::table('visa_expenses')
+    ->where('expense_account_id', $accounts->id)
+    ->where('payment_status', 'unpaid')
+    ->sum('amount');
+@endphp
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
@@ -48,30 +62,51 @@
                     <div class="user-avatar-section">
                         <div class=" d-flex align-items-center flex-column">
                             <div class="user-info text-center">
-                                <h6>{{ $accounts->name }}</h6>
+                                <h6>{{ $rider->rider_id . ' - ' . $rider->name }}</h6>
                             </div>
                         </div>
                     </div>
                     <h5 class="pb-4 border-bottom mb-4"></h5>
                     <div class="info-container">
                         <ul class="list-unstyled mb-6">
-                            <ul class="p-0 mb-3">
-                                <li class="list-group-item pb-1">
-                                    <b>Account Code:</b> <span class="float-right">{{ $accounts->account_code }}</span>
-                                </li>
-
-                                <li class="list-group-item pb-1">
-                                    <b>Account Type:</b> <span class="float-right">{{ $accounts->account_type }}</span>
-                                </li>
-                                <li class="list-group-item pb-1">
-                                    <b>Status:</b> <span class="float-right">
-                                        @if($accounts->status == '1')
-                                        <span class="badge  bg-success">Active</span></span>
+                            <li class="list-group-item pb-1 d-flex justify-content-between">
+                                <b>Status:</b>
+                                <span>
+                                    @if($rider->status == '1')
+                                    <span class="badge bg-success">Active</span>
                                     @else
-                                    <span class="badge  bg-danger">In Active</span></span>
+                                    <span class="badge bg-danger">Inactive</span>
                                     @endif
-                                </li>
-                            </ul>
+                                </span>
+                            </li>
+                            <li class="list-group-item pb-1 d-flex justify-content-between">
+                                <b>Rider ID:</b>
+                                <span>{{ $rider->rider_id ?? '-' }}</span>
+                            </li>
+                            <li class="list-group-item pb-1 d-flex justify-content-between">
+                                <b>Person Code:</b>
+                                <span>{{ $rider->person_code ?? '-' }}</span>
+                            </li>
+                            <li class="list-group-item pb-1 d-flex justify-content-between">
+                                <b>Labour Card:</b>
+                                <span>{{ $rider->labor_card_number ?? '-' }}</span>
+                            </li>
+                            <li class="list-group-item pb-1 d-flex justify-content-between">
+                                <b>Policy #:</b>
+                                <span>{{ $rider->policy_no ?? '-' }}</span>
+                            </li>
+                            <li class="list-group-item pb-1 d-flex justify-content-between">
+                                <b>Visa Balance:</b>
+                                <span>{{ \App\Helpers\Currency::format($riderVisaBalance, 2) }}</span>
+                            </li>
+                            <li class="list-group-item pb-1 d-flex justify-content-between">
+                                <b>Paid Total:</b>
+                                <span class="text-success">{{ \App\Helpers\Currency::format($riderPaidTotal, 2) }}</span>
+                            </li>
+                            <li class="list-group-item pb-1 d-flex justify-content-between">
+                                <b>Unpaid Total:</b>
+                                <span class="text-danger">{{ \App\Helpers\Currency::format($riderUnpaidTotal, 2) }}</span>
+                            </li>
                         </ul>
                     </div>
                 </div>

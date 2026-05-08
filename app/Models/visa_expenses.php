@@ -28,6 +28,7 @@ class visa_expenses extends BaseModel
         'amount',
         'payment_status',
         'deleted_by',
+        'expense_account_id',
     ];
     public static array $rules = [
         'trans_date' => 'nullable',
@@ -46,6 +47,10 @@ class visa_expenses extends BaseModel
     {
         // In current schema rider_id maps to accounts.id for visa ledgers.
         return $this->belongsTo(Accounts::class, 'rider_id', 'id');
+    }
+    public function expenseAccount()
+    {
+        return $this->belongsTo(ExpenseAccount::class, 'expense_account_id');
     }
     public function account()
     {

@@ -1,5 +1,7 @@
 @php
 $visaRoute = $visaRoute ?? ((View::shared('settings_panel') ?? false) ? 'settings-panel.visa-statuses' : 'visa-statuses');
+$embeddedVisaStatusManager = $embeddedVisaStatusManager ?? false;
+$visaStatusReturnTo = $visaStatusReturnTo ?? null;
 @endphp
 <div class="table-responsive">
     <table class="table table-striped" id="visa-statuses-table">
@@ -40,18 +42,37 @@ $visaRoute = $visaRoute ?? ((View::shared('settings_panel') ?? false) ? 'setting
                 <td>
                     <div class='btn-group'>
                         @can('visaexpense_edit')
+                        @if($embeddedVisaStatusManager)
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-primary js-visa-status-edit-btn"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editVisaStatusModal"
+                            data-id="{{ $status->id }}"
+                            data-code="{{ $status->code }}"
+                            data-name="{{ $status->name }}"
+                            data-category="{{ $status->category }}"
+                            data-default-fee="{{ $status->default_fee }}"
+                            data-description="{{ $status->description }}"
+                            data-is-required="{{ $status->is_required ? 1 : 0 }}"
+                            data-is-active="{{ $status->is_active ? 1 : 0 }}"
+                            data-display-order="{{ $status->display_order }}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        @else
                         <a href="{{ route($visaRoute . '.edit', $status->id) }}" class='btn btn-sm btn-primary'>
                             <i class="fas fa-edit"></i>
                         </a>
-                        <a href="{{ route($visaRoute . '.toggle-active', $status->id) }}" class='btn btn-sm btn-{{ $status->is_active ? 'warning' : 'success' }}' title="{{ $status->is_active ? 'Deactivate' : 'Activate' }}">
+                        @endif
+                        <a href="{{ route($visaRoute . '.toggle-active', $status->id) . ($visaStatusReturnTo ? ('?return_to=' . urlencode($visaStatusReturnTo)) : '') }}" class='btn btn-sm btn-{{ $status->is_active ? 'warning' : 'success' }}' title="{{ $status->is_active ? 'Deactivate' : 'Activate' }}">
                             <i class="fas fa-{{ $status->is_active ? 'ban' : 'check' }}"></i>
                         </a>
                         @endcan
                         @can('visaexpense_delete')
-                        <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete('{{ route($visaRoute . '.destroy', $status->id) }}')">
+                        <button type="button" class="btn btn-sm btn-danger js-visa-status-delete-btn" data-delete-url="{{ route($visaRoute . '.destroy', $status->id) . ($visaStatusReturnTo ? ('?return_to=' . urlencode($visaStatusReturnTo)) : '') }}">
                             <i class="fas fa-trash"></i>
                         </button>
-                        <form id="delete-form-{{ $status->id }}" action="{{ route($visaRoute . '.destroy', $status->id) }}" method="POST" style="display: none;">
+                        <form id="delete-form-{{ $status->id }}" action="{{ route($visaRoute . '.destroy', $status->id) . ($visaStatusReturnTo ? ('?return_to=' . urlencode($visaStatusReturnTo)) : '') }}" method="POST" style="display: none;">
                             @csrf
                             @method('DELETE')
                         </form>

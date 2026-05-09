@@ -7,6 +7,7 @@
             <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
             <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
             <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
+            <th title="Narration" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Narration: activate to sort column ascending">Narration</th>
             <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
             <th title="Created By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>
             <th title="Updated By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>
@@ -70,6 +71,20 @@
                     onblur="saveAmount({{ $installment->id }})"
                     onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }})">
             </td>
+            <td>
+                <span id="narration_display_{{ $installment->id }}">{{ $installment->narration ?: '-' }}</span>
+                @can('visaloan_edit')
+                <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
+                    <i class="fa fa-edit text-primary"></i>
+                </a>
+                @endcan
+                <input type="text"
+                    id="narration_input_{{ $installment->id }}"
+                    value="{{ $installment->narration }}"
+                    class="form-control form-control-sm d-none"
+                    onblur="saveNarration({{ $installment->id }})"
+                    onkeypress="if(event.keyCode==13) saveNarration({{ $installment->id }})">
+            </td>
             <td>{!! $installment->status_badge !!}</td>
             <td>
                 <span id="created_by_display_{{ $installment->id }}">{{ $installment->created_by ? \App\Models\User::find($installment->created_by)->name :''}}</span>
@@ -120,7 +135,7 @@
         </tr>
         @empty
         <tr>
-            <td colspan="8" class="text-center text-muted py-4">
+            <td colspan="9" class="text-center text-muted py-4">
                 <i class="fa fa-info-circle me-2"></i>
                 No installment plans found. <br>
                 <small>Click "Create Installment Plan" to get started.</small>
@@ -241,6 +256,12 @@
         document.getElementById('amount_input_' + installmentId).classList.remove('d-none');
         document.getElementById('amount_input_' + installmentId).focus();
         document.getElementById('amount_input_' + installmentId).select();
+    }
+
+    function editNarration(installmentId) {
+        document.getElementById('narration_display_' + installmentId).classList.add('d-none');
+        document.getElementById('narration_input_' + installmentId).classList.remove('d-none');
+        document.getElementById('narration_input_' + installmentId).focus();
     }
 
     // Save functions - hide input and save data
@@ -446,6 +467,43 @@
         amountDisplay.classList.remove('d-none');
     }
 
+    function saveNarration(installmentId) {
+        const narrationInput = document.getElementById('narration_input_' + installmentId);
+        const narrationDisplay = document.getElementById('narration_display_' + installmentId);
+        const newValue = (narrationInput.value || '').trim();
+        const originalValue = narrationInput.getAttribute('data-original') || '';
+
+        if (newValue !== originalValue.trim()) {
+            Swal.fire({
+                title: 'Update Narration?',
+                text: 'Are you sure you want to update narration?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, update it',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#6c757d'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
+                        'installment_id': installmentId,
+                        'field': 'narration',
+                        'value': newValue,
+                        'update_subsequent': false
+                    });
+                } else {
+                    narrationInput.value = originalValue;
+                    narrationInput.classList.add('d-none');
+                    narrationDisplay.classList.remove('d-none');
+                }
+            });
+            return;
+        }
+
+        narrationInput.classList.add('d-none');
+        narrationDisplay.classList.remove('d-none');
+    }
+
     function submitForm(action, data) {
         try {
             const form = document.createElement('form');
@@ -547,6 +605,7 @@
         const dateInputs = document.querySelectorAll('[id^="date_input_"]');
         const billingInputs = document.querySelectorAll('[id^="billing_input_"]');
         const amountInputs = document.querySelectorAll('[id^="amount_input_"]');
+        const narrationInputs = document.querySelectorAll('[id^="narration_input_"]');
 
         dateInputs.forEach(input => {
             input.setAttribute('data-original', input.value);
@@ -573,6 +632,10 @@
             input.addEventListener('input', function() {
                 validateAmountInput(this);
             });
+        });
+
+        narrationInputs.forEach(input => {
+            input.setAttribute('data-original', input.value || '');
         });
     });
 

@@ -16,11 +16,13 @@ class visa_installment_plan extends BaseModel
 
     protected $fillable = [
         'date',
+        'branch_id',
         'billing_month',
         'rider_id',
         'amount',
         'total_amount',
         'reference_number',
+        'narration',
         'status',
         'created_by',
         'updated_by',

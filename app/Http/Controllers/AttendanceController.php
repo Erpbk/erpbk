@@ -148,6 +148,7 @@ class AttendanceController extends Controller
         } else {
             $riders = Riders::all();
         }
+
         return view('attendance.edit', compact('attendance', 'refType', 'employees', 'riders'));
     }
 

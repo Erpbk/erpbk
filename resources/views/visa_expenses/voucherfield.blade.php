@@ -35,7 +35,7 @@ $visaStatuses = DB::table('visa_statuses')->where('is_active', 1)->orderBy('disp
 </div>
 <div class="form-group col-sm-6">
     <label class="readonly">Debit Account:</label>
-    <select class="form-control select select2" id="rider_id" name="rider_id" readonly>
+    <select class="form-control select select2" id="expense_account_id" name="expense_account_id" readonly>
         <option value=""></option>
         <option value="{{ \App\Helpers\HeadAccount::VISA_EXPENSE_ACCOUNT }}" selected>{{ DB::table('accounts')->where('id', \App\Helpers\HeadAccount::VISA_EXPENSE_ACCOUNT)->first()->name }}</option>
     </select>
@@ -45,21 +45,15 @@ $visaStatuses = DB::table('visa_statuses')->where('is_active', 1)->orderBy('disp
     <select class="form-control" id="account_id" name="account" required>
         <option value=""></option>
         @php
-        $bank = DB::table('accounts')->where('name', 'Bank')->first();
-        $cash = DB::table('accounts')->where('name', 'Cash in Hand')->first();
-        $recruiters = DB::table('accounts')->where('name', 'Recruiters')->first();
-
+        $bank = DB::table('accounts')->where('name', 'cash & bank')->first();
         $parentIds = [];
         if ($bank) $parentIds[] = $bank->id;
-        if ($cash) $parentIds[] = $cash->id;
-        if ($recruiters) $parentIds[] = $recruiters->id;
         @endphp
 
         @foreach(DB::table('accounts')
         ->where('status', 1)
         ->where(function($query) use ($parentIds) {
-        $query->whereIn('parent_id', $parentIds)
-        ->orWhere('id', 2172);
+        $query->whereIn('parent_id', $parentIds);
         })
         ->orderBy('id', 'asc')
         ->get() as $acc)
@@ -78,7 +72,7 @@ $visaStatuses = DB::table('visa_statuses')->where('is_active', 1)->orderBy('disp
 <!-- Amount Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('amount', 'Amount:', ['class' => 'readonly']) !!}
-    {!! Form::text('', '{{ \App\Helpers\Currency::code() }} ' . number_format($data->amount, 2), ['class' => 'form-control', 'readonly']) !!}
+    {!! Form::text('', \App\Helpers\Currency::code() . ' ' . number_format((float) $data->amount, 2), ['class' => 'form-control', 'readonly']) !!}
 </div>
 
 

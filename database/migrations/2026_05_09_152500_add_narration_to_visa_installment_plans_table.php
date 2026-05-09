@@ -12,23 +12,21 @@ return new class extends Migration
             return;
         }
 
-        Schema::table('visa_installment_plans', function (Blueprint $table) {
-            if (!Schema::hasColumn('visa_installment_plans', 'narration')) {
+        if (!Schema::hasColumn('visa_installment_plans', 'narration')) {
+            Schema::table('visa_installment_plans', function (Blueprint $table) {
                 $table->text('narration')->nullable()->after('reference_number');
-            }
-        });
+            });
+        }
     }
 
     public function down(): void
     {
-        if (!Schema::hasTable('visa_installment_plans')) {
+        if (!Schema::hasTable('visa_installment_plans') || !Schema::hasColumn('visa_installment_plans', 'narration')) {
             return;
         }
 
         Schema::table('visa_installment_plans', function (Blueprint $table) {
-            if (Schema::hasColumn('visa_installment_plans', 'narration')) {
-                $table->dropColumn('narration');
-            }
+            $table->dropColumn('narration');
         });
     }
 };

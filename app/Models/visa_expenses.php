@@ -23,6 +23,7 @@ class visa_expenses extends BaseModel
         'rider_id',
         'visa_status',
         'detail',
+        'branch_id',
         'reference_number',
         'billing_month',
         'amount',
@@ -41,7 +42,8 @@ class visa_expenses extends BaseModel
         'amount' => 'required|numeric',
         'payment_status' => 'nullable|numeric',
         'created_at' => 'nullable',
-        'updated_at' => 'nullable'
+        'updated_at' => 'nullable',
+        'branch_id' => 'nullable',
     ];
     public function rider()
     {

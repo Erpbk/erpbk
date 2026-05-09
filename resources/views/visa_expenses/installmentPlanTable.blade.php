@@ -71,8 +71,8 @@
                     onblur="saveAmount({{ $installment->id }})"
                     onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }})">
             </td>
-            <td>
-                <span id="narration_display_{{ $installment->id }}">{{ $installment->narration ?: '-' }}</span>
+            <td class="text-start" style="min-width: 260px;">
+                <span id="narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
                 @can('visaloan_edit')
                 <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
@@ -80,7 +80,7 @@
                 @endcan
                 <input type="text"
                     id="narration_input_{{ $installment->id }}"
-                    value="{{ $installment->narration }}"
+                    value="{{ $installment->transaction_narration_plain }}"
                     class="form-control form-control-sm d-none"
                     onblur="saveNarration({{ $installment->id }})"
                     onkeypress="if(event.keyCode==13) saveNarration({{ $installment->id }})">
@@ -262,6 +262,7 @@
         document.getElementById('narration_display_' + installmentId).classList.add('d-none');
         document.getElementById('narration_input_' + installmentId).classList.remove('d-none');
         document.getElementById('narration_input_' + installmentId).focus();
+        document.getElementById('narration_input_' + installmentId).select();
     }
 
     // Save functions - hide input and save data
@@ -470,38 +471,21 @@
     function saveNarration(installmentId) {
         const narrationInput = document.getElementById('narration_input_' + installmentId);
         const narrationDisplay = document.getElementById('narration_display_' + installmentId);
-        const newValue = (narrationInput.value || '').trim();
-        const originalValue = narrationInput.getAttribute('data-original') || '';
+        const newValue = narrationInput.value.trim();
+        const originalValue = (narrationInput.getAttribute('data-original') || '').trim();
 
-        if (newValue !== originalValue.trim()) {
-            Swal.fire({
-                title: 'Update Narration?',
-                text: 'Are you sure you want to update narration?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Yes, update it',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#6c757d'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
-                        'installment_id': installmentId,
-                        'field': 'narration',
-                        'value': newValue,
-                        'update_subsequent': false
-                    });
-                } else {
-                    narrationInput.value = originalValue;
-                    narrationInput.classList.add('d-none');
-                    narrationDisplay.classList.remove('d-none');
-                }
-            });
+        if (newValue === originalValue) {
+            narrationInput.classList.add('d-none');
+            narrationDisplay.classList.remove('d-none');
             return;
         }
 
-        narrationInput.classList.add('d-none');
-        narrationDisplay.classList.remove('d-none');
+        submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
+            'installment_id': installmentId,
+            'field': 'narration',
+            'value': newValue,
+            'update_subsequent': false
+        });
     }
 
     function submitForm(action, data) {
@@ -635,7 +619,7 @@
         });
 
         narrationInputs.forEach(input => {
-            input.setAttribute('data-original', input.value || '');
+            input.setAttribute('data-original', input.value);
         });
     });
 

@@ -8,7 +8,8 @@ $fin_detail = $voucher->voucher_type === 'RFV' ? \DB::table('rta_fines')->where(
 $settings = \DB::table('settings')->pluck('value', 'name')->toArray();
 @endphp
 <div class="voucher-modal-content">
-  {{-- Action bar: Published ribbon, Edit, PDF/Print, etc. --}}
+  {{-- Action bar: Published ribbon, Edit, PDF/Print, etc. (hidden when embedded e.g. visa expense payment-account edit) --}}
+  @if(empty($visaCreditEditEmbed))
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
     <div class="d-flex align-items-center gap-2">
       <span class="badge bg-label-success">Published</span>
@@ -39,6 +40,7 @@ $settings = \DB::table('settings')->pluck('value', 'name')->toArray();
       <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-arrow-right  me-1"></i> Email</a>
     </div>
   </div>
+  @endif
 
   {{-- Company info (compact) --}}
   <div class="mb-3">

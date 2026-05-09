@@ -274,7 +274,7 @@ if(isset($riders)){
 $result = $riders->toArray();
 }
 if(isset($result)){
-$account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_type', 'expense')->first();
+$account = App\Models\ExpenseAccount::where('rider_id', $result['id'])->first();
 }
 $companySlug = request()->route('company_slug');
 
@@ -572,7 +572,7 @@ $companySlug = request()->route('company_slug');
                 @endcan
 
                 @can('visaexpense_view')
-                @if(!empty($account))
+                @if(!empty($riders))
                 <li class="nav-item nav-priority-5">
                   <a class="nav-link @if(Route::is('VisaExpense.generatentries')) active @endif"
                     href="{{ route('VisaExpense.generatentries', optional($account)->id) }}">

@@ -1,6 +1,7 @@
 @push('third_party_stylesheets')
 @endpush
-<table class="table table-striped dataTable no-footer" id="dataTableBuilder">
+<div id="visa-expenses-inline-edit-scope">
+<table class="table table-striped dataTable no-footer" id="visaExpensesDataTable">
    <thead class="text-center">
       <tr role="row">
          <th title="Transation Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Transation Date: activate to sort column ascending">Billing Month</th>
@@ -44,7 +45,7 @@
               >
          </td>
          <td>
-            <span id="voucher_ids_display_{{ $r->id }}">
+            <span id="voucher_ids_display_{{ $r->id }}" class="d-inline-flex flex-wrap align-items-center justify-content-center gap-1">
                @if($r->payment_status === 'paid')
                @if($r->vouchers->isNotEmpty())
                @foreach($r->vouchers as $voucher)
@@ -53,6 +54,16 @@
                @endphp
                <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucherNumber }}</a>@if(!$loop->last), @endif
                @endforeach
+               @can('visaexpense_edit')
+               <a href="javascript:void(0);"
+                  class="show-modal text-body-secondary"
+                  data-size="xl"
+                  data-title="Edit payment account — {{ $r->vouchers->first()->voucher_type ?? 'LV' }}-{{ str_pad((string) ($r->vouchers->first()->id ?? 0), 4, '0', STR_PAD_LEFT) }}"
+                  data-action="{{ route('VisaExpense.editVoucherCreditForm', $r->id) }}"
+                  title="Change credit / payment account only">
+                  <i class="fa fa-edit text-primary"></i>
+               </a>
+               @endcan
                @else
                <span class="text-muted">No voucher</span>
                @endif
@@ -117,10 +128,17 @@
 @if(method_exists($data, 'links'))
 {!! $data->links('components.global-pagination') !!}
 @endif
+</div>
 <script>
+   function visaInlineScope() {
+      return document.getElementById('visa-expenses-inline-edit-scope');
+   }
+
    function editVisaField(id, field) {
-      var input = document.getElementById(field + '_input_' + id);
-      var display = document.getElementById(field + '_display_' + id);
+      var scope = visaInlineScope();
+      if (!scope) return;
+      var input = scope.querySelector('#' + field + '_input_' + id);
+      var display = scope.querySelector('#' + field + '_display_' + id);
       if (!input || !display) return;
       display.classList.add('d-none');
       input.classList.remove('d-none');
@@ -129,9 +147,11 @@
    }
 
    function saveVisaInline(id) {
-      var amountInput = document.getElementById('amount_input_' + id);
-      var dateInput = document.getElementById('date_input_' + id);
-      var billingInput = document.getElementById('billing_input_' + id);
+      var scope = visaInlineScope();
+      if (!scope) return;
+      var amountInput = scope.querySelector('#amount_input_' + id);
+      var dateInput = scope.querySelector('#date_input_' + id);
+      var billingInput = scope.querySelector('#billing_input_' + id);
       if (!amountInput || !dateInput || !billingInput) return;
 
       var amount = amountInput.value;
@@ -157,15 +177,20 @@
          return res.json();
       }).then(function(data) {
          if (!data.success) throw new Error(data.message || 'Update failed');
-         document.getElementById('amount_display_' + id).textContent = data.amount;
+         var scope = visaInlineScope();
+         if (!scope) return;
+         var amountDisp = scope.querySelector('#amount_display_' + id);
+         var dateDisp = scope.querySelector('#date_display_' + id);
+         var billDisp = scope.querySelector('#billing_display_' + id);
+         if (amountDisp) amountDisp.textContent = data.amount;
          var d = new Date(data.date);
-         document.getElementById('date_display_' + id).textContent = d.toLocaleDateString('en-GB', {
+         if (dateDisp) dateDisp.textContent = d.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: 'short',
             year: 'numeric'
          });
          var bm = new Date(data.billing_month + '-01');
-         document.getElementById('billing_display_' + id).textContent = bm.toLocaleDateString('en-US', {
+         if (billDisp) billDisp.textContent = bm.toLocaleDateString('en-US', {
             month: 'short',
             year: 'numeric'
          });
@@ -174,9 +199,11 @@
             Swal.fire({ icon: 'error', title: 'Error', text: 'Could not update entry.' });
          }
       }).finally(function() {
+         var scope = visaInlineScope();
+         if (!scope) return;
          ['amount', 'date', 'billing'].forEach(function(field) {
-            var input = document.getElementById(field + '_input_' + id);
-            var display = document.getElementById(field + '_display_' + id);
+            var input = scope.querySelector('#' + field + '_input_' + id);
+            var display = scope.querySelector('#' + field + '_display_' + id);
             if (input && display) {
                input.classList.add('d-none');
                display.classList.remove('d-none');
@@ -193,14 +220,14 @@
 
    document.addEventListener('blur', function(e) {
       var input = e.target.closest('[id^="amount_input_"], [id^="date_input_"], [id^="billing_input_"]');
-      if (!input) return;
+      if (!input || !input.closest('#visa-expenses-inline-edit-scope')) return;
       var id = (input.id.split('_').pop() || '').trim();
       if (id) saveVisaInline(id);
    }, true);
 
    document.addEventListener('keydown', function(e) {
       var input = e.target.closest('[id^="amount_input_"], [id^="date_input_"], [id^="billing_input_"]');
-      if (!input || e.key !== 'Enter') return;
+      if (!input || !input.closest('#visa-expenses-inline-edit-scope') || e.key !== 'Enter') return;
       e.preventDefault();
       var id = (input.id.split('_').pop() || '').trim();
       if (id) saveVisaInline(id);

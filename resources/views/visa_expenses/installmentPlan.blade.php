@@ -1,6 +1,7 @@
 @extends('riders.view')
 @section('title','Visa installment plan')
 @section('page_content')
+
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
@@ -16,8 +17,11 @@
                 </a>
                 @endcan
                 @if($data->count() > 0)
-                <a href="{{ route('VisaExpense.generateInstallmentInvoice', $account->id) }}"
-                    class="btn btn-info action-btn mx-2 " target="_blank">
+                <a href="javascript:void(0);"
+                    class="btn btn-info action-btn mx-2 show-modal"
+                    data-action="{{ route('VisaExpense.generateInstallmentInvoice', ['riderId' => $account->id ?? request()->route('id')]) }}"
+                    data-size="xl"
+                    data-title="Installment plan invoice">
                     <i class="fa fa-file-invoice me-2"></i>Invoice
                 </a>
                 @endif

@@ -60,7 +60,6 @@ class RiderCustomField extends BaseModel
     private static function removedRiderColumns(): array
     {
         return [
-            'branch_id',
             'company_id',
             'account_id',
             'courier_id',
@@ -408,6 +407,7 @@ class RiderCustomField extends BaseModel
             'recuriter' => ['type' => 'text'],
             'shift' => ['type' => 'text'],
             'attendance' => ['type' => 'text'],
+            'branch_id' => ['type' => 'select', 'dropdown' => 'branch', 'required' => true],
             'vat' => ['type' => 'checkbox'],
             'person_code' => ['type' => 'text', 'maxlength' => 50],
             'labor_card_number' => ['type' => 'text', 'maxlength' => 100],

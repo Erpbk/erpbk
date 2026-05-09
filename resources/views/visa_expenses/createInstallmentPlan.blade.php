@@ -1,18 +1,31 @@
 <form action="{{ route('VisaExpense.createInstallmentPlan') }}" method="POST" id="installmentPlanForm">
     @csrf
-    <input type="hidden" name="rider_id" value="{{ $account->id }}">
-
+    @php
+    $riderBranch = DB::table('riders')->where('id', $account->rider_id)->first();
+    $branch = DB::table('branches')->where('id', $riderBranch->branch_id)->first();
+    @endphp
+    <input type="hidden" name="rider_id" value="{{ $account->rider_id }}">
+    <input type="hidden" name="branch_id" value="{{ $branch->id }}">
     <div class="modal-body">
         <div class="row">
             <div class="col-md-12 mb-3">
                 <div class="card bg-light">
                     <div class="card-body">
-                        <h6 class="card-title">Rider Information</h6>
-                        <p><strong>Name:</strong> {{ $account->name }}</p>
+                        <div class="row">
+
+                            <div class="col-md-6">
+                                <h6>Rider Information</h6>
+                                <p><strong>Name:</strong> {{ $account->name }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Rider Branch</h6>
+                                <p><strong>Branch Name:</strong>{{ $branch->name }} - {{ $branch->code }}</p>
+                            </div>
+                        </div>
 
                         @php
                         $currentMonth = \Carbon\Carbon::now()->format('Y-m');
-                        $existingCurrentMonthPlan = \App\Models\visa_installment_plan::where('rider_id', $account->id)
+                        $existingCurrentMonthPlan = \App\Models\visa_installment_plan::where('rider_id', $account->rider_id)
                         ->where('billing_month', $currentMonth)
                         ->exists();
                         @endphp
@@ -362,11 +375,16 @@
                 @endif
             }
 
-            // Validate that all installments sum to total amount
+            // Validate that all installments sum to total amount.
+            // Allow tiny rounding drift and auto-fix it on the last installment.
             const currentTotal = installmentAmounts.reduce((sum, amount) => sum + amount, 0);
             const remainingBalance = totalAmountValue - currentTotal;
+            const roundedDifference = Math.round(remainingBalance * 100) / 100;
 
-            if (Math.abs(remainingBalance) > 0.01) {
+            if (Math.abs(roundedDifference) <= 0.05 && installmentAmounts.length > 0) {
+                const lastIndex = installmentAmounts.length - 1;
+                installmentAmounts[lastIndex] = Math.round((installmentAmounts[lastIndex] + roundedDifference) * 100) / 100;
+            } else if (Math.abs(roundedDifference) > 0.05) {
                 e.preventDefault();
                 alert('The sum of all installments must equal the total amount. Please adjust the installment amounts.');
                 return false;

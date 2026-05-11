@@ -4,12 +4,12 @@
    <table class="table table-striped dataTable no-footer" id="visaExpensesDataTable">
       <thead class="text-center">
          <tr role="row">
-            <th title="Transation Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Transation Date: activate to sort column ascending">Billing Month</th>
             <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
-            <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
-            <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Amount</th>
+            <th title="Transation Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Transation Date: activate to sort column ascending">Billing Month</th>
             <th title="Visa Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Visa Status: activate to sort column ascending" aria-sort="descending">Visa Status</th>
-            <th title-"expiry date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="expiry date: activate to sort column ascending">Expiry Date</th>
+            <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Amount</th>
+            <th title="expiry date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="expiry date: activate to sort column ascending">Expiry Date</th>
+            <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
             <th title="Payment Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Payment Status: activate to sort column ascending" aria-sort="descending">Payment Status</th>
             <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
          </tr>
@@ -17,6 +17,19 @@
       <tbody>
          @foreach($data as $r)
          <tr class="text-center" data-row-id="{{ $r->id }}">
+            <td>
+               <span id="date_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
+               @can('visaexpense_edit')
+               <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="date">
+                  <i class="fa fa-edit text-primary"></i>
+               </a>
+               @endcan
+               <input
+                  type="date"
+                  id="date_input_{{ $r->id }}"
+                  value="{{ \Carbon\Carbon::parse($r->date)->format('Y-m-d') }}"
+                  class="form-control form-control-sm d-none">
+            </td>
             <td>
                <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
                @can('visaexpense_edit')
@@ -31,17 +44,25 @@
                   class="form-control form-control-sm d-none">
             </td>
             <td>
-               <span id="date_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
+               <span class="badge bg-primary">{{ $r->visa_status }}</span>
+            </td>
+            <td>
+               <span id="amount_display_{{ $r->id }}">{{ number_format((float) $r->amount, 2) }}</span>
                @can('visaexpense_edit')
-               <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="date">
+               <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="amount">
                   <i class="fa fa-edit text-primary"></i>
                </a>
                @endcan
                <input
-                  type="date"
-                  id="date_input_{{ $r->id }}"
-                  value="{{ \Carbon\Carbon::parse($r->date)->format('Y-m-d') }}"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  id="amount_input_{{ $r->id }}"
+                  value="{{ number_format((float) $r->amount, 2, '.', '') }}"
                   class="form-control form-control-sm d-none">
+            </td>
+            <td>
+               <span id="expiry_date_display_{{ $r->id }}"></span>
             </td>
             <td>
                <span id="voucher_ids_display_{{ $r->id }}" class="d-inline-flex flex-wrap align-items-center justify-content-center gap-1">
@@ -70,27 +91,6 @@
                   <span class="text-muted">-</span>
                   @endif
                </span>
-            </td>
-            <td>
-               <span id="amount_display_{{ $r->id }}">{{ number_format((float) $r->amount, 2) }}</span>
-               @can('visaexpense_edit')
-               <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="amount">
-                  <i class="fa fa-edit text-primary"></i>
-               </a>
-               @endcan
-               <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  id="amount_input_{{ $r->id }}"
-                  value="{{ number_format((float) $r->amount, 2, '.', '') }}"
-                  class="form-control form-control-sm d-none">
-            </td>
-            <td>
-               <span class="badge bg-primary">{{ $r->visa_status }}</span>
-            </td>
-            <td>
-               <span id="expiry_date_display_{{ $r->id }}"></span>
             </td>
             <td>
                @if($r->payment_status == 'paid')

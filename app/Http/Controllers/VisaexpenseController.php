@@ -22,6 +22,7 @@ use App\Models\ExpenseAccount;
 use App\Repositories\VisaExpensesRepository;
 use App\Services\TransactionService;
 use App\Support\CompanyAuthRedirect;
+use App\Support\CompanyContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
@@ -89,18 +90,71 @@ class VisaexpenseController extends AppBaseController
             });
         }
 
+        $visaStatusFilterModel = null;
+        if ($request->filled('visa_status_id')) {
+            $visaStatusFilterModel = VisaStatus::find($request->visa_status_id);
+        }
+
+        $sliderBaseQuery = clone $query;
+
+        $visaStatuses = VisaStatus::query()
+            ->where('is_active', 1)
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $visaStatusSliderCounts = [];
+        foreach ($visaStatuses as $vsRow) {
+            $visaStatusSliderCounts[$vsRow->id] = [
+                'paid' => (clone $sliderBaseQuery)->tap(function ($q) use ($vsRow) {
+                    $this->applyExpenseAccountMatchesVisaExpense($q, function ($sub) use ($vsRow) {
+                        $sub->where('ve.visa_status', $vsRow->name)->where('ve.payment_status', 'paid');
+                    });
+                })->count(),
+                'unpaid' => (clone $sliderBaseQuery)->tap(function ($q) use ($vsRow) {
+                    $this->applyExpenseAccountMatchesVisaExpense($q, function ($sub) use ($vsRow) {
+                        $sub->where('ve.visa_status', $vsRow->name)->where('ve.payment_status', 'unpaid');
+                    });
+                })->count(),
+            ];
+        }
+
         if ($request->filled('payment_status')) {
             $status = $request->payment_status;
-            if ($status === 'paid') {
-                $query->whereHas('visaExpenses')
-                    ->whereDoesntHave('visaExpenses', function ($q) {
-                        $q->where('payment_status', 'unpaid');
-                    });
-            } elseif ($status === 'unpaid') {
-                $query->whereHas('visaExpenses', function ($q) {
-                    $q->where('payment_status', 'unpaid');
+            if ($visaStatusFilterModel && in_array($status, ['paid', 'unpaid'], true)) {
+                $this->applyExpenseAccountMatchesVisaExpense($query, function ($sub) use ($visaStatusFilterModel, $status) {
+                    $sub->where('ve.visa_status', $visaStatusFilterModel->name)
+                        ->where('ve.payment_status', $status);
                 });
+            } elseif (!$visaStatusFilterModel) {
+                if ($status === 'paid') {
+                    $this->applyExpenseAccountMatchesVisaExpense($query, function ($sub) {
+                        $sub->whereRaw('1 = 1');
+                    });
+                    $query->whereNotExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('visa_expenses as ve')
+                            ->whereNull('ve.deleted_at')
+                            ->where('ve.payment_status', 'unpaid')
+                            ->where(function ($link) {
+                                $link->whereColumn('ve.expense_account_id', 'expense_accounts.id')
+                                    ->orWhere(function ($l2) {
+                                        $l2->where('ve.expense_account_id', HeadAccount::VISA_EXPENSE_ACCOUNT)
+                                            ->whereColumn('ve.rider_id', 'expense_accounts.rider_id');
+                                    });
+                            });
+                        $this->applyVisaExpenseCompanyScopeForVeAlias($sub);
+                    });
+                } elseif ($status === 'unpaid') {
+                    $this->applyExpenseAccountMatchesVisaExpense($query, function ($sub) {
+                        $sub->where('ve.payment_status', 'unpaid');
+                    });
+                }
             }
+        } elseif ($visaStatusFilterModel) {
+            $this->applyExpenseAccountMatchesVisaExpense($query, function ($sub) use ($visaStatusFilterModel) {
+                $sub->where('ve.visa_status', $visaStatusFilterModel->name);
+            });
         }
 
         $statsQuery = clone $query;
@@ -114,9 +168,12 @@ class VisaexpenseController extends AppBaseController
             'unpaid_amount' => $visaAccounts->where('payment_status', 'unpaid')->sum('amount'),
         ];
 
+        $nextUnpaidVisaByAccountId = $this->mapNextUnpaidVisaExpensesForPage($data);
+
         if ($request->ajax()) {
             $tableData = view('visa_expenses.account_table', [
                 'data' => $data,
+                'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId,
             ])->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
@@ -132,8 +189,112 @@ class VisaexpenseController extends AppBaseController
             'riders' => $riders,
             'stats' => $stats,
             'riderIds' => $expenseAccountIds,
+            'visaStatuses' => $visaStatuses,
+            'visaStatusSliderCounts' => $visaStatusSliderCounts,
+            'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId,
         ]);
     }
+
+    /**
+     * Earliest unpaid visa expense per expense account on this results page (one query).
+     *
+     * @param  \Illuminate\Contracts\Pagination\Paginator|\Illuminate\Support\Collection|array  $paginatorOrCollection
+     * @return array<int, \App\Models\visa_expenses>
+     */
+    private function mapNextUnpaidVisaExpensesForPage($paginatorOrCollection): array
+    {
+        $items = $paginatorOrCollection instanceof \Illuminate\Contracts\Pagination\Paginator
+            ? collect($paginatorOrCollection->items())
+            : collect($paginatorOrCollection);
+
+        if ($items->isEmpty()) {
+            return [];
+        }
+
+        $ids = $items->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $riderToEaId = [];
+        foreach ($items as $accountRow) {
+            if ($accountRow->rider_id !== null) {
+                $riderToEaId[(int) $accountRow->rider_id] = (int) $accountRow->id;
+            }
+        }
+
+        $headId = (int) HeadAccount::VISA_EXPENSE_ACCOUNT;
+
+        $unpaidRows = visa_expenses::query()
+            ->where('payment_status', 'unpaid')
+            ->where(function ($q) use ($ids, $riderToEaId, $headId) {
+                $q->whereIn('expense_account_id', $ids)
+                    ->orWhere(function ($q2) use ($riderToEaId, $headId) {
+                        $q2->where('expense_account_id', $headId)
+                            ->whereIn('rider_id', array_keys($riderToEaId));
+                    });
+            })
+            ->orderByRaw('CASE WHEN date IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('date', 'asc')
+            ->orderBy('billing_month', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $nextByEaId = [];
+        foreach ($unpaidRows as $ve) {
+            $eaId = null;
+            $veEa = (int) $ve->expense_account_id;
+            if (in_array($veEa, $ids, true)) {
+                $eaId = $veEa;
+            } elseif ($veEa === $headId && $ve->rider_id !== null) {
+                $rid = (int) $ve->rider_id;
+                if (isset($riderToEaId[$rid])) {
+                    $eaId = $riderToEaId[$rid];
+                }
+            }
+            if ($eaId === null || isset($nextByEaId[$eaId])) {
+                continue;
+            }
+            $nextByEaId[$eaId] = $ve;
+        }
+
+        return $nextByEaId;
+    }
+
+    /**
+     * Correlate visa_expenses to expense_accounts the same way as generatentries:
+     * direct expense_account_id = expense_accounts.id, or legacy head-account id + rider match.
+     */
+    private function applyExpenseAccountMatchesVisaExpense($expenseAccountQuery, callable $constraintsOnVeSubquery): void
+    {
+        $headId = HeadAccount::VISA_EXPENSE_ACCOUNT;
+        $expenseAccountQuery->whereExists(function ($sub) use ($constraintsOnVeSubquery, $headId) {
+            $sub->select(DB::raw(1))
+                ->from('visa_expenses as ve')
+                ->whereNull('ve.deleted_at')
+                ->where(function ($link) use ($headId) {
+                    $link->whereColumn('ve.expense_account_id', 'expense_accounts.id')
+                        ->orWhere(function ($l2) use ($headId) {
+                            $l2->where('ve.expense_account_id', $headId)
+                                ->whereColumn('ve.rider_id', 'expense_accounts.rider_id');
+                        });
+                });
+            $constraintsOnVeSubquery($sub);
+            $this->applyVisaExpenseCompanyScopeForVeAlias($sub);
+        });
+    }
+
+    private function applyVisaExpenseCompanyScopeForVeAlias($subquery): void
+    {
+        if (!Schema::hasColumn((new visa_expenses)->getTable(), 'company_id')) {
+            return;
+        }
+        if (!CompanyContext::shouldApplyScope()) {
+            return;
+        }
+        $cid = CompanyContext::id();
+        if ($cid === null) {
+            return;
+        }
+        $subquery->where('ve.company_id', $cid);
+    }
+
     public function accountcreate(Request $request)
     {
         $request->validate([
@@ -2107,7 +2268,7 @@ class VisaexpenseController extends AppBaseController
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy($company_slug, string $id)
     {
         $visaExpenses = visa_expenses::find($id);
 

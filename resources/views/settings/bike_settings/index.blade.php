@@ -167,12 +167,18 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
                           </div>
                           @php
                           $selectedIds = collect((array)($selectedVisaExpenseTopStatusIds ?? []))->map(fn($id)=>(int)$id)->all();
-                          $selectedStatuses = collect($visaStatuses ?? collect())->filter(fn($s) => in_array((int)$s->id, $selectedIds, true));
+                          $selectedStatuses = collect($visaStatuses ?? collect())
+                            ->filter(fn($s) => in_array((int)$s->id, $selectedIds, true))
+                            ->sortBy(fn($s) => array_search((int)$s->id, $selectedIds, true))
+                            ->values();
                           @endphp
                           <ul class="list-group list-group-flush" id="visaExpenseTopSelectedList">
                             @forelse($selectedStatuses as $status)
                             <li class="list-group-item px-0 py-2 d-flex align-items-center justify-content-between" data-selected-id="{{ (int)$status->id }}">
                               <div class="d-flex align-items-center">
+                                <span class="visa-expense-top-drag-handle me-2 text-muted" title="Drag to sort" style="cursor: grab;">
+                                  <i class="ti ti-grip-vertical"></i>
+                                </span>
                                 <i class="ti ti-point-filled me-1 text-muted"></i>
                                 <span>{{ $status->name }}</span>
                                 <input type="hidden" name="status_ids[]" value="{{ (int)$status->id }}">
@@ -2500,6 +2506,18 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
         });
       }
       if (topList) {
+        if (typeof Sortable !== 'undefined') {
+          new Sortable(topList, {
+            handle: '.visa-expense-top-drag-handle',
+            draggable: 'li[data-selected-id]',
+            animation: 150,
+            ghostClass: 'table-warning',
+            onEnd: function() {
+              refreshVisaExpenseTopCount();
+              saveVisaExpenseTopAjax();
+            }
+          });
+        }
         topList.addEventListener('click', function(e) {
           var removeBtn = e.target.closest('.js-remove-visa-expense-top-option');
           if (!removeBtn) return;
@@ -2564,6 +2582,7 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
           li.setAttribute('data-selected-id', String(selectedId));
           li.innerHTML =
             '<div class="d-flex align-items-center">' +
+            '<span class="visa-expense-top-drag-handle me-2 text-muted" title="Drag to sort" style="cursor: grab;"><i class="ti ti-grip-vertical"></i></span>' +
             '<i class="ti ti-point-filled me-1 text-muted"></i>' +
             '<span>' + name + '</span>' +
             '<input type="hidden" name="status_ids[]" value="' + selectedId + '">' +

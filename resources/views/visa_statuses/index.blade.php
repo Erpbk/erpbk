@@ -185,67 +185,75 @@
 
     function deleteVisaStatusAjax(url, triggerBtn) {
         return fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ _method: 'DELETE' })
-        })
-        .then(function(response) {
-            return response.json().then(function(data) {
-                return { ok: response.ok, data: data };
-            }).catch(function() {            
-                 
-           
-                return { ok: response.ok, data: { success: false, message: 'Invalid server response.' } };
-               });  
-           })                     
-                                                               
-                                                  
-                         
-   
-            .then(function(result) {          
-                                        
-                   
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    _method: 'DELETE'
+                })
+            })
+            .then(function(response) {
+                return response.json().then(function(data) {
+                    return {
+                        ok: response.ok,
+                        data: data
+                    };
+                }).catch(function() {
+
+
+                    return {
+                        ok: response.ok,
+                        data: {
+                            success: false,
+                            message: 'Invalid server response.'
+                        }
+                    };
+                });
+            })
+
+
+
+
+            .then(function(result) {
+
+
                 if (!result.ok || !result.data || result.data.success !== true) {
-                    throw new Error((re
-s                       ult.data && resu
-     l              t.data.message) ? result.data.message : 'Delete failed.');
-            }       
-               var row  = triggerBtn ? triggerBtn.closest('tr[data-id]') : null;
-               if (row) {                           
-                                            
-                                                    
-                                   
-                  
-               
-                  row.remo  ve();       
-                                                
-                                                     
-      
+                    throw new Error((re s ult.data && resu l t.data.message) ? result.data.message : 'Delete failed.');
                 }
-              Swal.fire({   
-                  icon: 'succe  ss',
-                 title: 'Dele   ted',
+                var row = triggerBtn ? triggerBtn.closest('tr[data-id]') : null;
+                if (row) {
+
+
+
+
+
+                    row.remo ve();
+
+
+
+                }
+                Swal.fire({
+                    icon: 'succe  ss',
+                    title: 'Dele   ted',
                     text: result.data.message || 'Visa status deleted successfully.',
-                time    r: 1600,
-                   showConf irmButton: 
-     f                          alse          
-                                          
-                          
-                      
-               });  
-               retu rn result.data;
-          });    
-    }                              
-                                          
-                                           
-                           
-        
-    
+                    time r: 1600,
+                    showConf irmButton: f alse
+
+
+
+                });
+                retu rn result.data;
+            });
+    }
+
+
+
+
+
     function initSortable() {
         var tbody = document.getElementById('visa-statuses-tbody');
         if (!tbody || tbody.querySelectorAll('tr[data-id]').length === 0) return;
@@ -260,31 +268,56 @@ s                       ult.data && resu
             ghostClass: 'table-warning',
             onEnd: function(evt) {
                 var rows = tbody.querySelectorAll('tr[data-id]');
-                var order = Array.from(rows).map(function(row) { return row.getAttribute('data-id'); });
-                fetch(reorderUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
-                    body: JSON.stringify({ order: order })
-                })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (data.success) {
-                        var toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-                        toast.fire({ icon: 'success', title: 'Order saved.' });
-                        var idx = 1;
-                        rows.forEach(function(row) {
-                            var orderCell = row.cells[7];
-                            if (orderCell) orderCell.textContent = idx++;
-                        });
-                    } else
-                    {                          
-  
-                        Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not save order.' });
-                    }
-                })
-                .catch(function() {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'Could not save order.' });
+                var order = Array.from(rows).map(function(row) {
+                    return row.getAttribute('data-id');
                 });
+                fetch(reorderUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            order: order
+                        })
+                    })
+                    .then(function(r) {
+                        return r.json();
+                    })
+                    .then(function(data) {
+                        if (data.success) {
+                            var toast = Swal.mixin({
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 2000
+                            });
+                            toast.fire({
+                                icon: 'success',
+                                title: 'Order saved.'
+                            });
+                            var idx = 1;
+                            rows.forEach(function(row) {
+                                var orderCell = row.cells[7];
+                                if (orderCell) orderCell.textContent = idx++;
+                            });
+                        } else {
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message || 'Could not save order.'
+                            });
+                        }
+                    })
+                    .catch(function() {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Could not save order.'
+                        });
+                    });
             }
         });
     }
@@ -298,7 +331,7 @@ s                       ult.data && resu
             var deleteUrl = btn.getAttribute('data-delete-url') || '';
             if (!deleteUrl) return;
             Swal.fire({
-                           text: "You won't be able to revert this!",
+                text: "You won't be able to revert this!",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#3085d6',
@@ -339,7 +372,9 @@ s                       ult.data && resu
             $.ajax({
                 url: url,
                 type: 'GET',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
                 success: function(data) {
                     $('#table-data').html(data.tableData);
                     history.pushState(null, '', url);

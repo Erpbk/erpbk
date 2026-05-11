@@ -2,10 +2,13 @@
 <style>
    /* Soft emphasis — gentle border/shadow breathing, no harsh opacity flicker */
    @keyframes visa-next-unpaid-soft {
-      0%, 100% {
+
+      0%,
+      100% {
          border-color: rgba(234, 88, 90, 0.35);
          box-shadow: 0 0 0 0 rgba(234, 88, 90, 0);
       }
+
       50% {
          border-color: rgba(234, 88, 90, 0.55);
          box-shadow: 0 1px 8px rgba(234, 88, 90, 0.12);
@@ -82,7 +85,7 @@
          <td class="align-middle @if($nextUnpaid) visa-next-unpaid-cell @endif">
             @if($nextUnpaid)
             <a href="{{ route('VisaExpense.generatentries', $r->id) }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-start">
-               <span class="fw-semibold d-block text-body">{{ $nextUnpaid->visa_status ?? '—' }}</span>
+               <span class="fw-semibold d-block text-body text-center">{{ $nextUnpaid->visa_status ?? '—' }}</span>
                @if($nextWhen !== '')
                <span class="text-muted small">{{ $nextWhen }} · {{ \App\Helpers\Currency::symbol() }}{{ number_format((float) ($nextUnpaid->amount ?? 0), 2) }}</span>
                @endif

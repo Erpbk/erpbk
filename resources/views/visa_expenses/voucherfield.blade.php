@@ -68,7 +68,10 @@ $visaStatuses = DB::table('visa_statuses')->where('is_active', 1)->orderBy('disp
     <label class="required">Attachment</label>
     <input type="file" name="attach_file" class="form-control" required>
 </div>
-
+<div class="form-group col-sm-6">
+    <label class="required">Document Expiry Date:</label>
+    {!! Form::date('expiry_date', old('expiry_date', $data->expiry_date ?? null), ['class' => 'form-control' , 'required']) !!}
+</div>
 <!-- Amount Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('amount', 'Amount:', ['class' => 'readonly']) !!}

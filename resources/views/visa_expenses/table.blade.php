@@ -62,7 +62,21 @@
                   class="form-control form-control-sm d-none">
             </td>
             <td>
-               <span id="expiry_date_display_{{ $r->id }}"></span>
+               @if($r->expiry_date)
+               <span id="expiry_date_display_{{ $r->id }}">{{ $r->expiry_date ? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : '-' }}</span>
+               @can('visaexpense_edit')
+               <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="expiry_date">
+                  <i class="fa fa-edit text-primary"></i>
+               </a>
+               @endcan
+               <input
+                  type="date"
+                  id="expiry_date_input_{{ $r->id }}"
+                  value="{{ \Carbon\Carbon::parse($r->expiry_date)->format('Y-m-d') }}"
+                  class="form-control form-control-sm d-none">
+               @else
+               <span class="text-muted">-</span>
+               @endif
             </td>
             <td>
                <span id="voucher_ids_display_{{ $r->id }}" class="d-inline-flex flex-wrap align-items-center justify-content-center gap-1">

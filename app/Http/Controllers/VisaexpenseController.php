@@ -193,11 +193,13 @@ class VisaexpenseController extends AppBaseController
         ];
 
         $nextUnpaidVisaByAccountId = $this->mapNextUnpaidVisaExpensesForPage($data);
+        $urgentVisaExpiryByAccountId = $this->mapUrgentVisaExpiryForPage($data);
 
         if ($request->ajax()) {
             $tableData = view('visa_expenses.account_table', [
                 'data' => $data,
                 'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId,
+                'urgentVisaExpiryByAccountId' => $urgentVisaExpiryByAccountId,
             ])->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
@@ -216,6 +218,7 @@ class VisaexpenseController extends AppBaseController
             'visaStatuses' => $visaStatuses,
             'visaStatusSliderCounts' => $visaStatusSliderCounts,
             'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId,
+            'urgentVisaExpiryByAccountId' => $urgentVisaExpiryByAccountId,
         ]);
     }
 
@@ -279,6 +282,73 @@ class VisaexpenseController extends AppBaseController
         }
 
         return $nextByEaId;
+    }
+
+    /**
+     * Earliest visa expense with expiry_date on or before today + $withinDays (inclusive), per expense account on this page.
+     * Same account linkage as {@see mapNextUnpaidVisaExpensesForPage()}.
+     *
+     * @param  \Illuminate\Contracts\Pagination\Paginator|\Illuminate\Support\Collection|array  $paginatorOrCollection
+     * @return array<int, \App\Models\visa_expenses>
+     */
+    private function mapUrgentVisaExpiryForPage($paginatorOrCollection, int $withinDays = 10): array
+    {
+        if (!Schema::hasColumn((new visa_expenses)->getTable(), 'expiry_date')) {
+            return [];
+        }
+
+        $items = $paginatorOrCollection instanceof \Illuminate\Contracts\Pagination\Paginator
+            ? collect($paginatorOrCollection->items())
+            : collect($paginatorOrCollection);
+
+        if ($items->isEmpty()) {
+            return [];
+        }
+
+        $ids = $items->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $riderToEaId = [];
+        foreach ($items as $accountRow) {
+            if ($accountRow->rider_id !== null) {
+                $riderToEaId[(int) $accountRow->rider_id] = (int) $accountRow->id;
+            }
+        }
+
+        $headId = (int) HeadAccount::VISA_EXPENSE_ACCOUNT;
+        $threshold = now()->addDays($withinDays)->startOfDay();
+
+        $rows = visa_expenses::query()
+            ->whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<=', $threshold)
+            ->where(function ($q) use ($ids, $riderToEaId, $headId) {
+                $q->whereIn('expense_account_id', $ids)
+                    ->orWhere(function ($q2) use ($riderToEaId, $headId) {
+                        $q2->where('expense_account_id', $headId)
+                            ->whereIn('rider_id', array_keys($riderToEaId));
+                    });
+            })
+            ->orderBy('expiry_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $byEaId = [];
+        foreach ($rows as $ve) {
+            $eaId = null;
+            $veEa = (int) $ve->expense_account_id;
+            if (in_array($veEa, $ids, true)) {
+                $eaId = $veEa;
+            } elseif ($veEa === $headId && $ve->rider_id !== null) {
+                $rid = (int) $ve->rider_id;
+                if (isset($riderToEaId[$rid])) {
+                    $eaId = $riderToEaId[$rid];
+                }
+            }
+            if ($eaId === null || isset($byEaId[$eaId])) {
+                continue;
+            }
+            $byEaId[$eaId] = $ve;
+        }
+
+        return $byEaId;
     }
 
     /**
@@ -1895,8 +1965,13 @@ class VisaexpenseController extends AppBaseController
 
             if ($expense->payment_status == 'paid') {
                 $expense->payment_status = 'unpaid';
+                $expense->expiry_date = null;
             } else {
+                $request->validate([
+                    'expiry_date' => 'required|date',
+                ]);
                 $expense->payment_status = 'paid';
+                $expense->expiry_date = $request->expiry_date;
                 $payment_type_flag = match ($request->payment_type) {
                     'Liability' => 1,
                     'Asset' => 0,

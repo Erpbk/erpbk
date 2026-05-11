@@ -39,6 +39,46 @@
          border-color: rgba(234, 88, 90, 0.4);
       }
    }
+
+   /* Paid-document expiry within 10 days (or overdue) — amber alert, soft pulse */
+   @keyframes visa-expiry-alert-soft {
+
+      0%,
+      100% {
+         border-color: rgba(217, 119, 6, 0.4);
+         box-shadow: 0 0 0 0 rgba(217, 119, 6, 0);
+      }
+
+      50% {
+         border-color: rgba(217, 119, 6, 0.65);
+         box-shadow: 0 1px 8px rgba(217, 119, 6, 0.14);
+      }
+   }
+
+   .visa-expiry-alert-cell {
+      background: linear-gradient(90deg, rgba(254, 243, 199, 0.35), rgba(253, 230, 138, 0.2));
+   }
+
+   .visa-expiry-alert-blink {
+      padding: 0.25rem 0.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(217, 119, 6, 0.4);
+      background: rgba(255, 251, 235, 0.95);
+      animation: visa-expiry-alert-soft 2.6s ease-in-out infinite;
+      transition: border-color 0.3s ease;
+   }
+
+   .visa-expiry-alert-blink:hover {
+      border-color: rgba(217, 119, 6, 0.55);
+      animation-play-state: paused;
+   }
+
+   @media (prefers-reduced-motion: reduce) {
+      .visa-expiry-alert-blink {
+         animation: none;
+         border-color: rgba(217, 119, 6, 0.5);
+      }
+   }
 </style>
 @endpush
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
@@ -47,7 +87,8 @@
          <th>Rider ID</th>
          <th style="width: 220px;">Account Name</th>
          <th>Rider Status</th>
-         <th style="min-width: 160px;">Next Unpaid Expense</th>
+         <th>Next Unpaid Document</th>
+         <th>Expiry Document</th>s
          <th>Person Code</th>
          <th>Labour Card #</th>
          <th>Policy Number</th>
@@ -77,6 +118,15 @@
       $nextWhen = '';
       }
       }
+      $urgentExpiry = ($urgentVisaExpiryByAccountId ?? [])[$r->id] ?? null;
+      $urgentExpiryWhen = '';
+      if ($urgentExpiry && !empty($urgentExpiry->expiry_date)) {
+      try {
+      $urgentExpiryWhen = \Carbon\Carbon::parse($urgentExpiry->expiry_date)->format('d M Y');
+      } catch (\Throwable $e) {
+      $urgentExpiryWhen = '';
+      }
+      }
       @endphp
       <tr class="text-center">
          <td>{{ $r->rider->rider_id ?? '-' }}</td>
@@ -84,11 +134,21 @@
          <td><span class="badge {{ $badgeClass }}">{{ $hasActiveBike ? 'Active' : 'Inactive' }}</span></td>
          <td class="align-middle @if($nextUnpaid) visa-next-unpaid-cell @endif">
             @if($nextUnpaid)
-            <a href="{{ route('VisaExpense.generatentries', $r->id) }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-start">
+            <a href="{{ route('VisaExpense.generatentries', $r->id) }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-center">
                <span class="fw-semibold d-block text-body text-center">{{ $nextUnpaid->visa_status ?? '—' }}</span>
                @if($nextWhen !== '')
-               <span class="text-muted small">{{ $nextWhen }} · {{ \App\Helpers\Currency::symbol() }}{{ number_format((float) ($nextUnpaid->amount ?? 0), 2) }}</span>
+               <span class="text-muted small text-center">{{ \App\Helpers\Currency::symbol() }}{{ number_format((float) ($nextUnpaid->amount ?? 0), 2) }}</span>
                @endif
+            </a>
+            @else
+            <span class="text-muted">—</span>
+            @endif
+         </td>
+         <td class="align-middle @if($urgentExpiry && $urgentExpiryWhen !== '') visa-expiry-alert-cell @endif">
+            @if($urgentExpiry && $urgentExpiryWhen !== '')
+            <a href="{{ route('VisaExpense.generatentries', $r->id) }}" class="text-decoration-none text-body visa-expiry-alert-blink d-inline-block text-center" title="Visa document expiry within 10 days or overdue">
+               <span class="fw-semibold d-block text-body text-center">{{ $urgentExpiry->visa_status ?? '—' }}</span>
+               <span class="text-muted small d-block text-center">{{ $urgentExpiryWhen }}</span>
             </a>
             @else
             <span class="text-muted">—</span>

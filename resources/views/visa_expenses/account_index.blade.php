@@ -125,6 +125,7 @@
             @include('visa_expenses.account_table', [
                 'data' => $data,
                 'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId ?? [],
+                'urgentVisaExpiryByAccountId' => $urgentVisaExpiryByAccountId ?? [],
             ])
         </div>
     </div>

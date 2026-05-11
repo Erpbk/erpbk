@@ -19,6 +19,7 @@ use App\Models\visa_installment_plan;
 use App\Models\Transactions;
 use App\Models\VisaStatus;
 use App\Models\ExpenseAccount;
+use App\Models\Settings;
 use App\Repositories\VisaExpensesRepository;
 use App\Services\TransactionService;
 use App\Support\CompanyAuthRedirect;
@@ -97,11 +98,34 @@ class VisaexpenseController extends AppBaseController
 
         $sliderBaseQuery = clone $query;
 
-        $visaStatuses = VisaStatus::query()
-            ->where('is_active', 1)
-            ->orderBy('display_order')
-            ->orderBy('id')
-            ->get();
+        $visaTopEnabledRaw = (string) (Settings::query()
+            ->where('name', 'visa_expense_top_enabled')
+            ->value('value') ?? '1');
+        $visaTopEnabled = in_array(strtolower(trim($visaTopEnabledRaw)), ['1', 'true', 'yes', 'on'], true);
+
+        $selectedVisaTopIdsRaw = (string) (Settings::query()
+            ->where('name', 'visa_expense_top_status_ids')
+            ->value('value') ?? '');
+        $selectedVisaTopIds = collect(json_decode($selectedVisaTopIdsRaw, true))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $visaStatuses = collect();
+        if ($visaTopEnabled && !empty($selectedVisaTopIds)) {
+            $visaStatusesQuery = VisaStatus::query()
+                ->where('is_active', 1)
+                ->whereIn('id', $selectedVisaTopIds)
+                ->orderBy('display_order')
+                ->orderBy('id');
+            $visaStatuses = $visaStatusesQuery->get();
+            $statusOrderMap = array_flip($selectedVisaTopIds);
+            $visaStatuses = $visaStatuses
+                ->sortBy(fn ($status) => $statusOrderMap[(int) $status->id] ?? PHP_INT_MAX)
+                ->values();
+        }
 
         $visaStatusSliderCounts = [];
         foreach ($visaStatuses as $vsRow) {
@@ -211,7 +235,7 @@ class VisaexpenseController extends AppBaseController
             return [];
         }
 
-        $ids = $items->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $ids = $items->pluck('id')->map(static fn($id) => (int) $id)->all();
         $riderToEaId = [];
         foreach ($items as $accountRow) {
             if ($accountRow->rider_id !== null) {
@@ -295,7 +319,7 @@ class VisaexpenseController extends AppBaseController
         $subquery->where('ve.company_id', $cid);
     }
 
-    public function accountcreate(Request $request)
+    public function accountcreate(Request $request, $company_slug)
     {
         $request->validate([
             'rider_id' => 'required|exists:riders,id',
@@ -491,7 +515,7 @@ class VisaexpenseController extends AppBaseController
     /**
      * Show the form for creating a new resource.
      */
-    public function create($id)
+    public function create($company_slug, $id)
     {
         $data = ExpenseAccount::where('id', $id)->first();
         $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
@@ -553,7 +577,7 @@ class VisaexpenseController extends AppBaseController
         $accounts = ExpenseAccount::where('rider_id', $data->rider_id)->first();
         return view('visa_expenses.viewvoucher', compact('data', 'accounts'));
     }
-    public function installmentPlan(Request $request, $id)
+    public function installmentPlan(Request $request, $company_slug, $id)
     {
         // Debug session information
         \Log::info('InstallmentPlan Access Debug', [
@@ -616,7 +640,7 @@ class VisaexpenseController extends AppBaseController
         return view('visa_expenses.installmentPlan', compact('data', 'account'));
     }
 
-    public function createInstallmentPlanForm($company_slug, $riderId)
+    public function createInstallmentPlanForm(Request $request, $company_slug, $riderId)
     {
         if (!auth()->user()->hasPermissionTo('visaexpense_create')) {
             abort(403, 'Unauthorized action.');
@@ -646,7 +670,7 @@ class VisaexpenseController extends AppBaseController
         return view('visa_expenses.createInstallmentPlan', compact('account', 'existingCurrentMonthPlan'));
     }
 
-    public function createInstallmentPlan(Request $request)
+    public function createInstallmentPlan(Request $request, $company_slug)
     {
         if (!auth()->user()->hasPermissionTo('visaexpense_create')) {
             abort(403, 'Unauthorized action.');
@@ -1981,7 +2005,7 @@ class VisaexpenseController extends AppBaseController
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(string $company_slug, string $id)
     {
         //
     }
@@ -1989,7 +2013,7 @@ class VisaexpenseController extends AppBaseController
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(string $company_slug, string $id)
     {
         $visaExpenses = visa_expenses::find($id);
         $data = ExpenseAccount::where('id', $visaExpenses->expense_account_id ?? $visaExpenses->rider_id)->first();

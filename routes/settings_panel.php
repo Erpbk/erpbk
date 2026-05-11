@@ -159,6 +159,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::post('module-settings/{module}/documents', [App\Http\Controllers\ModuleSettingsController::class, 'storeDocumentType'])->name('settings-panel.module-settings.store-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::put('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'updateDocumentType'])->name('settings-panel.module-settings.update-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::delete('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'destroyDocumentType'])->name('settings-panel.module-settings.destroy-document-type')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/visa-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateVisaExpenseTop'])->name('settings-panel.module-settings.update-visa-expense-top')->where('module', '[A-Za-z0-9_-]+');
 
     // Module settings page + label update
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');

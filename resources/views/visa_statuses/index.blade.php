@@ -10,23 +10,32 @@
         max-width: 100%;
         height: 100%;
         background: #fff;
-        box-shadow: -2px 0 12px rgba(0,0,0,.1);
+        box-shadow: -2px 0 12px rgba(0, 0, 0, .1);
         z-index: 1051;
         transition: right .3s ease;
         overflow-y: auto;
         border-left: 1px solid #dee2e6;
     }
-    .filter-sidebar.open { right: 0; }
+
+    .filter-sidebar.open {
+        right: 0;
+    }
+
     .filter-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,.4);
+        background: rgba(0, 0, 0, .4);
         z-index: 1050;
         opacity: 0;
         visibility: hidden;
         transition: opacity .2s, visibility .2s;
     }
-    .filter-overlay.show { opacity: 1; visibility: visible; }
+
+    .filter-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
     .filter-header {
         display: flex;
         justify-content: space-between;
@@ -35,8 +44,14 @@
         border-bottom: 1px solid #eee;
         background: #f8f9fa;
     }
-    .filter-body { padding: 1rem; }
-    .filter-sidebar .btn-close { box-shadow: none; }
+
+    .filter-body {
+        padding: 1rem;
+    }
+
+    .filter-sidebar .btn-close {
+        box-shadow: none;
+    }
 </style>
 @endpush
 
@@ -168,6 +183,69 @@
         });
     }
 
+    function deleteVisaStatusAjax(url, triggerBtn) {
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ _method: 'DELETE' })
+        })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                return { ok: response.ok, data: data };
+            }).catch(function() {            
+                 
+           
+                return { ok: response.ok, data: { success: false, message: 'Invalid server response.' } };
+               });  
+           })                     
+                                                               
+                                                  
+                         
+   
+            .then(function(result) {          
+                                        
+                   
+                if (!result.ok || !result.data || result.data.success !== true) {
+                    throw new Error((re
+s                       ult.data && resu
+     l              t.data.message) ? result.data.message : 'Delete failed.');
+            }       
+               var row  = triggerBtn ? triggerBtn.closest('tr[data-id]') : null;
+               if (row) {                           
+                                            
+                                                    
+                                   
+                  
+               
+                  row.remo  ve();       
+                                                
+                                                     
+      
+                }
+              Swal.fire({   
+                  icon: 'succe  ss',
+                 title: 'Dele   ted',
+                    text: result.data.message || 'Visa status deleted successfully.',
+                time    r: 1600,
+                   showConf irmButton: 
+     f                          alse          
+                                          
+                          
+                      
+               });  
+               retu rn result.data;
+          });    
+    }                              
+                                          
+                                           
+                           
+        
+    
     function initSortable() {
         var tbody = document.getElementById('visa-statuses-tbody');
         if (!tbody || tbody.querySelectorAll('tr[data-id]').length === 0) return;
@@ -198,7 +276,9 @@
                             var orderCell = row.cells[7];
                             if (orderCell) orderCell.textContent = idx++;
                         });
-                    } else {
+                    } else
+                    {                          
+  
                         Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not save order.' });
                     }
                 })
@@ -211,6 +291,30 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         initSortable();
+
+        $(document).on('click', '.js-visa-status-delete-btn', function(e) {
+            e.preventDefault();
+            var btn = this;
+            var deleteUrl = btn.getAttribute('data-delete-url') || '';
+            if (!deleteUrl) return;
+            Swal.fire({
+                           text: "You won't be able to revert this!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, delete it!'
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                deleteVisaStatusAjax(deleteUrl, btn).catch(function(err) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: (err && err.message) ? err.message : 'Could not delete visa status.'
+                    });
+                });
+            });
+        });
 
         $(document).on('click', '.openFilterSidebar', function(e) {
             e.preventDefault();

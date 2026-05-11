@@ -18,6 +18,9 @@ use Illuminate\Validation\Rule;
 
 class ModuleSettingsController extends Controller
 {
+    private const VISA_EXPENSE_TOP_SETTING_KEY = 'visa_expense_top_status_ids';
+    private const VISA_EXPENSE_TOP_ENABLED_KEY = 'visa_expense_top_enabled';
+
     /**
      * Invoice-like modules that require account assigning setup.
      *
@@ -36,6 +39,41 @@ class ModuleSettingsController extends Controller
     protected function normalizeModuleKey(string $module): string
     {
         return str_replace('-', '_', strtolower(trim($module)));
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function selectedVisaExpenseTopStatusIds(): array
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::VISA_EXPENSE_TOP_SETTING_KEY)
+            ->value('value') ?? '');
+
+        if ($raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return collect($decoded)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function visaExpenseTopEnabled(): bool
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::VISA_EXPENSE_TOP_ENABLED_KEY)
+            ->value('value') ?? '1');
+
+        return in_array(strtolower(trim($raw)), ['1', 'true', 'yes', 'on'], true);
     }
 
     protected function normalizeCompanyScopedQuery($query, ?int $companyId)
@@ -241,11 +279,15 @@ class ModuleSettingsController extends Controller
             ];
         }
         $visaStatuses = collect();
+        $selectedVisaExpenseTopStatusIds = [];
+        $visaExpenseTopEnabled = true;
         if ($module === 'visa_expense') {
             $visaStatuses = VisaStatus::query()
                 ->orderBy('display_order')
                 ->orderBy('name')
                 ->get();
+            $selectedVisaExpenseTopStatusIds = $this->selectedVisaExpenseTopStatusIds();
+            $visaExpenseTopEnabled = $this->visaExpenseTopEnabled();
         }
 
         return view('settings.bike_settings.index', [
@@ -272,7 +314,54 @@ class ModuleSettingsController extends Controller
             'riderInvoiceAssignments' => $riderInvoiceAssignments,
             'moduleSchemaFieldKeys' => ModuleFieldSource::schemaFieldKeysForModule($module),
             'visaStatuses' => $visaStatuses,
+            'selectedVisaExpenseTopStatusIds' => $selectedVisaExpenseTopStatusIds,
+            'visaExpenseTopEnabled' => $visaExpenseTopEnabled,
         ]);
+    }
+
+    public function updateVisaExpenseTop(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        abort_unless($module === 'visa_expense', 404);
+
+        $validated = $request->validate([
+            'status_ids' => ['nullable', 'array'],
+            'status_ids.*' => ['integer', 'exists:visa_statuses,id'],
+            'show_in_top_bar' => ['nullable', 'boolean'],
+        ]);
+
+        $statusIds = collect($validated['status_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        Settings::updateOrCreate(
+            ['name' => self::VISA_EXPENSE_TOP_SETTING_KEY],
+            ['value' => json_encode($statusIds)]
+        );
+        Settings::updateOrCreate(
+            ['name' => self::VISA_EXPENSE_TOP_ENABLED_KEY],
+            ['value' => $request->boolean('show_in_top_bar') ? '1' : '0']
+        );
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Visa Expense Top updated successfully.',
+                'status_ids' => $statusIds,
+                'show_in_top_bar' => $request->boolean('show_in_top_bar'),
+            ]);
+        }
+
+        return redirect()
+            ->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => $module,
+            ])
+            ->with('success', 'Visa Expense Top statuses updated.')
+            ->withFragment('tab-visa-expense-top');
     }
 
     protected function ensureCompanyAdmin(): void

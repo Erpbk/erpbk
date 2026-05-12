@@ -52,6 +52,33 @@ class TenantModulePermissionsSync
             }
         }
 
+        foreach (config('tenant_module_permissions.additional_permissions', []) as $group) {
+            $parentName = $group['parent'] ?? null;
+            if (!is_string($parentName) || $parentName === '') {
+                continue;
+            }
+
+            $parent = Permission::query()->firstOrCreate(
+                ['name' => $parentName, 'guard_name' => $guard],
+                ['parent_id' => null]
+            );
+
+            foreach ($group['permissions'] ?? [] as $permName) {
+                $permName = trim((string) $permName);
+                if ($permName === '') {
+                    continue;
+                }
+
+                $child = Permission::query()->firstOrCreate(
+                    ['name' => $permName, 'guard_name' => $guard],
+                    ['parent_id' => $parent->id]
+                );
+                if ($assignToAdminRoles) {
+                    self::giveToAdminRoles($child);
+                }
+            }
+        }
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 

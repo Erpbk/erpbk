@@ -247,10 +247,10 @@ $containerNav = 'container-fluid';
         $anyChildActive = false;
         foreach ($children as $childKey) {
         if (
-          Request::is('settings-panel/module-settings/' . $childKey)
-          || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*'))
-          || ($childKey === 'employee-settings' && Request::is('settings-panel/employee-settings*'))
-          || ($childKey === 'bike_registration' && Request::is('settings-panel/bike-registration-statuses*'))
+        Request::is('settings-panel/module-settings/' . $childKey)
+        || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*'))
+        || ($childKey === 'employee-settings' && Request::is('settings-panel/employee-settings*'))
+        || ($childKey === 'bike_registration' && Request::is('settings-panel/bike-registration-statuses*'))
         ) {
         $anyChildActive = true;
         break;

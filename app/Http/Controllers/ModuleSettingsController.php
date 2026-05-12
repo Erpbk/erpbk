@@ -65,8 +65,8 @@ class ModuleSettingsController extends Controller
         }
 
         return collect($decoded)
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
             ->unique()
             ->values()
             ->all();
@@ -100,8 +100,8 @@ class ModuleSettingsController extends Controller
         }
 
         return collect($decoded)
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
             ->unique()
             ->values()
             ->all();
@@ -159,7 +159,7 @@ class ModuleSettingsController extends Controller
         $excluded = ModuleFieldSource::defaultExcludedFieldsForModule($module);
         $columns = array_values(array_filter(
             Schema::getColumnListing($table),
-            fn ($col) => !in_array($col, $excluded, true)
+            fn($col) => !in_array($col, $excluded, true)
         ));
 
         foreach ($columns as $index => $column) {
@@ -229,7 +229,7 @@ class ModuleSettingsController extends Controller
             ->get();
         $hiddenFieldKeys = array_flip(ModuleFieldSource::defaultExcludedFieldsForModule($module));
         $fixedAssignments = $fixedAssignments
-            ->filter(fn ($row) => !isset($hiddenFieldKeys[(string) $row->field_key]))
+            ->filter(fn($row) => !isset($hiddenFieldKeys[(string) $row->field_key]))
             ->values();
 
         $customFields = ModuleCustomField::with('category')
@@ -290,13 +290,13 @@ class ModuleSettingsController extends Controller
                     $riderInvoiceAccountTree[] = [
                         'parent_id' => (int) $parentAccount->id,
                         'label' => $this->formatAccountPickerLabel($parentAccount),
-                        'children' => $kids->map(fn ($row) => [
+                        'children' => $kids->map(fn($row) => [
                             'id' => (int) $row->id,
                             'text' => trim((string) (($row->account_code ? $row->account_code . ' — ' : '') . $row->name)),
                         ])->values()->all(),
                     ];
                 }
-                usort($riderInvoiceAccountTree, fn (array $a, array $b): int => strcmp($a['label'], $b['label']));
+                usort($riderInvoiceAccountTree, fn(array $a, array $b): int => strcmp($a['label'], $b['label']));
             }
 
             $assignments = RiderInvoiceAccountAssignment::query()
@@ -310,11 +310,11 @@ class ModuleSettingsController extends Controller
             $riderInvoiceAssignments = [
                 'debit' => $assignments->where('side', 'debit')
                     ->groupBy('parent_account_id')
-                    ->map(fn ($rows) => $rows->pluck('child_account_id')->map(fn ($id) => (int) $id)->values()->all())
+                    ->map(fn($rows) => $rows->pluck('child_account_id')->map(fn($id) => (int) $id)->values()->all())
                     ->toArray(),
                 'credit' => $assignments->where('side', 'credit')
                     ->groupBy('parent_account_id')
-                    ->map(fn ($rows) => $rows->pluck('child_account_id')->map(fn ($id) => (int) $id)->values()->all())
+                    ->map(fn($rows) => $rows->pluck('child_account_id')->map(fn($id) => (int) $id)->values()->all())
                     ->toArray(),
             ];
         }
@@ -396,8 +396,8 @@ class ModuleSettingsController extends Controller
         ]);
 
         $statusIds = collect($validated['status_ids'] ?? [])
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
             ->unique()
             ->values()
             ->all();
@@ -441,8 +441,8 @@ class ModuleSettingsController extends Controller
         ]);
 
         $statusIds = collect($validated['status_ids'] ?? [])
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
             ->unique()
             ->values()
             ->all();
@@ -510,8 +510,8 @@ class ModuleSettingsController extends Controller
             }
 
             $children = collect($childIds)
-                ->map(fn ($id) => (int) $id)
-                ->filter(fn ($id) => $id > 0)
+                ->map(fn($id) => (int) $id)
+                ->filter(fn($id) => $id > 0)
                 ->unique()
                 ->values()
                 ->all();
@@ -547,7 +547,7 @@ class ModuleSettingsController extends Controller
             ->where('parent_id', $parentId)
             ->orderBy('account_code')
             ->get(['id', 'name', 'account_code'])
-            ->map(fn ($row) => [
+            ->map(fn($row) => [
                 'id' => (int) $row->id,
                 'text' => trim((string) ($row->account_code ? $row->account_code . ' — ' : '') . $row->name),
                 'parent_context' => $parentBucketLine,
@@ -761,7 +761,7 @@ class ModuleSettingsController extends Controller
             ->where('module_key', $module)
             ->where('category_id', $categoryId)
             ->pluck('field_key')
-            ->map(fn ($v) => (string) $v)
+            ->map(fn($v) => (string) $v)
             ->all();
 
         foreach ($order as $fieldKey) {
@@ -792,7 +792,7 @@ class ModuleSettingsController extends Controller
         $existing = ModuleFieldCategoryAssignment::query()
             ->where('module_key', $module)
             ->pluck('field_key')
-            ->map(fn ($v) => (string) $v)
+            ->map(fn($v) => (string) $v)
             ->sort()
             ->values()
             ->all();
@@ -825,7 +825,7 @@ class ModuleSettingsController extends Controller
             ->orderBy('id')
             ->get();
 
-        $globalKeys = $rows->pluck('field_key')->map(fn ($v) => (string) $v)->all();
+        $globalKeys = $rows->pluck('field_key')->map(fn($v) => (string) $v)->all();
 
         $newGlobal = [];
         $i = 0;
@@ -980,7 +980,7 @@ class ModuleSettingsController extends Controller
         } else {
             $query->where('category_id', (int) $categoryId);
         }
-        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->sort()->values()->all();
+        $allowedIds = $query->pluck('id')->map(fn($v) => (int) $v)->sort()->values()->all();
         $sortedOrder = $order;
         sort($sortedOrder);
         if ($sortedOrder !== $allowedIds || count($order) !== count($allowedIds)) {
@@ -1006,7 +1006,7 @@ class ModuleSettingsController extends Controller
         $existing = ModuleCustomField::query()
             ->where('module_key', $module)
             ->pluck('id')
-            ->map(fn ($v) => (int) $v)
+            ->map(fn($v) => (int) $v)
             ->sort()
             ->values()
             ->all();
@@ -1045,7 +1045,7 @@ class ModuleSettingsController extends Controller
             return (int) $row->category_id === (int) $categoryId;
         };
 
-        $globalIds = $rows->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $globalIds = $rows->pluck('id')->map(fn($v) => (int) $v)->all();
         $newGlobal = [];
         $i = 0;
         $n = count($globalIds);
@@ -1089,7 +1089,7 @@ class ModuleSettingsController extends Controller
     {
         $module = $this->normalizeModuleKey($module);
         $validated = $request->validate([
-            'key' => ['required', 'string', 'max:80', Rule::unique('module_document_types', 'key')->where(fn ($q) => $q->where('module_key', $module))],
+            'key' => ['required', 'string', 'max:80', Rule::unique('module_document_types', 'key')->where(fn($q) => $q->where('module_key', $module))],
             'label' => 'nullable|string|max:255',
             'type' => ['required', Rule::in(['single', 'dual'])],
             'front_label' => 'nullable|string|max:255',
@@ -1125,7 +1125,7 @@ class ModuleSettingsController extends Controller
         $module = $this->normalizeModuleKey($module);
         $document = ModuleDocumentType::where('module_key', $module)->where('id', $id)->firstOrFail();
         $validated = $request->validate([
-            'key' => ['required', 'string', 'max:80', Rule::unique('module_document_types', 'key')->ignore($id)->where(fn ($q) => $q->where('module_key', $module))],
+            'key' => ['required', 'string', 'max:80', Rule::unique('module_document_types', 'key')->ignore($id)->where(fn($q) => $q->where('module_key', $module))],
             'label' => 'nullable|string|max:255',
             'type' => ['required', Rule::in(['single', 'dual'])],
             'front_label' => 'nullable|string|max:255',

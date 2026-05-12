@@ -13,6 +13,8 @@ use App\Http\Controllers\UploadFilesController;
 use App\Http\Controllers\VouchersController;
 use App\Http\Controllers\VisaexpenseController;
 use App\Http\Controllers\VisaStatusController;
+use App\Http\Controllers\BikeRegistrationController;
+use App\Http\Controllers\BikeRegistrationStatusController;
 use App\Http\Controllers\SalikController;
 use App\Http\Controllers\riderhiringController;
 use App\Http\Controllers\ActivityLogController;
@@ -290,6 +292,27 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::post('VisaExpense/update-voucher-credit', [\App\Http\Controllers\VisaexpenseController::class, 'updateVoucherCredit'])->name('VisaExpense.updateVoucherCredit');
     Route::get('VisaExpense/viewvoucher/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'viewvoucher'])->name('VisaExpense.viewvoucher');
     Route::get('VisaExpense/getrider/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'getrider']);
+
+    Route::post('bike-registration-statuses/reorder', [BikeRegistrationStatusController::class, 'reorder'])->name('bike-registration-statuses.reorder');
+    Route::get('bike-registration-statuses/{id}/toggle-active', [BikeRegistrationStatusController::class, 'toggleActive'])->name('bike-registration-statuses.toggle-active');
+    Route::resource('bike-registration-statuses', BikeRegistrationStatusController::class);
+    Route::post('BikeRegistration/store', [BikeRegistrationController::class, 'store'])->name('BikeRegistration.store');
+    Route::post('BikeRegistration/inline-update', [BikeRegistrationController::class, 'inlineUpdate'])->name('BikeRegistration.inlineUpdate');
+    Route::get('BikeRegistration/create/{id}', [BikeRegistrationController::class, 'create'])->name('BikeRegistration.create');
+    Route::get('BikeRegistration/edit/{id}', [BikeRegistrationController::class, 'edit'])->name('BikeRegistration.edit');
+    Route::post('BikeRegistration/update', [BikeRegistrationController::class, 'update'])->name('BikeRegistration.update');
+    Route::get('BikeRegistration/delete/{id}', [BikeRegistrationController::class, 'destroy'])->name('BikeRegistration.delete');
+    Route::post('BikeRegistration/br-accountcreate', [BikeRegistrationController::class, 'accountcreate'])->name('BikeRegistration.accountcreate');
+    Route::post('BikeRegistration/br-editaccount', [BikeRegistrationController::class, 'editaccount'])->name('BikeRegistration.editaccount');
+    Route::get('BikeRegistration/deleteaccount/{id}', [BikeRegistrationController::class, 'deleteaccount'])->name('BikeRegistration.deleteaccount');
+    Route::get('BikeRegistration/generatentries/{id}', [BikeRegistrationController::class, 'generatentries'])->name('BikeRegistration.generatentries');
+    Route::post('BikeRegistration/payfine', [BikeRegistrationController::class, 'payfine'])->name('BikeRegistration.payfine');
+    Route::get('BikeRegistration/edit-voucher-credit/{bikeRegistration}', [BikeRegistrationController::class, 'editVoucherCreditForm'])->name('BikeRegistration.editVoucherCreditForm');
+    Route::post('BikeRegistration/update-voucher-credit', [BikeRegistrationController::class, 'updateVoucherCredit'])->name('BikeRegistration.updateVoucherCredit');
+    Route::get('BikeRegistration/viewvoucher/{id}', [BikeRegistrationController::class, 'viewvoucher'])->name('BikeRegistration.viewvoucher');
+    Route::post('BikeRegistration/get-registration-status-fee', [BikeRegistrationController::class, 'getRegistrationStatusFee'])->name('BikeRegistration.getRegistrationStatusFee');
+    Route::get('BikeRegistration', [BikeRegistrationController::class, 'index'])->name('BikeRegistration.index');
+    Route::get('BikeRegistration/{id}', [BikeRegistrationController::class, 'show'])->name('BikeRegistration.show')->whereNumber('id');
 
 
     Route::get('sims/trash', [\App\Http\Controllers\SimsController::class, 'trash'])->name('sims.trash');

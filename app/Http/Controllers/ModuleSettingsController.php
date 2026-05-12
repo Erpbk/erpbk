@@ -9,6 +9,7 @@ use App\Models\ModuleFieldCategoryAssignment;
 use App\Models\ModuleSettingCategory;
 use App\Models\RiderInvoiceAccountAssignment;
 use App\Models\Settings;
+use App\Models\BikeRegistrationStatus;
 use App\Models\VisaStatus;
 use App\Support\ModuleFieldSource;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,10 @@ class ModuleSettingsController extends Controller
 {
     private const VISA_EXPENSE_TOP_SETTING_KEY = 'visa_expense_top_status_ids';
     private const VISA_EXPENSE_TOP_ENABLED_KEY = 'visa_expense_top_enabled';
+
+    private const BIKE_REGISTRATION_TOP_SETTING_KEY = 'bike_registration_top_status_ids';
+
+    private const BIKE_REGISTRATION_TOP_ENABLED_KEY = 'bike_registration_top_enabled';
 
     /**
      * Invoice-like modules that require account assigning setup.
@@ -71,6 +76,41 @@ class ModuleSettingsController extends Controller
     {
         $raw = (string) (Settings::query()
             ->where('name', self::VISA_EXPENSE_TOP_ENABLED_KEY)
+            ->value('value') ?? '1');
+
+        return in_array(strtolower(trim($raw)), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function selectedBikeRegistrationTopStatusIds(): array
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::BIKE_REGISTRATION_TOP_SETTING_KEY)
+            ->value('value') ?? '');
+
+        if ($raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return collect($decoded)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function bikeRegistrationTopEnabled(): bool
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::BIKE_REGISTRATION_TOP_ENABLED_KEY)
             ->value('value') ?? '1');
 
         return in_array(strtolower(trim($raw)), ['1', 'true', 'yes', 'on'], true);
@@ -290,6 +330,31 @@ class ModuleSettingsController extends Controller
             $visaExpenseTopEnabled = $this->visaExpenseTopEnabled();
         }
 
+        $bikeRegistrationStatusesForSettings = collect();
+        $selectedBikeRegistrationTopStatusIds = [];
+        $bikeRegistrationTopEnabled = true;
+        if ($module === 'bike_registration') {
+            $bikeRegistrationStatusesForSettings = BikeRegistrationStatus::query()
+                ->orderBy('display_order')
+                ->orderBy('name')
+                ->get();
+            $selectedBikeRegistrationTopStatusIds = $this->selectedBikeRegistrationTopStatusIds();
+            $bikeRegistrationTopEnabled = $this->bikeRegistrationTopEnabled();
+
+            return view('settings.bike_registration_settings.index', [
+                'moduleKey' => $module,
+                'moduleLabel' => $moduleLabel,
+                'defaultLabel' => $defaultLabel,
+                'pageTitle' => $pageTitle,
+                'settingsHeading' => $moduleLabel . ' Settings',
+                'settingsRoutePrefix' => 'settings-panel.module-settings',
+                'settingsRouteParams' => ['company_slug' => $company_slug, 'module' => $module],
+                'bikeRegistrationStatusesForSettings' => $bikeRegistrationStatusesForSettings,
+                'selectedBikeRegistrationTopStatusIds' => $selectedBikeRegistrationTopStatusIds,
+                'bikeRegistrationTopEnabled' => $bikeRegistrationTopEnabled,
+            ]);
+        }
+
         return view('settings.bike_settings.index', [
             'moduleKey' => $module,
             'moduleLabel' => $moduleLabel,
@@ -362,6 +427,51 @@ class ModuleSettingsController extends Controller
             ])
             ->with('success', 'Visa Expense Top statuses updated.')
             ->withFragment('tab-visa-expense-top');
+    }
+
+    public function updateBikeRegistrationTop(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        abort_unless($module === 'bike_registration', 404);
+
+        $validated = $request->validate([
+            'status_ids' => ['nullable', 'array'],
+            'status_ids.*' => ['integer', 'exists:bike_registration_statuses,id'],
+            'show_in_top_bar' => ['nullable', 'boolean'],
+        ]);
+
+        $statusIds = collect($validated['status_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        Settings::updateOrCreate(
+            ['name' => self::BIKE_REGISTRATION_TOP_SETTING_KEY],
+            ['value' => json_encode($statusIds)]
+        );
+        Settings::updateOrCreate(
+            ['name' => self::BIKE_REGISTRATION_TOP_ENABLED_KEY],
+            ['value' => $request->boolean('show_in_top_bar') ? '1' : '0']
+        );
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Bike Registration Top updated successfully.',
+                'status_ids' => $statusIds,
+                'show_in_top_bar' => $request->boolean('show_in_top_bar'),
+            ]);
+        }
+
+        return redirect()
+            ->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => $module,
+            ])
+            ->with('success', 'Bike Registration Top statuses updated.')
+            ->withFragment('tab-bike-registration-top');
     }
 
     protected function ensureCompanyAdmin(): void

@@ -792,6 +792,16 @@
                 <a href="{{route('bikes.maintenance',$bikes->id)}}" class="nav-link @if(Route::is('bikes.maintenance')) active @endif"><i class="fa fa-wrench"></i>&nbsp;Maintenance</a>
             </li>
         @endcan
+        @can('bike_registration_view')
+            @php
+                $bikeRegistrationExpenseAccountId = \App\Models\BikeRegistrationAccount::where('bike_id', $bikes->id)->value('id');
+            @endphp
+            @if($bikeRegistrationExpenseAccountId)
+            <li class="nav-item">
+                <a href="{{ route('BikeRegistration.generatentries', $bikeRegistrationExpenseAccountId) }}" class="nav-link @if(Route::is('BikeRegistration.generatentries')) active @endif"><i class="fa fa-id-card"></i>&nbsp;Registration</a>
+            </li>
+            @endif
+        @endcan
       </ul>
     </div>
     <div class="card mb-5" id="cardBody" style="height:660px !important;overflow: auto;">

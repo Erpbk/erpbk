@@ -11,7 +11,7 @@
     z-index: 99999 !important;
   }
 
-  #addVisaExpenseTopOptionModal + .select2-container--open,
+  #addVisaExpenseTopOptionModal+.select2-container--open,
   .modal .select2-container--open {
     z-index: 99999 !important;
   }
@@ -140,7 +140,7 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
             <div class="card border-0 shadow-none">
               <div class="card-body px-0">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                  <p class="text-muted small mb-0">Default category is <strong>Rider Top Status</strong>. Add only the options you want on Visa Expense top cards.</p>
+                  <p class="text-muted small mb-0">Default category is <strong>Visa Expense Top Status</strong>. Add only the options you want on Visa Expense top cards.</p>
                 </div>
                 <form id="visaExpenseTopAjaxForm" method="POST" action="{{ route('settings-panel.module-settings.update-visa-expense-top', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'visa_expense']) }}">
                   @csrf
@@ -149,7 +149,7 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
                       <h2 class="accordion-header" id="visaExpenseTopHeading">
                         <div class="d-flex align-items-center gap-2 p-2">
                           <button class="accordion-button py-2 px-3" type="button" data-bs-toggle="collapse" data-bs-target="#visaExpenseTopCollapse" aria-expanded="true" aria-controls="visaExpenseTopCollapse">
-                            <span>Rider Top Status</span>
+                            <span>Visa Expense Top Status</span>
                             <span class="badge bg-label-primary ms-2" id="visaExpenseTopSelectedCount">{{ count((array)($selectedVisaExpenseTopStatusIds ?? [])) }}</span>
                           </button>
                           <div class="form-check form-switch mb-0" style="display: inline-flex; align-items: center; gap: 0.4rem;padding: 0.35rem 0.6rem;">
@@ -168,9 +168,9 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
                           @php
                           $selectedIds = collect((array)($selectedVisaExpenseTopStatusIds ?? []))->map(fn($id)=>(int)$id)->all();
                           $selectedStatuses = collect($visaStatuses ?? collect())
-                            ->filter(fn($s) => in_array((int)$s->id, $selectedIds, true))
-                            ->sortBy(fn($s) => array_search((int)$s->id, $selectedIds, true))
-                            ->values();
+                          ->filter(fn($s) => in_array((int)$s->id, $selectedIds, true))
+                          ->sortBy(fn($s) => array_search((int)$s->id, $selectedIds, true))
+                          ->values();
                           @endphp
                           <ul class="list-group list-group-flush" id="visaExpenseTopSelectedList">
                             @forelse($selectedStatuses as $status)
@@ -2529,6 +2529,7 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
           }
         });
       }
+
       function initVisaExpenseTopModalSelect2() {
         if (!(typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.select2) || !topModalSelect) return;
         var $select = jQuery(topModalSelect);

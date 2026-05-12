@@ -45,6 +45,7 @@ $moduleIcons = [
 'live_activities' => 'ti-activity',
 'rider_report' => 'ti-chart-bar',
 'bike_list' => 'ti-motorbike',
+'bike_registration' => 'ti-file-certificate',
 'bike_on_rent' => 'ti-motorbike',
 'bike_rent_customers' => 'ti-users',
 'maintenance_overview' => 'ti-tool',
@@ -72,7 +73,7 @@ $erpModuleMenu = [
 ['key' => 'vendors'],
 ['key' => 'recruiters'],
 ['key' => 'riders', 'children' => ['rider-settings', 'invoices', 'activities', 'live_activities', 'rider_report']],
-['key' => 'bikes', 'children' => ['bike_list']],
+['key' => 'bikes', 'children' => ['bike_list', 'bike_registration']],
 ['key' => 'bike_on_rent', 'children' => ['bike_on_rent', 'bike_rent_customers']],
 ['key' => 'sims'],
 ['key' => 'fuel_cards'],
@@ -249,6 +250,7 @@ $containerNav = 'container-fluid';
           Request::is('settings-panel/module-settings/' . $childKey)
           || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*'))
           || ($childKey === 'employee-settings' && Request::is('settings-panel/employee-settings*'))
+          || ($childKey === 'bike_registration' && Request::is('settings-panel/bike-registration-statuses*'))
         ) {
         $anyChildActive = true;
         break;
@@ -266,7 +268,7 @@ $containerNav = 'container-fluid';
           </a>
           <ul class="menu-sub">
             @foreach($children as $childKey)
-            <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $childKey) || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*')) || ($childKey === 'employee-settings' && Request::is('settings-panel/employee-settings*')) ? 'active' : '' }}">
+            <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $childKey) || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*')) || ($childKey === 'employee-settings' && Request::is('settings-panel/employee-settings*')) || ($childKey === 'bike_registration' && Request::is('settings-panel/bike-registration-statuses*')) ? 'active' : '' }}">
               <a href="{{ $childKey === 'rider-settings' ? route('settings-panel.rider-settings.index', ['company_slug' => $settingsCompanySlug]) : ($childKey === 'employee-settings' ? route('settings-panel.employee-settings.index', ['company_slug' => $settingsCompanySlug]) : route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $childKey])) }}" class="menu-link">
                 <i class="menu-icon tf-icons ti {{ $moduleIcons[$childKey] ?? 'ti-adjustments-alt' }}"></i>
                 <div>{{ $childKey === 'rider-settings' ? $settingsPanelRidersLabel : ($childKey === 'employee-settings' ? $settingsPanelEmployeesSettingsLabel : ($settingsPanelLabels[$childKey] ?? config('menu_labels.defaults.' . $childKey, ucwords(str_replace('_', ' ', $childKey))))) }}</div>

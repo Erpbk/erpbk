@@ -20,6 +20,7 @@ return [
         ['parent' => 'Recruiter', 'slug' => 'recruiter', 'extras' => []],
         ['parent' => 'Rider', 'slug' => 'rider', 'extras' => ['riderinvoice_view']],
         ['parent' => 'Bike', 'slug' => 'bike', 'extras' => []],
+        ['parent' => 'Bike Registration', 'slug' => 'bike_registration', 'extras' => []],
         ['parent' => 'Bike on Rent', 'slug' => 'bike_rent', 'extras' => []],
         ['parent' => 'Sim', 'slug' => 'sim', 'extras' => ['sim_invoice_view', 'sim_invoice_create', 'sim_invoice_edit', 'sim_invoice_delete', 'sim_invoice_payment_voucher']],
         ['parent' => 'Fuel', 'slug' => 'fuel', 'extras' => []],

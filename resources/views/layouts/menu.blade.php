@@ -264,7 +264,7 @@ $homeLink = $isAdminLogin
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('bikes'))
 @can('bike_view')
-<li class="menu-item {{ Route::is('bikes*') || Route::is('bikeMaintenance*')? 'open' : '' }}">
+<li class="menu-item {{ Route::is('bikes*') || Route::is('bikeMaintenance*') || Route::is('BikeRegistration*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-motorbike"></i>
     <div>{{ $menuLabels['bikes'] ?? 'Bikes' }}</div>
@@ -276,6 +276,14 @@ $homeLink = $isAdminLogin
         <div>{{ $menuLabels['bike_list'] ?? 'Bike List' }}</div>
       </a>
     </li>
+    @can('bike_registration_view')
+    <li class="menu-item {{ Route::is('BikeRegistration*') ? 'active' : '' }}">
+      <a href="{{ route('BikeRegistration.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-id"></i>
+        <div>{{ $menuLabels['bike_registration'] ?? 'Bike Registration' }}</div>
+      </a>
+    </li>
+    @endcan
     <li class="menu-item {{ Route::is('bikeMaintenance*') ? 'active' : '' }}">
       <a href="{{ route('bikeMaintenance.index') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-motorbike"></i>

@@ -38,6 +38,9 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::resource('visa-statuses', App\Http\Controllers\VisaStatusController::class)->names('settings-panel.visa-statuses');
     Route::post('visa-statuses/reorder', [App\Http\Controllers\VisaStatusController::class, 'reorder'])->name('settings-panel.visa-statuses.reorder');
     Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('settings-panel.visa-statuses.toggle-active');
+    Route::post('bike-registration-statuses/reorder', [App\Http\Controllers\BikeRegistrationStatusController::class, 'reorder'])->name('settings-panel.bike-registration-statuses.reorder');
+    Route::get('bike-registration-statuses/{id}/toggle-active', [App\Http\Controllers\BikeRegistrationStatusController::class, 'toggleActive'])->name('settings-panel.bike-registration-statuses.toggle-active');
+    Route::resource('bike-registration-statuses', App\Http\Controllers\BikeRegistrationStatusController::class)->names('settings-panel.bike-registration-statuses');
     Route::resource('branches', App\Http\Controllers\BranchController::class)->names('settings-panel.branches');
     // Account field settings (fixed + custom fields; only custom are editable/deletable)
     Route::get('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'index'])->name('settings-panel.account-fields.index');
@@ -160,6 +163,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::put('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'updateDocumentType'])->name('settings-panel.module-settings.update-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::delete('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'destroyDocumentType'])->name('settings-panel.module-settings.destroy-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/visa-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateVisaExpenseTop'])->name('settings-panel.module-settings.update-visa-expense-top')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/bike-registration-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateBikeRegistrationTop'])->name('settings-panel.module-settings.update-bike-registration-top')->where('module', '[A-Za-z0-9_-]+');
 
     // Module settings page + label update
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');

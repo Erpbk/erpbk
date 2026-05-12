@@ -21,4 +21,5 @@ interface HeadAccount
   const SALES_ACCOUNT = 2514; // Sales Account
   const OTHER_EXPENSES = 2388;
   const VISA_EXPENSE_ACCOUNT = 2515; // Visa Expense Account
+  const BIKE_REGISTRATION_EXPENSE_ACCOUNT = 2517; // Bike Registration Expense Account
 }

@@ -788,41 +788,41 @@
                 </div>
             </div>
         </div>
-
-        <div class="col-xl-9 col-md-9 col-lg-8 order-0 order-md-1">
-            <div class="nav-align-top">
-                <ul class="nav nav-pills flex-column flex-md-row flex-wrap mb-3 row-gap-2">
-                    <li class="nav-item"><a class="nav-link @if(Route::is('bikes.show')) active @endif " href="{{route('bikes.show',$bikes->id)}}"><i class="ti ti-motorbike ti-sm me-1_5 mx-2"></i> Bike</a></li>
-                    @can('bike_assign_view')
-                    <li class="nav-item">
-                        <a href="{{route('bikeHistories.index', ['bike_id'=>$bikes->id])}}" class="nav-link @if(Route::is('bikeHistories.index')) active @endif"><i class="fa fa-list-check"></i>&nbsp;History</a>
-                    </li>
-                    @endcan
-                    @can('files_view')
-                    <li class="nav-item">
-                        <a href="{{route('bikes.files',$bikes->id)}}" class="nav-link @if(Route::is('bikes.files')) active @endif"><i class="fa fa-file-lines"></i>&nbsp;Files</a>
-                    </li>
-                    @endcan
-                    @can('files_view')
-                    <li class="nav-item">
-                        <a href="{{route('bikes.maintenance',$bikes->id)}}" class="nav-link @if(Route::is('bikes.maintenance')) active @endif"><i class="fa fa-wrench"></i>&nbsp;Maintenance</a>
-                    </li>
-                    @endcan
-                    @can('bike_registration_view')
-                    @php
-                    $bikeRegistrationExpenseAccountId = \App\Models\BikeRegistrationAccount::where('bike_id', $bikes->id)->value('id');
-                    @endphp
-                    @if($bikeRegistrationExpenseAccountId)
-                    <li class="nav-item">
-                        <a href="{{ route('BikeRegistration.generatentries', $bikeRegistrationExpenseAccountId) }}" class="nav-link @if(Route::is('BikeRegistration.generatentries')) active @endif"><i class="fa fa-id-card"></i>&nbsp;Registration</a>
-                    </li>
-                    @endif
-                    @endcan
-                </ul>
-            </div>
-            <div class="card mb-5" id="cardBody" style="height:660px !important;overflow: auto;">
-                @yield('page_content')
-            </div>
+    </div>
+    <div class="col-xl-9 col-md-9 col-lg-8 order-0 order-md-1">
+        <div class="nav-align-top">
+            <ul class="nav nav-pills flex-column flex-md-row flex-wrap mb-3 row-gap-2">
+                <li class="nav-item"><a class="nav-link @if(Route::is('bikes.show')) active @endif " href="{{route('bikes.show',$bikes->id)}}"><i class="ti ti-motorbike ti-sm me-1_5 mx-2"></i> Bike</a></li>
+                @can('bike_assign_view')
+                <li class="nav-item">
+                    <a href="{{route('bikeHistories.index', ['bike_id'=>$bikes->id])}}" class="nav-link @if(Route::is('bikeHistories.index')) active @endif"><i class="fa fa-list-check"></i>&nbsp;History</a>
+                </li>
+                @endcan
+                @can('files_view')
+                <li class="nav-item">
+                    <a href="{{route('bikes.files',$bikes->id)}}" class="nav-link @if(Route::is('bikes.files')) active @endif"><i class="fa fa-file-lines"></i>&nbsp;Files</a>
+                </li>
+                @endcan
+                @can('files_view')
+                <li class="nav-item">
+                    <a href="{{route('bikes.maintenance',$bikes->id)}}" class="nav-link @if(Route::is('bikes.maintenance')) active @endif"><i class="fa fa-wrench"></i>&nbsp;Maintenance</a>
+                </li>
+                @endcan
+                @can('bike_registration_view')
+                @php
+                $bikeRegistrationExpenseAccountId = \App\Models\BikeRegistrationAccount::where('bike_id', $bikes->id)->value('id');
+                @endphp
+                @if($bikeRegistrationExpenseAccountId)
+                <li class="nav-item">
+                    <a href="{{ route('BikeRegistration.generatentries', $bikeRegistrationExpenseAccountId) }}" class="nav-link @if(Route::is('BikeRegistration.generatentries')) active @endif"><i class="fa fa-id-card"></i>&nbsp;Registration</a>
+                </li>
+                @endif
+                @endcan
+            </ul>
+        </div>
+        <div class="card mb-5" id="cardBody" style="height:660px !important;overflow: auto;">
+            @yield('page_content')
         </div>
     </div>
-    @endsection
+</div>
+@endsection

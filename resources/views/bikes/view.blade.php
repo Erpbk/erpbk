@@ -623,10 +623,11 @@
                         @if($bikeCode != 'N/A')
                         <div class="plate-bike-code-corner">{{ $bikeCode }}</div>
                         @endif
-
+                        @if($plateNumber)
                         <!-- Plate number - center -->
                         <div class="plate-number">{{ $plateNumber }}</div>
-
+                        @else
+                        <div class="plate-number">N/A</div>
                         @endif
                     </div>
                     @endif

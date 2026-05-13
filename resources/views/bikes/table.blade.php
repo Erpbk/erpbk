@@ -207,7 +207,7 @@
             $warehouseClass = 'Vacation';
             }
 
-            $warehouse = strtolower(trim($bikes->warehouse ?? ''));
+            $warehouse = strtolower(trim($r->warehouse ?? ''));
             $roadStatus = 'N/A';
             $roadStatusClass = '';
 

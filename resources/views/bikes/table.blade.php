@@ -140,27 +140,22 @@
          <td tabindex="0">{{ $r->branch ? $r->branch->name .' ( '. $r->branch->code .' )' : '-' }}</td>
          @break
          @case('warehouse')
-         <td tabindex="0">
-            @php
-            $badgeClass = match($r->warehouse ?? 'Inactive') {
-            'Active' => 'bg-label-success',
-            'Return' => 'bg-label-warning',
-            'Vacation' => 'bg-label-info',
-            'Absconded' => 'bg-label-danger',
-            'Inactive' => 'bg-label-danger',
-            default => 'bg-secondary',
-            };
-            @endphp
-            <span class="badge {{ $badgeClass }}">{{ $r->warehouse }}</span>
-         </td>
-         @break
          @case('status')
          <td tabindex="0">
             @php
-            $statusText = $r->status == 1 ? 'Active' : 'Inactive';
-            $badgeClass = $r->status == 1 ? 'bg-label-success' : 'bg-label-danger';
+            $wRaw = $r->warehouse ?? '';
+            $wKey = strtolower(trim((string) $wRaw));
+            $badgeClass = match ($wKey) {
+            'active' => 'bg-label-success',
+            'return' => 'bg-label-warning',
+            'vacation' => 'bg-label-info',
+            'express garage' => 'bg-label-info',
+            'absconded' => 'bg-label-danger',
+            default => 'bg-secondary',
+            };
+            $wDisplay = $wRaw !== '' && $wRaw !== null ? $wRaw : '—';
             @endphp
-            <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+            <span class="badge {{ $badgeClass }}">{{ $wDisplay }}</span>
          </td>
          @break
          @case('created_by')

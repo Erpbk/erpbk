@@ -33,7 +33,7 @@ class Account
   }
   public static function trans_code()
   {
-    $tc = Transactions::max('trans_code');
+    $tc = Transactions::withTrashed()->max('trans_code');
     if ($tc > 0) {
       return $tc + 1;
     } else {

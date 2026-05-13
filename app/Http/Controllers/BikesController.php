@@ -123,14 +123,10 @@ class BikesController extends AppBaseController
     if ($request->filled('bike_top_wh')) {
       $wh = (string) $request->bike_top_wh;
       if ($wh === 'active') {
-        $query->where('bikes.warehouse', 'Active')->where('bikes.status', 1);
+        $query->where('bikes.status', 1);
       } elseif ($wh === 'inactive') {
         $query->where(function ($q) {
-          $q->where(function ($q2) {
-            $q2->whereNull('bikes.warehouse')->orWhere('bikes.warehouse', '!=', 'Active');
-          })->orWhere(function ($q2) {
-            $q2->whereNull('bikes.status')->orWhere('bikes.status', '!=', 1);
-          });
+          $q->whereNull('bikes.status')->orWhere('bikes.status', '!=', 1);
         });
       }
     }

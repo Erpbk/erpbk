@@ -146,6 +146,17 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::put('module-settings/bike_list/documents/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateDocumentType'])->name('settings-panel.bike-settings.update-document-type');
     Route::delete('module-settings/bike_list/documents/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyDocumentType'])->name('settings-panel.bike-settings.destroy-document-type');
 
+    Route::get('module-settings/bike_list/bike-top/accordion-body', [App\Http\Controllers\BikeSettingsController::class, 'bikeTopAccordionBody'])->name('settings-panel.bike-settings.bike-top-accordion-body');
+    Route::post('module-settings/bike_list/bike-top/categories', [App\Http\Controllers\BikeSettingsController::class, 'storeBikeTopCategory'])->name('settings-panel.bike-settings.store-bike-top-category');
+    Route::get('module-settings/bike_list/bike-top/categories/{id}/field-values', [App\Http\Controllers\BikeSettingsController::class, 'bikeTopCategoryFieldValues'])->name('settings-panel.bike-settings.bike-top-category-field-values');
+    Route::put('module-settings/bike_list/bike-top/categories/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateBikeTopCategory'])->name('settings-panel.bike-settings.update-bike-top-category');
+    Route::delete('module-settings/bike_list/bike-top/categories/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyBikeTopCategory'])->name('settings-panel.bike-settings.destroy-bike-top-category');
+    Route::post('module-settings/bike_list/bike-top/categories/{id}/visibility', [App\Http\Controllers\BikeSettingsController::class, 'updateBikeTopCategoryVisibility'])->name('settings-panel.bike-settings.update-bike-top-category-visibility');
+    Route::post('module-settings/bike_list/bike-top/options', [App\Http\Controllers\BikeSettingsController::class, 'storeBikeTopOption'])->name('settings-panel.bike-settings.store-bike-top-option');
+    Route::put('module-settings/bike_list/bike-top/options/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateBikeTopOption'])->name('settings-panel.bike-settings.update-bike-top-option');
+    Route::delete('module-settings/bike_list/bike-top/options/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyBikeTopOption'])->name('settings-panel.bike-settings.destroy-bike-top-option');
+    Route::post('module-settings/bike_list/bike-top/user-preferences', [App\Http\Controllers\BikeSettingsController::class, 'saveBikeTopUserPreferences'])->name('settings-panel.bike-settings.save-bike-top-user-preferences');
+
     // Module settings for all ERP modules (Bike-style route pattern)
     Route::post('module-settings/{module}/field-assignment', [App\Http\Controllers\ModuleSettingsController::class, 'storeFieldAssignment'])->name('settings-panel.module-settings.update-field-assignment')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/field-assignments/reorder', [App\Http\Controllers\ModuleSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.module-settings.reorder-field-assignments')->where('module', '[A-Za-z0-9_-]+');

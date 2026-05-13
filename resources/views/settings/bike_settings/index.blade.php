@@ -25,6 +25,41 @@
   #addVisaExpenseTopOptionModal .modal-body {
     overflow: visible !important;
   }
+  @if(!empty($showBikeRegistrationExtras) && $showBikeRegistrationExtras)
+  .select2-container--open.br-registration-top-select2-wrap {
+    z-index: 1060;
+  }
+  @endif
+
+  .bike-top-visibility-controls {
+    background: #f8f9fb;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+  }
+
+  .bike-top-visibility-controls .form-check {
+    min-height: auto;
+    margin-bottom: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .bike-top-visibility-controls .form-check-input {
+    width: 2rem;
+    height: 1.1rem;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .bike-top-visibility-controls .form-check-label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #5f6b7a;
+    margin-top: 0;
+    cursor: pointer;
+  }
 </style>
 
 @php
@@ -44,6 +79,7 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
 $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 $showVisaStatusManagementTab = ($moduleKey ?? '') === 'visa_expense';
 $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'visa_expense']) . '#tab-visa-status-management';
+$showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
 @endphp
 
 <div class="row">
@@ -53,7 +89,13 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
         <div>
           <h4 class="card-title mb-0">{{ $settingsHeading }}</h4>
           <p class="text-muted small mb-0 mt-1">
-            Configure fixed/custom fields and document types. This module has no "on top" / "view on card" controls.
+            @if($showBikeRegistrationExtras)
+              Configure registration statuses, top bar cards, fixed/custom fields on <code>bike_registrations</code>, categories, and document types.
+            @elseif(($moduleKey ?? '') === 'bike_list')
+              Configure Vehicle Top cards for the Vehicles module, fixed/custom fields, categories, and document types.
+            @else
+              Configure fixed/custom fields and document types.
+            @endif
           </p>
         </div>
       </div>
@@ -71,6 +113,13 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
               General
             </button>
           </li>
+          @if($showBikeRegistrationExtras)
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-br-statuses" type="button" role="tab">
+              Registration statuses
+            </button>
+          </li>
+          @endif
           @if($showVisaStatusManagementTab)
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-visa-status-management" type="button" role="tab">
@@ -98,6 +147,20 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
               Documents
             </button>
           </li>
+          @if(($moduleKey ?? '') === 'bike_list')
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-vehicle-top" type="button" role="tab" id="tab-vehicle-top-btn">
+              Vehicle top
+            </button>
+          </li>
+          @endif
+          @if($showBikeRegistrationExtras)
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-bike-registration-top" type="button" role="tab" id="tab-bike-registration-top-btn">
+              Top bar
+            </button>
+          </li>
+          @endif
         </ul>
 
         <div class="tab-content">
@@ -116,6 +179,10 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
               </div>
             </form>
           </div>
+
+          @if($showBikeRegistrationExtras)
+            @include('settings.partials.bike_registration_settings_tabs')
+          @endif
 
           @if($showVisaStatusManagementTab)
           <div class="tab-pane fade" id="tab-visa-status-management" role="tabpanel">
@@ -1291,6 +1358,12 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
 
 
           </div>
+
+          @if(($moduleKey ?? '') === 'bike_list')
+          <div class="tab-pane fade" id="tab-vehicle-top" role="tabpanel">
+            @include('settings.bike_settings._vehicle_top_tab_content')
+          </div>
+          @endif
         </div>
       </div>
     </div>
@@ -2617,6 +2690,10 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
     }
   }
 
+  @if($showBikeRegistrationExtras)
+  @include('settings.partials.bike_registration_top_bar_script')
+  @endif
+
   document.addEventListener('click', function(e) {
     const btn = e.target.closest('.btn-edit-module-document-type');
     if (!btn) return;
@@ -2728,4 +2805,7 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
     });
   }
 </script>
+@if(($moduleKey ?? '') === 'bike_list')
+@include('settings.bike_settings._bike_top_page_script')
+@endif
 @endsection

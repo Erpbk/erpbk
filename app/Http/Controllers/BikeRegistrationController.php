@@ -437,14 +437,14 @@ class BikeRegistrationController extends AppBaseController
                 ->where('is_active', 1)
                 ->orderBy('display_order')
                 ->get();
-                foreach ($activeStatuses as $status) {
-                    $br = BikeRegistration::create([
-                        'branch_id' => $expenseAccount->branch_id,
-                        'trans_date' => Carbon::today()->format('Y-m-d'),
-                        'trans_code' => Account::trans_code(),
-                        'date' => Carbon::today()->format('Y-m-d'),
-                        'rider_id' => $expenseAccount->rider_id !== null ? (string) $expenseAccount->rider_id : null,
-                        'bike_registration_account_id' => $expenseAccount->id,
+            foreach ($activeStatuses as $status) {
+                $br = BikeRegistration::create([
+                    'branch_id' => $expenseAccount->branch_id,
+                    'trans_date' => Carbon::today()->format('Y-m-d'),
+                    'trans_code' => Account::trans_code(),
+                    'date' => Carbon::today()->format('Y-m-d'),
+                    'rider_id' => $expenseAccount->rider_id !== null ? (string) $expenseAccount->rider_id : null,
+                    'bike_registration_account_id' => $expenseAccount->id,
                     'registration_status' => $status->name,
                     'detail' => $status->description ?? ('Auto-generated from active registration status: ' . $status->name),
                     'reference_number' => 'BR-' . $expenseAccount->id . '-' . $status->id,

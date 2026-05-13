@@ -340,19 +340,6 @@ class ModuleSettingsController extends Controller
                 ->get();
             $selectedBikeRegistrationTopStatusIds = $this->selectedBikeRegistrationTopStatusIds();
             $bikeRegistrationTopEnabled = $this->bikeRegistrationTopEnabled();
-
-            return view('settings.bike_registration_settings.index', [
-                'moduleKey' => $module,
-                'moduleLabel' => $moduleLabel,
-                'defaultLabel' => $defaultLabel,
-                'pageTitle' => $pageTitle,
-                'settingsHeading' => $moduleLabel . ' Settings',
-                'settingsRoutePrefix' => 'settings-panel.module-settings',
-                'settingsRouteParams' => ['company_slug' => $company_slug, 'module' => $module],
-                'bikeRegistrationStatusesForSettings' => $bikeRegistrationStatusesForSettings,
-                'selectedBikeRegistrationTopStatusIds' => $selectedBikeRegistrationTopStatusIds,
-                'bikeRegistrationTopEnabled' => $bikeRegistrationTopEnabled,
-            ]);
         }
 
         return view('settings.bike_settings.index', [
@@ -371,7 +358,7 @@ class ModuleSettingsController extends Controller
             'settingsRoutePrefix' => 'settings-panel.module-settings',
             'settingsRouteParams' => ['company_slug' => $company_slug, 'module' => $module],
             'settingsHeading' => $moduleLabel . ' Settings',
-            'settingsFieldsTabLabel' => 'Module Fields',
+            'settingsFieldsTabLabel' => $module === 'bike_registration' ? 'Bike registration fields' : 'Module Fields',
             'settingsEntityName' => strtolower($moduleLabel),
             'fixedFieldSourceTable' => $moduleSourceTable ?: 'module_field_category_assignments',
             'customFieldSourceTable' => 'module_custom_fields',
@@ -381,6 +368,10 @@ class ModuleSettingsController extends Controller
             'visaStatuses' => $visaStatuses,
             'selectedVisaExpenseTopStatusIds' => $selectedVisaExpenseTopStatusIds,
             'visaExpenseTopEnabled' => $visaExpenseTopEnabled,
+            'showBikeRegistrationExtras' => $module === 'bike_registration',
+            'bikeRegistrationStatusesForSettings' => $bikeRegistrationStatusesForSettings,
+            'selectedBikeRegistrationTopStatusIds' => $selectedBikeRegistrationTopStatusIds,
+            'bikeRegistrationTopEnabled' => $bikeRegistrationTopEnabled,
         ]);
     }
 

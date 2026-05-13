@@ -79,6 +79,7 @@ class ModuleFieldSource
             'garage_items' => 'garage_items',
             'vouchers' => 'vouchers',
             'accounts' => 'accounts',
+            'bike_registration' => 'bike_registrations',
         ];
     }
 

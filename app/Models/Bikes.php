@@ -38,6 +38,7 @@ class Bikes extends BaseModel
     'status',
     'insurance_co',
     'customer_id',
+    'bike_top_option_id',
     'contract_number',
     'policy_no',
     'current_km',
@@ -66,6 +67,7 @@ class Bikes extends BaseModel
     'insurance_co' => 'string',
     'policy_no' => 'string',
     'customer_id' => 'string',
+    'bike_top_option_id' => 'integer',
     'deleted_at' => 'datetime',
     'custom_field_values' => 'array'
   ];

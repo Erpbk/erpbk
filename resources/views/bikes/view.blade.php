@@ -230,12 +230,30 @@
         background: #defafa;
         border: 1px solid #84cbd9;
     }
+
+    .status-badge.Inactive {
+        color: #6b7280;
+        background: #f3f4f6;
+        border: 1px solid #d1d5db;
+    }
     
     /* Default to gray if warehouse doesn't match specific names */
     .status-badge.warehouse-default {
         color: #41464b;
         background: #e2e3e5;
         border: 1px solid #c4c8cb;
+    }
+
+    .status-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        margin-top: 4px;
+    }
+
+    .status-stack .road-status-badge {
+        margin-top: 0;
     }
     
     /* Action Buttons */
@@ -312,12 +330,6 @@
         color: white;
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-    }
-
-    .road-status-container {
-    text-align: center;
-    margin: 15px 0 20px 0;
-    width: 100%;
     }
 
     .road-status-badge {
@@ -565,20 +577,6 @@
                 ];
                 
                 $currentEmirate = $emiratesData[$emirateCode] ?? $emiratesData['-'];
-                
-                // Map warehouse names to status classes
-                $warehouse = $bikes->warehouse ?? '';
-                $warehouseClass = 'warehouse-default';
-                
-                if (strtolower($warehouse) == 'active') {
-                    $warehouseClass = 'Active';
-                } elseif (strtolower($warehouse) == 'return') {
-                    $warehouseClass = 'Return';
-                } elseif (strtolower($warehouse) == 'absconded') {
-                    $warehouseClass = 'Absconded';
-                } elseif (strtolower($warehouse) == 'vacation') {
-                    $warehouseClass = 'Vacation';
-                }
             @endphp
             
             <div class="plate-container">
@@ -616,43 +614,67 @@
             </div>
         </div>
 
-        <div class="road-status-container">
-            @php
-                $warehouse = strtolower(trim($bikes->warehouse ?? ''));
-                $roadStatus = 'N/A';
-                $roadStatusClass = '';
-                
-                if ($warehouse === 'active') {
-                    $roadStatus = 'On Road';
-                    $roadStatusClass = 'road-onroad';
-                } elseif ($warehouse === 'return' || $warehouse === 'vacation' || $warehouse === 'express garage') {
-                    $roadStatus = 'Off Road';
-                    $roadStatusClass = 'road-offroad';
-                }else{
-                    $roadStatus = 'On Road';
-                    $roadStatusClass = 'road-onroadRed';
-                }
-            @endphp
-            
-            @if($roadStatus !== 'N/A')
-            <div class="road-status-badge {{ $roadStatusClass }}">
-                {{ $roadStatus }}
-            </div>
-            @endif
-        </div>
-        
         <!-- Basic Information Section - Matching rider profile style -->
         <div class="basic-information">
             <h3></h3>
             <ul class="info-list">
+                @php
+                    $whRaw = trim((string) ($bikes->warehouse ?? ''));
+                    $warehouseKey = strtolower($whRaw);
 
-                <!-- Leasing Company -->
+                    $warehouseBadgeClass = 'warehouse-default';
+                    if ($warehouseKey === 'active') {
+                        $warehouseBadgeClass = 'Active';
+                    } elseif ($warehouseKey === 'return') {
+                        $warehouseBadgeClass = 'Return';
+                    } elseif ($warehouseKey === 'absconded') {
+                        $warehouseBadgeClass = 'Absconded';
+                    } elseif ($warehouseKey === 'vacation') {
+                        $warehouseBadgeClass = 'Vacation';
+                    }
+
+                    $roadStatus = 'On Road';
+                    $roadStatusClass = 'road-onroadRed';
+                    if ($warehouseKey === 'active') {
+                        $roadStatus = 'On Road';
+                        $roadStatusClass = 'road-onroad';
+                    } elseif ($warehouseKey === 'return' || $warehouseKey === 'vacation' || $warehouseKey === 'express garage') {
+                        $roadStatus = 'Off Road';
+                        $roadStatusClass = 'road-offroad';
+                    }
+
+                    $bikeStatusInt = (int) ($bikes->status ?? 0);
+                    if ($bikeStatusInt === 1) {
+                        $bikeRecordStatusLabel = 'Active';
+                        $bikeRecordStatusClass = 'Active';
+                    } elseif ($bikeStatusInt === 2 || $bikeStatusInt === 3) {
+                        $bikeRecordStatusLabel = 'Inactive';
+                        $bikeRecordStatusClass = 'Inactive';
+                    } else {
+                        $bikeRecordStatusLabel = $whRaw === '' && $bikeStatusInt === 0 ? '—' : (string) ($bikes->status ?? '—');
+                        $bikeRecordStatusClass = 'warehouse-default';
+                    }
+                @endphp
+
                 <li class="info-item">
                     <div class="info-icon">
-                        <i class="ti ti-building"></i>
+                        <i class="ti ti-activity"></i>
                     </div>
                     <div class="info-content">
-                        <span class="info-label">Branch</span>
+                        <span class="info-label">Status</span>
+                        <div class="status-stack">
+                            <span class="info-value status-badge {{ $bikeRecordStatusClass }}">{{ $bikeRecordStatusLabel }}</span>
+                            @if($whRaw !== '')
+                            <span class="info-value status-badge {{ $warehouseBadgeClass }}">{{ $whRaw }}</span>
+                            @else
+                            <span class="info-value status-badge warehouse-default">Warehouse: N/A</span>
+                            @endif
+                            <span class="road-status-badge {{ $roadStatusClass }}">{{ $roadStatus }}</span>
+                        </div>
+                    </div>
+                </li>
+
+                <!-- Branch -->
                         <span class="info-value">
                             {{ $bikes->branch ?  $bikes->branch->name .' ( '.$bikes->branch->code.' )' : 'N/A' }}
                         </span>

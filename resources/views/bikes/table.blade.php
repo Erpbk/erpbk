@@ -154,6 +154,15 @@
             <span class="badge {{ $badgeClass }}">{{ $r->warehouse }}</span>
          </td>
          @break
+         @case('status')
+         <td tabindex="0">
+            @php
+            $statusText = $r->status == 1 ? 'Active' : 'Inactive';
+            $badgeClass = $r->status == 1 ? 'bg-label-success' : 'bg-label-danger';
+            @endphp
+            <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+         </td>
+         @break
          @case('created_by')
          <td tabindex="0">{{ $r->created_by ? \App\Models\User::find($r->created_by)->name : '-' }}</td>
          @break

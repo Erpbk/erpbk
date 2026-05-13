@@ -134,7 +134,7 @@
             $('.export-column').prop('checked', false);
 
             // Then check essential columns
-            var essentialColumns = ['bike_code', 'plate', 'rider_name', 'rider_id', 'emirates', 'warehouse', 'expiry_date'];
+            var essentialColumns = ['bike_code', 'plate', 'rider_name', 'rider_id', 'emirates', 'warehouse', 'status', 'expiry_date'];
             essentialColumns.forEach(function(column) {
                 $('#column_' + column).prop('checked', true);
             });

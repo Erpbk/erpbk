@@ -19,14 +19,16 @@ $hasBikeTopOptionColumn = \Illuminate\Support\Facades\Schema::hasColumn('bikes',
         @foreach($bikeTopSliderCategories as $category)
         @foreach($category->options as $option)
         @php
-        $countActive = $hasBikeTopOptionColumn
-        ? \App\Models\Bikes::where('bike_top_option_id', $option->id)->where('status', 1)->count()
-        : 0;
-        $countInactive = $hasBikeTopOptionColumn
-        ? \App\Models\Bikes::where('bike_top_option_id', $option->id)->where(function ($q) {
-        $q->whereNull('status')->orWhere('status', '!=', 1);
-        })->count()
-        : 0;
+        $countActive = 0;
+        $countInactive = 0;
+        if ($hasBikeTopOptionColumn) {
+          $totalForOption = \App\Models\Bikes::where('bike_top_option_id', $option->id)->count();
+          $countActive = \App\Models\Bikes::where('bike_top_option_id', $option->id)
+            ->where('warehouse', 'Active')
+            ->where('status', 1)
+            ->count();
+          $countInactive = $totalForOption - $countActive;
+        }
         $optionCardTitle = \App\Models\BikeCustomField::displayLabelForFixedFieldValue($category->bike_column ?? null, (string) $option->name);
         @endphp
         <div class="fleet-supervisor-card @if((int) request('bike_top_option_id') === (int) $option->id) active filtered @endif" data-slide="{{ $slideIndex++ }}" onclick="filterByBikeTopOption('{{ $option->id }}')">

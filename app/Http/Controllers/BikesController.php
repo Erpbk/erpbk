@@ -123,10 +123,14 @@ class BikesController extends AppBaseController
     if ($request->filled('bike_top_wh')) {
       $wh = (string) $request->bike_top_wh;
       if ($wh === 'active') {
-        $query->where('bikes.status', 1);
+        $query->where('bikes.warehouse', 'Active')->where('bikes.status', 1);
       } elseif ($wh === 'inactive') {
         $query->where(function ($q) {
-          $q->whereNull('bikes.status')->orWhere('bikes.status', '!=', 1);
+          $q->where(function ($q2) {
+            $q2->whereNull('bikes.warehouse')->orWhere('bikes.warehouse', '!=', 'Active');
+          })->orWhere(function ($q2) {
+            $q2->whereNull('bikes.status')->orWhere('bikes.status', '!=', 1);
+          });
         });
       }
     }
@@ -206,7 +210,7 @@ class BikesController extends AppBaseController
     $filteredColumns = Schema::getColumnListing('bikes');
 
     // Columns to exclude
-    $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'contract_number', 'status'];
+    $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'contract_number'];
 
     // Final filtered columns
     $dbColumns = array_diff($filteredColumns, $exclude);
@@ -232,6 +236,7 @@ class BikesController extends AppBaseController
       'company',
       'customer_id',
       'warehouse',
+      'status',
       'expiry_date',
       'created_by',
       'updated_by',

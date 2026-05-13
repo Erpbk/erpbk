@@ -57,6 +57,39 @@
       /* Firefox */
    }
 
+   .road-status-badge {
+      display: inline-block;
+      padding: 4px 16px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-align: center;
+      min-width: 120px;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+   }
+
+   .road-onroad {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      border: 1px solid #218838;
+   }
+
+   .road-offroad {
+      background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+      border: 1px solid #c82333;
+   }
+
+   .road-onroadRed {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+      /* Both red tones */
+      border: 2px solid #b02a37;
+      /* Darker red border */
+      color: #ffffff;
+   }
+
+
    @keyframes pulse {
       0% {
          transform: scale(1);
@@ -140,7 +173,7 @@
          <td tabindex="0">{{ $r->branch ? $r->branch->name .' ( '. $r->branch->code .' )' : '-' }}</td>
          @break
          @case('warehouse')
-         @case('status')
+
          <td tabindex="0">
             @php
             $wRaw = $r->warehouse ?? '';
@@ -156,6 +189,42 @@
             $wDisplay = $wRaw !== '' && $wRaw !== null ? $wRaw : '—';
             @endphp
             <span class="badge {{ $badgeClass }}">{{ $wDisplay }}</span>
+         </td>
+         @break
+         @case('status')
+         <td tabindex="0">
+            @php
+            $warehouse = $r->warehouse ?? '';
+            $warehouseClass = 'warehouse-default';
+
+            if (strtolower($warehouse) == 'active') {
+            $warehouseClass = 'Active';
+            } elseif (strtolower($warehouse) == 'return') {
+            $warehouseClass = 'Return';
+            } elseif (strtolower($warehouse) == 'absconded') {
+            $warehouseClass = 'Absconded';
+            } elseif (strtolower($warehouse) == 'vacation') {
+            $warehouseClass = 'Vacation';
+            }
+
+            $warehouse = strtolower(trim($bikes->warehouse ?? ''));
+            $roadStatus = 'N/A';
+            $roadStatusClass = '';
+
+            if ($warehouse === 'active') {
+            $roadStatus = 'On Road';
+            $roadStatusClass = 'road-onroad';
+            } elseif ($warehouse === 'return' || $warehouse === 'vacation' || $warehouse === 'express garage') {
+            $roadStatus = 'Off Road';
+            $roadStatusClass = 'road-offroad';
+            }else{
+            $roadStatus = 'On Road';
+            $roadStatusClass = 'road-onroadRed';
+            }
+            @endphp
+            <span class="road-status-badge {{ $roadStatusClass }}">
+               {{ $roadStatus }}
+            </span>
          </td>
          @break
          @case('created_by')

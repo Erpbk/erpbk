@@ -178,13 +178,13 @@ class BikesController extends AppBaseController
         $bikeTopSliderCategories->each(function ($cat) use ($allowedSet) {
           $cat->setRelation(
             'options',
-            $cat->options->filter(fn ($o) => isset($allowedSet[(int) $o->id]))->values()
+            $cat->options->filter(fn($o) => isset($allowedSet[(int) $o->id]))->values()
           );
         });
-        $bikeTopSliderCategories = $bikeTopSliderCategories->filter(fn ($c) => $c->options->isNotEmpty())->values();
+        $bikeTopSliderCategories = $bikeTopSliderCategories->filter(fn($c) => $c->options->isNotEmpty())->values();
       }
 
-      if ($bikeTopSliderCategories->sum(fn ($c) => $c->options->count()) === 0) {
+      if ($bikeTopSliderCategories->sum(fn($c) => $c->options->count()) === 0) {
         $bikeTopSliderCategories = collect();
       }
     }
@@ -206,7 +206,7 @@ class BikesController extends AppBaseController
     $filteredColumns = Schema::getColumnListing('bikes');
 
     // Columns to exclude
-    $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'contract_number'];
+    $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'contract_number', 'status'];
 
     // Final filtered columns
     $dbColumns = array_diff($filteredColumns, $exclude);
@@ -232,7 +232,6 @@ class BikesController extends AppBaseController
       'company',
       'customer_id',
       'warehouse',
-      'status',
       'expiry_date',
       'created_by',
       'updated_by',

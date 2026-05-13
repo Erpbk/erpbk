@@ -229,7 +229,7 @@ class BikeSettingsController extends Controller
             if (Schema::hasTable('bike_top_options')) {
                 $bikeTopAllOptionIds = BikeTopOption::query()
                     ->pluck('id')
-                    ->map(fn ($id) => (int) $id)
+                    ->map(fn($id) => (int) $id)
                     ->values()
                     ->all();
             }
@@ -944,8 +944,8 @@ class BikeSettingsController extends Controller
 
         $categoryId = (int) $validated['category_id'];
         $items = collect($validated['selected_values'] ?? [])
-            ->map(fn ($v) => trim((string) $v))
-            ->filter(fn ($v) => $v !== '')
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
             ->unique()
             ->values();
 
@@ -1003,8 +1003,8 @@ class BikeSettingsController extends Controller
                 $configuredValues = collect(preg_split("/\r\n|\n|\r/", (string) $rawOptions));
             }
             $configuredValues = $configuredValues
-                ->map(fn ($v) => trim((string) $v))
-                ->filter(fn ($v) => $v !== '')
+                ->map(fn($v) => trim((string) $v))
+                ->filter(fn($v) => $v !== '')
                 ->unique()
                 ->values();
         }
@@ -1015,14 +1015,14 @@ class BikeSettingsController extends Controller
             ->distinct()
             ->orderBy($column)
             ->pluck($column)
-            ->map(fn ($v) => trim((string) $v))
-            ->filter(fn ($v) => $v !== '')
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
             ->unique()
             ->values();
 
         if ($formChoices !== []) {
             $choices = collect($formChoices);
-            $valueSet = $choices->pluck('value')->map(fn ($v) => (string) $v)->all();
+            $valueSet = $choices->pluck('value')->map(fn($v) => (string) $v)->all();
             $valueSet = array_flip($valueSet);
             foreach ($tableValues as $v) {
                 $sv = trim((string) $v);
@@ -1044,8 +1044,8 @@ class BikeSettingsController extends Controller
 
         $values = $configuredValues
             ->concat($tableValues)
-            ->map(fn ($v) => trim((string) $v))
-            ->filter(fn ($v) => $v !== '')
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
             ->unique()
             ->values();
 
@@ -1071,8 +1071,10 @@ class BikeSettingsController extends Controller
 
         $category = $option->category;
         $column = $category ? trim((string) ($category->bike_column ?? '')) : '';
-        if ($oldName !== '' && $newName !== '' && strcasecmp($oldName, $newName) !== 0
-            && $column !== '' && Schema::hasColumn('bikes', $column)) {
+        if (
+            $oldName !== '' && $newName !== '' && strcasecmp($oldName, $newName) !== 0
+            && $column !== '' && Schema::hasColumn('bikes', $column)
+        ) {
             Bikes::where($column, $oldName)->update([$column => $newName]);
         }
 
@@ -1109,7 +1111,7 @@ class BikeSettingsController extends Controller
         ]);
 
         $ids = collect($validated['visible_option_ids'] ?? [])
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->unique()
             ->values()
             ->all();

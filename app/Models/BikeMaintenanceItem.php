@@ -36,5 +36,8 @@ class BikeMaintenanceItem extends BaseModel
         'deleted_at' => 'datetime',
     ];
 
-
+    public function bikeMaintenance()
+    {
+        return $this->belongsTo(BikeMaintenance::class, 'bike_maintenance_id');
+    }
 }

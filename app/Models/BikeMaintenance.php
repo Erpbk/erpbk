@@ -13,6 +13,7 @@ class BikeMaintenance extends BaseModel
     public $fillable = [
         'bike_id',
         'rider_id',
+        'rental_company_id',
         'garage_id',
         'maintenance_date',
         'description',
@@ -59,6 +60,10 @@ class BikeMaintenance extends BaseModel
     public function maintenanceItems(){
         return $this->hasMany(BikeMaintenanceItem::class,'bike_maintenance_id', 'id');
     }
+    public function rentalCompany()
+    {
+        return $this->belongsTo(BikeRentCompany::class, 'rental_company_id');
+    }
 
     public function CreatedBy(){
         return $this->belongsTo(User::class,'created_by','id');
@@ -66,5 +71,10 @@ class BikeMaintenance extends BaseModel
 
     public function UpdatedBy(){
         return $this->belongsTo(User::class,'updated_by','id');
+    }
+
+    public function getCostAttribute()
+    {
+        return BikeMaintenanceItem::where('bike_maintenance_id', $this->id)->sum('total_amount');
     }
 }

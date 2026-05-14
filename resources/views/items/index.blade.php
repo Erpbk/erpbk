@@ -9,34 +9,34 @@
 @endpush
 @section('content')
 <section class="content-header ">
-        @include('flash::message')
-        <div>
-            <div class="row mb-2">
-                <div class="col-sm-12 col-lg-12">
-                    <div class="action-buttons d-flex justify-content-end" >
-                    <div class="action-dropdown-container">
-                        <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+    @include('flash::message')
+    <div>
+        <div class="row mb-2">
+            <div class="col-sm-12 col-lg-12">
+                <div class="action-buttons d-flex justify-content-end" >
+                <div class="action-dropdown-container">
+                    <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                        <i class="ti ti-plus"></i>
+                        <span>Add New</span>
+                        <i class="ti ti-chevron-down"></i>
+                    </button>
+                    <div class="action-dropdown-menu" id="addBikeDropdown">
+                        @can('item_create')
+                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Item" data-action="{{ route('items.create') }}">
                             <i class="ti ti-plus"></i>
-                            <span>Add New</span>
-                            <i class="ti ti-chevron-down"></i>
-                        </button>
-                        <div class="action-dropdown-menu" id="addBikeDropdown">
-                            @can('item_create')
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Item" data-action="{{ route('items.create') }}">
-                                <i class="ti ti-plus"></i>
-                                <div>
-                                    <div class="action-dropdown-item-text">New</div>
-                                    <div class="action-dropdown-item-desc">Add New Item</div>
-                                </div>
-                            </a>
-                            @endcan
-                        </div>
+                            <div>
+                                <div class="action-dropdown-item-text">New</div>
+                                <div class="action-dropdown-item-desc">Add New Item</div>
+                            </div>
+                        </a>
+                        @endcan
                     </div>
                 </div>
-                </div>
+            </div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
     <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
         <div class="filter-header">

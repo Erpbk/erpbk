@@ -8,23 +8,26 @@
                 {!! Form::label('bike_info', 'Bike') !!}
                 <select name="bike_id" class="form-control select2 bike" id="bike_select">
                     <option value="">Select</option>
-                    @foreach(\App\Models\Bikes::where('status', 1)->get() as $bike)
+                    @foreach($bikes as $bike)
                     <option value="{{ $bike->id }}"
-                        data-rider="{{ $bike->rider ? $bike->rider->rider_id .'-'. $bike->rider->name : 'No Rider Assigned' }}"
-                        data-rider-id="{{ $bike->rider->id ?? null }}"
+                        data-rider="{{ $bike->rider ? ($bike->rider->rider_id .'-'. $bike->rider->name) : ($bike->rentalCompany ? $bike->rentalCompany->name.' (Bike Rental Customer)' : 'No User Assigned') }}"
+                        data-rider-id="{{ $bike->rider?->id ?? null }}"
+                        data-rental-company-id="{{ $bike->rentalCompany?->id ?? null }}"
                         data-previous-km="{{ $bike->previous_km }}"
-                        data-maintenance-km="{{ $bike->maintenance_km }}">
+                        data-maintenance-km="{{ $bike->maintenance_km }}"
+                        @if($bikee && $bikee->id == $bike->id) selected @endif>
                             {{ $bike->emirates.'-'.$bike->plate }}
                     </option>
                     @endforeach
                 </select>
                 {!! Form::hidden('rider_id', null, ['id' => 'rider_id_hidden']) !!}
+                {!! Form::hidden('rental_company_id', null, ['id' => 'rental_id_hidden']) !!}
             </div>
 
             {{-- Rider Information (Read-only) --}}
             <div class="form-group col-md-3">
-                {!! Form::label('rider_info', 'Rider') !!}
-                {!! Form::text('rider_info', "No Rider Assigned", ['class' => 'form-control rider', 'readonly' => true, 'id' => 'rider_info']) !!}
+                {!! Form::label('rider_info', 'Assigned To') !!}
+                {!! Form::text('rider_info', "No User Assigned", ['class' => 'form-control rider', 'readonly' => true, 'id' => 'rider_info']) !!}
             </div>
 
             {{-- Maintenance Date --}}
@@ -42,8 +45,49 @@
                 ]) !!}
             </div>
 
-            {{-- Previous KM --}}
+            {{-- Billing Month --}}
             <div class="form-group col-md-3">
+                {!! Form::label('billing_month', 'Billing Month') !!}
+                {!! Form::month('billing_month', now(), ['class' => 'form-control', 'required' => true]) !!}
+            </div>
+
+            {{-- Garage --}}
+            <div class="form-group col-md-3">
+                {!! Form::label('garage', 'Garage:') !!}
+                <select name="garage_id" class="form-control select2" required>
+                    <option value="">Select</option>
+                    @foreach ($garages as $garage)
+                        <option value="{{ $garage->id }}">{{ $garage->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- Overdue Paid By
+            <div class="form-group col-md-3">
+                <div class="form-check mt-5">
+                    {!! Form::checkbox('overdue_paidby', 'User', null, [
+                        'class' => 'form-check-input',
+                        'id' => 'charge_rider'
+                    ]) !!}
+                    {!! Form::label('charge_rider', 'Charge Overdue to Rider', [
+                        'class' => 'fw-bold'
+                    ]) !!}
+                </div>
+            </div> --}}
+            <div class="col-md-3"></div>
+            {{-- Description --}}
+            <div class="form-group col-md-6">
+                {!! Form::label('description', 'Notes') !!}
+                {!! Form::textarea('description', null, [
+                    'class' => 'form-control', 
+                    'rows' => 3,
+                    'placeholder' => 'Any notes about maintenance performed...'
+                ]) !!}
+            </div>
+        </div>
+        <div class="row my-5">
+            {{-- Previous KM --}}
+            <div class="form-group col-md-2">
                 {!! Form::label('previous_km', 'Previous Reading') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
@@ -58,7 +102,7 @@
             </div>
 
             {{-- Current KM --}}
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-2">
                 {!! Form::label('current_km', 'Current Reading') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
@@ -73,11 +117,11 @@
             </div>
 
             {{-- Maintenance KM (interval for maintenance) --}}
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-2">
                 {!! Form::label('maintenance_km', 'Maintenance Interval') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
-                    {!! Form::number('maintenance_km', null, [
+                    {!! Form::number('maintenance_km', 2000, [
                         'class' => 'form-control', 
                         'step' => 'any', 
                         'required' => true,
@@ -88,7 +132,7 @@
             </div>
 
             {{-- Overdue KM (calculated field) --}}
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-2">
                 {!! Form::label('overdue_km', 'Overdue Reading') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
@@ -102,7 +146,7 @@
             </div>
 
             {{-- Overdue Cost Per KM --}}
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-2">
                 {!! Form::label('overdue_cost_per_km', 'Cost Per Overdue KM', ['class' => 'required']) !!}
                 <div class="input-group">
                     <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
@@ -118,7 +162,7 @@
             </div>
 
             {{-- Total Overdue Cost (calculated field) --}}
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-2">
                 {!! Form::label('overdue_cost', 'Overdue Cost') !!}
                 <div class="input-group">
                     <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
@@ -129,48 +173,6 @@
                         'id' => 'overdue_cost'
                     ]) !!}
                 </div>
-            </div>
-
-            {{-- Overdue Paid By --}}
-            <div class="form-group col-md-3">
-                <div class="form-check mt-5">
-                    {!! Form::checkbox('overdue_paidby', 'Rider', null, [
-                        'class' => 'form-check-input',
-                        'id' => 'charge_rider'
-                    ]) !!}
-                    {!! Form::label('charge_rider', 'Charge Overdue to Rider', [
-                        'class' => 'fw-bold'
-                    ]) !!}
-                </div>
-            </div>
-
-            {{-- Garage --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('garage', 'Garage:') !!}
-                <select name="garage_id" class="form-control select2" required>
-                    <option value="">Select</option>
-                    @foreach (App\Models\Garages::where('status',1)->get() as $garage)
-                        <option value="{{ $garage->id }}">{{ $garage->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            {{-- Description --}}
-            <div class="form-group col-md-6">
-                {!! Form::label('description', 'Notes') !!}
-                {!! Form::textarea('description', null, [
-                    'class' => 'form-control', 
-                    'rows' => 3,
-                    'placeholder' => 'Any notes about maintenance performed...'
-                ]) !!}
-            </div>
-
-            <div class="col-md-3"></div>
-
-            {{-- Billing Month --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('billing_month', 'Billing Month') !!}
-                {!! Form::month('billing_month', now(), ['class' => 'form-control', 'required' => true]) !!}
             </div>
         </div>
     </div>
@@ -225,12 +227,15 @@
                     {!! Form::number('item_total[]', null, ['class' => 'form-control amount', 'step' => 'any']) !!}
                 </div>
                 <div class="form-group col-md-2">
-
+                    @if($type == 'garage')
+                    <input name="charge_to[]" class="form-control" value="User" readonly>
+                    @else
                     <select name="charge_to[]" class="form-control select2">
                         <option value="">Select</option>
                         <option value="Company">Company</option>
-                        <option value="Rider">Rider</option>
+                        <option value="User">User</option>
                     </select>
+                    @endif
                 </div>
                 <div class="form-group col-md-1 d-flex align-items-end">
                     <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
@@ -285,6 +290,7 @@ $(document).ready(function() {
     const overdueCost = $('#overdue_cost');
     const riderInfo = $('#rider_info');
     const riderIdHidden = $('#rider_id_hidden');
+    const rentalIdHidden = $('#rental_id_hidden');
     
     function calculateOverdue() {
         const prev = parseFloat(previousKm.val());
@@ -325,9 +331,11 @@ $(document).ready(function() {
     setTotal();
 
     $(document).on('change', '#bike_select', function(){
+        console.log('bike select change triggered');
         const selectedOption = $(this).find('option:selected');
         const riderData = selectedOption.data('rider');
         const riderId = selectedOption.data('rider-id');
+        const rentalId = selectedOption.data('rental-company-id');
         const previousKmData = selectedOption.data('previous-km');
         const maintenanceKmData = selectedOption.data('maintenance-km');
 
@@ -335,6 +343,7 @@ $(document).ready(function() {
         // Update rider information
         riderInfo.val(riderData);
         riderIdHidden.val(riderId);
+        rentalIdHidden.val(rentalId);
         previousKm.val(previousKmData);
         maintenanceKm.val(maintenanceKmData);
         
@@ -344,20 +353,27 @@ $(document).ready(function() {
     });
 
     toggleRiderChargeOption();
+    
+
+    if($('#bike_select').val()){
+        console.log('triggering bike select change');
+        $('#bike_select').trigger('change');
+
+    }
 });
 
 function toggleRiderChargeOption() {
     const riderText = $('#rider_info').val().trim();
-    const noRider = riderText === 'No Rider Assigned';
+    const noRider = riderText === 'No User Assigned';
 
     $('select[name="charge_to[]"]').each(function () {
-        const riderOption = $(this).find('option[value="Rider"]');
+        const riderOption = $(this).find('option[value="User"]');
 
         if (noRider) {
             riderOption.prop('disabled', true);
 
             // If currently selected, reset it
-            if ($(this).val() === 'Rider') {
+            if ($(this).val() === 'User') {
                 $(this).val('').trigger('change');
             }
         } else {

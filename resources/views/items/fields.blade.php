@@ -29,21 +29,33 @@
                 {!! Form::label('margin', 'Margin %:') !!}
                 {!! Form::number('margin', null, ['class' => 'form-control margin-input', 'step'=>'any', 'id' => 'margin_input', 'readonly' => true]) !!}
             </div>
-
             <!-- Vat Field -->
             <div class="form-group col-sm-2">
                 {!! Form::label('vat', 'VAT(%):') !!}
                 {!! Form::number('vat', null, ['class' => 'form-control','step'=>'any']) !!}
             </div>
-
+            <div class="col-sm-6"></div>
             <!-- Status Field -->
-            <div class="form-group col-sm-5 mt-3">
+            <div class="form-group col-sm-2 mt-3">
                 <label>Status</label>
                 <div class="status-toggle-container">
                     <input type="hidden" name="status" value="2"/>
                     <label class="toggle-switch">
                         <input type="checkbox" name="status" id="status" value="1" 
                             @isset($items) @if($items->status == 1) checked @endif @else checked @endisset/>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Maintain Inventory Field -->
+            <div class="form-group col-sm-3 mt-3">
+                <label>Maintain Inventory</label>
+                <div class="status-toggle-container">
+                    <input type="hidden" name="is_maintained" value="{{ false }}"/>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="is_maintained" id="status" value="1" 
+                            @isset($items) @if($items->is_maintained == 1) checked @endif @endisset/>
                         <span class="toggle-slider"></span>
                     </label>
                 </div>

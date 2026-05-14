@@ -12,9 +12,10 @@
 
             {{-- Rider Information (Read-only) --}}
             <div class="form-group col-md-4">
-                {!! Form::label('rider_info', 'Rider') !!}
-                {!! Form::hidden('rider_id',$bike->rider? $bike->rider->id : null) !!}
-                {!! Form::text('rider_info', $bike->rider? $bike->rider->rider_id.'-'.$bike->rider->name : 'No Rider Assigned', ['class' => 'form-control', 'readonly' => true]) !!}
+                {!! Form::label('rider_info', 'User') !!}
+                {!! Form::hidden('rider_id',$bike->rider? $bike->rider->id :null) !!}
+                {!! Form::hidden('rental_company_id',$bike->rentalCompany? $bike->rentalCompany->id :null) !!}
+                {!! Form::text('rider_info', $bike->rider? ($bike->rider->rider_id.'-'.$bike->rider->name) : ($bike->rentalCompany? $bike->rentalCompany->name: 'No User Assigned'), ['class' => 'form-control', 'readonly' => true]) !!}
             </div>
 
             {{-- Maintenance Date --}}
@@ -32,8 +33,50 @@
                 ]) !!}
             </div>
 
-            {{-- Previous KM --}}
+            {{-- Billing Month --}}
             <div class="form-group col-md-3">
+                {!! Form::label('billing_month', 'Billing Month') !!}
+                {!! Form::month('billing_month', $maintenance->billing_month ?? now(), ['class' => 'form-control', 'required' => true]) !!}
+            </div>
+
+            {{-- Garage --}}
+            <div class="form-group col-md-3">
+                {!! Form::label('garage', 'Garage:') !!}
+                <select name="garage_id" class="form-control select2" required>
+                    <option value="">Select</option>
+                    @foreach ($garages as $garage)
+                        <option value="{{ $garage->id }}" @if($garage->id == $maintenance->garage_id) selected @endif>{{ $garage->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- Overdue Paid By --}}
+            {{-- <div class="form-group col-md-3">
+                <div class="form-check mt-5">
+                    {!! Form::checkbox('overdue_paidby', 'Rider', $maintenance->overdue_paidby ?? null, [
+                        'class' => 'form-check-input',
+                        'id' => 'charge_rider'
+                    ]) !!}
+                    {!! Form::label('charge_rider', 'Charge Overdue to Rider', [
+                        'class' => 'fw-bold'
+                    ]) !!}
+                </div>
+            </div> --}}
+            <div class="col-md-4"></div>
+            {{-- Description --}}
+            <div class="form-group col-md-6">
+                {!! Form::label('description', 'Notes') !!}
+                {!! Form::textarea('description', $maintenance->description ?? null, [
+                    'class' => 'form-control', 
+                    'rows' => 3,
+                    'placeholder' => 'Notes about maintenance performed...'
+                ]) !!}
+            </div>
+        </div>
+        <div class="row my-5">
+
+            {{-- Previous KM --}}
+            <div class="form-group col-md-2">
                 {!! Form::label('previous_km', 'Previous Reading') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
@@ -49,7 +92,7 @@
             </div>
 
             {{-- Current KM --}}
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-2">
                 {!! Form::label('current_km', 'Current Reading') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
@@ -63,7 +106,7 @@
             </div>
 
             {{-- Maintenance KM (interval for maintenance) --}}
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-2">
                 {!! Form::label('maintenance_km', 'Maintenance Interval') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
@@ -78,7 +121,7 @@
             </div>
 
             {{-- Overdue KM (calculated field) --}}
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-2">
                 {!! Form::label('overdue_km', 'Overdue Reading') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
@@ -92,7 +135,7 @@
             </div>
 
             {{-- Overdue Cost Per KM --}}
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-2">
                 {!! Form::label('overdue_cost_per_km', 'Cost Per Overdue KM') !!}
                 <div class="input-group">
                     <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
@@ -107,7 +150,7 @@
             </div>
 
             {{-- Total Overdue Cost (calculated field) --}}
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-2">
                 {!! Form::label('overdue_cost', 'Overdue Cost') !!}
                 <div class="input-group">
                     <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
@@ -118,48 +161,6 @@
                         'id' => 'overdue_cost'
                     ]) !!}
                 </div>
-            </div>
-
-            {{-- Overdue Paid By --}}
-            <div class="form-group col-md-3">
-                <div class="form-check mt-5">
-                    {!! Form::checkbox('overdue_paidby', 'Rider', $maintenance->overdue_paidby ?? null, [
-                        'class' => 'form-check-input',
-                        'id' => 'charge_rider'
-                    ]) !!}
-                    {!! Form::label('charge_rider', 'Charge Overdue to Rider', [
-                        'class' => 'fw-bold'
-                    ]) !!}
-                </div>
-            </div>
-
-            {{-- Garage --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('garage', 'Garage:') !!}
-                <select name="garage_id" class="form-control select2" required>
-                    <option value="">Select</option>
-                    @foreach (App\Models\Garages::where('status',1)->get() as $garage)
-                        <option value="{{ $garage->id }}" @if($garage->id == $maintenance->garage_id) selected @endif>{{ $garage->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            {{-- Description --}}
-            <div class="form-group col-md-6">
-                {!! Form::label('description', 'Notes') !!}
-                {!! Form::textarea('description', $maintenance->description ?? null, [
-                    'class' => 'form-control', 
-                    'rows' => 3,
-                    'placeholder' => 'Notes about maintenance performed...'
-                ]) !!}
-            </div>
-
-            <div class="col-md-3"></div>
-
-            {{-- Billing Month --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('billing_month', 'Billing Month') !!}
-                {!! Form::month('billing_month', $maintenance->billing_month ?? now(), ['class' => 'form-control', 'required' => true]) !!}
             </div>
         </div>
     </div>
@@ -215,11 +216,15 @@
                     {!! Form::number('item_total[]', $item->total_amount, ['class' => 'form-control amount', 'step' => 'any', 'readonly' => true]) !!}
                 </div>
                 <div class="form-group col-md-2">
+                    @if($type == 'garage')
+                    <input name="charge_to[]" class="form-control" value="User" readonly>
+                    @else
                     <select name="charge_to[]" class="form-control select2">
                         <option value="">Select</option>
-                        <option value="Company" {{ $item->charge_to == 'Company' ? 'selected' : '' }}>Company</option>
-                        <option value="Rider" {{ $item->charge_to == 'Rider' ? 'selected' : '' }}>Rider</option>
+                        <option value="Company" @if($item->charge_to == 'Company') selected @endif>Company</option>
+                        <option value="User" @if($item->charge_to == 'User') selected @endif>User</option>
                     </select>
+                    @endif
                 </div>
                 <div class="form-group col-md-1 d-flex align-items-end">
                     <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
@@ -337,16 +342,16 @@ $(document).ready(function() {
 
 function toggleRiderChargeOption() {
     const riderText = $('#rider_info').val().trim();
-    const noRider = riderText === 'No Rider Assigned';
+    const noRider = riderText === 'No User Assigned';
 
     $('select[name="charge_to[]"]').each(function () {
-        const riderOption = $(this).find('option[value="Rider"]');
+        const riderOption = $(this).find('option[value="User"]');
 
         if (noRider) {
             riderOption.prop('disabled', true);
 
             // If currently selected, reset it
-            if ($(this).val() === 'Rider') {
+            if ($(this).val() === 'User') {
                 $(this).val('').trigger('change');
             }
         } else {

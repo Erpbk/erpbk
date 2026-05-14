@@ -15,7 +15,12 @@
       @foreach($data as $row)
       <tr class="text-center">
           <td>
-              <a href="{{ route('bikeRentCompanies.files', $row->id) }}">{{ $row->name }}</a>
+              <a @if($row->customer_type == 'bike_rental')
+                    href="{{ route('bikeRentCompanies.files', $row->id) }}" 
+                    @else
+                    href="{{ route('garage_customer.files', $row->id) }}"@endif>
+                 {{ $row->name }}
+              </a>
           </td>
           <td>{{ $row->company_contact }}</td>
           <td>{{ $row->email }}</td>

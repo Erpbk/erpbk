@@ -110,7 +110,7 @@ $homeLink = $isAdminLogin
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('items'))
 @can('item_view')
-<li class="menu-item {{ Route::is('items.*') ? 'open' : '' }} {{ Route::is('garage-items.*') ? 'open' : '' }}">
+<li class="menu-item {{ Route::is('items.*') ? 'open' : '' }} {{ Route::is('inventory.*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-notes"></i>
     <div>{{ $menuLabels['items'] ?? 'Items' }}</div>
@@ -121,9 +121,10 @@ $homeLink = $isAdminLogin
         <div>{{ $menuLabels['items_list'] ?? 'Items List' }}</div>
       </a>
     </li>
-    <li class="menu-item {{ Route::is('garage-items.*') ? 'active' : '' }}">
-      <a href="{{ route('garage-items.index') }}" class="menu-link">
-        <div>{{ $menuLabels['garage_items'] ?? 'Garage Items' }}</div>
+    <li class="menu-item {{ Route::is('inventory*') ? 'active' : '' }}">
+      <a href="{{ route('inventory.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-building"></i>
+        <div>{{ $menuLabels['inventory'] ?? 'Inventory' }}</div>
       </a>
     </li>
   </ul>
@@ -264,7 +265,7 @@ $homeLink = $isAdminLogin
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('bikes'))
 @can('bike_view')
-<li class="menu-item {{ Route::is('bikes*') || Route::is('bikeMaintenance*')? 'open' : '' }}">
+<li class="menu-item {{ Route::is('bikes*')? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-motorbike"></i>
     <div>{{ $menuLabels['bikes'] ?? 'Bikes' }}</div>
@@ -274,12 +275,6 @@ $homeLink = $isAdminLogin
       <a href="{{ route('bikes.index') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-motorbike"></i>
         <div>{{ $menuLabels['bike_list'] ?? 'Bike List' }}</div>
-      </a>
-    </li>
-    <li class="menu-item {{ Route::is('bikeMaintenance*') ? 'active' : '' }}">
-      <a href="{{ route('bikeMaintenance.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-motorbike"></i>
-        <div>{{ $menuLabels['maintenance_overview'] ?? 'Maintenance' }}</div>
       </a>
     </li>
   </ul>
@@ -422,17 +417,6 @@ $homeLink = $isAdminLogin
 </li>
 @endcan
 @endif
-
-@if(\App\Support\CompanyModuleVisibility::enabled('inventory'))
-@can('inventory_view')
-<li class="menu-item ">
-  <a href="#" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-package"></i>
-    <div>{{ $menuLabels['inventory'] ?? 'Inventory' }}</div>
-  </a>
-</li>
-@endcan
-@endif
 @if(\App\Support\CompanyModuleVisibility::enabled('visa_expense'))
 @can('visaexpense_view')
 <li class="menu-item {{ Route::is('VisaExpense*') ? 'active' : '' }}">
@@ -526,12 +510,46 @@ $homeLink = $isAdminLogin
 @endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('garages'))
-@can('garage_view')
-<li class="menu-item {{ Route::is('garages*') ? 'active' : '' }}">
-  <a href="{{ route('garages.index') }}" class="menu-link">
+@can('bike_view')
+<li class="menu-item {{ Route::is('garages*') || Route::is('garage_customer.*') || Route::is('bikeMaintenance*') ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle ">
     <i class="menu-icon tf-icons ti ti-parking"></i>
     <div>{{ $menuLabels['garages'] ?? 'Garages' }}</div>
   </a>
+  <ul class="menu-sub">
+    <li class="menu-item {{ Route::is('garages*') ? 'active' : '' }}">
+      <a href="{{ route('garages.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-parking"></i>
+        <div>{{ $menuLabels['garage_list'] ?? 'Garage List' }}</div>
+      </a>
+    </li>
+    <li class="menu-item {{ Route::is('garage_customer.*') && !Route::is('garage_customer.all_receipts') ? 'active' : '' }}">
+      <a href="{{ route('garage_customer.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-users"></i>
+        <div>{{ $menuLabels['garage_customers'] ?? 'Customers' }}</div>
+      </a>
+    </li>
+    <li class="menu-item {{ Route::is('bikeMaintenance*') ? 'active' : '' }}">
+      <a href="{{ route('bikeMaintenance.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-motorbike"></i>
+        <div>{{ $menuLabels['maintenance_overview'] ?? 'Maintenance' }}</div>
+      </a>
+    </li>
+    {{-- @can('billing_invoice_view')
+    <li class="menu-item {{ Route::is('leasingCompanyBillingInvoices*') ? 'active' : '' }}">
+      <a href="{{ route('leasingCompanyBillingInvoices.index') }}" class="menu-link ">
+        <i class="menu-icon tf-icons ti ti-file-plus"></i>
+        <div>{{ $menuLabels['leasing_billing_invoice'] ?? 'Billing Invoice' }}</div>
+      </a>
+    </li>
+    @endcan --}}
+    <li class="menu-item {{ Route::is('garage_customer.all_receipts') ? 'active' : '' }}">
+      <a href="{{ route('garage_customer.all_receipts') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-receipt"></i>
+        <div>{{ $menuLabels['bike_rent_customer_receipts'] ?? 'Payments Received' }}</div>
+      </a>
+    </li>
+  </ul>
 </li>
 @endcan
 @endif

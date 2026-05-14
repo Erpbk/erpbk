@@ -332,6 +332,13 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('bikeRentCompany/receipts', [\App\Http\Controllers\BikeRentCompaniesController::class, 'allReceipts'])->name('bikeRentCompanies.all_receipts');
     Route::get('bikeRentCompanies/receipts/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'receipts'])->name('bikeRentCompanies.receipts');
     Route::get('bikeRentCompanies/bikes/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'bikes'])->name('bikeRentCompanies.bikes');
+    Route::get('GarageCustomers/', [\App\Http\Controllers\BikeRentCompaniesController::class, 'garageIndex'])->name('garage_customer.index');
+    Route::get('GarageCustomers/ledger/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'ledger'])->name('garage_customer.ledger');
+    Route::get('GarageCustomers/files/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'files'])->name('garage_customer.files');
+    Route::get('GarageCustomers/receipts', [\App\Http\Controllers\BikeRentCompaniesController::class, 'allReceipts'])->name('garage_customer.all_receipts');
+    Route::get('GarageCustomers/receipts/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'receipts'])->name('garage_customer.receipts');
+    Route::get('GarageCustomers/bikes/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'bikes'])->name('garage_customer.bikes');
+    Route::get('GarageCustomers/maintenances/{id}', [\App\Http\Controllers\BikeRentCompaniesController::class, 'maintenances'])->name('garage_customer.maintenances');
     /* Rider section starts from here */
 
     Route::resource('riders', App\Http\Controllers\RidersController::class);
@@ -506,6 +513,10 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::delete('fuelCompanies/trash/{id}/force-destroy', [\App\Http\Controllers\FuelCompaniesController::class, 'forceDestroyTrash'])->name('fuelCompanies.force-destroy');
     Route::resource('fuelCompanies', App\Http\Controllers\FuelCompaniesController::class);
     Route::delete('fuelCompanies/delete/{id}', [\App\Http\Controllers\FuelCompaniesController::class, 'destroy'])->name('fuelCompanies.delete');
+    
+    Route::any('inventory/showBatch/{batch_no}', [\App\Http\Controllers\InventoryPurchaseController::class, 'showBatch'])->name('inventory.showBatch');
+    Route::any('inventory/purchase/history', [\App\Http\Controllers\InventoryPurchaseController::class, 'indexBatches'])->name('inventory.indexBatch');
+    Route::resource('inventory', App\Http\Controllers\InventoryPurchaseController::class);
 
     Route::resource('fuelCards', App\Http\Controllers\FuelCardController::class);
     Route::any('fuelcards/import', [\App\Http\Controllers\FuelCardController::class, 'import'])->name('fuelCards.import');

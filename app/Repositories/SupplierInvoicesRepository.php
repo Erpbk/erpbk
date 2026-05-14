@@ -5,6 +5,8 @@ namespace App\Repositories;
 use App\Helpers\Account;
 use App\Helpers\HeadAccount;
 use App\Models\Garages;
+use App\Models\Items;
+use App\Models\InventoryPurchase;
 use App\Models\SupplierInvoicesItem;
 use App\Models\SupplierInvoices;
 use App\Models\Transactions;
@@ -111,6 +113,11 @@ class SupplierInvoicesRepository extends BaseRepository
                     'tax_amount' => $itemVat,
                     'total_amount' => $itemTotal,
                 ];
+
+                if ($request->has('is_invoice') && $request['is_invoice']) {
+                    if($item->rate < $rate)
+                        $item->update(['cost'=>$rate, 'price' => $rate + ($rate*0.25)]);
+                }
             }
             if ($request->has('is_invoice'))
                 $request['billing_month'] = $request['billing_month'] . '-01';
@@ -123,6 +130,8 @@ class SupplierInvoicesRepository extends BaseRepository
                 $invoice = SupplierInvoices::find($id);
                 $invoice->update($request->all());
                 $invoice->items()->delete();
+                InventoryPurchase::where('inv_no', $invoice->inv_id)->delete();
+
             } else {
                 $request['created_by'] = auth()->id();
                 $invoice = SupplierInvoices::create($request->all());
@@ -134,6 +143,25 @@ class SupplierInvoicesRepository extends BaseRepository
             }
 
             if ($request->has('is_invoice') && $request['is_invoice']) {
+
+                $batch = 'Batch-'.strtoUpper(substr(uniqid(),0,5));
+                //add items to inventory
+                foreach($itemsData as $item) {
+                    InventoryPurchase::create([
+                        'item_id' => $item['item_id'],
+                        'supplier_id' => $invoice->supplier_id,
+                        'item_name' => $item['item_des'],
+                        'purchase_date' => $invoice->inv_date,
+                        'inv_id' => $invoice->id,
+                        'quantity' => $item['qty'],
+                        'remaining_quantity' => $item['qty'],
+                        'unit_cost' => $item['rate'],
+                        'batch_no' => $batch,
+                        'garage_id' => $invoice->garage_id,
+                        'created_by' => $invoice->created_by,
+                    ]);
+
+                }
 
                 //Create Transactions Against Invoice
                 $transCode = null;

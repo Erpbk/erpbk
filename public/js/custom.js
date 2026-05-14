@@ -804,7 +804,6 @@ $(document).ready(function () {
   // Add new row by cloning the first row
   $(document).on('click', '#add-new-row', function (event) {
     event.preventDefault();
-
     // Clone the first row
     const newRow = $('#rows-container .row:first').clone();
 
@@ -818,11 +817,11 @@ $(document).ready(function () {
       .removeClass('select2-hidden-accessible')
       .next('.select2')
       .remove();
-
+    const chargeTo = newRow.find('input[name="charge_to[]"]').val();
     // Clear input, textarea, and select values in the cloned row
     newRow.find('input, textarea').val(''); // Clear inputs and textareas
     newRow.find('select').val(null).trigger('change'); // Reset the select value and trigger change
-
+    newRow.find('input[name="charge_to[]"]').val(chargeTo);
     // Reset amount field to default value and remove data attribute
     newRow.find('.amount').attr('data-numeric-value', '0');
 

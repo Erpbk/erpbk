@@ -4194,9 +4194,9 @@ fieldset:disabled .btn {
 
 .card-header {
   padding: var(--bs-card-cap-padding-y) var(--bs-card-cap-padding-x);
-  margin-bottom: 0;
+  margin-bottom: 10px;
   color: var(--bs-card-cap-color);
-  background-color: #b9bec4a3;
+  background-color: white;
   border-bottom: var(--bs-card-border-width) solid var(--bs-card-border-color);
 }
 .card-header:first-child {

@@ -1,9 +1,8 @@
 @php
-$bike = \App\Models\Bikes::find($id); 
-$vehicleTypeName = '';
+$bike = \App\Models\Bikes::find($id);
+$vehicleTypeName = $bike->vehicle_type;
 if ($bike && $bike->vehicle_type) {
 $vehicleModel = \App\Models\VehicleModels::find($bike->vehicle_type);
-$vehicleTypeName = $vehicleModel ? strtolower($vehicleModel->name) : '';
 }
 
 
@@ -44,7 +43,7 @@ $selectedDesignation = 'Cyclist';
         </div>
         <div class="col-md-3 form-group hidden-field" id="designation_field">
             <label>Designation</label>
-            <input type="text" name="designation" class="form-control" readonly placeholder="Designation" value="{{ $selectedDesignation }}">
+            <input type="text" name="designation" id="designation" class="form-control" readonly placeholder="Designation" value="{{ $selectedDesignation }}">
         </div>
         <div class="col-md-3 form-group hidden-field" id="project_field">
             {!! Form::label('customer_id', 'Project') !!}
@@ -102,7 +101,7 @@ $selectedDesignation = 'Cyclist';
     function toggleAssignmentFields() {
         var assignType = $('#assign_type').val();
         console.log('Toggle called with type:', assignType);
-        
+
         if (assignType === 'rider') {
             console.log('Showing rider fields');
             $('#rider_select').removeClass('hidden-field').show();
@@ -136,7 +135,7 @@ $selectedDesignation = 'Cyclist';
             allowClear: true,
             dropdownParent: $('#modalTopbody')
         });
-        
+
         // Handle assign type change - use both change and select2:select for select2
         $('#assign_type').on('change', function() {
             console.log('Change event triggered');

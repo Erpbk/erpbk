@@ -128,6 +128,29 @@ class Riders extends BaseModel
     'recruiter_id' => 'nullable|integer|exists:recruiters,id'
   ];
 
+  /**
+   * Human label + Bootstrap badge class for riders.status (bike assign/return lifecycle).
+   * 1 = active on fleet, 3 = inactive/off bike, 4 = vacation hold, 5 = absconded (see BikesController::assignrider).
+   *
+   * @param  int|string|null  $status
+   * @return array{label: string, badge: string}
+   */
+  public static function employmentStatusDisplay($status): array
+  {
+    $code = $status === null || $status === '' ? null : (int) $status;
+
+    return match ($code) {
+      1 => ['label' => 'Active', 'badge' => 'bg-label-success'],
+      3 => ['label' => 'Inactive', 'badge' => 'bg-label-secondary'],
+      4 => ['label' => 'Vacation', 'badge' => 'bg-label-warning'],
+      5 => ['label' => 'Absconded', 'badge' => 'bg-label-danger'],
+      default => [
+        'label' => $code === null ? 'Not set' : 'Status ' . $code,
+        'badge' => 'bg-label-secondary',
+      ],
+    };
+  }
+
   public function scopeActive($query)
   {
     return $query->where('status', 1);
@@ -153,6 +176,12 @@ class Riders extends BaseModel
   {
     return $this->hasOne(Bikes::class, 'rider_id', 'id');
   }
+
+  public function histories()
+  {
+    return $this->hasMany(RiderHistory::class, 'rider_id', 'id')->orderByDesc('effective_date')->orderByDesc('id');
+  }
+
   public function jobstatus()
   {
     return $this->hasOne(JobStatus::class, 'RID', 'id')->orderByDesc('id');

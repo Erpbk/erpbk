@@ -30,6 +30,11 @@ class CreateBikesRequest extends FormRequest
         $rules = Bikes::$rules;
 
         $bikeColumns = array_flip(Schema::getColumnListing('bikes'));
+
+        if (!isset($bikeColumns['leased_return_company_id'])) {
+            unset($rules['leased_return_company_id']);
+        }
+
         $assignmentTable = (new BikeFieldCategoryAssignment())->getTable();
 
         $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');

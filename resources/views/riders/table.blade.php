@@ -67,18 +67,26 @@
          @break
          @case('status')
          @php
-         $statusText = trim((string)($r->rider_status ?? ''));
-         if ($statusText === '') {
-         $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
-         $statusText = $hasActiveBike ? 'Active' : 'Inactive';
-         }
-         $normalized = strtolower($statusText);
-         $badgeClass = in_array($normalized, ['active', 'follow up', 'pro', 'walker', 'learning license'], true)
+         $employment = \App\Models\Riders::employmentStatusDisplay(data_get($r, 'status'));
+         $optionText = trim((string) data_get($r, 'rider_status', ''));
+         $normalizedOpt = strtolower($optionText);
+         $optionBadge = $optionText === ''
+         ? null
+         : (in_array($normalizedOpt, ['active', 'follow up', 'pro', 'walker', 'learning license'], true)
          ? 'bg-label-success'
-         : 'bg-label-danger';
+         : ($normalizedOpt === 'absconder'
+         ? 'bg-label-danger'
+         : ($normalizedOpt === 'vacation'
+         ? 'bg-label-warning'
+         : 'bg-label-info')));
          @endphp
-         <td>
-            <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+         <td class="text-center">
+            <div class="d-flex flex-wrap align-items-center gap-1">
+               <span class="badge {{ $employment['badge'] }}" title="Employment / assignment status">{{ $employment['label'] }}</span>
+               @if($optionText !== '')
+               <span class="badge {{ $optionBadge }}" title="Rider option / flag">{{ $optionText }}</span>
+               @endif
+            </div>
          </td>
          @break
          @case('attendance')

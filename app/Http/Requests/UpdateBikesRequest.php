@@ -10,6 +10,14 @@ use Illuminate\Support\Facades\Schema;
 
 class UpdateBikesRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $v = $this->input('leased_return_company_id');
+        if ($v === '' || $v === null) {
+            $this->merge(['leased_return_company_id' => null]);
+        }
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -30,6 +38,11 @@ class UpdateBikesRequest extends FormRequest
         $rules = Bikes::$rules;
 
         $bikeColumns = array_flip(Schema::getColumnListing('bikes'));
+
+        if (!isset($bikeColumns['leased_return_company_id'])) {
+            unset($rules['leased_return_company_id']);
+        }
+
         $assignmentTable = (new BikeFieldCategoryAssignment())->getTable();
 
         $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');

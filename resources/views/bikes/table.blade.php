@@ -292,6 +292,14 @@
             @endif
             </td>
             @break
+         @case('leased_return_status')
+         @php
+            $lr = $r->leasedReturnDisplay();
+         @endphp
+         <td tabindex="0">
+            <span class="badge {{ $lr['badge'] }}">{{ $lr['label'] }}</span>
+         </td>
+         @break
             @default
             <td tabindex="0">{{ data_get($r, $key, '-') }}</td>
             @endswitch

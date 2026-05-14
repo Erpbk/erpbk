@@ -15,7 +15,9 @@ use App\Models\UserTableSettings;
 use App\Models\BikeFieldCategoryAssignment;
 use App\Models\Riders;
 use App\Models\VehicleModels;
+use App\Models\Customers;
 use App\Repositories\BikesRepository;
+use App\Services\RiderHistoryLogger;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
@@ -206,7 +208,7 @@ class BikesController extends AppBaseController
     $filteredColumns = Schema::getColumnListing('bikes');
 
     // Columns to exclude
-    $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'contract_number'];
+    $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'contract_number', 'leased_return_by', 'leased_return_date', 'leased_return_company_id'];
 
     // Final filtered columns
     $dbColumns = array_diff($filteredColumns, $exclude);
@@ -234,6 +236,7 @@ class BikesController extends AppBaseController
       'warehouse',
       'status',
       'expiry_date',
+      'leased_return_status',
       'created_by',
       'updated_by',
     ];
@@ -246,6 +249,13 @@ class BikesController extends AppBaseController
 
     // Add preferred DB columns first
     foreach ($preferredOrder as $key) {
+      if ($key === 'leased_return_status') {
+        if (Schema::hasColumn('bikes', 'leased_return_by')) {
+          $columns[] = ['data' => 'leased_return_status', 'title' => 'Leasing return'];
+          $added['leased_return_status'] = true;
+        }
+        continue;
+      }
       if ($key === 'branch_id') {
         $columns[] = ['data' => 'branch_id', 'title' => 'Branch'];
         $added['branch_id'] = true;
@@ -438,7 +448,7 @@ class BikesController extends AppBaseController
   public function show($company_slug, $id)
   {
     $bikes = $this->bikesRepository->find($id);
-    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
+    $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
 
     if (empty($bikes)) {
       Flash::error('Bikes not found');
@@ -461,7 +471,7 @@ class BikesController extends AppBaseController
   public function edit($company_slug, $id)
   {
     $bikes = $this->bikesRepository->find($id);
-    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
+    $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
     if (empty($bikes)) {
       Flash::error('Bikes not found');
       return redirect(route('bikes.index'));
@@ -479,6 +489,8 @@ class BikesController extends AppBaseController
     if (empty($bikes)) {
       return response()->json(['errors' => ['error' => 'Bike not found!']], 422);
     }
+
+    $oldBikeCustomerId = $bikes->customer_id;
 
     $input = $this->normalizeBikeInputForDatabase($request->all(), false);
     $bikes = $this->bikesRepository->update($input, $id);
@@ -510,6 +522,17 @@ class BikesController extends AppBaseController
           'designation' => $designation,
           'emirate_hub' => $emirate_hub,
         ]);
+        if ((string) $oldBikeCustomerId !== (string) $customer_id) {
+          RiderHistoryLogger::projectChange(
+            (int) $rider->id,
+            $oldBikeCustomerId !== null && $oldBikeCustomerId !== '' ? (string) $oldBikeCustomerId : null,
+            (string) $customer_id,
+            $oldBikeCustomerId ? optional(Customers::find($oldBikeCustomerId))->name : null,
+            optional(Customers::find($customer_id))->name,
+            now()->toDateString(),
+            'bike_update'
+          );
+        }
       }
     }
     return response()->json(['message' => 'Bike updated successfully.', 'redirect' => route('bikes.show', $bikes->id)]);
@@ -530,6 +553,25 @@ class BikesController extends AppBaseController
       // Update: do not overwrite omitted fields; only normalize when key exists.
       if (($isCreate && (!$hasKey || $current === null)) || (!$isCreate && $hasKey && $current === null)) {
         $input[$column] = $this->fallbackValueForSqlType($meta['type']);
+      }
+    }
+
+    foreach (['leased_return_by', 'leased_return_date'] as $dateCol) {
+      if (!array_key_exists($dateCol, $input)) {
+        continue;
+      }
+      $v = $input[$dateCol];
+      if ($v === '' || $v === null) {
+        $input[$dateCol] = null;
+      }
+    }
+
+    if (array_key_exists('leased_return_company_id', $input)) {
+      $v = $input['leased_return_company_id'];
+      if ($v === '' || $v === null) {
+        $input['leased_return_company_id'] = null;
+      } elseif (is_numeric($v)) {
+        $input['leased_return_company_id'] = (int) $v;
       }
     }
 
@@ -720,10 +762,13 @@ class BikesController extends AppBaseController
         } else {
           $message .= "*Rental Company:* {$company->name}\n";
         }
-        if ($request->warehouse == 'Absconded')
+        if ($request->warehouse == 'Absconded') {
           $message .= "*Absconding Date:* {$request->return_date}\n";
-        else
+        } elseif ($request->warehouse == 'Theft') {
+          $message .= "*Theft Date:* {$request->return_date}\n";
+        } else {
           $message .= "*Return Date:* {$request->return_date}\n";
+        }
         $message .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
         if ($rider) {
           $message .= "*Project:* {$bike->customer->name}\n";
@@ -761,6 +806,40 @@ class BikesController extends AppBaseController
             'rider_id'  => null,
             'rental_company_id' => null,
             'warehouse' => 'Return',
+            'customer_id' => null,
+          ]);
+        } elseif ($request->warehouse == 'Theft') {
+          if ($rider) {
+            $rider->update([
+              'status'      => 3,
+              'designation' => null,
+              'customer_id' => null,
+            ]);
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
+          } else {
+            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date);
+          }
+          $bike->update([
+            'rider_id'  => null,
+            'rental_company_id' => null,
+            'warehouse' => 'Theft',
+            'customer_id' => null,
+          ]);
+        } elseif ($request->warehouse == 'Total Loss') {
+          if ($rider) {
+            $rider->update([
+              'status'      => 3,
+              'designation' => null,
+              'customer_id' => null,
+            ]);
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
+          } else {
+            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date);
+          }
+          $bike->update([
+            'rider_id'  => null,
+            'rental_company_id' => null,
+            'warehouse' => 'Total Loss',
             'customer_id' => null,
           ]);
         } else {
@@ -877,10 +956,11 @@ class BikesController extends AppBaseController
               $fail('Cannot assign rider to an inactive bike.');
               return;
             }
-            // Check if rider has any bike that's not "Returned" or "Vacation"
+            // Block if rider already has another bike actively assigned (same rider, Active warehouse).
             $assignedBike = \App\Support\CompanyQuery::table('bikes')
               ->where('rider_id', $value)
-              ->whereNotIn('warehouse', 'Active')
+              ->where('id', '!=', (int) $request->bike_id)
+              ->where('warehouse', 'Active')
               ->first();
 
             if ($assignedBike) {
@@ -945,8 +1025,9 @@ class BikesController extends AppBaseController
         $historyMessage .= "*Bike No:* {$bike->plate}\n";
 
         if ($assignType === 'rider') {
-          $rider = \App\Support\CompanyQuery::table('riders')->where('id', $request->rider_id)->first();
+          $rider = Riders::findOrFail($request->rider_id);
           $designation = $request->designation;
+          $prevRiderCustomerId = $rider->customer_id;
           $historyMessage .= "*ID:* {$rider->rider_id}\n";
           $historyMessage .= "*Name:* {$rider->name}\n";
         } else {
@@ -972,6 +1053,18 @@ class BikesController extends AppBaseController
           $rider->customer_id = $customer_id;
           $rider->emirate_hub = $bike->emirates;
           $rider->save();
+
+          if ((string) $prevRiderCustomerId !== (string) $customer_id) {
+            RiderHistoryLogger::projectChange(
+              (int) $rider->id,
+              $prevRiderCustomerId !== null && $prevRiderCustomerId !== '' ? (string) $prevRiderCustomerId : null,
+              (string) $customer_id,
+              $prevRiderCustomerId ? optional(Customers::find($prevRiderCustomerId))->name : null,
+              optional(Customers::find($customer_id))->name,
+              $request->note_date,
+              'bike_assign'
+            );
+          }
 
           $bike->update([
             'rider_id' => $request->rider_id,
@@ -1005,6 +1098,63 @@ class BikesController extends AppBaseController
     }
 
     return view('bikes.assignBike_active', compact('id'));
+  }
+
+  /**
+   * Modal: edit leasing return fields (requires bikes.company / leasing company set).
+   */
+  public function leasingReturn(Request $request, $company_slug, $id)
+  {
+    $bike = Bikes::findOrFail($id);
+    if (empty($bike->company)) {
+      abort(404);
+    }
+    if (!Schema::hasColumn('bikes', 'leased_return_by')) {
+      abort(404);
+    }
+    if (Schema::hasColumn('bikes', 'leased_return_date') && !empty($bike->leased_return_date)) {
+      abort(404);
+    }
+
+    if ($request->isMethod('post')) {
+      if (!auth()->user()->can('bike_edit')) {
+        abort(403, 'Unauthorized');
+      }
+      if (Schema::hasColumn('bikes', 'leased_return_date') && !empty($bike->leased_return_date)) {
+        return response()->json(['errors' => ['error' => 'This vehicle is already marked as returned to the leasing company.']], 422);
+      }
+
+      $rules = [
+        'leased_return_date' => 'nullable|date',
+      ];
+      if (Schema::hasColumn('bikes', 'leased_return_company_id')) {
+        $rules['leased_return_company_id'] = 'nullable|integer|exists:leasing_companies,id';
+      }
+      $request->validate($rules);
+
+      $leasedReturnDate = $request->input('leased_return_date');
+      if ($leasedReturnDate === '' || $leasedReturnDate === null) {
+        $leasedReturnDate = null;
+      }
+
+      $update = [
+        'leased_return_date' => $leasedReturnDate,
+      ];
+      if (Schema::hasColumn('bikes', 'leased_return_company_id')) {
+        $cid = $request->input('leased_return_company_id');
+        $update['leased_return_company_id'] = ($cid === '' || $cid === null) ? null : (int) $cid;
+      }
+
+      $bike->updated_by = Auth::id();
+      $bike->fill($update);
+      $bike->save();
+
+      return response()->json(['message' => 'Leasing return details saved.', 'reload' => true]);
+    }
+
+    $bike->load(['leasedReturnCompany', 'LeasingCompany']);
+
+    return view('bikes.leasing_return_modal', compact('bike', 'id'));
   }
 
 
@@ -1376,7 +1526,7 @@ class BikesController extends AppBaseController
   public function files($company_slug, $bike_id)
   {
     $bikes = Bikes::find($bike_id);
-    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
+    $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
 
     $expectedFiles = [
       'mulkiya' => 'Mulkiya',
@@ -1406,7 +1556,7 @@ class BikesController extends AppBaseController
   public function maintenance($company_slug, $id)
   {
     $bikes = Bikes::findOrFail($id);
-    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
+    $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
     $maintenances = $bikes->maintenanceRecords()->orderBy('maintenance_date', 'desc')->get();
     return view('bikes.maintenance', compact('bikes', 'maintenances'));
   }

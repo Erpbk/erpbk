@@ -176,6 +176,7 @@
     .info-content {
         flex: 1;
         min-width: 0;
+        text-align: start;
         /* Prevents content overflow */
     }
 
@@ -751,8 +752,57 @@
                             </div>
                         </li>
 
+                        @if(\Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_by') )
+                        @php
+                        $lrDisplay = $bikes->leasedReturnDisplay();
+                        $lrByFmt = $bikes->leased_return_by
+                        ? \Carbon\Carbon::parse($bikes->leased_return_by)->format('d M Y')
+                        : null;
+                        $lrDoneFmt = $bikes->leased_return_date
+                        ? \Carbon\Carbon::parse($bikes->leased_return_date)->format('d M Y')
+                        : null;
+                        @endphp
+                        <li class="info-item">
+                            <div class="info-icon">
+                                <i class="ti ti-arrow-back-up"></i>
+                            </div>
+                            <div class="info-content">
+                                <span class="info-label">Leasing return</span>
+                                <span class="badge {{ $lrDisplay['badge'] }} mb-1">{{ $lrDisplay['label'] }}</span>
+                                <div class="info-value" style="font-size: 0.75rem;">
+                                    @if(\Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_company_id') && $bikes->leased_return_company_id && $bikes->leasedReturnCompany)
+                                    <div>Return to: {{ $bikes->leasedReturnCompany->name }}</div>
+                                    @endif
+                                    @if($lrByFmt)
+                                    <div>Return by: {{ $lrByFmt }}</div>
+                                    @endif
+                                    @if($lrDoneFmt)
+                                    <div>Returned: {{ $lrDoneFmt }}</div>
+                                    @endif
+                                    @if(!$lrByFmt && !$lrDoneFmt)
+                                    <span class="text-muted">No dates recorded</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </li>
+                        @endif
+
                     </ul>
                 </div>
+
+                @php
+                $bikeWarehouse = (string) ($bikes->warehouse ?? '');
+                $warehousesHideLeasingReturnBtn = ['Active', 'Absconded', 'Theft', 'Total Loss'];
+                $leasedReturnCompleted = \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_date')
+                && !empty($bikes->leased_return_date);
+                $showLeasingReturnToCompany = !empty($bikes->company)
+                && \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_by')
+                && !in_array($bikeWarehouse, $warehousesHideLeasingReturnBtn, true)
+                && !$leasedReturnCompleted;
+                $hideAssignForWarehouse = ['Total Loss'];
+                $showAssignRiderBlock = !in_array($bikeWarehouse, $hideAssignForWarehouse, true)
+                && !$leasedReturnCompleted;
+                @endphp
 
                 <!-- Action Buttons - Smaller size -->
                 <div class="bike-actions-compact">
@@ -763,8 +813,19 @@
                         <i class="fas fa-edit"></i>
                         <span>Edit Details</span>
                     </a>
+                    @if($showLeasingReturnToCompany)
+                    <a href="javascript:void(0);"
+                        class="btn-compact btn-edit-compact show-modal"
+                        data-size="lg"
+                        data-title="Return to leasing company — {{ $bikes->plate }}"
+                        data-action="{{ route('bikes.leasingReturn', $bikes->id) }}">
+                        <i class="fas fa-building"></i>
+                        <span>Return to company</span>
+                    </a>
+                    @endif
                     @endcan
                     @can('bike_assign_edit')
+                    @if($showAssignRiderBlock)
                     @if($bikes->rider_id || $bikes->rental_company_id)
                     <a href="javascript:void(0);"
                         class="btn-compact btn-view-assignment show-modal"
@@ -783,6 +844,7 @@
                         <i class="fas fa-user-plus"></i>
                         <span>Assign Rider</span>
                     </a>
+                    @endif
                     @endif
                     @endcan
                 </div>

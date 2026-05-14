@@ -5,6 +5,63 @@
 @section('content')
 @include('flash::message')
 
+<style>
+  /* Keep Select2 dropdown above Bootstrap modal/backdrop in this page. */
+  .select2-container--open {
+    z-index: 99999 !important;
+  }
+
+  #addVisaExpenseTopOptionModal+.select2-container--open,
+  .modal .select2-container--open {
+    z-index: 99999 !important;
+  }
+
+  .modal .select2-dropdown,
+  .modal .select2-results {
+    z-index: 99999 !important;
+  }
+
+  #addVisaExpenseTopOptionModal .modal-content,
+  #addVisaExpenseTopOptionModal .modal-body {
+    overflow: visible !important;
+  }
+  @if(!empty($showBikeRegistrationExtras) && $showBikeRegistrationExtras)
+  .select2-container--open.br-registration-top-select2-wrap {
+    z-index: 1060;
+  }
+  @endif
+
+  .bike-top-visibility-controls {
+    background: #f8f9fb;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+  }
+
+  .bike-top-visibility-controls .form-check {
+    min-height: auto;
+    margin-bottom: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .bike-top-visibility-controls .form-check-input {
+    width: 2rem;
+    height: 1.1rem;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .bike-top-visibility-controls .form-check-label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #5f6b7a;
+    margin-top: 0;
+    cursor: pointer;
+  }
+</style>
+
 @php
 $activeCategoryId = (int) (request()->query('active_category_id', 0));
 $showBikeFieldsMainTab = request()->query->has('active_category_id');
@@ -22,6 +79,7 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
 $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 $showVisaStatusManagementTab = ($moduleKey ?? '') === 'visa_expense';
 $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'visa_expense']) . '#tab-visa-status-management';
+$showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
 @endphp
 
 <div class="row">
@@ -31,7 +89,13 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
         <div>
           <h4 class="card-title mb-0">{{ $settingsHeading }}</h4>
           <p class="text-muted small mb-0 mt-1">
-            Configure fixed/custom fields and document types. This module has no "on top" / "view on card" controls.
+            @if($showBikeRegistrationExtras)
+              Configure registration statuses, top bar cards, fixed/custom fields on <code>bike_registrations</code>, categories, and document types.
+            @elseif(($moduleKey ?? '') === 'bike_list')
+              Configure Vehicle Top cards for the Vehicles module, fixed/custom fields, categories, and document types.
+            @else
+              Configure fixed/custom fields and document types.
+            @endif
           </p>
         </div>
       </div>
@@ -49,10 +113,22 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
               General
             </button>
           </li>
+          @if($showBikeRegistrationExtras)
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-br-statuses" type="button" role="tab">
+              Registration statuses
+            </button>
+          </li>
+          @endif
           @if($showVisaStatusManagementTab)
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-visa-status-management" type="button" role="tab">
               Visa Status Management
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-visa-expense-top" type="button" role="tab">
+              Visa Expense Top
             </button>
           </li>
           @endif
@@ -71,6 +147,20 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
               Documents
             </button>
           </li>
+          @if(($moduleKey ?? '') === 'bike_list')
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-vehicle-top" type="button" role="tab" id="tab-vehicle-top-btn">
+              Vehicle top
+            </button>
+          </li>
+          @endif
+          @if($showBikeRegistrationExtras)
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-bike-registration-top" type="button" role="tab" id="tab-bike-registration-top-btn">
+              Top bar
+            </button>
+          </li>
+          @endif
         </ul>
 
         <div class="tab-content">
@@ -90,6 +180,10 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
             </form>
           </div>
 
+          @if($showBikeRegistrationExtras)
+            @include('settings.partials.bike_registration_settings_tabs')
+          @endif
+
           @if($showVisaStatusManagementTab)
           <div class="tab-pane fade" id="tab-visa-status-management" role="tabpanel">
             <div class="d-flex justify-content-end mb-3">
@@ -106,6 +200,98 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
               'embeddedVisaStatusManager' => true,
               'visaStatusReturnTo' => $visaStatusSettingsReturnUrl
               ])
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="tab-visa-expense-top" role="tabpanel">
+            <div class="card border-0 shadow-none">
+              <div class="card-body px-0">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                  <p class="text-muted small mb-0">Default category is <strong>Visa Expense Top Status</strong>. Add only the options you want on Visa Expense top cards.</p>
+                </div>
+                <form id="visaExpenseTopAjaxForm" method="POST" action="{{ route('settings-panel.module-settings.update-visa-expense-top', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'visa_expense']) }}">
+                  @csrf
+                  <div class="accordion" id="visaExpenseTopAccordion">
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="visaExpenseTopHeading">
+                        <div class="d-flex align-items-center gap-2 p-2">
+                          <button class="accordion-button py-2 px-3" type="button" data-bs-toggle="collapse" data-bs-target="#visaExpenseTopCollapse" aria-expanded="true" aria-controls="visaExpenseTopCollapse">
+                            <span>Visa Expense Top Status</span>
+                            <span class="badge bg-label-primary ms-2" id="visaExpenseTopSelectedCount">{{ count((array)($selectedVisaExpenseTopStatusIds ?? [])) }}</span>
+                          </button>
+                          <div class="form-check form-switch mb-0" style="display: inline-flex; align-items: center; gap: 0.4rem;padding: 0.35rem 0.6rem;">
+                            <input style="width: 2rem; height: 1.1rem; margin: 0; cursor: pointer;" class="form-check-input rider-top-visibility-toggle" type="checkbox" id="visaExpenseTopEnabled" data-field="show_in_top_bar" {{ (!empty($visaExpenseTopEnabled) ? 'checked' : '') }}>
+                            <label style="font-size: 0.78rem; font-weight: 500; color: #5f6b7a; margin-top: 0; cursor: pointer;" class="form-check-label text-nowrap" for="visaExpenseTopEnabled">Top Bar</label>
+                          </div>
+                        </div>
+                      </h2>
+                      <div id="visaExpenseTopCollapse" class="accordion-collapse collapse show" aria-labelledby="visaExpenseTopHeading" data-bs-parent="#visaExpenseTopAccordion">
+                        <div class="accordion-body">
+                          <div class="d-flex justify-content-end mb-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-add-visa-expense-top-option" data-bs-toggle="modal" data-bs-target="#addVisaExpenseTopOptionModal">
+                              <i class="ti ti-plus me-1"></i> Add Status
+                            </button>
+                          </div>
+                          @php
+                          $selectedIds = collect((array)($selectedVisaExpenseTopStatusIds ?? []))->map(fn($id)=>(int)$id)->all();
+                          $selectedStatuses = collect($visaStatuses ?? collect())
+                          ->filter(fn($s) => in_array((int)$s->id, $selectedIds, true))
+                          ->sortBy(fn($s) => array_search((int)$s->id, $selectedIds, true))
+                          ->values();
+                          @endphp
+                          <ul class="list-group list-group-flush" id="visaExpenseTopSelectedList">
+                            @forelse($selectedStatuses as $status)
+                            <li class="list-group-item px-0 py-2 d-flex align-items-center justify-content-between" data-selected-id="{{ (int)$status->id }}">
+                              <div class="d-flex align-items-center">
+                                <span class="visa-expense-top-drag-handle me-2 text-muted" title="Drag to sort" style="cursor: grab;">
+                                  <i class="ti ti-grip-vertical"></i>
+                                </span>
+                                <i class="ti ti-point-filled me-1 text-muted"></i>
+                                <span>{{ $status->name }}</span>
+                                <input type="hidden" name="status_ids[]" value="{{ (int)$status->id }}">
+                              </div>
+                              <div class="d-flex align-items-center gap-1">
+                                <button type="button" class="btn btn-xs btn-outline-danger js-remove-visa-expense-top-option" data-remove-id="{{ (int)$status->id }}" title="Remove option">
+                                  <i class="ti ti-trash"></i>
+                                </button>
+                              </div>
+                            </li>
+                            @empty
+                            <li class="list-group-item px-0 py-2 text-muted" id="visaExpenseTopNoOptions">No options added yet.</li>
+                            @endforelse
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal fade" id="addVisaExpenseTopOptionModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Add Visa Status Option</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="form-group">
+                    <label class="form-label">Visa Status</label>
+                    <select id="visaExpenseTopStatusSelect" class="form-select select2">
+                      <option value="">Select</option>
+                      @foreach(($visaStatuses ?? collect()) as $status)
+                      <option value="{{ (int)$status->id }}" data-name="{{ $status->name }}">{{ $status->name }}</option>
+                      @endforeach
+                    </select>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-primary" id="btnAddVisaExpenseTopOption">Add Option</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1172,6 +1358,12 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
 
 
           </div>
+
+          @if(($moduleKey ?? '') === 'bike_list')
+          <div class="tab-pane fade" id="tab-vehicle-top" role="tabpanel">
+            @include('settings.bike_settings._vehicle_top_tab_content')
+          </div>
+          @endif
         </div>
       </div>
     </div>
@@ -2125,139 +2317,382 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
 <script>
   var visaStatusConfig = document.getElementById('visa-status-manager-config');
   if (visaStatusConfig) {
-  var visaStatusSortableInstance = null;
+    var visaStatusSortableInstance = null;
 
-  function initVisaStatusSortable() {
-    if (typeof Sortable === 'undefined') return;
-    var tbody = document.getElementById('visa-statuses-tbody');
-    if (!tbody || tbody.querySelectorAll('tr[data-id]').length === 0) return;
+    function initVisaStatusSortable() {
+      if (typeof Sortable === 'undefined') return;
+      var tbody = document.getElementById('visa-statuses-tbody');
+      if (!tbody || tbody.querySelectorAll('tr[data-id]').length === 0) return;
 
-    if (visaStatusSortableInstance) {
-      visaStatusSortableInstance.destroy();
-    }
-
-    visaStatusSortableInstance = new Sortable(tbody, {
-      handle: '.visa-drag-handle',
-      animation: 150,
-      ghostClass: 'table-warning',
-      onEnd: function() {
-        var order = Array.from(tbody.querySelectorAll('tr[data-id]')).map(function(row) {
-          return row.getAttribute('data-id');
-        });
-
-        fetch("{{ route('settings-panel.visa-statuses.reorder', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) }}", {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            order: order
-          })
-        }).then(function(response) {
-          return response.json();
-        }).then(function(data) {
-          if (!data.success && typeof Swal !== 'undefined') {
-            Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: data.message || 'Could not save order.'
-            });
-          }
-        }).catch(function() {
-          if (typeof Swal !== 'undefined') {
-            Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: 'Could not save order.'
-            });
-          }
-        });
+      if (visaStatusSortableInstance) {
+        visaStatusSortableInstance.destroy();
       }
-    });
-  }
 
-  function confirmDelete(url) {
-    if (typeof Swal !== 'undefined') {
-      Swal.fire({
-        title: 'Are you sure?',
-        text: "You won't be able to revert this!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, delete it!'
-      }).then(function(result) {
-        if (!result.isConfirmed) return;
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = url;
-        form.style.display = 'none';
-        var csrfToken = document.createElement('input');
-        csrfToken.type = 'hidden';
-        csrfToken.name = '_token';
-        csrfToken.value = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        form.appendChild(csrfToken);
-        var method = document.createElement('input');
-        method.type = 'hidden';
-        method.name = '_method';
-        method.value = 'DELETE';
-        form.appendChild(method);
-        document.body.appendChild(form);
-        form.submit();
+      visaStatusSortableInstance = new Sortable(tbody, {
+        handle: '.visa-drag-handle',
+        animation: 150,
+        ghostClass: 'table-warning',
+        onEnd: function() {
+          var order = Array.from(tbody.querySelectorAll('tr[data-id]')).map(function(row) {
+            return row.getAttribute('data-id');
+          });
+
+          fetch("{{ route('settings-panel.visa-statuses.reorder', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) }}", {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': '{{ csrf_token() }}',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              order: order
+            })
+          }).then(function(response) {
+            return response.json();
+          }).then(function(data) {
+            if (!data.success && typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Could not save order.'
+              });
+            }
+          }).catch(function() {
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Could not save order.'
+              });
+            }
+          });
+        }
       });
-      return;
-    }
-    if (confirm('Are you sure?')) {
-      window.location.href = url;
-    }
-  }
-
-  document.addEventListener('click', function(e) {
-    var deleteBtn = e.target.closest('.js-visa-status-delete-btn');
-    if (deleteBtn) {
-      confirmDelete(deleteBtn.getAttribute('data-delete-url') || '');
-      return;
     }
 
-    var editBtn = e.target.closest('.js-visa-status-edit-btn');
-    if (!editBtn) return;
+    function deleteVisaStatusAjax(url, triggerBtn) {
+      return fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          _method: 'DELETE'
+        })
+      }).then(function(response) {
+        return response.json().then(function(data) {
+          return {
+            ok: response.ok,
+            status: response.status,
+            data: data
+          };
+        }).catch(function() {
+          return {
+            ok: response.ok,
+            status: response.status,
+            data: {
+              success: false,
+              message: 'Invalid server response.'
+            }
+          };
+        });
+      }).then(function(result) {
+        if (!result.ok || !result.data || result.data.success !== true) {
+          throw new Error((result.data && result.data.message) ? result.data.message : 'Delete failed.');
+        }
+        var row = triggerBtn ? triggerBtn.closest('tr[data-id]') : null;
+        if (row) {
+          row.remove();
+        }
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'success',
+            title: 'Deleted',
+            text: result.data.message || 'Visa status deleted successfully.',
+            timer: 1600,
+            showConfirmButton: false
+          });
+        }
+        return result.data;
+      });
+    }
 
-    var editUrlTemplate = visaStatusConfig.getAttribute('data-edit-url-template') || '';
-    var form = document.getElementById('editVisaStatusForm');
-    if (!form) return;
-    form.action = editUrlTemplate.replace('__ID__', String(editBtn.dataset.id || ''));
-
-    document.getElementById('editVisaStatusName').value = editBtn.dataset.name || '';
-    document.getElementById('editVisaStatusCode').value = editBtn.dataset.code || '';
-    document.getElementById('editVisaStatusCategory').value = editBtn.dataset.category || 'Other';
-    document.getElementById('editVisaStatusDefaultFee').value = editBtn.dataset.defaultFee || 0;
-    document.getElementById('editVisaStatusDisplayOrder').value = editBtn.dataset.displayOrder || '';
-    document.getElementById('editVisaStatusDescription').value = editBtn.dataset.description || '';
-    document.getElementById('editVisaStatusIsRequired').checked = String(editBtn.dataset.isRequired || '0') === '1';
-    document.getElementById('editVisaStatusIsActive').checked = String(editBtn.dataset.isActive || '0') === '1';
-  });
-
-  document.addEventListener('DOMContentLoaded', function() {
-    initVisaStatusSortable();
-    if (window.location.hash === '#tab-visa-status-management') {
-      var visaTabBtn = document.querySelector('[data-bs-target="#tab-visa-status-management"]');
-      if (visaTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
-        bootstrap.Tab.getOrCreateInstance(visaTabBtn).show();
-      } else if (visaTabBtn) {
-        visaTabBtn.click();
+    function confirmDelete(url, formId, triggerBtn) {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: 'Are you sure?',
+          text: "You won't be able to revert this!",
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#3085d6',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Yes, delete it!'
+        }).then(function(result) {
+          if (!result.isConfirmed) return;
+          deleteVisaStatusAjax(url, triggerBtn).catch(function(err) {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: (err && err.message) ? err.message : 'Could not delete visa status.'
+            });
+          });
+        });
+        return;
+      }
+      if (confirm('Are you sure?')) {
+        deleteVisaStatusAjax(url, triggerBtn).catch(function() {
+          window.location.href = url;
+        });
       }
     }
-  });
 
-  var visaStatusTabBtn = document.querySelector('[data-bs-target="#tab-visa-status-management"]');
-  if (visaStatusTabBtn) {
-    visaStatusTabBtn.addEventListener('shown.bs.tab', function() {
-      setTimeout(initVisaStatusSortable, 50);
+    document.addEventListener('click', function(e) {
+      var deleteBtn = e.target.closest('.js-visa-status-delete-btn');
+      if (deleteBtn) {
+        confirmDelete(
+          deleteBtn.getAttribute('data-delete-url') || '',
+          deleteBtn.getAttribute('data-delete-form-id') || '',
+          deleteBtn
+        );
+        return;
+      }
+
+      var editBtn = e.target.closest('.js-visa-status-edit-btn');
+      if (!editBtn) return;
+
+      var editUrlTemplate = visaStatusConfig.getAttribute('data-edit-url-template') || '';
+      var form = document.getElementById('editVisaStatusForm');
+      if (!form) return;
+      form.action = editUrlTemplate.replace('__ID__', String(editBtn.dataset.id || ''));
+
+      document.getElementById('editVisaStatusName').value = editBtn.dataset.name || '';
+      document.getElementById('editVisaStatusCode').value = editBtn.dataset.code || '';
+      document.getElementById('editVisaStatusCategory').value = editBtn.dataset.category || 'Other';
+      document.getElementById('editVisaStatusDefaultFee').value = editBtn.dataset.defaultFee || 0;
+      document.getElementById('editVisaStatusDisplayOrder').value = editBtn.dataset.displayOrder || '';
+      document.getElementById('editVisaStatusDescription').value = editBtn.dataset.description || '';
+      document.getElementById('editVisaStatusIsRequired').checked = String(editBtn.dataset.isRequired || '0') === '1';
+      document.getElementById('editVisaStatusIsActive').checked = String(editBtn.dataset.isActive || '0') === '1';
     });
+
+    document.addEventListener('DOMContentLoaded', function() {
+      initVisaStatusSortable();
+      var targetHash = window.location.hash;
+      if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top') {
+        var visaTabBtn = document.querySelector('[data-bs-target="' + targetHash + '"]');
+        if (visaTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+          bootstrap.Tab.getOrCreateInstance(visaTabBtn).show();
+        } else if (visaTabBtn) {
+          visaTabBtn.click();
+        }
+      }
+
+      var topForm = document.getElementById('visaExpenseTopAjaxForm');
+      var topCount = document.getElementById('visaExpenseTopSelectedCount');
+      var topToggle = document.getElementById('visaExpenseTopEnabled');
+      var topList = document.getElementById('visaExpenseTopSelectedList');
+      var topModalSelect = document.getElementById('visaExpenseTopStatusSelect');
+      var topAddBtn = document.getElementById('btnAddVisaExpenseTopOption');
+
+      function refreshVisaExpenseTopCount() {
+        if (!topList || !topCount) return;
+        var count = topList.querySelectorAll('li[data-selected-id]').length;
+        topCount.textContent = String(count);
+        var emptyRow = document.getElementById('visaExpenseTopNoOptions');
+        if (count === 0) {
+          if (!emptyRow) {
+            var li = document.createElement('li');
+            li.className = 'list-group-item px-0 py-2 text-muted';
+            li.id = 'visaExpenseTopNoOptions';
+            li.textContent = 'No options added yet.';
+            topList.appendChild(li);
+          }
+        } else if (emptyRow) {
+          emptyRow.remove();
+        }
+      }
+
+      function saveVisaExpenseTopAjax() {
+        if (!topForm) return;
+        var fd = new FormData(topForm);
+        var isChecked = document.getElementById('visaExpenseTopEnabled')?.checked;
+        fd.set('show_in_top_bar', isChecked ? '1' : '0');
+        if (topToggle) topToggle.disabled = true;
+        if (topModalSelect) topModalSelect.disabled = true;
+        if (topAddBtn) topAddBtn.disabled = true;
+
+        fetch(topForm.action, {
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': '{{ csrf_token() }}',
+              'X-Requested-With': 'XMLHttpRequest',
+              'Accept': 'application/json'
+            }
+          })
+          .then(function(r) {
+            return r.json().then(function(d) {
+              return {
+                ok: r.ok,
+                data: d
+              };
+            });
+          })
+          .then(function(result) {
+            if (topToggle) topToggle.disabled = false;
+            if (topModalSelect) topModalSelect.disabled = false;
+            if (topAddBtn) topAddBtn.disabled = false;
+            if (!result.ok || !result.data || result.data.success !== true) {
+              throw new Error((result.data && result.data.message) ? result.data.message : 'Could not save.');
+            }
+            refreshVisaExpenseTopCount();
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'success',
+                title: 'Saved',
+                text: result.data.message || 'Updated successfully.',
+                timer: 1400,
+                showConfirmButton: false
+              });
+            }
+          })
+          .catch(function(err) {
+            if (topToggle) topToggle.disabled = false;
+            if (topModalSelect) topModalSelect.disabled = false;
+            if (topAddBtn) topAddBtn.disabled = false;
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: (err && err.message) ? err.message : 'Could not save.'
+              });
+            }
+          });
+      }
+
+      if (topToggle) {
+        topToggle.addEventListener('change', function() {
+          saveVisaExpenseTopAjax();
+        });
+      }
+      if (topList) {
+        if (typeof Sortable !== 'undefined') {
+          new Sortable(topList, {
+            handle: '.visa-expense-top-drag-handle',
+            draggable: 'li[data-selected-id]',
+            animation: 150,
+            ghostClass: 'table-warning',
+            onEnd: function() {
+              refreshVisaExpenseTopCount();
+              saveVisaExpenseTopAjax();
+            }
+          });
+        }
+        topList.addEventListener('click', function(e) {
+          var removeBtn = e.target.closest('.js-remove-visa-expense-top-option');
+          if (!removeBtn) return;
+          var row = removeBtn.closest('li[data-selected-id]');
+          if (row) {
+            row.remove();
+            refreshVisaExpenseTopCount();
+            saveVisaExpenseTopAjax();
+          }
+        });
+      }
+
+      function initVisaExpenseTopModalSelect2() {
+        if (!(typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.select2) || !topModalSelect) return;
+        var $select = jQuery(topModalSelect);
+        if ($select.hasClass('select2-hidden-accessible')) {
+          $select.select2('destroy');
+        }
+        $select.select2({
+          dropdownParent: jQuery('#addVisaExpenseTopOptionModal'),
+          placeholder: 'Select visa status',
+          allowClear: true,
+          width: '100%'
+        });
+      }
+      initVisaExpenseTopModalSelect2();
+      var addVisaExpenseTopModal = document.getElementById('addVisaExpenseTopOptionModal');
+      if (addVisaExpenseTopModal) {
+        addVisaExpenseTopModal.addEventListener('shown.bs.modal', function() {
+          initVisaExpenseTopModalSelect2();
+          if (typeof jQuery !== 'undefined') {
+            jQuery(topModalSelect).select2('open');
+          }
+        });
+      }
+      if (topAddBtn && topModalSelect && topList) {
+        topAddBtn.addEventListener('click', function() {
+          var selectedId = parseInt(topModalSelect.value || '0', 10);
+          if (!selectedId) {
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'warning',
+                title: 'Select status',
+                text: 'Please select a visa status first.'
+              });
+            }
+            return;
+          }
+          if (topList.querySelector('li[data-selected-id="' + selectedId + '"]')) {
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'info',
+                title: 'Already added',
+                text: 'This status is already added.'
+              });
+            }
+            return;
+          }
+          var selectedOption = topModalSelect.options[topModalSelect.selectedIndex];
+          var name = selectedOption ? (selectedOption.getAttribute('data-name') || selectedOption.text || 'Status') : 'Status';
+          var li = document.createElement('li');
+          li.className = 'list-group-item px-0 py-2 d-flex align-items-center justify-content-between';
+          li.setAttribute('data-selected-id', String(selectedId));
+          li.innerHTML =
+            '<div class="d-flex align-items-center">' +
+            '<span class="visa-expense-top-drag-handle me-2 text-muted" title="Drag to sort" style="cursor: grab;"><i class="ti ti-grip-vertical"></i></span>' +
+            '<i class="ti ti-point-filled me-1 text-muted"></i>' +
+            '<span>' + name + '</span>' +
+            '<input type="hidden" name="status_ids[]" value="' + selectedId + '">' +
+            '</div>' +
+            '<div class="d-flex align-items-center gap-1">' +
+            '<button type="button" class="btn btn-xs btn-outline-danger js-remove-visa-expense-top-option" data-remove-id="' + selectedId + '" title="Remove option"><i class="ti ti-trash"></i></button>' +
+            '</div>';
+          topList.appendChild(li);
+          refreshVisaExpenseTopCount();
+          if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.select2) {
+            jQuery(topModalSelect).val('').trigger('change');
+          } else {
+            topModalSelect.value = '';
+          }
+          var modalEl = document.getElementById('addVisaExpenseTopOptionModal');
+          if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+          }
+          saveVisaExpenseTopAjax();
+        });
+      }
+      refreshVisaExpenseTopCount();
+    });
+
+    var visaStatusTabBtn = document.querySelector('[data-bs-target="#tab-visa-status-management"]');
+    if (visaStatusTabBtn) {
+      visaStatusTabBtn.addEventListener('shown.bs.tab', function() {
+        setTimeout(initVisaStatusSortable, 50);
+      });
+    }
   }
-  }
+
+  @if($showBikeRegistrationExtras)
+  @include('settings.partials.bike_registration_top_bar_script')
+  @endif
 
   document.addEventListener('click', function(e) {
     const btn = e.target.closest('.btn-edit-module-document-type');
@@ -2370,4 +2805,7 @@ $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['c
     });
   }
 </script>
+@if(($moduleKey ?? '') === 'bike_list')
+@include('settings.bike_settings._bike_top_page_script')
+@endif
 @endsection

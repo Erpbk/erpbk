@@ -3,6 +3,7 @@
 @section('title','Vehicles')
 
 @push('third_party_stylesheets')
+<link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
 
 <style>
     .filter-sidebar {
@@ -393,6 +394,10 @@
     </div>
 </section>
 
+@if(isset($bikeTopSliderCategories) && $bikeTopSliderCategories->isNotEmpty())
+@include('bikes._bike_top_slider', ['bikeTopSliderCategories' => $bikeTopSliderCategories])
+@endif
+
 <!-- Filter Sidebar -->
 <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">
@@ -757,8 +762,10 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const table = document.querySelector('#dataTableBuilder');
+        if (!table) return;
         const headers = table.querySelectorAll('th.sorting');
         const tbody = table.querySelector('tbody');
+        if (!tbody) return;
 
         headers.forEach((header, colIndex) => {
             header.addEventListener('click', () => {
@@ -789,5 +796,65 @@
             });
         });
     });
+
+    function filterByBikeTopOption(optionId) {
+        const url = new URL(window.location);
+        url.searchParams.delete('bike_top_option_id');
+        url.searchParams.delete('bike_top_wh');
+        url.searchParams.set('bike_top_option_id', optionId);
+        window.location.href = url.toString();
+    }
+
+    function filterByBikeTopOptionWh(optionId, segment) {
+        const url = new URL(window.location);
+        const currentOptionId = url.searchParams.get('bike_top_option_id');
+        const currentWh = url.searchParams.get('bike_top_wh');
+        if (currentOptionId === String(optionId) && currentWh === segment) {
+            url.searchParams.delete('bike_top_wh');
+        } else {
+            url.searchParams.set('bike_top_option_id', optionId);
+            url.searchParams.set('bike_top_wh', segment);
+        }
+        window.location.href = url.toString();
+    }
+
+    function initBikeTopFleetSlider() {
+        const sliderTrack = document.getElementById('bikeTopSliderTrack');
+        if (!sliderTrack || sliderTrack.dataset.tickerInit === '1') return;
+        const cards = Array.from(sliderTrack.querySelectorAll('.fleet-supervisor-card'));
+        if (!cards.length) return;
+        const container = sliderTrack.closest('.fleet-supervisor-slider-container');
+        if (container) container.classList.add('ticker-mode');
+        sliderTrack.dataset.tickerInit = '1';
+        if (cards.length < 2) return;
+        let isAnimating = false;
+        const computedTrackStyle = window.getComputedStyle(sliderTrack);
+        const gap = parseFloat(computedTrackStyle.columnGap || computedTrackStyle.gap || '16') || 16;
+
+        function slideNextCard() {
+            if (isAnimating) return;
+            const firstCard = sliderTrack.querySelector('.fleet-supervisor-card');
+            if (!firstCard) return;
+            isAnimating = true;
+            const shiftAmount = firstCard.offsetWidth + gap;
+            sliderTrack.style.transition = 'transform 520ms ease';
+            sliderTrack.style.transform = 'translateX(-' + shiftAmount + 'px)';
+            window.setTimeout(function() {
+                sliderTrack.style.transition = 'none';
+                sliderTrack.style.transform = 'translateX(0)';
+                sliderTrack.appendChild(firstCard);
+                void sliderTrack.offsetWidth;
+                isAnimating = false;
+            }, 540);
+        }
+        const intervalId = window.setInterval(slideNextCard, 2600);
+        sliderTrack.dataset.tickerIntervalId = String(intervalId);
+    }
+
+    setTimeout(function() {
+        if (typeof initBikeTopFleetSlider === 'function') {
+            initBikeTopFleetSlider();
+        }
+    }, 150);
 </script>
 @endsection

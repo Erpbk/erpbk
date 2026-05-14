@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Models\Vouchers;
+use Illuminate\Support\Collection;
 
 class visa_installment_plan extends BaseModel
 {
@@ -16,11 +17,13 @@ class visa_installment_plan extends BaseModel
 
     protected $fillable = [
         'date',
+        'branch_id',
         'billing_month',
         'rider_id',
         'amount',
         'total_amount',
         'reference_number',
+        'narration',
         'status',
         'created_by',
         'updated_by',
@@ -47,6 +50,67 @@ class visa_installment_plan extends BaseModel
     {
         return $this->hasMany(Vouchers::class, 'ref_id', 'id')
             ->where('voucher_type', 'VL');
+    }
+
+    /**
+     * Ledger rows for this installment (same link as VisaexpenseController updates).
+     */
+    public function installmentTransactions()
+    {
+        return $this->hasMany(Transactions::class, 'reference_id', 'id')
+            ->where('reference_type', 'VL');
+    }
+
+    /**
+     * @return Collection<int, string>
+     */
+    protected function transactionNarrationStrings(): Collection
+    {
+        $rows = $this->relationLoaded('installmentTransactions')
+            ? $this->installmentTransactions
+            : $this->installmentTransactions()->get();
+
+        if ($rows->isNotEmpty()) {
+            return $rows->pluck('narration')
+                ->filter(static fn ($n) => $n !== null && $n !== '')
+                ->unique()
+                ->values();
+        }
+
+        $fallback = $this->attributes['narration'] ?? null;
+        if ($fallback !== null && $fallback !== '') {
+            return collect([(string) $fallback]);
+        }
+
+        return collect();
+    }
+
+    /**
+     * Narration as stored on transactions (HTML allowed), fallback to plan column when no GL rows yet.
+     */
+    public function getTransactionNarrationAttribute(): ?string
+    {
+        $strings = $this->transactionNarrationStrings();
+
+        return $strings->isEmpty() ? null : $strings->implode(' | ');
+    }
+
+    /**
+     * Plain text for inline edit inputs.
+     */
+    public function getTransactionNarrationPlainAttribute(): string
+    {
+        $strings = $this->transactionNarrationStrings();
+        if ($strings->isEmpty()) {
+            return '';
+        }
+
+        return $strings
+            ->map(static function ($html) {
+                return html_entity_decode(strip_tags((string) $html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            })
+            ->unique()
+            ->implode(' | ');
     }
 
     public function getVoucherIdsAttribute()

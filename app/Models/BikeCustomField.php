@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Helpers\Common;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class BikeCustomField extends BaseModel
@@ -143,9 +145,152 @@ class BikeCustomField extends BaseModel
     }
 
     /**
-     * Input spec per fixed bike field (defaults for the bike form renderer).
-     * Unknown keys gracefully fall back to a basic text input.
+     * Merge bike_field_category_assignment overrides into the default fixed-field spec
+     * (same rules as resources/views/bikes/_form_field.blade.php).
      */
+    public static function resolvedFixedFieldSpec(string $fieldKey): array
+    {
+        $specs = self::fixedFieldInputSpecs();
+        $spec = $specs[$fieldKey] ?? ['type' => 'text'];
+
+        $assignment = BikeFieldCategoryAssignment::where('field_key', $fieldKey)->first();
+        if ($assignment) {
+            if (!empty($assignment->input_type)) {
+                $spec['type'] = $assignment->input_type === 'dropdown' ? 'select' : $assignment->input_type;
+            }
+            if (is_array($assignment->input_config) && array_key_exists('options', $assignment->input_config)) {
+                $spec['options'] = $assignment->input_config['options'];
+            }
+            if (is_array($assignment->input_config) && array_key_exists('dropdown', $assignment->input_config)) {
+                $spec['dropdown'] = $spec['dropdown'] ?? $assignment->input_config['dropdown'];
+            }
+        }
+
+        return $spec;
+    }
+
+    /**
+     * Select options for a fixed bikes column when it renders as a select on the bike form:
+     * explicit newline options, or related-table / Common::Dropdowns sources (same as _form_field.blade.php).
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public static function fixedFieldSelectChoices(string $fieldKey): array
+    {
+        $spec = self::resolvedFixedFieldSpec($fieldKey);
+        if (($spec['type'] ?? 'text') !== 'select') {
+            return [];
+        }
+
+        $rawOptions = $spec['options'] ?? null;
+        $parsedOptions = [];
+        if ($rawOptions !== null && $rawOptions !== '') {
+            $lines = is_array($rawOptions) ? $rawOptions : preg_split('/\r\n|\r|\n/', (string) $rawOptions);
+            foreach ($lines as $line) {
+                $line = trim((string) $line);
+                if ($line !== '') {
+                    $parsedOptions[] = $line;
+                }
+            }
+        }
+
+        if ($parsedOptions !== []) {
+            $choices = [];
+            foreach ($parsedOptions as $opt) {
+                $choices[] = ['value' => $opt, 'label' => $opt];
+            }
+
+            return $choices;
+        }
+
+        $dropdownKey = $spec['dropdown'] ?? null;
+        $opts = [];
+
+        switch ($dropdownKey) {
+            case 'vehicle_models':
+                $opts = DB::table('vehicle_models')->where('status', 1)->pluck('name', 'id')->toArray();
+                $opts = ['' => 'Select Model'] + $opts;
+                break;
+            case 'branch':
+                $opts = Branch::dropdown();
+                break;
+            case 'leasing_companies':
+                $opts = LeasingCompanies::dropdown();
+                break;
+            case 'customers':
+                $opts = Customers::pluck('name', 'id')->prepend('Select', '')->toArray();
+                break;
+            case 'riders':
+                $opts = Riders::dropdown();
+                break;
+            case 'warehouse':
+                $opts = [
+                    '' => 'Select Warehouse',
+                    'Active' => 'Active',
+                    'Return' => 'Return',
+                    'Vacation' => 'Vacation',
+                    'Express Garage' => 'Express Garage',
+                    'Absconded' => 'Absconded',
+                ];
+                break;
+            default:
+                $opts = !empty($dropdownKey) ? Common::Dropdowns($dropdownKey) : [];
+                if (empty($opts) && !empty($dropdownKey)) {
+                    $opts = ['' => 'Select'] + (array) Common::Dropdowns($dropdownKey);
+                }
+                if (empty($opts)) {
+                    $opts = ['' => 'Select'];
+                }
+                break;
+        }
+
+        $choices = [];
+        foreach ($opts as $value => $label) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $labelStr = trim((string) $label);
+            if ($labelStr === '') {
+                continue;
+            }
+            $lower = mb_strtolower($labelStr);
+            if (in_array($lower, ['select', 'select model', 'all'], true)) {
+                continue;
+            }
+            $choices[] = ['value' => (string) $value, 'label' => $labelStr];
+        }
+
+        return $choices;
+    }
+
+    /**
+     * Human-readable label for a stored bikes column value (e.g. FK id → company name).
+     * Uses the same select sources as fixedFieldSelectChoices(); falls back to the raw stored value.
+     */
+    public static function displayLabelForFixedFieldValue(?string $fieldKey, string $storedValue): string
+    {
+        $trimmed = trim($storedValue);
+        if ($trimmed === '' || $fieldKey === null || $fieldKey === '') {
+            return $storedValue;
+        }
+
+        static $valueToLabelByField = [];
+        if (!array_key_exists($fieldKey, $valueToLabelByField)) {
+            $map = [];
+            foreach (self::fixedFieldSelectChoices($fieldKey) as $row) {
+                $map[(string) ($row['value'] ?? '')] = (string) ($row['label'] ?? $row['value'] ?? '');
+            }
+            $valueToLabelByField[$fieldKey] = $map;
+        }
+
+        $map = $valueToLabelByField[$fieldKey];
+        if ($map === []) {
+            return $storedValue;
+        }
+
+        return $map[$trimmed] ?? $storedValue;
+    }
+
     public static function fixedFieldInputSpecs(): array
     {
         return [
@@ -340,4 +485,3 @@ class BikeCustomField extends BaseModel
         return $result;
     }
 }
-

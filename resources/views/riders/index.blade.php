@@ -266,7 +266,7 @@ $riderColumns = Schema::getColumnListing('riders');
 $riderColumnsSet = array_flip($riderColumns);
 
 // Columns to always exclude from manual column control.
-$exclude = ['id', 'email', 'created_at', 'updated_at', 'branch_id', 'company_id', 'account_id'];
+$exclude = ['id', 'email', 'created_at', 'updated_at', 'company_id', 'account_id'];
 $excludedSet = array_flip($exclude);
 
 // Assigned fixed fields (from Rider Settings -> Rider Fields).

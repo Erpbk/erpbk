@@ -35,6 +35,7 @@ return [
         'rider_report'         => 'Rider Report',
         'bikes'                => 'Bikes',
         'bike_list'            => 'Bike List',
+        'bike_registration'    => 'Bike Registration',
         'bike_on_rent'         => 'Bike on rent',
         'bike_rent_customers'  => 'Customers',
         'maintenance'          => 'Maintenance',

@@ -292,6 +292,69 @@ function printModalContent() {
     };
 }
 
+/**
+ * Print only the Visa installment invoice fragment (modal #modalTopbody or standalone .visa-installment-invo-wrap).
+ * Avoids printing the full ERP layout when the invoice is opened in modalTop.
+ */
+function printVisaInstallmentInvoice() {
+    var title = 'Installment Invoice';
+    var bodyHtml = '';
+
+    if (window.jQuery && $('#modalTopbody').length && $('#modalTopbody').find('.visa-installment-invo-wrap').length) {
+        bodyHtml = $('#modalTopbody').html();
+        var t = ($('#modalTopTitle').text() || '').trim();
+        if (t) title = t;
+    } else {
+        var wrap = document.querySelector('.visa-installment-invo-wrap');
+        if (!wrap) {
+            window.print();
+            return;
+        }
+        var styles = '';
+        if (document.head) {
+            var styleNodes = document.head.querySelectorAll('style');
+            for (var i = 0; i < styleNodes.length; i++) {
+                styles += styleNodes[i].outerHTML;
+            }
+        }
+        bodyHtml = styles + wrap.outerHTML;
+        if (document.title) title = document.title;
+    }
+
+    if (!bodyHtml || !bodyHtml.trim()) {
+        window.print();
+        return;
+    }
+
+    title = String(title).replace(/</g, '');
+
+    var printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        window.print();
+        return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
+            title +
+            '</title></head><body>' +
+            bodyHtml +
+            '</body></html>'
+    );
+    printWindow.document.close();
+
+    setTimeout(function () {
+        try {
+            printWindow.focus();
+            printWindow.print();
+        } catch (e) {}
+        printWindow.onafterprint = function () {
+            printWindow.close();
+        };
+    }, 400);
+}
+
 // Backward-compatible modal toggler used by .show-modal handlers.
 function toggleModalTop(action) {
   var modalEl = document.getElementById('modalTop');

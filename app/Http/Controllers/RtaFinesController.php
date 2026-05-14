@@ -22,6 +22,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
+use App\Helpers\HeadAccount;
 use Flash;
 use DB;
 use App\Imports\RTAFineImport;
@@ -585,7 +586,6 @@ class RtaFinesController extends AppBaseController
         try {
             $id = $request->id;
             $admin_accounts   = HeadAccount::RTA_ADMIN_CHARGES;
-            $service_accounts = HeadAccount::RTA_SERVICE_CHARGES;
 
             $input = $request->all();
             $bike  = Bikes::findOrFail($input['bike_id']);

@@ -38,6 +38,7 @@ class Bikes extends BaseModel
     'status',
     'insurance_co',
     'customer_id',
+    'bike_top_option_id',
     'contract_number',
     'policy_no',
     'current_km',
@@ -66,6 +67,7 @@ class Bikes extends BaseModel
     'insurance_co' => 'string',
     'policy_no' => 'string',
     'customer_id' => 'string',
+    'bike_top_option_id' => 'integer',
     'deleted_at' => 'datetime',
     'custom_field_values' => 'array'
   ];
@@ -92,6 +94,7 @@ class Bikes extends BaseModel
     'traffic_file_number' => 'nullable|string|max:100',
     'emirates' => 'nullable|string|max:100',
     'bike_code' => 'nullable|string|max:100',
+    'rental_company_id' => 'nullable',
     'registration_date' => 'nullable',
     'expiry_date' => 'nullable',
     'insurance_expiry' => 'nullable',
@@ -127,7 +130,8 @@ class Bikes extends BaseModel
     return $this->belongsTo(LeasingCompanies::class, 'company');
   }
 
-  public function rentalCompany(){
+  public function rentalCompany()
+  {
     return $this->belongsTo(BikeRentCompany::class, 'rental_company_id', 'id');
   }
 

@@ -10,6 +10,8 @@ use App\Http\Requests\UpdateBikesRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\BikeHistory;
 use App\Models\Bikes;
+use App\Models\BikeTopCategory;
+use App\Models\UserTableSettings;
 use App\Models\BikeFieldCategoryAssignment;
 use App\Models\Riders;
 use App\Models\VehicleModels;
@@ -115,6 +117,20 @@ class BikesController extends AppBaseController
       $query->select('bikes.*');
     }
 
+    if (Schema::hasColumn('bikes', 'bike_top_option_id') && $request->filled('bike_top_option_id')) {
+      $query->where('bike_top_option_id', (int) $request->bike_top_option_id);
+    }
+    if ($request->filled('bike_top_wh')) {
+      $wh = (string) $request->bike_top_wh;
+      if ($wh === 'active') {
+        $query->where('bikes.status', 1);
+      } elseif ($wh === 'inactive') {
+        $query->where(function ($q) {
+          $q->whereNull('bikes.status')->orWhere('bikes.status', '!=', 1);
+        });
+      }
+    }
+
     $statsQuery = clone $query;
     $stats = [
       'total' => $statsQuery->count(),
@@ -141,10 +157,43 @@ class BikesController extends AppBaseController
     // Get table columns configuration
     $tableColumns = $this->getTableColumns();
 
+    $bikeTopSliderCategories = collect();
+    if (Schema::hasTable('bike_top_categories') && Schema::hasColumn('bikes', 'bike_top_option_id')) {
+      $bikeTopSliderCategories = BikeTopCategory::with(['options' => function ($q) {
+        $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+      }])
+        ->where('show_in_top_bar', 1)
+        ->orderBy('display_order')
+        ->orderBy('id')
+        ->get();
+
+      $userBikeSettings = UserTableSettings::getSettings(auth()->id(), 'bikes_table');
+      $allowedIds = null;
+      if ($userBikeSettings && is_array($userBikeSettings->additional_settings)) {
+        $allowedIds = $userBikeSettings->additional_settings['bike_top_visible_option_ids'] ?? null;
+      }
+
+      if (is_array($allowedIds) && count($allowedIds) > 0) {
+        $allowedSet = array_flip(array_map('intval', $allowedIds));
+        $bikeTopSliderCategories->each(function ($cat) use ($allowedSet) {
+          $cat->setRelation(
+            'options',
+            $cat->options->filter(fn($o) => isset($allowedSet[(int) $o->id]))->values()
+          );
+        });
+        $bikeTopSliderCategories = $bikeTopSliderCategories->filter(fn($c) => $c->options->isNotEmpty())->values();
+      }
+
+      if ($bikeTopSliderCategories->sum(fn($c) => $c->options->count()) === 0) {
+        $bikeTopSliderCategories = collect();
+      }
+    }
+
     return view('bikes.index', [
       'data' => $data,
       'stats' => $stats,
       'tableColumns' => $tableColumns,
+      'bikeTopSliderCategories' => $bikeTopSliderCategories,
     ]);
   }
 

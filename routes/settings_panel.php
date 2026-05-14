@@ -38,6 +38,9 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::resource('visa-statuses', App\Http\Controllers\VisaStatusController::class)->names('settings-panel.visa-statuses');
     Route::post('visa-statuses/reorder', [App\Http\Controllers\VisaStatusController::class, 'reorder'])->name('settings-panel.visa-statuses.reorder');
     Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('settings-panel.visa-statuses.toggle-active');
+    Route::post('bike-registration-statuses/reorder', [App\Http\Controllers\BikeRegistrationStatusController::class, 'reorder'])->name('settings-panel.bike-registration-statuses.reorder');
+    Route::get('bike-registration-statuses/{id}/toggle-active', [App\Http\Controllers\BikeRegistrationStatusController::class, 'toggleActive'])->name('settings-panel.bike-registration-statuses.toggle-active');
+    Route::resource('bike-registration-statuses', App\Http\Controllers\BikeRegistrationStatusController::class)->names('settings-panel.bike-registration-statuses');
     Route::resource('branches', App\Http\Controllers\BranchController::class)->names('settings-panel.branches');
     // Account field settings (fixed + custom fields; only custom are editable/deletable)
     Route::get('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'index'])->name('settings-panel.account-fields.index');
@@ -143,6 +146,17 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::put('module-settings/bike_list/documents/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateDocumentType'])->name('settings-panel.bike-settings.update-document-type');
     Route::delete('module-settings/bike_list/documents/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyDocumentType'])->name('settings-panel.bike-settings.destroy-document-type');
 
+    Route::get('module-settings/bike_list/bike-top/accordion-body', [App\Http\Controllers\BikeSettingsController::class, 'bikeTopAccordionBody'])->name('settings-panel.bike-settings.bike-top-accordion-body');
+    Route::post('module-settings/bike_list/bike-top/categories', [App\Http\Controllers\BikeSettingsController::class, 'storeBikeTopCategory'])->name('settings-panel.bike-settings.store-bike-top-category');
+    Route::get('module-settings/bike_list/bike-top/categories/{id}/field-values', [App\Http\Controllers\BikeSettingsController::class, 'bikeTopCategoryFieldValues'])->name('settings-panel.bike-settings.bike-top-category-field-values');
+    Route::put('module-settings/bike_list/bike-top/categories/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateBikeTopCategory'])->name('settings-panel.bike-settings.update-bike-top-category');
+    Route::delete('module-settings/bike_list/bike-top/categories/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyBikeTopCategory'])->name('settings-panel.bike-settings.destroy-bike-top-category');
+    Route::post('module-settings/bike_list/bike-top/categories/{id}/visibility', [App\Http\Controllers\BikeSettingsController::class, 'updateBikeTopCategoryVisibility'])->name('settings-panel.bike-settings.update-bike-top-category-visibility');
+    Route::post('module-settings/bike_list/bike-top/options', [App\Http\Controllers\BikeSettingsController::class, 'storeBikeTopOption'])->name('settings-panel.bike-settings.store-bike-top-option');
+    Route::put('module-settings/bike_list/bike-top/options/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateBikeTopOption'])->name('settings-panel.bike-settings.update-bike-top-option');
+    Route::delete('module-settings/bike_list/bike-top/options/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyBikeTopOption'])->name('settings-panel.bike-settings.destroy-bike-top-option');
+    Route::post('module-settings/bike_list/bike-top/user-preferences', [App\Http\Controllers\BikeSettingsController::class, 'saveBikeTopUserPreferences'])->name('settings-panel.bike-settings.save-bike-top-user-preferences');
+
     // Module settings for all ERP modules (Bike-style route pattern)
     Route::post('module-settings/{module}/field-assignment', [App\Http\Controllers\ModuleSettingsController::class, 'storeFieldAssignment'])->name('settings-panel.module-settings.update-field-assignment')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/field-assignments/reorder', [App\Http\Controllers\ModuleSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.module-settings.reorder-field-assignments')->where('module', '[A-Za-z0-9_-]+');
@@ -159,6 +173,8 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::post('module-settings/{module}/documents', [App\Http\Controllers\ModuleSettingsController::class, 'storeDocumentType'])->name('settings-panel.module-settings.store-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::put('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'updateDocumentType'])->name('settings-panel.module-settings.update-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::delete('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'destroyDocumentType'])->name('settings-panel.module-settings.destroy-document-type')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/visa-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateVisaExpenseTop'])->name('settings-panel.module-settings.update-visa-expense-top')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/bike-registration-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateBikeRegistrationTop'])->name('settings-panel.module-settings.update-bike-registration-top')->where('module', '[A-Za-z0-9_-]+');
 
     // Module settings page + label update
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');

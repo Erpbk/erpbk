@@ -9,7 +9,7 @@
          $k = $c['data'] ?? ($c['key'] ?? null);
          return $k !== 'search'
          && $k !== 'control'
-         && !in_array($k, ['branch_id', 'company_id', 'account_id'], true);
+         && !in_array($k, ['company_id', 'account_id'], true);
          }));
          @endphp
          @foreach($dataColumns as $col)

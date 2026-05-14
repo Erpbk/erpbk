@@ -23,12 +23,18 @@ class visa_expenses extends BaseModel
         'rider_id',
         'visa_status',
         'detail',
+        'branch_id',
         'reference_number',
         'billing_month',
         'amount',
         'payment_status',
+        'expiry_date',
         'deleted_by',
         'expense_account_id',
+    ];
+
+    protected $casts = [
+        'expiry_date' => 'date',
     ];
     public static array $rules = [
         'trans_date' => 'nullable',
@@ -40,8 +46,10 @@ class visa_expenses extends BaseModel
         'detail' => 'nullable|string|max:500',
         'amount' => 'required|numeric',
         'payment_status' => 'nullable|numeric',
+        'expiry_date' => 'nullable|date',
         'created_at' => 'nullable',
-        'updated_at' => 'nullable'
+        'updated_at' => 'nullable',
+        'branch_id' => 'nullable',
     ];
     public function rider()
     {

@@ -9,6 +9,7 @@ use App\Models\ModuleFieldCategoryAssignment;
 use App\Models\ModuleSettingCategory;
 use App\Models\RiderInvoiceAccountAssignment;
 use App\Models\Settings;
+use App\Models\BikeRegistrationStatus;
 use App\Models\VisaStatus;
 use App\Support\ModuleFieldSource;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +19,13 @@ use Illuminate\Validation\Rule;
 
 class ModuleSettingsController extends Controller
 {
+    private const VISA_EXPENSE_TOP_SETTING_KEY = 'visa_expense_top_status_ids';
+    private const VISA_EXPENSE_TOP_ENABLED_KEY = 'visa_expense_top_enabled';
+
+    private const BIKE_REGISTRATION_TOP_SETTING_KEY = 'bike_registration_top_status_ids';
+
+    private const BIKE_REGISTRATION_TOP_ENABLED_KEY = 'bike_registration_top_enabled';
+
     /**
      * Invoice-like modules that require account assigning setup.
      *
@@ -36,6 +44,76 @@ class ModuleSettingsController extends Controller
     protected function normalizeModuleKey(string $module): string
     {
         return str_replace('-', '_', strtolower(trim($module)));
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function selectedVisaExpenseTopStatusIds(): array
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::VISA_EXPENSE_TOP_SETTING_KEY)
+            ->value('value') ?? '');
+
+        if ($raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return collect($decoded)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function visaExpenseTopEnabled(): bool
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::VISA_EXPENSE_TOP_ENABLED_KEY)
+            ->value('value') ?? '1');
+
+        return in_array(strtolower(trim($raw)), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function selectedBikeRegistrationTopStatusIds(): array
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::BIKE_REGISTRATION_TOP_SETTING_KEY)
+            ->value('value') ?? '');
+
+        if ($raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return collect($decoded)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function bikeRegistrationTopEnabled(): bool
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::BIKE_REGISTRATION_TOP_ENABLED_KEY)
+            ->value('value') ?? '1');
+
+        return in_array(strtolower(trim($raw)), ['1', 'true', 'yes', 'on'], true);
     }
 
     protected function normalizeCompanyScopedQuery($query, ?int $companyId)
@@ -81,7 +159,7 @@ class ModuleSettingsController extends Controller
         $excluded = ModuleFieldSource::defaultExcludedFieldsForModule($module);
         $columns = array_values(array_filter(
             Schema::getColumnListing($table),
-            fn ($col) => !in_array($col, $excluded, true)
+            fn($col) => !in_array($col, $excluded, true)
         ));
 
         foreach ($columns as $index => $column) {
@@ -151,7 +229,7 @@ class ModuleSettingsController extends Controller
             ->get();
         $hiddenFieldKeys = array_flip(ModuleFieldSource::defaultExcludedFieldsForModule($module));
         $fixedAssignments = $fixedAssignments
-            ->filter(fn ($row) => !isset($hiddenFieldKeys[(string) $row->field_key]))
+            ->filter(fn($row) => !isset($hiddenFieldKeys[(string) $row->field_key]))
             ->values();
 
         $customFields = ModuleCustomField::with('category')
@@ -212,13 +290,13 @@ class ModuleSettingsController extends Controller
                     $riderInvoiceAccountTree[] = [
                         'parent_id' => (int) $parentAccount->id,
                         'label' => $this->formatAccountPickerLabel($parentAccount),
-                        'children' => $kids->map(fn ($row) => [
+                        'children' => $kids->map(fn($row) => [
                             'id' => (int) $row->id,
                             'text' => trim((string) (($row->account_code ? $row->account_code . ' — ' : '') . $row->name)),
                         ])->values()->all(),
                     ];
                 }
-                usort($riderInvoiceAccountTree, fn (array $a, array $b): int => strcmp($a['label'], $b['label']));
+                usort($riderInvoiceAccountTree, fn(array $a, array $b): int => strcmp($a['label'], $b['label']));
             }
 
             $assignments = RiderInvoiceAccountAssignment::query()
@@ -232,20 +310,36 @@ class ModuleSettingsController extends Controller
             $riderInvoiceAssignments = [
                 'debit' => $assignments->where('side', 'debit')
                     ->groupBy('parent_account_id')
-                    ->map(fn ($rows) => $rows->pluck('child_account_id')->map(fn ($id) => (int) $id)->values()->all())
+                    ->map(fn($rows) => $rows->pluck('child_account_id')->map(fn($id) => (int) $id)->values()->all())
                     ->toArray(),
                 'credit' => $assignments->where('side', 'credit')
                     ->groupBy('parent_account_id')
-                    ->map(fn ($rows) => $rows->pluck('child_account_id')->map(fn ($id) => (int) $id)->values()->all())
+                    ->map(fn($rows) => $rows->pluck('child_account_id')->map(fn($id) => (int) $id)->values()->all())
                     ->toArray(),
             ];
         }
         $visaStatuses = collect();
+        $selectedVisaExpenseTopStatusIds = [];
+        $visaExpenseTopEnabled = true;
         if ($module === 'visa_expense') {
             $visaStatuses = VisaStatus::query()
                 ->orderBy('display_order')
                 ->orderBy('name')
                 ->get();
+            $selectedVisaExpenseTopStatusIds = $this->selectedVisaExpenseTopStatusIds();
+            $visaExpenseTopEnabled = $this->visaExpenseTopEnabled();
+        }
+
+        $bikeRegistrationStatusesForSettings = collect();
+        $selectedBikeRegistrationTopStatusIds = [];
+        $bikeRegistrationTopEnabled = true;
+        if ($module === 'bike_registration') {
+            $bikeRegistrationStatusesForSettings = BikeRegistrationStatus::query()
+                ->orderBy('display_order')
+                ->orderBy('name')
+                ->get();
+            $selectedBikeRegistrationTopStatusIds = $this->selectedBikeRegistrationTopStatusIds();
+            $bikeRegistrationTopEnabled = $this->bikeRegistrationTopEnabled();
         }
 
         return view('settings.bike_settings.index', [
@@ -264,7 +358,7 @@ class ModuleSettingsController extends Controller
             'settingsRoutePrefix' => 'settings-panel.module-settings',
             'settingsRouteParams' => ['company_slug' => $company_slug, 'module' => $module],
             'settingsHeading' => $moduleLabel . ' Settings',
-            'settingsFieldsTabLabel' => 'Module Fields',
+            'settingsFieldsTabLabel' => $module === 'bike_registration' ? 'Bike registration fields' : 'Module Fields',
             'settingsEntityName' => strtolower($moduleLabel),
             'fixedFieldSourceTable' => $moduleSourceTable ?: 'module_field_category_assignments',
             'customFieldSourceTable' => 'module_custom_fields',
@@ -272,7 +366,103 @@ class ModuleSettingsController extends Controller
             'riderInvoiceAssignments' => $riderInvoiceAssignments,
             'moduleSchemaFieldKeys' => ModuleFieldSource::schemaFieldKeysForModule($module),
             'visaStatuses' => $visaStatuses,
+            'selectedVisaExpenseTopStatusIds' => $selectedVisaExpenseTopStatusIds,
+            'visaExpenseTopEnabled' => $visaExpenseTopEnabled,
+            'showBikeRegistrationExtras' => $module === 'bike_registration',
+            'bikeRegistrationStatusesForSettings' => $bikeRegistrationStatusesForSettings,
+            'selectedBikeRegistrationTopStatusIds' => $selectedBikeRegistrationTopStatusIds,
+            'bikeRegistrationTopEnabled' => $bikeRegistrationTopEnabled,
         ]);
+    }
+
+    public function updateVisaExpenseTop(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        abort_unless($module === 'visa_expense', 404);
+
+        $validated = $request->validate([
+            'status_ids' => ['nullable', 'array'],
+            'status_ids.*' => ['integer', 'exists:visa_statuses,id'],
+            'show_in_top_bar' => ['nullable', 'boolean'],
+        ]);
+
+        $statusIds = collect($validated['status_ids'] ?? [])
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        Settings::updateOrCreate(
+            ['name' => self::VISA_EXPENSE_TOP_SETTING_KEY],
+            ['value' => json_encode($statusIds)]
+        );
+        Settings::updateOrCreate(
+            ['name' => self::VISA_EXPENSE_TOP_ENABLED_KEY],
+            ['value' => $request->boolean('show_in_top_bar') ? '1' : '0']
+        );
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Visa Expense Top updated successfully.',
+                'status_ids' => $statusIds,
+                'show_in_top_bar' => $request->boolean('show_in_top_bar'),
+            ]);
+        }
+
+        return redirect()
+            ->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => $module,
+            ])
+            ->with('success', 'Visa Expense Top statuses updated.')
+            ->withFragment('tab-visa-expense-top');
+    }
+
+    public function updateBikeRegistrationTop(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        abort_unless($module === 'bike_registration', 404);
+
+        $validated = $request->validate([
+            'status_ids' => ['nullable', 'array'],
+            'status_ids.*' => ['integer', 'exists:bike_registration_statuses,id'],
+            'show_in_top_bar' => ['nullable', 'boolean'],
+        ]);
+
+        $statusIds = collect($validated['status_ids'] ?? [])
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        Settings::updateOrCreate(
+            ['name' => self::BIKE_REGISTRATION_TOP_SETTING_KEY],
+            ['value' => json_encode($statusIds)]
+        );
+        Settings::updateOrCreate(
+            ['name' => self::BIKE_REGISTRATION_TOP_ENABLED_KEY],
+            ['value' => $request->boolean('show_in_top_bar') ? '1' : '0']
+        );
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Bike Registration Top updated successfully.',
+                'status_ids' => $statusIds,
+                'show_in_top_bar' => $request->boolean('show_in_top_bar'),
+            ]);
+        }
+
+        return redirect()
+            ->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => $module,
+            ])
+            ->with('success', 'Bike Registration Top statuses updated.')
+            ->withFragment('tab-bike-registration-top');
     }
 
     protected function ensureCompanyAdmin(): void
@@ -311,8 +501,8 @@ class ModuleSettingsController extends Controller
             }
 
             $children = collect($childIds)
-                ->map(fn ($id) => (int) $id)
-                ->filter(fn ($id) => $id > 0)
+                ->map(fn($id) => (int) $id)
+                ->filter(fn($id) => $id > 0)
                 ->unique()
                 ->values()
                 ->all();
@@ -348,7 +538,7 @@ class ModuleSettingsController extends Controller
             ->where('parent_id', $parentId)
             ->orderBy('account_code')
             ->get(['id', 'name', 'account_code'])
-            ->map(fn ($row) => [
+            ->map(fn($row) => [
                 'id' => (int) $row->id,
                 'text' => trim((string) ($row->account_code ? $row->account_code . ' — ' : '') . $row->name),
                 'parent_context' => $parentBucketLine,
@@ -562,7 +752,7 @@ class ModuleSettingsController extends Controller
             ->where('module_key', $module)
             ->where('category_id', $categoryId)
             ->pluck('field_key')
-            ->map(fn ($v) => (string) $v)
+            ->map(fn($v) => (string) $v)
             ->all();
 
         foreach ($order as $fieldKey) {
@@ -593,7 +783,7 @@ class ModuleSettingsController extends Controller
         $existing = ModuleFieldCategoryAssignment::query()
             ->where('module_key', $module)
             ->pluck('field_key')
-            ->map(fn ($v) => (string) $v)
+            ->map(fn($v) => (string) $v)
             ->sort()
             ->values()
             ->all();
@@ -626,7 +816,7 @@ class ModuleSettingsController extends Controller
             ->orderBy('id')
             ->get();
 
-        $globalKeys = $rows->pluck('field_key')->map(fn ($v) => (string) $v)->all();
+        $globalKeys = $rows->pluck('field_key')->map(fn($v) => (string) $v)->all();
 
         $newGlobal = [];
         $i = 0;
@@ -781,7 +971,7 @@ class ModuleSettingsController extends Controller
         } else {
             $query->where('category_id', (int) $categoryId);
         }
-        $allowedIds = $query->pluck('id')->map(fn ($v) => (int) $v)->sort()->values()->all();
+        $allowedIds = $query->pluck('id')->map(fn($v) => (int) $v)->sort()->values()->all();
         $sortedOrder = $order;
         sort($sortedOrder);
         if ($sortedOrder !== $allowedIds || count($order) !== count($allowedIds)) {
@@ -807,7 +997,7 @@ class ModuleSettingsController extends Controller
         $existing = ModuleCustomField::query()
             ->where('module_key', $module)
             ->pluck('id')
-            ->map(fn ($v) => (int) $v)
+            ->map(fn($v) => (int) $v)
             ->sort()
             ->values()
             ->all();
@@ -846,7 +1036,7 @@ class ModuleSettingsController extends Controller
             return (int) $row->category_id === (int) $categoryId;
         };
 
-        $globalIds = $rows->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $globalIds = $rows->pluck('id')->map(fn($v) => (int) $v)->all();
         $newGlobal = [];
         $i = 0;
         $n = count($globalIds);
@@ -890,7 +1080,7 @@ class ModuleSettingsController extends Controller
     {
         $module = $this->normalizeModuleKey($module);
         $validated = $request->validate([
-            'key' => ['required', 'string', 'max:80', Rule::unique('module_document_types', 'key')->where(fn ($q) => $q->where('module_key', $module))],
+            'key' => ['required', 'string', 'max:80', Rule::unique('module_document_types', 'key')->where(fn($q) => $q->where('module_key', $module))],
             'label' => 'nullable|string|max:255',
             'type' => ['required', Rule::in(['single', 'dual'])],
             'front_label' => 'nullable|string|max:255',
@@ -926,7 +1116,7 @@ class ModuleSettingsController extends Controller
         $module = $this->normalizeModuleKey($module);
         $document = ModuleDocumentType::where('module_key', $module)->where('id', $id)->firstOrFail();
         $validated = $request->validate([
-            'key' => ['required', 'string', 'max:80', Rule::unique('module_document_types', 'key')->ignore($id)->where(fn ($q) => $q->where('module_key', $module))],
+            'key' => ['required', 'string', 'max:80', Rule::unique('module_document_types', 'key')->ignore($id)->where(fn($q) => $q->where('module_key', $module))],
             'label' => 'nullable|string|max:255',
             'type' => ['required', Rule::in(['single', 'dual'])],
             'front_label' => 'nullable|string|max:255',

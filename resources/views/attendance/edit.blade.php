@@ -1,13 +1,6 @@
 <form action="{{ route('attendance.update', $attendance->id) }}" method="POST" id="attendanceEditForm">
     @csrf
     @method('PUT')
-    @php
-    $selectedType = strtolower(trim(old('ref_type', $attendance->ref_type ?? 'employee')));
-    $selectedStatus = strtolower(trim(str_replace('-', ' ', old('status', $attendance->status ?? ''))));
-    $selectedRefId = old('ref_id', $attendance->ref_id);
-    $checkInValue = old('check_in', $attendance->check_in ? \Carbon\Carbon::parse($attendance->check_in)->format('H:i:s') : '');
-    $checkOutValue = old('check_out', $attendance->check_out ? \Carbon\Carbon::parse($attendance->check_out)->format('H:i:s') : '');
-    @endphp
 
     <!-- User Type Selection -->
     <div class="row mb-4">
@@ -15,23 +8,32 @@
             <label for="ref_type" class="form-label fw-bold">
                 User Type <span class="text-danger">*</span>
             </label>
+            @php
+            $selectedType = old('ref_type', $attendance->ref_type ?? 'employee');
+            $selectedRefId = old('ref_id', $attendance->ref_id);
+            $selectedStatus = str_replace('-', ' ', strtolower(trim(old('status', $attendance->status ?? ''))));
+            $checkInValue = old('check_in');
+            if ($checkInValue === null) {
+                $checkInValue = $attendance->check_in ? \Carbon\Carbon::parse($attendance->check_in)->format('H:i:s') : '';
+            }
+            $checkOutValue = old('check_out');
+            if ($checkOutValue === null) {
+                $checkOutValue = $attendance->check_out ? \Carbon\Carbon::parse($attendance->check_out)->format('H:i:s') : '';
+            }
+            @endphp
             <div class="btn-group w-100" role="group">
-                @if ($attendance->ref_type === 'employee')
                 <input type="radio" class="btn-check" name="ref_type" id="type_employee"
                     value="employee" {{ $selectedType === 'employee' ? 'checked' : '' }}
                     autocomplete="off" required>
                 <label class="btn btn-outline-primary" for="type_employee">
                     <i class="fas fa-user-tie me-2"></i>Employee
                 </label>
-                @endif
-                @if ($attendance->ref_type === 'rider')
                 <input type="radio" class="btn-check" name="ref_type" id="type_rider"
                     value="rider" {{ $selectedType === 'rider' ? 'checked' : '' }}
                     autocomplete="off" required>
                 <label class="btn btn-outline-primary" for="type_rider">
                     <i class="fas fa-motorcycle me-2"></i>Rider
                 </label>
-                @endif
             </div>
             @error('ref_type')
             <div class="text-danger small mt-1">{{ $message }}</div>
@@ -46,8 +48,8 @@
             <select class="form-select @error('ref_id') is-invalid @enderror select2"
                 id="form_ref_id" name="ref_id" required>
                 <option value="">-- Select user type first --</option>
-                @if(old('ref_id') && old('ref_id') != $attendance->ref_id)
-                <option value="{{ old('ref_id') }}" selected>Selected User (ID: {{ old('ref_id') }})</option>
+                @if($selectedRefId && $selectedRefId != $attendance->ref_id)
+                <option value="{{ $selectedRefId }}" selected>Selected User (ID: {{ $selectedRefId }})</option>
                 @elseif($attendance->ref_type && $attendance->user)
                 <option value="{{ $selectedRefId }}" selected>{{ $attendance->user->name }}</option>
                 @endif
@@ -317,7 +319,7 @@
         });
 
         // Load initial users based on existing/old ref_type
-        var initialRefType = "{{ strtolower(trim(old('ref_type', $attendance->ref_type ?? 'employee'))) }}";
+        var initialRefType = "{{ old('ref_type', $attendance->ref_type ?? 'employee') }}";
         var initialRefId = "{{ old('ref_id', $attendance->ref_id) }}";
         $('input[name="ref_type"][value="' + initialRefType + '"]').prop('checked', true);
         loadUsers(initialRefType, initialRefId);
@@ -403,13 +405,12 @@
                 success: function(data) {
                     select.html('<option value="">-- Select User --</option>');
                     $.each(data, function(index, user) {
-                        var selected = (selectedUserId && String(user.id) === String(selectedUserId)) ? 'selected' : '';
+                        var selected = (selectedUserId && user.id == selectedUserId) ? 'selected' : '';
                         select.append('<option value="' + user.id + '" ' + selected + '>' + user.name + '</option>');
                     });
                     select.prop('disabled', false);
-                    if (selectedUserId) {
-                        select.val(String(selectedUserId));
-                    }
+
+                    // Trigger change to ensure any dependent logic runs
                     select.trigger('change');
                 },
                 error: function() {

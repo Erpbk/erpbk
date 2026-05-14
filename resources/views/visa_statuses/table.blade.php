@@ -69,7 +69,11 @@ $visaStatusReturnTo = $visaStatusReturnTo ?? null;
                         </a>
                         @endcan
                         @can('visaexpense_delete')
-                        <button type="button" class="btn btn-sm btn-danger js-visa-status-delete-btn" data-delete-url="{{ route($visaRoute . '.destroy', $status->id) . ($visaStatusReturnTo ? ('?return_to=' . urlencode($visaStatusReturnTo)) : '') }}">
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-danger js-visa-status-delete-btn"
+                            data-delete-url="{{ route($visaRoute . '.destroy', $status->id) . ($visaStatusReturnTo ? ('?return_to=' . urlencode($visaStatusReturnTo)) : '') }}"
+                            data-delete-form-id="delete-form-{{ $status->id }}">
                             <i class="fas fa-trash"></i>
                         </button>
                         <form id="delete-form-{{ $status->id }}" action="{{ route($visaRoute . '.destroy', $status->id) . ($visaStatusReturnTo ? ('?return_to=' . urlencode($visaStatusReturnTo)) : '') }}" method="POST" style="display: none;">

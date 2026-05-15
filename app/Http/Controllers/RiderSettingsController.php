@@ -1159,6 +1159,9 @@ class RiderSettingsController extends Controller
             ->whereRaw('LOWER(name) = ?', [mb_strtolower($newName)])
             ->exists();
         if ($dupExists) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Another status with this name already exists.'], 422);
+            }
             return redirect()->route('settings-panel.rider-settings.index', ['tab' => 'rider-status'])
                 ->with('error', 'Another status with this name already exists.');
         }
@@ -1170,6 +1173,16 @@ class RiderSettingsController extends Controller
 
         if ($oldName !== '' && $newName !== '' && strcasecmp($oldName, $newName) !== 0) {
             Riders::where('rider_status', $oldName)->update(['rider_status' => $newName]);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Rider status updated.',
+                'name' => $option->name,
+                'show_in_top_bar' => (bool) $option->show_in_top_bar,
+                'show_in_view_cards' => (bool) $option->show_in_view_cards,
+            ]);
         }
 
         return redirect()->route('settings-panel.rider-settings.index', ['tab' => 'rider-status'])

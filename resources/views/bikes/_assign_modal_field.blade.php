@@ -9,7 +9,7 @@ $label = $field->resolvedLabel();
 $required = (bool) ($spec['required'] ?? false);
 $colClass = in_array($inputType, ['textarea'], true) ? 'col-md-12' : 'col-md-3';
 if ($fieldKey === 'notes' && $inputType === 'textarea') {
-    $colClass = ($assignContext ?? 'active') === 'active' ? 'col-md-8' : 'col-md-8';
+$colClass = ($assignContext ?? 'active') === 'active' ? 'col-md-8' : 'col-md-8';
 }
 $groupClass = $assignGroup ? ' hidden-field assign-group-' . $assignGroup : '';
 $wrapperId = $fieldKey ? 'assign-field-' . $fieldKey : 'assign-custom-' . ($field->custom_field_id ?? $field->id);

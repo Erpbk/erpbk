@@ -23,6 +23,7 @@ class Bikes extends BaseModel
     'model_type',
     'engine',
     'company',
+    'bike_owner',
     'rider_id',
     'rental_company_id',
     'notes',
@@ -76,6 +77,7 @@ class Bikes extends BaseModel
     'leased_return_by' => 'date',
     'leased_return_date' => 'date',
     'leased_return_company_id' => 'integer',
+    'bike_owner' => 'string',
   ];
 
   protected $dates = ['deleted_at'];

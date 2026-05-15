@@ -124,6 +124,7 @@ class BikeSettingsController extends Controller
                 'emirates',
                 'branch_id',
                 'company',
+                'bike_owner',
                 'rider_id',
                 'warehouse',
                 'traffic_file_number',

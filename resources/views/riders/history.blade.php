@@ -15,38 +15,50 @@
     @elseif($histories->isEmpty())
     <p class="text-muted mb-0">No history entries yet. Project moves and view-card status changes will appear here.</p>
     @else
-    <ul class="timeline mb-0">
-      @foreach($histories as $row)
-      <li class="timeline-item timeline-item-transparent">
-        <span class="timeline-point timeline-point-{{ $row->event_type === 'project_change' ? 'info' : 'primary' }}"></span>
-        <div class="timeline-event">
-          <div class="timeline-header mb-2">
-            <h6 class="mb-0">{{ $row->title }}</h6>
-            <small class="text-muted">
-              Effective: {{ $row->effective_date ? \App\Helpers\General::DateFormat($row->effective_date) : '—' }}
-              <span class="mx-1">·</span>
-              Logged: {{ $row->created_at ? \App\Helpers\General::DateTimeFormat($row->created_at) : '—' }}
-            </small>
-          </div>
-          @if(!empty($row->details))
-          <p class="mb-2 text-body">{{ $row->details }}</p>
-          @endif
-          @if(!empty($row->meta) && is_array($row->meta))
-          <div class="small text-muted">
-            @if(($row->meta['source'] ?? null))
-            <div><strong>Source:</strong> {{ $row->meta['source'] }}</div>
-            @endif
-            @if($row->event_type === 'status_change')
-            @if(array_key_exists('previous_rider_status', $row->meta) || array_key_exists('new_rider_status', $row->meta))
-            <div><strong>Status:</strong> {{ $row->meta['previous_rider_status'] ?? '—' }} → {{ $row->meta['new_rider_status'] ?? '—' }}</div>
-            @endif
-            @endif
-          </div>
-          @endif
-        </div>
-      </li>
-      @endforeach
-    </ul>
+    <div class="table-responsive">
+      <table class="table table-striped table-bordered align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>Effective date</th>
+            <th>Type</th>
+            <th>Title</th>
+            <th>Details</th>
+            <th>Status change</th>
+            <th>Source</th>
+            <th>Logged at</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach($histories as $row)
+          @php
+          $meta = is_array($row->meta) ? $row->meta : [];
+          $typeLabel = ucwords(str_replace('_', ' ', $row->event_type ?? ''));
+          $typeBadge = match($row->event_type) {
+            'project_change' => 'bg-label-info',
+            'status_change' => 'bg-label-primary',
+            default => 'bg-label-secondary',
+          };
+          $statusChange = '—';
+          if ($row->event_type === 'status_change' && (array_key_exists('previous_rider_status', $meta) || array_key_exists('new_rider_status', $meta))) {
+            $statusChange = ($meta['previous_rider_status'] ?? '—') . ' → ' . ($meta['new_rider_status'] ?? '—');
+          }
+          $rowNum = ($histories->currentPage() - 1) * $histories->perPage() + $loop->iteration;
+          @endphp
+          <tr>
+            <td>{{ $rowNum }}</td>
+            <td>{{ $row->effective_date ? \App\Helpers\General::DateFormat($row->effective_date) : '—' }}</td>
+            <td><span class="badge {{ $typeBadge }}">{{ $typeLabel }}</span></td>
+            <td>{{ $row->title }}</td>
+            <td>{{ $row->details ?: '—' }}</td>
+            <td>{{ $statusChange }}</td>
+            <td>{{ $meta['source'] ?? '—' }}</td>
+            <td>{{ $row->created_at ? \App\Helpers\General::DateTimeFormat($row->created_at) : '—' }}</td>
+          </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
     <div class="mt-4">
       {{ $histories->withQueryString()->links() }}
     </div>

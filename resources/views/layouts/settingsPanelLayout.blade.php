@@ -5,7 +5,7 @@
 $configData = Helper::appClasses();
 $settingsPanelLabels = \App\Models\Settings::getMenuLabels();
 $settingsPanelRidersLabel = \App\Models\Settings::getMenuLabel('rider_settings');
-$settingsPanelEmployeesSettingsLabel = 'Employee Settings';
+$settingsPanelEmployeesSettingsLabel = \App\Models\Settings::getMenuLabel('employee_settings');
 $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug');
 $moduleIcons = [
 'dashboard' => 'ti-layout-dashboard',

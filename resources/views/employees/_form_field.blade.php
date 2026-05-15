@@ -37,6 +37,18 @@ if (($item->kind ?? '') === 'fixed') {
                     }
                 } elseif ($item->field_key === 'branch_id') {
                     $opts = \App\Models\Branch::active()->pluck('name', 'id')->prepend('Select', '')->toArray();
+                } elseif ($item->field_key === 'nationality_id') {
+                    $opts = \App\Models\Countries::list()->toArray();
+                } elseif ($item->field_key === 'department_id') {
+                    $opts = \App\Models\Departments::pluck('name', 'id')->prepend('Select', '')->toArray();
+                } elseif ($item->field_key === 'status') {
+                    $opts = ['' => 'Select', 'active' => 'Active', 'inactive' => 'Inactive', 'on_leave' => 'On Leave'];
+                    if (!empty($parsedOptions)) {
+                        $opts = ['' => 'Select'];
+                        foreach ($parsedOptions as $opt) {
+                            $opts[$opt] = ucwords(str_replace('_', ' ', $opt));
+                        }
+                    }
                 }
             @endphp
             {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select'] + ($req ? ['required' => true] : [])) !!}

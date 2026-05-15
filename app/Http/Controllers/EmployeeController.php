@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
-use App\Models\ModuleCustomField;
-use App\Models\ModuleDocumentType;
-use App\Models\ModuleFieldCategoryAssignment;
-use App\Models\ModuleSettingCategory;
+use App\Models\EmployeeCategory;
+use App\Models\EmployeeCustomField;
+use App\Models\EmployeeDocumentType;
+use App\Models\EmployeeFieldCategoryAssignment;
+use App\Models\EmployeeTopCategory;
 use App\Models\Transactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -20,124 +21,35 @@ use Laracasts\Flash\Flash;
 
 class EmployeeController extends Controller
 {
-    private const EMPLOYEE_MODULE_KEY = 'employees';
-    private const EMPLOYEE_HIDDEN_FIELD_KEYS = [
-        'personal_email',
-        'personal_contact',
-        'emergency_contact',
-        'status',
-        'profile_image',
-        'account_id',
-    ];
-
-    private function employeeHiddenFieldLookup(): array
+    private function employeeFieldsByCategory(bool $includeCustomFields = true): array
     {
-        return array_flip(self::EMPLOYEE_HIDDEN_FIELD_KEYS);
+        return EmployeeCustomField::fieldsByCategoryForForm($includeCustomFields);
     }
 
-    private function employeeFieldsByCategory(): array
-    {
-        $moduleKey = self::EMPLOYEE_MODULE_KEY;
-        $categories = ModuleSettingCategory::query()
-            ->where('module_key', $moduleKey)
-            ->orderBy('display_order')
-            ->orderBy('id')
-            ->get();
-        $categoryIds = $categories->pluck('id')->all();
-        $employeeColumns = array_flip(Schema::getColumnListing('employees'));
-        $hiddenLookup = $this->employeeHiddenFieldLookup();
-        $assignmentQuery = ModuleFieldCategoryAssignment::query()
-            ->where('module_key', $moduleKey)
-            ->orderBy('display_order')
-            ->orderBy('id');
-        if (!empty($categoryIds)) {
-            $assignmentQuery->whereIn('category_id', $categoryIds);
-        } else {
-            $assignmentQuery->whereRaw('1 = 0');
-        }
-        $fixedAssignments = $assignmentQuery->get()->filter(function ($assignment) {
-            return (bool) ($assignment->is_visible ?? true);
-        });
-        $customQuery = ModuleCustomField::query()
-            ->where('module_key', $moduleKey)
-            ->orderBy('display_order')
-            ->orderBy('id');
-        if (!empty($categoryIds)) {
-            $customQuery->whereIn('category_id', $categoryIds);
-        } else {
-            $customQuery->whereRaw('1 = 0');
-        }
-        $customFields = $customQuery->get();
-
-        $normalized = [];
-        foreach ($categories as $category) {
-            $items = [];
-            foreach ($fixedAssignments->where('category_id', $category->id) as $assignment) {
-                if (!isset($employeeColumns[$assignment->field_key]) || isset($hiddenLookup[$assignment->field_key])) {
-                    continue;
-                }
-                $spec = ['type' => 'text'];
-                if ($assignment->field_key === 'branch_id') {
-                    $spec['type'] = 'select';
-                }
-                if (!empty($assignment->input_type)) {
-                    $spec['type'] = $assignment->input_type === 'dropdown' ? 'select' : $assignment->input_type;
-                }
-                if (is_array($assignment->input_config) && array_key_exists('options', $assignment->input_config)) {
-                    $spec['options'] = $assignment->input_config['options'];
-                }
-                $spec['required'] = (bool) ($assignment->is_required ?? false);
-
-                $items[] = (object) [
-                    'kind' => 'fixed',
-                    'field_key' => $assignment->field_key,
-                    'label' => !empty($assignment->display_label) ? $assignment->display_label : (!empty($assignment->field_label) ? $assignment->field_label : ucwords(str_replace('_', ' ', $assignment->field_key))),
-                    'spec' => $spec,
-                ];
-            }
-            foreach ($customFields->where('category_id', $category->id) as $field) {
-                $items[] = (object) [
-                    'kind' => 'custom',
-                    'field' => $field,
-                ];
-            }
-
-            if (!empty($items)) {
-                $normalized[] = (object) [
-                    'category' => $category,
-                    'fields' => $items,
-                ];
-            }
-        }
-
-        return $normalized;
-    }
-
-    private function employeeDynamicFieldRules(): array
+    private function employeeDynamicFieldRules(?Employee $employee = null): array
     {
         $rules = [];
-        $moduleKey = self::EMPLOYEE_MODULE_KEY;
         $employeeColumns = array_flip(Schema::getColumnListing('employees'));
 
-        ModuleFieldCategoryAssignment::query()
-            ->where('module_key', $moduleKey)
+        EmployeeFieldCategoryAssignment::query()
             ->where('is_required', true)
             ->where(function ($q) {
                 $q->where('is_visible', true)->orWhereNull('is_visible');
             })
             ->get(['field_key'])
-            ->each(function ($assignment) use (&$rules, $employeeColumns) {
+            ->each(function ($assignment) use (&$rules, $employeeColumns, $employee) {
                 $fieldKey = (string) $assignment->field_key;
-                if (isset($employeeColumns[$fieldKey])) {
-                    if (!isset($this->employeeHiddenFieldLookup()[$fieldKey])) {
-                        $rules[$fieldKey] = 'required';
-                    }
+                if (!isset($employeeColumns[$fieldKey])) {
+                    return;
                 }
+                $rules[$fieldKey] = $this->employeeFieldValidationRule($fieldKey, $employee);
             });
 
-        ModuleCustomField::query()
-            ->where('module_key', $moduleKey)
+        EmployeeCustomField::query()
             ->whereNotNull('category_id')
+            ->where(function ($q) {
+                $q->where('is_visible', true)->orWhereNull('is_visible');
+            })
             ->where('is_mandatory', true)
             ->get(['id'])
             ->each(function ($field) use (&$rules) {
@@ -147,16 +59,46 @@ class EmployeeController extends Controller
         return $rules;
     }
 
+    private function employeeFieldValidationRule(string $fieldKey, ?Employee $employee = null): string
+    {
+        $idSuffix = $employee ? ',' . $employee->id : '';
+
+        return match ($fieldKey) {
+            'company_email' => 'required|email|unique:employees,company_email' . $idSuffix,
+            'employee_id' => 'required|string|unique:employees,employee_id' . $idSuffix,
+            'emirate_id' => 'nullable|string|unique:employees,emirate_id' . $idSuffix,
+            'passport' => 'nullable|string|unique:employees,passport' . $idSuffix,
+            'nationality_id' => 'required|exists:countries,id',
+            'branch_id' => 'required|exists:branches,id',
+            'department_id' => 'nullable|exists:departments,id',
+            'doj' => 'nullable|date',
+            'dob' => 'nullable|date',
+            'emirate_expiry' => 'nullable|date',
+            'passport_expiry' => 'nullable|date',
+            'visa_expiry' => 'nullable|date',
+            'salary' => 'nullable|numeric|min:0',
+            'status' => 'nullable|in:active,inactive,on_leave',
+            default => 'required',
+        };
+    }
+
     private function applyEmployeeDynamicInput(array &$validated, Request $request): void
     {
-        $hiddenLookup = $this->employeeHiddenFieldLookup();
-        foreach (ModuleFieldCategoryAssignment::query()->where('module_key', self::EMPLOYEE_MODULE_KEY)->get(['field_key']) as $assignment) {
-            $fieldKey = (string) $assignment->field_key;
-            if ($fieldKey !== '' && !isset($hiddenLookup[$fieldKey]) && $request->has($fieldKey)) {
+        $fieldKeys = EmployeeFieldCategoryAssignment::query()
+            ->where(function ($q) {
+                $q->where('is_visible', true)->orWhereNull('is_visible');
+            })
+            ->pluck('field_key');
+
+        foreach ($fieldKeys as $fieldKey) {
+            if ($request->has($fieldKey)) {
                 $validated[$fieldKey] = $request->input($fieldKey);
             }
         }
-        $validated['custom_field_values'] = $request->input('custom_field_values', []);
+
+        if ($request->has('custom_field_values')) {
+            $validated['custom_field_values'] = $request->input('custom_field_values', []);
+        }
     }
 
     private function employeeTableLabels(): array
@@ -174,13 +116,12 @@ class EmployeeController extends Controller
             'actions' => 'Actions',
         ];
 
-        ModuleFieldCategoryAssignment::query()
-            ->where('module_key', self::EMPLOYEE_MODULE_KEY)
-            ->whereIn('field_key', ['employee_id', 'name', 'company_contact', 'branch_id', 'department_id', 'designation', 'doj', 'status'])
-            ->get(['field_key', 'display_label', 'field_label'])
+        EmployeeFieldCategoryAssignment::query()
+            ->whereIn('field_key', array_keys($labels))
+            ->get(['field_key', 'display_label'])
             ->each(function ($assignment) use (&$labels) {
                 $fieldKey = (string) $assignment->field_key;
-                $label = trim((string) ($assignment->display_label ?: $assignment->field_label ?: ''));
+                $label = trim((string) ($assignment->display_label ?? ''));
                 if ($label !== '' && isset($labels[$fieldKey])) {
                     $labels[$fieldKey] = $label;
                 }
@@ -189,15 +130,51 @@ class EmployeeController extends Controller
         return $labels;
     }
 
+    private function applyEmployeeIndexFilters($query, Request $request): void
+    {
+        if ($request->filled('quick_search')) {
+            $search = $request->input('quick_search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('employee_id', 'like', '%' . $search . '%')
+                    ->orWhere('company_email', 'like', '%' . $search . '%')
+                    ->orWhere('company_contact', 'like', '%' . $search . '%');
+            });
+        }
+
+        $statusFilters = $request->input('employee_status', []);
+        if (!empty($statusFilters)) {
+            $statusFilters = is_array($statusFilters) ? $statusFilters : [$statusFilters];
+            $query->whereIn('status', $statusFilters);
+        }
+
+        $topColumn = trim((string) $request->input('employee_top_column', ''));
+        $topValue = $request->input('employee_top_value');
+        if ($topColumn !== '' && $topValue !== null && $topValue !== '' && Schema::hasColumn('employees', $topColumn)) {
+            $query->where($topColumn, $topValue);
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $employees = Employee::all()->sortBy('name')->load('branch', 'department', 'nationality');
+        $query = Employee::query()->with('branch', 'department', 'nationality');
+        $this->applyEmployeeIndexFilters($query, $request);
+        $employees = $query->orderBy('name')->get();
         $employeeTableLabels = $this->employeeTableLabels();
+        $employeeTopCategories = EmployeeTopCategory::with([
+            'options' => function ($q) {
+                $q->where('is_active', true)->orderBy('display_order')->orderBy('id');
+            },
+        ])
+            ->where('show_in_top_bar', true)
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
 
-        return view('employees.index', compact('employees', 'employeeTableLabels'));
+        return view('employees.index', compact('employees', 'employeeTableLabels', 'employeeTopCategories'));
     }
 
     /**
@@ -210,9 +187,9 @@ class EmployeeController extends Controller
         $departments = \App\Models\Departments::all();
         $accounts = \App\Models\Accounts::where('ref_name', 'Rider')->get();
         $empId = 'EMP-' . ((Employee::latest()->first()->id ?? 0) + 1001);
-        $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $employeeCategories = EmployeeCategory::orderBy('display_order')->orderBy('id')->get();
         $fieldsByCategory = $this->employeeFieldsByCategory();
-        return view('employees.create', compact('nationalities', 'branches', 'departments', 'accounts', 'empId', 'riderCategories', 'fieldsByCategory'));
+        return view('employees.create', compact('nationalities', 'branches', 'departments', 'accounts', 'empId', 'employeeCategories', 'fieldsByCategory'));
     }
 
     /**
@@ -246,7 +223,7 @@ class EmployeeController extends Controller
             'notes' => 'nullable|string',
             'account' => 'required|in:new,existing',
             'account_id' => 'nullable|required_if:account,existing|exists:accounts,id',
-        ], $this->employeeDynamicFieldRules()));
+        ], $this->employeeDynamicFieldRules(null)));
 
         try {
             DB::beginTransaction();
@@ -306,7 +283,7 @@ class EmployeeController extends Controller
                 ], 200);
             }
 
-            Flash::success('Rider created successfully.');
+            Flash::success('Employee created successfully.');
             return redirect(route('employees.index'));
         } catch (\Exception $e) {
             DB::rollBack();
@@ -350,37 +327,8 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
-        $companyId = optional(auth()->user())->company_id;
 
-        $documentTypes = ModuleDocumentType::query()
-            ->where('module_key', self::EMPLOYEE_MODULE_KEY)
-            ->where('is_active', true)
-            ->where(function ($query) use ($companyId) {
-                $query->whereNull('company_id');
-                if (!empty($companyId)) {
-                    $query->orWhere('company_id', $companyId);
-                }
-            })
-            ->orderBy('display_order')
-            ->orderBy('id')
-            ->get();
-
-        $expectedFiles = ['single' => [], 'dual' => []];
-        foreach ($documentTypes as $documentType) {
-            $key = strtolower(trim((string) $documentType->key));
-            if ($key === '') {
-                continue;
-            }
-
-            if ($documentType->type === 'dual') {
-                $expectedFiles['dual'][$key] = [
-                    'front' => trim((string) ($documentType->front_label ?: (ucwords(str_replace('_', ' ', $key)) . ' Front'))),
-                    'back' => trim((string) ($documentType->back_label ?: (ucwords(str_replace('_', ' ', $key)) . ' Back'))),
-                ];
-            } else {
-                $expectedFiles['single'][$key] = trim((string) ($documentType->label ?: ucwords(str_replace('_', ' ', $key))));
-            }
-        }
+        $expectedFiles = EmployeeDocumentType::expectedFilesStructure();
 
         $files = \App\Support\CompanyQuery::table('files')
             ->where('type', 'employee')
@@ -487,9 +435,9 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
-        $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $employeeCategories = EmployeeCategory::orderBy('display_order')->orderBy('id')->get();
         $fieldsByCategory = $this->employeeFieldsByCategory();
-        return view('employees.edit', compact('employee', 'nationalities', 'branches', 'departments', 'riderCategories', 'fieldsByCategory'));
+        return view('employees.edit', compact('employee', 'nationalities', 'branches', 'departments', 'employeeCategories', 'fieldsByCategory'));
     }
 
     /**
@@ -520,7 +468,7 @@ class EmployeeController extends Controller
             'address' => 'nullable|string',
             'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'notes' => 'nullable|string',
-        ], $this->employeeDynamicFieldRules()));
+        ], $this->employeeDynamicFieldRules($employee)));
 
         $this->applyEmployeeDynamicInput($validated, $request);
 

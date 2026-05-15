@@ -113,14 +113,52 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         );
     })->name('settings-panel.module-settings.rider-settings-alias');
 
-    // Employee Settings (separate module-settings stack using module_key=employees)
-    Route::get('employee-settings', function (\Illuminate\Http\Request $request) {
+    // Employee Settings (categories, fixed employee fields + employee custom fields)
+    Route::get('employee-settings', [App\Http\Controllers\EmployeeSettingsController::class, 'index'])->name('settings-panel.employee-settings.index');
+    Route::post('employee-settings/module-label', [App\Http\Controllers\EmployeeSettingsController::class, 'storeModuleLabel'])->name('settings-panel.employee-settings.store-module-label');
+    Route::post('employee-settings/field-assignment', [App\Http\Controllers\EmployeeSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.employee-settings.update-field-assignment');
+    Route::post('employee-settings/field-assignment/display-label', [App\Http\Controllers\EmployeeSettingsController::class, 'updateFieldAssignmentLabel'])->name('settings-panel.employee-settings.update-field-assignment-label');
+    Route::post('employee-settings/field-assignment/visibility', [App\Http\Controllers\EmployeeSettingsController::class, 'updateFieldAssignmentVisibility'])->name('settings-panel.employee-settings.update-field-assignment-visibility');
+    Route::post('employee-settings/field-assignment/required', [App\Http\Controllers\EmployeeSettingsController::class, 'updateFieldAssignmentRequired'])->name('settings-panel.employee-settings.update-field-assignment-required');
+    Route::post('employee-settings/field-assignments/reorder', [App\Http\Controllers\EmployeeSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.employee-settings.reorder-field-assignments');
+    Route::get('employee-settings/categories/table-body', [App\Http\Controllers\EmployeeSettingsController::class, 'categoriesTableBody'])->name('settings-panel.employee-settings.categories-table-body');
+    Route::post('employee-settings/categories', [App\Http\Controllers\EmployeeSettingsController::class, 'storeCategory'])->name('settings-panel.employee-settings.store-category');
+    Route::put('employee-settings/categories/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'updateCategory'])->name('settings-panel.employee-settings.update-category');
+    Route::delete('employee-settings/categories/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'destroyCategory'])->name('settings-panel.employee-settings.destroy-category');
+    Route::post('employee-settings/categories/reorder', [App\Http\Controllers\EmployeeSettingsController::class, 'reorderCategories'])->name('settings-panel.employee-settings.reorder-categories');
+    Route::get('employee-settings/fields/table-body', [App\Http\Controllers\EmployeeSettingsController::class, 'tableBody'])->name('settings-panel.employee-settings.table-body');
+    Route::get('employee-settings/fields/table-body/{categoryId}', [App\Http\Controllers\EmployeeSettingsController::class, 'tableBodyCategory'])->name('settings-panel.employee-settings.table-body-category');
+    Route::get('employee-settings/fields/config-schema/{dataType}', [App\Http\Controllers\EmployeeSettingsController::class, 'fieldConfigSchema'])->name('settings-panel.employee-settings.field-config-schema');
+    Route::post('employee-settings/fields', [App\Http\Controllers\EmployeeSettingsController::class, 'storeField'])->name('settings-panel.employee-settings.store-field');
+    Route::post('employee-settings/fields/{id}/assign-category', [App\Http\Controllers\EmployeeSettingsController::class, 'assignCustomFieldCategory'])->name('settings-panel.employee-settings.assign-custom-field-category');
+    Route::put('employee-settings/fields/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'updateField'])->name('settings-panel.employee-settings.update-field');
+    Route::delete('employee-settings/fields/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'destroyField'])->name('settings-panel.employee-settings.destroy-field');
+    Route::post('employee-settings/fields/{id}/flags', [App\Http\Controllers\EmployeeSettingsController::class, 'updateCustomFieldFlags'])->name('settings-panel.employee-settings.update-custom-field-flags');
+    Route::post('employee-settings/fields/reorder', [App\Http\Controllers\EmployeeSettingsController::class, 'reorderFields'])->name('settings-panel.employee-settings.reorder-fields');
+    Route::get('employee-settings/documents/table-body', [App\Http\Controllers\EmployeeSettingsController::class, 'documentTypesTableBody'])->name('settings-panel.employee-settings.document-types-table-body');
+    Route::post('employee-settings/documents', [App\Http\Controllers\EmployeeSettingsController::class, 'storeDocumentType'])->name('settings-panel.employee-settings.store-document-type');
+    Route::put('employee-settings/documents/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'updateDocumentType'])->name('settings-panel.employee-settings.update-document-type');
+    Route::delete('employee-settings/documents/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'destroyDocumentType'])->name('settings-panel.employee-settings.destroy-document-type');
+    Route::post('employee-settings/documents/reorder', [App\Http\Controllers\EmployeeSettingsController::class, 'reorderDocumentTypes'])->name('settings-panel.employee-settings.reorder-document-types');
+    Route::get('employee-settings/employee-top/accordion-body', [App\Http\Controllers\EmployeeSettingsController::class, 'employeeTopAccordionBody'])->name('settings-panel.employee-settings.employee-top-accordion-body');
+    Route::post('employee-settings/employee-top/categories', [App\Http\Controllers\EmployeeSettingsController::class, 'storeEmployeeTopCategory'])->name('settings-panel.employee-settings.store-employee-top-category');
+    Route::get('employee-settings/employee-top/categories/{id}/field-values', [App\Http\Controllers\EmployeeSettingsController::class, 'employeeTopCategoryFieldValues'])->name('settings-panel.employee-settings.employee-top-category-field-values');
+    Route::put('employee-settings/employee-top/categories/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'updateEmployeeTopCategory'])->name('settings-panel.employee-settings.update-employee-top-category');
+    Route::delete('employee-settings/employee-top/categories/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'destroyEmployeeTopCategory'])->name('settings-panel.employee-settings.destroy-employee-top-category');
+    Route::post('employee-settings/employee-top/categories/{id}/visibility', [App\Http\Controllers\EmployeeSettingsController::class, 'updateEmployeeTopCategoryVisibility'])->name('settings-panel.employee-settings.update-employee-top-category-visibility');
+    Route::post('employee-settings/employee-top/options', [App\Http\Controllers\EmployeeSettingsController::class, 'storeEmployeeTopOption'])->name('settings-panel.employee-settings.store-employee-top-option');
+    Route::put('employee-settings/employee-top/options/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'updateEmployeeTopOption'])->name('settings-panel.employee-settings.update-employee-top-option');
+    Route::delete('employee-settings/employee-top/options/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'destroyEmployeeTopOption'])->name('settings-panel.employee-settings.destroy-employee-top-option');
+    Route::post('employee-settings/statuses', [App\Http\Controllers\EmployeeSettingsController::class, 'storeEmployeeStatus'])->name('settings-panel.employee-settings.store-employee-status');
+    Route::put('employee-settings/statuses/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'updateEmployeeStatus'])->name('settings-panel.employee-settings.update-employee-status');
+    Route::delete('employee-settings/statuses/{id}', [App\Http\Controllers\EmployeeSettingsController::class, 'destroyEmployeeStatus'])->name('settings-panel.employee-settings.destroy-employee-status');
+    Route::get('module-settings/employee-settings', function (\Illuminate\Http\Request $request) {
         $companySlug = (string) ($request->route('company_slug') ?? '');
         return redirect()->route(
-            'settings-panel.module-settings.index',
-            array_merge(['company_slug' => $companySlug, 'module' => 'employees'], $request->query())
+            'settings-panel.employee-settings.index',
+            array_merge(['company_slug' => $companySlug], $request->query())
         );
-    })->name('settings-panel.employee-settings.index');
+    })->name('settings-panel.module-settings.employee-settings-alias');
 
     // Bike Settings: mount under module-settings/bike_list
     // (So the sidebar route `settings-panel/module-settings/bike_list` opens bike settings.)

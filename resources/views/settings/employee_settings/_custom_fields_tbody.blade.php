@@ -1,0 +1,111 @@
+@forelse($customFields as $index => $field)
+  <tr data-id="{{ $field->id }}">
+    <td class="align-middle">
+      <span class="drag-handle"><i class="ti ti-grip-vertical"></i></span>
+    </td>
+    <td class="align-middle">{{ $index + 1 }}</td>
+    <td class="align-middle">
+      {{ $field->label }}
+      @if($field->help_text)
+        <span class="d-block text-muted small">{{ $field->help_text }}</span>
+      @endif
+    </td>
+    <td class="align-middle">
+      <span class="badge bg-label-primary">
+        {{ $field->category ? $field->category->label : '—' }}
+      </span>
+    </td>
+    <td class="align-middle">
+      <span class="badge bg-label-secondary">
+        {{ $dataTypes[$field->data_type]['label'] ?? $field->data_type }}
+      </span>
+    </td>
+    <td class="align-middle text-center">
+      <div class="form-check form-switch d-inline-block mb-0">
+        <input type="checkbox"
+               class="form-check-input employee-custom-required-toggle"
+               data-id="{{ $field->id }}"
+               data-update-url="{{ route('settings-panel.employee-settings.update-custom-field-flags', $field->id) }}"
+               data-is-visible-current="{{ ($field->is_visible ?? true) ? 1 : 0 }}"
+               {{ ($field->is_mandatory ?? false) ? 'checked' : '' }}>
+      </div>
+    </td>
+    <td class="align-middle text-center">
+      <div class="form-check form-switch d-inline-block mb-0">
+        <input type="checkbox"
+               class="form-check-input employee-custom-visibility-toggle"
+               data-id="{{ $field->id }}"
+               data-update-url="{{ route('settings-panel.employee-settings.update-custom-field-flags', $field->id) }}"
+               data-is-mandatory-current="{{ ($field->is_mandatory ?? false) ? 1 : 0 }}"
+               {{ ($field->is_visible ?? true) ? 'checked' : '' }}>
+      </div>
+    </td>
+    <td class="text-end align-middle">
+      <div class="btn-group btn-group-sm" role="group">
+        <button type="button"
+                class="btn btn-outline-secondary btn-icon"
+                data-id="{{ $field->id }}"
+                data-label="{{ $field->label }}"
+                data-category-id="{{ $field->category_id }}"
+                data-data-type="{{ $field->data_type }}"
+                data-help-text="{{ $field->help_text }}"
+                data-default-value="{{ $field->default_value }}"
+                data-input-format="{{ $field->input_format }}"
+                data-is-mandatory="{{ $field->is_mandatory ? 1 : 0 }}"
+                data-is-visible="{{ ($field->is_visible ?? true) ? 1 : 0 }}"
+                data-prevent-duplicate="{{ $field->prevent_duplicate_values ? 1 : 0 }}"
+                data-data-privacy='@json($field->data_privacy ?? [])'
+                data-config='@json($field->config ?? [])'
+                data-update-url="{{ route('settings-panel.employee-settings.update-field', $field->id) }}"
+                data-bs-toggle="modal"
+                data-bs-target="#editEmployeeFieldModal"
+                onclick="
+                  var f = document.getElementById('formEditEmployeeField');
+                  if (f && this.dataset.updateUrl) f.action = this.dataset.updateUrl;
+                  document.getElementById('editEmployeeFieldId').value = this.dataset.id;
+                  document.getElementById('editEmployeeFieldLabel').value = this.dataset.label;
+                  document.getElementById('editEmployeeFieldCategory').value = this.dataset.categoryId || '';
+                  document.getElementById('editEmployeeFieldDataType').value = this.dataset.dataType;
+                  document.getElementById('editEmployeeFieldHelpText').value = this.dataset.helpText || '';
+                  document.getElementById('editEmployeeFieldDefaultValue').value = this.dataset.defaultValue || '';
+                  document.getElementById('editEmployeeFieldInputFormat').value = this.dataset.inputFormat || '';
+                  var privacy = {};
+                  try { privacy = JSON.parse(this.dataset.dataPrivacy || '{}'); } catch(e) { privacy = {}; }
+                  document.getElementById('editEmployeeFieldPii').checked = !!privacy.pii;
+                  document.getElementById('editEmployeeFieldEphi').checked = !!privacy.ephi;
+                  document.getElementById('editRiderPreventDupYes').checked = this.dataset.preventDuplicate === '1';
+                  document.getElementById('editRiderPreventDupNo').checked = this.dataset.preventDuplicate !== '1';
+                  document.getElementById('editRiderMandatoryYes').checked = this.dataset.isMandatory === '1';
+                  document.getElementById('editRiderMandatoryNo').checked = this.dataset.isMandatory !== '1';
+                  document.getElementById('editRiderVisibleYes').checked = this.dataset.isVisible !== '0';
+                  document.getElementById('editRiderVisibleNo').checked = this.dataset.isVisible === '0';
+                  var cfgInput = document.getElementById('editEmployeeFieldConfigJson');
+                  if (cfgInput) cfgInput.value = this.dataset.config || '{}';
+                  if (typeof document.getElementById('editEmployeeFieldDataType').dispatchEvent === 'function') {
+                    document.getElementById('editEmployeeFieldDataType').dispatchEvent(new Event('change'));
+                  }
+                ">
+          <i class="ti ti-edit"></i>
+        </button>
+        <form method="POST"
+              action="{{ route('settings-panel.employee-settings.destroy-field', $field->id) }}"
+              onsubmit="return confirm('Are you sure you want to delete this custom field?');">
+          @csrf
+          @method('DELETE')
+          <button type="submit" class="btn btn-outline-danger btn-icon">
+            <i class="ti ti-trash"></i>
+          </button>
+        </form>
+      </div>
+    </td>
+  </tr>
+@empty
+  <tr>
+    <td colspan="8" class="text-center text-muted py-4">
+      No employee custom fields defined yet.
+    </td>
+  </tr>
+@endforelse
+
+<input type="hidden" id="editEmployeeFieldConfigJson" value="{}">
+

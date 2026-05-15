@@ -216,12 +216,12 @@ class RiderHistoryLogger
      */
     public static function assignModalRiderHistoryNote(\Illuminate\Http\Request $request): ?string
     {
-        if (!$request->has('note')) {
+        if (!$request->exists('note')) {
             return null;
         }
 
         $note = $request->input('note');
-        if (!is_scalar($note)) {
+        if ($note === null || !is_scalar($note)) {
             return null;
         }
 

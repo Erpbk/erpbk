@@ -49,7 +49,7 @@
             <td>{{ $row->branch->name ?? ($row->branch_id ? $row->branch_id : '—') }}</td>
             <td>{{ $row->bike_number ?? '—' }}</td>
             <td>{{ $row->fleet_supervisor ?? '—' }}</td>
-            <td>{{ $row->title }}{{ $row->details ? ' — ' . $row->details : '' }}</td>
+            <td>{{ $row->details ?? '—' }}</td>
             <td>
               @if($employmentStatus !== null || $optionText || $historyStatus)
               @include('riders._status_badges', [

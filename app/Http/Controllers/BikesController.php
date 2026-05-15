@@ -803,7 +803,6 @@ class BikesController extends AppBaseController
           if ($rider && $riderBefore) {
             RiderHistoryLogger::bikeAssignStatusChange(
               (int) $rider->id,
-              'Bike return: Absconded',
               $riderHistoryNote,
               $riderBefore,
               array_merge($riderBefore, ['status' => 5]),
@@ -977,7 +976,7 @@ class BikesController extends AppBaseController
       ->first();
 
     if ($bike->warehouse == 'Absconded' && $lastHistory) {
-      $notes = $lastHistory->notes . "\n" . $notes;
+      $notes = $notes;
     }
 
     $resolvedStatus = $historyStatus ?? BikeHistoryLogger::historyStatusFromWarehouse($status);
@@ -1021,7 +1020,7 @@ class BikesController extends AppBaseController
       ->first();
 
     if ($bike->warehouse == 'Absconded' && $lastHistory) {
-      $notes = $lastHistory->notes . "\n" . $notes;
+      $notes = $notes;
     }
 
     $resolvedStatus = $historyStatus ?? BikeHistoryLogger::historyStatusFromWarehouse($status);

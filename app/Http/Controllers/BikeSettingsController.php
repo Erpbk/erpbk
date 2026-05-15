@@ -1364,11 +1364,21 @@ class BikeSettingsController extends Controller
             $inputType = $validated['input_type'] !== null ? trim((string) $validated['input_type']) : null;
             $assignment->input_type = ($inputType === '' ? null : $inputType);
 
+            $catalog = collect(BikeCustomField::defaultAssignFieldCatalog())
+                ->firstWhere('field_key', $assignment->field_key);
+            $catalogConfig = is_array($catalog['input_config'] ?? null) ? $catalog['input_config'] : [];
+            $mergedConfig = array_merge(
+                $catalogConfig,
+                is_array($assignment->input_config) ? $assignment->input_config : []
+            );
+
             if (!empty($validated['input_config_options'])) {
-                $assignment->input_config = ['options' => $validated['input_config_options']];
+                $mergedConfig['options'] = $validated['input_config_options'];
             } elseif (array_key_exists('input_config_options', $validated)) {
-                $assignment->input_config = null;
+                unset($mergedConfig['options']);
             }
+
+            $assignment->input_config = $mergedConfig === [] ? null : $mergedConfig;
 
             $assignment->save();
         }

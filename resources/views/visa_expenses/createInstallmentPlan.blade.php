@@ -1,11 +1,9 @@
 <form action="{{ route('VisaExpense.createInstallmentPlan') }}" method="POST" id="installmentPlanForm">
     @csrf
-    @php
-    $riderBranch = DB::table('riders')->where('id', $account->rider_id)->first();
-    $branch = DB::table('branches')->where('id', $riderBranch->branch_id)->first();
-    @endphp
-    <input type="hidden" name="rider_id" value="{{ $account->rider_id }}">
-    <input type="hidden" name="branch_id" value="{{ $branch->id }}">
+    <input type="hidden" name="rider_id" value="{{ $account->id }}">
+    @if(!empty($branchId))
+    <input type="hidden" name="branch_id" value="{{ $branchId }}">
+    @endif
     <div class="modal-body">
         <div class="row">
             <div class="col-md-12 mb-3">
@@ -15,22 +13,29 @@
 
                             <div class="col-md-6">
                                 <h6>Rider Information</h6>
-                                <p><strong>Name:</strong> {{ $account->name }}</p>
+                                <p><strong>Name:</strong> {{ $account->name ?? $rider->name ?? '—' }}</p>
                             </div>
                             <div class="col-md-6">
                                 <h6>Rider Branch</h6>
-                                <p><strong>Branch Name:</strong>{{ $branch->name }} - {{ $branch->code }}</p>
+                                @if($branch)
+                                <p><strong>Branch Name:</strong> {{ $branch->name }} - {{ $branch->code }}</p>
+                                @elseif(!empty($branches) && $branches->isNotEmpty())
+                                <div class="form-group mb-0">
+                                    <label for="branch_id" class="form-label">Branch <span class="text-danger">*</span></label>
+                                    <select name="branch_id" id="branch_id" class="form-select" required>
+                                        <option value="">Select branch</option>
+                                        @foreach($branches as $branchOption)
+                                        <option value="{{ $branchOption->id }}">{{ $branchOption->name }}@if($branchOption->code) - {{ $branchOption->code }}@endif</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                @else
+                                <p class="text-muted mb-0">No branch is assigned to this rider. Add a branch on the rider profile first.</p>
+                                @endif
                             </div>
                         </div>
 
-                        @php
-                        $currentMonth = \Carbon\Carbon::now()->format('Y-m');
-                        $existingCurrentMonthPlan = \App\Models\visa_installment_plan::where('rider_id', $account->rider_id)
-                        ->where('billing_month', $currentMonth)
-                        ->exists();
-                        @endphp
-
-                        @if($existingCurrentMonthPlan)
+                        @if(!empty($existingCurrentMonthPlan))
                         <div class="alert alert-warning mt-2">
                             <i class="fa fa-exclamation-triangle me-2"></i>
                             <strong>Warning:</strong> An installment plan already exists for this rider in {{ \Carbon\Carbon::now()->format('F Y') }}.

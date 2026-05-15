@@ -47,4 +47,120 @@ class BikeAssignFieldAssignment extends BaseModel
 
         return BikeCustomField::humanizeFieldKey((string) $this->field_key);
     }
+
+    /**
+     * Built-in assign fields that need modal-specific markup (warehouse context, assign groups, etc.).
+     *
+     * @return list<string>
+     */
+    public static function assignSpecialFieldKeys(): array
+    {
+        return [
+            'warehouse',
+            'assign_type',
+            'rider_id',
+            'rental_company_id',
+            'designation',
+            'customer_id',
+            'visa_sponsor',
+        ];
+    }
+
+    /**
+     * Input spec for assign modals (mirrors bike fixed-field spec shape).
+     *
+     * @return array{type: string, required: bool, readonly: bool, assign_group: ?string, options: mixed, assign_options: ?array}
+     */
+    public function resolvedInputSpec(): array
+    {
+        $catalog = collect(BikeCustomField::defaultAssignFieldCatalog())
+            ->firstWhere('field_key', $this->field_key);
+
+        $catalogConfig = is_array($catalog['input_config'] ?? null) ? $catalog['input_config'] : [];
+        $assignmentConfig = is_array($this->input_config) ? $this->input_config : [];
+        $config = array_merge($catalogConfig, $assignmentConfig);
+
+        $spec = [
+            'type' => 'text',
+            'required' => (bool) $this->is_required,
+            'readonly' => !empty($config['readonly']),
+            'assign_group' => $config['assign_group'] ?? null,
+            'options' => $config['options'] ?? null,
+            'assign_options' => $config['assign_options'] ?? null,
+        ];
+
+        if ($this->kind === 'custom' && $this->customField) {
+            $cf = $this->customField;
+            $rawType = $this->input_type ?: $cf->data_type ?: 'text';
+            $spec['type'] = $rawType === 'dropdown' ? 'select' : $rawType;
+            $spec['required'] = (bool) $this->is_required;
+            if ($cf->data_type === 'dropdown' && is_array($cf->config) && isset($cf->config['options'])) {
+                $spec['options'] = $spec['options'] ?? $cf->config['options'];
+            }
+
+            return $spec;
+        }
+
+        $rawType = $this->input_type ?: ($catalog['input_type'] ?? 'text');
+        $spec['type'] = $rawType === 'dropdown' ? 'select' : $rawType;
+
+        return $spec;
+    }
+
+    public function usesAssignSpecialRenderer(): bool
+    {
+        if ($this->kind === 'custom') {
+            return false;
+        }
+
+        $key = (string) $this->field_key;
+        if (!in_array($key, self::assignSpecialFieldKeys(), true)) {
+            return false;
+        }
+
+        $type = $this->resolvedInputSpec()['type'] ?? 'text';
+
+        return match ($key) {
+            'warehouse' => true,
+            'assign_type', 'rider_id', 'rental_company_id', 'customer_id' => in_array($type, ['select', 'dropdown'], true),
+            'designation', 'visa_sponsor' => true,
+            default => false,
+        };
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function resolvedSelectOptions(): array
+    {
+        $spec = $this->resolvedInputSpec();
+
+        if (is_array($spec['assign_options'] ?? null) && $spec['assign_options'] !== []) {
+            return ['' => 'Select'] + $spec['assign_options'];
+        }
+
+        $parsed = [];
+        $rawOptions = $spec['options'] ?? null;
+        if ($rawOptions !== null && $rawOptions !== '') {
+            $lines = is_array($rawOptions) ? $rawOptions : preg_split('/\r\n|\r|\n/', (string) $rawOptions);
+            foreach ($lines as $line) {
+                $line = trim((string) $line);
+                if ($line !== '') {
+                    $parsed[$line] = $line;
+                }
+            }
+        }
+
+        if ($parsed !== []) {
+            return ['' => 'Select'] + $parsed;
+        }
+
+        return match ((string) $this->field_key) {
+            'assign_type' => ['' => 'Select Type', 'rider' => 'Rider', 'company' => 'Company'],
+            'rider_id' => \App\Models\Riders::dropdown(),
+            'rental_company_id' => \App\Models\BikeRentCompany::pluck('name', 'id')->prepend('Select', '')->toArray(),
+            'customer_id' => \App\Models\Customers::dropdown(),
+            default => ['' => 'Select'],
+        };
+    }
 }

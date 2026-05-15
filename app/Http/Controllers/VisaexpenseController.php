@@ -9,6 +9,7 @@ use App\Http\Requests\StoreVisaExpenseRequest;
 use App\Http\Requests\UpdateVisaExpenseRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Bikes;
+use App\Models\Branch;
 use App\Models\Riders;
 use App\Models\visa_expenses;
 use App\Models\Accounts;
@@ -672,16 +673,19 @@ class VisaexpenseController extends AppBaseController
             abort(403, 'Unauthorized action.');
         }
 
+        $account = $this->resolveExpenseAccountContext((int) $id);
+
         // Auto-mark installments as paid if their date has arrived
-        $this->checkAndAutoMarkInstallments($id);
+        $this->checkAndAutoMarkInstallments($account->rider_id);
 
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
         $query = visa_installment_plan::query()
             ->with(['vouchers', 'installmentTransactions'])
-            ->where('rider_id', $id)
             ->orderBy('date', 'asc');
+        $this->applyInstallmentRiderScope($query, $account);
+
         // Apply filters
         if ($request->has('status') && !empty($request->status)) {
             $query->where('status', $request->status);
@@ -692,8 +696,8 @@ class VisaexpenseController extends AppBaseController
         }
 
         // Apply pagination using the trait
+
         $data = $this->applyPagination($query, $paginationParams);
-        $account = Accounts::where('id', $id)->first();
 
         if ($request->ajax()) {
             $tableData = view('visa_expenses.installmentPlanTable', [
@@ -716,28 +720,45 @@ class VisaexpenseController extends AppBaseController
             abort(403, 'Unauthorized action.');
         }
 
+        $account = $this->resolveExpenseAccountContext((int) $riderId);
+
         // Auto-mark installments silently in the background
-        $this->checkAndAutoMarkInstallments($riderId);
-
-        $account = ExpenseAccount::find($riderId);
-        if (!$account) {
-            // Backward compatibility: allow legacy account ids too.
-            $account = Accounts::findOrFail($riderId);
-        }
-
-
-
+        $this->checkAndAutoMarkInstallments($account->rider_id);
 
         // Check if there's already an installment plan for this rider in the current month
         $currentMonth = Carbon::now()->format('Y-m');
-        $existingCurrentMonthPlan = visa_installment_plan::where('rider_id', $riderId)
+        $existingCurrentMonthPlan = visa_installment_plan::query()
             ->where('billing_month', $currentMonth)
+            ->where(function ($q) use ($account) {
+                $this->applyInstallmentRiderScope($q, $account);
+            })
             ->exists();
 
         if ($existingCurrentMonthPlan) {
             Flash::warning('An installment plan already exists for this rider in ' . Carbon::now()->format('F Y') . '. You can still create a new plan, but please select a different starting month.');
         }
-        return view('visa_expenses.createInstallmentPlan', compact('account', 'existingCurrentMonthPlan'));
+
+        $account->loadMissing('rider.branch');
+        $rider = $account->rider ?? Riders::find($account->rider_id);
+        if (!$rider) {
+            abort(404, 'Rider not found for this visa expense account.');
+        }
+
+        $branch = $rider->branch;
+        $branchId = $branch?->id ?? $rider->branch_id;
+        $branches = null;
+        if (!$branchId) {
+            $branches = Branch::query()->orderBy('name')->get(['id', 'name', 'code']);
+        }
+
+        return view('visa_expenses.createInstallmentPlan', compact(
+            'account',
+            'rider',
+            'branch',
+            'branchId',
+            'branches',
+            'existingCurrentMonthPlan'
+        ));
     }
 
     public function createInstallmentPlan(Request $request, $company_slug)
@@ -760,15 +781,17 @@ class VisaexpenseController extends AppBaseController
         try {
             DB::beginTransaction();
 
-            // Resolve rider account context (new expense_accounts flow + legacy accounts flow).
-            $expenseAccount = ExpenseAccount::find($validated['rider_id']);
-            $riderAccount = $request->rider_id;
-
+            // Resolve rider account context (expense_accounts.id, riders.id, or legacy accounts.id).
+            $expenseAccount = $this->resolveExpenseAccountContext((int) $validated['rider_id']);
+            $riderAccount = (int) $expenseAccount->rider_id;
 
             // Check if there's already an installment plan for this rider in the current month
             $currentMonth = Carbon::parse($validated['billing_month'] . '-01')->format('Y-m');
-            $existingCurrentMonthPlan = visa_installment_plan::where('rider_id', $validated['rider_id'])
+            $existingCurrentMonthPlan = visa_installment_plan::query()
                 ->where('billing_month', $currentMonth)
+                ->where(function ($q) use ($expenseAccount) {
+                    $this->applyInstallmentRiderScope($q, $expenseAccount);
+                })
                 ->exists();
 
             if ($existingCurrentMonthPlan) {
@@ -815,7 +838,11 @@ class VisaexpenseController extends AppBaseController
             $rider = Riders::findOrFail($riderAccount);
 
 
-            $existingInstallmentCount  = visa_installment_plan::where('rider_id', $validated['rider_id'])->count();
+            $existingInstallmentCount = visa_installment_plan::query()
+                ->where(function ($q) use ($expenseAccount) {
+                    $this->applyInstallmentRiderScope($q, $expenseAccount);
+                })
+                ->count();
 
             // Create multiple installment entries for consecutive months
             for ($i = 0; $i < $validated['number_of_installments']; $i++) {
@@ -2593,6 +2620,64 @@ class VisaexpenseController extends AppBaseController
         }
 
         \Log::info("Recalculated ledger for account {$accountId} and billing month {$billingMonth}");
+    }
+
+    /**
+     * Resolve visa expense context to an ExpenseAccount from expense_accounts.id, riders.id, or legacy accounts.id.
+     */
+    private function resolveExpenseAccountContext(int $id): ExpenseAccount
+    {
+        $expense = ExpenseAccount::with('rider')->find($id);
+        if ($expense) {
+            return $expense;
+        }
+
+        $expense = ExpenseAccount::with('rider')->where('rider_id', $id)->first();
+        if ($expense) {
+            return $expense;
+        }
+
+        $expense = ExpenseAccount::with('rider')->where('account_id', $id)->first();
+        if ($expense) {
+            return $expense;
+        }
+
+        $legacyAccount = Accounts::find($id);
+        if ($legacyAccount && $legacyAccount->ref_id) {
+            $expense = ExpenseAccount::with('rider')->where('rider_id', $legacyAccount->ref_id)->first();
+            if ($expense) {
+                return $expense;
+            }
+        }
+
+        abort(404, 'Visa expense account not found.');
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function installmentPlanRiderIdKeys(ExpenseAccount $account): array
+    {
+        return array_values(array_unique(array_filter([
+            (int) $account->rider_id,
+            (int) $account->id,
+            $account->account_id ? (int) $account->account_id : null,
+        ])));
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<visa_installment_plan>  $query
+     */
+    private function applyInstallmentRiderScope($query, ExpenseAccount $account)
+    {
+        $keys = $this->installmentPlanRiderIdKeys($account);
+        if ($keys === []) {
+            $query->whereRaw('0 = 1');
+
+            return $query;
+        }
+
+        return $query->whereIn('rider_id', $keys);
     }
 
     /**

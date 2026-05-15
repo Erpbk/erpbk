@@ -24,7 +24,7 @@ $inlineFields = $assignFields->filter(function ($f) {
     if (($f->field_key ?? '') === 'notes') {
         return false;
     }
-    if ($f->kind === 'custom' && ($f->input_type ?? '') === 'textarea') {
+    if ($f->kind === 'custom' && ($f->resolvedInputSpec()['type'] ?? '') === 'textarea') {
         return false;
     }
 
@@ -34,7 +34,7 @@ $wideFields = $assignFields->filter(function ($f) {
     if (($f->field_key ?? '') === 'notes') {
         return true;
     }
-    if ($f->kind === 'custom' && ($f->input_type ?? '') === 'textarea') {
+    if ($f->kind === 'custom' && ($f->resolvedInputSpec()['type'] ?? '') === 'textarea') {
         return true;
     }
 

@@ -252,6 +252,16 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::post('attendance/bulk-mark', [\App\Http\Controllers\AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
     Route::get('attendance/users/{refType}', [\App\Http\Controllers\AttendanceController::class, 'getUsers'])->name('attendance.users');
 
+    // Visa expense custom routes (register before resource to avoid {VisaExpense} shadowing)
+    Route::get('VisaExpense/createInstallmentPlanForm/{riderId}', [\App\Http\Controllers\VisaexpenseController::class, 'createInstallmentPlanForm'])->name('VisaExpense.createInstallmentPlanForm');
+    Route::get('VisaExpense/installmentPlan/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'installmentPlan'])->name('VisaExpense.installmentPlan');
+    Route::get('VisaExpense/generatentries/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'generatentries'])->name('VisaExpense.generatentries');
+    Route::get('VisaExpense/create/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'create'])->name('VisaExpense.create');
+    Route::get('VisaExpense/edit/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'edit'])->name('VisaExpense.edit');
+    Route::get('VisaExpense/delete/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'destroy'])->name('VisaExpense.delete');
+    Route::get('VisaExpense/viewvoucher/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'viewvoucher'])->name('VisaExpense.viewvoucher');
+    Route::get('VisaExpense/getrider/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'getrider']);
+
     Route::resource('VisaExpense', App\Http\Controllers\VisaexpenseController::class);
 
     // Visa Status Management Routes
@@ -260,20 +270,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('visa-statuses.toggle-active');
     Route::post('VisaExpense/store', [\App\Http\Controllers\VisaexpenseController::class, 'store'])->name('VisaExpense.store');
     Route::post('VisaExpense/inline-update', [\App\Http\Controllers\VisaexpenseController::class, 'inlineUpdate'])->name('VisaExpense.inlineUpdate');
-    Route::get('VisaExpense/edit/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'edit'])->name('VisaExpense.edit');
     Route::post('VisaExpense/update', [\App\Http\Controllers\VisaexpenseController::class, 'update'])->name('VisaExpense.update');
-    Route::get('VisaExpense/create/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'create'])->name('VisaExpense.create');
     Route::any('VisaExpense/attach_file/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'fileUpload'])->name('VisaExpense.fileupload');
-    Route::get('VisaExpense/delete/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'destroy'])->name('VisaExpense.delete');
-    Route::get('VisaExpense/installmentPlan/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'installmentPlan'])->name('VisaExpense.installmentPlan');
 
     // Settings panel: registered under /app/{company_slug}/ — see routes/settings_panel.php
 
-
-
-
     // Simple Installment Plan Routes
-    Route::get('VisaExpense/createInstallmentPlanForm/{riderId}', [\App\Http\Controllers\VisaexpenseController::class, 'createInstallmentPlanForm'])->name('VisaExpense.createInstallmentPlanForm');
     Route::post('VisaExpense/createInstallmentPlan', [\App\Http\Controllers\VisaexpenseController::class, 'createInstallmentPlan'])->name('VisaExpense.createInstallmentPlan');
     Route::post('VisaExpense/payInstallment', [\App\Http\Controllers\VisaexpenseController::class, 'payInstallment'])->name('VisaExpense.payInstallment');
     Route::post('VisaExpense/updateInstallmentField', [\App\Http\Controllers\VisaexpenseController::class, 'updateInstallmentField'])->name('VisaExpense.updateInstallmentField');
@@ -287,12 +289,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::post('accountcreate', [\App\Http\Controllers\VisaexpenseController::class, 'accountcreate'])->name('VisaExpense.accountcreate');
     Route::post('editaccount', [\App\Http\Controllers\VisaexpenseController::class, 'editaccount'])->name('VisaExpense.editaccount');
     Route::get('VisaExpense/deleteaccount/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'deleteaccount'])->name('VisaExpense.deleteaccount');
-    Route::get('VisaExpense/generatentries/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'generatentries'])->name('VisaExpense.generatentries');
     Route::post('VisaExpense/payfine', [\App\Http\Controllers\VisaexpenseController::class, 'payfine'])->name('VisaExpense.payfine');
     Route::get('VisaExpense/edit-voucher-credit/{visaExpense}', [\App\Http\Controllers\VisaexpenseController::class, 'editVoucherCreditForm'])->name('VisaExpense.editVoucherCreditForm');
     Route::post('VisaExpense/update-voucher-credit', [\App\Http\Controllers\VisaexpenseController::class, 'updateVoucherCredit'])->name('VisaExpense.updateVoucherCredit');
-    Route::get('VisaExpense/viewvoucher/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'viewvoucher'])->name('VisaExpense.viewvoucher');
-    Route::get('VisaExpense/getrider/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'getrider']);
 
     Route::post('bike-registration-statuses/reorder', [BikeRegistrationStatusController::class, 'reorder'])->name('bike-registration-statuses.reorder');
     Route::get('bike-registration-statuses/{id}/toggle-active', [BikeRegistrationStatusController::class, 'toggleActive'])->name('bike-registration-statuses.toggle-active');

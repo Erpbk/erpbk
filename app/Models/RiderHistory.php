@@ -11,6 +11,11 @@ class RiderHistory extends Model
 
     public $fillable = [
         'rider_id',
+        'branch_id',
+        'customer_id',
+        'fleet_supervisor',
+        'bike_number',
+        'history_status',
         'event_type',
         'title',
         'details',
@@ -32,5 +37,15 @@ class RiderHistory extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by', 'id');
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'branch_id', 'id');
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customers::class, 'customer_id', 'id');
     }
 }

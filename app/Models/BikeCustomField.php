@@ -404,8 +404,10 @@ class BikeCustomField extends BaseModel
 
         $specs = self::fixedFieldInputSpecs();
 
+        $assignOnlyIds = self::assignOnlyCustomFieldIds();
         $customFieldsAll = self::query()
             ->whereIn('category_id', $categoryIds)
+            ->when($assignOnlyIds !== [], fn($q) => $q->whereNotIn('id', $assignOnlyIds))
             ->orderBy('display_order')
             ->orderBy('id')
             ->get()
@@ -485,5 +487,97 @@ class BikeCustomField extends BaseModel
         }
 
         return $result;
+    }
+
+    /**
+     * Built-in assign-modal fields (not all are bikes table columns).
+     */
+    public static function defaultAssignFieldCatalog(): array
+    {
+        return [
+            ['field_key' => 'warehouse', 'kind' => 'virtual', 'display_label' => 'Status', 'input_type' => 'text', 'display_order' => 0, 'show_on_active' => true, 'show_on_change' => true, 'is_required' => true],
+            ['field_key' => 'assign_type', 'kind' => 'virtual', 'display_label' => 'Assign To', 'input_type' => 'select', 'display_order' => 1, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => true, 'input_config' => ['assign_options' => ['rider' => 'Rider', 'company' => 'Company']]],
+            ['field_key' => 'rider_id', 'kind' => 'virtual', 'display_label' => 'Rider', 'input_type' => 'select', 'display_order' => 2, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rider']],
+            ['field_key' => 'rental_company_id', 'kind' => 'virtual', 'display_label' => 'Company', 'input_type' => 'select', 'display_order' => 3, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'company']],
+            ['field_key' => 'designation', 'kind' => 'virtual', 'display_label' => 'Designation', 'input_type' => 'text', 'display_order' => 4, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rider', 'readonly' => true]],
+            ['field_key' => 'customer_id', 'kind' => 'virtual', 'display_label' => 'Project', 'input_type' => 'select', 'display_order' => 5, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rider']],
+            ['field_key' => 'note_date', 'kind' => 'virtual', 'display_label' => 'Date', 'input_type' => 'date', 'display_order' => 6, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => true],
+            ['field_key' => 'return_date', 'kind' => 'virtual', 'display_label' => 'Date', 'input_type' => 'date', 'display_order' => 7, 'show_on_active' => false, 'show_on_change' => true, 'is_required' => true],
+            ['field_key' => 'visa_sponsor', 'kind' => 'virtual', 'display_label' => 'Visa Sponsor', 'input_type' => 'text', 'display_order' => 8, 'show_on_active' => false, 'show_on_change' => true, 'is_required' => false, 'input_config' => ['readonly' => true]],
+            ['field_key' => 'notes', 'kind' => 'virtual', 'display_label' => 'Notes', 'input_type' => 'textarea', 'display_order' => 9, 'show_on_active' => true, 'show_on_change' => true, 'is_required' => false],
+        ];
+    }
+
+    /**
+     * Custom field IDs reserved for assign modals (not Bike add/edit form or Bike Fields settings).
+     *
+     * @return list<int>
+     */
+    public static function assignOnlyCustomFieldIds(): array
+    {
+        if (!Schema::hasTable('bike_assign_field_assignments')) {
+            return [];
+        }
+
+        return BikeAssignFieldAssignment::query()
+            ->whereNotNull('custom_field_id')
+            ->pluck('custom_field_id')
+            ->map(fn($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    public static function syncBikeAssignFieldAssignments(): void
+    {
+        if (!Schema::hasTable('bike_assign_field_assignments')) {
+            return;
+        }
+
+        foreach (self::defaultAssignFieldCatalog() as $def) {
+            $key = $def['field_key'];
+            $exists = BikeAssignFieldAssignment::where('field_key', $key)->exists();
+            if ($exists) {
+                continue;
+            }
+
+            BikeAssignFieldAssignment::create([
+                'field_key' => $key,
+                'kind' => $def['kind'],
+                'display_label' => $def['display_label'],
+                'input_type' => $def['input_type'] ?? null,
+                'input_config' => $def['input_config'] ?? null,
+                'display_order' => $def['display_order'] ?? 0,
+                'is_visible' => true,
+                'is_required' => $def['is_required'] ?? false,
+                'show_on_active' => $def['show_on_active'] ?? false,
+                'show_on_change' => $def['show_on_change'] ?? false,
+            ]);
+        }
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, BikeAssignFieldAssignment>
+     */
+    public static function assignModalFields(string $context): \Illuminate\Support\Collection
+    {
+        if (!Schema::hasTable('bike_assign_field_assignments')) {
+            return collect();
+        }
+
+        self::syncBikeAssignFieldAssignments();
+
+        $query = BikeAssignFieldAssignment::query()
+            ->with('customField')
+            ->where('is_visible', true)
+            ->orderBy('display_order')
+            ->orderBy('id');
+
+        if ($context === 'change') {
+            $query->where('show_on_change', true);
+        } else {
+            $query->where('show_on_active', true);
+        }
+
+        return $query->get();
     }
 }

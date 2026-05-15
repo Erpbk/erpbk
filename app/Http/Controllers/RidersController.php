@@ -779,6 +779,7 @@ class RidersController extends AppBaseController
     }
 
     $prevCustomerId = $riders->customer_id;
+    $prevFleetSupervisor = $riders->fleet_supervisor;
 
     $riders->update($data);
     if (array_key_exists('customer_id', $data) && (string) $prevCustomerId !== (string) ($riders->customer_id ?? '')) {
@@ -789,8 +790,21 @@ class RidersController extends AppBaseController
         $prevCustomerId ? optional(Customers::find($prevCustomerId))->name : null,
         optional(Customers::find($riders->customer_id))->name,
         now()->toDateString(),
-        'rider_profile'
+        'rider_profile',
+        RiderHistoryLogger::resolveBranchId($riders),
+        $riders->fresh()
       );
+    }
+    if (array_key_exists('fleet_supervisor', $data)) {
+      RiderHistoryLogger::fleetSupervisorChange(
+        $riders->fresh(),
+        $prevFleetSupervisor,
+        $riders->fleet_supervisor,
+        now()->toDateString(),
+        Bikes::where('rider_id', $riders->id)->first()
+      );
+    } elseif (array_key_exists('status', $data) || array_key_exists('rider_status', $data)) {
+      Riders::syncDisplayStatus($riders->fresh());
     }
     if ($riders) {
 
@@ -1097,7 +1111,8 @@ class RidersController extends AppBaseController
     $histories = null;
     $projectChangeCount = 0;
     if (Schema::hasTable('rider_histories')) {
-      $histories = RiderHistory::where('rider_id', $id)
+      $histories = RiderHistory::with(['branch', 'customer'])
+        ->where('rider_id', $id)
         ->orderByDesc('effective_date')
         ->orderByDesc('id')
         ->paginate(50);
@@ -1912,10 +1927,23 @@ class RidersController extends AppBaseController
 
     $section = $request->input('section');
     $data = $request->except(['_token', 'section']);
+    $prevFleetSupervisor = $rider->fleet_supervisor;
 
     try {
       // Update only the fields for the specific section
       $rider->update($data);
+      $rider->refresh();
+      if (array_key_exists('fleet_supervisor', $data)) {
+        RiderHistoryLogger::fleetSupervisorChange(
+          $rider,
+          $prevFleetSupervisor,
+          $rider->fleet_supervisor,
+          now()->toDateString(),
+          Bikes::where('rider_id', $rider->id)->first()
+        );
+      } elseif (array_key_exists('status', $data) || array_key_exists('rider_status', $data)) {
+        Riders::syncDisplayStatus($rider);
+      }
 
       return response()->json([
         'success' => true,
@@ -1987,8 +2015,11 @@ class RidersController extends AppBaseController
         'previous_employment_status' => $prevEmployment,
         'new_employment_status' => $rider->status,
       ],
-      $effectiveDate
+      $effectiveDate,
+      RiderHistoryLogger::resolveBranchId($rider)
     );
+
+    Riders::syncDisplayStatus($rider->fresh());
 
     return response()->json([
       'success' => true,
@@ -2362,6 +2393,7 @@ class RidersController extends AppBaseController
       $returnDate = $request->input('return_date');
       $returnDate = $returnDate ? Carbon::parse($returnDate)->toDateString() : Carbon::now()->toDateString();
       $notes = $request->input('notes');
+      $riderBeforeReturn = RiderHistoryLogger::riderSnapshot($rider);
 
       // Close last open bike history for this rider and bike
       $lastHistory = BikeHistory::where('bike_id', $bike->id)
@@ -2370,11 +2402,18 @@ class RidersController extends AppBaseController
         ->latest('note_date')
         ->first();
       if ($lastHistory) {
-        $lastHistory->update([
+        $historyUpdate = [
           'warehouse'   => 'Return',
           'return_date' => $returnDate,
           'notes'       => $notes,
-        ]);
+        ];
+        $historyUpdate = \App\Services\BikeHistoryLogger::mergeStructuredUpdate(
+          $historyUpdate,
+          $bike,
+          $rider,
+          'Return'
+        );
+        $lastHistory->update($historyUpdate);
       }
 
       // Update bike to returned
@@ -2388,6 +2427,25 @@ class RidersController extends AppBaseController
       $rider->designation = null;
       $rider->customer_id = null;
       $rider->save();
+
+      $riderHistoryDetails = RiderHistoryLogger::detailsFromBikeHistoryNotes(
+        $notes ?: ($lastHistory->notes ?? null)
+      );
+
+      RiderHistoryLogger::bikeAssignStatusChange(
+        (int) $rider->id,
+        'Bike return: Return',
+        $riderHistoryDetails,
+        $riderBeforeReturn,
+        RiderHistoryLogger::riderSnapshot($rider->fresh()),
+        $returnDate,
+        'rider_return_bike',
+        RiderHistoryLogger::resolveBranchId($rider, $bike),
+        ['warehouse_action' => 'Return', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+        'Return',
+        $rider,
+        $bike
+      );
 
       return response()->json([
         'success' => true,

@@ -64,7 +64,8 @@
 
 @php
 $activeCategoryId = (int) (request()->query('active_category_id', 0));
-$showBikeFieldsMainTab = request()->query->has('active_category_id');
+$showAssignFieldsTab = request()->query('tab') === 'assign-fields';
+$showBikeFieldsMainTab = request()->query->has('active_category_id') && !$showAssignFieldsTab;
 $settingsRoutePrefix = $settingsRoutePrefix ?? 'settings-panel.bike-settings';
 $settingsRouteParams = $settingsRouteParams ?? [];
 $settingsHeading = $settingsHeading ?? 'Bike Settings';
@@ -109,7 +110,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
       <div class="card-body">
         <ul class="nav nav-tabs mb-3" id="bikeSettingsMainTabs" role="tablist">
           <li class="nav-item" role="presentation">
-            <button class="nav-link {{ $showBikeFieldsMainTab ? '' : 'active' }}" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">
+            <button class="nav-link {{ ($showBikeFieldsMainTab || $showAssignFieldsTab) ? '' : 'active' }}" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">
               General
             </button>
           </li>
@@ -142,6 +143,13 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
               {{ $settingsFieldsTabLabel }}
             </button>
           </li>
+          @if(($moduleKey ?? '') === 'bike_list')
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $showAssignFieldsTab ? 'active' : '' }}" data-bs-toggle="tab" data-bs-target="#tab-bike-assign-fields" type="button" role="tab" id="tab-bike-assign-fields-btn">
+              Bike Assigning Fields
+            </button>
+          </li>
+          @endif
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs" type="button" role="tab">
               Documents
@@ -165,7 +173,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
 
         <div class="tab-content">
           {{-- Tab: General --}}
-          <div class="tab-pane fade {{ $showBikeFieldsMainTab ? '' : 'show active' }}" id="tab-general" role="tabpanel">
+          <div class="tab-pane fade {{ ($showBikeFieldsMainTab || $showAssignFieldsTab) ? '' : 'show active' }}" id="tab-general" role="tabpanel">
             <form action="{{ route($settingsRoutePrefix . '.store-module-label', $settingsRouteParams) }}" method="POST" class="row g-3 align-items-end">
               @csrf
               <div class="col-md-6">
@@ -1004,7 +1012,11 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
               @endforeach
             </div>
           </div>
+          {{-- /tab-bike-fields: assign modal fields are configured in the next tab only --}}
 
+          @if(($moduleKey ?? '') === 'bike_list')
+          @include('settings.bike_settings._assign_fields_tab')
+          @endif
 
           {{-- Edit Bike Fixed Field Modal --}}
           <div class="modal fade" id="editBikeFixedFieldModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
@@ -1164,7 +1176,6 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
               </div>
             </div>
           </div>
-
 
           {{-- Tab: Documents --}}
           <div class="tab-pane fade" id="tab-docs" role="tabpanel">
@@ -1998,6 +2009,32 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
       });
     }
 
+    // Add modal (assign custom field)
+    const assignAddBtn = document.getElementById('addBikeAssignFieldOptionRowBtn');
+    const assignRows = document.getElementById('addBikeAssignFieldOptionsRows');
+    const assignHidden = document.getElementById('addBikeAssignFieldConfigOptionsHidden');
+    if (assignAddBtn && assignRows && assignHidden) {
+      assignAddBtn.addEventListener('click', function() {
+        bikeCreateOptionRow(assignRows, assignHidden, '');
+      });
+    }
+    var assignTypeSelect = document.getElementById('addBikeAssignFieldDataType');
+    var assignOptionsWrap = document.getElementById('addBikeAssignFieldOptionsWrap');
+    function toggleAssignAddOptions() {
+      if (!assignTypeSelect || !assignOptionsWrap) return;
+      assignOptionsWrap.style.display = String(assignTypeSelect.value || '').toLowerCase() === 'dropdown' ? '' : 'none';
+    }
+    if (assignTypeSelect) {
+      assignTypeSelect.addEventListener('change', toggleAssignAddOptions);
+      toggleAssignAddOptions();
+    }
+    var assignForm = document.getElementById('formAddBikeAssignField');
+    if (assignForm && assignRows && assignHidden) {
+      assignForm.addEventListener('submit', function() {
+        bikeSyncOptionsToHidden(assignRows, assignHidden);
+      });
+    }
+
     // Edit fixed field modal
     const editFixedAddBtn = document.getElementById('editBikeFixedOptionRowBtn');
     const editFixedRows = document.getElementById('editBikeFixedOptionsRows');
@@ -2021,6 +2058,46 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
     if (editCustomAddBtn && editCustomRows && editCustomHidden) {
       editCustomAddBtn.addEventListener('click', function() {
         bikeCreateOptionRow(editCustomRows, editCustomHidden, '');
+      });
+    }
+
+    const editAssignBuiltinOptBtn = document.getElementById('editAssignBuiltinOptionRowBtn');
+    const editAssignBuiltinOptRows = document.getElementById('editAssignBuiltinOptionsRows');
+    const editAssignBuiltinOptHidden = document.getElementById('editAssignBuiltinConfigOptionsHidden');
+    if (editAssignBuiltinOptBtn && editAssignBuiltinOptRows && editAssignBuiltinOptHidden) {
+      editAssignBuiltinOptBtn.addEventListener('click', function() {
+        bikeCreateOptionRow(editAssignBuiltinOptRows, editAssignBuiltinOptHidden, '');
+      });
+    }
+
+    const editAssignCustomOptBtn = document.getElementById('editAssignCustomOptionRowBtn');
+    const editAssignCustomOptRows = document.getElementById('editAssignCustomOptionsRows');
+    const editAssignCustomOptHidden = document.getElementById('editAssignCustomConfigOptionsHidden');
+    if (editAssignCustomOptBtn && editAssignCustomOptRows && editAssignCustomOptHidden) {
+      editAssignCustomOptBtn.addEventListener('click', function() {
+        bikeCreateOptionRow(editAssignCustomOptRows, editAssignCustomOptHidden, '');
+      });
+    }
+
+    var editAssignInputType = document.getElementById('editAssignInputType');
+    if (editAssignInputType && typeof bikeToggleAssignBuiltinOptions === 'function') {
+      editAssignInputType.addEventListener('change', bikeToggleAssignBuiltinOptions);
+    }
+    var editAssignCustomDataType = document.getElementById('editAssignCustomDataType');
+    if (editAssignCustomDataType && typeof bikeToggleAssignCustomOptions === 'function') {
+      editAssignCustomDataType.addEventListener('change', bikeToggleAssignCustomOptions);
+    }
+
+    var editAssignForm = document.getElementById('formEditBikeAssignField');
+    if (editAssignForm) {
+      editAssignForm.addEventListener('submit', function() {
+        var isCustom = document.getElementById('editAssignCustomSection') &&
+          document.getElementById('editAssignCustomSection').style.display !== 'none';
+        if (isCustom && editAssignCustomOptRows && editAssignCustomOptHidden) {
+          bikeSyncOptionsToHidden(editAssignCustomOptRows, editAssignCustomOptHidden);
+        } else if (editAssignBuiltinOptRows && editAssignBuiltinOptHidden) {
+          bikeSyncOptionsToHidden(editAssignBuiltinOptRows, editAssignBuiltinOptHidden);
+        }
       });
     }
   }
@@ -2098,6 +2175,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
         configOptions || ''
       );
     }
+
   });
 
   document.addEventListener('DOMContentLoaded', function() {

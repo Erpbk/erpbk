@@ -141,6 +141,12 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::delete('module-settings/bike_list/fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyField'])->name('settings-panel.bike-settings.destroy-field');
     Route::post('module-settings/bike_list/assign-custom-field-category/{id}', [App\Http\Controllers\BikeSettingsController::class, 'assignCustomFieldCategory'])->name('settings-panel.bike-settings.assign-custom-field-category');
 
+    Route::post('module-settings/bike_list/assign-fields', [App\Http\Controllers\BikeSettingsController::class, 'updateAssignFieldAssignment'])->name('settings-panel.bike-settings.update-assign-field');
+    Route::put('module-settings/bike_list/assign-fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateAssignField'])->name('settings-panel.bike-settings.update-assign-field-item');
+    Route::post('module-settings/bike_list/assign-fields/reorder', [App\Http\Controllers\BikeSettingsController::class, 'reorderAssignFieldAssignments'])->name('settings-panel.bike-settings.reorder-assign-fields');
+    Route::post('module-settings/bike_list/assign-fields/store', [App\Http\Controllers\BikeSettingsController::class, 'storeAssignField'])->name('settings-panel.bike-settings.store-assign-field');
+    Route::delete('module-settings/bike_list/assign-fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyAssignField'])->name('settings-panel.bike-settings.destroy-assign-field');
+
     // Bike documents
     Route::post('module-settings/bike_list/documents', [App\Http\Controllers\BikeSettingsController::class, 'storeDocumentType'])->name('settings-panel.bike-settings.store-document-type');
     Route::put('module-settings/bike_list/documents/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateDocumentType'])->name('settings-panel.bike-settings.update-document-type');

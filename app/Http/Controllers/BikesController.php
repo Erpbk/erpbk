@@ -17,6 +17,7 @@ use App\Models\Riders;
 use App\Models\VehicleModels;
 use App\Models\Customers;
 use App\Repositories\BikesRepository;
+use App\Services\BikeHistoryLogger;
 use App\Services\RiderHistoryLogger;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -41,6 +42,18 @@ class BikesController extends AppBaseController
   public function __construct(BikesRepository $bikesRepo)
   {
     $this->bikesRepository = $bikesRepo;
+  }
+
+  protected function mergeBikeAssignCustomFields(Bikes $bike, Request $request): void
+  {
+    $incoming = $request->input('custom_field_values');
+    if (!is_array($incoming) || $incoming === []) {
+      return;
+    }
+
+    $existing = is_array($bike->custom_field_values) ? $bike->custom_field_values : [];
+    $bike->custom_field_values = array_merge($existing, $incoming);
+    $bike->save();
   }
 
   /**
@@ -530,7 +543,10 @@ class BikesController extends AppBaseController
             $oldBikeCustomerId ? optional(Customers::find($oldBikeCustomerId))->name : null,
             optional(Customers::find($customer_id))->name,
             now()->toDateString(),
-            'bike_update'
+            'bike_update',
+            RiderHistoryLogger::resolveBranchId($rider, $bikes),
+            $rider,
+            $bikes
           );
         }
       }
@@ -751,6 +767,8 @@ class BikesController extends AppBaseController
 
         $bike = Bikes::findOrFail($request->bike_id);
         $rider = $bike->rider;
+        $riderBefore = $rider ? RiderHistoryLogger::riderSnapshot($rider) : null;
+        $historyBranchId = RiderHistoryLogger::resolveBranchId($rider, $bike);
         $company = $bike->rentalCompany;
         $designation = $request->designation;
         $message = "*Bike* 🏍️\n";
@@ -781,7 +799,23 @@ class BikesController extends AppBaseController
           Riders::where('id', $bike->rider_id)
             ->update(['status' => 5]);
           $bike->update(['warehouse' => 'Absconded']);
-          $this->updateBikeHistory2($bike, 'Absconded', $bike->rider_id, $message);
+          $this->updateBikeHistory2($bike, 'Absconded', $bike->rider_id, $message, 'Absconded');
+          if ($rider && $riderBefore) {
+            RiderHistoryLogger::bikeAssignStatusChange(
+              (int) $rider->id,
+              'Bike return: Absconded',
+              RiderHistoryLogger::detailsFromBikeHistoryNotes($message),
+              $riderBefore,
+              array_merge($riderBefore, ['status' => 5]),
+              $request->return_date,
+              'bike_assign_return',
+              $historyBranchId,
+              ['warehouse_action' => 'Absconded', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+              'Absconded',
+              $rider,
+              $bike
+            );
+          }
         } elseif ($request->warehouse == 'Vacation') {
           Riders::where('id', $bike->rider_id)
             ->update([
@@ -789,8 +823,24 @@ class BikesController extends AppBaseController
               'designation' => null,
               'customer_id' => null,
             ]);
-          $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
+          $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Vacation');
           $bike->update(['rider_id' => null, 'warehouse' => 'Return', 'customer_id' => null]);
+          if ($rider && $riderBefore) {
+            RiderHistoryLogger::bikeAssignStatusChange(
+              (int) $rider->id,
+              'Bike return: Vacation',
+              RiderHistoryLogger::detailsFromBikeHistoryNotes($message),
+              $riderBefore,
+              array_merge($riderBefore, ['status' => 4, 'designation' => null, 'customer_id' => null]),
+              $request->return_date,
+              'bike_assign_return',
+              $historyBranchId,
+              ['warehouse_action' => 'Vacation', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+              'Vacation',
+              $rider,
+              $bike
+            );
+          }
         } elseif ($request->warehouse == 'Return') {
           if ($rider) {
             $rider->update([
@@ -798,9 +848,25 @@ class BikesController extends AppBaseController
               'designation' => null,
               'customer_id' => null,
             ]);
-            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Return');
+            if ($riderBefore) {
+              RiderHistoryLogger::bikeAssignStatusChange(
+                (int) $rider->id,
+                'Bike return: Return',
+                RiderHistoryLogger::detailsFromBikeHistoryNotes($message),
+                $riderBefore,
+                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                $request->return_date,
+                'bike_assign_return',
+                $historyBranchId,
+                ['warehouse_action' => 'Return', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+                'Return',
+                $rider,
+                $bike
+              );
+            }
           } else {
-            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date);
+            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Return');
           }
           $bike->update([
             'rider_id'  => null,
@@ -815,9 +881,25 @@ class BikesController extends AppBaseController
               'designation' => null,
               'customer_id' => null,
             ]);
-            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Theft');
+            if ($riderBefore) {
+              RiderHistoryLogger::bikeAssignStatusChange(
+                (int) $rider->id,
+                'Bike return: Theft',
+                RiderHistoryLogger::detailsFromBikeHistoryNotes($message),
+                $riderBefore,
+                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                $request->return_date,
+                'bike_assign_return',
+                $historyBranchId,
+                ['warehouse_action' => 'Theft', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+                'Theft',
+                $rider,
+                $bike
+              );
+            }
           } else {
-            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date);
+            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Theft');
           }
           $bike->update([
             'rider_id'  => null,
@@ -832,9 +914,25 @@ class BikesController extends AppBaseController
               'designation' => null,
               'customer_id' => null,
             ]);
-            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Total Loss');
+            if ($riderBefore) {
+              RiderHistoryLogger::bikeAssignStatusChange(
+                (int) $rider->id,
+                'Bike return: Total Loss',
+                RiderHistoryLogger::detailsFromBikeHistoryNotes($message),
+                $riderBefore,
+                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                $request->return_date,
+                'bike_assign_return',
+                $historyBranchId,
+                ['warehouse_action' => 'Total Loss', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+                'Total Loss',
+                $rider,
+                $bike
+              );
+            }
           } else {
-            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date);
+            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Total Loss');
           }
           $bike->update([
             'rider_id'  => null,
@@ -850,6 +948,7 @@ class BikesController extends AppBaseController
           ], 400);
         }
 
+        $this->mergeBikeAssignCustomFields($bike->fresh(), $request);
         DB::commit();
         return response()->json(['message' => 'Rider assignment updated successfully.']);
       } catch (\Exception $e) {
@@ -861,13 +960,15 @@ class BikesController extends AppBaseController
       }
     }
 
-    return view('bikes.assignBike_change', compact('id'));
+    $assignFields = \App\Models\BikeCustomField::assignModalFields('change');
+
+    return view('bikes.assignBike_change', compact('id', 'assignFields'));
   }
 
-  private function updateBikeHistory($bike, $status, $rider_id, $notes, $return_date)
+  private function updateBikeHistory($bike, $status, $rider_id, $notes, $return_date, ?string $historyStatus = null)
   {
-
     $userid = Auth::user()->id;
+    $rider = Riders::find($rider_id);
 
     $lastHistory = BikeHistory::where('bike_id', $bike->id)
       ->where('rider_id', $rider_id)
@@ -875,21 +976,24 @@ class BikesController extends AppBaseController
       ->latest('note_date')
       ->first();
 
-    if ($bike->warehouse == 'Absconded') {
+    if ($bike->warehouse == 'Absconded' && $lastHistory) {
       $notes = $lastHistory->notes . "\n" . $notes;
     }
 
-    $lastHistory->update([
+    $resolvedStatus = $historyStatus ?? BikeHistoryLogger::historyStatusFromWarehouse($status);
+    $update = [
       'warehouse'   => $status,
       'return_date' => $return_date,
       'notes'       => $notes,
-      'updated_by' => $userid
-    ]);
+      'updated_by' => $userid,
+    ];
+    $update = BikeHistoryLogger::mergeStructuredUpdate($update, $bike, $rider, $resolvedStatus);
+    $lastHistory->update($update);
   }
 
-  private function updateBikeHistory2($bike, $status, $rider_id, $notes)
+  private function updateBikeHistory2($bike, $status, $rider_id, $notes, ?string $historyStatus = null)
   {
-    $userid = Auth::user()->id;
+    $rider = Riders::find($rider_id);
 
     $lastHistory = BikeHistory::where('bike_id', $bike->id)
       ->where('rider_id', $rider_id)
@@ -897,15 +1001,17 @@ class BikesController extends AppBaseController
       ->latest('note_date')
       ->first();
 
-    $lastHistory->update([
+    $resolvedStatus = $historyStatus ?? BikeHistoryLogger::historyStatusFromWarehouse($status);
+    $update = [
       'warehouse'   => $status,
       'notes'       => $notes,
-    ]);
+    ];
+    $update = BikeHistoryLogger::mergeStructuredUpdate($update, $bike, $rider, $resolvedStatus);
+    $lastHistory->update($update);
   }
 
-  private function updateBikeHistoryforCompany($bike, $status, $company_id, $notes, $return_date)
+  private function updateBikeHistoryforCompany($bike, $status, $company_id, $notes, $return_date, ?string $historyStatus = null)
   {
-
     $userid = Auth::user()->id;
 
     $lastHistory = BikeHistory::where('bike_id', $bike->id)
@@ -914,16 +1020,19 @@ class BikesController extends AppBaseController
       ->latest('note_date')
       ->first();
 
-    if ($bike->warehouse == 'Absconded') {
+    if ($bike->warehouse == 'Absconded' && $lastHistory) {
       $notes = $lastHistory->notes . "\n" . $notes;
     }
 
-    $lastHistory->update([
+    $resolvedStatus = $historyStatus ?? BikeHistoryLogger::historyStatusFromWarehouse($status);
+    $update = [
       'warehouse'   => $status,
       'return_date' => $return_date,
       'notes'       => $notes,
-      'updated_by' => $userid
-    ]);
+      'updated_by' => $userid,
+    ];
+    $update = BikeHistoryLogger::mergeStructuredUpdate($update, $bike, null, $resolvedStatus);
+    $lastHistory->update($update);
   }
   // assign bike to rider or company
   public function assign_rider(Request $request, $company_slug, $id)
@@ -1027,6 +1136,7 @@ class BikesController extends AppBaseController
         if ($assignType === 'rider') {
           $rider = Riders::findOrFail($request->rider_id);
           $designation = $request->designation;
+          $riderBeforeAssign = RiderHistoryLogger::riderSnapshot($rider);
           $prevRiderCustomerId = $rider->customer_id;
           $historyMessage .= "*ID:* {$rider->rider_id}\n";
           $historyMessage .= "*Name:* {$rider->name}\n";
@@ -1062,9 +1172,34 @@ class BikesController extends AppBaseController
               $prevRiderCustomerId ? optional(Customers::find($prevRiderCustomerId))->name : null,
               optional(Customers::find($customer_id))->name,
               $request->note_date,
-              'bike_assign'
+              'bike_assign',
+              RiderHistoryLogger::resolveBranchId($rider, $bike),
+              $rider,
+              $bike
             );
           }
+
+          $warehouseLabel = $request->warehouse ?? $bike->warehouse ?? 'Active';
+          $assignBranchId = RiderHistoryLogger::resolveBranchId($rider, $bike);
+          RiderHistoryLogger::bikeAssignStatusChange(
+            (int) $rider->id,
+            'Bike assigned: Joining',
+            RiderHistoryLogger::detailsFromBikeHistoryNotes($historyMessage),
+            $riderBeforeAssign,
+            RiderHistoryLogger::riderSnapshot($rider->fresh()),
+            $request->note_date,
+            'bike_assign',
+            $assignBranchId,
+            [
+              'warehouse_action' => $warehouseLabel,
+              'bike_id' => $bike->id,
+              'bike_plate' => $bike->plate,
+              'assign_type' => 'rider',
+            ],
+            'Joining',
+            $rider,
+            $bike
+          );
 
           $bike->update([
             'rider_id' => $request->rider_id,
@@ -1085,7 +1220,18 @@ class BikesController extends AppBaseController
         $data['created_by'] = Auth::id();
         $data['notes'] = $historyMessage;
         $data['customer_id'] = $customer_id ?? null;
+        $assignHistoryStatus = ($assignType === 'rider') ? 'Joining' : null;
+        $data = array_merge(
+          $data,
+          BikeHistoryLogger::structuredBikeHistoryFields(
+            $bike,
+            ($assignType === 'rider' && isset($rider)) ? $rider : null,
+            $assignHistoryStatus,
+            $customer_id
+          )
+        );
         $bikeHistory = BikeHistory::create($data);
+        $this->mergeBikeAssignCustomFields($bike->fresh(), $request);
         DB::commit();
         return response()->json(['message' => 'Bike assignment updated successfully.']);
       } catch (QueryException $e) {
@@ -1097,7 +1243,9 @@ class BikesController extends AppBaseController
       }
     }
 
-    return view('bikes.assignBike_active', compact('id'));
+    $assignFields = \App\Models\BikeCustomField::assignModalFields('active');
+
+    return view('bikes.assignBike_active', compact('id', 'assignFields'));
   }
 
   /**

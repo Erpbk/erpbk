@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
@@ -41,6 +42,7 @@ class Riders extends BaseModel
     'updated_by',
     'status',
     'rider_status',
+    'display_status',
     'fleet_supervisor',
     'wps',
     'image_name',
@@ -76,6 +78,7 @@ class Riders extends BaseModel
     'wps' => 'string',
     'image_name' => 'string',
     'rider_status' => 'string',
+    'display_status' => 'string',
 
     'person_code' => 'string',
     'labor_card_number' => 'string',
@@ -149,6 +152,81 @@ class Riders extends BaseModel
         'badge' => 'bg-label-secondary',
       ],
     };
+  }
+
+  /**
+   * Rider option / flag badge (matches riders/table.blade.php).
+   */
+  public static function riderOptionStatusBadge(?string $optionText): ?array
+  {
+    $optionText = trim((string) $optionText);
+    if ($optionText === '') {
+      return null;
+    }
+    $normalized = strtolower($optionText);
+
+    $badge = in_array($normalized, ['active', 'follow up', 'pro', 'walker', 'learning license'], true)
+      ? 'bg-label-success'
+      : ($normalized === 'absconder'
+        ? 'bg-label-danger'
+        : ($normalized === 'vacation'
+          ? 'bg-label-warning'
+          : 'bg-label-info'));
+
+    return ['label' => $optionText, 'badge' => $badge];
+  }
+
+  /**
+   * Combined status label for history (employment + option when present).
+   */
+  public static function historyStatusLabel($riderOrEmploymentStatus, ?string $riderStatus = null): string
+  {
+    $employmentCode = $riderOrEmploymentStatus instanceof self
+      ? $riderOrEmploymentStatus->status
+      : $riderOrEmploymentStatus;
+    $optionText = $riderOrEmploymentStatus instanceof self
+      ? trim((string) ($riderOrEmploymentStatus->rider_status ?? ''))
+      : trim((string) ($riderStatus ?? ''));
+
+    $employment = self::employmentStatusDisplay($employmentCode);
+    if ($optionText !== '') {
+      return $employment['label'] . ' · ' . $optionText;
+    }
+
+    return $employment['label'];
+  }
+
+  /**
+   * @return array{employment: array{label: string, badge: string}, option: ?array{label: string, badge: string}}
+   */
+  public static function tableStatusBadges($riderOrEmploymentStatus, ?string $riderStatus = null): array
+  {
+    $employmentCode = $riderOrEmploymentStatus instanceof self
+      ? $riderOrEmploymentStatus->status
+      : $riderOrEmploymentStatus;
+    $optionText = $riderOrEmploymentStatus instanceof self
+      ? ($riderOrEmploymentStatus->rider_status ?? '')
+      : $riderStatus;
+
+    return [
+      'employment' => self::employmentStatusDisplay($employmentCode),
+      'option' => self::riderOptionStatusBadge($optionText),
+    ];
+  }
+
+  /**
+   * Persist combined table status on riders.display_status (when column exists).
+   */
+  public static function syncDisplayStatus(Riders $rider): void
+  {
+    if (!Schema::hasColumn('riders', 'display_status')) {
+      return;
+    }
+    $label = self::historyStatusLabel($rider);
+    if ((string) ($rider->display_status ?? '') !== $label) {
+      $rider->display_status = $label;
+      $rider->saveQuietly();
+    }
   }
 
   public function scopeActive($query)

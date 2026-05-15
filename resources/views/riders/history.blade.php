@@ -13,47 +13,57 @@
     @if($histories === null)
     <p class="text-muted mb-0">The rider history table is not available yet. Run database migrations to enable this feature.</p>
     @elseif($histories->isEmpty())
-    <p class="text-muted mb-0">No history entries yet. Project moves and view-card status changes will appear here.</p>
+    <p class="text-muted mb-0">No history entries yet. Project moves, bike assignments, and fleet supervisor changes will appear here.</p>
     @else
     <div class="table-responsive">
       <table class="table table-striped table-bordered align-middle mb-0">
         <thead class="table-light">
           <tr>
             <th style="width: 50px;">#</th>
-            <th>Effective date</th>
-            <th>Type</th>
-            <th>Title</th>
+            <th>Date</th>
+            <th>Project</th>
+            <th>Branch</th>
+            <th>Bike number</th>
+            <th>Fleet supervisor</th>
+            <th>Status</th>
             <th>Details</th>
-            <th>Status change</th>
             <th>Source</th>
-            <th>Logged at</th>
           </tr>
         </thead>
         <tbody>
           @foreach($histories as $row)
           @php
           $meta = is_array($row->meta) ? $row->meta : [];
-          $typeLabel = ucwords(str_replace('_', ' ', $row->event_type ?? ''));
-          $typeBadge = match($row->event_type) {
-            'project_change' => 'bg-label-info',
-            'status_change' => 'bg-label-primary',
-            default => 'bg-label-secondary',
-          };
-          $statusChange = '—';
-          if ($row->event_type === 'status_change' && (array_key_exists('previous_rider_status', $meta) || array_key_exists('new_rider_status', $meta))) {
-            $statusChange = ($meta['previous_rider_status'] ?? '—') . ' → ' . ($meta['new_rider_status'] ?? '—');
+          $projectName = $row->customer->name ?? ($meta['new_project_name'] ?? ($meta['old_project_name'] ?? '—'));
+          $employmentStatus = $meta['employment_status'] ?? null;
+          $optionText = $meta['rider_status_option'] ?? null;
+          if ($employmentStatus === null && $row->event_type === 'status_change') {
+            $employmentStatus = $meta['new_employment_status'] ?? null;
           }
+          $historyStatus = $row->history_status ?? ($meta['display_status'] ?? null);
           $rowNum = ($histories->currentPage() - 1) * $histories->perPage() + $loop->iteration;
           @endphp
           <tr>
             <td>{{ $rowNum }}</td>
             <td>{{ $row->effective_date ? \App\Helpers\General::DateFormat($row->effective_date) : '—' }}</td>
-            <td><span class="badge {{ $typeBadge }}">{{ $typeLabel }}</span></td>
-            <td>{{ $row->title }}</td>
-            <td>{{ $row->details ?: '—' }}</td>
-            <td>{{ $statusChange }}</td>
+            <td>{{ $projectName }}</td>
+            <td>{{ $row->branch->name ?? ($row->branch_id ? $row->branch_id : '—') }}</td>
+            <td>{{ $row->bike_number ?? '—' }}</td>
+            <td>{{ $row->fleet_supervisor ?? '—' }}</td>
+            <td>
+              @if($employmentStatus !== null || $optionText || $historyStatus)
+              @include('riders._status_badges', [
+                'employmentStatus' => $employmentStatus,
+                'optionText' => $optionText,
+              ])
+              @elseif($historyStatus)
+              <span class="badge {{ strtolower($historyStatus) === 'joining' ? 'bg-label-success' : 'bg-label-primary' }}">{{ $historyStatus }}</span>
+              @else
+              —
+              @endif
+            </td>
+            <td>{{ $row->title }}{{ $row->details ? ' — ' . $row->details : '' }}</td>
             <td>{{ $meta['source'] ?? '—' }}</td>
-            <td>{{ $row->created_at ? \App\Helpers\General::DateTimeFormat($row->created_at) : '—' }}</td>
           </tr>
           @endforeach
         </tbody>

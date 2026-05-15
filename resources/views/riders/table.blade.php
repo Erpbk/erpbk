@@ -66,27 +66,11 @@
          <td>{{ $bike ? $bike->plate : '-' }}</td>
          @break
          @case('status')
-         @php
-         $employment = \App\Models\Riders::employmentStatusDisplay(data_get($r, 'status'));
-         $optionText = trim((string) data_get($r, 'rider_status', ''));
-         $normalizedOpt = strtolower($optionText);
-         $optionBadge = $optionText === ''
-         ? null
-         : (in_array($normalizedOpt, ['active', 'follow up', 'pro', 'walker', 'learning license'], true)
-         ? 'bg-label-success'
-         : ($normalizedOpt === 'absconder'
-         ? 'bg-label-danger'
-         : ($normalizedOpt === 'vacation'
-         ? 'bg-label-warning'
-         : 'bg-label-info')));
-         @endphp
          <td class="text-center">
-            <div class="d-flex flex-wrap align-items-center gap-1">
-               <span class="badge {{ $employment['badge'] }}" title="Employment / assignment status">{{ $employment['label'] }}</span>
-               @if($optionText !== '')
-               <span class="badge {{ $optionBadge }}" title="Rider option / flag">{{ $optionText }}</span>
-               @endif
-            </div>
+            @include('riders._status_badges', [
+              'employmentStatus' => data_get($r, 'status'),
+              'optionText' => data_get($r, 'rider_status', ''),
+            ])
          </td>
          @break
          @case('attendance')

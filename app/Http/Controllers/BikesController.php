@@ -792,7 +792,7 @@ class BikesController extends AppBaseController
           $message .= "*Project:* {$bike->customer->name}\n";
         }
         $message .= "*Emirates:* {$bike->emirates}\n";
-        $message .= "*Note:*" . $request->notes ?? '' . "\n";
+        $riderHistoryNote = RiderHistoryLogger::detailsFromBikeHistoryNotes($request->input('notes'));
 
         // Status handling
         if ($request->warehouse == 'Absconded') {
@@ -804,7 +804,7 @@ class BikesController extends AppBaseController
             RiderHistoryLogger::bikeAssignStatusChange(
               (int) $rider->id,
               'Bike return: Absconded',
-              RiderHistoryLogger::detailsFromBikeHistoryNotes($message),
+              $riderHistoryNote,
               $riderBefore,
               array_merge($riderBefore, ['status' => 5]),
               $request->return_date,
@@ -829,7 +829,7 @@ class BikesController extends AppBaseController
             RiderHistoryLogger::bikeAssignStatusChange(
               (int) $rider->id,
               'Bike return: Vacation',
-              RiderHistoryLogger::detailsFromBikeHistoryNotes($message),
+              $riderHistoryNote,
               $riderBefore,
               array_merge($riderBefore, ['status' => 4, 'designation' => null, 'customer_id' => null]),
               $request->return_date,
@@ -853,7 +853,7 @@ class BikesController extends AppBaseController
               RiderHistoryLogger::bikeAssignStatusChange(
                 (int) $rider->id,
                 'Bike return: Return',
-                RiderHistoryLogger::detailsFromBikeHistoryNotes($message),
+                $riderHistoryNote,
                 $riderBefore,
                 array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
                 $request->return_date,
@@ -886,7 +886,7 @@ class BikesController extends AppBaseController
               RiderHistoryLogger::bikeAssignStatusChange(
                 (int) $rider->id,
                 'Bike return: Theft',
-                RiderHistoryLogger::detailsFromBikeHistoryNotes($message),
+                $riderHistoryNote,
                 $riderBefore,
                 array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
                 $request->return_date,
@@ -919,7 +919,7 @@ class BikesController extends AppBaseController
               RiderHistoryLogger::bikeAssignStatusChange(
                 (int) $rider->id,
                 'Bike return: Total Loss',
-                RiderHistoryLogger::detailsFromBikeHistoryNotes($message),
+                $riderHistoryNote,
                 $riderBefore,
                 array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
                 $request->return_date,
@@ -1152,7 +1152,7 @@ class BikesController extends AppBaseController
           $historyMessage .= "*Project:* {$project->name}\n";
         }
         $historyMessage .= "*Emirates:* {$bike->emirates}\n";
-        $historyMessage .= "*Note:*" . ($request->notes ?? '') . "\n";
+        $riderHistoryNote = RiderHistoryLogger::detailsFromBikeHistoryNotes($request->input('notes'));
 
         if ($assignType === 'rider') {
           if ($rider->rider_status_option === 'Vacation') {
@@ -1184,7 +1184,7 @@ class BikesController extends AppBaseController
           RiderHistoryLogger::bikeAssignStatusChange(
             (int) $rider->id,
             'Bike assigned: Joining',
-            RiderHistoryLogger::detailsFromBikeHistoryNotes($historyMessage),
+            $riderHistoryNote,
             $riderBeforeAssign,
             RiderHistoryLogger::riderSnapshot($rider->fresh()),
             $request->note_date,

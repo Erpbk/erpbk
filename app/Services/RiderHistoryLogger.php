@@ -211,7 +211,7 @@ class RiderHistoryLogger
     }
 
     /**
-     * Use bike history notes (same text saved on bike_histories.notes) for rider_histories.details.
+     * User-entered note for rider_histories.details (assign/return modal notes field only).
      */
     public static function detailsFromBikeHistoryNotes(?string $notes): ?string
     {

@@ -792,7 +792,7 @@ class BikesController extends AppBaseController
           $message .= "*Project:* {$bike->customer->name}\n";
         }
         $message .= "*Emirates:* {$bike->emirates}\n";
-        $riderHistoryNote = RiderHistoryLogger::detailsFromBikeHistoryNotes($request->input('notes'));
+        $riderHistoryNote = RiderHistoryLogger::assignModalRiderHistoryNote($request);
 
         // Status handling
         if ($request->warehouse == 'Absconded') {
@@ -1122,7 +1122,7 @@ class BikesController extends AppBaseController
 
       $this->validate($request, $rules, $message);
 
-      $data = $request->all();
+      $data = $request->except(['note']);
       DB::beginTransaction();
       try {
         $bike = Bikes::findOrFail($request->bike_id);
@@ -1152,7 +1152,7 @@ class BikesController extends AppBaseController
           $historyMessage .= "*Project:* {$project->name}\n";
         }
         $historyMessage .= "*Emirates:* {$bike->emirates}\n";
-        $riderHistoryNote = RiderHistoryLogger::detailsFromBikeHistoryNotes($request->input('notes'));
+        $riderHistoryNote = RiderHistoryLogger::assignModalRiderHistoryNote($request);
 
         if ($assignType === 'rider') {
           if ($rider->rider_status_option === 'Vacation') {

@@ -6,6 +6,7 @@ use App\Helpers\General;
 use App\Models\Bikes;
 use App\Models\Customers;
 use App\Models\RiderHistory;
+use Illuminate\Http\Request;
 use App\Models\Riders;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -211,7 +212,26 @@ class RiderHistoryLogger
     }
 
     /**
-     * User-entered note for rider_histories.details (assign/return modal notes field only).
+     * User-entered note for rider_histories.details (assign/return modal `note` field only).
+     */
+    public static function assignModalRiderHistoryNote(\Illuminate\Http\Request $request): ?string
+    {
+        if (!$request->has('note')) {
+            return null;
+        }
+
+        $note = $request->input('note');
+        if (!is_scalar($note)) {
+            return null;
+        }
+
+        $note = trim((string) $note);
+
+        return $note !== '' ? $note : null;
+    }
+
+    /**
+     * @deprecated Use assignModalRiderHistoryNote() for assign/return modals.
      */
     public static function detailsFromBikeHistoryNotes(?string $notes): ?string
     {
@@ -241,10 +261,6 @@ class RiderHistoryLogger
         $newEmployment = $after['status'] ?? null;
         $prevRiderStatus = $before['rider_status'] ?? null;
         $newRiderStatus = $after['rider_status'] ?? null;
-
-        if ($details !== null && $details !== '') {
-            $extraMeta['bike_history_notes'] = $details;
-        }
 
         $meta = array_merge([
             'previous_rider_status' => $prevRiderStatus,

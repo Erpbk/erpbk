@@ -14,6 +14,7 @@ if ($fieldKey === 'notes' && $inputType === 'textarea') {
 $groupClass = $assignGroup ? ' hidden-field assign-group-' . $assignGroup : '';
 $wrapperId = $fieldKey ? 'assign-field-' . $fieldKey : 'assign-custom-' . ($field->custom_field_id ?? $field->id);
 $name = $fieldKey ?: 'custom_field_values[' . ($field->custom_field_id ?? $field->id) . ']';
+$inputName = ($fieldKey === 'notes') ? 'note' : $fieldKey;
 @endphp
 
 @if($field->kind === 'custom' && $field->customField)
@@ -56,7 +57,7 @@ $value = old('custom_field_values.' . $cf->id, $cf->default_value);
     @php $opts = $field->resolvedSelectOptions(); @endphp
     {!! Form::select($fieldKey, $opts, '', ['class' => 'form-select select2', 'id' => 'assign_' . $fieldKey, 'required' => $required]) !!}
     @elseif($inputType === 'textarea')
-    <textarea class="form-control" name="{{ $fieldKey }}" id="assign_{{ $fieldKey }}" rows="3" placeholder="{{ $label }}" @if($required) required @endif @if($isReadonly) readonly @endif></textarea>
+    <textarea class="form-control" name="{{ $inputName }}" id="assign_{{ $fieldKey }}" rows="3" placeholder="{{ $label }}" @if($required) required @endif @if($isReadonly) readonly @endif></textarea>
     @elseif($inputType === 'date')
     <input type="date" name="{{ $fieldKey }}" id="assign_{{ $fieldKey }}" class="form-control" @if($required) required @endif @if($isReadonly) readonly @endif>
     @elseif($inputType === 'datetime')

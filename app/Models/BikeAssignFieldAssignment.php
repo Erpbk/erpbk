@@ -155,12 +155,16 @@ class BikeAssignFieldAssignment extends BaseModel
             return ['' => 'Select'] + $parsed;
         }
 
-        return match ((string) $this->field_key) {
+        $defaults = match ((string) $this->field_key) {
             'assign_type' => ['' => 'Select Type', 'rider' => 'Rider', 'company' => 'Company'],
             'rider_id' => \App\Models\Riders::dropdown(),
-            'rental_company_id' => \App\Models\BikeRentCompany::pluck('name', 'id')->prepend('Select', '')->toArray(),
+            'rental_company_id' => \App\Models\BikeRentCompany::pluck('name', 'id')->prepend('Select', ''),
             'customer_id' => \App\Models\Customers::dropdown(),
             default => ['' => 'Select'],
         };
+
+        return $defaults instanceof \Illuminate\Support\Collection
+            ? $defaults->all()
+            : (array) $defaults;
     }
 }

@@ -25,9 +25,8 @@
             <th>Branch</th>
             <th>Bike number</th>
             <th>Fleet supervisor</th>
-            <th>Status</th>
             <th>Details</th>
-            <th>Source</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
@@ -38,7 +37,7 @@
           $employmentStatus = $meta['employment_status'] ?? null;
           $optionText = $meta['rider_status_option'] ?? null;
           if ($employmentStatus === null && $row->event_type === 'status_change') {
-            $employmentStatus = $meta['new_employment_status'] ?? null;
+          $employmentStatus = $meta['new_employment_status'] ?? null;
           }
           $historyStatus = $row->history_status ?? ($meta['display_status'] ?? null);
           $rowNum = ($histories->currentPage() - 1) * $histories->perPage() + $loop->iteration;
@@ -50,11 +49,12 @@
             <td>{{ $row->branch->name ?? ($row->branch_id ? $row->branch_id : '—') }}</td>
             <td>{{ $row->bike_number ?? '—' }}</td>
             <td>{{ $row->fleet_supervisor ?? '—' }}</td>
+            <td>{{ $row->title }}{{ $row->details ? ' — ' . $row->details : '' }}</td>
             <td>
               @if($employmentStatus !== null || $optionText || $historyStatus)
               @include('riders._status_badges', [
-                'employmentStatus' => $employmentStatus,
-                'optionText' => $optionText,
+              'employmentStatus' => $employmentStatus,
+              'optionText' => $optionText,
               ])
               @elseif($historyStatus)
               <span class="badge {{ strtolower($historyStatus) === 'joining' ? 'bg-label-success' : 'bg-label-primary' }}">{{ $historyStatus }}</span>
@@ -62,8 +62,6 @@
               —
               @endif
             </td>
-            <td>{{ $row->title }}{{ $row->details ? ' — ' . $row->details : '' }}</td>
-            <td>{{ $meta['source'] ?? '—' }}</td>
           </tr>
           @endforeach
         </tbody>

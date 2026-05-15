@@ -20,6 +20,7 @@ class BikeCustomField extends BaseModel
         'input_format',
         'data_type',
         'is_mandatory',
+        'is_visible',
         'config',
         'category_id',
         'display_order',
@@ -30,6 +31,7 @@ class BikeCustomField extends BaseModel
         'config' => 'array',
         'prevent_duplicate_values' => 'boolean',
         'is_mandatory' => 'boolean',
+        'is_visible' => 'boolean',
     ];
 
     /**
@@ -405,9 +407,17 @@ class BikeCustomField extends BaseModel
         $specs = self::fixedFieldInputSpecs();
 
         $assignOnlyIds = self::assignOnlyCustomFieldIds();
-        $customFieldsAll = self::query()
+        $customFieldsQuery = self::query()
             ->whereIn('category_id', $categoryIds)
-            ->when($assignOnlyIds !== [], fn($q) => $q->whereNotIn('id', $assignOnlyIds))
+            ->when($assignOnlyIds !== [], fn($q) => $q->whereNotIn('id', $assignOnlyIds));
+
+        if (Schema::hasColumn('bike_custom_fields', 'is_visible')) {
+            $customFieldsQuery->where(function ($q) {
+                $q->where('is_visible', true)->orWhereNull('is_visible');
+            });
+        }
+
+        $customFieldsAll = $customFieldsQuery
             ->orderBy('display_order')
             ->orderBy('id')
             ->get()

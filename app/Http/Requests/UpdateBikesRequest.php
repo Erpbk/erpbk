@@ -97,12 +97,15 @@ class UpdateBikesRequest extends FormRequest
             $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
         }
 
-        BikeCustomField::query()
-            ->where('is_mandatory', 1)
-            ->get(['id'])
-            ->each(function ($field) use (&$rules) {
-                $rules['custom_field_values.' . $field->id] = 'required';
+        $mandatoryCustomQuery = BikeCustomField::query()->where('is_mandatory', 1);
+        if (Schema::hasColumn('bike_custom_fields', 'is_visible')) {
+            $mandatoryCustomQuery->where(function ($q) {
+                $q->where('is_visible', true)->orWhereNull('is_visible');
             });
+        }
+        $mandatoryCustomQuery->get(['id'])->each(function ($field) use (&$rules) {
+            $rules['custom_field_values.' . $field->id] = 'required';
+        });
 
         // Bike-specific: cyclist vehicle type disables some required fields
         $vehicleTypeId = $this->input('vehicle_type');

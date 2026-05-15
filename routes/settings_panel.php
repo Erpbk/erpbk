@@ -138,6 +138,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::post('module-settings/bike_list/fields/reorder', [App\Http\Controllers\BikeSettingsController::class, 'reorderFields'])->name('settings-panel.bike-settings.reorder-fields');
     Route::post('module-settings/bike_list/fields/reorder-all', [App\Http\Controllers\BikeSettingsController::class, 'reorderAllCustomFields'])->name('settings-panel.bike-settings.reorder-all-custom-fields');
     Route::put('module-settings/bike_list/fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'updateField'])->name('settings-panel.bike-settings.update-field');
+    Route::post('module-settings/bike_list/fields/{id}/flags', [App\Http\Controllers\BikeSettingsController::class, 'updateCustomFieldFlags'])->name('settings-panel.bike-settings.update-custom-field-flags');
     Route::delete('module-settings/bike_list/fields/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyField'])->name('settings-panel.bike-settings.destroy-field');
     Route::post('module-settings/bike_list/assign-custom-field-category/{id}', [App\Http\Controllers\BikeSettingsController::class, 'assignCustomFieldCategory'])->name('settings-panel.bike-settings.assign-custom-field-category');
 

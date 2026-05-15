@@ -744,7 +744,6 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                       @php
                       $cat = $customField->category;
                       $catLabel = $cat?->label ?? 'Unassigned';
-                      $isReq = (bool) ($customField->is_mandatory ?? false);
                       @endphp
                       <tr class="table-light" data-custom-field-id="{{ $customField->id }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab text-muted" title="{{ __('Drag to reorder') }}"><i class="ti ti-grip-vertical"></i></span></td>
@@ -759,8 +758,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                           <span class="badge bg-label-warning">Unassigned</span>
                           @endif
                         </td>
-                        <td class="align-middle text-center">{{ $isReq ? 'Yes' : 'No' }}</td>
-                        <td class="align-middle text-center">-</td>
+                        @include('settings.bike_settings._bike_custom_field_row_flags', ['customField' => $customField])
                         <td class="align-middle">
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
@@ -791,6 +789,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                             data-help-text="{{ $customField->help_text }}"
                             data-data-type="{{ $customField->data_type }}"
                             data-is-mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
+                            data-is-visible="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
                             data-default-value="{{ $customField->default_value }}"
                             data-input-format="{{ $customField->input_format }}"
                             data-config-options='@json($customConfigOptions)'
@@ -946,8 +945,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                           <span class="fw-semibold">{{ $customField->label }}</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
-                        <td class="align-middle text-center">{{ ($customField->is_mandatory ?? false) ? 'Yes' : 'No' }}</td>
-                        <td class="align-middle text-center">-</td>
+                        @include('settings.bike_settings._bike_custom_field_row_flags', ['customField' => $customField])
                         <td class="align-middle">
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
@@ -978,6 +976,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                             data-help-text="{{ $customField->help_text }}"
                             data-data-type="{{ $customField->data_type }}"
                             data-is-mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
+                            data-is-visible="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
                             data-default-value="{{ $customField->default_value }}"
                             data-input-format="{{ $customField->input_format }}"
                             data-config-options='@json($customConfigOptions)'
@@ -2230,6 +2229,65 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
       return response.json().then(function(data) {
         return response.ok ? data : Promise.reject(data);
       });
+    });
+  }
+
+  if (!window.__bikeCustomFieldToggleChangeBound) {
+    window.__bikeCustomFieldToggleChangeBound = true;
+
+    document.addEventListener('change', function(e) {
+      var toggle = e.target.closest('.bike-custom-required-toggle, .bike-custom-visibility-toggle');
+      if (!toggle) return;
+
+      var customFieldId = toggle.getAttribute('data-id');
+      var updateUrl = toggle.getAttribute('data-update-url');
+      if (!customFieldId || !updateUrl) return;
+
+      var csrf = '{{ csrf_token() }}';
+      var fieldRequiredToggles = document.querySelectorAll('.bike-custom-required-toggle[data-id="' + customFieldId + '"]');
+      var fieldVisibleToggles = document.querySelectorAll('.bike-custom-visibility-toggle[data-id="' + customFieldId + '"]');
+      var isMandatory = fieldRequiredToggles.length ? (fieldRequiredToggles[0].checked ? 1 : 0) : 0;
+      var isVisible = fieldVisibleToggles.length ? (fieldVisibleToggles[0].checked ? 1 : 0) : 1;
+      var originalChecked = toggle.checked;
+
+      toggle.disabled = true;
+
+      var formBody = new URLSearchParams();
+      formBody.append('_token', csrf);
+      formBody.append('is_mandatory', String(isMandatory));
+      formBody.append('is_visible', String(isVisible));
+
+      fetch(updateUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: formBody.toString(),
+        })
+        .then(function(r) {
+          return r.json().then(function(data) {
+            return r.ok ? data : Promise.reject(data);
+          });
+        })
+        .then(function(data) {
+          fieldRequiredToggles.forEach(function(el) {
+            el.checked = !!data.is_mandatory;
+            el.setAttribute('data-is-visible-current', data.is_visible ? '1' : '0');
+          });
+          fieldVisibleToggles.forEach(function(el) {
+            el.checked = !!data.is_visible;
+            el.setAttribute('data-is-mandatory-current', data.is_mandatory ? '1' : '0');
+          });
+        })
+        .catch(function() {
+          toggle.checked = !originalChecked;
+        })
+        .finally(function() {
+          toggle.disabled = false;
+        });
     });
   }
 

@@ -703,6 +703,7 @@ class BikeSettingsController extends Controller
             'input_format' => $validated['input_format'] ?? null,
             'data_type' => $validated['data_type'],
             'is_mandatory' => filter_var((string) ($validated['is_mandatory'] ?? false), FILTER_VALIDATE_BOOLEAN),
+            'is_visible' => true,
             'config' => $config,
             'category_id' => $categoryId,
             'display_order' => $displayOrder,
@@ -750,6 +751,27 @@ class BikeSettingsController extends Controller
 
         return $this->bikeSettingsIndexRedirect($field->category_id !== null ? (int) $field->category_id : 0)
             ->with('success', 'Custom field updated.');
+    }
+
+    public function updateCustomFieldFlags(Request $request, string $company_slug, int $id)
+    {
+        $validated = $request->validate([
+            'is_mandatory' => 'required|boolean',
+            'is_visible' => 'required|boolean',
+        ]);
+
+        $field = BikeCustomField::where('id', $id)->firstOrFail();
+        $field->is_mandatory = filter_var($validated['is_mandatory'], FILTER_VALIDATE_BOOLEAN);
+        $field->is_visible = filter_var($validated['is_visible'], FILTER_VALIDATE_BOOLEAN);
+        $field->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Custom field settings updated.',
+            'id' => (int) $field->id,
+            'is_mandatory' => (bool) $field->is_mandatory,
+            'is_visible' => (bool) $field->is_visible,
+        ]);
     }
 
     public function destroyField(string $company_slug, int $id)

@@ -17,6 +17,7 @@ use App\Models\Accounts;
 use App\DataTables\LedgerDataTable;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -31,31 +32,19 @@ class EmployeeController extends Controller
         return EmployeeCustomField::fieldsByCategoryForForm($includeCustomFields);
     }
 
-    private function employeeDynamicFieldRules(?Employee $employee = null): array
+    /**
+     * Mandatory custom fields from employee settings (fixed fields use employeeValidationRules).
+     */
+    private function employeeDynamicFieldRules(): array
     {
         $rules = [];
-        $employeeColumns = array_flip(Schema::getColumnListing('employees'));
-
-        EmployeeFieldCategoryAssignment::query()
-            ->where('is_required', true)
-            ->where(function ($q) {
-                $q->where('is_visible', true)->orWhereNull('is_visible');
-            })
-            ->get(['field_key'])
-            ->each(function ($assignment) use (&$rules, $employeeColumns, $employee) {
-                $fieldKey = (string) $assignment->field_key;
-                if (!isset($employeeColumns[$fieldKey])) {
-                    return;
-                }
-                $rules[$fieldKey] = $this->employeeFieldValidationRule($fieldKey, $employee);
-            });
 
         EmployeeCustomField::query()
+            ->where('is_mandatory', 1)
             ->whereNotNull('category_id')
             ->where(function ($q) {
-                $q->where('is_visible', true)->orWhereNull('is_visible');
+                $q->where('is_visible', 1)->orWhereNull('is_visible');
             })
-            ->where('is_mandatory', true)
             ->get(['id'])
             ->each(function ($field) use (&$rules) {
                 $rules['custom_field_values.' . $field->id] = 'required';
@@ -64,27 +53,96 @@ class EmployeeController extends Controller
         return $rules;
     }
 
-    private function employeeFieldValidationRule(string $fieldKey, ?Employee $employee = null): string
+    /**
+     * Build employee create/update validation from settings + employees table columns.
+     */
+    private function employeeValidationRules(?int $ignoreEmployeeId = null, bool $forCreate = false): array
     {
-        $idSuffix = $employee ? ',' . $employee->id : '';
+        $rules = Employee::$rules;
+        $employeeColumns = array_flip(Schema::getColumnListing('employees'));
+        $assignmentTable = (new EmployeeFieldCategoryAssignment())->getTable();
+        $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
+        $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
 
-        return match ($fieldKey) {
-            'company_email' => 'required|email|unique:employees,company_email' . $idSuffix,
-            'employee_id' => 'required|string|unique:employees,employee_id' . $idSuffix,
-            'emirate_id' => 'nullable|string|unique:employees,emirate_id' . $idSuffix,
-            'passport' => 'nullable|string|unique:employees,passport' . $idSuffix,
-            'nationality_id' => 'required|exists:countries,id',
-            'branch_id' => 'required|exists:branches,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'doj' => 'nullable|date',
-            'dob' => 'nullable|date',
-            'emirate_expiry' => 'nullable|date',
-            'passport_expiry' => 'nullable|date',
-            'visa_expiry' => 'nullable|date',
-            'salary' => 'nullable|numeric|min:0',
-            'status' => 'nullable|in:active,inactive,on_leave',
-            default => 'required',
+        $normalizePresenceRule = function ($rule, bool $required) {
+            if (is_array($rule)) {
+                $tokens = array_values(array_filter($rule, function ($item) {
+                    return !is_string($item) || ($item !== 'required' && $item !== 'nullable');
+                }));
+                array_unshift($tokens, $required ? 'required' : 'nullable');
+
+                return $tokens;
+            }
+
+            $tokens = array_values(array_filter(explode('|', (string) $rule), function ($item) {
+                return $item !== '' && $item !== 'required' && $item !== 'nullable';
+            }));
+            array_unshift($tokens, $required ? 'required' : 'nullable');
+
+            return implode('|', $tokens);
         };
+
+        $assignmentColumns = ['field_key'];
+        if ($hasRequiredColumn) {
+            $assignmentColumns[] = 'is_required';
+        }
+        if ($hasVisibleColumn) {
+            $assignmentColumns[] = 'is_visible';
+        }
+
+        $assignments = EmployeeFieldCategoryAssignment::query()
+            ->get($assignmentColumns)
+            ->keyBy('field_key');
+        $fixedKeys = EmployeeCustomField::allFixedFieldKeys();
+
+        foreach ($fixedKeys as $fieldKey) {
+            if (!isset($employeeColumns[$fieldKey])) {
+                continue;
+            }
+            $assignment = $assignments->get($fieldKey);
+            $isVisible = !$hasVisibleColumn || !$assignment || $assignment->is_visible === null
+                ? true
+                : (bool) $assignment->is_visible;
+            $isRequired = ($assignment && $hasRequiredColumn) ? (bool) $assignment->is_required : false;
+            $baseRule = $rules[$fieldKey] ?? 'nullable';
+            $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
+        }
+
+        if ($ignoreEmployeeId !== null) {
+            $rules['employee_id'] = [
+                'required',
+                'string',
+                'max:191',
+                Rule::unique('employees', 'employee_id')->ignore($ignoreEmployeeId),
+            ];
+            $rules['name'] = ['required', 'string', 'max:255'];
+            $rules['company_email'] = [
+                'required',
+                'email',
+                'max:191',
+                Rule::unique('employees', 'company_email')->ignore($ignoreEmployeeId),
+            ];
+
+            foreach (['passport', 'emirate_id'] as $uniqueKey) {
+                if (!isset($employeeColumns[$uniqueKey])) {
+                    continue;
+                }
+                $baseRule = $rules[$uniqueKey] ?? 'nullable|string|max:191';
+                $tokens = is_array($baseRule) ? $baseRule : explode('|', (string) $baseRule);
+                $tokens = array_values(array_filter($tokens, function ($token) {
+                    return !(is_string($token) && str_starts_with($token, 'unique:'));
+                }));
+                $tokens[] = Rule::unique('employees', $uniqueKey)->ignore($ignoreEmployeeId);
+                $rules[$uniqueKey] = $tokens;
+            }
+        }
+
+        if ($forCreate) {
+            $rules['account'] = 'required|in:new,existing';
+            $rules['account_id'] = 'nullable|required_if:account,existing|exists:accounts,id';
+        }
+
+        return array_merge($rules, $this->employeeDynamicFieldRules());
     }
 
     private function applyEmployeeDynamicInput(array &$validated, Request $request): void
@@ -305,33 +363,7 @@ class EmployeeController extends Controller
      */
     public function store(Request $request)
     {
-        // Validate the request
-        $validated = $request->validate(array_merge([
-            'employee_id' => 'required|string',
-            'name' => 'required|string|max:255',
-            'company_email' => 'required|email|unique:employees,company_email',
-            'company_contact' => 'nullable|string|max:20',
-            'nationality_id' => 'required|exists:countries,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'designation' => 'nullable|string|max:255',
-            'salary' => 'nullable|numeric|min:0',
-            'branch_id' => 'required|exists:branches,id',
-            'emirate_id' => 'nullable|string|unique:employees,emirate_id',
-            'emirate_expiry' => 'nullable|date',
-            'passport' => 'nullable|string|unique:employees,passport',
-            'passport_expiry' => 'nullable|date',
-            'doj' => 'required|date',
-            'dob' => 'required|date|before:today',
-            'visa_sponsor' => 'nullable|string|max:255',
-            'visa_occupation' => 'nullable|string|max:255',
-            'visa_expiry' => 'nullable|date',
-            'status' => 'required|in:active,inactive,on_leave',
-            'address' => 'nullable|string',
-            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'notes' => 'nullable|string',
-            'account' => 'required|in:new,existing',
-            'account_id' => 'nullable|required_if:account,existing|exists:accounts,id',
-        ], $this->employeeDynamicFieldRules(null)));
+        $validated = $request->validate($this->employeeValidationRules(null, true));
 
         try {
             DB::beginTransaction();
@@ -648,30 +680,7 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, $comapny_slug, Employee $employee)
     {
-        $validated = $request->validate(array_merge([
-            'employee_id' => 'required|string',
-            'name' => 'required|string|max:255',
-            'company_email' => 'required|email|unique:employees,company_email,' . $employee->id,
-            'company_contact' => 'nullable|string|max:20',
-            'nationality_id' => 'required|exists:countries,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'designation' => 'nullable|string|max:255',
-            'salary' => 'nullable|numeric|min:0',
-            'branch_id' => 'required|exists:branches,id',
-            'emirate_id' => 'nullable|string|unique:employees,emirate_id',
-            'emirate_expiry' => 'nullable|date',
-            'passport' => 'nullable|string|unique:employees,passport',
-            'passport_expiry' => 'nullable|date',
-            'doj' => 'required|date',
-            'dob' => 'required|date|before:today',
-            'visa_sponsor' => 'nullable|string|max:255',
-            'visa_occupation' => 'nullable|string|max:255',
-            'visa_expiry' => 'nullable|date',
-            'status' => 'required|in:active,inactive,on_leave',
-            'address' => 'nullable|string',
-            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'notes' => 'nullable|string',
-        ], $this->employeeDynamicFieldRules($employee)));
+        $validated = $request->validate($this->employeeValidationRules((int) $employee->id));
 
         $this->applyEmployeeDynamicInput($validated, $request);
 

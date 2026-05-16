@@ -136,8 +136,37 @@ class Employee extends BaseModel
 
     public static function dropdown()
     {
-        return self::select('id', DB::raw("CONCAT(employee_id, '-', name) as full_name"))
+        return self::dropdownForBranch(null);
+    }
+
+    /**
+     * Employees for SIM assignment (same branch as the SIM, active only).
+     */
+    public static function dropdownForBranch(?int $branchId): array
+    {
+        $query = self::query()->where('status', 'active');
+
+        if ($branchId !== null && $branchId > 0) {
+            $query->where('branch_id', $branchId);
+        }
+
+        return $query
+            ->select('id', DB::raw("CONCAT(employee_id, '-', name) as full_name"))
+            ->orderBy('name')
             ->pluck('full_name', 'id')
-            ->prepend('Select', '');
+            ->prepend('Select', '')
+            ->all();
+    }
+
+    public function simHistories()
+    {
+        return $this->hasMany(SimHistory::class, 'employee_id', 'id');
+    }
+
+    public function histories()
+    {
+        return $this->hasMany(EmployeeHistory::class, 'employee_id', 'id')
+            ->orderByDesc('effective_date')
+            ->orderByDesc('id');
     }
 }

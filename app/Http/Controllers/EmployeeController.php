@@ -9,6 +9,7 @@ use App\Models\EmployeeDocumentType;
 use App\Models\EmployeeFieldCategoryAssignment;
 use App\Models\EmployeeTopCategory;
 use App\Models\Attendance;
+use App\Models\SimHistory;
 use App\Models\Transactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -622,6 +623,35 @@ class EmployeeController extends Controller
         $departments = \App\Models\Departments::all();
 
         return view('employees.leaves', compact('employee', 'nationalities', 'branches', 'departments'));
+    }
+
+    public function history($comapny_slug, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $nationalities = \App\Models\Countries::all();
+        $branches = \App\Models\Branch::active()->get();
+        $departments = \App\Models\Departments::all();
+
+        $simHistories = null;
+        $simHistoryCount = 0;
+
+        if (Schema::hasTable('sim_histories') && Schema::hasColumn('sim_histories', 'employee_id')) {
+            $simHistories = SimHistory::with('sim')
+                ->where('employee_id', $id)
+                ->orderByDesc('note_date')
+                ->orderByDesc('id')
+                ->paginate(50);
+            $simHistoryCount = SimHistory::where('employee_id', $id)->count();
+        }
+
+        return view('employees.history', compact(
+            'employee',
+            'nationalities',
+            'branches',
+            'departments',
+            'simHistories',
+            'simHistoryCount'
+        ));
     }
 
     public function sendEmail($company_slug, $id, Request $request)

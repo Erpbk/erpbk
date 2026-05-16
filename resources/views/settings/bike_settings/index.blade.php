@@ -150,6 +150,13 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
             </button>
           </li>
           @endif
+          @if(($moduleKey ?? '') === 'sims')
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $showAssignFieldsTab ? 'active' : '' }}" data-bs-toggle="tab" data-bs-target="#tab-sim-assign-fields" type="button" role="tab" id="tab-sim-assign-fields-btn">
+              SIM Assigning Fields
+            </button>
+          </li>
+          @endif
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs" type="button" role="tab">
               Documents
@@ -1015,6 +1022,10 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
 
           @if(($moduleKey ?? '') === 'bike_list')
           @include('settings.bike_settings._assign_fields_tab')
+          @endif
+
+          @if(($moduleKey ?? '') === 'sims')
+          @include('settings.sim_settings._assign_fields_tab')
           @endif
 
           {{-- Edit Bike Fixed Field Modal --}}

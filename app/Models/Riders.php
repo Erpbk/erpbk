@@ -245,10 +245,26 @@ class Riders extends BaseModel
   }
   public static function dropdown()
   {
-    return self::select('id', DB::raw("CONCAT(rider_id, '-', name) as full_name"))->pluck('full_name', 'id')->prepend('Select', '');
-    //return self::select('id', 'name')->pluck('name', 'id')->prepend('Select', '');
+    return self::dropdownForBranch(null);
+  }
 
+  /**
+   * Active riders for SIM assignment (same branch as the SIM).
+   */
+  public static function dropdownForBranch(?int $branchId): array
+  {
+    $query = self::query()->where('status', 1);
 
+    if ($branchId !== null && $branchId > 0) {
+      $query->where('branch_id', $branchId);
+    }
+
+    return $query
+      ->select('id', DB::raw("CONCAT(rider_id, '-', name) as full_name"))
+      ->orderBy('name')
+      ->pluck('full_name', 'id')
+      ->prepend('Select', '')
+      ->all();
   }
   public function bikes()
   {

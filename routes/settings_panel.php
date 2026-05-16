@@ -202,6 +202,13 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::delete('module-settings/bike_list/bike-top/options/{id}', [App\Http\Controllers\BikeSettingsController::class, 'destroyBikeTopOption'])->name('settings-panel.bike-settings.destroy-bike-top-option');
     Route::post('module-settings/bike_list/bike-top/user-preferences', [App\Http\Controllers\BikeSettingsController::class, 'saveBikeTopUserPreferences'])->name('settings-panel.bike-settings.save-bike-top-user-preferences');
 
+    // SIM assign-field settings (assign / return modals)
+    Route::post('module-settings/sims/assign-fields', [App\Http\Controllers\SimSettingsController::class, 'updateAssignFieldAssignment'])->name('settings-panel.sim-settings.update-assign-field');
+    Route::put('module-settings/sims/assign-fields/{id}', [App\Http\Controllers\SimSettingsController::class, 'updateAssignField'])->name('settings-panel.sim-settings.update-assign-field-item');
+    Route::post('module-settings/sims/assign-fields/reorder', [App\Http\Controllers\SimSettingsController::class, 'reorderAssignFieldAssignments'])->name('settings-panel.sim-settings.reorder-assign-fields');
+    Route::post('module-settings/sims/assign-fields/store', [App\Http\Controllers\SimSettingsController::class, 'storeAssignField'])->name('settings-panel.sim-settings.store-assign-field');
+    Route::delete('module-settings/sims/assign-fields/{id}', [App\Http\Controllers\SimSettingsController::class, 'destroyAssignField'])->name('settings-panel.sim-settings.destroy-assign-field');
+
     // Module settings for all ERP modules (Bike-style route pattern)
     Route::post('module-settings/{module}/field-assignment', [App\Http\Controllers\ModuleSettingsController::class, 'storeFieldAssignment'])->name('settings-panel.module-settings.update-field-assignment')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/field-assignments/reorder', [App\Http\Controllers\ModuleSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.module-settings.reorder-field-assignments')->where('module', '[A-Za-z0-9_-]+');

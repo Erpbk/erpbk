@@ -239,6 +239,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('/employees/{id}/salary', [App\Http\Controllers\EmployeeController::class, 'salary'])->name('employee.salary');
     Route::get('/employees/{id}/attendance', [App\Http\Controllers\EmployeeController::class, 'attendance'])->name('employee.attendance');
     Route::get('/employees/{id}/leaves', [App\Http\Controllers\EmployeeController::class, 'leaves'])->name('employee.leaves');
+    Route::get('/employees/{id}/history', [App\Http\Controllers\EmployeeController::class, 'history'])->name('employee.history');
     Route::any('/employees/sendemail/{id}', [App\Http\Controllers\EmployeeController::class, 'sendEmail'])->name('employee.sendemail');
     Route::get('/employees/{id}/voucher', [App\Http\Controllers\EmployeeController::class, 'voucher'])->name('employees.voucher');
     Route::post('/employees/update-status', [App\Http\Controllers\EmployeeController::class, 'updateStatus'])->name('employee.update-status');

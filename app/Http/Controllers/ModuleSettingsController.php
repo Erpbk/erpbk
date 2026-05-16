@@ -10,7 +10,9 @@ use App\Models\ModuleSettingCategory;
 use App\Models\RiderInvoiceAccountAssignment;
 use App\Models\Settings;
 use App\Models\BikeRegistrationStatus;
+use App\Models\SimAssignFieldAssignment;
 use App\Models\VisaStatus;
+use App\Support\SimAssignFields;
 use App\Support\ModuleFieldSource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -342,6 +344,15 @@ class ModuleSettingsController extends Controller
             $bikeRegistrationTopEnabled = $this->bikeRegistrationTopEnabled();
         }
 
+        $assignFieldAssignments = collect();
+        if ($module === 'sims') {
+            SimAssignFields::syncSimAssignFieldAssignments();
+            $assignFieldAssignments = SimAssignFieldAssignment::with('customField')
+                ->orderBy('display_order')
+                ->orderBy('id')
+                ->get();
+        }
+
         return view('settings.bike_settings.index', [
             'moduleKey' => $module,
             'moduleLabel' => $moduleLabel,
@@ -355,6 +366,11 @@ class ModuleSettingsController extends Controller
             'unassignedCustomFields' => $customFields->whereNull('category_id')->values(),
             'dataTypes' => ModuleCustomField::dataTypes(),
             'documentTypes' => $documentTypes,
+            'assignFieldAssignments' => $assignFieldAssignments,
+            'assignSettingsRoutePrefix' => $module === 'sims' ? 'settings-panel.sim-settings' : null,
+            'assignSettingsRouteParams' => $module === 'sims'
+                ? ['company_slug' => $company_slug, 'module' => $module]
+                : [],
             'settingsRoutePrefix' => 'settings-panel.module-settings',
             'settingsRouteParams' => ['company_slug' => $company_slug, 'module' => $module],
             'settingsHeading' => $moduleLabel . ' Settings',

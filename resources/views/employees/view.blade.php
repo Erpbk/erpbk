@@ -532,6 +532,13 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </li>
                 @endcan
 
+                <li class="nav-item nav-priority-7">
+                  <a class="nav-link @if(request()->routeIs('employee.history')) active @endif"
+                    href="{{ route('employee.history', $employee->id) }}">
+                    <i class="ti ti-device-mobile ti-sm me-1_5"></i>SIM History
+                  </a>
+                </li>
+
                 <!-- Action items -->
                 @canany(['employee_voucher_create'])
                 <li class="nav-item nav-priority-8 nav-action-item">

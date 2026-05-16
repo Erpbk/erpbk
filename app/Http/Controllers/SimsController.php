@@ -10,6 +10,8 @@ use App\Models\SimHistory;
 use App\Repositories\SimsRepository;
 use App\Models\Sims;
 use App\Models\Riders;
+use App\Models\Employee;
+use App\Services\EmployeeHistoryLogger;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
@@ -20,7 +22,9 @@ use App\Exports\SimExport;
 use App\Models\User;
 use App\Models\SimCompany;
 use App\Services\RiderHistoryLogger;
+use App\Support\ModuleFieldSettings;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class SimsController extends AppBaseController
 {
@@ -45,7 +49,7 @@ class SimsController extends AppBaseController
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Sims::query()
-            ->with('branch')
+            ->with(['branch', 'riders', 'employee'])
             ->orderBy('id', 'asc');
         if ($request->has('branch_id') && !empty($request->branch_id)) {
             $query->where('branch_id', $request->branch_id);
@@ -187,34 +191,10 @@ class SimsController extends AppBaseController
         $input['created_by'] = auth()->id();
         $input['status'] = 0;
 
-        // Validation rules
-        $rules = [
-            'number' => 'required|string|min:10|max:13|unique:sims,number',
-            'emi' => 'required|min:15|max:25',
-            'company' => 'nullable|string|max:191',
-            'vendor' => 'nullable|integer',
-            'fleet_supervisor' => 'nullable|string|max:50',
-            'branch_id' => 'required|numeric|exists:branches,id',
-        ];
-
-        // Custom validation messages
-        $messages = [
-            'number.required' => 'SIM number is required',
-            'number.min' => 'SIM number must be at least 10 characters long',
-            'number.max' => 'SIM number cannot exceed 13 characters',
-            'number.unique' => 'This SIM number already exists',
-            'company.max' => 'Telecom company name cannot exceed 191 characters',
-            'emi.required' => 'EMI number is required',
-            'emi.min' => 'EMI number must be at least 15 characters',
-            'emi.max' => 'EMI number cannot exceed 20 characters',
-            'branch_id.required' => 'Please select Relevant Branch',
-            'branch_id.exists' => 'Selected Branch Does Not Exist',
-        ];
-
-        $this->validate($request, $rules, $messages);
+        $this->validate($request, $this->simValidationRules(), $this->simValidationMessages());
 
         $input['company'] = $this->resolveSimTelecomCompany($input);
-        if ($input['company'] === '') {
+        if ($input['company'] === '' && ModuleFieldSettings::isSchemaFieldRequired('sims', 'company')) {
             return response()->json([
                 'message' => 'The given data was invalid.',
                 'errors' => [
@@ -223,6 +203,9 @@ class SimsController extends AppBaseController
                     ],
                 ],
             ], 422);
+        }
+        if ($input['company'] === '') {
+            unset($input['company']);
         }
 
         try {
@@ -289,28 +272,29 @@ class SimsController extends AppBaseController
         $input = $request->all();
         $input['updated_by'] = auth()->id();
 
-        // Define validation rules
-        $rules = [
-            'company' => 'required|string|max:191',
-            'vendor' => 'nullable|integer',
-            'fleet_supervisor' => 'nullable|string|max:50',
-            'emi' => 'required|min:15|max:25',
-            'branch_id' => 'required|numeric|exists:branches,id',
-        ];
+        $this->validate(
+            $request,
+            $this->simValidationRules((int) $sims->id, false),
+            $this->simValidationMessages()
+        );
 
-        // Custom validation messages
-        $messages = [
-            'company.required' => 'Company name is required',
-            'company.max' => 'Company name cannot exceed 191 characters',
-            'emi.required' => 'EMI number is required',
-            'emi.min' => 'EMI number must be at least 15 characters',
-            'emi.max' => 'EMI number cannot exceed 25 characters',
-            'branch_id.required' => 'Please Select Relevant Branch',
-            'branch_id.exists' => 'Selected Branch Does not Exist',
-        ];
-
-        // Perform validation
-        $this->validate($request, $rules, $messages);
+        $input['company'] = $this->resolveSimTelecomCompany(array_merge(
+            $sims->only(['number', 'company', 'vendor']),
+            $input
+        ));
+        if ($input['company'] === '' && ModuleFieldSettings::isSchemaFieldRequired('sims', 'company')) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => [
+                    'company' => [
+                        'Telecom company (e.g. du / etisalat) is required. Choose a vendor with a known name or use a UAE mobile number so it can be inferred from the prefix.',
+                    ],
+                ],
+            ], 422);
+        }
+        if ($input['company'] === '') {
+            unset($input['company']);
+        }
 
         try {
             $sims->update($input);
@@ -341,43 +325,78 @@ class SimsController extends AppBaseController
             return response()->json(['errors' => ['error' => 'Sim not found!']], 422);
         }
 
+        $branchId = $sims->branch_id ? (int) $sims->branch_id : null;
+
         if ($request->isMethod('post')) {
-            $input = $request->all();
+            $assigneeType = $request->input('assignee_type', 'rider');
             $rules = [
+                'assignee_type' => 'required|in:rider,employee',
                 'assign_to' => [
                     'required',
-                    'exists:riders,id',
-                    'unique:sims,assign_to',
-                    function ($attribute, $value, $fail) {
-                        //Check rider status
-                        $rider = Riders::find($value);
-                        if ($rider && !($rider->status == 1)) {
-                            $fail('Rider is not active. Cannot assign SIM.');
+                    'integer',
+                    function ($attribute, $value, $fail) use ($assigneeType, $sims, $branchId) {
+                        if ($assigneeType === 'employee') {
+                            $employee = Employee::find($value);
+                            if (!$employee) {
+                                $fail('The selected employee does not exist.');
+                                return;
+                            }
+                            if ($employee->status !== 'active') {
+                                $fail('Employee is not active. Cannot assign SIM.');
+                                return;
+                            }
+                            if ($branchId && (int) $employee->branch_id !== $branchId) {
+                                $fail('Employee must belong to the same branch as this SIM.');
+                                return;
+                            }
+                        } else {
+                            $rider = Riders::find($value);
+                            if (!$rider) {
+                                $fail('The selected rider does not exist.');
+                                return;
+                            }
+                            if ((int) $rider->status !== 1) {
+                                $fail('Rider is not active. Cannot assign SIM.');
+                                return;
+                            }
+                            if ($branchId && (int) $rider->branch_id !== $branchId) {
+                                $fail('Rider must belong to the same branch as this SIM.');
+                                return;
+                            }
                         }
-                    }
+
+                        $taken = Sims::query()
+                            ->where('assign_to', $value)
+                            ->where('assign_type', $assigneeType)
+                            ->where('id', '!=', $sims->id)
+                            ->exists();
+                        if ($taken) {
+                            $fail($assigneeType === 'employee'
+                                ? 'This employee already has a SIM assigned.'
+                                : 'This rider already has a SIM assigned.');
+                        }
+                    },
                 ],
                 'note_date' => [
                     'required',
                     'date',
                     'before_or_equal:today',
                     function ($attribute, $value, $fail) use ($sims) {
-                        // Check if assign date is after last return date
                         $lastHistory = $sims->histories()->orderBy('created_at', 'desc')->first();
                         if ($lastHistory && $lastHistory->return_date) {
                             $assignDate = \Carbon\Carbon::parse($value)->startOfDay();
                             $returnDate = \Carbon\Carbon::parse($lastHistory->return_date)->startOfDay();
-                            if ($assignDate->lt($returnDate)) { // Changed to lt() (less than, not equal)
+                            if ($assignDate->lt($returnDate)) {
                                 $fail('Assign date cannot be before the last return date: ' . $lastHistory->return_date);
                             }
                         }
-                    }
-                ]
+                    },
+                ],
             ];
 
             $messages = [
-                'assign_to.required' => 'Please select a rider to assign the SIM.',
-                'assign_to.exists' => 'The selected rider does not exist.',
-                'assign_to.unique' => 'This rider already has a SIM assigned.',
+                'assignee_type.required' => 'Please select user type (Rider or Employee).',
+                'assign_to.required' => 'Please select who to assign the SIM to.',
                 'note_date.required' => 'Assign date is required.',
                 'note_date.date' => 'Assign date must be a valid date.',
                 'note_date.before_or_equal' => 'Assign date cannot be in the future.',
@@ -385,43 +404,77 @@ class SimsController extends AppBaseController
             $this->validate($request, $rules, $messages);
 
             try {
-                $rider = Riders::find($input['assign_to']);
-                if (!$rider) {
-                    return response()->json([
-                        'errors' => ['assign_to' => ['Selected rider not found.']],
-                        'message' => 'Validation failed.'
-                    ], 422);
+                $assignTo = (int) $request->assign_to;
+                $assignBranchId = $branchId;
+
+                if ($assigneeType === 'employee') {
+                    $employee = Employee::findOrFail($assignTo);
+                    $assignBranchId = $employee->branch_id ?? $branchId;
+
+                    $sims->update([
+                        'assign_to' => $assignTo,
+                        'assign_type' => 'employee',
+                        'status' => 1,
+                        'branch_id' => $assignBranchId,
+                    ]);
+
+                    $sims->histories()->create([
+                        'note_date' => $request->note_date,
+                        'assigned_by' => auth()->id(),
+                        'notes' => $request->notes ?? '',
+                        'employee_id' => $assignTo,
+                        'rider_id' => null,
+                    ]);
+
+                    if (Schema::hasColumn('employees', 'company_contact')) {
+                        Employee::where('id', $assignTo)->update(['company_contact' => $sims->number]);
+                    }
+
+                    EmployeeHistoryLogger::simAssigned(
+                        $employee,
+                        $sims->fresh(),
+                        $request->note_date ?? null,
+                        $request->notes ?? null
+                    );
+                } else {
+                    $rider = Riders::findOrFail($assignTo);
+                    $assignBranchId = $rider->branch_id ?? $branchId;
+
+                    $sims->update([
+                        'assign_to' => $assignTo,
+                        'assign_type' => 'rider',
+                        'status' => 1,
+                        'branch_id' => $assignBranchId,
+                    ]);
+
+                    $sims->histories()->create([
+                        'note_date' => $request->note_date,
+                        'assigned_by' => auth()->id(),
+                        'notes' => $request->notes ?? '',
+                        'rider_id' => $assignTo,
+                        'employee_id' => null,
+                    ]);
+
+                    if (Schema::hasColumn('riders', 'company_contact')) {
+                        Riders::where('id', $assignTo)->update(['company_contact' => $sims->number]);
+                    }
+
+                    RiderHistoryLogger::simAssigned(
+                        $rider,
+                        $sims->fresh(),
+                        $request->note_date ?? null,
+                        $request->notes ?? null
+                    );
                 }
-                $input['status'] = 1; // Set SIM status to active upon assignment
-                $input['branch_id'] = $rider->branch_id;
-                $sims->update($input);
-
-                // Create a new history record for this assignment
-                $sims->histories()->create([
-                    'note_date' => $input['note_date'],
-                    'assigned_by' => auth()->id(),
-                    'notes' => $input['notes'] ?? '',
-                    'rider_id' => $input['assign_to'],
-                ]);
-
-                if (Schema::hasColumn('riders', 'company_contact')) {
-                    Riders::where('id', $input['assign_to'])->update(['company_contact' => $sims->number]);
-                }
-
-                RiderHistoryLogger::simAssigned(
-                    $rider,
-                    $sims->fresh(),
-                    $input['note_date'] ?? null,
-                    $input['notes'] ?? null
-                );
             } catch (\Exception $e) {
                 \Log::error('Error assigning SIM: ' . $e->getMessage(), [
                     'sim_id' => $sims->id,
-                    'assign_to' => $input['assign_to'] ?? null,
+                    'assign_to' => $request->assign_to ?? null,
+                    'assignee_type' => $assigneeType ?? null,
                 ]);
                 return response()->json([
                     'errors' => ['error' => 'Failed to assign SIM. Please try again.'],
-                    'message' => 'Server error occurred.'
+                    'message' => 'Server error occurred.',
                 ], 500);
             }
 
@@ -430,22 +483,40 @@ class SimsController extends AppBaseController
             ]);
         }
 
-        return view('sims.assign')->with('sims', $sims);
+        $branchScopedOptions = [
+            'assign_to_rider' => Riders::dropdownForBranch($branchId),
+            'assign_to_employee' => Employee::dropdownForBranch($branchId),
+        ];
+
+        return view('sims.assign', [
+            'sims' => $sims,
+            'riders' => $branchScopedOptions['assign_to_rider'],
+            'employees' => $branchScopedOptions['assign_to_employee'],
+            'branchScopedOptions' => $branchScopedOptions,
+            'assignFields' => \App\Support\SimAssignFields::assignModalFields('assign'),
+            'simBranchName' => $sims->branch?->name,
+        ]);
     }
 
     public function return(Request $request, $company_slug, $id)
     {
-        $sims = Sims::find($id);
-        $rider = Riders::find($sims->assign_to);
-        $rider_name = $rider ? $rider->rider_id . "-" . $rider->name : 'N/A';
+        $sims = Sims::with(['riders', 'employee'])->find($id);
+        $assigneeName = $this->simAssigneeDisplayName($sims);
 
         if (empty($sims)) {
             return response()->json(['errors' => ['error' => 'Sim not found!']], 422);
         }
 
         if ($request->isMethod('get')) {
-            return view('sims.return')->with('sims', $sims)->with('rider_name', $rider_name);
+            return view('sims.return', [
+                'sims' => $sims,
+                'assignee_name' => $assigneeName,
+                'assignFields' => \App\Support\SimAssignFields::assignModalFields('return'),
+            ]);
         }
+
+        $rider = $sims->assign_type === 'employee' ? null : Riders::find($sims->assign_to);
+        $employee = $sims->assign_type === 'employee' ? Employee::find($sims->assign_to) : null;
 
 
 
@@ -472,14 +543,17 @@ class SimsController extends AppBaseController
 
         try {
 
-            $input = [];
-            $input['assign_to'] = null;
-            $input['status'] = 0; // Set status to inactive
-            $sims->update($input);
+            $sims->update([
+                'assign_to' => null,
+                'assign_type' => null,
+                'status' => 0,
+            ]);
 
-            // Clear company_contact of the rider who had this SIM (only if column exists).
             if ($rider && Schema::hasColumn('riders', 'company_contact')) {
                 Riders::where('id', $rider->id)->update(['company_contact' => null]);
+            }
+            if ($employee && Schema::hasColumn('employees', 'company_contact')) {
+                Employee::where('id', $employee->id)->update(['company_contact' => null]);
             }
 
             $history = $sims->histories()->orderBy('created_at', 'desc')->first();
@@ -494,6 +568,14 @@ class SimsController extends AppBaseController
             if ($rider) {
                 RiderHistoryLogger::simReturned(
                     $rider,
+                    $sims,
+                    $request->return_date ?? null,
+                    $request->notes ?? null
+                );
+            }
+            if ($employee) {
+                EmployeeHistoryLogger::simReturned(
+                    $employee,
                     $sims,
                     $request->return_date ?? null,
                     $request->notes ?? null
@@ -525,7 +607,7 @@ class SimsController extends AppBaseController
 
         // Prevent deletion if SIM is assigned to a rider
         if (!is_null($sims->assign_to)) {
-            return $this->respondSimDeleteError('Cannot delete SIM because it is currently assigned to a rider. Please return the SIM before deleting.');
+            return $this->respondSimDeleteError('Cannot delete SIM because it is currently assigned. Please return the SIM before deleting.');
         }
 
         // Prevent deletion if SIM has any history
@@ -618,6 +700,76 @@ class SimsController extends AppBaseController
     /**
      * `sims.company` stores the telecom operator (du / etisalat), not the business `company_id`.
      */
+    /**
+     * Validation rules from SIM field settings (module_key: sims).
+     */
+    private function simValidationRules(?int $ignoreSimId = null, bool $includeNumber = true): array
+    {
+        $baseRules = [
+            'emi' => 'nullable|string|min:15|max:25',
+            'company' => 'nullable|string|max:191',
+            'vendor' => 'nullable|integer',
+            'fleet_supervisor' => 'nullable|string|max:50',
+            'branch_id' => 'nullable|numeric|exists:branches,id',
+        ];
+
+        if ($includeNumber) {
+            $numberRule = ['nullable', 'string', 'min:10', 'max:13'];
+            if ($ignoreSimId !== null) {
+                $numberRule[] = Rule::unique('sims', 'number')->ignore($ignoreSimId);
+            } else {
+                $numberRule[] = Rule::unique('sims', 'number');
+            }
+            $baseRules['number'] = $numberRule;
+        }
+
+        $fieldFilter = $includeNumber
+            ? null
+            : ['company', 'vendor', 'fleet_supervisor', 'emi', 'branch_id'];
+
+        return ModuleFieldSettings::validationRulesForModule('sims', $baseRules, [
+            'fields' => $fieldFilter,
+        ]);
+    }
+
+    private function simValidationMessages(): array
+    {
+        return [
+            'number.required' => 'SIM number is required',
+            'number.min' => 'SIM number must be at least 10 characters long',
+            'number.max' => 'SIM number cannot exceed 13 characters',
+            'number.unique' => 'This SIM number already exists',
+            'company.required' => 'Telecom company is required',
+            'company.max' => 'Telecom company name cannot exceed 191 characters',
+            'emi.required' => 'EMI number is required',
+            'emi.min' => 'EMI number must be at least 15 characters',
+            'emi.max' => 'EMI number cannot exceed 25 characters',
+            'branch_id.required' => 'Please select relevant branch',
+            'branch_id.exists' => 'Selected branch does not exist',
+            'vendor.required' => 'Vendor is required',
+            'fleet_supervisor.required' => 'Fleet supervisor is required',
+        ];
+    }
+
+    private function simAssigneeDisplayName(?Sims $sims): string
+    {
+        if (!$sims || !$sims->assign_to) {
+            return 'N/A';
+        }
+
+        if ($sims->assign_type === 'employee') {
+            $employee = $sims->employee ?? Employee::find($sims->assign_to);
+
+            return $employee
+                ? trim($employee->employee_id . '-' . $employee->name)
+                : 'N/A';
+        }
+
+        $rider = $sims->riders ?? Riders::find($sims->assign_to);
+
+        return $rider ? trim($rider->rider_id . '-' . $rider->name) : 'N/A';
+    }
+
     private function resolveSimTelecomCompany(array $input): string
     {
         $fromRequest = trim((string) ($input['company'] ?? ''));

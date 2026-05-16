@@ -17,10 +17,12 @@ use App\DataTables\LedgerDataTable;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
+use App\Traits\GlobalPagination;
 use Laracasts\Flash\Flash;
 
 class EmployeeController extends Controller
 {
+    use GlobalPagination;
     private function employeeFieldsByCategory(bool $includeCustomFields = true): array
     {
         return EmployeeCustomField::fieldsByCategoryForForm($includeCustomFields);
@@ -130,8 +132,104 @@ class EmployeeController extends Controller
         return $labels;
     }
 
+    /**
+     * Column list for employees index table and column control panel.
+     */
+    private function buildEmployeesIndexTableColumns(): array
+    {
+        $employeeColumns = Schema::getColumnListing('employees');
+        $employeeColumnsSet = array_flip($employeeColumns);
+        $exclude = ['id', 'created_at', 'updated_at', 'deleted_at', 'company_id', 'account_id', 'custom_field_values', 'profile_image', 'notes', 'created_by', 'updated_by'];
+        $excludedSet = array_flip($exclude);
+
+        $assignedFixedColumns = EmployeeFieldCategoryAssignment::query()
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get(['field_key', 'display_label'])
+            ->filter(function ($assignment) use ($employeeColumnsSet, $excludedSet) {
+                $key = (string) $assignment->field_key;
+                return isset($employeeColumnsSet[$key]) && !isset($excludedSet[$key]);
+            })
+            ->values();
+
+        $dbColumns = $assignedFixedColumns->pluck('field_key')->all();
+        if (Schema::hasColumn('employees', 'status') && !in_array('status', $dbColumns, true)) {
+            $dbColumns[] = 'status';
+        }
+
+        $assignedCustomFields = EmployeeCustomField::query()
+            ->whereNotNull('category_id')
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get(['id', 'label']);
+
+        $labelMap = $assignedFixedColumns->mapWithKeys(function ($assignment) {
+            $label = trim((string) ($assignment->display_label ?? ''));
+            return [$assignment->field_key => $label !== '' ? $label : EmployeeCustomField::humanizeFieldKey($assignment->field_key)];
+        })->all();
+
+        $preferredOrder = [
+            'employee_id',
+            'name',
+            'company_contact',
+            'branch_id',
+            'department_id',
+            'designation',
+            'doj',
+            'status',
+        ];
+
+        $columns = [];
+        $added = [];
+        $makeTitle = function ($key) use ($labelMap) {
+            return $labelMap[$key] ?? EmployeeCustomField::humanizeFieldKey($key);
+        };
+
+        foreach ($preferredOrder as $key) {
+            if (in_array($key, $dbColumns, true)) {
+                $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
+                $added[$key] = true;
+            }
+        }
+
+        foreach ($dbColumns as $key) {
+            if (empty($added[$key])) {
+                $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
+                $added[$key] = true;
+            }
+        }
+
+        foreach ($assignedCustomFields as $cf) {
+            $columns[] = [
+                'data' => 'custom_field_values.' . $cf->id,
+                'title' => trim((string) $cf->label) !== '' ? $cf->label : ('Custom Field #' . $cf->id),
+            ];
+        }
+
+        $columns[] = ['data' => 'documents_expiry', 'title' => $labelMap['documents_expiry'] ?? 'Documents Expiry'];
+
+        return array_merge($columns, [
+            ['data' => 'action', 'title' => 'Actions'],
+            ['data' => 'search', 'title' => 'Search'],
+            ['data' => 'control', 'title' => 'Control'],
+        ]);
+    }
+
     private function applyEmployeeIndexFilters($query, Request $request): void
     {
+        if ($request->filled('employee_id')) {
+            $query->where('employee_id', 'like', '%' . $request->input('employee_id') . '%');
+        }
+        if ($request->filled('name')) {
+            $query->where('name', 'like', '%' . $request->input('name') . '%');
+        }
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->input('branch_id'));
+        }
+        if ($request->filled('department_id')) {
+            $query->where('department_id', $request->input('department_id'));
+        }
+
         if ($request->filled('quick_search')) {
             $search = $request->input('quick_search');
             $query->where(function ($q) use ($search) {
@@ -160,10 +258,13 @@ class EmployeeController extends Controller
      */
     public function index(Request $request)
     {
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+
         $query = Employee::query()->with('branch', 'department', 'nationality');
         $this->applyEmployeeIndexFilters($query, $request);
-        $employees = $query->orderBy('name')->get();
-        $employeeTableLabels = $this->employeeTableLabels();
+        $query->orderBy('name');
+        $data = $this->applyPagination($query, $paginationParams);
+
         $employeeTopCategories = EmployeeTopCategory::with([
             'options' => function ($q) {
                 $q->where('is_active', true)->orderBy('display_order')->orderBy('id');
@@ -174,7 +275,11 @@ class EmployeeController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('employees.index', compact('employees', 'employeeTableLabels', 'employeeTopCategories'));
+        return view('employees.index', [
+            'data' => $data,
+            'tableColumns' => $this->buildEmployeesIndexTableColumns(),
+            'employeeTopCategories' => $employeeTopCategories,
+        ]);
     }
 
     /**

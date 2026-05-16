@@ -140,11 +140,11 @@
                         {{@$item->account->account_code}}-{{@$item->account->name}}
                     </td>
                     @if($voucher->voucher_type == 'RFV')
-                    <td style="padding: 5px;border:1px solid;text-align: left">{{ $item->narration }}
+                    <td style="padding: 5px;border:1px solid;text-align: left">{!! $item->narration !!}
                         <b>Ticket No:</b>{{$fin_detail->ticket_no ?? ''}},<b>Bike No:</b>{{ $fin_detail->plate_no ?? '' }}, @if ($fin_detail && $fin_detail->trip_date) {{ \Carbon\Carbon::parse($fin_detail->trip_date)->format('d M Y') }} @else N/A @endif
                     </td>
                     @else
-                    <td style="padding: 5px;border:1px solid;text-align: left">{{ $item->narration }}</td>
+                    <td style="padding: 5px;border:1px solid;text-align: left">{!! $item->narration !!}</td>
                     @endif
                     <td style="padding:5px;border:1px solid;text-align: center;">{{ $item->debit }}</td>
                     <td style="padding:5px;border:1px solid;text-align: center;">{{ $item->credit }}</td>

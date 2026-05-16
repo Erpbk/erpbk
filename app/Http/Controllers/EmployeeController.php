@@ -110,14 +110,14 @@ class EmployeeController extends Controller
 
         if ($ignoreEmployeeId !== null) {
             $rules['employee_id'] = [
-                'required',
+                'nullable',
                 'string',
                 'max:191',
                 Rule::unique('employees', 'employee_id')->ignore($ignoreEmployeeId),
             ];
-            $rules['name'] = ['required', 'string', 'max:255'];
+            $rules['name'] = ['nullable', 'string', 'max:255'];
             $rules['company_email'] = [
-                'required',
+                'nullable',
                 'email',
                 'max:191',
                 Rule::unique('employees', 'company_email')->ignore($ignoreEmployeeId),
@@ -138,7 +138,7 @@ class EmployeeController extends Controller
         }
 
         if ($forCreate) {
-            $rules['account'] = 'required|in:new,existing';
+            $rules['account'] = 'nullable|in:new,existing';
             $rules['account_id'] = 'nullable|required_if:account,existing|exists:accounts,id';
         }
 

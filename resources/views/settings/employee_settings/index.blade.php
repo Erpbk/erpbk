@@ -2397,11 +2397,7 @@
               var modal = bootstrap.Modal.getInstance(document.getElementById('editRiderFixedFieldModal'));
               if (modal) modal.hide();
             }
-            if (typeof window.refreshRiderFieldsTableBody === 'function') {
-              window.refreshRiderFieldsTableBody();
-            } else {
-              location.reload();
-            }
+            location.reload();
             if (typeof Swal !== 'undefined') Swal.fire({
               icon: 'success',
               title: 'Updated',
@@ -2905,6 +2901,57 @@
           });
       });
     }
+
+    // Move fixed field to another category
+    document.addEventListener('submit', function(e) {
+      var form = e.target.closest('.employee-field-assignment-form');
+      if (!form) return;
+      e.preventDefault();
+      var categorySelect = form.querySelector('select[name="category_id"]');
+      var categoryId = categorySelect && categorySelect.value;
+      if (!categoryId) {
+        if (typeof Swal !== 'undefined') Swal.fire({
+          icon: 'warning',
+          title: 'Select a category',
+          text: 'Choose a category before clicking Move.'
+        });
+        return;
+      }
+      var moveBtn = form.querySelector('button[type="submit"]');
+      if (moveBtn) moveBtn.disabled = true;
+      fetch(form.action, {
+          method: 'POST',
+          body: new FormData(form),
+          headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(r) {
+          return r.json().then(function(data) {
+            return r.ok ? data : Promise.reject(data);
+          });
+        })
+        .then(function(data) {
+          window.location.href = "{{ route('settings-panel.employee-settings.index') }}?tab=employee-fields";
+        })
+        .catch(function(err) {
+          if (moveBtn) moveBtn.disabled = false;
+          var msg = (err && err.message) ? err.message : 'Could not move field to the selected category.';
+          if (err && err.errors) {
+            var firstKey = Object.keys(err.errors)[0];
+            if (firstKey && err.errors[firstKey] && err.errors[firstKey][0]) {
+              msg = err.errors[firstKey][0];
+            }
+          }
+          if (typeof Swal !== 'undefined') Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: msg
+          });
+        });
+    });
 
     // Delete custom field: AJAX and refresh that category tbody
     document.addEventListener('submit', function(e) {

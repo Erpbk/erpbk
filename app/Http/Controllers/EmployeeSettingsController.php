@@ -336,15 +336,10 @@ class EmployeeSettingsController extends Controller
         if (!in_array($validated['field_key'], $keys, true)) {
             return response()->json(['success' => false, 'message' => 'Invalid field.'], 422);
         }
-        $assignment = EmployeeFieldCategoryAssignment::withoutGlobalScope('company')
-            ->where('field_key', $validated['field_key'])
-            ->first();
+        $assignment = EmployeeFieldCategoryAssignment::where('field_key', $validated['field_key'])->first();
         if (!$assignment) {
             $assignment = new EmployeeFieldCategoryAssignment();
             $assignment->field_key = $validated['field_key'];
-            if (Schema::hasColumn($assignment->getTable(), 'company_id')) {
-                $assignment->company_id = auth()->user()->company_id ?? null;
-            }
         }
         $newCategoryId = (int) $validated['category_id'];
         $assignment->category_id = $newCategoryId;

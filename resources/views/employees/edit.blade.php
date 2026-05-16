@@ -1,12 +1,12 @@
 @extends('employees.view')
 
-@section('page-content')
+@section('page_content')
 {!! Form::model($employee, ['route' => ['employees.update', $employee->id], 'method' => 'patch', 'id' => 'formajax', 'class' => 'form-with-fixed-footer']) !!}
 <input type="hidden" id="redirect_url" value="{{ route('employees.index') }}" />
 <div class="card-body card-body-with-footer">
     @include('employees.fields')
 </div>
-<div class="card-footer fixed-footer">
+<div class="card-footer bg-light border-top fixed-footer">
     <div class="d-flex justify-content-end gap-3">
         <a href="{{ route('employees.index') }}" class="btn btn-outline-secondary">Cancel</a>
         <button type="submit" class="btn btn-primary">Save Information</button>

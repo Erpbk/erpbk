@@ -1,6 +1,6 @@
 @extends('employees.view')
 
-@section('page-content')
+@section('page_content')
 {!! Form::open(['route' => 'employees.store', 'id' => 'formajax', 'class' => 'form-with-fixed-footer']) !!}
 <input type="hidden" id="redirect_url" value="{{ route('employees.index') }}" />
 <div class="card-body card-body-with-footer">

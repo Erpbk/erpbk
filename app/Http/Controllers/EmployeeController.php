@@ -17,6 +17,8 @@ use App\DataTables\LedgerDataTable;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use App\Traits\GlobalPagination;
 use Laracasts\Flash\Flash;
 
@@ -516,14 +518,64 @@ class EmployeeController extends Controller
         return view('employees.leaves', compact('employee', 'nationalities', 'branches', 'departments'));
     }
 
-    public function timeline($comapny_slug, $id)
+    public function sendEmail($company_slug, $id, Request $request)
     {
         $employee = Employee::findOrFail($id);
-        $nationalities = \App\Models\Countries::all();
-        $branches = \App\Models\Branch::active()->get();
-        $departments = \App\Models\Departments::all();
 
-        return view('employees.timeline', compact('employee', 'nationalities', 'branches', 'departments'));
+        if ($request->isMethod('post')) {
+            $user = Auth::user();
+            $fromName = is_string($user?->name) ? trim($user->name) : '';
+            $fromEmailCandidate = is_string($user?->email) && trim($user->email) !== ''
+                ? trim($user->email)
+                : (is_string($user?->username) ? trim($user->username) : '');
+            $fromEmail = (is_string($fromEmailCandidate) && filter_var($fromEmailCandidate, FILTER_VALIDATE_EMAIL))
+                ? $fromEmailCandidate
+                : (config('mail.from.address') ?: env('MAIL_FROM_ADDRESS') ?: 'hello@example.com');
+
+            $toEmail = $request->input('email_to');
+            if (!is_string($toEmail) || trim($toEmail) === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Employee email address is missing.',
+                ], 422);
+            }
+            $toEmail = trim($toEmail);
+
+            $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
+                ? trim($request->input('email_subject'))
+                : '(Employee email)';
+
+            $data = [
+                'html' => $request->input('email_message'),
+            ];
+
+            $emailService = app(\App\Services\Email\UserEmailService::class);
+            $emailService->configureSmtpForUser($user, $fromEmail);
+            $ccEmails = $emailService->getCcRecipientEmails($user);
+
+            Mail::send('emails.general', $data, function ($message) use ($toEmail, $subject, $fromEmail, $fromName, $ccEmails) {
+                $message->to([$toEmail]);
+                if (!empty($ccEmails)) {
+                    $message->cc($ccEmails);
+                } else {
+                    $adminCc = env('ADMIN_CC_EMAIL');
+                    if (!empty($adminCc)) {
+                        $message->cc($adminCc);
+                    }
+                }
+                $message->from($fromEmail, $fromName);
+                $message->replyTo($fromEmail, $fromName);
+                $message->subject($subject);
+                $message->priority(3);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email sent successfully.',
+            ]);
+        }
+
+        return view('employees.send_email', compact('employee'));
     }
 
     public function voucher($comapny_slug, $id)
@@ -542,7 +594,8 @@ class EmployeeController extends Controller
         $departments = \App\Models\Departments::all();
         $employeeCategories = EmployeeCategory::orderBy('display_order')->orderBy('id')->get();
         $fieldsByCategory = $this->employeeFieldsByCategory();
-        return view('employees.edit', compact('employee', 'nationalities', 'branches', 'departments', 'employeeCategories', 'fieldsByCategory'));
+        $result = $employee->toArray();
+        return view('employees.edit', compact('employee', 'nationalities', 'branches', 'departments', 'employeeCategories', 'fieldsByCategory', 'result'));
     }
 
     /**
@@ -780,6 +833,58 @@ class EmployeeController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update employee status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update a single employee column from profile sidebar cards.
+     */
+    public function updateProfileField(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'column' => 'required|string|max:80',
+            'value' => 'nullable|string|max:255',
+        ]);
+
+        $column = $validated['column'];
+        if (!Schema::hasColumn('employees', $column)) {
+            return response()->json(['success' => false, 'message' => 'Invalid column.'], 422);
+        }
+
+        $allowedColumns = EmployeeTopCategory::whereNotNull('employee_column')
+            ->pluck('employee_column')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!in_array($column, $allowedColumns, true)) {
+            return response()->json(['success' => false, 'message' => 'Column is not allowed.'], 422);
+        }
+
+        try {
+            $employee = Employee::findOrFail($validated['employee_id']);
+            $employee->{$column} = $validated['value'] ?? null;
+            $employee->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Employee updated successfully.',
+                'column' => $column,
+                'value' => $employee->{$column},
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update employee profile field', [
+                'employee_id' => $validated['employee_id'],
+                'column' => $column,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update employee: ' . $e->getMessage(),
             ], 500);
         }
     }

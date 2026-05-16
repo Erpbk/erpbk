@@ -229,11 +229,22 @@
 </style>
 
 @php
+$employee = $employee ?? null;
+if ($employee && !isset($result)) {
+    $result = $employee->toArray();
+}
 // Ledger-linked account for balance display (create form has no employee yet)
 $account = null;
 if (!request()->routeIs('employees.create') && isset($employee) && !empty($employee->account_id)) {
-$account = App\Models\Accounts::find($employee->account_id);
+    $account = App\Models\Accounts::find($employee->account_id);
 }
+$employeeTopViewCategories = collect();
+if (isset($employee)) {
+    $employeeTopViewCategories = \App\Models\EmployeeTopCategory::with(['options' => function ($q) {
+        $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+    }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
+}
+$currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : 'active';
 @endphp
 
 <div class="row" style="">
@@ -277,26 +288,28 @@ $account = App\Models\Accounts::find($employee->account_id);
               <div class="d-flex align-items-baseline">
                 <div class="user-info" style="width: 100%;">
                   <div class="mt-2" style="width: 100%;display: flex;gap: 10px; margin-bottom: 10px;">
-                    <span class="badge bg-label-primary">{{ $employee->designation ?? 'Not Set' }}</span>
-                    <span class="badge  @if(isset($employee)) @if($employee->status == 'active') bg-label-success @elseif($employee->status == 'inactive') bg-label-danger @else bg-label-info @endif @endif">
-                      {{ ucfirst($employee->status ?? 'Not Set') }}
+                    <span class="badge bg-label-primary" id="employee-designation-badge">{{ $employee?->designation ?? 'Not Set' }}</span>
+                    <span class="badge @if($employee) @if($employee->status == 'active') bg-label-success @elseif($employee->status == 'inactive') bg-label-danger @else bg-label-info @endif @else bg-label-secondary @endif" id="employee-status-value-badge">
+                      {{ $employee ? ucfirst($employee->status) : 'New' }}
                     </span>
                   </div>
-                  <span>{{ $employee->employee_id ?? 'not-set' }}</span>
+                  <span>{{ $employee?->employee_id ?? ($empId ?? 'not-set') }}</span>
                   <h6>
                     <b>
-                      {{ $employee->name ?? 'not-set' }}
+                      {{ $employee?->name ?? 'New Employee' }}
                     </b>
                   </h6>
                 </div>
+                @if($employee)
                 <div class="text-end" style="width: 14%;" id="photo-icon">
                   <i class="ti ti-edit ti-sm"
                     style="border: 2px solid #9593997a !important; border-radius: 24px; padding: 8px; cursor: pointer;">
                   </i>
                 </div>
+                @endif
               </div>
             </div>
-            @if(isset($employee))
+            @if($employee)
             <div id="photo-upload-form" class="mt-4" style="display: none;">
               <form action="{{ route('employees.updateSection', $employee->id) }}" method="POST" enctype="multipart/form-data" id="formAjax2">
                 @csrf
@@ -331,7 +344,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Company Email:</span><br>
-                  <b class="float-right">{{ $employee->company_email ?? 'not-set' }}</b>
+                  <b class="float-right">{{ $employee?->company_email ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -341,7 +354,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 <div class="user_list_content mt-2">
                   <span>WhatsApp:</span><br>
                   <b class="float-right">
-                    @if(isset($employee->company_contact))
+                    @if($employee?->company_contact)
                     @php
                     $phone = preg_replace('/[^0-9]/', '', $employee->company_contact);
                     $whatsappNumber = '+971' . ltrim($phone, '0');
@@ -363,7 +376,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Nationality:</span><br>
-                  <b class="float-right">{{ $employee->nationality->name ?? 'not-set' }}</b>
+                  <b class="float-right">{{ $employee?->nationality?->name ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -373,7 +386,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 <div class="user_list_content">
                   <span>Age:</span><br>
                   <b class="float-right">
-                    @if(isset($employee->dob))
+                    @if($employee?->dob)
                     {{ \Carbon\Carbon::parse($employee->dob)->age }}
                     @else
                     not-set
@@ -388,7 +401,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 <div class="user_list_content">
                   <span>Date Of Joining:</span><br>
                   <b class="float-right">
-                    @if(isset($employee->doj))
+                    @if($employee?->doj)
                     {{ \Carbon\Carbon::parse($employee->doj)->format('d M Y') }}
                     @else
                     not-set
@@ -417,7 +430,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Salary:</span><br>
-                  <b class="float-right">{{ number_format($employee->salary ?? 0, 2) }} {{ \App\Helpers\Currency::code() }}</b>
+                  <b class="float-right">{{ number_format($employee?->salary ?? 0, 2) }} {{ \App\Helpers\Currency::code() }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -426,7 +439,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Emirates ID:</span><br>
-                  <b class="float-right">{{ $employee->emirate_id ?? 'not-set' }}</b>
+                  <b class="float-right">{{ $employee?->emirate_id ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -435,7 +448,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Department:</span><br>
-                  <b class="float-right">{{ $employee->department->name ?? $employee->department_id ?? 'not-set' }}</b>
+                  <b class="float-right">{{ $employee?->department?->name ?? $employee?->department_id ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -444,11 +457,15 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Branch:</span><br>
-                  <b class="float-right">{{ $employee->branch->name ?? 'not-set' }}</b>
+                  <b class="float-right">{{ $employee?->branch?->name ?? 'not-set' }}</b>
                 </div>
               </li>
             </ul>
           </ul>
+
+          @if($employee)
+          @include('employees._status_cards', ['employee' => $employee, 'employeeTopViewCategories' => $employeeTopViewCategories])
+          @endif
 
         </div>
       </div>
@@ -515,15 +532,6 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </li>
                 @endcan
 
-                @can('employee_timeline')
-                <li class="nav-item nav-priority-7">
-                  <a class="nav-link @if(request()->segment(2) == 'timeline') active @endif"
-                    href="{{ route('employee.timeline', $employee->id) }}">
-                    <i class="ti ti-timeline ti-sm me-1_5"></i>Timeline
-                  </a>
-                </li>
-                @endcan
-
                 <!-- Action items -->
                 @canany(['employee_voucher_create'])
                 <li class="nav-item nav-priority-8 nav-action-item">
@@ -555,13 +563,14 @@ $account = App\Models\Accounts::find($employee->account_id);
       </div>
     </div>
 
-    <div style="margin-top: 20px; position: relative;">
+    <div class="card mb-5" id="cardBody" style="margin-top: 20px; position: relative;">
+      @yield('page_content')
       @yield('page-content')
     </div>
   </div>
 </div>
 
-{{-- @include('employees.action-buttons') --}}
+@include('employees.action-buttons')
 @endsection
 
 @section('page-script')
@@ -754,6 +763,119 @@ $account = App\Models\Accounts::find($employee->account_id);
 
     // Initialize responsive navigation
     const responsiveNav = new ResponsiveNavigation();
+
+    const employeeStatusCards = document.getElementById('employee-status-cards');
+    if (employeeStatusCards) {
+      const employeeId = employeeStatusCards.getAttribute('data-employee-id');
+      const updateStatusUrl = "{{ route('employee.update-status') }}";
+      const updateFieldUrl = "{{ route('employee.update-profile-field') }}";
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+      function syncEmployeeStatusCards(activeStatus) {
+        const map = {
+          active: 'employee-status-active-card',
+          on_leave: 'employee-status-leave-card',
+          inactive: 'employee-status-inactive-card',
+        };
+        Object.keys(map).forEach((key) => {
+          const card = document.getElementById(map[key]);
+          if (!card) return;
+          card.classList.toggle('active-success', key === 'active' && activeStatus === 'active');
+          card.classList.toggle('active-info', key === 'on_leave' && activeStatus === 'on_leave');
+          card.classList.toggle('active-danger', key === 'inactive' && activeStatus === 'inactive');
+        });
+        const badge = document.getElementById('employee-status-value-badge');
+        if (badge) {
+          const label = (activeStatus || 'active').replace('_', ' ');
+          badge.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+          badge.className = 'badge ' + (
+            activeStatus === 'active' ? 'bg-label-success' :
+            activeStatus === 'inactive' ? 'bg-label-danger' : 'bg-label-info'
+          );
+        }
+      }
+
+      employeeStatusCards.addEventListener('change', function(e) {
+        const target = e.target;
+        if (!employeeId || !csrfToken) return;
+
+        if (target.matches('input[name="employee_status_toggle"]')) {
+          const status = target.value;
+          const card = target.closest('.status-card');
+          if (card) card.classList.add('loading');
+
+          fetch(updateStatusUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify({ employee_id: employeeId, status: status }),
+          })
+            .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+              if (ok && data.success) {
+                syncEmployeeStatusCards(status);
+                showNotification(data.message || 'Status updated', 'success');
+              } else {
+                showNotification(data.message || 'Failed to update status', 'error');
+              }
+            })
+            .catch(() => showNotification('Failed to update status', 'error'))
+            .finally(() => {
+              if (card) card.classList.remove('loading');
+            });
+          return;
+        }
+
+        if (target.classList.contains('employee-top-option-checkbox')) {
+          const column = target.getAttribute('data-column');
+          const value = target.getAttribute('data-value');
+          if (!column) return;
+
+          const card = target.closest('.status-card');
+          if (card) card.classList.add('loading');
+
+          const payload = {
+            employee_id: employeeId,
+            column: column,
+            value: target.checked ? value : null,
+          };
+
+          fetch(updateFieldUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify(payload),
+          })
+            .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+              if (ok && data.success) {
+                employeeStatusCards.querySelectorAll('.employee-top-option-card[data-column="' + column + '"]').forEach((c) => {
+                  const cb = c.querySelector('.employee-top-option-checkbox');
+                  const isSelected = cb && cb.checked;
+                  c.classList.toggle('active-success', !!isSelected);
+                });
+                showNotification(data.message || 'Updated', 'success');
+              } else {
+                target.checked = !target.checked;
+                showNotification(data.message || 'Failed to update', 'error');
+              }
+            })
+            .catch(() => {
+              target.checked = !target.checked;
+              showNotification('Failed to update', 'error');
+            })
+            .finally(() => {
+              if (card) card.classList.remove('loading');
+            });
+        }
+      });
+    }
 
     // Function to show notifications
     function showNotification(message, type) {

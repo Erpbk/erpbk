@@ -8,6 +8,7 @@ use App\Models\EmployeeCustomField;
 use App\Models\EmployeeDocumentType;
 use App\Models\EmployeeFieldCategoryAssignment;
 use App\Models\EmployeeTopCategory;
+use App\Models\Attendance;
 use App\Models\Transactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -504,8 +505,52 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
+        $result = $employee->toArray();
 
-        return view('employees.attendance', compact('employee', 'nationalities', 'branches', 'departments'));
+        $month = request('month', date('Y-m'));
+        $monthStart = \Carbon\Carbon::parse($month . '-01');
+        $year = (int) $monthStart->format('Y');
+        $monthNum = (int) $monthStart->format('m');
+
+        $attendances = collect();
+        $summary = [
+            'total' => 0,
+            'present' => 0,
+            'absent' => 0,
+            'late' => 0,
+            'half_day' => 0,
+            'on_leave' => 0,
+            'holiday' => 0,
+        ];
+
+        if (Schema::hasTable('attendance')) {
+            $attendances = Attendance::where('ref_type', 'employee')
+                ->where('ref_id', $id)
+                ->whereYear('date', $year)
+                ->whereMonth('date', $monthNum)
+                ->orderByDesc('date')
+                ->orderByDesc('id')
+                ->get();
+
+            $summary['total'] = $attendances->count();
+            foreach ($attendances as $row) {
+                $key = str_replace(' ', '_', strtolower((string) $row->status));
+                if (array_key_exists($key, $summary)) {
+                    $summary[$key]++;
+                }
+            }
+        }
+
+        return view('employees.attendance', compact(
+            'employee',
+            'nationalities',
+            'branches',
+            'departments',
+            'result',
+            'attendances',
+            'month',
+            'summary'
+        ));
     }
 
     public function leaves($comapny_slug, $id)

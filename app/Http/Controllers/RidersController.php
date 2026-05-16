@@ -32,6 +32,7 @@ use App\Models\Bikes;
 use App\Models\BikeHistory;
 use App\Models\RiderInvoices;
 use App\Models\RiderHistory;
+use App\Models\SimHistory;
 use App\Models\Customers;
 use App\Models\RiderActivities;
 use App\Models\RiderAttendance;
@@ -1108,18 +1109,39 @@ class RidersController extends AppBaseController
       return redirect(route('riders.index'));
     }
 
-    $histories = null;
+    $statusHistories = null;
+    $simHistories = null;
     $projectChangeCount = 0;
+    $simHistoryCount = 0;
+    $activeTab = in_array(request('tab'), ['status', 'sim'], true) ? request('tab') : 'status';
+
     if (Schema::hasTable('rider_histories')) {
-      $histories = RiderHistory::with(['branch', 'customer'])
+      $statusHistories = RiderHistory::with(['branch', 'customer'])
         ->where('rider_id', $id)
+        ->whereNotIn('event_type', ['sim_assign', 'sim_return'])
         ->orderByDesc('effective_date')
         ->orderByDesc('id')
-        ->paginate(50);
+        ->paginate(50, ['*'], 'status_page');
       $projectChangeCount = RiderHistory::where('rider_id', $id)->where('event_type', 'project_change')->count();
     }
 
-    return view('riders.history', compact('riders', 'histories', 'projectChangeCount'));
+    if (Schema::hasTable('sim_histories')) {
+      $simHistories = SimHistory::with('sim')
+        ->where('rider_id', $id)
+        ->orderByDesc('note_date')
+        ->orderByDesc('id')
+        ->paginate(50, ['*'], 'sim_page');
+      $simHistoryCount = SimHistory::where('rider_id', $id)->count();
+    }
+
+    return view('riders.history', compact(
+      'riders',
+      'statusHistories',
+      'simHistories',
+      'projectChangeCount',
+      'simHistoryCount',
+      'activeTab'
+    ));
   }
 
   public function contract($company_slug, $id)

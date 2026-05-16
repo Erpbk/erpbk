@@ -19,6 +19,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SimExport;
 use App\Models\User;
 use App\Models\SimCompany;
+use App\Services\RiderHistoryLogger;
 use Illuminate\Support\Facades\Schema;
 
 class SimsController extends AppBaseController
@@ -406,6 +407,13 @@ class SimsController extends AppBaseController
                 if (Schema::hasColumn('riders', 'company_contact')) {
                     Riders::where('id', $input['assign_to'])->update(['company_contact' => $sims->number]);
                 }
+
+                RiderHistoryLogger::simAssigned(
+                    $rider,
+                    $sims->fresh(),
+                    $input['note_date'] ?? null,
+                    $input['notes'] ?? null
+                );
             } catch (\Exception $e) {
                 \Log::error('Error assigning SIM: ' . $e->getMessage(), [
                     'sim_id' => $sims->id,
@@ -481,6 +489,15 @@ class SimsController extends AppBaseController
                     'returned_by' => auth()->id(),
                     'notes' => $request->notes ?? '',
                 ]);
+            }
+
+            if ($rider) {
+                RiderHistoryLogger::simReturned(
+                    $rider,
+                    $sims,
+                    $request->return_date ?? null,
+                    $request->notes ?? null
+                );
             }
 
             return response()->json([

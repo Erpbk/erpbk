@@ -231,18 +231,18 @@
 @php
 $employee = $employee ?? null;
 if ($employee && !isset($result)) {
-    $result = $employee->toArray();
+$result = $employee->toArray();
 }
 // Ledger-linked account for balance display (create form has no employee yet)
 $account = null;
 if (!request()->routeIs('employees.create') && isset($employee) && !empty($employee->account_id)) {
-    $account = App\Models\Accounts::find($employee->account_id);
+$account = App\Models\Accounts::find($employee->account_id);
 }
 $employeeTopViewCategories = collect();
 if (isset($employee)) {
-    $employeeTopViewCategories = \App\Models\EmployeeTopCategory::with(['options' => function ($q) {
-        $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
-    }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
+$employeeTopViewCategories = \App\Models\EmployeeTopCategory::with(['options' => function ($q) {
+$q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+}])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
 }
 $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : 'active';
 @endphp
@@ -518,7 +518,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 <li class="nav-item nav-priority-5">
                   <a class="nav-link @if(request()->segment(2) == 'attendance') active @endif"
                     href="{{ route('employee.attendance', $employee->id) }}">
-                    <i class="ti ti-calendar-check ti-sm me-1_5"></i>Attendance
+                    <i class="ti ti-activity-heartbeat ti-sm me-1_5"></i>Activities
                   </a>
                 </li>
                 @endcan
@@ -805,16 +805,25 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
           if (card) card.classList.add('loading');
 
           fetch(updateStatusUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'X-CSRF-TOKEN': csrfToken,
-            },
-            body: JSON.stringify({ employee_id: employeeId, status: status }),
-          })
-            .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
-            .then(({ ok, data }) => {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+              },
+              body: JSON.stringify({
+                employee_id: employeeId,
+                status: status
+              }),
+            })
+            .then((r) => r.json().then((data) => ({
+              ok: r.ok,
+              data
+            })))
+            .then(({
+              ok,
+              data
+            }) => {
               if (ok && data.success) {
                 syncEmployeeStatusCards(status);
                 showNotification(data.message || 'Status updated', 'success');
@@ -844,16 +853,22 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
           };
 
           fetch(updateFieldUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'X-CSRF-TOKEN': csrfToken,
-            },
-            body: JSON.stringify(payload),
-          })
-            .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
-            .then(({ ok, data }) => {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+              },
+              body: JSON.stringify(payload),
+            })
+            .then((r) => r.json().then((data) => ({
+              ok: r.ok,
+              data
+            })))
+            .then(({
+              ok,
+              data
+            }) => {
               if (ok && data.success) {
                 employeeStatusCards.querySelectorAll('.employee-top-option-card[data-column="' + column + '"]').forEach((c) => {
                   const cb = c.querySelector('.employee-top-option-checkbox');

@@ -8,6 +8,7 @@ use App\Models\Customers;
 use App\Models\RiderHistory;
 use Illuminate\Http\Request;
 use App\Models\Riders;
+use App\Models\Sims;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
@@ -294,5 +295,61 @@ class RiderHistoryLogger
         if ($rider) {
             Riders::syncDisplayStatus($rider->fresh());
         }
+    }
+
+    /**
+     * Log SIM assignment on rider history (shown in Rider SIM History tab only).
+     */
+    public static function simAssigned(Riders $rider, Sims $sim, ?string $noteDate = null, ?string $notes = null): void
+    {
+        $simNumber = $sim->number ?? (string) $sim->id;
+        $details = 'SIM ' . $simNumber . ' assigned';
+        if ($notes !== null && trim($notes) !== '') {
+            $details .= ' — ' . trim($notes);
+        }
+
+        $snapshot = self::structuredHistorySnapshot($rider);
+        $snapshot['meta']['sim_id'] = $sim->id;
+        $snapshot['meta']['sim_number'] = $simNumber;
+        $snapshot['meta']['action'] = 'assigned';
+
+        self::record(
+            (int) $rider->id,
+            'sim_assign',
+            'SIM assigned',
+            $details,
+            $snapshot['meta'],
+            $noteDate ?: now()->toDateString(),
+            self::resolveBranchId($rider),
+            $snapshot['context']
+        );
+    }
+
+    /**
+     * Log SIM return on rider history (shown in Rider SIM History tab only).
+     */
+    public static function simReturned(Riders $rider, Sims $sim, ?string $returnDate = null, ?string $notes = null): void
+    {
+        $simNumber = $sim->number ?? (string) $sim->id;
+        $details = 'SIM ' . $simNumber . ' returned';
+        if ($notes !== null && trim($notes) !== '') {
+            $details .= ' — ' . trim($notes);
+        }
+
+        $snapshot = self::structuredHistorySnapshot($rider);
+        $snapshot['meta']['sim_id'] = $sim->id;
+        $snapshot['meta']['sim_number'] = $simNumber;
+        $snapshot['meta']['action'] = 'returned';
+
+        self::record(
+            (int) $rider->id,
+            'sim_return',
+            'SIM returned',
+            $details,
+            $snapshot['meta'],
+            $returnDate ?: now()->toDateString(),
+            self::resolveBranchId($rider),
+            $snapshot['context']
+        );
     }
 }

@@ -496,6 +496,11 @@ function reloadDataTable() {
 }
 
 $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
+  // Employee create/edit use dedicated handlers (#employee-store-form / #employee-edit-form)
+  if ($(this).is('#employee-store-form, #employee-edit-form')) {
+    return;
+  }
+
   e.preventDefault();
   block();
 

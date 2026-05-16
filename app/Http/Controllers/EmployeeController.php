@@ -33,11 +33,31 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Mandatory custom fields from employee settings (fixed fields use employeeValidationRules).
+     * Required custom + fixed fields from employee settings (same pattern as riders dynamicFieldRules).
      */
     private function employeeDynamicFieldRules(): array
     {
         $rules = [];
+        $employeeColumns = array_flip(Schema::getColumnListing('employees'));
+        $assignmentTable = (new EmployeeFieldCategoryAssignment())->getTable();
+        $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
+        $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
+
+        if ($hasRequiredColumn) {
+            $query = EmployeeFieldCategoryAssignment::query()->where('is_required', 1);
+            if ($hasVisibleColumn) {
+                $query->where(function ($q) {
+                    $q->where('is_visible', 1)->orWhereNull('is_visible');
+                });
+            }
+            $query->get(['field_key'])->each(function ($assignment) use (&$rules, $employeeColumns) {
+                $fieldKey = (string) $assignment->field_key;
+                if (!isset($employeeColumns[$fieldKey])) {
+                    return;
+                }
+                $rules[$fieldKey] = 'required';
+            });
+        }
 
         EmployeeCustomField::query()
             ->where('is_mandatory', 1)
@@ -54,9 +74,9 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Build employee create/update validation from settings + employees table columns.
+     * Build employee create/update validation from Employee Settings assignments (same as riders).
      */
-    private function employeeValidationRules(?int $ignoreEmployeeId = null, bool $forCreate = false): array
+    private function employeeValidationRules(?int $ignoreEmployeeId = null): array
     {
         $rules = Employee::$rules;
         $employeeColumns = array_flip(Schema::getColumnListing('employees'));
@@ -108,23 +128,11 @@ class EmployeeController extends Controller
             $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
         }
 
-        if ($forCreate) {
-            $rules['employee_id'] = ['required', 'string', 'max:191', Rule::unique('employees', 'employee_id')];
-            $rules['name'] = ['required', 'string', 'max:255'];
-            $rules['account'] = 'required|in:new,existing';
-            $rules['account_id'] = 'nullable|required_if:account,existing|exists:accounts,id';
-        }
+        $rules['account'] = 'nullable|in:new,existing';
+        $rules['account_id'] = 'nullable|required_if:account,existing|exists:accounts,id';
 
         if ($ignoreEmployeeId !== null) {
-            $rules['employee_id'] = [
-                'required',
-                'string',
-                'max:191',
-                Rule::unique('employees', 'employee_id')->ignore($ignoreEmployeeId),
-            ];
-            $rules['name'] = ['required', 'string', 'max:255'];
-
-            foreach (['company_email', 'passport', 'emirate_id'] as $uniqueKey) {
+            foreach (['employee_id', 'company_email', 'personal_email', 'passport', 'emirate_id'] as $uniqueKey) {
                 if (!isset($employeeColumns[$uniqueKey])) {
                     continue;
                 }
@@ -151,7 +159,14 @@ class EmployeeController extends Controller
      */
     private function employeeAttributesFromRequest(Request $request, ?Employee $employee = null): array
     {
-        $input = $request->only((new Employee())->getFillable());
+        $fillable = (new Employee())->getFillable();
+        $input = array_intersect_key($request->all(), array_flip($fillable));
+
+        foreach ($input as $key => $value) {
+            if ($value === '' || $value === null) {
+                unset($input[$key]);
+            }
+        }
 
         if ($request->has('custom_field_values')) {
             $input['custom_field_values'] = $request->input('custom_field_values', []);
@@ -364,11 +379,25 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Ensure core create fields exist before validation (employee_id may be hidden in settings).
      */
+    private function prepareEmployeeStoreRequest(Request $request): void
+    {
+        if (!$request->filled('employee_id')) {
+            $request->merge(['employee_id' => $this->nextEmployeeId()]);
+        }
+        if (!$request->filled('status')) {
+            $request->merge(['status' => 'active']);
+        }
+        if (!$request->filled('account')) {
+            $request->merge(['account' => 'new']);
+        }
+    }
+
     public function store(Request $request)
     {
-        $request->validate($this->employeeValidationRules(null, true));
+        $this->prepareEmployeeStoreRequest($request);
+        $request->validate($this->employeeValidationRules());
 
         try {
             DB::beginTransaction();
@@ -439,7 +468,7 @@ class EmployeeController extends Controller
             if (request()->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to create employee. Please try again. Error:' . $e->getMessage(),
+                    'message' => 'Failed to create employee. Please try again. Error: ' . $e->getMessage(),
                 ], 500);
             }
             // Redirect back with error

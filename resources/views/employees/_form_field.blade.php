@@ -3,7 +3,9 @@ $isEdit = isset($employee) && $employee;
 $value = null;
 if (($item->kind ?? '') === 'fixed') {
     $name = $item->field_key;
-    $value = $isEdit ? ($employee->{$item->field_key} ?? null) : old($item->field_key);
+    $value = $isEdit
+        ? ($employee->{$item->field_key} ?? null)
+        : old($item->field_key, ($item->field_key === 'employee_id' ? ($empId ?? null) : null));
 } else {
     $name = 'custom_field_values[' . $item->field->id . ']';
     if ($isEdit && is_array($employee->custom_field_values ?? null)) {

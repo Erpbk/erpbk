@@ -3,6 +3,7 @@
 @section('page_content')
 {!! Form::open(['route' => 'employees.store', 'id' => 'formajax', 'class' => 'form-with-fixed-footer']) !!}
 <input type="hidden" id="redirect_url" value="{{ route('employees.index') }}" />
+<input type="hidden" name="account" value="new" />
 <div class="card-body card-body-with-footer">
     @include('employees.fields')
 </div>

@@ -108,22 +108,23 @@ class EmployeeController extends Controller
             $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
         }
 
+        if ($forCreate) {
+            $rules['employee_id'] = ['required', 'string', 'max:191', Rule::unique('employees', 'employee_id')];
+            $rules['name'] = ['required', 'string', 'max:255'];
+            $rules['account'] = 'required|in:new,existing';
+            $rules['account_id'] = 'nullable|required_if:account,existing|exists:accounts,id';
+        }
+
         if ($ignoreEmployeeId !== null) {
             $rules['employee_id'] = [
-                'nullable',
+                'required',
                 'string',
                 'max:191',
                 Rule::unique('employees', 'employee_id')->ignore($ignoreEmployeeId),
             ];
-            $rules['name'] = ['nullable', 'string', 'max:255'];
-            $rules['company_email'] = [
-                'nullable',
-                'email',
-                'max:191',
-                Rule::unique('employees', 'company_email')->ignore($ignoreEmployeeId),
-            ];
+            $rules['name'] = ['required', 'string', 'max:255'];
 
-            foreach (['passport', 'emirate_id'] as $uniqueKey) {
+            foreach (['company_email', 'passport', 'emirate_id'] as $uniqueKey) {
                 if (!isset($employeeColumns[$uniqueKey])) {
                     continue;
                 }
@@ -137,31 +138,35 @@ class EmployeeController extends Controller
             }
         }
 
-        if ($forCreate) {
-            $rules['account'] = 'nullable|in:new,existing';
-            $rules['account_id'] = 'nullable|required_if:account,existing|exists:accounts,id';
-        }
-
         return array_merge($rules, $this->employeeDynamicFieldRules());
     }
 
-    private function applyEmployeeDynamicInput(array &$validated, Request $request): void
+    private function nextEmployeeId(): string
     {
-        $fieldKeys = EmployeeFieldCategoryAssignment::query()
-            ->where(function ($q) {
-                $q->where('is_visible', true)->orWhereNull('is_visible');
-            })
-            ->pluck('field_key');
+        return 'EMP-' . ((Employee::latest('id')->value('id') ?? 0) + 1001);
+    }
 
-        foreach ($fieldKeys as $fieldKey) {
-            if ($request->has($fieldKey)) {
-                $validated[$fieldKey] = $request->input($fieldKey);
+    /**
+     * Collect mass-assignable employee attributes from the request (same approach as riders store/update).
+     */
+    private function employeeAttributesFromRequest(Request $request, ?Employee $employee = null): array
+    {
+        $input = $request->only((new Employee())->getFillable());
+
+        if ($request->has('custom_field_values')) {
+            $input['custom_field_values'] = $request->input('custom_field_values', []);
+        }
+
+        if ($employee === null) {
+            if (empty($input['employee_id'])) {
+                $input['employee_id'] = $this->nextEmployeeId();
+            }
+            if (empty($input['status'])) {
+                $input['status'] = 'active';
             }
         }
 
-        if ($request->has('custom_field_values')) {
-            $validated['custom_field_values'] = $request->input('custom_field_values', []);
-        }
+        return $input;
     }
 
     private function employeeTableLabels(): array
@@ -352,7 +357,7 @@ class EmployeeController extends Controller
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
         $accounts = \App\Models\Accounts::where('ref_name', 'Rider')->get();
-        $empId = 'EMP-' . ((Employee::latest()->first()->id ?? 0) + 1001);
+        $empId = $this->nextEmployeeId();
         $employeeCategories = EmployeeCategory::orderBy('display_order')->orderBy('id')->get();
         $fieldsByCategory = $this->employeeFieldsByCategory();
         return view('employees.create', compact('nationalities', 'branches', 'departments', 'accounts', 'empId', 'employeeCategories', 'fieldsByCategory'));
@@ -363,24 +368,19 @@ class EmployeeController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate($this->employeeValidationRules(null, true));
+        $request->validate($this->employeeValidationRules(null, true));
 
         try {
             DB::beginTransaction();
 
-            // Handle profile image upload
+            $input = $this->employeeAttributesFromRequest($request);
+            $input['created_by'] = auth()->id();
+
             if ($request->hasFile('profile_image')) {
-                $path = $request->file('profile_image')->store('employees/profile', 'public');
-                $validated['profile_image'] = $path;
+                $input['profile_image'] = $request->file('profile_image')->store('employees/profile', 'public');
             }
 
-            // Set created_by
-            $validated['created_by'] = auth()->id();
-
-            $this->applyEmployeeDynamicInput($validated, $request);
-
-            // Create employee
-            $employee = Employee::create($validated);
+            $employee = Employee::create($input);
 
 
 
@@ -429,8 +429,8 @@ class EmployeeController extends Controller
             DB::rollBack();
 
             // Delete uploaded image if exists
-            if (isset($validated['profile_image'])) {
-                Storage::disk('public')->delete($validated['profile_image']);
+            if (isset($input['profile_image'])) {
+                Storage::disk('public')->delete($input['profile_image']);
             }
 
             // Log the error
@@ -680,22 +680,20 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, $comapny_slug, Employee $employee)
     {
-        $validated = $request->validate($this->employeeValidationRules((int) $employee->id));
+        $request->validate($this->employeeValidationRules((int) $employee->id));
 
-        $this->applyEmployeeDynamicInput($validated, $request);
+        $input = $this->employeeAttributesFromRequest($request, $employee);
 
-        // Handle file upload
         if ($request->hasFile('profile_image')) {
-            // Delete old image
             if ($employee->profile_image) {
                 Storage::disk('public')->delete($employee->profile_image);
             }
 
-            $imagePath = $request->file('profile_image')->store('employees/profile', 'public');
-            $validated['profile_image'] = $imagePath;
+            $input['profile_image'] = $request->file('profile_image')->store('employees/profile', 'public');
         }
-        $validated['updated_by'] = auth()->id();
-        $employee->update($validated);
+
+        $input['updated_by'] = auth()->id();
+        $employee->update($input);
         if (request()->ajax()) {
             return response()->json([
                 'success' => true,

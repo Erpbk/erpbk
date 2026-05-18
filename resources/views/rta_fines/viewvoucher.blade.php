@@ -1,221 +1,161 @@
-@extends('layouts.app')
 
-@section('title','Traffic Fine Details')
-@section('content')
-<section class="content-header">
-    <div class="container-fluid">
-        <div class="row mb-2">
-            <div class="col-sm-6">
-                <h3>Traffic Fine Ticket #{{ $data->ticket_no }}</h3>
-            {{-- </div>
-            <div class="col-sm-6">
-                <div class="modal modal-default filtetmodal fade" id="createaccount" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Add New Account</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <form action="{{ route('rtaFines.accountcreate') }}" method="POST">
-                                    @csrf
-                                    <div class="row">
-                                        <div class="form-group col-md-12">
-                                            <label for="name">Name</label>
-                                            <input type="text" name="name" class="form-control" placeholder="Enter Your Account Name" required>
-                                        </div>
-                                        <div class="col-md-12 form-group text-center">
-                                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Submit</button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
+<form action="{{ route('rtaFines.payfine')}}" method="POST" id="formajax">
+    @csrf
+    {{-- Card Body --}}
+    <div class="card-body">
+        <div class="row">
+            {{-- Left Column --}}
+            <div class="col-md-6">
+                {{-- Transaction Details --}}
+                <div class="mb-4">
+                    <h6 class="text-primary text-uppercase small fw-semibold mb-3">Fine Details</h6>
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">Ticket No:</span>
+                            <strong>{{ $fine->ticket_no ?? 'N/A' }}</strong>
                         </div>
                     </div>
-                </div>
-            </div> --}}
-        </div>
-    </div>
-</section>
-
-<div class="content px-3">
-    @include('flash::message')
-    <div class="clearfix"></div>
-    <div class="row">
-        <div class="col-xl-3 col-md-3 col-lg-5 order-1 order-md-0">
-            <div class="card mb-6">
-                <div class="card-body pt-12">
-                    <div class="user-avatar-section">
-                        <div class=" d-flex align-items-center flex-column">
-                            <div class="user-info text-center">
-                                <h6>{{ $accounts->name }}</h6>
-                            </div>
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">Trip Date:</span>
+                            <strong>{{ $fine->trip_date->format('d M Y') }}</strong>
                         </div>
                     </div>
-                    <h5 class="pb-4 border-bottom mb-4"></h5>
-                    <div class="info-container">
-                        <ul class="list-unstyled mb-6">
-                            <ul class="p-0 mb-3">
-                                <li class="list-group-item pb-1">
-                                    <b>Account Code:</b> <span class="float-right">{{ $accounts->account_code }}</span>
-                                </li>
-
-                                <li class="list-group-item pb-1">
-                                    <b>Account Type:</b> <span class="float-right">{{ $accounts->account_type }}</span>
-                                </li>
-                                <li class="list-group-item pb-1">
-                                    <b>Status:</b> <span class="float-right">
-                                        @if($accounts->status == '1')
-                                        <span class="badge  bg-success">Active</span></span>
-                                    @else
-                                    <span class="badge  bg-success">Active</span></span>
-                                    @endif
-                                </li>
-                            </ul>
-                        </ul>
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">Trip Time:</span>
+                            <strong>{{ $fine->trip_time->format('h:i:s a')  }}</strong>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-9 col-md-9 col-lg-7 order-0 order-md-1">
-            <div class="nav-align-top">
-                <ul class="nav nav-pills flex-column flex-md-row flex-wrap mb-3 row-gap-2">
-
-                    <li class="nav-item"><a class="nav-link  active  " href="javascript:void(0)"><i class="ti ti-file-upload ti-sm me-1_5"></i>Files</a></li>
-                </ul>
-            </div>
-            <div class="card">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-12">
-                            <table class="table table-striped">
-                                <tr>
-                                    <th>Ticket Number</th>
-                                    <td class="text-end">{{ $data->ticket_no }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Rider name</th>
-                                    @php
-                                    $rider_account = DB::table('riders')->where('id', $data->rider_id)->first();
-                                    if ($rider_account) {
-                                    $rider = $rider_account;
-                                    } else {
-                                    $rider = DB::table('accounts')->where('ref_name', 'Rider')->where('id', $data->rider_id)->first();
-                                    }
-                                    @endphp
-                                    <td class="text-end">{{ $rider->name ?? '-' }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Bike Number</th>
-                                    <td class="text-end">{{ $data->plate_no }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Credit Account</th>
-                                    <td class="text-end">{{ $accounts->name }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Transaction Date</th>
-                                    <td class="text-end">{{ $data->trip_date }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Transaction Time</th>
-                                    <td class="text-end">{{ $data->trip_time }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Service Charges</th>
-                                    <td class="text-end">{{ \App\Helpers\Currency::format($accounts->account_tax , 2) }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Fine</th>
-                                    <td class="text-end">{{ \App\Helpers\Currency::format($data->amount , 2) }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Total Amount</th>
-                                    <td class="text-end">{{ \App\Helpers\Currency::format($data->total_amount, 2) }}</td>
-                                </tr>
-                                <tr>
-                                    <th>View Files</th>
-                                    @php
-                                    $fileUrl = asset('storage/' . $data->attachment_path);
-                                    @endphp
-                                    <td class="text-end"> <a target="_blank" href="{{ $fileUrl }}">View File</a> </td>
-                                </tr>
-                                <tr>
-                                    <th></th>
-                                    @if($data->status == 'paid')
-                                    <td class="text-end"><a href="javascript:void(0);" class="btn btn-action btn-success">Paid</a> </td>
-                                    @else
-                                    <td class="text-end"><a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#payfine" class="btn btn-action btn-primary">Proceed to Pay Fine</a> </td>
-                                    @endif
-                                </tr>
-                            </table>
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">Plate No:</span>
+                            <strong>{{ $fine->plate_no ?? 'N/A' }}</strong>
+                        </div>
+                    </div>
+                    <div class="border-bottom pb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">Reference No:</span>
+                            <strong>{{ $fine->reference_number ?? 'N/A' }}</strong>
+                        </div>
+                    </div>
+                    <div class="border-bottom pb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">Voucher:</span>
+                            <a @if($fine->voucher_id) href="{{ route('vouchers.show', $fine->voucher_id ?? 0) }}" target="_blank" @else href="javascript:void(0);" @endif><strong>{{ $fine->voucher_id ? ($fine->voucher->voucher_type . '-' . str_pad($fine->voucher_id, 4, '0', STR_PAD_LEFT)) : 'N/A' }}</strong></a>
+                        </div>
+                    </div>
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">Paid By:</span>
+                            <strong>{{ $fine->rider?->name ?? $fine->rentalCompany?->name ?? 'Us' }}</strong>
+                        </div>
+                    </div>
+                    <div class="border-bottom pb-2">
+                        <div class="">
+                            <span class="text-secondary">Description:</span>
+                            <p class="mt-1 mb-0">{{ $fine->detail }}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-        </div>
-    </div>
-</div>]
-<div class="modal modal-default filtetmodal fade" id="payfine" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Select Account to Pay</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="searchTopbody">
-                <form enctype="multipart/form-data" action="{{ route('rtaFines.payfine') }}" method="POST">
-                    @csrf
-                    <input type="hidden" name="id" value="{{ $data->id }}">
-                    <input type="hidden" name="rider_id" value="{{ $rider->rider_id }}">
-                    <input type="hidden" name="trans_date" value="{{ $data->trans_date }}">
-                    <input type="hidden" name="trans_code" value="{{ $data->trans_code }}">
-                    <input type="hidden" name="billing_month" value="{{ $data->billing_month }}">
-                    <input type="hidden" name="payment_type" value="{{ $accounts->account_type }}">
-                    <input type="hidden" name="voucher_type" value="RFV">
-                    <input type="hidden" name="amount" value="{{ $data->total_amount }}">
-                    <input type="hidden" name="Created_By" value="{{ Auth::user()->id }}">
-                    <div class="row">
-                        @include('rta_fines.voucherfield', ['data' => $data])
-                        <div class="col-12 mt-2">
-                            @include('vouchers._custom_fields_section')
-                        </div>
-                        <div class="col-md-12 form-group text-center">
-                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Submit</button>
+            {{-- Right Column --}}
+            <div class="col-md-6">
+                {{-- Financial Details --}}
+                <div class="mb-2">
+                    <h6 class="text-primary text-uppercase small fw-semibold mb-3">Financial Details</h6>
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">Amount:</span>
+                            <strong>{{ number_format($fine->amount ?? 0, 2) }}</strong>
                         </div>
                     </div>
-                </form>
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">Service Charges:</span>
+                            <strong>{{ number_format($fine->service_charges ?? 0, 2) }}</strong>
+                        </div>
+                    </div>
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">Admin Fee:</span>
+                            <strong>{{ number_format($fine->admin_fee ?? 0, 2) }}</strong>
+                        </div>
+                    </div>
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">VAT:</span>
+                            <strong>{{ number_format($fine->vat ?? 0, 2) }}</strong>
+                        </div>
+                    </div>
+                    <div class="border-bottom pt-2 mt-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="fw-semibold">Total Amount:</span>
+                            <strong class="text-danger h5 mb-0">{{ number_format($fine->total_amount ?? 0, 2) }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Additional Info --}}
+                <div class="mb-4">
+                    <div class="form-group col-sm-12">
+                        <label class="">Debit Account:</label>
+                        <input class="form-control" type="text" value="{{ $debitAccount->account_code.'-'.$debitAccount->name }}" disabled>
+                    </div>
+                    <div class="form-group col-sm-12">
+                        <label class="">Credit Account:</label>
+                        <select class="form-select select2" required name="pay_account">
+                            <option value="">Select An Account</option>
+                            @foreach($creditAccounts as $a)
+                            <option value="{{ $a->id }}">
+                                {{ $a->account_code }} - {{ $a->name }}
+                            </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <input type="hidden" value="{{ $fine->id }}" name="id">
+                    <div class="form-group col-sm-12">
+                        <label>Attachment</label>
+                        <input class="form-control" type="file" name="attachment" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png">
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
-@endsection
-@section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<script type="text/javascript">
-    function confirmDelete(url) {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = url;
-            }
-        })
-    }
-    $(document).ready(function() {
-        $('#account_id').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Select Bank Account",
-            allowClear: true
-        });
+        {{-- Attachment Section --}}
+        @if($fine->attachment_path)
+        <div class="mt-3 pt-3 border-top">
+            <div class="d-flex align-items-center">
+                <svg class="me-2" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+                <span class="text-secondary me-2">Attachment:</span>
+                <a href="{{ Storage::url($fine->attachment_path) }}" 
+                   target="_blank" 
+                   class="text-primary text-decoration-none">
+                    View Attachment
+                </a>
+            </div>
+        </div>
+        @endif
+    </div>
+
+    {{-- Card Footer (Optional Actions) --}}
+    <div class="card-footer">
+        <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-primary" type="submit">
+                Pay Fine
+            </button>
+        </div>
+    </div>
+</form>
+<script>
+$(document).ready(function() {
+    // Initialize Select2
+    $('.select2').select2({
+        allowClear: true,
+        dropdownParent: $('#modalTopbody')
     });
+});
 </script>
-@endsection

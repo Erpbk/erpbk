@@ -1,23 +1,41 @@
-@if($fines->attachment_path)
-<a href="{{ asset('storage/' . $fines->attachment_path) }}" class="btn btn-default" target="_blank">
-  @if(in_array($fines->attachment_path,['jpeg','jpg','png']))
-      <i class="fa fa-file-image text-primary"></i>
-      @else
-      <i class="fa fa-file text-info"></i>
-      @endif
 
-  &nbsp;
- View Document
-  </a>
-@endif
+<form action="{{ route('rtaFines.fileupload', $fine->id) }}" method="POST" enctype="multipart/form-data" id="formajax">
+    @csrf
+    <div class="card-body">
+        {{-- Fine Attachment --}}
+        <div class="row mb-4 pb-3 border-bottom">
+            <div class="col-md-6">
+                <label class="font-weight-bold">Fine Document:</label>
+                <a href="{{ asset('storage/' . $fine->attachment_path) }}" class="btn btn-sm btn-info ml-2" target="_blank">
+                    <i class="fa fa-eye"></i> View
+                </a>
+            </div>
+            <div class="col-md-6">
+                <input type="file" name="attachment_path" class="form-control" accept=".jpg,.png,.pdf,,image/jpeg,image/png">
+            </div>
+        </div>
+        @if($fine->attachment)
 
-<form action="{{url('rtaFines/attach_file/'.$id)}}" method="POST" enctype="multipart/form-data" id="formajax">
-	<div class="row">
-	    <div class="col-12 mt-3 mb-3">
-	        <label class="mb-3 pl-2">Upload Document related to the voucher</label>
-	        <input type="file" name="attachment_path" class="form-control mb-3" style="height: 40px;" />
+        {{-- Payment Attachment --}}
+        <div class="row">
+            <div class="col-md-6">
+                <label class="font-weight-bold">Payment Document:</label>
+                <a href="{{ asset('storage/' . $fine->attachment_path) }}" class="btn btn-sm btn-success ml-2" target="_blank">
+                    <i class="fa fa-eye"></i> View
+                </a>
+            </div>
+            <div class="col-md-6">
+                <input type="file" name="attachment" class="form-control" accept=".jpg,.png,.pdf,image/jpeg,image/png">
+            </div>
+        </div>
+        @endif
 
-	    </div>
-	</div>
-	<button type="submit" name="submit" class="btn btn-primary" style="width: 100%;">Upload</button>
+        <div class="card-footer mt-4">
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-primary" type="submit">
+                    Upload
+                </button>
+            </div>
+        </div>
+    </div>
 </form>

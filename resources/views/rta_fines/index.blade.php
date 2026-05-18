@@ -1,3 +1,4 @@
+
 @extends('layouts.app')
 
 @section('title','RTA Fines')
@@ -321,7 +322,7 @@
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
                             @can('rtafine_create')
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="New Fine" data-action="{{ route('rtaFines.create') }}">
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="New Fine" data-action="{{ route('rtaFines.create') }}">
                                 <i class="ti ti-plus"></i>
                                 <div>
                                     <div class="action-dropdown-item-text">Add New Fine</div>
@@ -501,21 +502,21 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script type="text/javascript">
-    function confirmDelete(url) {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = url;
-            }
-        })
-    }
+    // function confirmDelete(url) {
+    //     Swal.fire({
+    //         title: 'Are you sure?',
+    //         text: "You won't be able to revert this!",
+    //         icon: 'warning',
+    //         showCancelButton: true,
+    //         confirmButtonColor: '#3085d6',
+    //         cancelButtonColor: '#d33',
+    //         confirmButtonText: 'Yes, delete it!'
+    //     }).then((result) => {
+    //         if (result.isConfirmed) {
+    //             window.location.href = url;
+    //         }
+    //     })
+    // }
     $(document).ready(function() {
         $('#rider_id').select2({
             dropdownParent: $('#searchTopbody'),

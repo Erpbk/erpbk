@@ -327,7 +327,7 @@ class TrashController extends Controller
     /**
      * Restore a deleted record
      */
-    public function restore(Request $request, $module, $id)
+    public function restore(Request $request, $company_slug, $module, $id)
     {
         if (!isset($this->softDeleteModels[$module])) {
             Flash::error('Invalid module specified.');
@@ -435,7 +435,7 @@ class TrashController extends Controller
     /**
      * Permanently delete a record
      */
-    public function forceDestroy(Request $request, $module, $id)
+    public function forceDestroy(Request $request, $company_slug, $module, $id)
     {
         if (!isset($this->softDeleteModels[$module])) {
             Flash::error('Invalid module specified.');
@@ -622,11 +622,11 @@ class TrashController extends Controller
     /**
      * Show a deleted record in modal (for vouchers and other modules)
      */
-    public function show(Request $request, $module, $id)
+    public function show(Request $request, $company_slug, $module, $id)
     {
         if (!isset($this->softDeleteModels[$module])) {
             if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['error' => 'Invalid module specified.'], 404);
+                return response()->json(['error' => 'Invalid module specified.'.$module], 404);
             }
             Flash::error('Invalid module specified.');
             return redirect()->route('settings-panel.trash.index');

@@ -211,12 +211,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::post('rtaFines/import', [\App\Http\Controllers\RtaFinesController::class, 'import'])->name('rtaFines.import');
 
     Route::resource('rtaFines', App\Http\Controllers\RtaFinesController::class)->except(['show']);
+    Route::get('rtaFines/invoice/{id}', [\App\Http\Controllers\RtaFinesController::class, 'show'])->name('rtaFines.show');
     Route::post('rtaFines/store', [\App\Http\Controllers\RtaFinesController::class, 'store'])->name('rtaFines.store');
     Route::get('rtaFines/edit/{id}', [\App\Http\Controllers\RtaFinesController::class, 'edit'])->name('rtaFines.edit');
     Route::post('rtaFines/update', [\App\Http\Controllers\RtaFinesController::class, 'update'])->name('rtaFines.update');
     Route::get('rtaFines/create', [\App\Http\Controllers\RtaFinesController::class, 'create'])->name('rtaFines.create');
     Route::any('rtaFines/attach_file/{id}', [\App\Http\Controllers\RtaFinesController::class, 'fileUpload'])->name('rtaFines.fileupload');
-    Route::get('rtaFines/delete/{id}', [\App\Http\Controllers\RtaFinesController::class, 'destroy'])->name('rtaFines.delete');
 
     Route::post('rtaFines/accountcreate', [\App\Http\Controllers\RtaFinesController::class, 'accountcreate'])->name('rtaFines.accountcreate');
     Route::post('rtaFines/editaccount', [\App\Http\Controllers\RtaFinesController::class, 'editaccount'])->name('rtaFines.editaccount');
@@ -224,7 +224,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('rtaFines/tickets', [\App\Http\Controllers\RtaFinesController::class, 'tickets'])->name('rtaFines.tickets');
     Route::get('rtaFines/paid', [\App\Http\Controllers\RtaFinesController::class, 'paid'])->name('rtaFines.paid');
     Route::post('rtaFines/payfine', [\App\Http\Controllers\RtaFinesController::class, 'payfine'])->name('rtaFines.payfine');
-    Route::get('rtaFines/viewvoucher/{id}', [\App\Http\Controllers\RtaFinesController::class, 'viewvoucher'])->name('rtaFines.viewvoucher');
+    Route::get('rtaFines/viewvoucher/{id}', [\App\Http\Controllers\RtaFinesController::class, 'payForm'])->name('rtaFines.viewvoucher');
     Route::get('rtaFines/getrider/{id}', [\App\Http\Controllers\RtaFinesController::class, 'getrider'])->name('rtaFines.getrider');
 
 

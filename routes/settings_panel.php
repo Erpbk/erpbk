@@ -113,6 +113,50 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         );
     })->name('settings-panel.module-settings.rider-settings-alias');
 
+    // Cheques Settings (categories, module fields, documents, top bar)
+    Route::get('cheques-settings', [App\Http\Controllers\ChequesSettingsController::class, 'index'])->name('settings-panel.cheques-settings.index');
+    Route::post('cheques-settings/module-label', [App\Http\Controllers\ChequesSettingsController::class, 'storeModuleLabel'])->name('settings-panel.cheques-settings.store-module-label');
+    Route::post('cheques-settings/field-assignment', [App\Http\Controllers\ChequesSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.cheques-settings.update-field-assignment');
+    Route::post('cheques-settings/field-assignment/display-label', [App\Http\Controllers\ChequesSettingsController::class, 'updateFieldAssignmentLabel'])->name('settings-panel.cheques-settings.update-field-assignment-label');
+    Route::post('cheques-settings/field-assignment/visibility', [App\Http\Controllers\ChequesSettingsController::class, 'updateFieldAssignmentVisibility'])->name('settings-panel.cheques-settings.update-field-assignment-visibility');
+    Route::post('cheques-settings/field-assignment/required', [App\Http\Controllers\ChequesSettingsController::class, 'updateFieldAssignmentRequired'])->name('settings-panel.cheques-settings.update-field-assignment-required');
+    Route::post('cheques-settings/field-assignments/reorder', [App\Http\Controllers\ChequesSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.cheques-settings.reorder-field-assignments');
+    Route::get('cheques-settings/categories/table-body', [App\Http\Controllers\ChequesSettingsController::class, 'categoriesTableBody'])->name('settings-panel.cheques-settings.categories-table-body');
+    Route::post('cheques-settings/categories', [App\Http\Controllers\ChequesSettingsController::class, 'storeCategory'])->name('settings-panel.cheques-settings.store-category');
+    Route::put('cheques-settings/categories/{id}', [App\Http\Controllers\ChequesSettingsController::class, 'updateCategory'])->name('settings-panel.cheques-settings.update-category');
+    Route::delete('cheques-settings/categories/{id}', [App\Http\Controllers\ChequesSettingsController::class, 'destroyCategory'])->name('settings-panel.cheques-settings.destroy-category');
+    Route::post('cheques-settings/categories/reorder', [App\Http\Controllers\ChequesSettingsController::class, 'reorderCategories'])->name('settings-panel.cheques-settings.reorder-categories');
+    Route::get('cheques-settings/fields/table-body', [App\Http\Controllers\ChequesSettingsController::class, 'tableBody'])->name('settings-panel.cheques-settings.table-body');
+    Route::get('cheques-settings/fields/table-body/{categoryId}', [App\Http\Controllers\ChequesSettingsController::class, 'tableBodyCategory'])->name('settings-panel.cheques-settings.table-body-category');
+    Route::get('cheques-settings/fields/config-schema/{dataType}', [App\Http\Controllers\ChequesSettingsController::class, 'fieldConfigSchema'])->name('settings-panel.cheques-settings.field-config-schema');
+    Route::post('cheques-settings/fields', [App\Http\Controllers\ChequesSettingsController::class, 'storeField'])->name('settings-panel.cheques-settings.store-field');
+    Route::post('cheques-settings/fields/{id}/assign-category', [App\Http\Controllers\ChequesSettingsController::class, 'assignCustomFieldCategory'])->name('settings-panel.cheques-settings.assign-custom-field-category');
+    Route::put('cheques-settings/fields/{id}', [App\Http\Controllers\ChequesSettingsController::class, 'updateField'])->name('settings-panel.cheques-settings.update-field');
+    Route::delete('cheques-settings/fields/{id}', [App\Http\Controllers\ChequesSettingsController::class, 'destroyField'])->name('settings-panel.cheques-settings.destroy-field');
+    Route::post('cheques-settings/fields/{id}/flags', [App\Http\Controllers\ChequesSettingsController::class, 'updateCustomFieldFlags'])->name('settings-panel.cheques-settings.update-custom-field-flags');
+    Route::post('cheques-settings/fields/reorder', [App\Http\Controllers\ChequesSettingsController::class, 'reorderFields'])->name('settings-panel.cheques-settings.reorder-fields');
+    Route::get('cheques-settings/documents/table-body', [App\Http\Controllers\ChequesSettingsController::class, 'documentTypesTableBody'])->name('settings-panel.cheques-settings.document-types-table-body');
+    Route::post('cheques-settings/documents', [App\Http\Controllers\ChequesSettingsController::class, 'storeDocumentType'])->name('settings-panel.cheques-settings.store-document-type');
+    Route::put('cheques-settings/documents/{id}', [App\Http\Controllers\ChequesSettingsController::class, 'updateDocumentType'])->name('settings-panel.cheques-settings.update-document-type');
+    Route::delete('cheques-settings/documents/{id}', [App\Http\Controllers\ChequesSettingsController::class, 'destroyDocumentType'])->name('settings-panel.cheques-settings.destroy-document-type');
+    Route::post('cheques-settings/documents/reorder', [App\Http\Controllers\ChequesSettingsController::class, 'reorderDocumentTypes'])->name('settings-panel.cheques-settings.reorder-document-types');
+    Route::get('cheques-settings/cheque-top/accordion-body', [App\Http\Controllers\ChequesSettingsController::class, 'chequeTopAccordionBody'])->name('settings-panel.cheques-settings.cheque-top-accordion-body');
+    Route::post('cheques-settings/cheque-top/categories', [App\Http\Controllers\ChequesSettingsController::class, 'storeChequeTopCategory'])->name('settings-panel.cheques-settings.store-cheque-top-category');
+    Route::get('cheques-settings/cheque-top/categories/{id}/field-values', [App\Http\Controllers\ChequesSettingsController::class, 'chequeTopCategoryFieldValues'])->name('settings-panel.cheques-settings.cheque-top-category-field-values');
+    Route::put('cheques-settings/cheque-top/categories/{id}', [App\Http\Controllers\ChequesSettingsController::class, 'updateChequeTopCategory'])->name('settings-panel.cheques-settings.update-cheque-top-category');
+    Route::delete('cheques-settings/cheque-top/categories/{id}', [App\Http\Controllers\ChequesSettingsController::class, 'destroyChequeTopCategory'])->name('settings-panel.cheques-settings.destroy-cheque-top-category');
+    Route::post('cheques-settings/cheque-top/categories/{id}/visibility', [App\Http\Controllers\ChequesSettingsController::class, 'updateChequeTopCategoryVisibility'])->name('settings-panel.cheques-settings.update-cheque-top-category-visibility');
+    Route::post('cheques-settings/cheque-top/options', [App\Http\Controllers\ChequesSettingsController::class, 'storeChequeTopOption'])->name('settings-panel.cheques-settings.store-cheque-top-option');
+    Route::put('cheques-settings/cheque-top/options/{id}', [App\Http\Controllers\ChequesSettingsController::class, 'updateChequeTopOption'])->name('settings-panel.cheques-settings.update-cheque-top-option');
+    Route::delete('cheques-settings/cheque-top/options/{id}', [App\Http\Controllers\ChequesSettingsController::class, 'destroyChequeTopOption'])->name('settings-panel.cheques-settings.destroy-cheque-top-option');
+    Route::get('module-settings/cheques', function (\Illuminate\Http\Request $request) {
+        $companySlug = (string) ($request->route('company_slug') ?? '');
+        return redirect()->route(
+            'settings-panel.cheques-settings.index',
+            array_merge(['company_slug' => $companySlug], $request->query())
+        );
+    })->name('settings-panel.module-settings.cheques-alias');
+
     // Employee Settings (categories, fixed employee fields + employee custom fields)
     Route::get('employee-settings', [App\Http\Controllers\EmployeeSettingsController::class, 'index'])->name('settings-panel.employee-settings.index');
     Route::post('employee-settings/module-label', [App\Http\Controllers\EmployeeSettingsController::class, 'storeModuleLabel'])->name('settings-panel.employee-settings.store-module-label');

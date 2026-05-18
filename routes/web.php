@@ -605,6 +605,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::post('/cheques/status/{id}', [App\Http\Controllers\ChequesController::class, 'updateStatus'])->name('cheques.update-status');
     Route::get('cheques/change_status/{id}', [\App\Http\Controllers\ChequesController::class, 'statusForm'])->name('cheques.status-form');
+    Route::post('cheques/set-cheque-top-option/{id}', [App\Http\Controllers\ChequesController::class, 'setChequeTopOption'])->name('cheques.setChequeTopOption');
     Route::resource('cheques', App\Http\Controllers\ChequesController::class);
 
     // Soft Delete Routes for Banks - DEPRECATED: Use centralized trash module (/trash)

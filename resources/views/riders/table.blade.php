@@ -66,19 +66,11 @@
          <td>{{ $bike ? $bike->plate : '-' }}</td>
          @break
          @case('status')
-         @php
-         $statusText = trim((string)($r->rider_status ?? ''));
-         if ($statusText === '') {
-         $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
-         $statusText = $hasActiveBike ? 'Active' : 'Inactive';
-         }
-         $normalized = strtolower($statusText);
-         $badgeClass = in_array($normalized, ['active', 'follow up', 'pro', 'walker', 'learning license'], true)
-         ? 'bg-label-success'
-         : 'bg-label-danger';
-         @endphp
-         <td>
-            <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+         <td class="text-center">
+            @include('riders._status_badges', [
+            'employmentStatus' => data_get($r, 'status'),
+            'optionText' => data_get($r, 'rider_status', ''),
+            ])
          </td>
          @break
          @case('attendance')

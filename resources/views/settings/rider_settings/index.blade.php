@@ -219,30 +219,10 @@
           <div class="tab-pane fade" id="tab-rider-status" role="tabpanel">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
               <p class="text-muted small mb-0">Manage rider statuses in one place. Changes here stay synced with rider records (`rider_status`).</p>
+              <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRiderStatusModal">
+                <i class="ti ti-plus me-1"></i> Add Status
+              </button>
             </div>
-            <form action="{{ route('settings-panel.rider-settings.store-rider-status') }}" method="POST" class="row g-2 align-items-end mb-3">
-              @csrf
-              <div class="col-md-5">
-                <label class="form-label">Status Name <span class="text-danger">*</span></label>
-                <input type="text" name="name" class="form-control" placeholder="e.g. Absconder" required maxlength="255">
-              </div>
-              <div class="col-md-2">
-                <div class="form-check form-switch mt-4">
-                  <input class="form-check-input" type="checkbox" name="show_in_top_bar" id="newRiderStatusTopBar" value="1" checked>
-                  <label class="form-check-label" for="newRiderStatusTopBar">Top Bar</label>
-                </div>
-              </div>
-              <div class="col-md-2">
-                <div class="form-check form-switch mt-4">
-                  <input class="form-check-input" type="checkbox" name="show_in_view_cards" id="newRiderStatusViewCard" value="1" checked>
-                  <label class="form-check-label" for="newRiderStatusViewCard">View Card</label>
-                </div>
-              </div>
-              <div class="col-md-3 text-md-end">
-                <button type="submit" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Add Status</button>
-              </div>
-            </form>
-
             <div class="table-responsive">
               <table class="table table-hover rider-settings-table mb-0">
                 <thead class="table-light">
@@ -251,52 +231,11 @@
                     <th>Status</th>
                     <th class="text-center">Top Bar</th>
                     <th class="text-center">View Card</th>
-                    <th class="text-end" style="width: 280px;">Actions</th>
+                    <th class="text-end" style="width: 120px;">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  @forelse(($riderStatusOptions ?? collect()) as $idx => $statusOption)
-                  <tr>
-                    <td class="align-middle">{{ $idx + 1 }}</td>
-                    <td class="align-middle">
-                      <form action="{{ route('settings-panel.rider-settings.update-rider-status', ['id' => $statusOption->id]) }}" method="POST" class="row g-2 align-items-center">
-                        @csrf
-                        @method('PUT')
-                        <div class="col-12 col-lg-7">
-                          <input type="text" name="name" class="form-control form-control-sm" value="{{ $statusOption->name }}" maxlength="255" required>
-                        </div>
-                        <div class="col-6 col-lg-2 text-center">
-                          <input type="hidden" name="show_in_top_bar" value="0">
-                          <div class="form-check form-switch d-inline-block">
-                            <input class="form-check-input" type="checkbox" name="show_in_top_bar" value="1" {{ ($statusOption->show_in_top_bar ?? true) ? 'checked' : '' }}>
-                          </div>
-                        </div>
-                        <div class="col-6 col-lg-2 text-center">
-                          <input type="hidden" name="show_in_view_cards" value="0">
-                          <div class="form-check form-switch d-inline-block">
-                            <input class="form-check-input" type="checkbox" name="show_in_view_cards" value="1" {{ ($statusOption->show_in_view_cards ?? true) ? 'checked' : '' }}>
-                          </div>
-                        </div>
-                        <div class="col-12 col-lg-1 text-end">
-                          <button type="submit" class="btn btn-sm btn-outline-primary"><i class="ti ti-device-floppy"></i></button>
-                        </div>
-                      </form>
-                    </td>
-                    <td class="align-middle text-center">{{ ($statusOption->show_in_top_bar ?? true) ? 'Yes' : 'No' }}</td>
-                    <td class="align-middle text-center">{{ ($statusOption->show_in_view_cards ?? true) ? 'Yes' : 'No' }}</td>
-                    <td class="align-middle text-end">
-                      <form action="{{ route('settings-panel.rider-settings.destroy-rider-status', ['id' => $statusOption->id]) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this status? It will be removed from riders too.');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="ti ti-trash"></i></button>
-                      </form>
-                    </td>
-                  </tr>
-                  @empty
-                  <tr>
-                    <td colspan="5" class="text-center text-muted py-3">No rider statuses configured yet.</td>
-                  </tr>
-                  @endforelse
+                <tbody id="riderStatusTbody">
+                  @include('settings.rider_settings._rider_status_rows', ['riderStatusOptions' => $riderStatusOptions ?? collect()])
                 </tbody>
               </table>
             </div>
@@ -785,6 +724,47 @@
     </div>
   </div>
 </div>
+
+{{-- Add Rider Status modal --}}
+<div class="modal fade" id="addRiderStatusModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title">Add Rider Status</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{{ route('settings-panel.rider-settings.store-rider-status') }}" method="POST">
+        @csrf
+        <div class="modal-body pt-0">
+          <div class="mb-3">
+            <label class="form-label" for="newRiderStatusName">Status Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="newRiderStatusName" class="form-control" placeholder="e.g. Absconder" required maxlength="255">
+          </div>
+          <div class="mb-3">
+            <input type="hidden" name="show_in_top_bar" value="0">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="show_in_top_bar" id="newRiderStatusTopBar" value="1" checked>
+              <label class="form-check-label" for="newRiderStatusTopBar">Show in Top Bar</label>
+            </div>
+          </div>
+          <div class="mb-0">
+            <input type="hidden" name="show_in_view_cards" value="0">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="show_in_view_cards" id="newRiderStatusViewCard" value="1" checked>
+              <label class="form-check-label" for="newRiderStatusViewCard">Show in View Card</label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Add Status</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+@include('settings.rider_settings._edit_rider_status_modal')
 
 {{-- Edit Rider Category modal --}}
 <div class="modal fade" id="editRiderCategoryModal" tabindex="-1">
@@ -3424,6 +3404,152 @@
           toggle.checked = !toggle.checked;
         });
     });
+
+    function getRiderStatusCsrf() {
+      return (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) ||
+        (document.querySelector('#formEditRiderStatus input[name="_token"]') && document.querySelector('#formEditRiderStatus input[name="_token"]').value);
+    }
+
+    function applyRiderStatusRowData(row, data) {
+      if (!row || !data) return;
+      row.setAttribute('data-status-name', data.name || '');
+      var nameEl = row.querySelector('.rider-status-name');
+      if (nameEl) nameEl.textContent = data.name || '';
+      var editBtn = row.querySelector('.btn-edit-rider-status');
+      if (editBtn) {
+        editBtn.setAttribute('data-name', data.name || '');
+        editBtn.setAttribute('data-show-in-top-bar', data.show_in_top_bar ? '1' : '0');
+        editBtn.setAttribute('data-show-in-view-cards', data.show_in_view_cards ? '1' : '0');
+      }
+      var topToggle = row.querySelector('.rider-status-top-bar-toggle');
+      var viewToggle = row.querySelector('.rider-status-view-card-toggle');
+      if (topToggle) topToggle.checked = !!data.show_in_top_bar;
+      if (viewToggle) viewToggle.checked = !!data.show_in_view_cards;
+    }
+
+    function saveRiderStatusRow(row, updateUrl) {
+      var csrf = getRiderStatusCsrf();
+      if (!row || !updateUrl || !csrf) return Promise.reject();
+
+      var topToggle = row.querySelector('.rider-status-top-bar-toggle');
+      var viewToggle = row.querySelector('.rider-status-view-card-toggle');
+      var body = new URLSearchParams();
+      body.append('_token', csrf);
+      body.append('_method', 'PUT');
+      body.append('name', row.getAttribute('data-status-name') || '');
+      body.append('show_in_top_bar', topToggle && topToggle.checked ? '1' : '0');
+      body.append('show_in_view_cards', viewToggle && viewToggle.checked ? '1' : '0');
+
+      return fetch(updateUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: body.toString()
+        })
+        .then(function(r) {
+          return r.json().then(function(data) {
+            return r.ok ? data : Promise.reject(data);
+          });
+        })
+        .then(function(data) {
+          if (data && data.success) {
+            applyRiderStatusRowData(row, data);
+          }
+          return data;
+        });
+    }
+
+    document.addEventListener('change', function(e) {
+      var toggle = e.target.closest('.rider-status-top-bar-toggle, .rider-status-view-card-toggle');
+      if (!toggle) return;
+      var row = toggle.closest('tr[data-id]');
+      var updateUrl = toggle.getAttribute('data-update-url');
+      if (!row || !updateUrl) return;
+
+      saveRiderStatusRow(row, updateUrl).catch(function(err) {
+        toggle.checked = !toggle.checked;
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: (err && err.message) ? err.message : 'Could not update status.'
+          });
+        }
+      });
+    });
+
+    document.addEventListener('click', function(e) {
+      var editBtn = e.target.closest('.btn-edit-rider-status');
+      if (!editBtn) return;
+      document.getElementById('editRiderStatusId').value = editBtn.getAttribute('data-id') || '';
+      document.getElementById('editRiderStatusName').value = editBtn.getAttribute('data-name') || '';
+      document.getElementById('editRiderStatusTopBar').checked = editBtn.getAttribute('data-show-in-top-bar') === '1';
+      document.getElementById('editRiderStatusViewCard').checked = editBtn.getAttribute('data-show-in-view-cards') === '1';
+    });
+
+    var formEditRiderStatus = document.getElementById('formEditRiderStatus');
+    if (formEditRiderStatus) {
+      formEditRiderStatus.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        var id = document.getElementById('editRiderStatusId').value;
+        var csrf = getRiderStatusCsrf();
+        if (!id || !csrf) return;
+
+        var fd = new FormData(form);
+        fd.set('_method', 'PUT');
+        fd.set('show_in_top_bar', document.getElementById('editRiderStatusTopBar').checked ? '1' : '0');
+        fd.set('show_in_view_cards', document.getElementById('editRiderStatusViewCard').checked ? '1' : '0');
+
+        var updateStatusUrlTemplate = "{{ route('settings-panel.rider-settings.update-rider-status', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+        fetch(updateStatusUrlTemplate.replace('__ID__', String(id)), {
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(function(r) {
+            return r.json().then(function(data) {
+              return r.ok ? data : Promise.reject(data);
+            });
+          })
+          .then(function(data) {
+            if (data && data.success) {
+              var row = document.querySelector('#riderStatusTbody tr[data-id="' + id + '"]');
+              if (row) applyRiderStatusRowData(row, data);
+              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var m = bootstrap.Modal.getInstance(document.getElementById('editRiderStatusModal'));
+                if (m) m.hide();
+              }
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Updated',
+                  text: data.message || 'Rider status updated.',
+                  timer: 2000,
+                  showConfirmButton: false
+                });
+              }
+            }
+          })
+          .catch(function(err) {
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: (err && err.message) ? err.message : 'Could not update status.'
+              });
+            }
+          });
+      });
+    }
 
     document.getElementById('tab-rider-fields-btn') && document.getElementById('tab-rider-fields-btn').addEventListener('shown.bs.tab', function() {
       setTimeout(initRiderFieldSortables, 50);

@@ -13,6 +13,7 @@ class SimHistory extends BaseModel
     public $fillable = [
         'sim_id',
         'rider_id',
+        'employee_id',
         'notes',
         'note_date',
         'return_date',
@@ -43,7 +44,12 @@ class SimHistory extends BaseModel
     {
         return $this->belongsTo(Riders::class, 'rider_id', 'id');
     }
-    
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class, 'employee_id', 'id');
+    }
+
     public function sim()
     {
         return $this->belongsTo(Sims::class, 'sim_id', 'id');

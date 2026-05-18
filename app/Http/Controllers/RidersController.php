@@ -31,6 +31,9 @@ use App\Models\Vouchers;
 use App\Models\Bikes;
 use App\Models\BikeHistory;
 use App\Models\RiderInvoices;
+use App\Models\RiderHistory;
+use App\Models\SimHistory;
+use App\Models\Customers;
 use App\Models\RiderActivities;
 use App\Models\RiderAttendance;
 use App\Models\cod;
@@ -41,6 +44,7 @@ use App\Models\visa_expenses;
 use App\Models\visa_installment_plan;
 use Illuminate\Support\Facades\Auth;
 use App\Repositories\RidersRepository;
+use App\Services\RiderHistoryLogger;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use Illuminate\Http\Request;
@@ -68,6 +72,91 @@ class RidersController extends AppBaseController
       }
     }
     return $query;
+  }
+
+  /**
+   * Column list for riders index table, column control, and AJAX filter refreshes.
+   * Always includes riders.status when the column exists (employment / bike lifecycle),
+   * even if not toggled in Rider Field assignments.
+   */
+  private function buildRidersIndexTableColumns(): array
+  {
+    $riderColumns = Schema::getColumnListing('riders');
+    $riderColumnsSet = array_flip($riderColumns);
+    $exclude = ['id', 'email', 'created_at', 'updated_at', 'company_id', 'account_id'];
+    $excludedSet = array_flip($exclude);
+
+    $assignedFixedColumns = RiderFieldCategoryAssignment::query()
+      ->orderBy('display_order')
+      ->orderBy('id')
+      ->pluck('field_key')
+      ->filter(function ($key) use ($riderColumnsSet, $excludedSet) {
+        return isset($riderColumnsSet[$key]) && !isset($excludedSet[$key]);
+      })
+      ->values()
+      ->all();
+
+    $dbColumns = array_values(array_unique(array_merge(
+      $assignedFixedColumns,
+      Schema::hasColumn('riders', 'status') ? ['status'] : []
+    )));
+
+    $assignedCustomFields = RiderCustomField::query()
+      ->whereNotNull('category_id')
+      ->orderBy('display_order')
+      ->orderBy('id')
+      ->get(['id', 'label']);
+
+    $preferredOrder = [
+      'rider_id',
+      'name',
+      'fleet_supervisor',
+      'customer_id',
+      'attendance',
+      'status',
+    ];
+
+    $columns = [];
+    $added = [];
+    $makeTitle = function ($key) {
+      $customTitles = [
+        'doj' => 'Date of Joining',
+        'recruiter_id' => 'Recruiter',
+      ];
+
+      return $customTitles[$key] ?? ucwords(str_replace('_', ' ', $key));
+    };
+
+    foreach ($preferredOrder as $key) {
+      if (in_array($key, $dbColumns, true)) {
+        $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
+        $added[$key] = true;
+      }
+    }
+
+    foreach ($dbColumns as $key) {
+      if (empty($added[$key])) {
+        $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
+        $added[$key] = true;
+      }
+    }
+
+    foreach ($assignedCustomFields as $cf) {
+      $columns[] = [
+        'data' => 'custom_field_values.' . $cf->id,
+        'title' => trim((string) $cf->label) !== '' ? $cf->label : ('Custom Field #' . $cf->id),
+      ];
+    }
+
+    return array_merge($columns, [
+      ['data' => 'bike', 'title' => 'Bike'],
+      ['data' => 'orders_sum', 'title' => 'Orders'],
+      ['data' => 'days', 'title' => 'Days'],
+      ['data' => 'balance', 'title' => 'Balance'],
+      ['data' => 'action', 'title' => 'Actions'],
+      ['data' => 'search', 'title' => 'Search'],
+      ['data' => 'control', 'title' => 'Control'],
+    ]);
   }
 
   private function findAccessibleRider(int $id): ?Riders
@@ -357,6 +446,7 @@ class RidersController extends AppBaseController
 
     return view('riders.index', [
       'data' => $data,
+      'tableColumns' => $this->buildRidersIndexTableColumns(),
     ]);
   }
 
@@ -488,6 +578,7 @@ class RidersController extends AppBaseController
 
     $tableData = view('riders.table', [
       'data' => $data,
+      'tableColumns' => $this->buildRidersIndexTableColumns(),
     ])->render();
 
     // Use global pagination component
@@ -688,7 +779,34 @@ class RidersController extends AppBaseController
       $data['company_id'] = auth()->user()->company_id;
     }
 
+    $prevCustomerId = $riders->customer_id;
+    $prevFleetSupervisor = $riders->fleet_supervisor;
+
     $riders->update($data);
+    if (array_key_exists('customer_id', $data) && (string) $prevCustomerId !== (string) ($riders->customer_id ?? '')) {
+      RiderHistoryLogger::projectChange(
+        (int) $riders->id,
+        $prevCustomerId !== null && $prevCustomerId !== '' ? (string) $prevCustomerId : null,
+        (string) ($riders->customer_id ?? ''),
+        $prevCustomerId ? optional(Customers::find($prevCustomerId))->name : null,
+        optional(Customers::find($riders->customer_id))->name,
+        now()->toDateString(),
+        'rider_profile',
+        RiderHistoryLogger::resolveBranchId($riders),
+        $riders->fresh()
+      );
+    }
+    if (array_key_exists('fleet_supervisor', $data)) {
+      RiderHistoryLogger::fleetSupervisorChange(
+        $riders->fresh(),
+        $prevFleetSupervisor,
+        $riders->fleet_supervisor,
+        now()->toDateString(),
+        Bikes::where('rider_id', $riders->id)->first()
+      );
+    } elseif (array_key_exists('status', $data) || array_key_exists('rider_status', $data)) {
+      Riders::syncDisplayStatus($riders->fresh());
+    }
     if ($riders) {
 
       $riders->account->name = $riders->name;
@@ -981,6 +1099,49 @@ class RidersController extends AppBaseController
     }
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
     return view('riders.timeline', compact('riders', 'job_status'));
+  }
+
+  public function history($company_slug, $id)
+  {
+    $riders = $this->findAccessibleRider((int) $id);
+    if (empty($riders) || (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches')))) {
+      Flash::error('Rider not found');
+      return redirect(route('riders.index'));
+    }
+
+    $statusHistories = null;
+    $simHistories = null;
+    $projectChangeCount = 0;
+    $simHistoryCount = 0;
+    $activeTab = in_array(request('tab'), ['status', 'sim'], true) ? request('tab') : 'status';
+
+    if (Schema::hasTable('rider_histories')) {
+      $statusHistories = RiderHistory::with(['branch', 'customer'])
+        ->where('rider_id', $id)
+        ->whereNotIn('event_type', ['sim_assign', 'sim_return'])
+        ->orderByDesc('effective_date')
+        ->orderByDesc('id')
+        ->paginate(50, ['*'], 'status_page');
+      $projectChangeCount = RiderHistory::where('rider_id', $id)->where('event_type', 'project_change')->count();
+    }
+
+    if (Schema::hasTable('sim_histories')) {
+      $simHistories = SimHistory::with('sim')
+        ->where('rider_id', $id)
+        ->orderByDesc('note_date')
+        ->orderByDesc('id')
+        ->paginate(50, ['*'], 'sim_page');
+      $simHistoryCount = SimHistory::where('rider_id', $id)->count();
+    }
+
+    return view('riders.history', compact(
+      'riders',
+      'statusHistories',
+      'simHistories',
+      'projectChangeCount',
+      'simHistoryCount',
+      'activeTab'
+    ));
   }
 
   public function contract($company_slug, $id)
@@ -1788,10 +1949,23 @@ class RidersController extends AppBaseController
 
     $section = $request->input('section');
     $data = $request->except(['_token', 'section']);
+    $prevFleetSupervisor = $rider->fleet_supervisor;
 
     try {
       // Update only the fields for the specific section
       $rider->update($data);
+      $rider->refresh();
+      if (array_key_exists('fleet_supervisor', $data)) {
+        RiderHistoryLogger::fleetSupervisorChange(
+          $rider,
+          $prevFleetSupervisor,
+          $rider->fleet_supervisor,
+          now()->toDateString(),
+          Bikes::where('rider_id', $rider->id)->first()
+        );
+      } elseif (array_key_exists('status', $data) || array_key_exists('rider_status', $data)) {
+        Riders::syncDisplayStatus($rider);
+      }
 
       return response()->json([
         'success' => true,
@@ -1812,11 +1986,19 @@ class RidersController extends AppBaseController
       return response()->json(['success' => false, 'message' => 'Rider not found'], 404);
     }
 
-    $validated = $request->validate([
+    $rules = [
       'option_id' => 'nullable|integer|exists:rider_top_options,id',
-    ]);
+    ];
+    if ($request->filled('option_id')) {
+      $rules['effective_date'] = ['required', 'date', 'before_or_equal:' . now()->toDateString()];
+    } else {
+      $rules['effective_date'] = ['nullable', 'date', 'before_or_equal:' . now()->toDateString()];
+    }
+    $validated = $request->validate($rules);
 
     $optionId = $validated['option_id'] ?? null;
+    $effectiveDate = $validated['effective_date'] ?? now()->toDateString();
+
     $option = null;
     if (!empty($optionId)) {
       $option = DB::table('rider_top_options as o')
@@ -1830,14 +2012,36 @@ class RidersController extends AppBaseController
       }
     }
 
+    $prevOptionId = $rider->rider_top_option_id;
+    $prevRiderStatus = $rider->rider_status;
+    $prevEmployment = $rider->status;
+
     $rider->rider_top_option_id = $option?->id;
-    // Keep rider status synced directly with selected view-card option.
     $rider->rider_status = $option ? (string) $option->name : null;
     if ($rider->rider_status !== null) {
       $inactiveStatuses = ['Absconder', 'Vacation', 'Cancel'];
       $rider->status = in_array($rider->rider_status, $inactiveStatuses, true) ? 3 : 1;
     }
     $rider->save();
+
+    RiderHistoryLogger::record(
+      (int) $rider->id,
+      'status_change',
+      $option ? ('View card: ' . $option->name) : 'View card cleared',
+      null,
+      [
+        'previous_rider_status' => $prevRiderStatus,
+        'new_rider_status' => $rider->rider_status,
+        'previous_option_id' => $prevOptionId,
+        'new_option_id' => $rider->rider_top_option_id,
+        'previous_employment_status' => $prevEmployment,
+        'new_employment_status' => $rider->status,
+      ],
+      $effectiveDate,
+      RiderHistoryLogger::resolveBranchId($rider)
+    );
+
+    Riders::syncDisplayStatus($rider->fresh());
 
     return response()->json([
       'success' => true,
@@ -2211,6 +2415,7 @@ class RidersController extends AppBaseController
       $returnDate = $request->input('return_date');
       $returnDate = $returnDate ? Carbon::parse($returnDate)->toDateString() : Carbon::now()->toDateString();
       $notes = $request->input('notes');
+      $riderBeforeReturn = RiderHistoryLogger::riderSnapshot($rider);
 
       // Close last open bike history for this rider and bike
       $lastHistory = BikeHistory::where('bike_id', $bike->id)
@@ -2219,11 +2424,18 @@ class RidersController extends AppBaseController
         ->latest('note_date')
         ->first();
       if ($lastHistory) {
-        $lastHistory->update([
+        $historyUpdate = [
           'warehouse'   => 'Return',
           'return_date' => $returnDate,
           'notes'       => $notes,
-        ]);
+        ];
+        $historyUpdate = \App\Services\BikeHistoryLogger::mergeStructuredUpdate(
+          $historyUpdate,
+          $bike,
+          $rider,
+          'Return'
+        );
+        $lastHistory->update($historyUpdate);
       }
 
       // Update bike to returned
@@ -2237,6 +2449,25 @@ class RidersController extends AppBaseController
       $rider->designation = null;
       $rider->customer_id = null;
       $rider->save();
+
+      $riderHistoryDetails = RiderHistoryLogger::detailsFromBikeHistoryNotes(
+        $notes ?: ($lastHistory->notes ?? null)
+      );
+
+      RiderHistoryLogger::bikeAssignStatusChange(
+        (int) $rider->id,
+        'Bike return: Return',
+        $riderHistoryDetails,
+        $riderBeforeReturn,
+        RiderHistoryLogger::riderSnapshot($rider->fresh()),
+        $returnDate,
+        'rider_return_bike',
+        RiderHistoryLogger::resolveBranchId($rider, $bike),
+        ['warehouse_action' => 'Return', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+        'Return',
+        $rider,
+        $bike
+      );
 
       return response()->json([
         'success' => true,

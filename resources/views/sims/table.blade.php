@@ -68,16 +68,26 @@
         <td>{{$r->emi}}</td>
         <td>
           @if($r->assign_to)
-            {{$r->riders->rider_id}}
+            @if($r->assign_type === 'employee' && $r->employee)
+              {{ $r->employee->employee_id }}
+            @elseif($r->riders)
+              {{ $r->riders->rider_id }}
+            @else
+              -
+            @endif
           @else
             -
           @endif
         </td>
         <td>
           @if($r->assign_to)
-            <a href="{{ route('riders.show', $r->riders->id) }}" class="table-link">
-            {{$r->riders->name}}
-            </a>
+            @if($r->assign_type === 'employee' && $r->employee)
+              <a href="{{ route('employees.show', $r->employee->id) }}" class="table-link">{{ $r->employee->name }}</a>
+            @elseif($r->riders)
+              <a href="{{ route('riders.show', $r->riders->id) }}" class="table-link">{{ $r->riders->name }}</a>
+            @else
+              -
+            @endif
           @else
             -
           @endif

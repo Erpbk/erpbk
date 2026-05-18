@@ -56,7 +56,7 @@ $paidCount = DB::table('visa_expenses')->where('rider_id', $accountId)->where('p
       <div class="col-sm-6">
         @can('visaloan_create')
         <a class="btn btn-sm btn-success action-btn show-modal"
-          href="javascript:void(0);" data-action="{{ route('VisaExpense.createInstallmentPlanForm', $account->rider_id) }}" data-size="lg" data-title="Create Installment Entry">
+          href="javascript:void(0);" data-action="{{ route('VisaExpense.createInstallmentPlanForm', $account->id) }}" data-size="lg" data-title="Create Installment Entry">
           <i class="fa fa-plus"></i> Installment Plan
         </a>
         @endcan

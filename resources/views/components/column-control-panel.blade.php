@@ -16,7 +16,7 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
         ->keyBy('field_key');
 
     if ($assignmentRows->isNotEmpty()) {
-        $tableColumns = array_values(array_filter(array_map(function ($column) use ($assignmentRows) {
+        $tableColumns = array_values(array_filter(array_map(function ($column) use ($assignmentRows, $resolvedModuleKey) {
             $columnKey = $column['data'] ?? $column['key'] ?? null;
             if (!$columnKey || in_array($columnKey, ['search', 'control', 'action'], true)) {
                 return $column;
@@ -28,6 +28,14 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
             }
 
             if (!(bool) $assignment->is_visible) {
+                // Riders list: keep employment `status` in column control even if module marks it hidden
+                if ($resolvedModuleKey === 'riders_list' && $columnKey === 'status') {
+                    $effectiveLabel = trim((string) ($assignment->display_label ?: $assignment->field_label ?: ''));
+                    if ($effectiveLabel !== '') {
+                        $column['title'] = $effectiveLabel;
+                    }
+                    return $column;
+                }
                 return null;
             }
 

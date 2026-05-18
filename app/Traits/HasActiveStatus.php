@@ -9,7 +9,7 @@ namespace App\Traits;
  * It should be used by models that have a 'status' field to indicate active/inactive state.
  * 
  * Status Values:
- * - For Riders: 1 = Active, 3 = Inactive
+ * - For Riders: 1 = Active, 3 = Inactive/off bike, 4 = Vacation, 5 = Absconded
  * - For Other Entities: true/1 = Active, false/0 = Inactive
  */
 trait HasActiveStatus

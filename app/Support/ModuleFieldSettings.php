@@ -115,5 +115,97 @@ class ModuleFieldSettings
 
         return array_values(array_unique($required));
     }
+
+    /**
+     * Whether a schema field is marked required (and visible) in module field settings.
+     */
+    public static function isSchemaFieldRequired(string $moduleKey, string $fieldKey): bool
+    {
+        return in_array($fieldKey, self::requiredSchemaFieldKeysForValidation($moduleKey), true);
+    }
+
+    /**
+     * Apply module field assignment required/visible flags to validation rules (same pattern as riders/employees).
+     *
+     * @param  array<string, string|array<int, mixed>>  $baseRules
+     * @param  array{fields?: list<string>, ignore_id?: int|null}  $options
+     * @return array<string, string|array<int, mixed>>
+     */
+    public static function validationRulesForModule(string $moduleKey, array $baseRules, array $options = []): array
+    {
+        $moduleKey = str_replace('-', '_', strtolower(trim($moduleKey)));
+        $table = ModuleFieldSource::resolveSourceTable($moduleKey);
+        if (!$table || !Schema::hasTable($table)) {
+            return $baseRules;
+        }
+
+        $columns = array_flip(Schema::getColumnListing($table));
+        $schemaKeys = ModuleFieldSource::schemaFieldKeysForModule($moduleKey);
+        if (isset($options['fields']) && is_array($options['fields'])) {
+            $allowed = array_fill_keys($options['fields'], true);
+            $schemaKeys = array_values(array_filter($schemaKeys, fn ($key) => isset($allowed[$key])));
+        }
+
+        if ($schemaKeys === [] || !Schema::hasTable('module_field_category_assignments')) {
+            return $baseRules;
+        }
+
+        $assignmentTable = (new ModuleFieldCategoryAssignment())->getTable();
+        $hasRequiredColumn = Schema::hasColumn($assignmentTable, 'is_required');
+        $hasVisibleColumn = Schema::hasColumn($assignmentTable, 'is_visible');
+
+        $normalizePresenceRule = function ($rule, bool $required) {
+            if (is_array($rule)) {
+                $tokens = array_values(array_filter($rule, function ($item) {
+                    return !is_string($item) || ($item !== 'required' && $item !== 'nullable');
+                }));
+                array_unshift($tokens, $required ? 'required' : 'nullable');
+
+                return $tokens;
+            }
+
+            $tokens = array_values(array_filter(explode('|', (string) $rule), function ($item) {
+                return $item !== '' && $item !== 'required' && $item !== 'nullable';
+            }));
+            array_unshift($tokens, $required ? 'required' : 'nullable');
+
+            return implode('|', $tokens);
+        };
+
+        $assignmentColumns = ['field_key'];
+        if ($hasRequiredColumn) {
+            $assignmentColumns[] = 'is_required';
+        }
+        if ($hasVisibleColumn) {
+            $assignmentColumns[] = 'is_visible';
+        }
+
+        $assignments = ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $moduleKey)
+            ->get($assignmentColumns)
+            ->keyBy('field_key');
+
+        $rules = $baseRules;
+        $hasAnyAssignment = $assignments->isNotEmpty();
+
+        foreach ($schemaKeys as $fieldKey) {
+            if (!isset($columns[$fieldKey])) {
+                continue;
+            }
+
+            $assignment = $assignments->get($fieldKey);
+            $isVisible = !$hasVisibleColumn || !$assignment || $assignment->is_visible === null
+                ? true
+                : (bool) $assignment->is_visible;
+            $isRequired = !$hasAnyAssignment
+                ? true
+                : (($assignment && $hasRequiredColumn) ? (bool) $assignment->is_required : false);
+
+            $baseRule = $rules[$fieldKey] ?? 'nullable';
+            $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
+        }
+
+        return $rules;
+    }
 }
 

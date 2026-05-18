@@ -347,7 +347,7 @@
                 <h2>Vehicles</h2>
             </div>
             <div class="col-sm-6">
-                <div class="action-buttons d-flex justify-content-end">
+                <div class="d-flex justify-content-end">
                     <div class="action-dropdown-container">
                         <button class="action-dropdown-btn" id="addBikeDropdownBtn">
                             <i class="ti ti-plus"></i>

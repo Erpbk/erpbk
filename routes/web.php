@@ -176,6 +176,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::any('bikes/assign_rider/{id?}', [BikesController::class, 'assign_rider'])->name('bikes.assign_rider');
     Route::any('bikes/assignrider/{id?}', [BikesController::class, 'assignrider'])->name('bikes.assignrider');
+    Route::any('bikes/leasing-return/{id}', [BikesController::class, 'leasingReturn'])->name('bikes.leasingReturn');
     Route::get('bikes/contracts/{id?}', [\App\Http\Controllers\BikesController::class, 'assignContract'])->name('bikes.assignContract');
     Route::get('bikes/contract/{id?}', [\App\Http\Controllers\BikesController::class, 'returnContract'])->name('bikes.returnContract');
     Route::any('bikes/contract_upload/{id?}', [\App\Http\Controllers\BikesController::class, 'contract_upload'])->name('bike_contract_upload');
@@ -238,9 +239,11 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('/employees/{id}/salary', [App\Http\Controllers\EmployeeController::class, 'salary'])->name('employee.salary');
     Route::get('/employees/{id}/attendance', [App\Http\Controllers\EmployeeController::class, 'attendance'])->name('employee.attendance');
     Route::get('/employees/{id}/leaves', [App\Http\Controllers\EmployeeController::class, 'leaves'])->name('employee.leaves');
-    Route::get('/employees/{id}/timeline', [App\Http\Controllers\EmployeeController::class, 'timeline'])->name('employee.timeline');
+    Route::get('/employees/{id}/history', [App\Http\Controllers\EmployeeController::class, 'history'])->name('employee.history');
+    Route::any('/employees/sendemail/{id}', [App\Http\Controllers\EmployeeController::class, 'sendEmail'])->name('employee.sendemail');
     Route::get('/employees/{id}/voucher', [App\Http\Controllers\EmployeeController::class, 'voucher'])->name('employees.voucher');
     Route::post('/employees/update-status', [App\Http\Controllers\EmployeeController::class, 'updateStatus'])->name('employee.update-status');
+    Route::post('/employees/update-profile-field', [App\Http\Controllers\EmployeeController::class, 'updateProfileField'])->name('employee.update-profile-field');
     Route::post('/employees/{id}/update-section', [App\Http\Controllers\EmployeeController::class, 'updateSection'])->name('employees.updateSection');
 
     Route::get('attendance/summary', [\App\Http\Controllers\AttendanceController::class, 'summary'])->name('attendance.summary');
@@ -251,6 +254,16 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::post('attendance/bulk-mark', [\App\Http\Controllers\AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
     Route::get('attendance/users/{refType}', [\App\Http\Controllers\AttendanceController::class, 'getUsers'])->name('attendance.users');
 
+    // Visa expense custom routes (register before resource to avoid {VisaExpense} shadowing)
+    Route::get('VisaExpense/createInstallmentPlanForm/{riderId}', [\App\Http\Controllers\VisaexpenseController::class, 'createInstallmentPlanForm'])->name('VisaExpense.createInstallmentPlanForm');
+    Route::get('VisaExpense/installmentPlan/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'installmentPlan'])->name('VisaExpense.installmentPlan');
+    Route::get('VisaExpense/generatentries/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'generatentries'])->name('VisaExpense.generatentries');
+    Route::get('VisaExpense/create/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'create'])->name('VisaExpense.create');
+    Route::get('VisaExpense/edit/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'edit'])->name('VisaExpense.edit');
+    Route::get('VisaExpense/delete/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'destroy'])->name('VisaExpense.delete');
+    Route::get('VisaExpense/viewvoucher/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'viewvoucher'])->name('VisaExpense.viewvoucher');
+    Route::get('VisaExpense/getrider/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'getrider']);
+
     Route::resource('VisaExpense', App\Http\Controllers\VisaexpenseController::class);
 
     // Visa Status Management Routes
@@ -259,20 +272,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('visa-statuses.toggle-active');
     Route::post('VisaExpense/store', [\App\Http\Controllers\VisaexpenseController::class, 'store'])->name('VisaExpense.store');
     Route::post('VisaExpense/inline-update', [\App\Http\Controllers\VisaexpenseController::class, 'inlineUpdate'])->name('VisaExpense.inlineUpdate');
-    Route::get('VisaExpense/edit/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'edit'])->name('VisaExpense.edit');
     Route::post('VisaExpense/update', [\App\Http\Controllers\VisaexpenseController::class, 'update'])->name('VisaExpense.update');
-    Route::get('VisaExpense/create/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'create'])->name('VisaExpense.create');
     Route::any('VisaExpense/attach_file/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'fileUpload'])->name('VisaExpense.fileupload');
-    Route::get('VisaExpense/delete/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'destroy'])->name('VisaExpense.delete');
-    Route::get('VisaExpense/installmentPlan/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'installmentPlan'])->name('VisaExpense.installmentPlan');
 
     // Settings panel: registered under /app/{company_slug}/ — see routes/settings_panel.php
 
-
-
-
     // Simple Installment Plan Routes
-    Route::get('VisaExpense/createInstallmentPlanForm/{riderId}', [\App\Http\Controllers\VisaexpenseController::class, 'createInstallmentPlanForm'])->name('VisaExpense.createInstallmentPlanForm');
     Route::post('VisaExpense/createInstallmentPlan', [\App\Http\Controllers\VisaexpenseController::class, 'createInstallmentPlan'])->name('VisaExpense.createInstallmentPlan');
     Route::post('VisaExpense/payInstallment', [\App\Http\Controllers\VisaexpenseController::class, 'payInstallment'])->name('VisaExpense.payInstallment');
     Route::post('VisaExpense/updateInstallmentField', [\App\Http\Controllers\VisaexpenseController::class, 'updateInstallmentField'])->name('VisaExpense.updateInstallmentField');
@@ -286,12 +291,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::post('accountcreate', [\App\Http\Controllers\VisaexpenseController::class, 'accountcreate'])->name('VisaExpense.accountcreate');
     Route::post('editaccount', [\App\Http\Controllers\VisaexpenseController::class, 'editaccount'])->name('VisaExpense.editaccount');
     Route::get('VisaExpense/deleteaccount/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'deleteaccount'])->name('VisaExpense.deleteaccount');
-    Route::get('VisaExpense/generatentries/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'generatentries'])->name('VisaExpense.generatentries');
     Route::post('VisaExpense/payfine', [\App\Http\Controllers\VisaexpenseController::class, 'payfine'])->name('VisaExpense.payfine');
     Route::get('VisaExpense/edit-voucher-credit/{visaExpense}', [\App\Http\Controllers\VisaexpenseController::class, 'editVoucherCreditForm'])->name('VisaExpense.editVoucherCreditForm');
     Route::post('VisaExpense/update-voucher-credit', [\App\Http\Controllers\VisaexpenseController::class, 'updateVoucherCredit'])->name('VisaExpense.updateVoucherCredit');
-    Route::get('VisaExpense/viewvoucher/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'viewvoucher'])->name('VisaExpense.viewvoucher');
-    Route::get('VisaExpense/getrider/{id}', [\App\Http\Controllers\VisaexpenseController::class, 'getrider']);
 
     Route::post('bike-registration-statuses/reorder', [BikeRegistrationStatusController::class, 'reorder'])->name('bike-registration-statuses.reorder');
     Route::get('bike-registration-statuses/{id}/toggle-active', [BikeRegistrationStatusController::class, 'toggleActive'])->name('bike-registration-statuses.toggle-active');
@@ -374,6 +376,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
 
     Route::get('riders/timeline/{id?}', [\App\Http\Controllers\RidersController::class, 'timeline'])->name('rider.timeline');
+    Route::get('riders/history/{id}', [\App\Http\Controllers\RidersController::class, 'history'])->name('rider.history');
     Route::get('riders/contract/{id?}', [\App\Http\Controllers\RidersController::class, 'contract'])->name('rider.contract');
     Route::any('riders/contract_upload/{id?}', [\App\Http\Controllers\RidersController::class, 'contract_upload'])->name('rider_contract_upload');
     Route::any('riders/picture_upload/{id?}', [\App\Http\Controllers\RidersController::class, 'picture_upload'])->name('rider_picture_upload');
@@ -602,6 +605,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
     Route::post('/cheques/status/{id}', [App\Http\Controllers\ChequesController::class, 'updateStatus'])->name('cheques.update-status');
     Route::get('cheques/change_status/{id}', [\App\Http\Controllers\ChequesController::class, 'statusForm'])->name('cheques.status-form');
+    Route::post('cheques/set-cheque-top-option/{id}', [App\Http\Controllers\ChequesController::class, 'setChequeTopOption'])->name('cheques.setChequeTopOption');
     Route::resource('cheques', App\Http\Controllers\ChequesController::class);
 
     // Soft Delete Routes for Banks - DEPRECATED: Use centralized trash module (/trash)

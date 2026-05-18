@@ -84,6 +84,7 @@ return [
         'erp_settings'       => 'ERP Settings',
         // Settings panel module labels (rename in each module's settings page)
         'rider_settings'     => 'Rider Settings',
+        'employee_settings'  => 'Employee Settings',
         'bike_settings'      => 'Bike Settings',
         'voucher_settings'   => 'Voucher Settings',
         'vat_settings'       => 'VAT Settings',

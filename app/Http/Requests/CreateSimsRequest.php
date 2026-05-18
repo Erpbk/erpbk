@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Sims;
+use App\Support\ModuleFieldSettings;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CreateSimsRequest extends FormRequest
@@ -24,6 +25,6 @@ class CreateSimsRequest extends FormRequest
      */
     public function rules()
     {
-        return Sims::$rules;
+        return ModuleFieldSettings::validationRulesForModule('sims', Sims::$rules);
     }
 }

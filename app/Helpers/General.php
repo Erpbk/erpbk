@@ -240,18 +240,11 @@ class General
   public static function get_warehouse($id = 0)
   {
     $array = [
-      /*'Active' => 'Active',
-        'Impound' => 'Impound',
-       'City Garage' => 'City Garage',
-       'Clutch Garage' => 'Clutch Garage',
-       'Express Garage' => 'Express Garage',
-       'Al Sama Garage' => 'Al Sama Garage',
-       'Easy Lease Garage' => 'Easy Lease Garage',
-       'Theft' => 'Theft',
-       'Total Loss' => 'Total Loss',*/
       'Return' => 'Return',
       'Absconded' => 'Absconded',
-      'Vacation' => 'Vacation'
+      'Vacation' => 'Vacation',
+      'Theft' => 'Theft',
+      'Total Loss' => 'Total Loss'
     ];
     $list = '';
     foreach ($array as $key => $value) {

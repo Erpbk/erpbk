@@ -258,95 +258,9 @@
         <!-- Filter Overlay -->
         <div id="filterOverlay" class="filter-overlay"></div>
 </section>
-{{-- Include Column Control Panel --}}
-@php
-use Illuminate\Support\Facades\Schema;
-// Build column-control list from Rider Settings assignments only.
-$riderColumns = Schema::getColumnListing('riders');
-$riderColumnsSet = array_flip($riderColumns);
-
-// Columns to always exclude from manual column control.
-$exclude = ['id', 'email', 'created_at', 'updated_at', 'company_id', 'account_id'];
-$excludedSet = array_flip($exclude);
-
-// Assigned fixed fields (from Rider Settings -> Rider Fields).
-$assignedFixedColumns = \App\Models\RiderFieldCategoryAssignment::query()
-->orderBy('display_order')
-->orderBy('id')
-->pluck('field_key')
-->filter(function ($key) use ($riderColumnsSet, $excludedSet) {
-return isset($riderColumnsSet[$key]) && !isset($excludedSet[$key]);
-})
-->values()
-->all();
-
-// Assigned custom fields (category-wise moved from settings).
-$assignedCustomFields = \App\Models\RiderCustomField::query()
-->whereNotNull('category_id')
-->orderBy('display_order')
-->orderBy('id')
-->get(['id', 'label']);
-
-// Merge only assigned DB-backed fields (unique, ordered).
-$dbColumns = array_values(array_unique($assignedFixedColumns));
-$preferredOrder = [
-'rider_id',
-'name',
-'fleet_supervisor',
-'customer_id',
-'attendance',
-'status',
-];
-
-$columns = [];
-$added = [];
-$makeTitle = function ($key) {
-$customTitles = [
-'doj' => 'Date of Joining',
-'recruiter_id' => 'Recruiter',
-];
-return $customTitles[$key] ?? ucwords(str_replace('_', ' ', $key));
-};
-
-// Add preferred DB columns first
-foreach ($preferredOrder as $key) {
-if (in_array($key, $dbColumns)) {
-$columns[] = ['data' => $key, 'title' => $makeTitle($key)];
-$added[$key] = true;
-}
-}
-
-// Add remaining DB columns
-foreach ($dbColumns as $key) {
-if (empty($added[$key])) {
-$columns[] = ['data' => $key, 'title' => $makeTitle($key)];
-}
-}
-
-// Add assigned custom fields (stored in riders.custom_field_values JSON).
-foreach ($assignedCustomFields as $cf) {
-$columns[] = [
-'data' => 'custom_field_values.' . $cf->id,
-'title' => trim((string) $cf->label) !== '' ? $cf->label : ('Custom Field #' . $cf->id),
-];
-}
-
-// 3) Append special/computed columns used in UI
-$columns = array_merge($columns, [
-['data' => 'bike', 'title' => 'Bike'],
-['data' => 'orders_sum', 'title' => 'Orders'],
-['data' => 'days', 'title' => 'Days'],
-['data' => 'balance', 'title' => 'Balance'],
-['data' => 'action', 'title' => 'Actions'],
-// Keep last two fixed utility columns for search and control icons
-['data' => 'search', 'title' => 'Search'],
-['data' => 'control', 'title' => 'Control'],
-]);
-
-$tableColumns = $columns;
-@endphp
+{{-- Column list from RidersController::buildRidersIndexTableColumns() ($tableColumns) --}}
 @include('components.column-control-panel', [
-'tableColumns' => $tableColumns,
+'tableColumns' => $tableColumns ?? [],
 'exportRoute' => route('rider.exportCustomizableRiders'),
 'tableIdentifier' => 'riders_table'
 ])
@@ -361,7 +275,7 @@ $tableColumns = $columns;
         </div>
         <div class="card-body table-responsive px-2 py-0">
             <div class="riders-table-container">
-                @include('riders.table', ['data' => $data, 'tableColumns' => $tableColumns])
+                @include('riders.table', ['data' => $data, 'tableColumns' => $tableColumns ?? []])
             </div>
             <div class="filter-loading-overlay" style="display: none;">
                 <div class="filter-loading-content">

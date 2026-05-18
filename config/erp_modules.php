@@ -7,7 +7,7 @@ return [
     |--------------------------------------------------------------------------
     | Key is used for routes (e.g. settings-panel/module-settings/dashboard).
     | Label is the default menu name; editable in each module's Settings > General.
-    | Modules with dedicated settings pages (account_fields, voucher_settings, rider_settings)
+    | Modules with dedicated settings pages (account_fields, voucher_settings, rider_settings, employee_settings)
     | are listed in the settings panel separately; these entries are for main-app menu modules.
     */
     'modules' => [

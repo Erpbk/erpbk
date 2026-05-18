@@ -73,7 +73,7 @@ $settings = \DB::table('settings')->pluck('value', 'name')->toArray();
   @if($voucher->remarks)
   <div class="mb-3">
     <label class="form-label small text-uppercase text-muted mb-1">Notes</label>
-    <p class="mb-0">{{ $voucher->remarks }}</p>
+    <p class="mb-0">{!! $voucher->remarks !!}</p>
   </div>
   @endif
 
@@ -97,9 +97,9 @@ $settings = \DB::table('settings')->pluck('value', 'name')->toArray();
           <td>{{ $item->account ? $item->account->account_code . ' - ' . $item->account->name : '—' }}</td>
           <td>
             @if($voucher->voucher_type === 'RFV' && $fin_detail)
-            {{ $item->narration }} <strong>Ticket No:</strong>{{ $fin_detail->ticket_no ?? '' }}, <strong>Bike No:</strong>{{ $fin_detail->plate_no ?? '' }}@if($fin_detail && $fin_detail->trip_date) {{ \Carbon\Carbon::parse($fin_detail->trip_date)->format('d M Y') }} @else N/A @endif
+            {!! $item->narration !!} <strong>Ticket No:</strong>{{ $fin_detail->ticket_no ?? '' }}, <strong>Bike No:</strong>{{ $fin_detail->plate_no ?? '' }}@if($fin_detail && $fin_detail->trip_date) {{ \Carbon\Carbon::parse($fin_detail->trip_date)->format('d M Y') }} @else N/A @endif
             @else
-            {{ $item->narration ?? '—' }}
+            {!! $item->narration ?? '—' !!}
             @endif
           </td>
           <td class="text-end">{{ \App\Helpers\Account::show_bal_format($item->debit ?? 0) }}</td>

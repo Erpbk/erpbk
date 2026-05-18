@@ -78,12 +78,12 @@
                     <i class="fa fa-edit text-primary"></i>
                 </a>
                 @endcan
-                <input type="text"
+                <textarea
                     id="narration_input_{{ $installment->id }}"
-                    value="{{ $installment->transaction_narration_plain }}"
+                    rows="2"
+                    data-original="{{ e($installment->transaction_narration ?? $installment->narration ?? '') }}"
                     class="form-control form-control-sm d-none"
-                    onblur="saveNarration({{ $installment->id }})"
-                    onkeypress="if(event.keyCode==13) saveNarration({{ $installment->id }})">
+                    onblur="saveNarration({{ $installment->id }})">{{ $installment->transaction_narration ?? $installment->narration ?? '' }}</textarea>
             </td>
             <td>{!! $installment->status_badge !!}</td>
             <td>
@@ -472,7 +472,7 @@
         const narrationInput = document.getElementById('narration_input_' + installmentId);
         const narrationDisplay = document.getElementById('narration_display_' + installmentId);
         const newValue = narrationInput.value.trim();
-        const originalValue = (narrationInput.getAttribute('data-original') || '').trim();
+        const originalValue = (narrationInput.getAttribute('data-original') || narrationInput.defaultValue || '').trim();
 
         if (newValue === originalValue) {
             narrationInput.classList.add('d-none');

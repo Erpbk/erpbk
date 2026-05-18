@@ -64,7 +64,8 @@
 
 @php
 $activeCategoryId = (int) (request()->query('active_category_id', 0));
-$showBikeFieldsMainTab = request()->query->has('active_category_id');
+$showAssignFieldsTab = request()->query('tab') === 'assign-fields';
+$showBikeFieldsMainTab = request()->query->has('active_category_id') && !$showAssignFieldsTab;
 $settingsRoutePrefix = $settingsRoutePrefix ?? 'settings-panel.bike-settings';
 $settingsRouteParams = $settingsRouteParams ?? [];
 $settingsHeading = $settingsHeading ?? 'Bike Settings';
@@ -109,7 +110,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
       <div class="card-body">
         <ul class="nav nav-tabs mb-3" id="bikeSettingsMainTabs" role="tablist">
           <li class="nav-item" role="presentation">
-            <button class="nav-link {{ $showBikeFieldsMainTab ? '' : 'active' }}" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">
+            <button class="nav-link {{ ($showBikeFieldsMainTab || $showAssignFieldsTab) ? '' : 'active' }}" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">
               General
             </button>
           </li>
@@ -142,6 +143,20 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
               {{ $settingsFieldsTabLabel }}
             </button>
           </li>
+          @if(($moduleKey ?? '') === 'bike_list')
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $showAssignFieldsTab ? 'active' : '' }}" data-bs-toggle="tab" data-bs-target="#tab-bike-assign-fields" type="button" role="tab" id="tab-bike-assign-fields-btn">
+              Bike Assigning Fields
+            </button>
+          </li>
+          @endif
+          @if(($moduleKey ?? '') === 'sims')
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $showAssignFieldsTab ? 'active' : '' }}" data-bs-toggle="tab" data-bs-target="#tab-sim-assign-fields" type="button" role="tab" id="tab-sim-assign-fields-btn">
+              SIM Assigning Fields
+            </button>
+          </li>
+          @endif
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs" type="button" role="tab">
               Documents
@@ -165,7 +180,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
 
         <div class="tab-content">
           {{-- Tab: General --}}
-          <div class="tab-pane fade {{ $showBikeFieldsMainTab ? '' : 'show active' }}" id="tab-general" role="tabpanel">
+          <div class="tab-pane fade {{ ($showBikeFieldsMainTab || $showAssignFieldsTab) ? '' : 'show active' }}" id="tab-general" role="tabpanel">
             <form action="{{ route($settingsRoutePrefix . '.store-module-label', $settingsRouteParams) }}" method="POST" class="row g-3 align-items-end">
               @csrf
               <div class="col-md-6">
@@ -736,7 +751,6 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                       @php
                       $cat = $customField->category;
                       $catLabel = $cat?->label ?? 'Unassigned';
-                      $isReq = (bool) ($customField->is_mandatory ?? false);
                       @endphp
                       <tr class="table-light" data-custom-field-id="{{ $customField->id }}">
                         <td class="align-middle"><span class="drag-handle cursor-grab text-muted" title="{{ __('Drag to reorder') }}"><i class="ti ti-grip-vertical"></i></span></td>
@@ -751,8 +765,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                           <span class="badge bg-label-warning">Unassigned</span>
                           @endif
                         </td>
-                        <td class="align-middle text-center">{{ $isReq ? 'Yes' : 'No' }}</td>
-                        <td class="align-middle text-center">-</td>
+                        @include('settings.bike_settings._bike_custom_field_row_flags', ['customField' => $customField])
                         <td class="align-middle">
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
@@ -783,6 +796,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                             data-help-text="{{ $customField->help_text }}"
                             data-data-type="{{ $customField->data_type }}"
                             data-is-mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
+                            data-is-visible="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
                             data-default-value="{{ $customField->default_value }}"
                             data-input-format="{{ $customField->input_format }}"
                             data-config-options='@json($customConfigOptions)'
@@ -938,8 +952,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                           <span class="fw-semibold">{{ $customField->label }}</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
                         </td>
-                        <td class="align-middle text-center">{{ ($customField->is_mandatory ?? false) ? 'Yes' : 'No' }}</td>
-                        <td class="align-middle text-center">-</td>
+                        @include('settings.bike_settings._bike_custom_field_row_flags', ['customField' => $customField])
                         <td class="align-middle">
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
@@ -970,6 +983,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                             data-help-text="{{ $customField->help_text }}"
                             data-data-type="{{ $customField->data_type }}"
                             data-is-mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
+                            data-is-visible="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
                             data-default-value="{{ $customField->default_value }}"
                             data-input-format="{{ $customField->input_format }}"
                             data-config-options='@json($customConfigOptions)'
@@ -1004,7 +1018,15 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
               @endforeach
             </div>
           </div>
+          {{-- /tab-bike-fields: assign modal fields are configured in the next tab only --}}
 
+          @if(($moduleKey ?? '') === 'bike_list')
+          @include('settings.bike_settings._assign_fields_tab')
+          @endif
+
+          @if(($moduleKey ?? '') === 'sims')
+          @include('settings.sim_settings._assign_fields_tab')
+          @endif
 
           {{-- Edit Bike Fixed Field Modal --}}
           <div class="modal fade" id="editBikeFixedFieldModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
@@ -1164,7 +1186,6 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
               </div>
             </div>
           </div>
-
 
           {{-- Tab: Documents --}}
           <div class="tab-pane fade" id="tab-docs" role="tabpanel">
@@ -1998,6 +2019,32 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
       });
     }
 
+    // Add modal (assign custom field)
+    const assignAddBtn = document.getElementById('addBikeAssignFieldOptionRowBtn');
+    const assignRows = document.getElementById('addBikeAssignFieldOptionsRows');
+    const assignHidden = document.getElementById('addBikeAssignFieldConfigOptionsHidden');
+    if (assignAddBtn && assignRows && assignHidden) {
+      assignAddBtn.addEventListener('click', function() {
+        bikeCreateOptionRow(assignRows, assignHidden, '');
+      });
+    }
+    var assignTypeSelect = document.getElementById('addBikeAssignFieldDataType');
+    var assignOptionsWrap = document.getElementById('addBikeAssignFieldOptionsWrap');
+    function toggleAssignAddOptions() {
+      if (!assignTypeSelect || !assignOptionsWrap) return;
+      assignOptionsWrap.style.display = String(assignTypeSelect.value || '').toLowerCase() === 'dropdown' ? '' : 'none';
+    }
+    if (assignTypeSelect) {
+      assignTypeSelect.addEventListener('change', toggleAssignAddOptions);
+      toggleAssignAddOptions();
+    }
+    var assignForm = document.getElementById('formAddBikeAssignField');
+    if (assignForm && assignRows && assignHidden) {
+      assignForm.addEventListener('submit', function() {
+        bikeSyncOptionsToHidden(assignRows, assignHidden);
+      });
+    }
+
     // Edit fixed field modal
     const editFixedAddBtn = document.getElementById('editBikeFixedOptionRowBtn');
     const editFixedRows = document.getElementById('editBikeFixedOptionsRows');
@@ -2021,6 +2068,46 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
     if (editCustomAddBtn && editCustomRows && editCustomHidden) {
       editCustomAddBtn.addEventListener('click', function() {
         bikeCreateOptionRow(editCustomRows, editCustomHidden, '');
+      });
+    }
+
+    const editAssignBuiltinOptBtn = document.getElementById('editAssignBuiltinOptionRowBtn');
+    const editAssignBuiltinOptRows = document.getElementById('editAssignBuiltinOptionsRows');
+    const editAssignBuiltinOptHidden = document.getElementById('editAssignBuiltinConfigOptionsHidden');
+    if (editAssignBuiltinOptBtn && editAssignBuiltinOptRows && editAssignBuiltinOptHidden) {
+      editAssignBuiltinOptBtn.addEventListener('click', function() {
+        bikeCreateOptionRow(editAssignBuiltinOptRows, editAssignBuiltinOptHidden, '');
+      });
+    }
+
+    const editAssignCustomOptBtn = document.getElementById('editAssignCustomOptionRowBtn');
+    const editAssignCustomOptRows = document.getElementById('editAssignCustomOptionsRows');
+    const editAssignCustomOptHidden = document.getElementById('editAssignCustomConfigOptionsHidden');
+    if (editAssignCustomOptBtn && editAssignCustomOptRows && editAssignCustomOptHidden) {
+      editAssignCustomOptBtn.addEventListener('click', function() {
+        bikeCreateOptionRow(editAssignCustomOptRows, editAssignCustomOptHidden, '');
+      });
+    }
+
+    var editAssignInputType = document.getElementById('editAssignInputType');
+    if (editAssignInputType && typeof bikeToggleAssignBuiltinOptions === 'function') {
+      editAssignInputType.addEventListener('change', bikeToggleAssignBuiltinOptions);
+    }
+    var editAssignCustomDataType = document.getElementById('editAssignCustomDataType');
+    if (editAssignCustomDataType && typeof bikeToggleAssignCustomOptions === 'function') {
+      editAssignCustomDataType.addEventListener('change', bikeToggleAssignCustomOptions);
+    }
+
+    var editAssignForm = document.getElementById('formEditBikeAssignField');
+    if (editAssignForm) {
+      editAssignForm.addEventListener('submit', function() {
+        var isCustom = document.getElementById('editAssignCustomSection') &&
+          document.getElementById('editAssignCustomSection').style.display !== 'none';
+        if (isCustom && editAssignCustomOptRows && editAssignCustomOptHidden) {
+          bikeSyncOptionsToHidden(editAssignCustomOptRows, editAssignCustomOptHidden);
+        } else if (editAssignBuiltinOptRows && editAssignBuiltinOptHidden) {
+          bikeSyncOptionsToHidden(editAssignBuiltinOptRows, editAssignBuiltinOptHidden);
+        }
       });
     }
   }
@@ -2098,6 +2185,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
         configOptions || ''
       );
     }
+
   });
 
   document.addEventListener('DOMContentLoaded', function() {
@@ -2152,6 +2240,65 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
       return response.json().then(function(data) {
         return response.ok ? data : Promise.reject(data);
       });
+    });
+  }
+
+  if (!window.__bikeCustomFieldToggleChangeBound) {
+    window.__bikeCustomFieldToggleChangeBound = true;
+
+    document.addEventListener('change', function(e) {
+      var toggle = e.target.closest('.bike-custom-required-toggle, .bike-custom-visibility-toggle');
+      if (!toggle) return;
+
+      var customFieldId = toggle.getAttribute('data-id');
+      var updateUrl = toggle.getAttribute('data-update-url');
+      if (!customFieldId || !updateUrl) return;
+
+      var csrf = '{{ csrf_token() }}';
+      var fieldRequiredToggles = document.querySelectorAll('.bike-custom-required-toggle[data-id="' + customFieldId + '"]');
+      var fieldVisibleToggles = document.querySelectorAll('.bike-custom-visibility-toggle[data-id="' + customFieldId + '"]');
+      var isMandatory = fieldRequiredToggles.length ? (fieldRequiredToggles[0].checked ? 1 : 0) : 0;
+      var isVisible = fieldVisibleToggles.length ? (fieldVisibleToggles[0].checked ? 1 : 0) : 1;
+      var originalChecked = toggle.checked;
+
+      toggle.disabled = true;
+
+      var formBody = new URLSearchParams();
+      formBody.append('_token', csrf);
+      formBody.append('is_mandatory', String(isMandatory));
+      formBody.append('is_visible', String(isVisible));
+
+      fetch(updateUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: formBody.toString(),
+        })
+        .then(function(r) {
+          return r.json().then(function(data) {
+            return r.ok ? data : Promise.reject(data);
+          });
+        })
+        .then(function(data) {
+          fieldRequiredToggles.forEach(function(el) {
+            el.checked = !!data.is_mandatory;
+            el.setAttribute('data-is-visible-current', data.is_visible ? '1' : '0');
+          });
+          fieldVisibleToggles.forEach(function(el) {
+            el.checked = !!data.is_visible;
+            el.setAttribute('data-is-mandatory-current', data.is_mandatory ? '1' : '0');
+          });
+        })
+        .catch(function() {
+          toggle.checked = !originalChecked;
+        })
+        .finally(function() {
+          toggle.disabled = false;
+        });
     });
   }
 

@@ -21,24 +21,49 @@ class BikeHistoryDataTable extends DataTable
     $dataTable = new EloquentDataTable($query);
 
     $dataTable->addColumn('note_date', function (BikeHistory $row) {
-      return Common::DateFormat($row->note_date);
-    })->toJson();
-    $dataTable->addColumn('bike_id', function (BikeHistory $row) {
-      return @$row->bike->plate ?? '';
-    })->toJson();
+      return $row->note_date ? Common::DateFormat($row->note_date) : '';
+    });
+
+    $dataTable->addColumn('project_name', function (BikeHistory $row) {
+      if ($row->customer_id) {
+        $customer = \App\Models\Customers::find($row->customer_id);
+        return $customer->name ?? $row->customer_id;
+      }
+
+      return '';
+    });
+
+    $dataTable->addColumn('branch_name', function (BikeHistory $row) {
+      return $row->branch->name ?? ($row->branch_id ?: '');
+    });
+
+    $dataTable->addColumn('bike_number_display', function (BikeHistory $row) {
+      return $row->bike_number ?: (@$row->bike->plate ?? '');
+    });
+
+    $dataTable->addColumn('history_status_display', function (BikeHistory $row) {
+      $status = $row->history_status ?: $row->warehouse;
+      if (!$status) {
+        return '';
+      }
+      $class = strtolower($status) === 'joining' ? 'badge bg-label-success' : 'badge bg-label-secondary';
+
+      return '<span class="' . $class . '">' . e($status) . '</span>';
+    });
+
     $dataTable->addColumn('rider_id', function (BikeHistory $row) {
       return @$row->rider->name ?? '';
-    })->toJson();
+    });
+
     $dataTable->addColumn('contract', function (BikeHistory $row) {
       if ($row->contract) {
         return '<a href="' . Storage::url('app/contract/' . $row->contract) . '" data-toggle="tooltip" class="file btn btn-success  btn-sm mr-1" data-modalID="modal-new" target="_blank"><i class="fas fa-file"></i>&nbsp; Signed Contract</a>';
-      } else {
-        return 'N/A';
       }
 
-    })->toJson();
+      return 'N/A';
+    });
 
-    $dataTable->rawColumns(['contract', 'action']);
+    $dataTable->rawColumns(['contract', 'action', 'history_status_display']);
     return $dataTable->addColumn('action', 'bike_histories.datatables_actions');
   }
 
@@ -50,12 +75,11 @@ class BikeHistoryDataTable extends DataTable
    */
   public function query(BikeHistory $model)
   {
-    $query = $model->newQuery();
+    $query = $model->newQuery()->with(['branch', 'bike', 'rider']);
 
     if (request('bike_id')) {
       $query->where('bike_id', request('bike_id'));
     }
-
 
     return $query->orderByDesc('id');
   }
@@ -75,14 +99,7 @@ class BikeHistoryDataTable extends DataTable
         'dom' => 'Bfrtip',
         'stateSave' => true,
         'order' => [[0, 'desc']],
-        'buttons' => [
-          // Enable Buttons as per your need
-//                    ['extend' => 'create', 'className' => 'btn btn-default btn-sm no-corner',],
-//                    ['extend' => 'export', 'className' => 'btn btn-default btn-sm no-corner',],
-//                    ['extend' => 'print', 'className' => 'btn btn-default btn-sm no-corner',],
-//                    ['extend' => 'reset', 'className' => 'btn btn-default btn-sm no-corner',],
-//                    ['extend' => 'reload', 'className' => 'btn btn-default btn-sm no-corner',],
-        ],
+        'buttons' => [],
         'language' => [
           'processing' => '<div class="loading-overlay"><div class="spinner-border text-primary" role="status"></div></div>'
         ],
@@ -97,12 +114,15 @@ class BikeHistoryDataTable extends DataTable
   protected function getColumns()
   {
     return [
-      'bike_id' => ['title' => 'Bike'],
+      'note_date' => ['title' => 'Date', 'data' => 'note_date'],
+      'project_name' => ['title' => 'Project', 'orderable' => false, 'searchable' => false],
+      'branch_name' => ['title' => 'Branch', 'orderable' => false, 'searchable' => false],
+      'bike_number_display' => ['title' => 'Bike Number', 'orderable' => false, 'searchable' => false],
+      'fleet_supervisor' => ['title' => 'Fleet Supervisor'],
+      'history_status_display' => ['title' => 'Status', 'orderable' => false, 'searchable' => false],
       'rider_id' => ['title' => 'Rider'],
-      'notes',
-      'note_date',
-      'warehouse',
-      'contract'
+      'notes' => ['title' => 'Notes', 'visible' => false],
+      'contract' => ['title' => 'Contract', 'visible' => false],
     ];
   }
 

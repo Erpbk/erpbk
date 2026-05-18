@@ -1,8 +1,23 @@
 @extends('employees.view')
 
-@section('page-content')
-{!! Form::open(['route' => 'employees.store', 'id' => 'formajax', 'class' => 'form-with-fixed-footer']) !!}
+@section('page_content')
+{!! Form::open(['route' => 'employees.store', 'id' => 'employee-store-form', 'class' => 'form-with-fixed-footer employee-ajax-form', 'data-reload-table' => '0']) !!}
 <input type="hidden" id="redirect_url" value="{{ route('employees.index') }}" />
+<input type="hidden" name="account" value="new" />
+@php
+$hasEmployeeIdField = false;
+foreach ($fieldsByCategory ?? [] as $group) {
+    foreach ($group->fields as $item) {
+        if (($item->kind ?? '') === 'fixed' && ($item->field_key ?? '') === 'employee_id') {
+            $hasEmployeeIdField = true;
+            break 2;
+        }
+    }
+}
+@endphp
+@if(!$hasEmployeeIdField)
+<input type="hidden" name="employee_id" value="{{ $empId }}">
+@endif
 <div class="card-body card-body-with-footer">
     @include('employees.fields')
 </div>
@@ -17,37 +32,55 @@
 
 @push('page-scripts')
 <script>
-    $(document).ready(function() {
-        $('#formajax').on('submit', function(e) {
+    $(function() {
+        const $form = $('#employee-store-form');
+        if (!$form.length) {
+            return;
+        }
+
+        $form.off('submit.employeeStore').on('submit.employeeStore', function(e) {
             e.preventDefault();
-            const form = $(this);
-            const submitButton = form.find('button[type="submit"]');
+            e.stopImmediatePropagation();
+
+            if ($form.data('submitting')) {
+                return false;
+            }
+            $form.data('submitting', true);
+
+            const submitButton = $form.find('button[type="submit"]');
             const originalText = submitButton.html();
-            submitButton.html('<i class="fa fa-spinner fa-spin me-2"></i>Creating...').prop('disabled', true);
+            submitButton.prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-2"></i>Creating...');
 
             const formData = new FormData(this);
             $.ajax({
-                url: form.attr('action'),
+                url: $form.attr('action'),
                 type: 'POST',
                 data: formData,
                 processData: false,
                 contentType: false,
                 headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
                 },
                 success: function(response) {
-                    if (response.success) {
+                    if (response && response.success) {
                         toastr.success(response.message || 'Employee created successfully');
-                        setTimeout(function() {
-                            window.location.href = $('#redirect_url').val();
-                        }, 800);
+                        const redirect = response.redirect || $('#redirect_url').val();
+                        if (redirect) {
+                            setTimeout(function() {
+                                window.location.href = redirect;
+                            }, 800);
+                        }
                         return;
                     }
-                    submitButton.html(originalText).prop('disabled', false);
-                    toastr.error(response.message || 'Failed to create employee');
+                    $form.data('submitting', false);
+                    submitButton.prop('disabled', false).html(originalText);
+                    toastr.error((response && response.message) || 'Failed to create employee');
                 },
                 error: function(xhr) {
-                    submitButton.html(originalText).prop('disabled', false);
+                    $form.data('submitting', false);
+                    submitButton.prop('disabled', false).html(originalText);
                     if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
                         const messages = [];
                         Object.keys(xhr.responseJSON.errors).forEach(function(key) {
@@ -56,9 +89,11 @@
                         toastr.error(messages.join('\n'));
                         return;
                     }
-                    toastr.error('Failed to create employee');
+                    toastr.error((xhr.responseJSON && xhr.responseJSON.message) || 'Failed to create employee');
                 }
             });
+
+            return false;
         });
     });
 </script>

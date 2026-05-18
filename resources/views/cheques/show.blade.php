@@ -31,6 +31,8 @@
         <div class="fw-medium">{{ $cheque->issued_by ?? '-' }}</div>
     </div>
     
+    @include('cheques._cheque_top_view_cards')
+
     <!-- Main Content Row -->
     <div class="row">
         <!-- Left Column - Primary Information -->

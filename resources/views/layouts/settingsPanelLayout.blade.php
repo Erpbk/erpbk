@@ -5,7 +5,7 @@
 $configData = Helper::appClasses();
 $settingsPanelLabels = \App\Models\Settings::getMenuLabels();
 $settingsPanelRidersLabel = \App\Models\Settings::getMenuLabel('rider_settings');
-$settingsPanelEmployeesSettingsLabel = 'Employee Settings';
+$settingsPanelEmployeesSettingsLabel = \App\Models\Settings::getMenuLabel('employee_settings');
 $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug');
 $moduleIcons = [
 'dashboard' => 'ti-layout-dashboard',
@@ -249,6 +249,7 @@ $containerNav = 'container-fluid';
         if (
         Request::is('settings-panel/module-settings/' . $childKey)
         || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*'))
+        || ($childKey === 'cheques' && Request::is('settings-panel/cheques-settings*'))
         || ($childKey === 'employee-settings' && Request::is('settings-panel/employee-settings*'))
         || ($childKey === 'bike_registration' && Request::is('settings-panel/bike-registration-statuses*'))
         ) {
@@ -268,8 +269,8 @@ $containerNav = 'container-fluid';
           </a>
           <ul class="menu-sub">
             @foreach($children as $childKey)
-            <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $childKey) || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*')) || ($childKey === 'employee-settings' && Request::is('settings-panel/employee-settings*')) || ($childKey === 'bike_registration' && Request::is('settings-panel/bike-registration-statuses*')) ? 'active' : '' }}">
-              <a href="{{ $childKey === 'rider-settings' ? route('settings-panel.rider-settings.index', ['company_slug' => $settingsCompanySlug]) : ($childKey === 'employee-settings' ? route('settings-panel.employee-settings.index', ['company_slug' => $settingsCompanySlug]) : route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $childKey])) }}" class="menu-link">
+            <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $childKey) || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*')) || ($childKey === 'cheques' && Request::is('settings-panel/cheques-settings*')) || ($childKey === 'employee-settings' && Request::is('settings-panel/employee-settings*')) || ($childKey === 'bike_registration' && Request::is('settings-panel/bike-registration-statuses*')) ? 'active' : '' }}">
+              <a href="{{ $childKey === 'rider-settings' ? route('settings-panel.rider-settings.index', ['company_slug' => $settingsCompanySlug]) : ($childKey === 'cheques' ? route('settings-panel.cheques-settings.index', ['company_slug' => $settingsCompanySlug]) : ($childKey === 'employee-settings' ? route('settings-panel.employee-settings.index', ['company_slug' => $settingsCompanySlug]) : route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $childKey]))) }}" class="menu-link">
                 <i class="menu-icon tf-icons ti {{ $moduleIcons[$childKey] ?? 'ti-adjustments-alt' }}"></i>
                 <div>{{ $childKey === 'rider-settings' ? $settingsPanelRidersLabel : ($childKey === 'employee-settings' ? $settingsPanelEmployeesSettingsLabel : ($settingsPanelLabels[$childKey] ?? config('menu_labels.defaults.' . $childKey, ucwords(str_replace('_', ' ', $childKey))))) }}</div>
               </a>

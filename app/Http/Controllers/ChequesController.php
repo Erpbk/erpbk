@@ -10,19 +10,50 @@ use App\Models\Payment;
 use App\Models\Receipt;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Models\ChequeTopCategory;
+use App\Models\ChequeTopOption;
+use App\Services\Cheques\ChequeTopDateFilterService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class ChequesController extends Controller
 {
+    public function __construct(
+        protected ChequeTopDateFilterService $chequeTopDateFilter
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $data = Cheques::latest('issue_date')->get();
-        return view('cheques.index', compact('data'));
+        $query = Cheques::query()->latest('issue_date');
+
+        if (Schema::hasTable('cheque_top_categories')) {
+            $this->chequeTopDateFilter->applyTopBarFilters($query, $request);
+        }
+
+        $data = $query->get();
+
+        $chequeTopSliderCategories = collect();
+        $chequeTopOptionStats = [];
+        if (Schema::hasTable('cheque_top_categories')) {
+            $chequeTopSliderCategories = ChequeTopCategory::with(['options' => function ($q) {
+                $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+            }])
+                ->where('show_in_top_bar', 1)
+                ->orderBy('display_order')
+                ->orderBy('id')
+                ->get()
+                ->filter(fn($cat) => $cat->options->isNotEmpty())
+                ->values();
+
+            $chequeTopOptionStats = $this->chequeTopDateFilter->buildOptionStats($chequeTopSliderCategories);
+        }
+
+        return view('cheques.index', compact('data', 'chequeTopSliderCategories', 'chequeTopOptionStats'));
     }
 
     /**
@@ -153,6 +184,41 @@ class ChequesController extends Controller
     {
         $cheque = Cheques::findOrFail($id);
         return view('cheques.show', compact('cheque'));
+    }
+
+    public function setChequeTopOption(Request $request, $company_slug, $id)
+    {
+        $cheque = Cheques::findOrFail($id);
+        $validated = $request->validate([
+            'option_id' => 'nullable|integer|exists:cheque_top_options,id',
+        ]);
+
+        $optionId = $validated['option_id'] ?? null;
+        $option = null;
+        if (!empty($optionId)) {
+            $option = ChequeTopOption::query()
+                ->where('id', $optionId)
+                ->whereHas('category', fn($q) => $q->where('show_in_view_cards', 1))
+                ->with('category')
+                ->first();
+            if (!$option) {
+                return response()->json(['success' => false, 'message' => 'Invalid Cheque Top option for view cards.'], 422);
+            }
+        }
+
+        $cheque->cheque_top_option_id = $option?->id;
+        $column = $option?->category ? trim((string) ($option->category->cheque_column ?? '')) : '';
+        if ($column !== '' && Schema::hasColumn('cheques', $column)) {
+            $cheque->{$column} = $option ? (string) $option->name : null;
+        }
+        $cheque->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $option ? 'Cheque Top option assigned.' : 'Cheque Top option cleared.',
+            'option_id' => $cheque->cheque_top_option_id,
+            'option_name' => $option?->name,
+        ]);
     }
 
     /**
@@ -422,9 +488,7 @@ class ChequesController extends Controller
                         'narration' => $cheque->description,
                     ]);
 
-                    if (!\App\Models\VoucherType::isCodeAllowedForModule('PV', 'cheques')) {
-                        throw new \Exception('Payment voucher type (PV) is not assigned to the Cheques module. Please assign it in Voucher Settings.');
-                    }
+
                     // voucher
                     $voucherData = [
                         'trans_date' => $payment->date_of_payment,
@@ -496,9 +560,7 @@ class ChequesController extends Controller
                         'narration' => $cheque->description,
                     ]);
 
-                    if (!\App\Models\VoucherType::isCodeAllowedForModule('RV', 'cheques')) {
-                        throw new \Exception('Receipt voucher type (RV) is not assigned to the Cheques module. Please assign it in Voucher Settings.');
-                    }
+
                     // voucher
                     $voucherData = [
                         'trans_date' => $receipt->date_of_receipt,

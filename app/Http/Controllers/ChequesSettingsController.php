@@ -10,6 +10,7 @@ use App\Models\ChequeTopCategory;
 use App\Models\ChequeTopOption;
 use App\Models\Cheques;
 use App\Models\Settings;
+use App\Support\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -60,6 +61,38 @@ class ChequesSettingsController extends Controller
     protected function scopedCategoryIds(): array
     {
         return $this->chequeCategoryQuery()->pluck('id')->map(fn($id) => (int) $id)->all();
+    }
+
+    /**
+     * Field assignments for the active company, including legacy rows with null company_id.
+     */
+    protected function chequeFieldAssignmentQuery()
+    {
+        $query = ChequeFieldCategoryAssignment::withoutGlobalScope('company');
+
+        if ($this->chequeCategoryCompanyScoped()) {
+            $companyId = CompanyContext::id() ?? $this->chequeCategoryCompanyId();
+            if ($companyId !== null) {
+                $query->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)
+                        ->orWhereNull('company_id');
+                });
+            }
+        }
+
+        return $query;
+    }
+
+    protected function syncAssignmentCompanyId(ChequeFieldCategoryAssignment $assignment): void
+    {
+        if (!Schema::hasColumn($assignment->getTable(), 'company_id')) {
+            return;
+        }
+
+        $companyId = CompanyContext::id() ?? $this->chequeCategoryCompanyId();
+        if ($companyId !== null) {
+            $assignment->company_id = $companyId;
+        }
     }
 
     /**
@@ -149,7 +182,8 @@ class ChequesSettingsController extends Controller
     protected function buildFieldsByCategory($categories)
     {
         $riderColumns = array_flip(Schema::getColumnListing('cheques'));
-        $assignments = ChequeFieldCategoryAssignment::with('category')
+        $assignments = $this->chequeFieldAssignmentQuery()
+            ->with('category')
             ->orderBy('category_id')
             ->orderBy('display_order')
             ->orderBy('id')
@@ -204,7 +238,7 @@ class ChequesSettingsController extends Controller
     protected function buildUnassignedFixedFields()
     {
         $keys = $this->validFixedAssignableFieldKeys();
-        $assignedFieldKeys = ChequeFieldCategoryAssignment::pluck('field_key')->all();
+        $assignedFieldKeys = $this->chequeFieldAssignmentQuery()->pluck('field_key')->all();
         $assignedSet = array_flip($assignedFieldKeys);
         $specs = ChequeCustomField::fixedFieldInputSpecs();
         $rows = [];
@@ -236,7 +270,7 @@ class ChequesSettingsController extends Controller
     protected function buildAllFixedFieldsForStatic($categories)
     {
         $keys = $this->validFixedAssignableFieldKeys();
-        $assignments = ChequeFieldCategoryAssignment::all()->keyBy('field_key');
+        $assignments = $this->chequeFieldAssignmentQuery()->get()->keyBy('field_key');
         $specs = ChequeCustomField::fixedFieldInputSpecs();
         $categoriesById = $categories->keyBy('id');
         $rows = [];
@@ -280,7 +314,7 @@ class ChequesSettingsController extends Controller
     protected function buildFieldAssignmentsList($categories)
     {
         $keys = $this->validFixedAssignableFieldKeys();
-        $assignments = ChequeFieldCategoryAssignment::all()->keyBy('field_key');
+        $assignments = $this->chequeFieldAssignmentQuery()->get()->keyBy('field_key');
         $slugToId = ChequeCategory::whereNotNull('slug')->pluck('id', 'slug')->all();
         $map = ChequeCustomField::fixedFieldsSlugMap();
         $list = [];
@@ -329,20 +363,20 @@ class ChequesSettingsController extends Controller
         if (!in_array($validated['field_key'], $keys, true)) {
             return response()->json(['success' => false, 'message' => 'Invalid field.'], 422);
         }
-        $assignment = ChequeFieldCategoryAssignment::withoutGlobalScope('company')
+        $assignment = $this->chequeFieldAssignmentQuery()
             ->where('field_key', $validated['field_key'])
             ->first();
         if (!$assignment) {
             $assignment = new ChequeFieldCategoryAssignment();
             $assignment->field_key = $validated['field_key'];
-            if (Schema::hasColumn($assignment->getTable(), 'company_id')) {
-                $assignment->company_id = auth()->user()->company_id ?? null;
-            }
         }
+        $this->syncAssignmentCompanyId($assignment);
         $newCategoryId = (int) $validated['category_id'];
         $assignment->category_id = $newCategoryId;
         if (!$assignment->exists || (int) $assignment->getOriginal('category_id') !== $newCategoryId) {
-            $assignment->display_order = (int) ChequeFieldCategoryAssignment::where('category_id', $newCategoryId)->max('display_order') + 1;
+            $assignment->display_order = (int) $this->chequeFieldAssignmentQuery()
+                ->where('category_id', $newCategoryId)
+                ->max('display_order') + 1;
         }
         if (array_key_exists('display_label', $validated)) {
             $assignment->display_label = $validated['display_label'] ? trim($validated['display_label']) : null;
@@ -356,10 +390,21 @@ class ChequesSettingsController extends Controller
             $assignment->input_config = $this->sanitizeInputTypeConfig($validated['input_type'], (array) ($validated['config'] ?? []));
         }
         $assignment->save();
+        $category = $this->chequeCategoryQuery()->find($newCategoryId);
+
         if ($request->wantsJson() || $request->ajax()) {
-            return response()->json(['success' => true, 'message' => 'Category updated.']);
+            return response()->json([
+                'success' => true,
+                'message' => 'Field moved to category.',
+                'field_key' => $assignment->field_key,
+                'category_id' => $newCategoryId,
+                'category_label' => $category?->label,
+            ]);
         }
-        return redirect()->route('settings-panel.cheques-settings.index', ['tab' => 'rider-fields'])->with('success', 'Category updated.');
+
+        return redirect()
+            ->route('settings-panel.cheques-settings.index', ['tab' => 'cheque-fields'])
+            ->with('success', 'Field moved to category.');
     }
 
     protected function sanitizeInputTypeConfig(string $inputType, array $config): array
@@ -734,11 +779,16 @@ class ChequesSettingsController extends Controller
         $field->save();
 
         if ($request->wantsJson() || $request->ajax()) {
-            return response()->json(['success' => true, 'message' => 'Custom field assigned to category.']);
+            return response()->json([
+                'success' => true,
+                'message' => 'Custom field assigned to category.',
+                'category_id' => $field->category_id,
+                'category_label' => $field->category?->label,
+            ]);
         }
 
         return redirect()
-            ->route('settings-panel.cheques-settings.index')
+            ->route('settings-panel.cheques-settings.index', ['tab' => 'cheque-fields'])
             ->with('success', 'Custom field assigned to category.');
     }
 

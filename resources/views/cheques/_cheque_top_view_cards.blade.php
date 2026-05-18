@@ -1,6 +1,6 @@
 @php
 $chequeTopViewCategories = \App\Models\ChequeTopCategory::with(['options' => function ($q) {
-    $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+$q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
 }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
 $selectedChequeTopOptionId = (int) ($cheque->cheque_top_option_id ?? 0);
 @endphp
@@ -24,32 +24,46 @@ $selectedChequeTopOptionId = (int) ($cheque->cheque_top_option_id ?? 0);
     </div>
 </div>
 <script>
-(function() {
-    var csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    var setUrlTemplate = @json(route('cheques.setChequeTopOption', ['id' => '__ID__']));
-    function postOption(chequeId, optionId) {
-        var url = setUrlTemplate.replace('__ID__', chequeId);
-        var fd = new FormData();
-        fd.append('_token', csrf);
-        if (optionId) fd.append('option_id', optionId);
-        return fetch(url, { method: 'POST', body: fd, headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) { return r.json(); });
-    }
-    document.querySelectorAll('.cheque-top-option-radio').forEach(function(radio) {
-        radio.addEventListener('change', function() {
-            if (!this.checked) return;
-            postOption(this.getAttribute('data-cheque-id'), this.value).then(function(data) {
-                if (!data.success && typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not update.' });
+    (function() {
+        var csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        var setUrlTemplate = @json(route('cheques.setChequeTopOption', ['id' => '__ID__']));
+
+        function postOption(chequeId, optionId) {
+            var url = setUrlTemplate.replace('__ID__', chequeId);
+            var fd = new FormData();
+            fd.append('_token', csrf);
+            if (optionId) fd.append('option_id', optionId);
+            return fetch(url, {
+                method: 'POST',
+                body: fd,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(function(r) {
+                return r.json();
+            });
+        }
+        document.querySelectorAll('.cheque-top-option-radio').forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                if (!this.checked) return;
+                postOption(this.getAttribute('data-cheque-id'), this.value).then(function(data) {
+                    if (!data.success && typeof Swal !== 'undefined') Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Could not update.'
+                    });
+                });
             });
         });
-    });
-    var clearBtn = document.getElementById('chequeTopViewClearBtn');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function() {
-            postOption(this.getAttribute('data-cheque-id'), null).then(function(data) {
-                if (data.success) window.location.reload();
+        var clearBtn = document.getElementById('chequeTopViewClearBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                postOption(this.getAttribute('data-cheque-id'), null).then(function(data) {
+                    if (data.success) window.location.reload();
+                });
             });
-        });
-    }
-})();
+        }
+    })();
 </script>
 @endif

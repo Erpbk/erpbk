@@ -9,7 +9,7 @@
     @if($category->slug)
     <span class="badge bg-label-info">{{ $category->slug }}</span>
     @else
-    <span class="text-muted">â€”</span>
+    <span class="text-muted">—</span>
     @endif
   </td>
   <td class="align-middle">
@@ -26,9 +26,10 @@
         data-id="{{ $category->id }}"
         data-label="{{ $category->label }}"
         data-bs-toggle="modal"
-        data-bs-target="#editchequeCategoryModal">
+        data-bs-target="#editRiderCategoryModal">
         <i class="ti ti-edit"></i>
       </button>
+      @if(!$category->is_system)
       <form method="POST"
         action="{{ route('settings-panel.cheques-settings.destroy-category', $category->id) }}"
         class="d-inline"
@@ -39,11 +40,12 @@
           <i class="ti ti-trash"></i>
         </button>
       </form>
+      @endif
     </div>
   </td>
 </tr>
 @empty
 <tr>
-  <td colspan="5" class="text-center text-muted py-4">No categories yet.</td>
+  <td colspan="6" class="text-center text-muted py-4">No categories yet.</td>
 </tr>
 @endforelse

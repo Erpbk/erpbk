@@ -146,61 +146,7 @@
 
           {{-- Tab 2: Categories --}}
           <div class="tab-pane fade" id="tab-categories" role="tabpanel">
-            <div class="card mb-4">
-              <div class="card-body">
-                <form action="{{ route('settings-panel.cheques-settings.store-category', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) }}" method="POST" class="row g-3 align-items-end">
-                  @csrf
-                  <div class="col-md-8">
-                    <label class="form-label">New category label</label>
-                    <input type="text" name="label" class="form-control" required maxlength="255" placeholder="e.g. Safety / Location / etc.">
-                  </div>
-                  <div class="col-md-4 text-end">
-                    <button class="btn btn-primary" type="submit">Add category</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-            <div class="table-responsive">
-              <table class="table table-bordered align-middle">
-                <thead>
-                  <tr>
-                    <th style="width: 35%;">Label</th>
-                    <th style="width: 15%;">System</th>
-                    <th style="width: 50%;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @foreach($categories as $cat)
-                  <tr data-category-row-id="{{ $cat->id }}">
-                    <td><span class="js-category-label">{{ $cat->label }}</span></td>
-                    <td>{!! $cat->is_system ? '<span class="badge bg-secondary">Yes</span>' : '<span class="badge bg-light text-dark border">No</span>' !!}</td>
-                    <td>
-                      @if(!$cat->is_system)
-                      <form action="{{ route('settings-panel.cheques-settings.update-category', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => $cat->id]) }}" method="POST" class="d-inline-flex gap-2 align-items-center js-ajax-category-update-form" data-category-id="{{ $cat->id }}">
-                        @csrf
-                        @method('PUT')
-                        <input type="text" name="label" value="{{ $cat->label }}" required maxlength="255" class="form-control form-control-sm" style="max-width: 260px">
-                        <button class="btn btn-sm btn-primary" type="submit"><i class="ti ti-pencil"></i></button>
-                      </form>
-                      <form action="{{ route('settings-panel.cheques-settings.destroy-category', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => $cat->id]) }}" method="POST" class="d-inline ms-2 js-ajax-category-delete-form" data-category-id="{{ $cat->id }}">
-                        @csrf
-                        @method('DELETE')
-                        <button class="btn btn-sm btn-danger" type="submit"><i class="ti ti-trash"></i></button>
-                      </form>
-                      @else
-                      <span class="text-muted">Not editable</span>
-                      @endif
-                    </td>
-                  </tr>
-                  @endforeach
-                  @if($categories->isEmpty())
-                  <tr>
-                    <td colspan="3" class="text-center text-muted py-3">No categories configured.</td>
-                  </tr>
-                  @endif
-                </tbody>
-              </table>
-            </div>
+            @include('settings.cheques_settings._categories_tab', ['categories' => $categories])
           </div>
 
           {{-- Tab 3: Documents (dynamic document types for cheque files page) --}}
@@ -711,7 +657,7 @@
         <h5 class="modal-title">Add Category</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form id="formAddRiderCategory" action="{{ route('settings-panel.cheques-settings.store-category') }}" method="POST">
+      <form id="formAddRiderCategory" action="{{ route('settings-panel.cheques-settings.store-category', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) }}" method="POST">
         @csrf
         <div class="modal-body pt-0">
           <div class="mb-3">
@@ -2580,6 +2526,72 @@
       });
     }
 
+    function reloadChequeFieldsTab(categoryId) {
+      var url = new URL(window.location.href);
+      url.searchParams.set('tab', 'cheque-fields');
+      if (categoryId) {
+        url.searchParams.set('cheque_fields_cat', String(categoryId));
+      }
+      window.location.href = url.toString();
+    }
+
+    document.addEventListener('submit', function(e) {
+      var moveForm = e.target.closest('.rider-field-assignment-form')
+        || e.target.closest('form[action*="assign-custom-field-category"]');
+      if (moveForm) {
+        e.preventDefault();
+        var categorySelect = moveForm.querySelector('[name="category_id"]');
+        var categoryId = categorySelect ? categorySelect.value : '';
+        if (!categoryId) {
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'warning', title: 'Select category', text: 'Please choose a category before moving.' });
+          } else {
+            alert('Please choose a category before moving.');
+          }
+          return;
+        }
+        var moveBtn = moveForm.querySelector('button[type="submit"]');
+        if (moveBtn) moveBtn.disabled = true;
+        var fd = new FormData(moveForm);
+        fetch(moveForm.action, {
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(function(r) {
+            return r.json().then(function(data) {
+              return { ok: r.ok, data: data };
+            }).catch(function() {
+              return { ok: false, data: {} };
+            });
+          })
+          .then(function(result) {
+            if (moveBtn) moveBtn.disabled = false;
+            if (result.ok && result.data && result.data.success) {
+              reloadChequeFieldsTab(result.data.category_id || categoryId);
+              return;
+            }
+            var msg = (result.data && result.data.message) ? result.data.message : 'Could not move field.';
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({ icon: 'error', title: 'Error', text: msg });
+            } else {
+              alert(msg);
+            }
+          })
+          .catch(function() {
+            if (moveBtn) moveBtn.disabled = false;
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({ icon: 'error', title: 'Error', text: 'Could not move field.' });
+            }
+          });
+        return;
+      }
+    });
+
     // Delete document type
     document.addEventListener('submit', function(e) {
       var form = e.target.closest('.btn-delete-document-type');
@@ -2742,6 +2754,13 @@
       if ((tab === 'rider-fields' || tab === 'cheque-fields') && document.getElementById('tab-cheque-fields-btn')) {
         var tabEl = new bootstrap.Tab(document.getElementById('tab-cheque-fields-btn'));
         tabEl.show();
+        var catId = params.get('cheque_fields_cat');
+        if (catId) {
+          var catTabBtn = document.getElementById('rider-cat-' + catId + '-tab');
+          if (catTabBtn) {
+            new bootstrap.Tab(catTabBtn).show();
+          }
+        }
       } else if (tab === 'cheque-top' && document.getElementById('tab-cheque-top-btn')) {
         new bootstrap.Tab(document.getElementById('tab-cheque-top-btn')).show();
       }
@@ -3383,6 +3402,4 @@
     }
   })();
 </script>
-@include('settings.cheques_settings._categories_ajax_script')
-
 @endsection

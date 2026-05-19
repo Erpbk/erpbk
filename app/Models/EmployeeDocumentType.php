@@ -9,6 +9,7 @@ class EmployeeDocumentType extends BaseModel
     protected $table = 'employee_document_types';
 
     protected $fillable = [
+        'company_id',
         'key',
         'label',
         'type',

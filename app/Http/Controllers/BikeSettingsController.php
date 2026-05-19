@@ -106,7 +106,7 @@ class BikeSettingsController extends Controller
             return !in_array($col, $systemColumns, true);
         }));
 
-        $slugToCategoryId = DB::table('bike_categories')->pluck('id', 'slug')->all();
+        $slugToCategoryId = \App\Support\CompanyQuery::table('bike_categories')->pluck('id', 'slug')->all();
         $otherId = (int) ($slugToCategoryId['other'] ?? 0);
         if ($otherId <= 0) {
             return;

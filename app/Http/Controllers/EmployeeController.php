@@ -133,19 +133,17 @@ class EmployeeController extends Controller
         $rules['account'] = 'nullable|in:new,existing';
         $rules['account_id'] = 'nullable|required_if:account,existing|exists:accounts,id';
 
-        if ($ignoreEmployeeId !== null) {
-            foreach (['employee_id', 'company_email', 'personal_email', 'passport', 'emirate_id'] as $uniqueKey) {
-                if (!isset($employeeColumns[$uniqueKey])) {
-                    continue;
-                }
-                $baseRule = $rules[$uniqueKey] ?? 'nullable|string|max:191';
-                $tokens = is_array($baseRule) ? $baseRule : explode('|', (string) $baseRule);
-                $tokens = array_values(array_filter($tokens, function ($token) {
-                    return !(is_string($token) && str_starts_with($token, 'unique:'));
-                }));
-                $tokens[] = Rule::unique('employees', $uniqueKey)->ignore($ignoreEmployeeId);
-                $rules[$uniqueKey] = $tokens;
+        foreach (['employee_id', 'company_email', 'personal_email', 'passport', 'emirate_id'] as $uniqueKey) {
+            if (!isset($employeeColumns[$uniqueKey])) {
+                continue;
             }
+            $baseRule = $rules[$uniqueKey] ?? 'nullable|string|max:191';
+            $tokens = is_array($baseRule) ? $baseRule : explode('|', (string) $baseRule);
+            $tokens = array_values(array_filter($tokens, function ($token) {
+                return !(is_string($token) && str_starts_with($token, 'unique:'));
+            }));
+            $tokens[] = \App\Support\CompanyScope::unique('employees', $uniqueKey, $ignoreEmployeeId);
+            $rules[$uniqueKey] = $tokens;
         }
 
         return array_merge($rules, $this->employeeDynamicFieldRules());

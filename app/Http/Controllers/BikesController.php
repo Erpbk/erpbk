@@ -427,7 +427,7 @@ class BikesController extends AppBaseController
 
     $input = $this->normalizeBikeInputForDatabase($input, true);
 
-    $branch_emirates = DB::table('branches')->where('id', $input['branch_id'])->first();
+    $branch_emirates = \App\Support\CompanyQuery::table('branches')->where('id', $input['branch_id'])->first();
     $input['emirates'] = $branch_emirates->city;
     $bikes = $this->bikesRepository->create($input);
     $bikes->created_by = Auth::user()->id;

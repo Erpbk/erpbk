@@ -4,10 +4,10 @@ namespace App\Services\Module;
 
 use App\Models\ErpModuleTopCategory;
 use App\Models\ErpModuleTopOption;
+use App\Support\CompanyQuery;
 use App\Support\ErpModuleRegistry;
 use App\Support\ModuleFieldSource;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
@@ -350,7 +350,7 @@ class ModuleTopBarSettingsService
 
         $configuredValues = $this->fieldValueResolver->configuredValuesForColumn($moduleKey, $column);
 
-        $tableValues = DB::table($table)
+        $tableValues = CompanyQuery::table($table)
             ->whereNotNull($column)
             ->where($column, '!=', '')
             ->distinct()

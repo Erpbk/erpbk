@@ -11,6 +11,7 @@ use App\Models\EmployeeTopCategory;
 use App\Models\EmployeeTopOption;
 use App\Models\Employee;
 use App\Models\Settings;
+use App\Support\CompanyScope;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -1221,7 +1222,7 @@ class EmployeeSettingsController extends Controller
     public function storeDocumentType(Request $request)
     {
         $validated = $request->validate([
-            'key' => 'required|string|max:80|regex:/^[a-z0-9_]+$/|unique:employee_document_types,key',
+            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9_]+$/', CompanyScope::unique('employee_document_types', 'key')],
             'type' => 'required|in:single,dual',
             'label' => 'nullable|string|max:255',
             'front_label' => 'nullable|string|max:255',
@@ -1251,7 +1252,7 @@ class EmployeeSettingsController extends Controller
     {
         $docType = EmployeeDocumentType::findOrFail($id);
         $validated = $request->validate([
-            'key' => 'required|string|max:80|regex:/^[a-z0-9_]+$/|unique:employee_document_types,key,' . $id,
+            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9_]+$/', CompanyScope::unique('employee_document_types', 'key', $id)],
             'type' => 'required|in:single,dual',
             'label' => 'nullable|string|max:255',
             'front_label' => 'nullable|string|max:255',

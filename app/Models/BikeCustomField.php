@@ -210,7 +210,7 @@ class BikeCustomField extends BaseModel
 
         switch ($dropdownKey) {
             case 'vehicle_models':
-                $opts = DB::table('vehicle_models')->where('status', 1)->pluck('name', 'id')->toArray();
+                $opts = \App\Support\CompanyQuery::table('vehicle_models')->where('status', 1)->pluck('name', 'id')->toArray();
                 $opts = ['' => 'Select Model'] + $opts;
                 break;
             case 'branch':

@@ -1920,10 +1920,14 @@ class RidersController extends AppBaseController
 
     $option = null;
     if (!empty($optionId)) {
-      $option = DB::table('rider_top_options as o')
+      $optionQuery = \App\Support\CompanyQuery::table('rider_top_options as o')
         ->join('rider_top_categories as c', 'c.id', '=', 'o.category_id')
         ->where('o.id', $optionId)
-        ->where('c.show_in_view_cards', 1)
+        ->where('c.show_in_view_cards', 1);
+      if (\App\Support\CompanyContext::shouldApplyScope() && ($companyId = \App\Support\CompanyContext::id())) {
+        $optionQuery->where('c.company_id', $companyId);
+      }
+      $option = $optionQuery
         ->select('o.id', 'o.name', 'c.rider_column')
         ->first();
       if (!$option) {

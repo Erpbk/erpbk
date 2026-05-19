@@ -5,6 +5,8 @@ namespace App\Support;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 
 final class CompanyScope
 {
@@ -73,5 +75,26 @@ final class CompanyScope
         }
 
         return $table . '.' . $column;
+    }
+
+    /**
+     * Build a unique validation rule scoped to the current company when applicable.
+     */
+    public static function unique(string $table, string $column, mixed $ignore = null): Unique
+    {
+        $rule = Rule::unique($table, $column);
+
+        if ($ignore !== null) {
+            $rule->ignore($ignore);
+        }
+
+        if (CompanyContext::shouldApplyScope()) {
+            $companyId = CompanyContext::id();
+            if ($companyId !== null && Schema::hasColumn($table, 'company_id')) {
+                $rule->where(fn ($query) => $query->where('company_id', $companyId));
+            }
+        }
+
+        return $rule;
     }
 }

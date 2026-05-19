@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Company;
+use App\Support\CompanyScope;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,12 +40,16 @@ class SetTenantConnection
         }
 
         $request->attributes->set('company', $company);
+        $request->session()->put('company_slug', $company->slug);
         view()->share('currentCompany', $company);
 
         // Extra guardrail: authenticated users may only access their own company routes.
         if (Auth::check() && (int) Auth::user()->company_id !== (int) $company->id) {
             abort(403, 'You are not allowed to access this company data.');
         }
+
+        // All tenant data access requires a resolved company id (global scopes use this).
+        CompanyScope::requireId();
 
         return $next($request);
     }

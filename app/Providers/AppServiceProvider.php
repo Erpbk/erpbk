@@ -7,6 +7,7 @@ use Illuminate\Support\ServiceProvider;
 use Laravel\Fortify\Fortify;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Settings;
 use App\Support\CompanyRouteContext;
@@ -126,8 +127,8 @@ class AppServiceProvider extends ServiceProvider
 
       // Check if user is admin
       if ($user->hasAnyRole('Administrator', 'Super Admin')) {
-        // Return ALL branch IDs
-        return \App\Models\Branch::pluck('id')->toArray() ?? [];
+        // All branches for this company (BelongsToCompany global scope applies).
+        return Branch::query()->pluck('id')->toArray();
       }
 
       // Non-admin: return only assigned branches.

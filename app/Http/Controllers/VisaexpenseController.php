@@ -2350,7 +2350,7 @@ class VisaexpenseController extends AppBaseController
             $expense->save();
 
             if (Schema::hasColumn('vouchers', 'pay_account')) {
-                DB::table('vouchers')->where('id', $voucher->id)->update([
+                \App\Support\CompanyQuery::table('vouchers')->where('id', $voucher->id)->update([
                     'pay_account' => $newAccountId,
                     'Updated_By' => auth()->id(),
                     'updated_at' => now(),

@@ -129,8 +129,9 @@ class RiderSettingsController extends Controller
         $riderColumns = Schema::getColumnListing('riders');
         $options = [];
 
+        $excluded = array_flip(RiderCustomField::excludedFromFieldSettings());
         foreach ($riderColumns as $fieldKey) {
-            if (in_array($fieldKey, ['id', 'created_at', 'updated_at', 'deleted_at'], true)) {
+            if (isset($excluded[$fieldKey])) {
                 continue;
             }
             $options[$fieldKey] = RiderCustomField::humanizeFieldKey($fieldKey);

@@ -17,7 +17,12 @@ class RiderCustomField extends BaseModel
         return RiderCategory::query();
     }
 
-    private static function removedRiderColumns(): array
+    /**
+     * Legacy rider columns removed from the schema (never shown in settings or forms).
+     *
+     * @return list<string>
+     */
+    public static function removedRiderColumns(): array
     {
         return [
             'company_id',
@@ -60,7 +65,47 @@ class RiderCustomField extends BaseModel
             'updated_by',
             'deleted_by',
             'mol',
+            'recuriter',
+            'walker',
+            'vacation',
+            'cancel',
+            'pro',
+            'absconder',
+            'flowup',
+            'l_license',
         ];
+    }
+
+    /**
+     * Columns that remain in the DB for system/other modules but are not rider form fields.
+     *
+     * @return list<string>
+     */
+    public static function hiddenRiderColumns(): array
+    {
+        return [
+            'custom_field_values',
+            'rider_top_option_id',
+            'display_status',
+            'status',
+            'rider_status',
+            'image_name',
+            'attendance',
+            'branch_id',
+            'customer_id',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function excludedFromFieldSettings(): array
+    {
+        return array_values(array_unique(array_merge(
+            ['id', 'created_at', 'updated_at', 'deleted_at'],
+            self::removedRiderColumns(),
+            self::hiddenRiderColumns(),
+        )));
     }
     protected $table = 'rider_custom_fields';
 
@@ -167,116 +212,70 @@ class RiderCustomField extends BaseModel
         return $this->belongsTo(RiderCategory::class, 'category_id', 'id');
     }
 
-    /** Slug-to-field-keys map for fixed rider fields (defaults; used for seeding and fallback). */
+    /**
+     * Essential rider fields grouped by category (matches resources/views/riders/fields/*).
+     *
+     * @return array<string, list<string>>
+     */
     public static function fixedFieldsSlugMap(): array
     {
-        $map = [
+        return [
             'rider_info' => [
-                'name',
                 'rider_id',
-                'courier_id',
-                'personal_contact',
-                'company_contact',
+                'name',
+                'doj',
                 'email',
                 'nationality',
                 'passport',
                 'passport_expiry',
                 'ethnicity',
                 'dob',
-                'image_name',
             ],
             'visa_info' => [
-                'emirate_hub',
-                'emirate_id',
-                'emirate_exp',
-                'visa_status',
-                'passport_handover',
-                'visa_sponsor',
-                'visa_occupation',
                 'license_no',
                 'license_expiry',
                 'road_permit',
                 'road_permit_expiry',
             ],
             'job_info' => [
-                'VID',
-                'salary_model',
+                'emirate_id',
+                'emirate_exp',
                 'fleet_supervisor',
-                'rider_reference',
-                'DEPT',
-                'PID',
-                'job_status',
-                'customer_id',
                 'recruiter_id',
-                'recuriter',
-                'shift',
-                'attendance',
             ],
             'labor_info' => [
                 'person_code',
                 'labor_card_number',
                 'labor_card_expiry',
-                'insurance',
-                'insurance_expiry',
-                'policy_no',
                 'wps',
-                'c3_card',
-                'contract',
             ],
-            'additional_info' => [
-                'NFDID',
-                'cdm_deposit_id',
-                'mashreq_id',
-                'branded_plate_no',
-                'vaccine_status',
-                'absconder',
-                'flowup',
-                'l_license',
-                'TAID',
-                'noon_no',
-                'vat',
-                'other_details',
-            ],
+            'additional_info' => [],
             'other' => [],
         ];
-
-        $removed = array_flip(self::removedRiderColumns());
-        foreach ($map as $slug => $keys) {
-            $map[$slug] = array_values(array_filter($keys, fn($k) => !isset($removed[$k])));
-        }
-
-        return $map;
     }
 
-    /** All fixed rider field keys (flat list from slug map). */
+    /**
+     * Assignable fixed field keys for Rider Settings and rider create/edit forms.
+     *
+     * @return list<string>
+     */
     public static function allFixedFieldKeys(): array
     {
+        if (! Schema::hasTable('riders')) {
+            return [];
+        }
+
+        $columns = array_flip(Schema::getColumnListing('riders'));
         $keys = [];
+
         foreach (self::fixedFieldsSlugMap() as $slugKeys) {
-            foreach ($slugKeys as $key) {
-                $keys[] = $key;
+            foreach ($slugKeys as $fieldKey) {
+                if (isset($columns[$fieldKey])) {
+                    $keys[] = $fieldKey;
+                }
             }
         }
-        // Include all existing rider table columns so Settings -> Rider Fields
-        // always reflects real DB fields (except removed/system columns).
-        $columns = Schema::getColumnListing('riders');
-        $excluded = array_flip(array_merge(
-            ['id', 'created_at', 'updated_at', 'deleted_at'],
-            self::removedRiderColumns()
-        ));
-        foreach ($columns as $column) {
-            if (isset($excluded[$column])) {
-                continue;
-            }
-            $keys[] = $column;
-        }
-        // Keep these rider table fields visible in Rider Settings field list
-        // so they can be assigned and shown in Rider create/edit modules.
-        foreach (['rider_top_option_id', 'custom_field_values', 'image_name', 'status', 'attendance'] as $mustHaveKey) {
-            if (in_array($mustHaveKey, $columns, true)) {
-                $keys[] = $mustHaveKey;
-            }
-        }
+
         return array_values(array_unique($keys));
     }
 
@@ -398,8 +397,11 @@ class RiderCustomField extends BaseModel
             'attach_documents' => ['type' => 'text'],
         ];
 
-        foreach (self::removedRiderColumns() as $removedKey) {
-            unset($specs[$removedKey]);
+        $allowed = array_flip(self::allFixedFieldKeys());
+        foreach (array_keys($specs) as $fieldKey) {
+            if (! isset($allowed[$fieldKey])) {
+                unset($specs[$fieldKey]);
+            }
         }
 
         return $specs;

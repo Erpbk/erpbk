@@ -108,9 +108,26 @@ final class RiderDefaultCategoryService
     public function bootstrap(): void
     {
         $this->ensure();
+        $this->pruneNonEssentialAssignments();
         $fieldKeys = $this->discoverAssignableFieldKeys();
         $this->syncFixedFieldAssignments($fieldKeys);
         $this->assignUnassignedCustomFields();
+    }
+
+    /**
+     * Remove field assignments that are no longer part of the essential rider form.
+     */
+    public function pruneNonEssentialAssignments(): void
+    {
+        if (! Schema::hasTable('rider_field_category_assignments')) {
+            return;
+        }
+
+        $allowed = array_flip(RiderCustomField::allFixedFieldKeys());
+
+        RiderFieldCategoryAssignment::query()
+            ->whereNotIn('field_key', array_keys($allowed))
+            ->delete();
     }
 
     /**

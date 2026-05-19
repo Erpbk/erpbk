@@ -249,6 +249,29 @@ class Riders extends BaseModel
   }
 
   /**
+   * Riders eligible for bike assignment (active or inactive/off-bike; not vacation/absconded).
+   *
+   * @return array<int|string, string>
+   */
+  public static function dropdownForBikeAssign(?int $branchId = null): array
+  {
+    $query = self::query()->whereIn('status', [1, 3]);
+
+    if ($branchId !== null && $branchId > 0) {
+      $query->where(function ($q) use ($branchId) {
+        $q->where('branch_id', $branchId)->orWhereNull('branch_id');
+      });
+    }
+
+    return $query
+      ->select('id', DB::raw("CONCAT(COALESCE(rider_id, ''), '-', name) as full_name"))
+      ->orderBy('name')
+      ->pluck('full_name', 'id')
+      ->prepend('Select', '')
+      ->all();
+  }
+
+  /**
    * Active riders for SIM assignment (same branch as the SIM).
    */
   public static function dropdownForBranch(?int $branchId): array

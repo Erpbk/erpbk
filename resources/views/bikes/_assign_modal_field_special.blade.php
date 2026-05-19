@@ -7,7 +7,8 @@ $required = (bool) ($spec['required'] ?? false);
 $colClass = in_array($spec['type'] ?? '', ['textarea'], true) ? 'col-md-12' : 'col-md-3';
 $groupClass = $assignGroup ? ' hidden-field assign-group-' . $assignGroup : '';
 $wrapperId = 'assign-field-' . $fieldKey;
-$selectOpts = $field->resolvedSelectOptions();
+$branchScopedOptions = $branchScopedOptions ?? ($assignBranchScopedOptions ?? []);
+$selectOpts = $field->resolvedSelectOptions($branchScopedOptions);
 @endphp
 
 @if($fieldKey === 'warehouse' && ($assignContext ?? 'active') === 'active')

@@ -139,12 +139,25 @@ class BikeAssignFieldAssignment extends BaseModel
     /**
      * @return array<string, string>
      */
-    public function resolvedSelectOptions(): array
+    /**
+     * @param  array<string, array<int|string, string>>  $branchScopedOptions
+     * @return array<int|string, string>
+     */
+    public function resolvedSelectOptions(array $branchScopedOptions = []): array
     {
+        $fieldKey = (string) $this->field_key;
         $spec = $this->resolvedInputSpec();
 
-        if (is_array($spec['assign_options'] ?? null) && $spec['assign_options'] !== []) {
-            return ['' => 'Select'] + $spec['assign_options'];
+        if (isset($branchScopedOptions[$fieldKey]) && is_array($branchScopedOptions[$fieldKey])) {
+            return $branchScopedOptions[$fieldKey];
+        }
+
+        if (
+            $fieldKey === 'assign_type'
+            && is_array($spec['assign_options'] ?? null)
+            && $spec['assign_options'] !== []
+        ) {
+            return ['' => 'Select Type'] + $spec['assign_options'];
         }
 
         $parsed = [];
@@ -163,11 +176,11 @@ class BikeAssignFieldAssignment extends BaseModel
             return ['' => 'Select'] + $parsed;
         }
 
-        $defaults = match ((string) $this->field_key) {
+        $defaults = match ($fieldKey) {
             'assign_type' => ['' => 'Select Type', 'rider' => 'Rider', 'company' => 'Company'],
-            'rider_id' => \App\Models\Riders::dropdown(),
-            'rental_company_id' => \App\Models\BikeRentCompany::pluck('name', 'id')->prepend('Select', ''),
-            'customer_id' => \App\Models\Customers::dropdown(),
+            'rider_id' => Riders::dropdownForBikeAssign(),
+            'rental_company_id' => BikeRentCompany::pluck('name', 'id')->prepend('Select', '')->all(),
+            'customer_id' => Customers::dropdown(),
             default => ['' => 'Select'],
         };
 

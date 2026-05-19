@@ -1,5 +1,6 @@
 @php
-$bike = \App\Models\Bikes::find($id);
+$bike = $bike ?? \App\Models\Bikes::find($id);
+$assignBranchScopedOptions = $assignBranchScopedOptions ?? [];
 $vehicleTypeName = $bike->vehicle_type ?? '';
 if ($bike && $bike->vehicle_type) {
     $vehicleModel = \App\Models\VehicleModels::find($bike->vehicle_type);
@@ -46,6 +47,8 @@ $wideFields = $assignFields->filter(function ($f) {
                 'assignContext' => 'active',
                 'bike' => $bike,
                 'selectedDesignation' => $selectedDesignation,
+                'branchScopedOptions' => $assignBranchScopedOptions,
+                'assignBranchScopedOptions' => $assignBranchScopedOptions,
             ])
         @endforeach
     </div>
@@ -58,6 +61,8 @@ $wideFields = $assignFields->filter(function ($f) {
                 'assignContext' => 'active',
                 'bike' => $bike,
                 'selectedDesignation' => $selectedDesignation,
+                'branchScopedOptions' => $assignBranchScopedOptions,
+                'assignBranchScopedOptions' => $assignBranchScopedOptions,
             ])
         @endforeach
     </div>
@@ -93,16 +98,36 @@ $wideFields = $assignFields->filter(function ($f) {
         }
     }
 
+    function initAssignModalSelect2($scope) {
+        var $root = $scope && $scope.length ? $scope : $('#modalTopbody');
+        $root.find('select.select2').each(function() {
+            var $el = $(this);
+            if ($el.closest('.hidden-field').length && !$el.is(':visible')) {
+                return;
+            }
+            if ($el.hasClass('select2-hidden-accessible')) {
+                $el.select2('destroy');
+            }
+            $el.select2({
+                allowClear: true,
+                dropdownParent: $('#modalTopbody'),
+                width: '100%'
+            });
+        });
+    }
+
     function toggleAssignmentFields() {
         var assignType = $('#assign_type').val();
         if (assignType === 'rider') {
             $('#rider_select, #designation_field, #project_field').removeClass('hidden-field').show();
             $('#company_select').addClass('hidden-field').hide();
             $('#company_id').val('').trigger('change');
+            initAssignModalSelect2($('#rider_select, #designation_field, #project_field'));
         } else if (assignType === 'company') {
             $('#company_select').removeClass('hidden-field').show();
             $('#rider_select, #designation_field, #project_field').addClass('hidden-field').hide();
             $('#rider_id').val('').trigger('change');
+            initAssignModalSelect2($('#company_select'));
         } else {
             $('#rider_select, #company_select, #designation_field, #project_field').addClass('hidden-field').hide();
             $('#rider_id, #company_id').val('').trigger('change');
@@ -111,12 +136,10 @@ $wideFields = $assignFields->filter(function ($f) {
 
     $(document).ready(function() {
         updateDesignationBasedOnVehicleType();
-        $('.select2').select2({
-            allowClear: true,
-            dropdownParent: $('#modalTopbody')
-        });
+        initAssignModalSelect2();
         if ($('#assign_type').length) {
             $('#assign_type').on('change', toggleAssignmentFields);
+            toggleAssignmentFields();
         }
     });
 </script>

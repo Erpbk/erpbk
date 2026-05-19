@@ -1224,9 +1224,13 @@ class BikesController extends AppBaseController
       }
     }
 
+    $bike = Bikes::find($id);
     $assignFields = \App\Models\BikeCustomField::assignModalFields('active');
+    $assignBranchScopedOptions = [
+        'rider_id' => Riders::dropdownForBikeAssign($bike?->branch_id ? (int) $bike->branch_id : null),
+    ];
 
-    return view('bikes.assignBike_active', compact('id', 'assignFields'));
+    return view('bikes.assignBike_active', compact('id', 'assignFields', 'bike', 'assignBranchScopedOptions'));
   }
 
   /**

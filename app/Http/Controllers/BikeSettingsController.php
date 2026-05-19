@@ -163,13 +163,15 @@ class BikeSettingsController extends Controller
         sort($fieldKeys);
         foreach ($fieldKeys as $fieldKey) {
             $categoryId = (int) ($resolvedCategoryForField[$fieldKey] ?? $otherId);
-            $assignment = BikeFieldCategoryAssignment::where('field_key', $fieldKey)->first();
+            $assignment = BikeFieldCategoryAssignment::query()
+                ->where('field_key', $fieldKey)
+                ->first();
             if ($assignment) {
                 continue;
             }
 
             $nextOrder = ((int) BikeFieldCategoryAssignment::where('category_id', $categoryId)->max('display_order')) + 1;
-            BikeFieldCategoryAssignment::create([
+            BikeFieldCategoryAssignment::query()->create([
                 'field_key' => $fieldKey,
                 'category_id' => $categoryId,
                 'display_order' => $nextOrder,

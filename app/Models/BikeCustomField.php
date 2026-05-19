@@ -545,23 +545,21 @@ class BikeCustomField extends BaseModel
 
         foreach (self::defaultAssignFieldCatalog() as $def) {
             $key = $def['field_key'];
-            $exists = BikeAssignFieldAssignment::where('field_key', $key)->exists();
-            if ($exists) {
-                continue;
-            }
 
-            BikeAssignFieldAssignment::create([
-                'field_key' => $key,
-                'kind' => $def['kind'],
-                'display_label' => $def['display_label'],
-                'input_type' => $def['input_type'] ?? null,
-                'input_config' => $def['input_config'] ?? null,
-                'display_order' => $def['display_order'] ?? 0,
-                'is_visible' => true,
-                'is_required' => $def['is_required'] ?? false,
-                'show_on_active' => $def['show_on_active'] ?? false,
-                'show_on_change' => $def['show_on_change'] ?? false,
-            ]);
+            BikeAssignFieldAssignment::query()->firstOrCreate(
+                ['field_key' => $key],
+                [
+                    'kind' => $def['kind'],
+                    'display_label' => $def['display_label'],
+                    'input_type' => $def['input_type'] ?? null,
+                    'input_config' => $def['input_config'] ?? null,
+                    'display_order' => $def['display_order'] ?? 0,
+                    'is_visible' => true,
+                    'is_required' => $def['is_required'] ?? false,
+                    'show_on_active' => $def['show_on_active'] ?? false,
+                    'show_on_change' => $def['show_on_change'] ?? false,
+                ]
+            );
         }
     }
 

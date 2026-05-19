@@ -6,8 +6,12 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
+        if (Schema::hasTable('inventory_purchases')) {
+            return;
+        }
+
         Schema::create('inventory_purchases', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('item_id');

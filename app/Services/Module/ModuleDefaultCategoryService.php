@@ -94,15 +94,10 @@ final class ModuleDefaultCategoryService
         $category = $category ?? $this->ensureForModule($module);
         $categoryId = (int) $category->id;
 
-        $assignmentQuery = ModuleFieldCategoryAssignment::query()
+        ModuleFieldCategoryAssignment::query()
             ->where('module_key', $module)
-            ->whereNull('category_id');
-
-        if ($category->company_id !== null) {
-            $assignmentQuery->where('company_id', $category->company_id);
-        }
-
-        $assignmentQuery->update(['category_id' => $categoryId]);
+            ->whereNull('category_id')
+            ->update(['category_id' => $categoryId]);
 
         if (Schema::hasTable('module_custom_fields')) {
             $customQuery = ModuleCustomField::query()

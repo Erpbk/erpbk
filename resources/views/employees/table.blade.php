@@ -5,11 +5,12 @@
       <tr role="row">
          @php
          $tableCols = $tableColumns ?? [];
-         $dataColumns = array_values(array_filter($tableCols, function ($c) {
+         $hiddenTableColumns = \App\Models\EmployeeCustomField::removedEmployeeColumns();
+         $dataColumns = array_values(array_filter($tableCols, function ($c) use ($hiddenTableColumns) {
              $k = $c['data'] ?? ($c['key'] ?? null);
              return $k !== 'search'
                  && $k !== 'control'
-                 && !in_array($k, ['company_id', 'account_id'], true);
+                 && !in_array($k, $hiddenTableColumns, true);
          }));
          @endphp
          @foreach($dataColumns as $col)

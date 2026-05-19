@@ -7,40 +7,9 @@ use Illuminate\Support\Facades\Schema;
 
 class EmployeeCustomField extends BaseModel
 {
-    private static function ensureDefaultFixedAssignments(array $fieldKeys): void
+    public static function bootstrapFieldCategories(): void
     {
-        $columns = Schema::getColumnListing('employees');
-        $categories = self::scopedEmployeeCategoriesQuery()->orderBy('display_order')->orderBy('id')->get();
-        if ($categories->isEmpty()) {
-            return;
-        }
-
-        $jobInfoCategoryId = (int) ($categories->firstWhere('slug', 'employment_info')->id ?? 0);
-        $fallbackCategoryId = (int) ($categories->firstWhere('slug', 'other')->id ?? $categories->first()->id);
-        $targetCategoryId = $jobInfoCategoryId > 0 ? $jobInfoCategoryId : $fallbackCategoryId;
-        if ($targetCategoryId <= 0) {
-            return;
-        }
-
-        foreach ($fieldKeys as $fieldKey) {
-            if (!in_array($fieldKey, $columns, true)) {
-                continue;
-            }
-            if (in_array($fieldKey, self::removedEmployeeColumns(), true)) {
-                continue;
-            }
-            $existing = EmployeeFieldCategoryAssignment::where('field_key', $fieldKey)->first();
-            if ($existing) {
-                continue;
-            }
-            EmployeeFieldCategoryAssignment::create([
-                'field_key' => $fieldKey,
-                'category_id' => $targetCategoryId,
-                'display_order' => (int) EmployeeFieldCategoryAssignment::where('category_id', $targetCategoryId)->max('display_order') + 1,
-                'is_visible' => true,
-                'is_required' => false,
-            ]);
-        }
+        app(\App\Services\Employee\EmployeeDefaultCategoryService::class)->bootstrap();
     }
 
     private static function scopedEmployeeCategoriesQuery()
@@ -48,13 +17,19 @@ class EmployeeCustomField extends BaseModel
         return EmployeeCategory::query();
     }
 
-    private static function removedEmployeeColumns(): array
+    /**
+     * Columns hidden from Employee Settings, employee form, and index table.
+     */
+    public static function removedEmployeeColumns(): array
     {
         return [
             'account_id',
             'created_by',
             'updated_by',
             'deleted_at',
+            'company_id',
+            'profile_image',
+            'employee_id',
         ];
     }
     protected $table = 'employee_custom_fields';
@@ -254,7 +229,11 @@ class EmployeeCustomField extends BaseModel
         $result = [];
         foreach ($categories as $cat) {
             $fields = [];
+            $hidden = array_flip(self::removedEmployeeColumns());
             foreach ($assignments->get($cat->id, collect()) as $a) {
+                if (isset($hidden[$a->field_key])) {
+                    continue;
+                }
                 $fields[] = [
                     'key' => $a->field_key,
                     'label' => self::humanizeFieldKey($a->field_key),
@@ -333,6 +312,8 @@ class EmployeeCustomField extends BaseModel
      */
     public static function fieldsByCategoryForForm(bool $includeCustomFields = false): array
     {
+        self::bootstrapFieldCategories();
+
         $categories = EmployeeCategory::orderBy('display_order')->orderBy('id')->get();
         $categoryIds = $categories->pluck('id')->all();
         $allowedFixedLookup = array_flip(self::allFixedFieldKeys());

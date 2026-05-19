@@ -102,14 +102,6 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
-        @can('permissions_view')
-        <li class="menu-item {{ Request::is('settings-panel/permissions*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.permissions.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-lock"></i>
-            <div>Permissions</div>
-          </a>
-        </li>
-        @endcan
         @can('activity_logs_view')
         <li class="menu-item {{ Request::is('settings-panel/activity-logs*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.activity-logs.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">

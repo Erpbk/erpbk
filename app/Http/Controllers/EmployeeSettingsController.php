@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Services\Employee\EmployeeDefaultCategoryService;
 use App\Models\EmployeeCategory;
 use App\Models\EmployeeCustomField;
 use App\Models\EmployeeDocumentType;
@@ -56,12 +57,28 @@ class EmployeeSettingsController extends Controller
         return $this->employeeCategoryQuery()->pluck('id')->map(fn($id) => (int) $id)->all();
     }
 
+    protected function ensureDefaultEmployeeCategorySetup(): EmployeeCategory
+    {
+        $service = app(EmployeeDefaultCategoryService::class);
+        $defaultCategory = $service->ensure();
+        $service->syncFixedFieldAssignments($this->validFixedAssignableFieldKeys());
+        $service->assignUnassignedCustomFields();
+
+        return $defaultCategory;
+    }
+
     /**
      * Employee Settings: categories, fixed employee fields + employee custom fields, organized by category.
      */
     public function index()
     {
-        $categories = $this->employeeCategoryQuery()->orderBy('display_order')->orderBy('id')->get();
+        $this->ensureDefaultEmployeeCategorySetup();
+
+        $categories = $this->employeeCategoryQuery()
+            ->orderByRaw('CASE WHEN slug = ? THEN 0 ELSE 1 END', [EmployeeDefaultCategoryService::DEFAULT_SLUG])
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
         $fixedFieldsByCategory = EmployeeCustomField::fixedEmployeeFieldsByCategory();
         $customFields = EmployeeCustomField::with('category')->orderBy('display_order')->orderBy('id')->get();
         $customFieldsByCategory = $customFields->groupBy('category_id');
@@ -160,8 +177,9 @@ class EmployeeSettingsController extends Controller
         $result = [];
         foreach ($categories as $cat) {
             $fixedSpecs = EmployeeCustomField::fixedFieldInputSpecs();
-            $items = $grouped->get($cat->id, collect())->map(function ($a) use ($fixedSpecs, $employeeColumns) {
-                if (!isset($employeeColumns[$a->field_key])) {
+            $hiddenKeys = array_flip(EmployeeCustomField::removedEmployeeColumns());
+            $items = $grouped->get($cat->id, collect())->map(function ($a) use ($fixedSpecs, $employeeColumns, $hiddenKeys) {
+                if (!isset($employeeColumns[$a->field_key]) || isset($hiddenKeys[$a->field_key])) {
                     return null;
                 }
                 $rawVisible = $a->getRawOriginal('is_visible');
@@ -282,19 +300,10 @@ class EmployeeSettingsController extends Controller
     {
         $keys = $this->validFixedAssignableFieldKeys();
         $assignments = EmployeeFieldCategoryAssignment::all()->keyBy('field_key');
-        $slugToId = EmployeeCategory::whereNotNull('slug')->pluck('id', 'slug')->all();
-        $map = EmployeeCustomField::fixedFieldsSlugMap();
+        $defaultCategoryId = (int) app(EmployeeDefaultCategoryService::class)->ensure()->id;
         $list = [];
         foreach ($keys as $fieldKey) {
             $a = $assignments->get($fieldKey);
-            $defaultSlug = 'other';
-            foreach ($map as $slug => $slugKeys) {
-                if (in_array($fieldKey, $slugKeys, true)) {
-                    $defaultSlug = $slug;
-                    break;
-                }
-            }
-            $defaultCategoryId = $slugToId[$defaultSlug] ?? $categories->first()?->id;
             $list[] = (object) [
                 'field_key' => $fieldKey,
                 'label' => EmployeeCustomField::humanizeFieldKey($fieldKey),
@@ -602,7 +611,11 @@ class EmployeeSettingsController extends Controller
         $validated = $request->validate([
             'label' => 'required|string|max:255',
         ]);
-        if ($this->employeeCategoryCompanyScoped() && empty($category->company_id)) {
+        if (
+            $this->employeeCategoryCompanyScoped()
+            && empty($category->company_id)
+            && ! app(EmployeeDefaultCategoryService::class)->isDefaultCategory($category)
+        ) {
             $category->company_id = $this->employeeCategoryCompanyId();
         }
         $category->label = $validated['label'];
@@ -618,6 +631,15 @@ class EmployeeSettingsController extends Controller
     {
         $category = $this->findScopedEmployeeCategory((int) $id);
         $request = request();
+
+        if (app(EmployeeDefaultCategoryService::class)->isDefaultCategory($category)) {
+            $message = __('The default category cannot be deleted.');
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
+            return redirect()->route('settings-panel.employee-settings.index')->with('error', $message);
+        }
 
         $hasCustomFields = $category->customFields()->exists();
         $hasFixedFields = EmployeeFieldCategoryAssignment::where('category_id', $category->id)->exists();
@@ -661,7 +683,11 @@ class EmployeeSettingsController extends Controller
 
     public function categoriesTableBody()
     {
-        $categories = $this->employeeCategoryQuery()->orderBy('display_order')->orderBy('id')->get();
+        $categories = $this->employeeCategoryQuery()
+            ->orderByRaw('CASE WHEN slug = ? THEN 0 ELSE 1 END', [EmployeeDefaultCategoryService::DEFAULT_SLUG])
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
         return view('settings.employee_settings._categories_tbody', compact('categories'));
     }
 
@@ -689,9 +715,8 @@ class EmployeeSettingsController extends Controller
         $validated['help_text'] = $request->input('help_text');
         $validated['default_value'] = $request->input('default_value');
         $validated['input_format'] = $request->input('input_format');
-        // New custom fields must start as unassigned and only appear in Employee module
-        // after explicit category assignment from Employee Fields settings.
-        $validated['category_id'] = null;
+        $validated['category_id'] = $validated['category_id']
+            ?? (int) app(EmployeeDefaultCategoryService::class)->ensure()->id;
         $validated['data_privacy'] = [
             'pii' => $request->boolean('data_privacy_pii'),
             'ephi' => $request->boolean('data_privacy_ephi'),

@@ -117,30 +117,19 @@ class AdminCompaniesController extends Controller
     public function updateModules(Request $request, AdminCompany $company)
     {
         $parentKeys = array_keys(config('company_modules.modules', []));
-        $childKeys = [
-            'cheques',
-            'attendance_records',
-            'attendance_summary',
-            'items_list',
-            'garage_items',
-            'riders_list',
-            'invoices',
-            'activities',
-            'live_activities',
-            'rider_report',
-            'bike_list',
-            'maintenance_overview',
-            'vat_ledger',
-            'vat_return_file',
-            'leasing_companies_list',
-            'leasing_invoices',
-            'bike_rent_customers',
-            'suppliers',
-            'supplier_invoices',
-            'chart_of_accounts',
-            'ledger',
-        ];
-        $keys = array_values(array_unique(array_merge($parentKeys, $childKeys)));
+        $childKeys = collect(config('company_module_tree', []))
+            ->pluck('children')
+            ->flatten()
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $treeParentKeys = collect(config('company_module_tree', []))
+            ->pluck('key')
+            ->filter()
+            ->values()
+            ->all();
+        $keys = array_values(array_unique(array_merge($parentKeys, $treeParentKeys, $childKeys)));
         $labelKeys = array_keys(config('menu_labels.defaults', []));
         $validated = $request->validate([
             'enabled' => 'nullable|array',

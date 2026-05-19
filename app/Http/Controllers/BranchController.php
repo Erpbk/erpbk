@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use App\Models\User;
+use App\Support\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Laracasts\Flash\Flash;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -45,18 +47,17 @@ class BranchController extends Controller
      */
     public function store(string $company_slug, Request $request)
     {
+        $validator = Validator::make($request->all(), $this->branchValidationRules());
 
-        $data = $this->validate($request, [
-            'name' => 'required|string|max:255',
-            'code' => 'required|string|max:100|unique:branches,code',
-            'contact' => 'nullable|string|max:255',
-            'address' => 'required|string|max:255',
-            'city' => 'nullable|string|max:255',
-            'parent_branch_id' => 'nullable|exists:branches,id',
-            'branch_type' => 'required|in:headquarters,branch,warehouse,grage',
-            'is_active' => 'sometimes|boolean',
-            'description' => 'nullable|string|max:255',
-        ]);
+        if ($validator->fails()) {
+            if ($request->ajax()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            return back()->withErrors($validator)->withInput();
+        }
+
+        $data = $validator->validated();
 
         try {
             DB::beginTransaction();
@@ -154,17 +155,7 @@ class BranchController extends Controller
      */
     public function update(Request $request, string $company_slug, Branch $branch)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'code' => 'required|string|max:100|unique:branches,code,' . $branch->id,
-            'contact' => 'nullable|string|max:255',
-            'address' => 'nullable|string|max:255',
-            'city' => 'nullable|string|max:255',
-            'parent_branch_id' => 'nullable|exists:branches,id|not_in:' . $branch->id,
-            'branch_type' => 'required|in:headquarters,branch,warehouse,grage',
-            'is_active' => 'sometimes|boolean',
-            'description' => 'nullable|string|max:255',
-        ]);
+        $validator = Validator::make($request->all(), $this->branchValidationRules($branch));
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
@@ -291,6 +282,39 @@ class BranchController extends Controller
     /**
      * Format branch for tree display recursively.
      */
+    /**
+     * @return array<string, mixed>
+     */
+    private function branchValidationRules(?Branch $branch = null): array
+    {
+        $companyId = CompanyContext::id();
+
+        $codeRule = Rule::unique('branches', 'code')
+            ->where(function ($query) use ($companyId) {
+                if ($companyId === null) {
+                    $query->whereNull('company_id');
+                } else {
+                    $query->where('company_id', $companyId);
+                }
+            });
+
+        if ($branch) {
+            $codeRule->ignore($branch->id);
+        }
+
+        return [
+            'name' => 'required|string|max:255',
+            'code' => ['required', 'string', 'max:100', $codeRule],
+            'contact' => 'nullable|string|max:255',
+            'address' => ($branch ? 'nullable' : 'required') . '|string|max:255',
+            'city' => 'nullable|string|max:255',
+            'parent_branch_id' => 'nullable|exists:branches,id' . ($branch ? '|not_in:' . $branch->id : ''),
+            'branch_type' => 'required|in:headquarters,branch,warehouse,grage',
+            'is_active' => 'sometimes|boolean',
+            'description' => 'nullable|string|max:255',
+        ];
+    }
+
     private function formatBranchForTree($branch)
     {
         $formatted = [

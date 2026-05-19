@@ -160,9 +160,15 @@ class ModuleSettingsController extends Controller
             ));
 
             foreach ($columns as $index => $column) {
-                $assignment = ModuleFieldCategoryAssignment::firstOrCreate(
-                    ['module_key' => $module, 'field_key' => $column],
-                    [
+                $assignment = ModuleFieldCategoryAssignment::query()
+                    ->where('module_key', $module)
+                    ->where('field_key', $column)
+                    ->first();
+
+                if (!$assignment) {
+                    ModuleFieldCategoryAssignment::query()->create([
+                        'module_key' => $module,
+                        'field_key' => $column,
                         'company_id' => \App\Support\CompanyContext::id(),
                         'category_id' => $defaultCategoryId,
                         'field_label' => ucwords(str_replace('_', ' ', $column)),
@@ -170,15 +176,17 @@ class ModuleSettingsController extends Controller
                         'is_visible' => true,
                         'is_required' => true,
                         'display_order' => $index + 1,
-                    ]
-                );
+                    ]);
+
+                    continue;
+                }
 
                 $dirty = false;
                 if (empty($assignment->category_id)) {
                     $assignment->category_id = $defaultCategoryId;
                     $dirty = true;
                 }
-                if (! $assignment->wasRecentlyCreated && empty($assignment->field_label)) {
+                if (empty($assignment->field_label)) {
                     $assignment->field_label = ucwords(str_replace('_', ' ', $column));
                     $dirty = true;
                 }
@@ -763,7 +771,7 @@ class ModuleSettingsController extends Controller
                 : null;
         }
 
-        $assignment = ModuleFieldCategoryAssignment::updateOrCreate(
+        $assignment = ModuleFieldCategoryAssignment::query()->updateOrCreate(
             ['module_key' => $module, 'field_key' => $fieldKey],
             $payload
         );

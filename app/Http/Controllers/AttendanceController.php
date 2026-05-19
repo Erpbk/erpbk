@@ -605,12 +605,6 @@ class AttendanceController extends Controller
                         $item->type_badge_class = 'bg-primary';
                         return $item;
                     });
-                // Debug - see what's loaded
-                \Log::info('All users - first user branch:', [
-                    'has_branch' => isset($users->first()->branch),
-                    'branch_data' => $users->first()->branch ? $users->first()->branch->toArray() : null,
-                    'branch_relation_loaded' => $users->first()->relationLoaded('branch')
-                ]);
             } else {
                 $users = Employee::with('branch')->where('id', $userId)
                     ->get()

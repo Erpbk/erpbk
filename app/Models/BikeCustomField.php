@@ -115,6 +115,11 @@ class BikeCustomField extends BaseModel
         return $this->belongsTo(BikeCategory::class, 'category_id', 'id');
     }
 
+    public static function bootstrapFieldCategories(): void
+    {
+        app(\App\Services\Bike\BikeDefaultCategoryService::class)->bootstrap();
+    }
+
     /**
      * Columns that are not allowed for assigning via Bike Fields settings.
      */
@@ -138,6 +143,12 @@ class BikeCustomField extends BaseModel
             'customer_id',
             'emirates',
             'rider_id',
+            'warehouse',
+            'rental_company_id',
+            'leased_return_company_id',
+            'leased_return_by',
+            'leased_return_date',
+            'bike_top_option_id',
         ];
     }
 
@@ -545,23 +556,21 @@ class BikeCustomField extends BaseModel
 
         foreach (self::defaultAssignFieldCatalog() as $def) {
             $key = $def['field_key'];
-            $exists = BikeAssignFieldAssignment::where('field_key', $key)->exists();
-            if ($exists) {
-                continue;
-            }
 
-            BikeAssignFieldAssignment::create([
-                'field_key' => $key,
-                'kind' => $def['kind'],
-                'display_label' => $def['display_label'],
-                'input_type' => $def['input_type'] ?? null,
-                'input_config' => $def['input_config'] ?? null,
-                'display_order' => $def['display_order'] ?? 0,
-                'is_visible' => true,
-                'is_required' => $def['is_required'] ?? false,
-                'show_on_active' => $def['show_on_active'] ?? false,
-                'show_on_change' => $def['show_on_change'] ?? false,
-            ]);
+            BikeAssignFieldAssignment::query()->firstOrCreate(
+                ['field_key' => $key],
+                [
+                    'kind' => $def['kind'],
+                    'display_label' => $def['display_label'],
+                    'input_type' => $def['input_type'] ?? null,
+                    'input_config' => $def['input_config'] ?? null,
+                    'display_order' => $def['display_order'] ?? 0,
+                    'is_visible' => true,
+                    'is_required' => $def['is_required'] ?? false,
+                    'show_on_active' => $def['show_on_active'] ?? false,
+                    'show_on_change' => $def['show_on_change'] ?? false,
+                ]
+            );
         }
     }
 

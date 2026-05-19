@@ -570,9 +570,9 @@
             </div>
             <div class="mb-3">
               <label class="form-label">Category</label>
-              <input type="text" class="form-control" value="Unassigned (set from Rider Fields tab after creation)" disabled>
-              <input type="hidden" name="category_id" value="">
-              <p class="form-text mb-0">New custom fields are created as unassigned and can be moved category-wise from the Rider Fields tab.</p>
+              <input type="text" class="form-control" value="{{ $defaultCategory->label ?? 'General' }}" disabled>
+              <input type="hidden" name="category_id" value="{{ $defaultCategory->id ?? '' }}">
+              <p class="form-text mb-0">New custom fields are placed in the default category. You can reassign them from the Rider Fields tab.</p>
             </div>
             <div class="mb-3">
               <label class="form-label d-flex align-items-center gap-1">
@@ -1935,7 +1935,7 @@
       }
     })();
 
-    // New custom fields always start as unassigned.
+    // New custom fields default to the General category (server-side); users may reassign later.
 
     // Add custom field form: submit via AJAX and refresh the category tbody
     var formAddRiderField = document.getElementById('formAddRiderField');

@@ -220,7 +220,10 @@ class EmployeeController extends Controller
     {
         $employeeColumns = Schema::getColumnListing('employees');
         $employeeColumnsSet = array_flip($employeeColumns);
-        $exclude = ['id', 'created_at', 'updated_at', 'deleted_at', 'company_id', 'account_id', 'custom_field_values', 'profile_image', 'notes', 'created_by', 'updated_by'];
+        $exclude = array_values(array_unique(array_merge(
+            ['id', 'created_at', 'updated_at', 'deleted_at', 'custom_field_values', 'notes'],
+            EmployeeCustomField::removedEmployeeColumns(),
+        )));
         $excludedSet = array_flip($exclude);
 
         $assignedFixedColumns = EmployeeFieldCategoryAssignment::query()
@@ -250,7 +253,6 @@ class EmployeeController extends Controller
         })->all();
 
         $preferredOrder = [
-            'employee_id',
             'name',
             'company_contact',
             'branch_id',

@@ -4,9 +4,16 @@
     <span class="drag-handle"><i class="ti ti-grip-vertical"></i></span>
   </td>
   <td class="align-middle">{{ $index + 1 }}</td>
-  <td class="align-middle">{{ $category->label }}</td>
   <td class="align-middle">
-    @if($category->slug)
+    {{ $category->label }}
+    @if($category->slug === \App\Services\Employee\EmployeeDefaultCategoryService::DEFAULT_SLUG)
+    <span class="badge bg-label-primary ms-1">Default</span>
+    @endif
+  </td>
+  <td class="align-middle">
+    @if($category->slug === \App\Services\Employee\EmployeeDefaultCategoryService::DEFAULT_SLUG)
+    <span class="badge bg-label-primary">Default</span>
+    @elseif($category->slug)
     <span class="badge bg-label-info">{{ $category->slug }}</span>
     @else
     <span class="text-muted">—</span>
@@ -29,6 +36,7 @@
         data-bs-target="#editRiderCategoryModal">
         <i class="ti ti-edit"></i>
       </button>
+      @if($category->slug !== \App\Services\Employee\EmployeeDefaultCategoryService::DEFAULT_SLUG)
       <form method="POST"
         action="{{ route('settings-panel.employee-settings.destroy-category', $category->id) }}"
         class="d-inline"
@@ -39,6 +47,7 @@
           <i class="ti ti-trash"></i>
         </button>
       </form>
+      @endif
     </div>
   </td>
 </tr>

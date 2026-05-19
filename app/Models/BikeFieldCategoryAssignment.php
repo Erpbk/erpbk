@@ -8,6 +8,14 @@ class BikeFieldCategoryAssignment extends BaseModel
 {
     protected $table = 'bike_field_category_assignments';
 
+    /**
+     * Assignments are globally unique by field_key.
+     */
+    protected function shouldApplyCompanyScope(): bool
+    {
+        return false;
+    }
+
     protected $fillable = [
         'field_key',
         'display_label',

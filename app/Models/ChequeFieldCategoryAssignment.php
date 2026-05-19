@@ -8,6 +8,14 @@ class ChequeFieldCategoryAssignment extends BaseModel
 {
     protected $table = 'cheque_field_category_assignments';
 
+    /**
+     * Seeded rows use company_id null; lookups must see them before creating company-scoped rows.
+     */
+    protected function shouldApplyCompanyScope(): bool
+    {
+        return false;
+    }
+
     protected $fillable = [
         'field_key',
         'display_label',

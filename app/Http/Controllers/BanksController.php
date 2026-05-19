@@ -61,6 +61,7 @@ class BanksController extends AppBaseController
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Banks::query()
+      ->with('branch')
       ->orderBy('id', 'asc');
     if ($request->has('name') && !empty($request->name)) {
       $query->where('name', 'like', '%' . $request->name . '%');

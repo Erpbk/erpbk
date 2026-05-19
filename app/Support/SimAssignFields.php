@@ -38,11 +38,16 @@ class SimAssignFields
 
         foreach (self::defaultAssignFieldCatalog() as $def) {
             $key = $def['field_key'];
-            if (SimAssignFieldAssignment::where('field_key', $key)->exists()) {
+
+            $assignment = SimAssignFieldAssignment::query()
+                ->where('field_key', $key)
+                ->first();
+
+            if ($assignment) {
                 continue;
             }
 
-            SimAssignFieldAssignment::create([
+            SimAssignFieldAssignment::query()->create([
                 'field_key' => $key,
                 'kind' => $def['kind'],
                 'display_label' => $def['display_label'],

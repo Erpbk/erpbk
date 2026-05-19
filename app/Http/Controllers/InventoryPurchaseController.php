@@ -18,7 +18,7 @@ class InventoryPurchaseController extends Controller
     {
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
-        $query = Items::query()->whereJsonContains('owner', 'garage');
+        $query = Items::query()->whereJsonContains('owner', 'garage')->whereNotNull('is_maintained')->where('is_maintained', true);
         if ($request->filled('item_id')) {
             $query->where('id', $request->item_id);
         }

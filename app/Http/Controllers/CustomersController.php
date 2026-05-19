@@ -89,11 +89,21 @@ class CustomersController extends AppBaseController
     $input = $request->all();
     $exist = Customers::where('name', $input['name'])->where('branch_id', $input['branch_id'])->first();
     if ($exist) {
+      if($request->ajax()){
+        return response()->json([
+          'message' => 'Customer already exists.',
+        ], 400);
+      }
       Flash::error('Customer already exists.');
-      return redirect(route('customers.index'));
+      return redirect()->back();
     }
     $parentAccount = Accounts::where('name', 'Customer')->where('account_type', 'Asset')->first();
     if (!$parentAccount) {
+      if($request->ajax()){
+        return response()->json([
+          'message' => 'Parent account "Customer" not found.',
+        ], 500);
+      }
       Flash::error('Parent account "Customer" not found.');
       return redirect(route('customers.index'));
     }

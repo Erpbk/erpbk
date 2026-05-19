@@ -12,6 +12,7 @@ use App\Models\Settings;
 use App\Models\BikeRegistrationStatus;
 use App\Models\SimAssignFieldAssignment;
 use App\Models\VisaStatus;
+use App\Services\Module\ModuleDefaultCategoryService;
 use App\Services\Module\ModuleLabelService;
 use App\Services\Module\ModuleTopBarSettingsService;
 use App\Support\ErpModuleRegistry;
@@ -147,39 +148,47 @@ class ModuleSettingsController extends Controller
 
     protected function syncModuleFixedAssignmentsFromDb(string $module): ?string
     {
+        $defaultCategory = app(ModuleDefaultCategoryService::class)->ensureForModule($module);
+        $defaultCategoryId = (int) $defaultCategory->id;
+
         $table = $this->resolveModuleSourceTable($module);
-        if (!$table) {
-            return null;
+        if ($table) {
+            $excluded = ModuleFieldSource::defaultExcludedFieldsForModule($module);
+            $columns = array_values(array_filter(
+                Schema::getColumnListing($table),
+                fn ($col) => ! in_array($col, $excluded, true)
+            ));
+
+            foreach ($columns as $index => $column) {
+                $assignment = ModuleFieldCategoryAssignment::firstOrCreate(
+                    ['module_key' => $module, 'field_key' => $column],
+                    [
+                        'company_id' => \App\Support\CompanyContext::id(),
+                        'category_id' => $defaultCategoryId,
+                        'field_label' => ucwords(str_replace('_', ' ', $column)),
+                        'display_label' => null,
+                        'is_visible' => true,
+                        'is_required' => true,
+                        'display_order' => $index + 1,
+                    ]
+                );
+
+                $dirty = false;
+                if (empty($assignment->category_id)) {
+                    $assignment->category_id = $defaultCategoryId;
+                    $dirty = true;
+                }
+                if (! $assignment->wasRecentlyCreated && empty($assignment->field_label)) {
+                    $assignment->field_label = ucwords(str_replace('_', ' ', $column));
+                    $dirty = true;
+                }
+                if ($dirty) {
+                    $assignment->save();
+                }
+            }
         }
 
-        $excluded = ModuleFieldSource::defaultExcludedFieldsForModule($module);
-        $columns = array_values(array_filter(
-            Schema::getColumnListing($table),
-            fn($col) => !in_array($col, $excluded, true)
-        ));
-
-        foreach ($columns as $index => $column) {
-            $assignment = ModuleFieldCategoryAssignment::firstOrCreate(
-                ['module_key' => $module, 'field_key' => $column],
-                [
-                    'company_id' => \App\Support\CompanyContext::id(),
-                    'field_label' => ucwords(str_replace('_', ' ', $column)),
-                    'display_label' => null,
-                    'is_visible' => true,
-                    'is_required' => true,
-                    'display_order' => $index + 1,
-                ]
-            );
-
-            $dirty = false;
-            if (!$assignment->wasRecentlyCreated && empty($assignment->field_label)) {
-                $assignment->field_label = ucwords(str_replace('_', ' ', $column));
-                $dirty = true;
-            }
-            if ($dirty) {
-                $assignment->save();
-            }
-        }
+        app(ModuleDefaultCategoryService::class)->assignAllFieldsToDefault($module, $defaultCategory);
 
         return $table;
     }
@@ -209,8 +218,15 @@ class ModuleSettingsController extends Controller
         $companyId = \App\Support\CompanyContext::id();
         $moduleSourceTable = $this->syncModuleFixedAssignmentsFromDb($module);
 
-        $categories = ModuleSettingCategory::query()
+        $defaultCategory = app(ModuleDefaultCategoryService::class)->ensureForModule($module);
+
+        $categoriesQuery = ModuleSettingCategory::query()->where('module_key', $module);
+        if (Schema::hasColumn('module_setting_categories', 'company_id') && $companyId) {
+            $categoriesQuery->where('company_id', $companyId);
+        }
+        $categories = $categoriesQuery
             ->where('module_key', $module)
+            ->orderByRaw('CASE WHEN slug = ? THEN 0 ELSE 1 END', [ModuleDefaultCategoryService::DEFAULT_SLUG])
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -373,6 +389,7 @@ class ModuleSettingsController extends Controller
             'bikeRegistrationStatusesForSettings' => $bikeRegistrationStatusesForSettings,
             'selectedBikeRegistrationTopStatusIds' => $selectedBikeRegistrationTopStatusIds,
             'bikeRegistrationTopEnabled' => $bikeRegistrationTopEnabled,
+            'defaultCategory' => $defaultCategory,
         ]);
     }
 
@@ -691,6 +708,9 @@ class ModuleSettingsController extends Controller
     {
         $module = $this->normalizeModuleKey($module);
         $category = ModuleSettingCategory::where('module_key', $module)->where('id', $id)->firstOrFail();
+        if (app(ModuleDefaultCategoryService::class)->isDefaultCategory($category)) {
+            return back()->with('error', __('The default category cannot be deleted.'));
+        }
         $category->delete();
 
         return back()->with('success', 'Category deleted.');
@@ -714,9 +734,11 @@ class ModuleSettingsController extends Controller
         $isVisible = filter_var((string) ($validated['is_visible'] ?? false), FILTER_VALIDATE_BOOLEAN);
         $isRequired = filter_var((string) ($validated['is_required'] ?? false), FILTER_VALIDATE_BOOLEAN);
 
+        $defaultCategoryId = (int) app(ModuleDefaultCategoryService::class)->ensureForModule($module)->id;
+
         $payload = [
             'field_label' => $validated['field_label'] ?? null,
-            'category_id' => $validated['category_id'] ?? null,
+            'category_id' => $validated['category_id'] ?? $defaultCategoryId,
             'display_label' => $validated['display_label'] ?? null,
             'is_visible' => $isVisible,
             'is_required' => $isRequired,
@@ -900,10 +922,12 @@ class ModuleSettingsController extends Controller
             $config = ['options' => $validated['config_options']];
         }
 
+        $defaultCategoryId = (int) app(ModuleDefaultCategoryService::class)->ensureForModule($module)->id;
+
         ModuleCustomField::create([
             'module_key' => $module,
             'company_id' => \App\Support\CompanyContext::id(),
-            'category_id' => $validated['category_id'] ?? null,
+            'category_id' => $validated['category_id'] ?? $defaultCategoryId,
             'label' => $validated['label'],
             'help_text' => $validated['help_text'] ?? null,
             'data_type' => $validated['data_type'],

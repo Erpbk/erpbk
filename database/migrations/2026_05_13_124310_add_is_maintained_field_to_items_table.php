@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('items', function (Blueprint $table) {
-            $table->boolean('is_maintained')->default(false)->after('cost');
+            $table->boolean('is_maintained')->nullable()->after('cost');
         });
     }
 

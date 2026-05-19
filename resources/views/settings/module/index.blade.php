@@ -81,7 +81,12 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                 <tbody>
                   @forelse($categories as $category)
                   <tr>
-                    <td>{{ $category->label }}</td>
+                    <td>
+                      {{ $category->label }}
+                      @if($category->slug === \App\Services\Module\ModuleDefaultCategoryService::DEFAULT_SLUG && $category->is_system)
+                        <span class="badge bg-label-secondary ms-1">Default</span>
+                      @endif
+                    </td>
                     <td>
                       <form action="{{ route('settings-panel.module-settings.update-category', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey, 'id' => $category->id]) }}" method="POST" class="d-inline-flex gap-2">
                         @csrf
@@ -89,11 +94,13 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                         <input type="text" name="label" class="form-control form-control-sm" value="{{ $category->label }}" required>
                         <button type="submit" class="btn btn-sm btn-outline-primary">Update</button>
                       </form>
+                      @if(!($category->slug === \App\Services\Module\ModuleDefaultCategoryService::DEFAULT_SLUG && $category->is_system))
                       <form action="{{ route('settings-panel.module-settings.destroy-category', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey, 'id' => $category->id]) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this category?')">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                       </form>
+                      @endif
                     </td>
                   </tr>
                   @empty
@@ -120,9 +127,8 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
               <div class="col-md-3">
                 <label class="form-label">Category</label>
                 <select name="category_id" class="form-select">
-                  <option value="">Unassigned</option>
                   @foreach($categories as $category)
-                  <option value="{{ $category->id }}">{{ $category->label }}</option>
+                  <option value="{{ $category->id }}" @selected(isset($defaultCategory) && (int) $category->id === (int) $defaultCategory->id)>{{ $category->label }}</option>
                   @endforeach
                 </select>
               </div>
@@ -197,9 +203,8 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
               <div class="col-md-4">
                 <label class="form-label">Category</label>
                 <select name="category_id" class="form-select">
-                  <option value="">Unassigned</option>
                   @foreach($categories as $category)
-                  <option value="{{ $category->id }}">{{ $category->label }}</option>
+                  <option value="{{ $category->id }}" @selected(isset($defaultCategory) && (int) $category->id === (int) $defaultCategory->id)>{{ $category->label }}</option>
                   @endforeach
                 </select>
               </div>

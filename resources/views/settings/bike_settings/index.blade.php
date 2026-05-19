@@ -52,6 +52,7 @@ $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 $showVisaStatusManagementTab = ($moduleKey ?? '') === 'visa_expense';
 $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'visa_expense']) . '#tab-visa-status-management';
 $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
+$defaultCategoryId = isset($defaultCategory) ? (int) $defaultCategory->id : 0;
 @endphp
 
 <div class="row">
@@ -447,7 +448,12 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                 <tbody>
                   @foreach($categories as $cat)
                   <tr data-category-row-id="{{ $cat->id }}">
-                    <td><span class="js-category-label">{{ $cat->label }}</span></td>
+                    <td>
+                      <span class="js-category-label">{{ $cat->label }}</span>
+                      @if($cat->slug === \App\Services\Module\ModuleDefaultCategoryService::DEFAULT_SLUG)
+                      <span class="badge bg-label-primary ms-1">Default</span>
+                      @endif
+                    </td>
                     <td>{!! $cat->is_system ? '<span class="badge bg-secondary">Yes</span>' : '<span class="badge bg-light text-dark border">No</span>' !!}</td>
                     <td>
                       @if(!$cat->is_system)
@@ -516,9 +522,8 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                         <div class="col-md-3">
                           <label class="form-label">Category</label>
                           <select name="category_id" class="form-select">
-                            <option value="">Unassigned</option>
                             @foreach($categories as $cat)
-                            <option value="{{ $cat->id }}">{{ $cat->label }}</option>
+                            <option value="{{ $cat->id }}" {{ $defaultCategoryId && (int) $cat->id === $defaultCategoryId ? 'selected' : '' }}>{{ $cat->label }}</option>
                             @endforeach
                           </select>
                         </div>
@@ -746,9 +751,8 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;">
-                              <option value="">Unassigned</option>
                               @foreach($categories as $dst)
-                              <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>
+                              <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? $defaultCategoryId) === (int)$dst->id ? 'selected' : '' }}>
                                 {{ $dst->label }}
                               </option>
                               @endforeach
@@ -933,9 +937,8 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;">
-                              <option value="">Unassigned</option>
                               @foreach($categories as $dst)
-                              <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>
+                              <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? $defaultCategoryId) === (int)$dst->id ? 'selected' : '' }}>
                                 {{ $dst->label }}
                               </option>
                               @endforeach
@@ -1128,7 +1131,6 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                       <div class="col-md-4">
                         <label class="form-label">Category</label>
                         <select name="category_id" id="editBikeCustomCategoryId" class="form-select">
-                          <option value="">Unassigned</option>
                           @foreach($categories as $cat)
                           <option value="{{ $cat->id }}">{{ $cat->label }}</option>
                           @endforeach

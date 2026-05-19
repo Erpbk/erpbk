@@ -20,11 +20,21 @@
     <div class="wrapper">
         <div class="header">
             <h1>{{ config('app.name') }}</h1>
-            <p style="margin: 8px 0 0; opacity: .9;">{{ __('Company Registration') }}</p>
+            <p style="margin: 8px 0 0; opacity: .9;">
+                @if(($purpose ?? 'registration') === 'email_change')
+                {{ __('Email change verification') }}
+                @else
+                {{ __('Company Registration') }}
+                @endif
+            </p>
         </div>
         <div class="body">
             <p>{{ __('Hello, :name', ['name' => $companyName]) }}</p>
+            @if(($purpose ?? 'registration') === 'email_change')
+            <p>{{ __('Use the code below to confirm your new company email address.') }}</p>
+            @else
             <p>{{ __('Use the code below to verify your email and continue company registration.') }}</p>
+            @endif
             <div class="otp-box">
                 <span class="otp-code">{{ $otp }}</span>
             </div>

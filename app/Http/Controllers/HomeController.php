@@ -73,7 +73,12 @@ class HomeController extends Controller
     if ($isSettingsPanel && $currentCompany instanceof Company && $request->isMethod('post')) {
       $validated = $request->validate([
         'company_name' => 'required|string|max:255',
-        'company_email' => 'nullable|email|max:255',
+        'company_email' => [
+          'nullable',
+          'email',
+          'max:255',
+          new \App\Rules\AvailableCompanyContactEmail($currentCompany->id),
+        ],
         'company_phone' => 'nullable|string|max:50',
         'company_address' => 'nullable|string|max:1000',
         'company_country' => 'nullable|string|max:255',
@@ -86,7 +91,23 @@ class HomeController extends Controller
       ]);
 
       $currentCompany->name = $validated['company_name'];
-      $currentCompany->email = $validated['company_email'] ?? null;
+
+      $newEmail = isset($validated['company_email'])
+        ? strtolower(trim((string) $validated['company_email']))
+        : null;
+      $currentEmail = strtolower(trim((string) ($currentCompany->email ?? '')));
+
+      if ($newEmail !== $currentEmail) {
+        $verifiedEmail = session('company_email_change_verified');
+        if (!$verifiedEmail || strtolower((string) $verifiedEmail) !== $newEmail) {
+          return back()
+            ->withErrors(['company_email' => __('Please verify your new email address using the code we send you.')])
+            ->withInput();
+        }
+        session()->forget(['company_email_change_verified', 'company_email_change_pending']);
+      }
+
+      $currentCompany->email = $newEmail ?: null;
       $currentCompany->phone = $validated['company_phone'] ?? null;
       $currentCompany->address = $validated['company_address'] ?? null;
       $currentCompany->country = $validated['company_country'] ?? null;
@@ -102,6 +123,25 @@ class HomeController extends Controller
 
       $currentCompany->save();
       AdminCompany::syncFromCentralCompany($currentCompany);
+
+      if ($newEmail !== $currentEmail && $newEmail && $currentEmail !== '') {
+        User::withoutGlobalScope('company')
+          ->where('company_id', $currentCompany->id)
+          ->whereRaw('LOWER(TRIM(email)) = ?', [$currentEmail])
+          ->where('id', '!=', auth()->id())
+          ->update(['email' => $newEmail]);
+
+        if (auth()->check()) {
+          $authUser = auth()->user();
+          if (
+            (int) $authUser->company_id === (int) $currentCompany->id
+            && strtolower(trim((string) $authUser->email)) === $currentEmail
+          ) {
+            $authUser->email = $newEmail;
+            $authUser->save();
+          }
+        }
+      }
 
       foreach ((array) $request->post('settings', []) as $key => $value) {
         Settings::updateOrCreate(['name' => $key], ['name' => $key, 'value' => $value]);

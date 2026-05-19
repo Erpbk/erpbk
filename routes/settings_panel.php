@@ -20,6 +20,8 @@ Route::get('settings-pane/{path?}', function (Request $request, ?string $path = 
 Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings'])->group(function () {
     Route::get('/', [App\Http\Controllers\SettingsPanelController::class, 'index'])->name('settings-panel.index');
     Route::match(['get', 'post'], '/company', [HomeController::class, 'settings'])->name('settings-panel.company');
+    Route::post('/company/email/send-otp', [\App\Http\Controllers\Company\CompanyEmailChangeController::class, 'sendOtp'])->name('settings-panel.company.email.send-otp');
+    Route::post('/company/email/verify-otp', [\App\Http\Controllers\Company\CompanyEmailChangeController::class, 'verifyOtp'])->name('settings-panel.company.email.verify-otp');
     Route::get('/erp', [App\Http\Controllers\ErpSettingsController::class, 'index'])->name('settings-panel.erp');
     Route::post('/erp', [App\Http\Controllers\ErpSettingsController::class, 'store'])->name('settings-panel.erp.store');
 

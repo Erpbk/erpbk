@@ -155,11 +155,20 @@ $containerNav = 'container-fluid';
             </span>
             <span class="app-brand-text demo menu-text fw-semibold ms-2">Settings Panel</span>
           </div>
-          <div class="navbar-nav-right d-flex align-items-center ms-auto">
+          <div class="navbar-nav-right d-flex align-items-center ms-auto gap-2">
             <a href="{{ route('home', ['company_slug' => $settingsCompanySlug]) }}" target="_blank" class="btn btn-sm btn-outline-primary">
               <i class="ti ti-external-link me-1 ti-sm"></i>
               Open main app
             </a>
+            @if($settingsCompanySlug)
+            <form method="POST" action="{{ route('company.logout', ['company_slug' => $settingsCompanySlug]) }}" class="d-inline">
+              @csrf
+              <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <i class="ti ti-logout me-1 ti-sm"></i>
+                Logout
+              </button>
+            </form>
+            @endif
           </div>
         </div>
       </nav>

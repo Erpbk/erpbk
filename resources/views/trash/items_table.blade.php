@@ -111,30 +111,3 @@
    </p>
 </div>
 @endif
-
-<script>
-   $(document).ready(function() {
-      var attempts = 0;
-      var maxAttempts = 10;
-
-      function tryInitialize() {
-         attempts++;
-
-         if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-            var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-            var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
-               try {
-                  return new bootstrap.Dropdown(dropdownToggleEl);
-               } catch (e) {
-                  return null;
-               }
-            }).filter(Boolean);
-         } else if (attempts < maxAttempts) {
-            setTimeout(tryInitialize, 100);
-         }
-      }
-
-      setTimeout(tryInitialize, 100);
-   });
-</script>
-

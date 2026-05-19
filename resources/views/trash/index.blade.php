@@ -327,51 +327,6 @@
         </div>
     </div>
 
-    @if(!$moduleTableViewExists)
-    <script>
-        // Initialize Bootstrap dropdowns when this content is loaded
-        (function() {
-            console.log('Generic trash table content loaded, initializing dropdowns');
-
-            // Wait for Bootstrap to be available
-            var attempts = 0;
-            var maxAttempts = 10;
-
-            function tryInitialize() {
-                attempts++;
-
-                if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-                    // Initialize Bootstrap 5 dropdowns for this content
-                    var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-                    var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
-                        try {
-                            return new bootstrap.Dropdown(dropdownToggleEl);
-                        } catch (e) {
-                            console.warn('Failed to initialize dropdown in table:', e);
-                            return null;
-                        }
-                    }).filter(Boolean);
-
-                    console.log('Dropdowns initialized in generic trash table:', dropdownList.length);
-                } else if (attempts < maxAttempts) {
-                    console.log('Bootstrap not ready in table, retrying...', attempts);
-                    setTimeout(tryInitialize, 100);
-                } else {
-                    console.warn('Bootstrap dropdown initialization failed in table after', maxAttempts, 'attempts');
-                }
-            }
-
-            // Use DOMContentLoaded or run immediately if DOM is already loaded
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', function() {
-                    setTimeout(tryInitialize, 100);
-                });
-            } else {
-                setTimeout(tryInitialize, 100);
-            }
-        })();
-    </script>
-    @endif
 </div>
 
 <!-- Pagination (only show for generic table, module-specific tables have their own pagination) -->
@@ -566,9 +521,11 @@ $moduleTableViewExists = $moduleTableView && view()->exists($moduleTableView);
     </ul>
 </div>
 </div>
+
+@include('trash._dropdown_init_script')
 @endsection
 
-@section('page-script')
+@push('page-scripts')
 <script>
     (function() {
         // Wait for DOM to be ready
@@ -696,4 +653,4 @@ $moduleTableViewExists = $moduleTableView && view()->exists($moduleTableView);
         });
     })();
 </script>
-@endsection
+@endpush

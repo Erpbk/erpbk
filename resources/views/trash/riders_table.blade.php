@@ -141,39 +141,3 @@
    </p>
 </div>
 @endif
-
-<script>
-   // Initialize Bootstrap dropdowns when this content is loaded
-   $(document).ready(function() {
-      console.log('Riders trash table content loaded, initializing dropdowns');
-
-      var attempts = 0;
-      var maxAttempts = 10;
-
-      function tryInitialize() {
-         attempts++;
-
-         if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-            var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-            var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
-               try {
-                  return new bootstrap.Dropdown(dropdownToggleEl);
-               } catch (e) {
-                  console.warn('Failed to initialize dropdown in table:', e);
-                  return null;
-               }
-            }).filter(Boolean);
-
-            console.log('Dropdowns initialized in riders trash table:', dropdownList.length);
-         } else if (attempts < maxAttempts) {
-            console.log('Bootstrap not ready in table, retrying...', attempts);
-            setTimeout(tryInitialize, 100);
-         } else {
-            console.warn('Bootstrap dropdown initialization failed in table after', maxAttempts, 'attempts');
-         }
-      }
-
-      setTimeout(tryInitialize, 100);
-   });
-</script>
-

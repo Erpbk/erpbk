@@ -48,7 +48,7 @@ class BranchController extends Controller
 
         $data = $this->validate($request, [
             'name' => 'required|string|max:255',
-            'code' => 'required|string|max:100|unique:branches,code',
+            'code' => 'required|string|max:100',
             'contact' => 'nullable|string|max:255',
             'address' => 'required|string|max:255',
             'city' => 'nullable|string|max:255',
@@ -156,7 +156,7 @@ class BranchController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'code' => 'required|string|max:100|unique:branches,code,' . $branch->id,
+            'code' => 'required|string|max:100',
             'contact' => 'nullable|string|max:255',
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',

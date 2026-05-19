@@ -199,6 +199,44 @@ $voucherType = $vt ?? request('vt');
             return;
         }
 
+        window.getTotal = function getTotal() {
+            var cr_sum = 0;
+            var dr_sum = 0;
+            $(".cr_amount").each(function() {
+                if (!isNaN(this.value) && this.value.length != 0) {
+                    cr_sum += parseFloat(this.value);
+                }
+            });
+            $(".dr_amount").each(function() {
+                if (!isNaN(this.value) && this.value.length != 0) {
+                    dr_sum += parseFloat(this.value);
+                }
+            });
+            $(".amount").each(function() {
+                if (!isNaN(this.value) && this.value.length != 0) {
+                    cr_sum += parseFloat(this.value);
+                }
+            });
+            $("#total_cr").val(cr_sum.toFixed(2));
+            $("#total_dr").val(dr_sum.toFixed(2));
+        };
+
+        window.fetch_invoices = function fetch_invoices(g) {
+            let id = g;
+            var vt = $("#invoice_voucher_type").val();
+            $.ajax({
+                url: "{{ url('fetch_invoices') }}/" + id + '/' + vt,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(data) {
+                    $("table.order-list").html(data.htmlData);
+                    $("#riderBalance").val(data.rider_balance);
+                    $("#vendor_balance").val(data.vendor_balance);
+                }
+            });
+        };
+
         $(document).ready(function() {
             var base_url = $('#base_url').val();
             getTotal();
@@ -265,34 +303,6 @@ $voucherType = $vt ?? request('vt');
             });
         }); // End of $(document).ready
 
-        function getTotal() {
-            var cr_sum = 0;
-            var dr_sum = 0;
-            //iterate through each textboxes and add the values
-            $(".cr_amount").each(function() {
-                //add only if the value is number
-                if (!isNaN(this.value) && this.value.length != 0) {
-                    cr_sum += parseFloat(this.value);
-                }
-            });
-            //iterate through each textboxes and add the values
-            $(".dr_amount").each(function() {
-                //add only if the value is number
-                if (!isNaN(this.value) && this.value.length != 0) {
-                    dr_sum += parseFloat(this.value);
-                }
-            });
-            $(".amount").each(function() {
-                //add only if the value is number
-                if (!isNaN(this.value) && this.value.length != 0) {
-                    cr_sum += parseFloat(this.value);
-                }
-            });
-            //.toFixed() method will roundoff the final sum to 2 decimal places
-            $("#total_cr").val(cr_sum.toFixed(2));
-            $("#total_dr").val(dr_sum.toFixed(2));
-        }
-
         $(document).on("change", "#invoice_voucher_type", function() {
             let thisVal = $(this).val();
 
@@ -307,23 +317,6 @@ $voucherType = $vt ?? request('vt');
             }
             getTotal();
         });
-
-        function fetch_invoices(g) {
-            let id = g;
-            var vt = $("#invoice_voucher_type").val();
-            $.ajax({
-                url: "{{ url('fetch_invoices') }}/" + id + '/' + vt,
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(data) {
-                    $("table.order-list").html(data.htmlData);
-                    $("#riderBalance").val(data.rider_balance);
-                    $("#vendor_balance").val(data.vendor_balance);
-
-                }
-            });
-        }
 
     })(); // End of jQuery check wrapper
 </script>

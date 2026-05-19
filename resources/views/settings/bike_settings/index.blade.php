@@ -450,13 +450,13 @@ $defaultCategoryId = isset($defaultCategory) ? (int) $defaultCategory->id : 0;
                   <tr data-category-row-id="{{ $cat->id }}">
                     <td>
                       <span class="js-category-label">{{ $cat->label }}</span>
-                      @if($cat->slug === \App\Services\Module\ModuleDefaultCategoryService::DEFAULT_SLUG)
+                      @if($cat->slug === \App\Services\Bike\BikeDefaultCategoryService::DEFAULT_SLUG)
                       <span class="badge bg-label-primary ms-1">Default</span>
                       @endif
                     </td>
                     <td>{!! $cat->is_system ? '<span class="badge bg-secondary">Yes</span>' : '<span class="badge bg-light text-dark border">No</span>' !!}</td>
                     <td>
-                      @if(!$cat->is_system)
+                      @if(!$cat->is_system || $cat->slug === \App\Services\Bike\BikeDefaultCategoryService::DEFAULT_SLUG)
                       <form action="{{ route($settingsRoutePrefix . '.update-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline-flex gap-2 align-items-center js-ajax-category-update-form" data-category-id="{{ $cat->id }}">
                         @csrf
                         @method('PUT')
@@ -464,11 +464,13 @@ $defaultCategoryId = isset($defaultCategory) ? (int) $defaultCategory->id : 0;
                         <button class="btn btn-sm btn-primary" type="submit"><i class="ti ti-pencil"></i></button>
                       </form>
 
+                      @if($cat->slug !== \App\Services\Bike\BikeDefaultCategoryService::DEFAULT_SLUG)
                       <form action="{{ route($settingsRoutePrefix . '.destroy-category', array_merge($settingsRouteParams, ['id' => $cat->id])) }}" method="POST" class="d-inline ms-2 js-ajax-category-delete-form" data-category-id="{{ $cat->id }}">
                         @csrf
                         @method('DELETE')
                         <button class="btn btn-sm btn-danger" type="submit"><i class="ti ti-trash"></i></button>
                       </form>
+                      @endif
                       @else
                       <span class="text-muted">Not editable</span>
                       @endif

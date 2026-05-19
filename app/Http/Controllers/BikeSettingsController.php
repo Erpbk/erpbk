@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Bike\BikeDefaultCategoryService;
 use App\Models\BikeCategory;
 use App\Models\BikeCustomField;
 use App\Models\BikeDocumentType;
@@ -81,115 +82,31 @@ class BikeSettingsController extends Controller
         return BikeCategory::query();
     }
 
+    protected function ensureDefaultBikeCategorySetup(): BikeCategory
+    {
+        $service = app(BikeDefaultCategoryService::class);
+        $defaultCategory = $service->ensure();
+        $service->syncFixedFieldAssignments($service->discoverAssignableFieldKeys());
+        $service->assignUnassignedCustomFields();
+
+        return $defaultCategory;
+    }
+
     /**
-     * Ensure every real bikes-table column has an assignment row and cannot be "optional" or hidden via settings.
+     * @deprecated Use ensureDefaultBikeCategorySetup() / BikeDefaultCategoryService::bootstrap()
      */
     protected function syncBikeSchemaAssignmentsFromDb(): void
     {
-        if (!Schema::hasTable('bikes') || !Schema::hasTable('bike_field_category_assignments') || !Schema::hasTable('bike_categories')) {
-            return;
-        }
-
-        $systemColumns = [
-            'id',
-            'created_at',
-            'updated_at',
-            'deleted_at',
-            'custom_field_values',
-            'created_by',
-            'updated_by',
-            'deleted_by',
-        ];
-
-        $bikeColumns = Schema::getColumnListing('bikes');
-        $fieldKeys = array_values(array_filter($bikeColumns, function ($col) use ($systemColumns) {
-            return !in_array($col, $systemColumns, true);
-        }));
-
-        $slugToCategoryId = \App\Support\CompanyQuery::table('bike_categories')->pluck('id', 'slug')->all();
-        $otherId = (int) ($slugToCategoryId['other'] ?? 0);
-        if ($otherId <= 0) {
-            return;
-        }
-
-        $mapping = [
-            'bike_info' => [
-                'plate',
-                'bike_code',
-                'chassis_number',
-                'engine',
-                'vehicle_type',
-                'model',
-                'model_type',
-                'color',
-                'emirates',
-                'branch_id',
-                'company',
-                'bike_owner',
-                'rider_id',
-                'warehouse',
-                'traffic_file_number',
-                'registration_date',
-                'expiry_date',
-                'notes',
-                'status',
-                'customer_id',
-            ],
-            'insurance_info' => [
-                'insurance_expiry',
-                'insurance_co',
-                'policy_no',
-            ],
-            'documents_info' => [
-                'contract_number',
-            ],
-        ];
-
-        $resolvedCategoryForField = [];
-        foreach ($fieldKeys as $key) {
-            $resolvedCategoryForField[$key] = $otherId;
-            foreach ($mapping as $slug => $keys) {
-                if (in_array($key, $keys, true)) {
-                    $catId = (int) ($slugToCategoryId[$slug] ?? $otherId);
-                    $resolvedCategoryForField[$key] = $catId > 0 ? $catId : $otherId;
-                    break;
-                }
-            }
-        }
-
-        $fieldKeys = array_values(array_filter($fieldKeys, function ($fieldKey) {
-            return !in_array($fieldKey, $this->hiddenFixedFieldKeys, true);
-        }));
-        sort($fieldKeys);
-        foreach ($fieldKeys as $fieldKey) {
-            $categoryId = (int) ($resolvedCategoryForField[$fieldKey] ?? $otherId);
-            $assignment = BikeFieldCategoryAssignment::query()
-                ->where('field_key', $fieldKey)
-                ->first();
-            if ($assignment) {
-                continue;
-            }
-
-            $nextOrder = ((int) BikeFieldCategoryAssignment::where('category_id', $categoryId)->max('display_order')) + 1;
-            BikeFieldCategoryAssignment::query()->create([
-                'field_key' => $fieldKey,
-                'category_id' => $categoryId,
-                'display_order' => $nextOrder,
-                'display_label' => null,
-                'input_type' => null,
-                'input_config' => null,
-                'is_visible' => true,
-                'is_required' => true,
-            ]);
-        }
+        $this->ensureDefaultBikeCategorySetup();
     }
 
     public function index()
     {
-        $this->syncBikeSchemaAssignmentsFromDb();
+        $this->ensureDefaultBikeCategorySetup();
         BikeCustomField::syncBikeAssignFieldAssignments();
 
         $categories = $this->bikeCategoryQuery()
+            ->orderByRaw('CASE WHEN slug = ? THEN 0 ELSE 1 END', [BikeDefaultCategoryService::DEFAULT_SLUG])
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -306,7 +223,7 @@ class BikeSettingsController extends Controller
     public function updateCategory(Request $request, string $company_slug, int $id)
     {
         $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
-        if ((bool) $category->is_system) {
+        if ((bool) $category->is_system && ! app(BikeDefaultCategoryService::class)->isDefaultCategory($category)) {
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'System categories cannot be edited.'], 422);
             }
@@ -337,6 +254,16 @@ class BikeSettingsController extends Controller
     public function destroyCategory(Request $request, string $company_slug, int $id)
     {
         $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
+
+        if (app(BikeDefaultCategoryService::class)->isDefaultCategory($category)) {
+            $message = __('The default category cannot be deleted.');
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
+            return redirect()->back()->with('error', $message);
+        }
+
         if ((bool) $category->is_system) {
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'System categories cannot be deleted.'], 422);
@@ -669,11 +596,9 @@ class BikeSettingsController extends Controller
             'config_options' => ['nullable', 'string'],
         ]);
 
-        $categoryId = $validated['category_id'] ?? null;
+        $categoryId = $validated['category_id'] ?? (int) app(BikeDefaultCategoryService::class)->ensure()->id;
 
-        $displayOrder = $categoryId
-            ? ((int) BikeCustomField::where('category_id', $categoryId)->max('display_order')) + 1
-            : ((int) BikeCustomField::whereNull('category_id')->max('display_order')) + 1;
+        $displayOrder = ((int) BikeCustomField::where('category_id', $categoryId)->max('display_order')) + 1;
 
         $config = null;
         if (!empty($validated['config_options']) && $validated['data_type'] === 'dropdown') {

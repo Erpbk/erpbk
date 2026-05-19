@@ -115,6 +115,11 @@ class BikeCustomField extends BaseModel
         return $this->belongsTo(BikeCategory::class, 'category_id', 'id');
     }
 
+    public static function bootstrapFieldCategories(): void
+    {
+        app(\App\Services\Bike\BikeDefaultCategoryService::class)->bootstrap();
+    }
+
     /**
      * Columns that are not allowed for assigning via Bike Fields settings.
      */

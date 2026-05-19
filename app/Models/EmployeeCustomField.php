@@ -9,28 +9,7 @@ class EmployeeCustomField extends BaseModel
 {
     public static function bootstrapFieldCategories(): void
     {
-        $columns = array_flip(Schema::getColumnListing('employees'));
-        $fieldKeys = array_values(array_filter(
-            self::allFixedFieldKeys(),
-            fn (string $fieldKey) => isset($columns[$fieldKey]) && ! in_array($fieldKey, self::removedEmployeeColumns(), true)
-        ));
-
-        \App\Services\Settings\FixedFieldCategoryAssignmentSync::sync(
-            $fieldKeys,
-            self::fixedFieldsSlugMap(),
-            EmployeeFieldCategoryAssignment::class,
-            fn () => self::scopedEmployeeCategoriesQuery(),
-            'other',
-            null,
-        );
-
-        $otherCategoryId = (int) (self::scopedEmployeeCategoriesQuery()->where('slug', 'other')->value('id') ?? 0);
-        if ($otherCategoryId > 0) {
-            \App\Services\Settings\FixedFieldCategoryAssignmentSync::assignCustomFieldsWithoutCategory(
-                self::class,
-                $otherCategoryId,
-            );
-        }
+        app(\App\Services\Employee\EmployeeDefaultCategoryService::class)->bootstrap();
     }
 
     private static function scopedEmployeeCategoriesQuery()

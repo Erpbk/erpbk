@@ -95,15 +95,15 @@
                         href="javascript:void(0);" data-size="sm" data-title="Import Voucher" data-action="{{ route('voucher.import') }}">
                         Import Voucher
                     </a>
-                    @foreach($voucherTypesForFilter ?? [] as $key => $value)
+                    @if(isset(($voucherTypesForFilter ?? [])['JV']))
                     <a class="show-modal action-btn btn btn-primary" style="margin-right:5px;"
                         href="javascript:void(0);"
                         data-size="xl"
-                        data-title="Create {{ $value }}"
-                        data-action="{{ route('vouchers.create', ['vt' => $key]) }}">
-                        <i class="fa fa-plus"></i>&nbsp;{{ $value }}
+                        data-title="Create {{ $voucherTypesForFilter['JV'] }}"
+                        data-action="{{ route('vouchers.create', ['vt' => 'JV']) }}">
+                        <i class="fa fa-plus"></i>&nbsp;{{ $voucherTypesForFilter['JV'] }}
                     </a>
-                    @endforeach
+                    @endif
                     @endcan
                 </div>
             </div>

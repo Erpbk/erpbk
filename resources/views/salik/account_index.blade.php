@@ -99,23 +99,23 @@
             </div>
             <div class="total-card total-red">
                 <div class="label"><i class="fa fa-times-circle"></i>Unpaid Saliks</div>
-                <div class="value" id="avg_ontime">{{ DB::table('saliks')->where('status', 'unpaid')->count() ?? 0 }}</div>
+                <div class="value" id="avg_ontime">{{ company_table('saliks')->where('status', 'unpaid')->count() ?? 0 }}</div>
             </div>
             <div class="total-card total-green">
                 <div class="label"><i class="fas fa-stamp"></i>Paid Saliks</div>
-                <div class="value" id="total_rejected">{{ DB::table('saliks')->where('status', 'paid')->count() ?? 0 }}</div>
+                <div class="value" id="total_rejected">{{ company_table('saliks')->where('status', 'paid')->count() ?? 0 }}</div>
             </div>
                 <div class="total-card total-1">
                 <div class="label"><i class="far fa-money-bill-alt"></i>Total Amount</div>
-                <div class="value" id="total_hours">{{ DB::table('saliks')->sum('total_amount') ?? 0 }}</div>
+                <div class="value" id="total_hours">{{ company_table('saliks')->sum('total_amount') ?? 0 }}</div>
             </div>
             <div class="total-card total-2">
                 <div class="label"><i class="far fa-money-bill-alt"></i>Salik Amount</div>
-                <div class="value" id="total_hours">{{ DB::table('saliks')->sum('amount') ?? 0 }}</div>
+                <div class="value" id="total_hours">{{ company_table('saliks')->sum('amount') ?? 0 }}</div>
             </div>
             <div class="total-card total-3">
                 <div class="label"><i class="far fa-money-bill-alt"></i>Admin Charges</div>
-                <div class="value" id="total_hours">{{ DB::table('saliks')->sum('admin_charges') ?? 0 }}</div>
+                <div class="value" id="total_hours">{{ company_table('saliks')->sum('admin_charges') ?? 0 }}</div>
             </div>
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">

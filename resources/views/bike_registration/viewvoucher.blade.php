@@ -3,10 +3,10 @@
 @section('title','Bike Registration Detail')
 @section('content')
 @php
-$rider = ($accounts && $accounts->rider_id) ? DB::table('riders')->where('id', $accounts->rider_id)->first() : null;
-$riderBalance = $accounts ? DB::table('bike_registrations')->where('bike_registration_account_id', $accounts->id)->sum('amount') : 0;
-$riderPaidTotal = $accounts ? DB::table('bike_registrations')->where('bike_registration_account_id', $accounts->id)->where('payment_status', 'paid')->sum('amount') : 0;
-$riderUnpaidTotal = $accounts ? DB::table('bike_registrations')->where('bike_registration_account_id', $accounts->id)->where('payment_status', 'unpaid')->sum('amount') : 0;
+$rider = ($accounts && $accounts->rider_id) ? company_table('riders')->where('id', $accounts->rider_id)->first() : null;
+$riderBalance = $accounts ? company_table('bike_registrations')->where('bike_registration_account_id', $accounts->id)->sum('amount') : 0;
+$riderPaidTotal = $accounts ? company_table('bike_registrations')->where('bike_registration_account_id', $accounts->id)->where('payment_status', 'paid')->sum('amount') : 0;
+$riderUnpaidTotal = $accounts ? company_table('bike_registrations')->where('bike_registration_account_id', $accounts->id)->where('payment_status', 'unpaid')->sum('amount') : 0;
 @endphp
 <section class="content-header">
     <div class="container-fluid">
@@ -112,7 +112,7 @@ $riderUnpaidTotal = $accounts ? DB::table('bike_registrations')->where('bike_reg
                                 @if($data->payment_status == 'paid')
                                 <tr>
                                     <th>Paid By</th>
-                                    <td class="text-end">{{ DB::table('accounts')->where('id' , $data->pay_account)->first()->name ?? '-' }}</td>
+                                    <td class="text-end">{{ company_table('accounts')->where('id' , $data->pay_account)->first()->name ?? '-' }}</td>
                                 </tr>
                                 @endif
                                 <tr>
@@ -149,7 +149,7 @@ $riderUnpaidTotal = $accounts ? DB::table('bike_registrations')->where('bike_reg
                     <input type="hidden" name="trans_date" value="{{ $data->trans_date }}">
                     <input type="hidden" name="trans_code" value="{{ $data->trans_code }}">
                     <input type="hidden" name="billing_month" value="{{ $data->billing_month }}">
-                    <input type="hidden" name="payment_type" value="{{ DB::table('accounts')->where('id', \App\Helpers\HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT)->first()->account_type ?? 'Expense' }}">
+                    <input type="hidden" name="payment_type" value="{{ company_table('accounts')->where('id', \App\Helpers\HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT)->first()->account_type ?? 'Expense' }}">
                     <input type="hidden" name="voucher_type" value="BR">
                     <input type="hidden" name="amount" value="{{ $data->amount }}">
                     <input type="hidden" name="Created_By" value="{{ auth()->id() }}">

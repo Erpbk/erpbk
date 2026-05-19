@@ -44,7 +44,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   $opts = \App\Models\Vendors::dropdown();
   } elseif (($spec['dropdown'] ?? '') === 'recruiters') {
   $opts = ['' => 'Select Recruiter'];
-  foreach (DB::table('recruiters')->where('status', 1)->get() as $r) {
+  foreach (company_table('recruiters')->where('status', 1)->get() as $r) {
   $opts[$r->id] = $r->name;
   }
   } elseif (($spec['dropdown'] ?? '') === 'accounts') {

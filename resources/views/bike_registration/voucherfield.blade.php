@@ -1,5 +1,5 @@
 @php
-$registrationStatusesList = DB::table('bike_registration_statuses')->where('is_active', 1)->orderBy('display_order', 'asc')->get();
+$registrationStatusesList = company_table('bike_registration_statuses')->where('is_active', 1)->orderBy('display_order', 'asc')->get();
 @endphp
 <script src="{{ asset('js/modal_custom.js') }}"></script>
 <div class="form-group col-sm-6">
@@ -33,7 +33,7 @@ $registrationStatusesList = DB::table('bike_registration_statuses')->where('is_a
     <label class="readonly">Debit Account:</label>
     <select class="form-control select select2" id="bike_registration_account_display" name="bike_registration_account_display" readonly>
         <option value=""></option>
-        <option value="{{ \App\Helpers\HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT }}" selected>{{ DB::table('accounts')->where('id', \App\Helpers\HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT)->first()->name ?? 'Bike Registration Expense' }}</option>
+        <option value="{{ \App\Helpers\HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT }}" selected>{{ company_table('accounts')->where('id', \App\Helpers\HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT)->first()->name ?? 'Bike Registration Expense' }}</option>
     </select>
 </div>
 <div class="form-group col-sm-6">
@@ -41,12 +41,12 @@ $registrationStatusesList = DB::table('bike_registration_statuses')->where('is_a
     <select class="form-control" id="account_id" name="account" required>
         <option value=""></option>
         @php
-        $bank = DB::table('accounts')->where('name', 'cash & bank')->first();
+        $bank = company_table('accounts')->where('name', 'cash & bank')->first();
         $parentIds = [];
         if ($bank) $parentIds[] = $bank->id;
         @endphp
 
-        @foreach(DB::table('accounts')
+        @foreach(company_table('accounts')
         ->where('status', 1)
         ->where(function($query) use ($parentIds) {
         $query->whereIn('parent_id', $parentIds);

@@ -489,7 +489,7 @@
                     <label for="designation">Filter by Designation</label>
                     <select class="form-control" id="designation" name="designation">
                         @php
-                        $emiratedesignation = DB::table('riders')->whereNotNull('designation')->where('designation', '!=', '')->select('designation')->distinct()->pluck('designation');
+                        $emiratedesignation = company_table('riders')->whereNotNull('designation')->where('designation', '!=', '')->select('designation')->distinct()->pluck('designation');
                         @endphp
                         <option value="" selected>Select</option>
                         @foreach($emiratedesignation as $des)

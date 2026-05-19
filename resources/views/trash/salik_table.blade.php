@@ -20,7 +20,7 @@
       @foreach($trashedRecords as $item)
       @php
          $r = $item['record'];
-         $rider = DB::table('riders')->where('id', $r->rider_id)->first();
+         $rider = company_table('riders')->where('id', $r->rider_id)->first();
       @endphp
       <tr class="text-center">
          <td>{{ $r->transaction_id }}</td>

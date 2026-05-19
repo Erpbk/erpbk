@@ -33,7 +33,7 @@
                                             <label for="contact_person">Filter by Contact Person</label>
                                             <select class="form-control " id="contact_person" name="contact_person">
                                                 @php
-                                                $leasingcompanies = DB::table('garages')
+                                                $leasingcompanies = company_table('garages')
                                                     ->whereNotNull('contact_person')
                                                     ->where('contact_person', '!=', '')
                                                     ->pluck('contact_person')

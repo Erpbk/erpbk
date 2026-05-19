@@ -4,8 +4,8 @@ $voucher_number = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', S
 $totalD = 0;
 $totalC = 0;
 $i = 0;
-$fin_detail = $voucher->voucher_type === 'RFV' ? \DB::table('rta_fines')->where('id', $voucher->ref_id)->first() : null;
-$settings = \DB::table('settings')->pluck('value', 'name')->toArray();
+$fin_detail = $voucher->voucher_type === 'RFV' ? company_table('rta_fines')->where('id', $voucher->ref_id)->first() : null;
+$settings = company_table('settings')->pluck('value', 'name')->toArray();
 @endphp
 <div class="voucher-modal-content">
   {{-- Action bar: Published ribbon, Edit, PDF/Print, etc. (hidden when embedded e.g. visa expense payment-account edit) --}}

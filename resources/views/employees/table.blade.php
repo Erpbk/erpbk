@@ -60,7 +60,7 @@
          <td>{{ $employee->department->name ?? '-' }}</td>
          @break
          @case('nationality_id')
-         <td>{{ $employee->nationality->name ?? (DB::table('countries')->where('id', $employee->nationality_id)->value('name') ?? '-') }}</td>
+         <td>{{ $employee->nationality->name ?? (company_table('countries')->where('id', $employee->nationality_id)->value('name') ?? '-') }}</td>
          @break
          @case('doj')
          <td>

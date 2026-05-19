@@ -418,7 +418,7 @@
                     <label for="bike_code">Filter by Code</label>
                     <select class="form-control " id="bike_code" name="bike_code">
                         @php
-                        $bikecode = DB::table('bikes')
+                        $bikecode = company_table('bikes')
                         ->whereNotNull('bike_code')
                         ->where('bike_code', '!=', '')
                         ->pluck('bike_code')
@@ -442,12 +442,12 @@
                     <label for="rider">Filter by Rider</label>
                     <select class="form-control " id="rider" name="rider">
                         @php
-                        $riderid = DB::table('bikes')
+                        $riderid = company_table('bikes')
                         ->whereNotNull('rider_id')
                         ->where('rider_id', '!=', '')
                         ->pluck('rider_id')
                         ->unique();
-                        $riders = DB::table('riders')
+                        $riders = company_table('riders')
                         ->whereIn('id', $riderid)
                         ->select('rider_id','id', 'name')
                         ->get();
@@ -462,12 +462,12 @@
                     <label for="customer_id">Filter by Customer</label>
                     <select class="form-control " id="customer_id" name="customer_id">
                         @php
-                        $customerids = DB::table('bikes')
+                        $customerids = company_table('bikes')
                         ->whereNotNull('customer_id')
                         ->where('customer_id', '!=', '')
                         ->pluck('customer_id')
                         ->unique();
-                        $customers = DB::table('customers')
+                        $customers = company_table('customers')
                         ->whereIn('id', $customerids)
                         ->select('id', 'name')
                         ->get();
@@ -482,12 +482,12 @@
                     <label for="company">Filter by Company</label>
                     <select class="form-control " id="company" name="company">
                         @php
-                        $companiesid = DB::table('bikes')
+                        $companiesid = company_table('bikes')
                         ->whereNotNull('company')
                         ->where('company', '!=', '')
                         ->pluck('company')
                         ->unique();
-                        $companies = DB::table('leasing_companies')
+                        $companies = company_table('leasing_companies')
                         ->whereIn('id', $companiesid)
                         ->select('id', 'name')
                         ->get();
@@ -502,7 +502,7 @@
                     <label for="emirates">Filter by Emirates</label>
                     <select class="form-control " id="emirates" name="emirates">
                         @php
-                        $emirates = DB::table('bikes')
+                        $emirates = company_table('bikes')
                         ->whereNotNull('emirates')
                         ->where('emirates', '!=', '')
                         ->pluck('emirates')
@@ -518,7 +518,7 @@
                     <label for="warehouse">Filter by Warehouse</label>
                     <select class="form-control " id="warehouse" name="warehouse">
                         @php
-                        $warehouses = DB::table('bikes')
+                        $warehouses = company_table('bikes')
                         ->whereNotNull('warehouse')
                         ->where('warehouse', '!=', '')
                         ->pluck('warehouse')

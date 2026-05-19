@@ -17,10 +17,10 @@
       <tr class="text-center">
          <td> <a href="{{ route('rtaFines.tickets') }}">{{$r->name}}</a><br> </td>
          @php
-         $balance = DB::table('rta_fines')->where('rta_account_id' , $r->id)->sum('amount');
-         $account_tax = DB::table('rta_fines')->where('rta_account_id' , $r->id)->sum('service_charges');
-         $admin_charges = DB::table('rta_fines')->where('rta_account_id' , $r->id)->sum('admin_fee');
-         $total_amount = DB::table('rta_fines')->where('rta_account_id' , $r->id)->sum('total_amount');
+         $balance = company_table('rta_fines')->where('rta_account_id' , $r->id)->sum('amount');
+         $account_tax = company_table('rta_fines')->where('rta_account_id' , $r->id)->sum('service_charges');
+         $admin_charges = company_table('rta_fines')->where('rta_account_id' , $r->id)->sum('admin_fee');
+         $total_amount = company_table('rta_fines')->where('rta_account_id' , $r->id)->sum('total_amount');
          @endphp
          <td>@if($balance == '') - @else {{ \App\Helpers\Currency::symbol() }} {{ $balance ?? '-' }} @endif</td>
          <td>@if($account_tax == '') - @else {{ \App\Helpers\Currency::symbol() }} {{ $account_tax }}@endif</td>

@@ -43,16 +43,16 @@
               {{ $r->stay }}
             </td>
 
-            <td>{{ DB::Table('country')->where('iso' , $r->nationality)->first()->name }}</td>
+            <td>{{ company_table('country')->where('iso' , $r->nationality)->first()->name }}</td>
             <td>
               {{ $r->detail }}
             </td>
             @php
-            $users = DB::Table('users')->where('id' , $r->created_by)->first();
+            $users = company_table('users')->where('id' , $r->created_by)->first();
             @endphp
             <td>{{ optional($users)->first_name }} {{ optional($users)->last_name }}</td>
             @php
-            $users = DB::Table('users')->where('id' , $r->updated_by)->first();
+            $users = company_table('users')->where('id' , $r->updated_by)->first();
             @endphp
             <td>{{ optional($users)->first_name }} {{ optional($users)->last_name }}</td>
             <td>
@@ -107,7 +107,7 @@
                                      <label for="fleet_sup">Fleet SuperVisor</label>
                                      <select class="form-control " id="fleet_sup" name="fleet_sup" required>
                                          @php
-                                         $supervisorRow = DB::table('dropdowns')
+                                         $supervisorRow = company_table('dropdowns')
                                              ->where('label', 'Fleet Supervisor')
                                              ->whereNotNull('values')
                                              ->first();
@@ -134,7 +134,7 @@
                                      <label for="nationality">Nationality</label>
                                      <select class="form-control " id="nationality" name="nationality" required>
                                          @php
-                                         $nationality = DB::table('country')
+                                         $nationality = company_table('country')
                                              ->get();
                                          @endphp
                                          <option value="" selected>Select</option>

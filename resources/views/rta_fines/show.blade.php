@@ -208,7 +208,7 @@
 
     <div class="invoice-box">
         @php
-            $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+            $settings = company_table('settings')->pluck('value', 'name')->toArray();
             $fineAmount = $rtaFine->amount ;
             $serviceCharges = $rtaFine->service_charges ?? 0;
             $adminFee = $rtaFine->admin_fee ?? 0;

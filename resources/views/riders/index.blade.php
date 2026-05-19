@@ -151,13 +151,13 @@
                             <label for="customer_id">Filter by Customer</label>
                             <select class="form-control " id="customer_id" name="customer_id">
                                 @php
-                                $customerIds = DB::table('riders')
+                                $customerIds = company_table('riders')
                                 ->whereNotNull('customer_id')
                                 ->where('customer_id', '!=', '')
                                 ->pluck('customer_id')
                                 ->unique();
 
-                                $customers = DB::table('customers')
+                                $customers = company_table('customers')
                                 ->whereIn('id', $customerIds)
                                 ->select('id', 'name')
                                 ->get();
@@ -172,7 +172,7 @@
                             <label for="attandence">Filter by Attandence</label>
                             <select class="form-control " id="attendance" name="attendance">
                                 @php
-                                $attandence = DB::table('riders')
+                                $attandence = company_table('riders')
                                 ->whereNotNull('attendance')
                                 ->where('attendance', '!=', '')
                                 ->select('attendance')

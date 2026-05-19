@@ -10,7 +10,9 @@ use Illuminate\Support\Facades\View;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Settings;
+use App\Support\CompanyQuery;
 use App\Support\CompanyRouteContext;
+use Illuminate\Support\Facades\DB;
 use App\Support\ErpModuleRegistry;
 use App\Support\ModuleRouteResolver;
 use App\Services\Module\TopBarListingService;
@@ -33,6 +35,10 @@ class AppServiceProvider extends ServiceProvider
    */
   public function boot(): void
   {
+    DB::macro('companyTable', function (string $table, ?string $connection = null) {
+      return CompanyQuery::table($table, $connection);
+    });
+
     // Company-side administrators should have full software access.
     Gate::before(function ($user, string $ability) {
       if ($user instanceof \App\Models\User && $user->hasAnyRole(['Administrator', 'Super Admin'])) {

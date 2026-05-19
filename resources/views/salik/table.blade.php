@@ -21,7 +21,7 @@
             <td>{{ $r->branch?->name ?? 'N/A' }}</td>
             <td>{{ $r->transaction_id }}</td>
             @php
-            $rider = DB::table('riders')->where('id', $r->rider_id)->first();
+            $rider = company_table('riders')->where('id', $r->rider_id)->first();
             @endphp
             <td><a href="{{ route('riders.show', $rider->id) }}">{{ $rider->rider_id }} - {{ $rider->name }}</a></td>
             <td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M-Y') : 'N/A' }}</td>

@@ -285,7 +285,7 @@
         // Simulate settings similar to supplier invoice, using available data or fallback
         $settings = [];
         try {
-            $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+            $settings = company_table('settings')->pluck('value', 'name')->toArray();
         } catch (\Exception $e) {
             $settings = [];
         }

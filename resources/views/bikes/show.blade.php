@@ -46,7 +46,7 @@
       </div>
       <div class="col-md-3 form-group col-3">
         <label>Company:</label>
-        <p>{{ DB::table('leasing_companies')->where('id' , $bikes->company)->first()->name ?? 'N/A' }}</p>
+        <p>{{ company_table('leasing_companies')->where('id' , $bikes->company)->first()->name ?? 'N/A' }}</p>
       </div>
       <div class="col-md-3 form-group col-3">
         <label>Registration Date:</label>

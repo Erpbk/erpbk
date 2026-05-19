@@ -1,12 +1,12 @@
-﻿@extends('riders.view')
+@extends('riders.view')
 @section('title','Visa Expenses')
 @section('page_content')
 @php
 $accountId = $account->rider_id;
-$totalUnpaid = DB::table('visa_expenses')->where('payment_status', 'unpaid')->where('rider_id', $accountId)->sum('amount');
-$totalPaid = DB::table('visa_expenses')->where('payment_status', 'paid')->where('rider_id', $accountId)->sum('amount');
-$unpaidCount = DB::table('visa_expenses')->where('rider_id', $accountId)->where('payment_status', 'unpaid')->count();
-$paidCount = DB::table('visa_expenses')->where('rider_id', $accountId)->where('payment_status', 'paid')->count();
+$totalUnpaid = company_table('visa_expenses')->where('payment_status', 'unpaid')->where('rider_id', $accountId)->sum('amount');
+$totalPaid = company_table('visa_expenses')->where('payment_status', 'paid')->where('rider_id', $accountId)->sum('amount');
+$unpaidCount = company_table('visa_expenses')->where('rider_id', $accountId)->where('payment_status', 'unpaid')->count();
+$paidCount = company_table('visa_expenses')->where('rider_id', $accountId)->where('payment_status', 'paid')->count();
 
 @endphp
 
@@ -65,7 +65,7 @@ $paidCount = DB::table('visa_expenses')->where('rider_id', $accountId)->where('p
           class="btn btn-sm btn-info action-btn mx-2 show-modal"
           data-action="{{ route('VisaExpense.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
           data-size="xl"
-          data-title="Installment plan invoice — {{ $account->name ?? 'Rider' }}">
+          data-title="Installment plan invoice � {{ $account->name ?? 'Rider' }}">
           <i class="fa fa-file-invoice"></i> Invoice
         </a>
         @endif
@@ -74,19 +74,19 @@ $paidCount = DB::table('visa_expenses')->where('rider_id', $accountId)->where('p
     <div class="totals-cards pt-3">
       <div class="total-card total-red">
         <div class="label">Total Unpaid Amount</div>
-        <div class="value">{{ DB::table('visa_installment_plans')->where('status' , 'pending')->where('rider_id', $account->rider_id)->sum('amount') }}</div>
+        <div class="value">{{ company_table('visa_installment_plans')->where('status' , 'pending')->where('rider_id', $account->rider_id)->sum('amount') }}</div>
       </div>
       <div class="total-card total-green">
         <div class="label">Total Paid Amount</div>
-        <div class="value">{{ DB::table('visa_installment_plans')->where('status' , 'paid')->where('rider_id', $account->rider_id)->sum('amount') }}</div>
+        <div class="value">{{ company_table('visa_installment_plans')->where('status' , 'paid')->where('rider_id', $account->rider_id)->sum('amount') }}</div>
       </div>
       <div class="total-card total-red">
         <div class="label">Unpaid Installments</div>
-        <div class="value">{{ DB::table('visa_installment_plans')->where('rider_id' , $account->rider_id)->where('status' , 'pending')->count() }}</div>
+        <div class="value">{{ company_table('visa_installment_plans')->where('rider_id' , $account->rider_id)->where('status' , 'pending')->count() }}</div>
       </div>
       <div class="total-card total-green">
         <div class="label">Paid Installments</div>
-        <div class="value">{{ DB::table('visa_installment_plans')->where('rider_id' , $account->rider_id)->where('status' , 'paid')->count() }}</div>
+        <div class="value">{{ company_table('visa_installment_plans')->where('rider_id' , $account->rider_id)->where('status' , 'paid')->count() }}</div>
       </div>
     </div>
     <div class="card-body table-responsive px-2 py-0">

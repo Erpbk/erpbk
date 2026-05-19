@@ -208,7 +208,7 @@
     <div class="invoice-box">
         <!-- Header Table -->
         @php
-        $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+        $settings = company_table('settings')->pluck('value', 'name')->toArray();
         @endphp
         <table width="100%" style="font-family: sans-serif;">
             <tr>

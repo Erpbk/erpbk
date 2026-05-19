@@ -258,7 +258,7 @@
 
     <div class="invoice-box">
         @php
-        $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+        $settings = company_table('settings')->pluck('value', 'name')->toArray();
         $running_total = 0;
         $subtotal_from_items = 0;
         @endphp

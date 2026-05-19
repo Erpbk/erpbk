@@ -129,13 +129,13 @@
          <td>{{ \Carbon\Carbon::parse($r->date)->format('l') }}</td>
          <td>{{ $r->d_rider_id }}</td>
          @php
-         $rider = DB::Table('riders')->where('id' , $r->rider_id)->first();
+         $rider = company_table('riders')->where('id' , $r->rider_id)->first();
          @endphp
          <td> <a href="{{route('rider.activities',$r->rider_id)}}">{{ $rider->name }}</a> </td>
          <td>{{ $rider->fleet_supervisor }}</td>
-         <td>{{ DB::table('customers')->where('id', $rider->customer_id)->first()->name ?? '-' }}</td>
+         <td>{{ company_table('customers')->where('id', $rider->customer_id)->first()->name ?? '-' }}</td>
          @php
-         $hasActiveBike = DB::table('bikes')->where('rider_id', $rider->id)->where('warehouse', 'Active')->exists();
+         $hasActiveBike = company_table('bikes')->where('rider_id', $rider->id)->where('warehouse', 'Active')->exists();
          $isWalker = $rider->designation === 'Walker';
 
          if ($isWalker) {

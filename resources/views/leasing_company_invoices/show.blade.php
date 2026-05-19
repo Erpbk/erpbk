@@ -289,7 +289,7 @@
 
 <div class="invoice-box">
     @php
-        $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+        $settings = company_table('settings')->pluck('value', 'name')->toArray();
         $running_total = 0;
         $items_total = 0;
         $subtotal = $invoice->subtotal ?? 0;
@@ -407,7 +407,7 @@
                 @endphp
                 <tr>
                     <td class="num">{{ $key + 1 }}</td>
-                    <td>Bike # {{ $item->bike->plate ?? 'N/A' }} ({{ DB::table('bikes')->where('id', $item->bike_id)->first()->emirates ?? 'N/A' }})</td>
+                    <td>Bike # {{ $item->bike->plate ?? 'N/A' }} ({{ company_table('bikes')->where('id', $item->bike_id)->first()->emirates ?? 'N/A' }})</td>
                     <td class="num">1</td>
                     <td class="num">{{ $item->days ?? 1 }}</td>
                     <td class="num">{{ number_format($item->rental_amount, 2) }}</td>

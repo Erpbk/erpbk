@@ -35,7 +35,7 @@
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-danger me-4 p-2"><i class="menu-icon tf-icons ti ti-cash"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ DB::table('visa_installment_plans')->where('status' , 'pending')->where('rider_id', $account->id)->sum('amount') }}</h5>
+                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('status' , 'pending')->where('rider_id', $account->id)->sum('amount') }}</h5>
                                             <small>Total Unpaid Amount</small>
                                         </div>
                                     </div>
@@ -44,7 +44,7 @@
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-info me-4 p-2"><i class="menu-icon tf-icons ti ti-cash"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ DB::table('visa_installment_plans')->where('status' , 'paid')->where('rider_id', $account->id)->sum('amount') }}</h5>
+                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('status' , 'paid')->where('rider_id', $account->id)->sum('amount') }}</h5>
                                             <small>Total Paid Amount</small>
                                         </div>
                                     </div>
@@ -53,7 +53,7 @@
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-success me-4 p-2"><i class="menu-icon tf-icons ti ti-receipt"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ DB::Table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'paid')->get()->count() }}</h5>
+                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'paid')->get()->count() }}</h5>
                                             <small>Paid Expense</small>
                                         </div>
                                     </div>
@@ -62,7 +62,7 @@
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-danger me-4 p-2"><i class="menu-icon tf-icons ti ti-receipt"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ DB::Table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'pending')->get()->count() }}</h5>
+                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'pending')->get()->count() }}</h5>
                                             <small>Unpaid Expenses</small>
                                         </div>
                                     </div>

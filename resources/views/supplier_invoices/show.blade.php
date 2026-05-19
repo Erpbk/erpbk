@@ -278,7 +278,7 @@
 <div class="invoice-box">
     <!-- HEADER SECTION (consistent with fuel invoice: logo + company + title) -->
     @php
-        $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+        $settings = company_table('settings')->pluck('value', 'name')->toArray();
         $total = $supplierInvoice->items->sum('total_amount');
         $total_vat = $supplierInvoice->items->sum('tax_amount');
     @endphp

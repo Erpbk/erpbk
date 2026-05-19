@@ -99,7 +99,7 @@
    <tbody>
       @foreach($data as $r)
       @php
-      $hasActiveBike = DB::table('bikes')
+      $hasActiveBike = company_table('bikes')
       ->where('rider_id', $r->rider_id)
       ->where('warehouse', 'Active')
       ->exists();
@@ -194,7 +194,7 @@
                            <label for="rider-{{ $r->id }}">Select Rider</label>
                            <select class="form-control rider-select" id="rider-{{ $r->id }}" name="rider_id">
                               <option value="" selected>Select</option>
-                              @foreach(DB::table('riders')->where('status' , 1)->get() as $ri)
+                              @foreach(company_table('riders')->where('status' , 1)->get() as $ri)
                               <option value="{{ $ri->id }}" @if($ri->id == $r->rider_id) selected @endif>{{ $ri->rider_id }} - {{ $ri->name }}</option>
                               @endforeach
                            </select>

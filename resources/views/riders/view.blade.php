@@ -287,7 +287,7 @@ $companySlug = request()->route('company_slug');
         @isset($result)
         <div class="profile-img">
           @php
-          $profile = DB::table('files')
+          $profile = company_table('files')
           ->where('type', 'rider')
           ->where('type_id', $result['id'])
           ->where(function($query) {
@@ -427,7 +427,7 @@ $companySlug = request()->route('company_slug');
                   <i class="ti ti-flag ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Nationality:</span><br> <b class="float-right">@isset($result){{DB::Table('countries')->where('id' , $result['nationality'])->first()->name ??'not-set'}}@endisset</b>
+                  <span>Nationality:</span><br> <b class="float-right">@isset($result){{company_table('countries')->where('id' , $result['nationality'])->first()->name ??'not-set'}}@endisset</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -600,7 +600,7 @@ $companySlug = request()->route('company_slug');
                 @can('visaexpense_view')
                 @if(!empty($riders))
                 @php
-                $account = DB::table('expense_accounts')->where('rider_id', $result['id'])->first();
+                $account = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
                 @endphp
                 @if($account)
                 <li class="nav-item nav-priority-5">

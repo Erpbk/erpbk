@@ -293,7 +293,7 @@
                     <select class="form-control form-control-sm select2" name="fleet_supervisor">
                         <option value="">Select Fleet Supervisor</option>
                         @php
-                        $supervisorRow = DB::table('dropdowns')
+                        $supervisorRow = company_table('dropdowns')
                         ->where('label', 'Fleet Supervisor')
                         ->whereNotNull('values')
                         ->first();
@@ -323,7 +323,7 @@
                     <label>Recruiter</label>
                     <select class="form-control form-control-sm select2" name="recruiter_id">
                         <option value="">Select Recruiter</option>
-                        @foreach(DB::table('recruiters')->where('status', 1)->get() as $key => $value)
+                        @foreach(company_table('recruiters')->where('status', 1)->get() as $key => $value)
                         <option value="{{$value->id}}" {{$result['recruiter_id'] == $value->id ? 'selected' : ''}}>{{$value->name}}</option>
                         @endforeach
                     </select>

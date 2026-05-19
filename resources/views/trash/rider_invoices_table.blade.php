@@ -26,12 +26,12 @@
          <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
          <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
          @php
-         $rider = DB::Table('riders')->where('id', $r->rider_id)->first();
+         $rider = company_table('riders')->where('id', $r->rider_id)->first();
          @endphp
          <td>{{ $rider ? ($rider->rider_id . '-' . $rider->name) : '-' }}</td>
          <td>{{ $r->descriptions ?? '-' }}</td>
          <td>
-            {{ $rider ? (DB::table('customers')->where('id', $rider->customer_id)->first()->name ?? '-') : '-' }}
+            {{ $rider ? (company_table('customers')->where('id', $rider->customer_id)->first()->name ?? '-') : '-' }}
          </td>
          <td>{{ \App\Helpers\Currency::format($r->subtotal, 2) }}</td>
          <td>{{ $r->vat ?? '-' }}</td>

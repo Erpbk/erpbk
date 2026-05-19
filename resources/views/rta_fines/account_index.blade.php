@@ -246,27 +246,27 @@
         </div>
         <div class="total-card total-unpaid">
             <div class="label"><i class="fa fa-times-circle"></i>Unpaid Fines</div>
-            <div class="value" id="avg_ontime">{{ DB::table('rta_fines')->where('status', 'unpaid')->count() ?? 0 }}</div>
+            <div class="value" id="avg_ontime">{{ company_table('rta_fines')->where('status', 'unpaid')->count() ?? 0 }}</div>
         </div>
         <div class="total-card total-paid">
             <div class="label"><i class="fas fa-stamp"></i>Paid Fines</div>
-            <div class="value" id="total_rejected">{{ DB::table('rta_fines')->where('status', 'paid')->count() ?? 0 }}</div>
+            <div class="value" id="total_rejected">{{ company_table('rta_fines')->where('status', 'paid')->count() ?? 0 }}</div>
         </div>
             <div class="total-card total-amount">
             <div class="label"><i class="far fa-money-bill-alt"></i>Total Amount</div>
-            <div class="value" id="total_hours">{{ DB::table('rta_fines')->sum('total_amount') ?? 0 }}</div>
+            <div class="value" id="total_hours">{{ company_table('rta_fines')->sum('total_amount') ?? 0 }}</div>
         </div>
         <div class="total-card total-tickets-amount">
             <div class="label"><i class="far fa-money-bill-alt"></i>Ticket Amount</div>
-            <div class="value" id="total_hours">{{ DB::table('rta_fines')->sum('amount') ?? 0 }}</div>
+            <div class="value" id="total_hours">{{ company_table('rta_fines')->sum('amount') ?? 0 }}</div>
         </div>
         <div class="total-card total-service-charges">
             <div class="label"><i class="far fa-money-bill-alt"></i>Service Charges</div>
-            <div class="value" id="total_hours">{{ DB::table('rta_fines')->sum('service_charges') ?? 0 }}</div>
+            <div class="value" id="total_hours">{{ company_table('rta_fines')->sum('service_charges') ?? 0 }}</div>
         </div>
         <div class="total-card total-admin-charges">
             <div class="label"><i class="far fa-money-bill-alt"></i>Admin Charges</div>
-            <div class="value" id="total_hours">{{ DB::table('rta_fines')->sum('admin_fee') ?? 0 }}</div>
+            <div class="value" id="total_hours">{{ company_table('rta_fines')->sum('admin_fee') ?? 0 }}</div>
         </div>
     </div>
     <div class="card-body table-responsive px-2 py-0" id="table-data">

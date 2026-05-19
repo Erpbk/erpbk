@@ -290,7 +290,7 @@
         // Fetch settings for company info (matching supplier design)
         $settings = [];
         try {
-            $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+            $settings = company_table('settings')->pluck('value', 'name')->toArray();
         } catch (\Exception $e) {
             $settings = [];
         }
@@ -408,7 +408,7 @@
                         $bikeEmirates = '';
                         if(isset($item->bike_id) && $item->bike_id) {
                             try {
-                                $bikeData = DB::table('bikes')->where('id', $item->bike_id)->first();
+                                $bikeData = company_table('bikes')->where('id', $item->bike_id)->first();
                                 $bikeEmirates = $bikeData->emirates ?? 'N/A';
                             } catch(\Exception $e) { $bikeEmirates = 'N/A'; }
                         }

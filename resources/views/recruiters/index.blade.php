@@ -36,12 +36,12 @@
                                             <label for="account_id">Filter by Accounts</label>
                                             <select class="form-control " id="account_id" name="account_id">
                                                 @php
-                                                $accountid = DB::table('recruiters')
+                                                $accountid = company_table('recruiters')
                                                 ->whereNotNull('account_id')
                                                 ->where('account_id', '!=', '')
                                                 ->pluck('account_id')
                                                 ->unique();
-                                                $accounts = DB::table('accounts')
+                                                $accounts = company_table('accounts')
                                                 ->whereIn('id', $accountid)
                                                 ->select('id', 'name')
                                                 ->get();

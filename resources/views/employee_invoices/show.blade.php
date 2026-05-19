@@ -255,7 +255,7 @@
 
     <div class="invoice-box">
         @php
-        $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+        $settings = company_table('settings')->pluck('value', 'name')->toArray();
         @endphp
 
         <!-- HEADER: Logo + Company + Title -->

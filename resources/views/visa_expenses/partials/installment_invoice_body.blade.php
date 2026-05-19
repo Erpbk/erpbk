@@ -1,5 +1,5 @@
 @php
-    $settings = \Illuminate\Support\Facades\DB::table('settings')->pluck('value', 'name')->toArray();
+    $settings = \Illuminate\Support\Facadescompany_table('settings')->pluck('value', 'name')->toArray();
     $first = $installments->first();
     $totalAmount = (float) $installments->sum('amount');
     $paidSum = (float) $installments->where('status', 'paid')->sum('amount');

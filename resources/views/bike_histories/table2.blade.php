@@ -138,7 +138,7 @@
                 </td>
                 <td>
                     <span class="user-name">
-                        {{ DB::table('customers')->where('id', $r->customer_id)->first()->name ?? '-' }}
+                        {{ company_table('customers')->where('id', $r->customer_id)->first()->name ?? '-' }}
                     </span>
                 </td>
                 <td>

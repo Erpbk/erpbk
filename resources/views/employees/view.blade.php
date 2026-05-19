@@ -255,7 +255,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
         <div class="profile-img">
           @php
           if(isset($employee)) {
-          $profile = DB::table('files')
+          $profile = company_table('files')
           ->where('type', 'employee')
           ->where('type_id', $employee->id)
           ->where(function($query) {

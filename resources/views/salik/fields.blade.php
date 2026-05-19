@@ -27,11 +27,11 @@
     <select class="form select select2" required id="bike_id_create" name="bike_id">
         <option value=""></option>
         @php
-        $bikes = DB::table('bikes')->get();
+        $bikes = company_table('bikes')->get();
         @endphp
         @foreach($bikes as $b)
         @php
-        $company = DB::table('leasing_companies')->where('id', $b->company)->first();
+        $company = company_table('leasing_companies')->where('id', $b->company)->first();
         @endphp
         <option @if(isset($salik) && $b->id == $salik->bike_id) selected @endif value="{{ $b->id }}">
             {{ $b->plate }} - {{ $company ? $company->name : 'N/A' }}
@@ -45,7 +45,7 @@
     <select class="form select select2" required id="debit_account" name="rider_id">
         <option value=""></option>
         @if(isset($salik))
-        @foreach(DB::table('riders')->where('status', 1)->get() as $r)
+        @foreach(company_table('riders')->where('status', 1)->get() as $r)
         <option value="{{ $r->id }}"
             @if($r->id == $salik->rider_id) selected @endif>
             {{ $r->rider_id }} - {{ $r->name ?? 'N/A' }}
@@ -59,7 +59,7 @@
     <label class="">Credit Account:</label>
     <select class="form select select2" required id="salik_account_id" name="salik_account_id">
         <option value="">Select Account</option>
-        @foreach(DB::table('accounts')->where('status', 1)->where('parent_id', 1237)->orderBy('name')->get() as $a)
+        @foreach(company_table('accounts')->where('status', 1)->where('parent_id', 1237)->orderBy('name')->get() as $a)
         <option value="{{ $a->id }}"
             data-admin-charges="{{ $a->admin_charges ?? 0 }}"
             @if((isset($salik) && (string) $salik->salik_account_id === (string) $a->id) || (isset($data) && (string) $data->id === (string) $a->id)) selected @endif>

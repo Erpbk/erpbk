@@ -38,14 +38,20 @@ trait BelongsToCompany
 
         static::saving(function (Model $model): void {
             /** @var Model&self $model */
-            if (!$model->shouldApplyCompanyScope()) {
+            if (!$model->shouldApplyCompanyScope() || !$model->hasCompanyColumn()) {
                 return;
             }
 
-            if (empty($model->getAttribute('company_id'))) {
-                $companyId = $model->resolveScopedCompanyId();
-                if ($companyId !== null) {
-                    $model->setAttribute('company_id', $companyId);
+            $companyId = $model->getAttribute('company_id');
+            if ($companyId === null || $companyId === '') {
+                $scopedCompanyId = $model->resolveScopedCompanyId();
+                if ($scopedCompanyId !== null) {
+                    $model->setAttribute('company_id', $scopedCompanyId);
+                    return;
+                }
+
+                if ($model->exists && $model->getOriginal('company_id') !== null) {
+                    $model->setAttribute('company_id', $model->getOriginal('company_id'));
                 }
             }
         });

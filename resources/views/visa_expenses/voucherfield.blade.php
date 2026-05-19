@@ -1,5 +1,5 @@
 @php
-$visaStatuses = DB::table('visa_statuses')->where('is_active', 1)->orderBy('display_order', 'asc')->get();
+$visaStatuses = company_table('visa_statuses')->where('is_active', 1)->orderBy('display_order', 'asc')->get();
 @endphp
 <script src="{{ asset('js/modal_custom.js') }}"></script>
 <!-- Trip Date Field -->
@@ -37,7 +37,7 @@ $visaStatuses = DB::table('visa_statuses')->where('is_active', 1)->orderBy('disp
     <label class="readonly">Debit Account:</label>
     <select class="form-control select select2" id="expense_account_id" name="expense_account_id" readonly>
         <option value=""></option>
-        <option value="{{ \App\Helpers\HeadAccount::VISA_EXPENSE_ACCOUNT }}" selected>{{ DB::table('accounts')->where('id', \App\Helpers\HeadAccount::VISA_EXPENSE_ACCOUNT)->first()->name }}</option>
+        <option value="{{ \App\Helpers\HeadAccount::VISA_EXPENSE_ACCOUNT }}" selected>{{ company_table('accounts')->where('id', \App\Helpers\HeadAccount::VISA_EXPENSE_ACCOUNT)->first()->name }}</option>
     </select>
 </div>
 <div class="form-group col-sm-6">
@@ -45,12 +45,12 @@ $visaStatuses = DB::table('visa_statuses')->where('is_active', 1)->orderBy('disp
     <select class="form-control" id="account_id" name="account" required>
         <option value=""></option>
         @php
-        $bank = DB::table('accounts')->where('name', 'cash & bank')->first();
+        $bank = company_table('accounts')->where('name', 'cash & bank')->first();
         $parentIds = [];
         if ($bank) $parentIds[] = $bank->id;
         @endphp
 
-        @foreach(DB::table('accounts')
+        @foreach(company_table('accounts')
         ->where('status', 1)
         ->where(function($query) use ($parentIds) {
         $query->whereIn('parent_id', $parentIds);

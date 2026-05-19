@@ -19,8 +19,8 @@
       @endphp
       <tr class="text-center">
          <td>{{$r->name}}<br /></td>
-         <td>{{ DB::table('customers')->where('id', $r->customer_id)->first()->name ?? '-' }}</td>
-         <td>{{ DB::Table('suppliers')->where('id' , $r->supplier_id)->first()->name ?? '-' }}</td>
+         <td>{{ company_table('customers')->where('id', $r->customer_id)->first()->name ?? '-' }}</td>
+         <td>{{ company_table('suppliers')->where('id' , $r->supplier_id)->first()->name ?? '-' }}</td>
          <td>{{$r->price }}</td>
          <td>{{$r->vat }}</td>
          <td>

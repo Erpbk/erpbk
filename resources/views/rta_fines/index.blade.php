@@ -398,12 +398,12 @@
                     <select class="form-control " id="rider_id" name="rider_id">
                         <option value="">Select</option>
                         @php
-                        $riderid = DB::table('rta_fines')
+                        $riderid = company_table('rta_fines')
                         ->whereNotNull('rider_id')
                         ->where('rider_id', '!=', '')
                         ->pluck('rider_id')
                         ->unique();
-                        $riders = DB::table('riders')
+                        $riders = company_table('riders')
                         ->whereIn('id', $riderid)
                         ->select('id', 'rider_id', 'name')
                         ->get();
@@ -417,12 +417,12 @@
                     <label for="bike_id">Filter by Bike</label>
                     <select class="form-control " id="bike_id" name="bike_id">
                         @php
-                        $bikeid = DB::table('rta_fines')
+                        $bikeid = company_table('rta_fines')
                         ->whereNotNull('bike_id')
                         ->where('bike_id', '!=', '')
                         ->pluck('bike_id')
                         ->unique();
-                        $bikes = DB::table('bikes')
+                        $bikes = company_table('bikes')
                         ->whereIn('id', $bikeid)
                         ->select('id', 'plate')
                         ->get();

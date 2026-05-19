@@ -157,7 +157,7 @@
                     <label for="rider_id">Rider</label>
                     <select name="rider_id" id="rider_id" class="form-contro">
                         <option value="">All Riders</option>
-                        @foreach(DB::table('riders')->select('id', 'rider_id', 'name')->get() as $rider)
+                        @foreach(company_table('riders')->select('id', 'rider_id', 'name')->get() as $rider)
                         <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->id ? 'selected' : '' }}>{{ $rider->rider_id }} - {{ $rider->name }}</option>
                         @endforeach
                     </select>
@@ -178,7 +178,7 @@
                     <label for="direction">Direction</label>
                     <select name="direction" id="direction" class="form-control">
                         <option value="">All Directions</option>
-                        @foreach(DB::table('saliks')->select('direction')->distinct()->whereNotNull('direction')->pluck('direction') as $direction)
+                        @foreach(company_table('saliks')->select('direction')->distinct()->whereNotNull('direction')->pluck('direction') as $direction)
                         <option value="{{ $direction }}" {{ request('direction') == $direction ? 'selected' : '' }}>{{ $direction }}</option>
                         @endforeach
                     </select>
@@ -187,7 +187,7 @@
                     <label for="toll_gate">Toll Gate</label>
                     <select name="toll_gate" id="toll_gate" class="form-control">
                         <option value="">All Toll Gates</option>
-                        @foreach(DB::table('saliks')->select('toll_gate')->distinct()->whereNotNull('toll_gate')->pluck('toll_gate') as $toll_gate)
+                        @foreach(company_table('saliks')->select('toll_gate')->distinct()->whereNotNull('toll_gate')->pluck('toll_gate') as $toll_gate)
                         <option value="{{ $toll_gate }}" {{ request('toll_gate') == $toll_gate ? 'selected' : '' }}>{{ $toll_gate }}</option>
                         @endforeach
                     </select>

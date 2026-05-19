@@ -32,7 +32,7 @@
         <label>Recruiter</label>
         <select name="recruiter_id" class="form-select">
             <option value="">Select Recruiter</option>
-            @foreach(DB::table('recruiters')->where('status', 1)->get() as $key => $value)
+            @foreach(company_table('recruiters')->where('status', 1)->get() as $key => $value)
             <option value="{{ $value->id }}" {{ isset($riders) && $riders->recruiter_id == $value->id ? 'selected' : '' }}>{{ $value->name }}</option>
             @endforeach
         </select>

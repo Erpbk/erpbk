@@ -283,12 +283,12 @@
 
 <div class="invoice-box">
     @php
-        $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+        $settings = company_table('settings')->pluck('value', 'name')->toArray();
         $total = 0;
         $total_qty = 0;
         $running_total = 0;
         $vat_percentage = Common::getSetting('vat_percentage');
-        $deliveryfee = DB::table('items')->where('name', 'Delivery fees')->first();
+        $deliveryfee = company_table('items')->where('name', 'Delivery fees')->first();
         $totalOrders = 0;
         $totalOrderValue = 0;
         if ($deliveryfee && isset($deliveryfee->id)) {
@@ -300,13 +300,13 @@
         }
         // adjustments
         $billing_month = date('M-y', strtotime($riderInvoice->billing_month));
-        $fines = DB::Table('rta_fines')->where('billing_month' , $riderInvoice->billing_month)->where('rider_id' , $riderInvoice->rider->id)->sum('total_amount');
-        $salik = DB::Table('saliks')->where('billing_month' , $billing_month)->where('rider_id' , $riderInvoice->rider->id)->sum('total_amount');
-        $cod = DB::table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'COD')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
-        $penalty = DB::table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'PN')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
-        $incentive = DB::table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'INC')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
-        $advance_salary = DB::table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'AL')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
-        $vendor_charges = DB::table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'VC')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
+        $fines = company_table('rta_fines')->where('billing_month' , $riderInvoice->billing_month)->where('rider_id' , $riderInvoice->rider->id)->sum('total_amount');
+        $salik = company_table('saliks')->where('billing_month' , $billing_month)->where('rider_id' , $riderInvoice->rider->id)->sum('total_amount');
+        $cod = company_table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'COD')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
+        $penalty = company_table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'PN')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
+        $incentive = company_table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'INC')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
+        $advance_salary = company_table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'AL')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
+        $vendor_charges = company_table('vouchers')->where('ref_id' , $riderInvoice->rider->id)->where('voucher_type' , 'VC')->where('billing_month' , $riderInvoice->billing_month)->sum('amount');
         $rider_balance = 0;
         if($riderInvoice->rider && $riderInvoice->rider->account_id) {
             $monthStart = date('Y-m-01', strtotime($riderInvoice->billing_month));
@@ -503,7 +503,7 @@
     <!-- Financial Summary Compact (Right) + Grand Total (badge) -->
     @php
         $finalAmount = $items_total - $total_deductions + $total_additions;
-        $paid_amount = DB::table('vouchers')->where('ref_id', $riderInvoice->rider->id)->where('voucher_type', 'PAY')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
+        $paid_amount = company_table('vouchers')->where('ref_id', $riderInvoice->rider->id)->where('voucher_type', 'PAY')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
         $rider_balance_final = $paid_amount - $finalAmount;
     @endphp
     <div class="financial-summary">

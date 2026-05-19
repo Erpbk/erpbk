@@ -131,7 +131,7 @@
                 @php
                 $totalD = 0;
                 $totalC = 0;
-                $fin_detail = DB::Table('rta_fines')->where('id' , $voucher->ref_id)->first();
+                $fin_detail = company_table('rta_fines')->where('id' , $voucher->ref_id)->first();
                 @endphp
                 @foreach($voucher->transactions as $item)
                 <tr>

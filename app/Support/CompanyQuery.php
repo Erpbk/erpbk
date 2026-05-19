@@ -98,13 +98,18 @@ class CompanyQuery
         if (!self::isListOfRows($values)) {
             if (empty($values['company_id'])) {
                 $values['company_id'] = $companyId;
+            } elseif ($values['company_id'] === null) {
+                $values['company_id'] = $companyId;
             }
 
             return $values;
         }
 
         foreach ($values as &$row) {
-            if (is_array($row) && empty($row['company_id'])) {
+            if (! is_array($row)) {
+                continue;
+            }
+            if (empty($row['company_id']) || $row['company_id'] === null) {
                 $row['company_id'] = $companyId;
             }
         }

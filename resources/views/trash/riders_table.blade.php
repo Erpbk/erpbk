@@ -42,12 +42,12 @@
             N/A
             @endif
          </td>
-         <td>{{ DB::table('customers')->where('id', $r->customer_id)->first()->name ?? '-' }}</td>
-         <td>{{ DB::table('recruiters')->where('id', $r->recruiter_id)->first()->name ?? '-' }}</td>
+         <td>{{ company_table('customers')->where('id', $r->customer_id)->first()->name ?? '-' }}</td>
+         <td>{{ company_table('recruiters')->where('id', $r->recruiter_id)->first()->name ?? '-' }}</td>
          <td>{{ $r->designation ?? '-' }}</td>
          <td>
             @php
-            $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
+            $hasActiveBike = company_table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
             $isWalker = $r->designation === 'Walker';
             
             if ($isWalker) {

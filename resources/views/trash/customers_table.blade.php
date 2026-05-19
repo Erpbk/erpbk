@@ -14,7 +14,7 @@
         @foreach($trashedRecords as $item)
         @php
         $r = $item['record'];
-        $account = DB::table('accounts')->where('id', $r->account_id)->first();
+        $account = company_table('accounts')->where('id', $r->account_id)->first();
         $account_id = $account->id ?? null;
         $balance = \App\Models\Transactions::where('account_id', $account_id)
         ->select(

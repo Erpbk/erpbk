@@ -140,14 +140,14 @@
          @break
          @case('rider_id')
          @php
-         $rider = DB::table('riders')->where('id', $r->rider_id)->first();
+         $rider = company_table('riders')->where('id', $r->rider_id)->first();
 
          @endphp
          <td tabindex="0">{{ $rider->rider_id ?? '-' }}</td>
          @break
          @case('rider_name')
          @php
-         $rider = DB::table('riders')->where('id', $r->rider_id)->first();
+         $rider = company_table('riders')->where('id', $r->rider_id)->first();
          @endphp
          <td tabindex="0">
             @if ($rider)
@@ -162,12 +162,12 @@
          @break
          @case('company')
          @php
-         $company = DB::Table('leasing_companies')->where('id' , $r->company)->first();
+         $company = company_table('leasing_companies')->where('id' , $r->company)->first();
          @endphp
          <td tabindex="0">{{ $company ? $company->name : '-' }}</td>
          @break
          @case('customer_id')
-         <td tabindex="0">{{ DB::table('customers')->where('id' , $r->customer_id)->first()->name ?? '-' }}</td>
+         <td tabindex="0">{{ company_table('customers')->where('id' , $r->customer_id)->first()->name ?? '-' }}</td>
          @break
          @case('branch_id')
          <td tabindex="0">{{ $r->branch ? $r->branch->name .' ( '. $r->branch->code .' )' : '-' }}</td>

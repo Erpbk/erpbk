@@ -44,25 +44,25 @@
          </td>
          @break
          @case('customer_id')
-         <td>{{ DB::table('customers')->where('id' , $r->customer_id)->first()->name ?? '-'}}</td>
+         <td>{{ company_table('customers')->where('id' , $r->customer_id)->first()->name ?? '-'}}</td>
          @break
          @case('branch_id')
          <td>{{ $r->branch ? $r->branch->name . ' (' . $r->branch->code . ')' : '-' }}</td>
          @break
          @case('recruiter_id')
-         <td>{{ DB::table('recruiters')->where('id' , $r->recruiter_id)->first()->name ?? '-'}}</td>
+         <td>{{ company_table('recruiters')->where('id' , $r->recruiter_id)->first()->name ?? '-'}}</td>
          @break
          @case('nationality')
-         <td>{{ $r->nationality ? (DB::table('countries')->where('id', $r->nationality)->value('name') ?? '-') : '-' }}</td>
+         <td>{{ $r->nationality ? (company_table('countries')->where('id', $r->nationality)->value('name') ?? '-') : '-' }}</td>
          @break
          @case('account_id')
          @php
-         $account = $r->account_id ? DB::table('accounts')->where('id', $r->account_id)->first() : null;
+         $account = $r->account_id ? company_table('accounts')->where('id', $r->account_id)->first() : null;
          @endphp
          <td>{{ $account ? ($account->account_code ?? $account->name ?? $r->account_id) : '-' }}</td>
          @break
          @case('bike')
-         @php $bike = DB::table('bikes')->where('rider_id', $r->id)->first(); @endphp
+         @php $bike = company_table('bikes')->where('rider_id', $r->id)->first(); @endphp
          <td>{{ $bike ? $bike->plate : '-' }}</td>
          @break
          @case('status')
@@ -75,9 +75,9 @@
          @break
          @case('attendance')
          @php
-         $rider = DB::Table('riders')->find($r->id);
-         $timeline = DB::Table('job_status')->select('id')->where('RID', $r->id)->whereDate('created_at', today())->first();
-         $emails = DB::Table('rider_emails')->select('id')->where('rider_id', $r->id)->whereDate('created_at', today())->first();
+         $rider = company_table('riders')->find($r->id);
+         $timeline = company_table('job_status')->select('id')->where('RID', $r->id)->whereDate('created_at', today())->first();
+         $emails = company_table('rider_emails')->select('id')->where('rider_id', $r->id)->whereDate('created_at', today())->first();
          @endphp
          <td>
             @if($timeline)
@@ -91,13 +91,13 @@
          @break
          @case('orders_sum')
          @php
-         $rider_sum = DB::table('rider_activities')->where('d_rider_id', $r->rider_id)->whereMonth('date', now()->month)->whereYear('date', now()->year)->sum('delivered_orders');
+         $rider_sum = company_table('rider_activities')->where('d_rider_id', $r->rider_id)->whereMonth('date', now()->month)->whereYear('date', now()->year)->sum('delivered_orders');
          @endphp
          <td>{{ $rider_sum ? $rider_sum : '-' }}</td>
          @break
          @case('days')
          @php
-         $days = DB::table('rider_activities')->where('d_rider_id', $r->rider_id)->where('delivery_rating', 'Yes')->whereMonth('date', now()->month)->whereYear('date', now()->year)->count('date');
+         $days = company_table('rider_activities')->where('d_rider_id', $r->rider_id)->where('delivery_rating', 'Yes')->whereMonth('date', now()->month)->whereYear('date', now()->year)->count('date');
          @endphp
          <td>{{ $days ? $days : '-' }}</td>
          @break

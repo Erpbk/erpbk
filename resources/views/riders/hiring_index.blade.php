@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 @section('title','Rider Leads')
 @section('content')
 <style type="text/css">
@@ -11,7 +11,7 @@
 <section class="content-header">
    <div class="container-fluid">
         @php
-            $dropdown = DB::table('dropdowns')->where('label', 'Fleet Supervisor')->first();
+            $dropdown = company_table('dropdowns')->where('label', 'Fleet Supervisor')->first();
             $fleetSupervisors = $dropdown && $dropdown->values ? json_decode($dropdown->values, true) : [];
         @endphp
       <div class="row mb-2">
@@ -56,7 +56,7 @@
                                         <label for="fleet_sup">Fleet SuperVisor</label>
                                         <select class="form-control " id="fleet_sup" name="fleet_sup" required>
                                             @php
-                                            $supervisorRow = DB::table('dropdowns')
+                                            $supervisorRow = company_table('dropdowns')
                                                 ->where('label', 'Fleet Supervisor')
                                                 ->whereNotNull('values')
                                                 ->first();
@@ -83,7 +83,7 @@
                                         <label for="nationality">Nationality</label>
                                         <select class="form-control " id="nationality" name="nationality" required>
                                             @php
-                                            $nationality = DB::table('country')
+                                            $nationality = company_table('country')
                                                 ->get();
                                             @endphp
                                             <option value="" selected>Select</option>
@@ -123,7 +123,7 @@
                                     <label for="fleet_sup">Filter by Fleet SuperVisor</label>
                                     <select class="form-control " id="fleet_sup" name="fleet_sup">
                                         @php
-                                        $supervisorRow = DB::table('dropdowns')
+                                        $supervisorRow = company_table('dropdowns')
                                             ->where('label', 'Fleet Supervisor')
                                             ->whereNotNull('values')
                                             ->first();
@@ -142,7 +142,7 @@
                                     <label for="nationality">Filter by Nationality</label>
                                     <select class="form-control " id="nationality" name="nationality">
                                         @php
-                                        $nationality = DB::table('rider_hirings')
+                                        $nationality = company_table('rider_hirings')
                                             ->whereNotNull('nationality')
                                             ->where('nationality', '!=', '')
                                             ->select('nationality')
@@ -151,7 +151,7 @@
                                         @endphp
                                         <option value="" selected>Select</option>
                                         @foreach($nationality as $att)
-                                            <option value="{{ $att }}" {{ request('nationality') == $att ? 'selected' : '' }}>{{ DB::table('country')->where('iso' , $att)->first()->name }}</option>
+                                            <option value="{{ $att }}" {{ request('nationality') == $att ? 'selected' : '' }}>{{ company_table('country')->where('iso' , $att)->first()->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>

@@ -66,7 +66,7 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     } else {
     switch ($dropdownKey) {
     case 'vehicle_models':
-    $opts = \DB::table('vehicle_models')->where('status', 1)->pluck('name', 'id')->toArray();
+    $opts = company_table('vehicle_models')->where('status', 1)->pluck('name', 'id')->toArray();
     $opts = ['' => 'Select Model'] + $opts;
     break;
     case 'branch':

@@ -3,15 +3,15 @@
 @section('title','Traffic Fine Details')
 @section('content')
 @php
-$rider = DB::table('riders')->where('id', $accounts->rider_id)->first();
-$riderVisaBalance = DB::table('visa_expenses')
+$rider = company_table('riders')->where('id', $accounts->rider_id)->first();
+$riderVisaBalance = company_table('visa_expenses')
 ->where('expense_account_id', $accounts->id)
 ->sum('amount');
-$riderPaidTotal = DB::table('visa_expenses')
+$riderPaidTotal = company_table('visa_expenses')
 ->where('expense_account_id', $accounts->id)
 ->where('payment_status', 'paid')
 ->sum('amount');
-$riderUnpaidTotal = DB::table('visa_expenses')
+$riderUnpaidTotal = company_table('visa_expenses')
 ->where('expense_account_id', $accounts->id)
 ->where('payment_status', 'unpaid')
 ->sum('amount');
@@ -130,7 +130,7 @@ $riderUnpaidTotal = DB::table('visa_expenses')
                                 <tr>
                                     <th>Rider name</th>
                                     @php
-                                    $rider = DB::table('riders')->where('id', $accounts->rider_id)->first();
+                                    $rider = company_table('riders')->where('id', $accounts->rider_id)->first();
                                     @endphp
                                     <td class="text-end">{{ $rider->name ?? '-' }}</td>
                                 </tr>
@@ -145,7 +145,7 @@ $riderUnpaidTotal = DB::table('visa_expenses')
                                 @if($data->payment_status == 'paid')
                                 <tr>
                                     <th>Paid By</th>
-                                    <td class="text-end">{{ DB::table('accounts')->where('id' , $data->pay_account)->first()->name }}</td>
+                                    <td class="text-end">{{ company_table('accounts')->where('id' , $data->pay_account)->first()->name }}</td>
                                 </tr>
                                 @endif
                                 <tr>
@@ -179,7 +179,7 @@ $riderUnpaidTotal = DB::table('visa_expenses')
                     <input type="hidden" name="trans_date" value="{{ $data->trans_date }}">
                     <input type="hidden" name="trans_code" value="{{ $data->trans_code }}">
                     <input type="hidden" name="billing_month" value="{{ $data->billing_month }}">
-                    <input type="hidden" name="payment_type" value="{{ DB::table('accounts')->where('id', \App\Helpers\HeadAccount::VISA_EXPENSE_ACCOUNT)->first()->account_type }}">
+                    <input type="hidden" name="payment_type" value="{{ company_table('accounts')->where('id', \App\Helpers\HeadAccount::VISA_EXPENSE_ACCOUNT)->first()->account_type }}">
                     <input type="hidden" name="voucher_type" value="LV">
                     <input type="hidden" name="amount" value="{{ $data->amount }}">
                     <input type="hidden" name="Created_By" value="{{ Auth::user()->id }}">

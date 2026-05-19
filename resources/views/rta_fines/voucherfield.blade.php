@@ -34,9 +34,9 @@
     <label class="readonly">Bike:</label>
     <select class="form select select2" readonly id="bike_id" name="bike_id" readonly>
         <option value=""></option>
-        @foreach(DB::table('bikes')->where('status', 1)->orderBy('id', 'desc')->get() as $b)
+        @foreach(company_table('bikes')->where('status', 1)->orderBy('id', 'desc')->get() as $b)
         @php
-        $company = DB::table('leasing_companies')->where('id', $b->company)->first();
+        $company = company_table('leasing_companies')->where('id', $b->company)->first();
         @endphp
         <option value="{{ $b->id }}" @if($data->bike_id == $b->id) selected @endif>
             {{ $b->plate }} - {{ $company ? $company->name : 'N/A' }}
@@ -48,7 +48,7 @@
     <label class="readonly">Debit Account:</label>
     <select class="form select select2" id="rta_account_id" name="rta_account_id" readonly>
         <option value=""></option>
-        @foreach(DB::table('accounts')->where('status' , 1)->get() as $a)
+        @foreach(company_table('accounts')->where('status' , 1)->get() as $a)
         <option value="{{ $a->id }}" @if($data->rta_account_id == $a->id) selected @endif>{{ $a->name }}</option>
         @endforeach
     </select>
@@ -58,12 +58,12 @@
     <select class="form select select2" id="account_id" name="account" required>
         <option value=""></option>
         @php
-        $bank = DB::table('accounts')->where('id', 994)->first();
-        $cash = DB::table('accounts')->where('id', 1643)->first();
-        $leasing = DB::table('accounts')->where('id', 996)->first();
+        $bank = company_table('accounts')->where('id', 994)->first();
+        $cash = company_table('accounts')->where('id', 1643)->first();
+        $leasing = company_table('accounts')->where('id', 996)->first();
         @endphp
 
-        @foreach(DB::table('accounts')
+        @foreach(company_table('accounts')
         ->where('status', 1)
         ->whereIn('parent_id', [$bank->id, $cash->id, $leasing->id])
         ->orderBy('id', 'asc')

@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Suppliers')
 
@@ -34,7 +34,7 @@
                                             <label for="company_name">Filter by Company Name</label>
                                             <select class="form-control " id="company_name" name="company_name">
                                                 @php
-                                                $companies = DB::table('suppliers')
+                                                $companies = company_table('suppliers')
                                                 ->whereNotNull('company_name')
                                                 ->where('company_name', '!=', '')
                                                 ->pluck('company_name')

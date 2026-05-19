@@ -56,13 +56,13 @@
          @break
          @case('rider_id')
          @php
-         $rider = DB::table('riders')->where('id', $r->rider_id)->first();
+         $rider = company_table('riders')->where('id', $r->rider_id)->first();
          @endphp
          <td tabindex="0">{{ $rider->rider_id ?? '-' }}</td>
          @break
          @case('rider_name')
          @php
-         $rider = DB::table('riders')->where('id', $r->rider_id)->first();
+         $rider = company_table('riders')->where('id', $r->rider_id)->first();
          @endphp
          <td tabindex="0">
             @if ($rider)
@@ -77,12 +77,12 @@
          @break
          @case('company')
          @php
-         $company = DB::Table('leasing_companies')->where('id' , $r->company)->first();
+         $company = company_table('leasing_companies')->where('id' , $r->company)->first();
          @endphp
          <td tabindex="0">{{ $company ? $company->name : '-' }}</td>
          @break
          @case('customer_id')
-         <td tabindex="0">{{ DB::table('customers')->where('id' , $r->customer_id)->first()->name ?? '-' }}</td>
+         <td tabindex="0">{{ company_table('customers')->where('id' , $r->customer_id)->first()->name ?? '-' }}</td>
          @break
          @case('expiry_date')
          <td tabindex="0">{{ $r->expiry_date ? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : '-' }}</td>
@@ -90,7 +90,7 @@
          @case('warehouse')
          <td tabindex="0">
             @php
-            $bike_warehouse = DB::table('bike_histories')->where('bike_id', $r->id)->first();
+            $bike_warehouse = company_table('bike_histories')->where('bike_id', $r->id)->first();
             $badgeClass = match($bike_warehouse->warehouse ?? 'Inactive') {
             'Active' => 'bg-label-success',
             'Return' => 'bg-label-warning',

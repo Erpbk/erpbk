@@ -509,11 +509,12 @@
               <label class="form-label">Label Name <span class="text-danger">*</span></label>
               <input type="text" name="label" class="form-control" placeholder="e.g. Emergency Contact" required>
             </div>
+            @php $otherChequeCategory = ($categories ?? collect())->firstWhere('slug', 'other'); @endphp
             <div class="mb-3">
               <label class="form-label">Category</label>
-              <input type="text" class="form-control" value="Unassigned (set from Module Fields tab after creation)" disabled>
-              <input type="hidden" name="category_id" value="">
-              <p class="form-text mb-0">New custom fields are created as unassigned and can be moved category-wise from the Module Fields tab.</p>
+              <input type="text" class="form-control" value="{{ $otherChequeCategory?->label ?? 'Other' }}" disabled>
+              <input type="hidden" name="category_id" value="{{ $otherChequeCategory?->id ?? '' }}">
+              <p class="form-text mb-0">New custom fields are added under <b>{{ $otherChequeCategory?->label ?? 'Other' }}</b>. You can move them to another category from the Module Fields tab.</p>
             </div>
             <div class="mb-3">
               <label class="form-label d-flex align-items-center gap-1">
@@ -1971,8 +1972,6 @@
         new bootstrap.Tab(document.getElementById('tab-cheque-top-btn')).show();
       }
     })();
-
-    // New custom fields always start as unassigned.
 
     // Add custom field form: submit via AJAX and refresh the category tbody
     var formAddRiderField = document.getElementById('formAddRiderField');

@@ -51,7 +51,7 @@ class RiderSettingsController extends Controller
         $service = app(RiderDefaultCategoryService::class);
         $defaultCategory = $service->ensure();
         $service->syncFixedFieldAssignments($this->validFixedAssignableFieldKeys());
-        $service->assignUnassignedCustomFields($defaultCategory);
+        $service->assignUnassignedCustomFields();
 
         return $defaultCategory;
     }
@@ -299,10 +299,19 @@ class RiderSettingsController extends Controller
     {
         $keys = $this->validFixedAssignableFieldKeys();
         $assignments = RiderFieldCategoryAssignment::all()->keyBy('field_key');
-        $defaultCategoryId = (int) app(RiderDefaultCategoryService::class)->ensure()->id;
+        $slugToId = RiderCategory::whereNotNull('slug')->pluck('id', 'slug')->all();
+        $map = RiderCustomField::fixedFieldsSlugMap();
         $list = [];
         foreach ($keys as $fieldKey) {
             $a = $assignments->get($fieldKey);
+            $defaultSlug = RiderDefaultCategoryService::FALLBACK_SLUG;
+            foreach ($map as $slug => $slugKeys) {
+                if (in_array($fieldKey, $slugKeys, true)) {
+                    $defaultSlug = $slug;
+                    break;
+                }
+            }
+            $defaultCategoryId = $slugToId[$defaultSlug] ?? $categories->first()?->id;
             $list[] = (object) [
                 'field_key' => $fieldKey,
                 'label' => RiderCustomField::humanizeFieldKey($fieldKey),
@@ -712,8 +721,10 @@ class RiderSettingsController extends Controller
         $validated['help_text'] = $request->input('help_text');
         $validated['default_value'] = $request->input('default_value');
         $validated['input_format'] = $request->input('input_format');
+        $service = app(RiderDefaultCategoryService::class);
         $validated['category_id'] = $validated['category_id']
-            ?? (int) app(RiderDefaultCategoryService::class)->ensure()->id;
+            ?? $service->categoryIdForSlug(RiderDefaultCategoryService::FALLBACK_SLUG)
+            ?? (int) $service->ensure()->id;
         $validated['data_privacy'] = [
             'pii' => $request->boolean('data_privacy_pii'),
             'ephi' => $request->boolean('data_privacy_ephi'),

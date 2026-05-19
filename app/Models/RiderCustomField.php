@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Schema;
 
 class RiderCustomField extends BaseModel
 {
-    private static function ensureDefaultFixedAssignments(array $fieldKeys): void
+    public static function bootstrapFieldCategories(): void
     {
-        app(\App\Services\Rider\RiderDefaultCategoryService::class)->syncFixedFieldAssignments($fieldKeys);
+        app(\App\Services\Rider\RiderDefaultCategoryService::class)->bootstrap();
     }
 
     private static function scopedRiderCategoriesQuery()
@@ -413,6 +413,8 @@ class RiderCustomField extends BaseModel
      */
     public static function fieldsByCategoryForForm(bool $includeCustomFields = false): array
     {
+        self::bootstrapFieldCategories();
+
         $categories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
         $categoryIds = $categories->pluck('id')->all();
         $allowedFixedLookup = array_flip(self::allFixedFieldKeys());

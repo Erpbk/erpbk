@@ -7,39 +7,29 @@ use Illuminate\Support\Facades\Schema;
 
 class EmployeeCustomField extends BaseModel
 {
-    private static function ensureDefaultFixedAssignments(array $fieldKeys): void
+    public static function bootstrapFieldCategories(): void
     {
-        $columns = Schema::getColumnListing('employees');
-        $categories = self::scopedEmployeeCategoriesQuery()->orderBy('display_order')->orderBy('id')->get();
-        if ($categories->isEmpty()) {
-            return;
-        }
+        $columns = array_flip(Schema::getColumnListing('employees'));
+        $fieldKeys = array_values(array_filter(
+            self::allFixedFieldKeys(),
+            fn (string $fieldKey) => isset($columns[$fieldKey]) && ! in_array($fieldKey, self::removedEmployeeColumns(), true)
+        ));
 
-        $jobInfoCategoryId = (int) ($categories->firstWhere('slug', 'employment_info')->id ?? 0);
-        $fallbackCategoryId = (int) ($categories->firstWhere('slug', 'other')->id ?? $categories->first()->id);
-        $targetCategoryId = $jobInfoCategoryId > 0 ? $jobInfoCategoryId : $fallbackCategoryId;
-        if ($targetCategoryId <= 0) {
-            return;
-        }
+        \App\Services\Settings\FixedFieldCategoryAssignmentSync::sync(
+            $fieldKeys,
+            self::fixedFieldsSlugMap(),
+            EmployeeFieldCategoryAssignment::class,
+            fn () => self::scopedEmployeeCategoriesQuery(),
+            'other',
+            null,
+        );
 
-        foreach ($fieldKeys as $fieldKey) {
-            if (!in_array($fieldKey, $columns, true)) {
-                continue;
-            }
-            if (in_array($fieldKey, self::removedEmployeeColumns(), true)) {
-                continue;
-            }
-            $existing = EmployeeFieldCategoryAssignment::where('field_key', $fieldKey)->first();
-            if ($existing) {
-                continue;
-            }
-            EmployeeFieldCategoryAssignment::create([
-                'field_key' => $fieldKey,
-                'category_id' => $targetCategoryId,
-                'display_order' => (int) EmployeeFieldCategoryAssignment::where('category_id', $targetCategoryId)->max('display_order') + 1,
-                'is_visible' => true,
-                'is_required' => false,
-            ]);
+        $otherCategoryId = (int) (self::scopedEmployeeCategoriesQuery()->where('slug', 'other')->value('id') ?? 0);
+        if ($otherCategoryId > 0) {
+            \App\Services\Settings\FixedFieldCategoryAssignmentSync::assignCustomFieldsWithoutCategory(
+                self::class,
+                $otherCategoryId,
+            );
         }
     }
 
@@ -333,6 +323,8 @@ class EmployeeCustomField extends BaseModel
      */
     public static function fieldsByCategoryForForm(bool $includeCustomFields = false): array
     {
+        self::bootstrapFieldCategories();
+
         $categories = EmployeeCategory::orderBy('display_order')->orderBy('id')->get();
         $categoryIds = $categories->pluck('id')->all();
         $allowedFixedLookup = array_flip(self::allFixedFieldKeys());

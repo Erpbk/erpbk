@@ -6,6 +6,7 @@ use App\Models\RiderCategory;
 use App\Models\RiderCustomField;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\Settings;
+use App\Services\Settings\FixedFieldCategoryAssignmentSync;
 use Illuminate\Support\Facades\Schema;
 
 final class RiderDefaultCategoryService
@@ -14,8 +15,10 @@ final class RiderDefaultCategoryService
 
     public const DEFAULT_LABEL = 'General';
 
+    public const FALLBACK_SLUG = 'other';
+
     /**
-     * Ensure the default shared "General" rider category exists.
+     * Ensure the default shared "General" rider category exists (for delete protection / overflow).
      */
     public function ensure(): RiderCategory
     {
@@ -43,40 +46,41 @@ final class RiderDefaultCategoryService
     }
 
     /**
+     * @return array<string, int>
+     */
+    public function categoryIdsBySlug(): array
+    {
+        return RiderCategory::query()
+            ->whereNotNull('slug')
+            ->pluck('id', 'slug')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    public function categoryIdForSlug(string $slug): ?int
+    {
+        return $this->categoryIdsBySlug()[$slug] ?? null;
+    }
+
+    /**
      * Create assignments for fixed rider fields that are not assigned yet.
      *
      * @param  list<string>  $fieldKeys
      */
     public function syncFixedFieldAssignments(array $fieldKeys): void
     {
-        $category = $this->ensure();
-        $categoryId = (int) $category->id;
-        $order = (int) RiderFieldCategoryAssignment::where('category_id', $categoryId)->max('display_order');
-
-        foreach ($fieldKeys as $fieldKey) {
-            $existing = RiderFieldCategoryAssignment::query()
-                ->where('field_key', $fieldKey)
-                ->exists();
-
-            if ($existing) {
-                continue;
-            }
-
-            $order++;
-            RiderFieldCategoryAssignment::query()->firstOrCreate(
-                ['field_key' => $fieldKey],
-                [
-                    'category_id' => $categoryId,
-                    'display_order' => $order,
-                    'is_visible' => true,
-                    'is_required' => false,
-                ]
-            );
-        }
+        FixedFieldCategoryAssignmentSync::sync(
+            $fieldKeys,
+            RiderCustomField::fixedFieldsSlugMap(),
+            RiderFieldCategoryAssignment::class,
+            fn () => RiderCategory::query(),
+            self::FALLBACK_SLUG,
+            self::DEFAULT_SLUG,
+        );
     }
 
     /**
-     * Assign custom fields with no category to the default category.
+     * Assign custom fields with no category to the "Other" system category.
      */
     public function assignUnassignedCustomFields(?RiderCategory $category = null): void
     {
@@ -84,12 +88,14 @@ final class RiderDefaultCategoryService
             return;
         }
 
-        $category = $category ?? $this->ensure();
-        $categoryId = (int) $category->id;
+        $categoryId = $category
+            ? (int) $category->id
+            : ($this->categoryIdForSlug(self::FALLBACK_SLUG) ?? (int) $this->ensure()->id);
 
-        RiderCustomField::query()
-            ->whereNull('category_id')
-            ->update(['category_id' => $categoryId]);
+        FixedFieldCategoryAssignmentSync::assignCustomFieldsWithoutCategory(
+            RiderCustomField::class,
+            $categoryId,
+        );
     }
 
     public function isDefaultCategory(RiderCategory $category): bool
@@ -101,10 +107,10 @@ final class RiderDefaultCategoryService
 
     public function bootstrap(): void
     {
-        $category = $this->ensure();
+        $this->ensure();
         $fieldKeys = $this->discoverAssignableFieldKeys();
         $this->syncFixedFieldAssignments($fieldKeys);
-        $this->assignUnassignedCustomFields($category);
+        $this->assignUnassignedCustomFields();
     }
 
     /**

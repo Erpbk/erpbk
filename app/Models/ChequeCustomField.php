@@ -7,39 +7,29 @@ use Illuminate\Support\Facades\Schema;
 
 class ChequeCustomField extends BaseModel
 {
-    private static function ensureDefaultFixedAssignments(array $fieldKeys): void
+    public static function bootstrapFieldCategories(): void
     {
-        $columns = Schema::getColumnListing('cheques');
-        $categories = self::scopedChequeCategoriesQuery()->orderBy('display_order')->orderBy('id')->get();
-        if ($categories->isEmpty()) {
-            return;
-        }
+        $columns = array_flip(Schema::getColumnListing('cheques'));
+        $fieldKeys = array_values(array_filter(
+            self::allFixedFieldKeys(),
+            fn (string $fieldKey) => isset($columns[$fieldKey]) && ! in_array($fieldKey, self::removedChequeColumns(), true)
+        ));
 
-        $jobInfoCategoryId = (int) ($categories->firstWhere('slug', 'job_info')->id ?? 0);
-        $fallbackCategoryId = (int) ($categories->firstWhere('slug', 'other')->id ?? $categories->first()->id);
-        $targetCategoryId = $jobInfoCategoryId > 0 ? $jobInfoCategoryId : $fallbackCategoryId;
-        if ($targetCategoryId <= 0) {
-            return;
-        }
+        \App\Services\Settings\FixedFieldCategoryAssignmentSync::sync(
+            $fieldKeys,
+            self::fixedFieldsSlugMap(),
+            ChequeFieldCategoryAssignment::class,
+            fn () => self::scopedChequeCategoriesQuery(),
+            'other',
+            null,
+        );
 
-        foreach ($fieldKeys as $fieldKey) {
-            if (!in_array($fieldKey, $columns, true)) {
-                continue;
-            }
-            if (in_array($fieldKey, self::removedChequeColumns(), true)) {
-                continue;
-            }
-            $existing = ChequeFieldCategoryAssignment::where('field_key', $fieldKey)->first();
-            if ($existing) {
-                continue;
-            }
-            ChequeFieldCategoryAssignment::create([
-                'field_key' => $fieldKey,
-                'category_id' => $targetCategoryId,
-                'display_order' => (int) ChequeFieldCategoryAssignment::where('category_id', $targetCategoryId)->max('display_order') + 1,
-                'is_visible' => true,
-                'is_required' => false,
-            ]);
+        $otherCategoryId = (int) (self::scopedChequeCategoriesQuery()->where('slug', 'other')->value('id') ?? 0);
+        if ($otherCategoryId > 0) {
+            \App\Services\Settings\FixedFieldCategoryAssignmentSync::assignCustomFieldsWithoutCategory(
+                self::class,
+                $otherCategoryId,
+            );
         }
     }
 
@@ -444,6 +434,8 @@ class ChequeCustomField extends BaseModel
      */
     public static function fieldsByCategoryForForm(bool $includeCustomFields = false): array
     {
+        self::bootstrapFieldCategories();
+
         $categories = ChequeCategory::orderBy('display_order')->orderBy('id')->get();
         $categoryIds = $categories->pluck('id')->all();
         $allowedFixedLookup = array_flip(self::allFixedFieldKeys());

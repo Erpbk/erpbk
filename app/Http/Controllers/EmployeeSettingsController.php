@@ -61,6 +61,8 @@ class EmployeeSettingsController extends Controller
      */
     public function index()
     {
+        EmployeeCustomField::bootstrapFieldCategories();
+
         $categories = $this->employeeCategoryQuery()->orderBy('display_order')->orderBy('id')->get();
         $fixedFieldsByCategory = EmployeeCustomField::fixedEmployeeFieldsByCategory();
         $customFields = EmployeeCustomField::with('category')->orderBy('display_order')->orderBy('id')->get();
@@ -689,9 +691,9 @@ class EmployeeSettingsController extends Controller
         $validated['help_text'] = $request->input('help_text');
         $validated['default_value'] = $request->input('default_value');
         $validated['input_format'] = $request->input('input_format');
-        // New custom fields must start as unassigned and only appear in Employee module
-        // after explicit category assignment from Employee Fields settings.
-        $validated['category_id'] = null;
+        $validated['category_id'] = $validated['category_id']
+            ?? (int) ($this->employeeCategoryQuery()->where('slug', 'other')->value('id')
+                ?? $this->employeeCategoryQuery()->orderBy('display_order')->value('id'));
         $validated['data_privacy'] = [
             'pii' => $request->boolean('data_privacy_pii'),
             'ephi' => $request->boolean('data_privacy_ephi'),

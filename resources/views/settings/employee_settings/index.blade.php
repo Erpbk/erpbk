@@ -570,9 +570,10 @@
             </div>
             <div class="mb-3">
               <label class="form-label">Category</label>
-              <input type="text" class="form-control" value="Unassigned (set from Employee Fields tab after creation)" disabled>
-              <input type="hidden" name="category_id" value="">
-              <p class="form-text mb-0">New custom fields are created as unassigned and can be moved category-wise from the Employee Fields tab.</p>
+              @php $otherEmployeeCategory = ($categories ?? collect())->firstWhere('slug', 'other'); @endphp
+              <input type="text" class="form-control" value="{{ $otherEmployeeCategory?->label ?? 'Other' }}" disabled>
+              <input type="hidden" name="category_id" value="{{ $otherEmployeeCategory?->id ?? '' }}">
+              <p class="form-text mb-0">New custom fields are added under <b>{{ $otherEmployeeCategory?->label ?? 'Other' }}</b>. You can move them to another category from the Employee Fields tab.</p>
             </div>
             <div class="mb-3">
               <label class="form-label d-flex align-items-center gap-1">
@@ -1938,8 +1939,6 @@
         statusTabEl.show();
       }
     })();
-
-    // New custom fields always start as unassigned.
 
     // Add custom field form: submit via AJAX and refresh the category tbody
     var formAddEmployeeField = document.getElementById('formAddEmployeeField');

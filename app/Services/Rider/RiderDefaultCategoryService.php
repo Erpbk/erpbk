@@ -63,24 +63,63 @@ final class RiderDefaultCategoryService
     }
 
     /**
-     * Create assignments for fixed rider fields that are not assigned yet.
+     * Create assignments for fixed rider fields that are not assigned yet (default category).
      *
      * @param  list<string>  $fieldKeys
      */
     public function syncFixedFieldAssignments(array $fieldKeys): void
     {
-        FixedFieldCategoryAssignmentSync::sync(
-            $fieldKeys,
-            RiderCustomField::fixedFieldsSlugMap(),
-            RiderFieldCategoryAssignment::class,
-            fn () => RiderCategory::query(),
-            self::FALLBACK_SLUG,
-            self::DEFAULT_SLUG,
-        );
+        $category = $this->ensure();
+        $categoryId = (int) $category->id;
+        $order = (int) RiderFieldCategoryAssignment::where('category_id', $categoryId)->max('display_order');
+
+        foreach ($fieldKeys as $fieldKey) {
+            if (RiderFieldCategoryAssignment::query()->where('field_key', $fieldKey)->exists()) {
+                continue;
+            }
+
+            $order++;
+            RiderFieldCategoryAssignment::query()->create([
+                'field_key' => $fieldKey,
+                'category_id' => $categoryId,
+                'display_order' => $order,
+                'is_visible' => true,
+                'is_required' => false,
+            ]);
+        }
     }
 
     /**
-     * Assign custom fields with no category to the "Other" system category.
+     * One-time: move all visible essential fields into the default category.
+     */
+    public function relocateVisibleFieldsToDefaultCategory(): void
+    {
+        $category = $this->ensure();
+        $categoryId = (int) $category->id;
+
+        if (Schema::hasTable('rider_field_category_assignments')) {
+            $allowedKeys = RiderCustomField::allFixedFieldKeys();
+            if ($allowedKeys !== []) {
+                RiderFieldCategoryAssignment::query()
+                    ->whereIn('field_key', $allowedKeys)
+                    ->where(function ($query) {
+                        $query->whereNull('is_visible')->orWhere('is_visible', true);
+                    })
+                    ->update(['category_id' => $categoryId]);
+            }
+        }
+
+        if (Schema::hasTable('rider_custom_fields')) {
+            RiderCustomField::query()
+                ->where(function ($query) {
+                    $query->where('is_visible', true)->orWhereNull('is_visible');
+                })
+                ->update(['category_id' => $categoryId]);
+        }
+    }
+
+    /**
+     * Assign custom fields with no category to the default category.
      */
     public function assignUnassignedCustomFields(?RiderCategory $category = null): void
     {
@@ -88,9 +127,7 @@ final class RiderDefaultCategoryService
             return;
         }
 
-        $categoryId = $category
-            ? (int) $category->id
-            : ($this->categoryIdForSlug(self::FALLBACK_SLUG) ?? (int) $this->ensure()->id);
+        $categoryId = (int) ($category ?? $this->ensure())->id;
 
         FixedFieldCategoryAssignmentSync::assignCustomFieldsWithoutCategory(
             RiderCustomField::class,
@@ -108,10 +145,11 @@ final class RiderDefaultCategoryService
     public function bootstrap(): void
     {
         $this->ensure();
+        $defaultCategory = $this->ensure();
         $this->pruneNonEssentialAssignments();
         $fieldKeys = $this->discoverAssignableFieldKeys();
         $this->syncFixedFieldAssignments($fieldKeys);
-        $this->assignUnassignedCustomFields();
+        $this->assignUnassignedCustomFields($defaultCategory);
     }
 
     /**

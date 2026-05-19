@@ -300,19 +300,10 @@ class RiderSettingsController extends Controller
     {
         $keys = $this->validFixedAssignableFieldKeys();
         $assignments = RiderFieldCategoryAssignment::all()->keyBy('field_key');
-        $slugToId = RiderCategory::whereNotNull('slug')->pluck('id', 'slug')->all();
-        $map = RiderCustomField::fixedFieldsSlugMap();
+        $defaultCategoryId = (int) app(RiderDefaultCategoryService::class)->ensure()->id;
         $list = [];
         foreach ($keys as $fieldKey) {
             $a = $assignments->get($fieldKey);
-            $defaultSlug = RiderDefaultCategoryService::FALLBACK_SLUG;
-            foreach ($map as $slug => $slugKeys) {
-                if (in_array($fieldKey, $slugKeys, true)) {
-                    $defaultSlug = $slug;
-                    break;
-                }
-            }
-            $defaultCategoryId = $slugToId[$defaultSlug] ?? $categories->first()?->id;
             $list[] = (object) [
                 'field_key' => $fieldKey,
                 'label' => RiderCustomField::humanizeFieldKey($fieldKey),
@@ -722,10 +713,8 @@ class RiderSettingsController extends Controller
         $validated['help_text'] = $request->input('help_text');
         $validated['default_value'] = $request->input('default_value');
         $validated['input_format'] = $request->input('input_format');
-        $service = app(RiderDefaultCategoryService::class);
         $validated['category_id'] = $validated['category_id']
-            ?? $service->categoryIdForSlug(RiderDefaultCategoryService::FALLBACK_SLUG)
-            ?? (int) $service->ensure()->id;
+            ?? (int) app(RiderDefaultCategoryService::class)->ensure()->id;
         $validated['data_privacy'] = [
             'pii' => $request->boolean('data_privacy_pii'),
             'ephi' => $request->boolean('data_privacy_ephi'),

@@ -143,6 +143,12 @@ class BikeCustomField extends BaseModel
             'customer_id',
             'emirates',
             'rider_id',
+            'warehouse',
+            'rental_company_id',
+            'leased_return_company_id',
+            'leased_return_by',
+            'leased_return_date',
+            'bike_top_option_id',
         ];
     }
 

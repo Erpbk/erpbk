@@ -37,6 +37,12 @@ class BikeSettingsController extends Controller
         'emirates',
         'rider_id',
         'custom_field_values',
+        'warehouse',
+        'rental_company_id',
+        'leased_return_company_id',
+        'leased_return_by',
+        'leased_return_date',
+        'bike_top_option_id',
     ];
 
     public function __construct()

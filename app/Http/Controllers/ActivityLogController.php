@@ -66,7 +66,7 @@ class ActivityLogController extends Controller
     /**
      * Show the specified activity log.
      */
-    public function show(ActivityLog $activityLog)
+    public function show(string $company_slug, ActivityLog $activityLog)
     {
         $activityLog->load('user');
 

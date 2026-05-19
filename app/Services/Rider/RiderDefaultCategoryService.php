@@ -6,7 +6,6 @@ use App\Models\RiderCategory;
 use App\Models\RiderCustomField;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\Settings;
-use App\Support\CompanyContext;
 use Illuminate\Support\Facades\Schema;
 
 final class RiderDefaultCategoryService
@@ -55,19 +54,24 @@ final class RiderDefaultCategoryService
         $order = (int) RiderFieldCategoryAssignment::where('category_id', $categoryId)->max('display_order');
 
         foreach ($fieldKeys as $fieldKey) {
-            $assignment = RiderFieldCategoryAssignment::where('field_key', $fieldKey)->first();
-            if ($assignment) {
+            $existing = RiderFieldCategoryAssignment::query()
+                ->where('field_key', $fieldKey)
+                ->exists();
+
+            if ($existing) {
                 continue;
             }
 
             $order++;
-            RiderFieldCategoryAssignment::create([
-                'field_key' => $fieldKey,
-                'category_id' => $categoryId,
-                'display_order' => $order,
-                'is_visible' => true,
-                'is_required' => false,
-            ]);
+            RiderFieldCategoryAssignment::query()->firstOrCreate(
+                ['field_key' => $fieldKey],
+                [
+                    'category_id' => $categoryId,
+                    'display_order' => $order,
+                    'is_visible' => true,
+                    'is_required' => false,
+                ]
+            );
         }
     }
 

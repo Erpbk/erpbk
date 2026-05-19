@@ -33,7 +33,9 @@ class CompanyQuery
             return $query;
         }
 
-        return $query->where(self::qualifiedCompanyColumn($table), $companyId);
+        $companyColumn = self::qualifiedCompanyColumn($table);
+
+        return $query->where($companyColumn, $companyId)->whereNotNull($companyColumn);
     }
 
     public static function insert(string $table, array $values, ?string $connection = null): bool

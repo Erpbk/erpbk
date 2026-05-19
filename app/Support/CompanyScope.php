@@ -28,7 +28,7 @@ final class CompanyScope
     }
 
     /**
-     * Apply strict company_id filter (no shared/global rows).
+     * Apply strict company_id filter. Rows with company_id NULL are orphan data and are excluded.
      *
      * @param  EloquentBuilder|QueryBuilder  $query
      * @return EloquentBuilder|QueryBuilder
@@ -46,7 +46,7 @@ final class CompanyScope
             return $query->whereRaw('0 = 1');
         }
 
-        return $query->where($column, $companyId);
+        return $query->where($column, $companyId)->whereNotNull($column);
     }
 
     /**

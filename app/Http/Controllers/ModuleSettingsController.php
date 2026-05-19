@@ -240,20 +240,10 @@ class ModuleSettingsController extends Controller
         $riderInvoiceAccountTree = [];
         $riderInvoiceAssignments = ['debit' => [], 'credit' => []];
         if ($this->isAccountAssignableInvoiceModule($module)) {
-            // Eligible parents: shared chart heads (roots), company-created accounts, and globally fixed accounts.
+            // Root/parent accounts for this company only (orphan rows with company_id NULL are excluded by global scope).
             $riderInvoiceParentAccounts = Accounts::query()
-                ->where(function ($query) use ($companyId): void {
-                    $query->where(function ($q): void {
-                        $q->whereNull('parent_id')->orWhere('parent_id', 0);
-                    });
-                    if ($companyId) {
-                        $query->orWhere(function ($q) use ($companyId): void {
-                            $q->where('company_id', $companyId)
-                                ->whereNotNull('parent_id')
-                                ->where('parent_id', '!=', 0);
-                        });
-                    }
-                    $query->orWhere('is_fixed', true);
+                ->where(function ($query): void {
+                    $query->whereNull('parent_id')->orWhere('parent_id', 0);
                 })
                 ->orderBy('account_code')
                 ->get(['id', 'name', 'account_code', 'parent_id']);

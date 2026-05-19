@@ -36,7 +36,7 @@ trait BelongsToCompany
             $model->applyCompanyScopeConstraint($builder, $companyId);
         });
 
-        static::creating(function (Model $model): void {
+        static::saving(function (Model $model): void {
             /** @var Model&self $model */
             if (!$model->shouldApplyCompanyScope()) {
                 return;
@@ -77,28 +77,11 @@ trait BelongsToCompany
     }
 
     /**
-     * Override in models that should see global rows (company_id NULL) + tenant rows.
-     */
-    protected function includesGlobalCompanyRows(): bool
-    {
-        return false;
-    }
-
-    /**
-     * Apply tenant/company constraint to the builder.
-     * Models can override this for advanced behavior.
+     * Apply tenant/company constraint. Rows with company_id NULL are orphan data and are never visible.
      */
     protected function applyCompanyScopeConstraint(Builder $builder, int $companyId): void
     {
-        if ($this->includesGlobalCompanyRows()) {
-            $builder->where(function (Builder $query) use ($builder, $companyId): void {
-                $query
-                    ->where($builder->getModel()->qualifyColumn('company_id'), $companyId)
-                    ->orWhereNull($builder->getModel()->qualifyColumn('company_id'));
-            });
-            return;
-        }
-
-        $builder->where($builder->getModel()->qualifyColumn('company_id'), $companyId);
+        $column = $builder->getModel()->qualifyColumn('company_id');
+        $builder->where($column, $companyId)->whereNotNull($column);
     }
 }

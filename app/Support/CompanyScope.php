@@ -97,11 +97,15 @@ final class CompanyScope
             $rule->ignore($ignore);
         }
 
-        if (CompanyContext::shouldApplyScope()) {
+        if (CompanyContext::shouldApplyScope() && Schema::hasColumn($table, 'company_id')) {
             $companyId = CompanyContext::id();
-            if ($companyId !== null && Schema::hasColumn($table, 'company_id')) {
-                $rule->where(fn ($query) => $query->where('company_id', $companyId));
-            }
+            $rule->where(function ($query) use ($companyId) {
+                if ($companyId === null) {
+                    $query->whereNull('company_id');
+                } else {
+                    $query->where('company_id', $companyId);
+                }
+            });
         }
 
         return $rule;

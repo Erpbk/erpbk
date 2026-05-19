@@ -66,7 +66,7 @@ class Employee extends BaseModel
 
     /** Base validation rules; required/optional per field comes from Employee Settings assignments. */
     public static array $rules = [
-        'employee_id' => 'nullable|string|max:191|unique:employees,employee_id',
+        'employee_id' => 'nullable|string|max:191',
         'name' => 'nullable|string|max:255',
         'company_email' => 'nullable|email|max:191|unique:employees,company_email',
         'personal_email' => 'nullable|email|max:191|unique:employees,personal_email',

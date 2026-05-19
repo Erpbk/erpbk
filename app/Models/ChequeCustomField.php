@@ -45,16 +45,7 @@ class ChequeCustomField extends BaseModel
 
     private static function scopedChequeCategoriesQuery()
     {
-        $query = ChequeCategory::query();
-        if (Schema::hasColumn('cheque_categories', 'company_id')) {
-            $companyId = auth()->user()->company_id ?? null;
-            if ($companyId) {
-                $query->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)->orWhereNull('company_id');
-                });
-            }
-        }
-        return $query;
+        return ChequeCategory::query();
     }
 
     private static function removedChequeColumns(): array

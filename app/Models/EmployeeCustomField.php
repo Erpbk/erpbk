@@ -45,16 +45,7 @@ class EmployeeCustomField extends BaseModel
 
     private static function scopedEmployeeCategoriesQuery()
     {
-        $query = EmployeeCategory::query();
-        if (Schema::hasColumn('employee_categories', 'company_id')) {
-            $companyId = auth()->user()->company_id ?? null;
-            if ($companyId) {
-                $query->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)->orWhereNull('company_id');
-                });
-            }
-        }
-        return $query;
+        return EmployeeCategory::query();
     }
 
     private static function removedEmployeeColumns(): array

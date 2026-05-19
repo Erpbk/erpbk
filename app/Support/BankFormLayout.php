@@ -45,16 +45,8 @@ class BankFormLayout
             return collect();
         }
 
-        $companyId = optional(auth()->user())->company_id;
-
         return ModuleSettingCategory::query()
             ->where('module_key', self::MODULE_KEY)
-            ->where(function ($query) use ($companyId) {
-                $query->whereNull('company_id');
-                if ($companyId) {
-                    $query->orWhere('company_id', $companyId);
-                }
-            })
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();

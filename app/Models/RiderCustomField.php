@@ -45,16 +45,7 @@ class RiderCustomField extends BaseModel
 
     private static function scopedRiderCategoriesQuery()
     {
-        $query = RiderCategory::query();
-        if (Schema::hasColumn('rider_categories', 'company_id')) {
-            $companyId = auth()->user()->company_id ?? null;
-            if ($companyId) {
-                $query->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)->orWhereNull('company_id');
-                });
-            }
-        }
-        return $query;
+        return RiderCategory::query();
     }
 
     private static function removedRiderColumns(): array

@@ -43,17 +43,7 @@ class ChequesSettingsController extends Controller
 
     protected function chequeCategoryQuery()
     {
-        $query = ChequeCategory::query();
-        if ($this->chequeCategoryCompanyScoped()) {
-            $companyId = $this->chequeCategoryCompanyId();
-            if ($companyId !== null) {
-                $query->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)
-                        ->orWhereNull('company_id');
-                });
-            }
-        }
-        return $query;
+        return ChequeCategory::query();
     }
 
     protected function findScopedChequeCategory(int $id): ChequeCategory
@@ -66,24 +56,9 @@ class ChequesSettingsController extends Controller
         return $this->chequeCategoryQuery()->pluck('id')->map(fn($id) => (int) $id)->all();
     }
 
-    /**
-     * Field assignments for the active company, including legacy rows with null company_id.
-     */
     protected function chequeFieldAssignmentQuery()
     {
-        $query = ChequeFieldCategoryAssignment::withoutGlobalScope('company');
-
-        if ($this->chequeCategoryCompanyScoped()) {
-            $companyId = CompanyContext::id() ?? $this->chequeCategoryCompanyId();
-            if ($companyId !== null) {
-                $query->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)
-                        ->orWhereNull('company_id');
-                });
-            }
-        }
-
-        return $query;
+        return ChequeFieldCategoryAssignment::query();
     }
 
     protected function syncAssignmentCompanyId(ChequeFieldCategoryAssignment $assignment): void
@@ -488,7 +463,7 @@ class ChequesSettingsController extends Controller
                 return response()->json(['success' => false, 'message' => 'Database migration required. Run: php artisan migrate'], 500);
             }
 
-            $assignment = ChequeFieldCategoryAssignment::withoutGlobalScope('company')
+            $assignment = ChequeFieldCategoryAssignment::query()
                 ->where('field_key', $validated['field_key'])
                 ->first();
             if (!$assignment) {

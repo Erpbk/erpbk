@@ -122,16 +122,6 @@ class ModuleSettingsController extends Controller
         return in_array(strtolower(trim($raw)), ['1', 'true', 'yes', 'on'], true);
     }
 
-    protected function normalizeCompanyScopedQuery($query, ?int $companyId)
-    {
-        return $query->where(function ($sub) use ($companyId) {
-            $sub->whereNull('company_id');
-            if ($companyId) {
-                $sub->orWhere('company_id', $companyId);
-            }
-        });
-    }
-
     protected function categoryBelongsToModuleRule(string $module): \Closure
     {
         return function (string $attribute, mixed $value, \Closure $fail) use ($module) {
@@ -172,6 +162,7 @@ class ModuleSettingsController extends Controller
             $assignment = ModuleFieldCategoryAssignment::firstOrCreate(
                 ['module_key' => $module, 'field_key' => $column],
                 [
+                    'company_id' => \App\Support\CompanyContext::id(),
                     'field_label' => ucwords(str_replace('_', ' ', $column)),
                     'display_label' => null,
                     'is_visible' => true,
@@ -215,17 +206,11 @@ class ModuleSettingsController extends Controller
         $defaultLabel = $defaultLabels[$routeModule] ?? $defaultLabels[$module] ?? ucwords(str_replace('_', ' ', $routeModule));
         $moduleLabel = Settings::getMenuLabel($routeModule) ?: Settings::getMenuLabel($module);
         $pageTitle = $moduleLabel . ' – Settings';
-        $companyId = optional(auth()->user())->company_id;
+        $companyId = \App\Support\CompanyContext::id();
         $moduleSourceTable = $this->syncModuleFixedAssignmentsFromDb($module);
 
         $categories = ModuleSettingCategory::query()
             ->where('module_key', $module)
-            ->where(function ($query) use ($companyId) {
-                $query->whereNull('company_id');
-                if ($companyId) {
-                    $query->orWhere('company_id', $companyId);
-                }
-            })
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -242,24 +227,12 @@ class ModuleSettingsController extends Controller
 
         $customFields = ModuleCustomField::with('category')
             ->where('module_key', $module)
-            ->where(function ($query) use ($companyId) {
-                $query->whereNull('company_id');
-                if ($companyId) {
-                    $query->orWhere('company_id', $companyId);
-                }
-            })
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
 
         $documentTypes = ModuleDocumentType::query()
             ->where('module_key', $module)
-            ->where(function ($query) use ($companyId) {
-                $query->whereNull('company_id');
-                if ($companyId) {
-                    $query->orWhere('company_id', $companyId);
-                }
-            })
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -592,7 +565,7 @@ class ModuleSettingsController extends Controller
         abort_unless($this->isAccountAssignableInvoiceModule($module), 404);
         $this->ensureCompanyAdmin();
 
-        $companyId = (int) (optional(auth()->user())->company_id ?? 0);
+        $companyId = (int) (\App\Support\CompanyContext::id() ?? 0);
         abort_if($companyId <= 0, 422, 'Company context is required.');
 
         $debit = $this->parseAssignmentsPayload($request->input('debit_assignments'));
@@ -705,7 +678,7 @@ class ModuleSettingsController extends Controller
 
         ModuleSettingCategory::create([
             'module_key' => $module,
-            'company_id' => optional(auth()->user())->company_id,
+            'company_id' => \App\Support\CompanyContext::id(),
             'label' => $validated['label'],
             'display_order' => ((int) ModuleSettingCategory::where('module_key', $module)->max('display_order')) + 1,
             'is_system' => false,
@@ -939,7 +912,7 @@ class ModuleSettingsController extends Controller
 
         ModuleCustomField::create([
             'module_key' => $module,
-            'company_id' => optional(auth()->user())->company_id,
+            'company_id' => \App\Support\CompanyContext::id(),
             'category_id' => $validated['category_id'] ?? null,
             'label' => $validated['label'],
             'help_text' => $validated['help_text'] ?? null,
@@ -1150,7 +1123,7 @@ class ModuleSettingsController extends Controller
 
         $documentType = ModuleDocumentType::create([
             'module_key' => $module,
-            'company_id' => optional(auth()->user())->company_id,
+            'company_id' => \App\Support\CompanyContext::id(),
             'key' => trim((string) $validated['key']),
             'label' => $validated['label'] ?? null,
             'type' => $validated['type'],

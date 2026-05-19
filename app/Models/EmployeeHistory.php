@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class EmployeeHistory extends Model
+class EmployeeHistory extends BaseModel
 {
     public $table = 'employee_histories';
 

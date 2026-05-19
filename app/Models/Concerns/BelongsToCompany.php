@@ -27,9 +27,13 @@ trait BelongsToCompany
             }
 
             $companyId = $model->resolveScopedCompanyId();
-            if ($companyId !== null) {
-                $model->applyCompanyScopeConstraint($builder, $companyId);
+            if ($companyId === null) {
+                $builder->whereRaw('0 = 1');
+
+                return;
             }
+
+            $model->applyCompanyScopeConstraint($builder, $companyId);
         });
 
         static::creating(function (Model $model): void {

@@ -8,6 +8,7 @@ class ModuleFieldCategoryAssignment extends BaseModel
 
     protected $fillable = [
         'module_key',
+        'company_id',
         'field_key',
         'field_label',
         'category_id',

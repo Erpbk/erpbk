@@ -78,18 +78,7 @@ class BikeSettingsController extends Controller
 
     protected function bikeCategoryQuery()
     {
-        $query = BikeCategory::query();
-
-        if ($this->bikeCategoryCompanyScoped()) {
-            $companyId = $this->bikeCategoryCompanyId();
-            if ($companyId !== null) {
-                $query->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)->orWhereNull('company_id');
-                });
-            }
-        }
-
-        return $query;
+        return BikeCategory::query();
     }
 
     /**

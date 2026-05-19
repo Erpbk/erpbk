@@ -42,17 +42,7 @@ class EmployeeSettingsController extends Controller
 
     protected function employeeCategoryQuery()
     {
-        $query = EmployeeCategory::query();
-        if ($this->employeeCategoryCompanyScoped()) {
-            $companyId = $this->employeeCategoryCompanyId();
-            if ($companyId !== null) {
-                $query->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)
-                        ->orWhereNull('company_id');
-                });
-            }
-        }
-        return $query;
+        return EmployeeCategory::query();
     }
 
     protected function findScopedEmployeeCategory(int $id): EmployeeCategory
@@ -445,7 +435,7 @@ class EmployeeSettingsController extends Controller
                 return response()->json(['success' => false, 'message' => 'Database migration required. Run: php artisan migrate'], 500);
             }
 
-            $assignment = EmployeeFieldCategoryAssignment::withoutGlobalScope('company')
+            $assignment = EmployeeFieldCategoryAssignment::query()
                 ->where('field_key', $validated['field_key'])
                 ->first();
             if (!$assignment) {

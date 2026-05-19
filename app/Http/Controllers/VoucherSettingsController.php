@@ -21,16 +21,11 @@ class VoucherSettingsController extends Controller
      */
     public function index()
     {
-        $voucherTypes = VoucherType::withoutGlobalScope('company')
-            ->with(['moduleAssignmentsAllCompanies' => function ($query) {
-                $query->withoutGlobalScope('company');
-            }])
+        $voucherTypes = VoucherType::query()
+            ->with('moduleAssignments')
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
-        $voucherTypes->each(function (VoucherType $type): void {
-            $type->setRelation('moduleAssignments', $type->getRelation('moduleAssignmentsAllCompanies'));
-        });
         $customFields = VoucherCustomField::orderBy('display_order')->orderBy('id')->get();
         $dataTypes = VoucherCustomField::dataTypes();
         $moduleLabel = Settings::getMenuLabel('voucher_settings');
@@ -64,9 +59,7 @@ class VoucherSettingsController extends Controller
                 'string',
                 'max:20',
                 Rule::unique('voucher_types', 'code')->where(function ($query) use ($companyId) {
-                    return $companyId === null
-                        ? $query->whereNull('company_id')
-                        : $query->where('company_id', $companyId);
+                    return $query->where('company_id', $companyId);
                 }),
             ],
             'label' => 'required|string|max:255',
@@ -112,7 +105,7 @@ class VoucherSettingsController extends Controller
 
     public function updateType(Request $request, string $company_slug, $id)
     {
-        $type = VoucherType::withoutGlobalScope('company')->findOrFail($id);
+        $type = VoucherType::query()->findOrFail($id);
         $allowedModules = array_keys(VoucherType::availableModules());
         $companyId = CompanyContext::id();
         $validated = $request->validate([
@@ -123,9 +116,7 @@ class VoucherSettingsController extends Controller
                 Rule::unique('voucher_types', 'code')
                     ->ignore($id)
                     ->where(function ($query) use ($companyId) {
-                        return $companyId === null
-                            ? $query->whereNull('company_id')
-                            : $query->where('company_id', $companyId);
+                        return $query->where('company_id', $companyId);
                     }),
             ],
             'label' => 'required|string|max:255',
@@ -170,7 +161,7 @@ class VoucherSettingsController extends Controller
 
     public function destroyType(string $company_slug, $id)
     {
-        $type = VoucherType::withoutGlobalScope('company')->findOrFail($id);
+        $type = VoucherType::query()->findOrFail($id);
         $type->delete();
 
         if (request()->wantsJson() || request()->ajax()) {
@@ -183,7 +174,7 @@ class VoucherSettingsController extends Controller
     {
         $request->validate(['order' => 'required|array', 'order.*' => 'integer|exists:voucher_types,id']);
         foreach ($request->input('order') as $position => $id) {
-            VoucherType::withoutGlobalScope('company')
+            VoucherType::query()
                 ->where('id', $id)
                 ->update(['display_order' => $position]);
         }
@@ -192,16 +183,12 @@ class VoucherSettingsController extends Controller
 
     public function typesTableBody()
     {
-        $voucherTypes = VoucherType::withoutGlobalScope('company')
-            ->with(['moduleAssignmentsAllCompanies' => function ($query) {
-                $query->withoutGlobalScope('company');
-            }])
+        $voucherTypes = VoucherType::query()
+            ->with('moduleAssignments')
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
-        $voucherTypes->each(function (VoucherType $type): void {
-            $type->setRelation('moduleAssignments', $type->getRelation('moduleAssignmentsAllCompanies'));
-        });
+
         return view('settings.voucher_settings._voucher_types_tbody', compact('voucherTypes'));
     }
 

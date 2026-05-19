@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class RiderHistory extends Model
+class RiderHistory extends BaseModel
 {
     public $table = 'rider_histories';
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\CompanyContext;
 use Illuminate\Support\Facades\Cache;
 use App\Traits\LogsActivity;
 
@@ -31,7 +32,9 @@ class Settings extends BaseModel
      */
     public static function getMenuLabels(): array
     {
-        return Cache::remember('erp_menu_labels', 300, function () {
+        $cacheKey = self::menuLabelsCacheKey();
+
+        return Cache::remember($cacheKey, 300, function () {
             $defaults = config('menu_labels.defaults', []);
             $stored = self::where('name', 'like', 'menu_label_%')
                 ->pluck('value', 'name');
@@ -39,6 +42,7 @@ class Settings extends BaseModel
             foreach ($stored as $name => $value) {
                 $overrides[str_replace('menu_label_', '', $name)] = $value;
             }
+
             return array_merge($defaults, $overrides);
         });
     }
@@ -48,6 +52,21 @@ class Settings extends BaseModel
      */
     public static function clearMenuLabelsCache(): void
     {
-        Cache::forget('erp_menu_labels');
+        Cache::forget(self::menuLabelsCacheKey());
+
+        if (CompanyContext::shouldApplyScope()) {
+            Cache::forget('erp_menu_labels');
+        }
+    }
+
+    protected static function menuLabelsCacheKey(): string
+    {
+        if (! CompanyContext::shouldApplyScope()) {
+            return 'erp_menu_labels';
+        }
+
+        $companyId = CompanyContext::id();
+
+        return $companyId === null ? 'erp_menu_labels:none' : 'erp_menu_labels:' . $companyId;
     }
 }

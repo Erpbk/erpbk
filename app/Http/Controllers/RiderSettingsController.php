@@ -42,17 +42,7 @@ class RiderSettingsController extends Controller
 
     protected function riderCategoryQuery()
     {
-        $query = RiderCategory::query();
-        if ($this->riderCategoryCompanyScoped()) {
-            $companyId = $this->riderCategoryCompanyId();
-            if ($companyId !== null) {
-                $query->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)
-                        ->orWhereNull('company_id');
-                });
-            }
-        }
-        return $query;
+        return RiderCategory::query();
     }
 
     protected function findScopedRiderCategory(int $id): RiderCategory
@@ -339,15 +329,12 @@ class RiderSettingsController extends Controller
         if (!in_array($validated['field_key'], $keys, true)) {
             return response()->json(['success' => false, 'message' => 'Invalid field.'], 422);
         }
-        $assignment = RiderFieldCategoryAssignment::withoutGlobalScope('company')
+        $assignment = RiderFieldCategoryAssignment::query()
             ->where('field_key', $validated['field_key'])
             ->first();
         if (!$assignment) {
             $assignment = new RiderFieldCategoryAssignment();
             $assignment->field_key = $validated['field_key'];
-            if (Schema::hasColumn($assignment->getTable(), 'company_id')) {
-                $assignment->company_id = auth()->user()->company_id ?? null;
-            }
         }
         $newCategoryId = (int) $validated['category_id'];
         $assignment->category_id = $newCategoryId;
@@ -450,7 +437,7 @@ class RiderSettingsController extends Controller
                 return response()->json(['success' => false, 'message' => 'Database migration required. Run: php artisan migrate'], 500);
             }
 
-            $assignment = RiderFieldCategoryAssignment::withoutGlobalScope('company')
+            $assignment = RiderFieldCategoryAssignment::query()
                 ->where('field_key', $validated['field_key'])
                 ->first();
             if (!$assignment) {

@@ -19,9 +19,13 @@ class CompanyQuery
             ? DB::connection($connection)->table($table)
             : DB::table($table);
 
-        $companyId = self::resolveCompanyId();
-        if ($companyId === null || !self::shouldApplyScope()) {
+        if (! self::shouldApplyScope()) {
             return $query;
+        }
+
+        $companyId = self::resolveCompanyId();
+        if ($companyId === null) {
+            return $query->whereRaw('0 = 1');
         }
 
         $connectionName = $connection ?: (DB::getDefaultConnection() ?: config('database.default'));

@@ -66,13 +66,7 @@ class RidersController extends AppBaseController
 
   private function applyCompanyScope($query)
   {
-    if (Schema::hasColumn('riders', 'company_id')) {
-      $authUser = auth()->user();
-      if ($authUser && isset($authUser->company_id)) {
-        $query->where('riders.company_id', $authUser->company_id);
-      }
-    }
-    return $query;
+    return \App\Support\CompanyScope::apply($query, 'riders.company_id');
   }
 
   /**
@@ -3283,12 +3277,8 @@ class RidersController extends AppBaseController
         return response()->json(['success' => false, 'message' => 'Field assignment not found.'], 404);
       }
 
-      if (Schema::hasColumn('rider_categories', 'company_id') && $companyId) {
-        $category = RiderCategory::where('id', $assignment->category_id)
-          ->where(function ($q) use ($companyId) {
-            $q->where('company_id', $companyId)->orWhereNull('company_id');
-          })
-          ->first();
+      if ($assignment->category_id) {
+        $category = RiderCategory::query()->where('id', $assignment->category_id)->first();
         if (!$category) {
           return response()->json(['success' => false, 'message' => 'Field is outside your company scope.'], 403);
         }
@@ -3311,12 +3301,8 @@ class RidersController extends AppBaseController
     }
 
     $field = RiderCustomField::findOrFail((int) $validated['custom_field_id']);
-    if (Schema::hasColumn('rider_categories', 'company_id') && $companyId && $field->category_id) {
-      $category = RiderCategory::where('id', $field->category_id)
-        ->where(function ($q) use ($companyId) {
-          $q->where('company_id', $companyId)->orWhereNull('company_id');
-        })
-        ->first();
+    if ($field->category_id) {
+      $category = RiderCategory::query()->where('id', $field->category_id)->first();
       if (!$category) {
         return response()->json(['success' => false, 'message' => 'Custom field is outside your company scope.'], 403);
       }

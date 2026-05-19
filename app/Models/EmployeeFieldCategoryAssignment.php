@@ -8,14 +8,6 @@ class EmployeeFieldCategoryAssignment extends BaseModel
 {
     protected $table = 'employee_field_category_assignments';
 
-    /**
-     * Seeded assignments use company_id NULL; tenants must still read/update them.
-     */
-    protected function includesGlobalCompanyRows(): bool
-    {
-        return true;
-    }
-
     protected $fillable = [
         'field_key',
         'display_label',

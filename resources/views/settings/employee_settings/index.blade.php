@@ -1065,6 +1065,16 @@
 
     const dataTypesMeta = JSON.parse((document.getElementById('employeeDataTypesMetaJson') && document.getElementById('employeeDataTypesMetaJson').value) || '{}');
 
+    function getEmployeeCsrf() {
+      return (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) ||
+        (document.querySelector('.employee-field-assignment-form input[name="_token"]') && document.querySelector('.employee-field-assignment-form input[name="_token"]').value) ||
+        (document.querySelector('#formEditEmployeeStatus input[name="_token"]') && document.querySelector('#formEditEmployeeStatus input[name="_token"]').value) ||
+        (document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value) ||
+        '';
+    }
+
+    var csrf = getEmployeeCsrf();
+
     function buildConfigFields(container, typeKey, existingConfig) {
       container.innerHTML = '';
       const typeMeta = dataTypesMeta[typeKey] || null;
@@ -2601,8 +2611,7 @@
     });
 
     function getRiderStatusCsrf() {
-      return (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) ||
-        (document.querySelector('#formEditEmployeeStatus input[name="_token"]') && document.querySelector('#formEditEmployeeStatus input[name="_token"]').value);
+      return getEmployeeCsrf();
     }
 
     function applyRiderStatusRowData(row, data) {

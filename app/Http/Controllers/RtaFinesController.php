@@ -89,7 +89,7 @@ class RtaFinesController extends AppBaseController
         $selectedAccountId = $request->input('rta_account_id')
             ?? session('rta_selected_account_id')
             ?? $defaultAccount?->id;
-        \Log::info('selectedAccountId: '.$selectedAccountId);
+        \Log::info('selectedAccountId: ' . $selectedAccountId);
         $query = RtaFines::query()
             ->with('branch')
             ->orderBy('trip_date', 'desc');
@@ -199,7 +199,7 @@ class RtaFinesController extends AppBaseController
 
             $fine = RtaFines::findOrFail($request->id);
             $creditAccount = Accounts::find($request->pay_account);
-            if(!$creditAccount)
+            if (!$creditAccount)
                 throw new \Exception('Credit Account Not Found');
             if ($fine->status == 'paid') {
                 throw new \Exception('Fine is Already Paid.');
@@ -214,7 +214,7 @@ class RtaFinesController extends AppBaseController
                 };
 
                 // File Upload
-                if($request->file('attachment')){
+                if ($request->file('attachment')) {
                     $photo = $request->file('attachment');
                     $path = $photo->store('fines', 'public');
                     $fine->attachment = $path;
@@ -226,9 +226,9 @@ class RtaFinesController extends AppBaseController
                 $transDate = $fine->trans_date;
                 $credit = 0;
                 $profit = 0;
-                if($creditAccount->account_type == 'Liability')
+                if ($creditAccount->account_type == 'Liability')
                     $credit = $fine->total_amount;
-                else{
+                else {
                     $credit = $fine->total_amount - $fine->admin_fee - $fine->vat;
                     $profit = $fine->admin_fee;
                 }
@@ -239,13 +239,13 @@ class RtaFinesController extends AppBaseController
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $transDate,
-                    'narration'      => '(Payment) '.$fine->detail ?? 'RTA Fine Payment',
+                    'narration'      => '(Payment) ' . $fine->detail ?? 'RTA Fine Payment',
                     'debit'          => $fine->total_amount - $fine->vat,
                     'billing_month'  => $billingMonth,
                     'branch_id'      => $fine->branch_id
                 ]);
 
-                if($fine->vat > 0 && $creditAccount->account_type == 'Liability'){
+                if ($fine->vat > 0 && $creditAccount->account_type == 'Liability') {
                     $TransactionService->recordTransaction([
                         'account_id'     => HeadAccount::VAT_PURCHASE_ACCOUNT,
                         'reference_id'   => $fine->id,
@@ -258,7 +258,7 @@ class RtaFinesController extends AppBaseController
                         'branch_id'      => $fine->branch_id,
                     ]);
                 }
-                
+
 
                 // Credit Selected Payment Account
                 $TransactionService->recordTransaction([
@@ -267,15 +267,15 @@ class RtaFinesController extends AppBaseController
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $transDate,
-                    'narration'      => '(Payment) '.$fine->detail ?? 'RTA Fine Payment',
+                    'narration'      => '(Payment) ' . $fine->detail ?? 'RTA Fine Payment',
                     'credit'         => $credit,
                     'branch_id'      => $fine->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
 
-                if($profit > 0){
+                if ($profit > 0) {
                     $adminAcc = Accounts::where('id', HeadAccount::RTA_ADMIN_CHARGES)->exists();
-                    if(!$adminAcc)
+                    if (!$adminAcc)
                         throw new \Exception('Admin Charges (RTA Fines) Account not found');
                     $TransactionService->recordTransaction([
                         'account_id'     => HeadAccount::RTA_ADMIN_CHARGES,
@@ -296,6 +296,7 @@ class RtaFinesController extends AppBaseController
                     'trans_date'    => $transDate,
                     'trans_code'    => $trans_code,
                     'trip_date'     => $fine->trip_date,
+                    'reference_number' => $fine->reference_number ?? '',
                     'billing_month' => $billingMonth,
                     'payment_type'  => $payment_type_flag,
                     'voucher_type'  => 'RFV',
@@ -313,32 +314,32 @@ class RtaFinesController extends AppBaseController
             $fine->paid_voucher_id = $voucher->id;
             $fine->save();
             DB::commit();
-            if($request->ajax()){
-                return response()->json(['message' => 'Fine Paid Successfully', 'reload' => true],200);
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Fine Paid Successfully', 'reload' => true], 200);
             }
             Flash::success('Fine Paid Successfully');
             return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
-            if($path)
+            if ($path)
                 \Storage::delete($path);
-            \Log::error('error:', [$e->getMessage(),$e->getTrace()]);
-            if($request->ajax()){
-                return response()->json(['message' => $e->getMessage()],500);
+            \Log::error('error:', [$e->getMessage(), $e->getTrace()]);
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 500);
             }
             Flash::error('Error: ' . $e->getMessage());
         }
     }
     public function payForm($company_slug, $id)
     {
-        $fine = RtaFines::with(['rider','rentalCompany','voucher','bike.leasingCompany'])->where('id', $id)->first();
+        $fine = RtaFines::with(['rider', 'rentalCompany', 'voucher', 'bike.leasingCompany'])->where('id', $id)->first();
         $debitAccount = Accounts::where('id', $fine->rta_account_id)->first();
         $ids = Banks::active()->pluck('account_id');
         $leasingId = $fine->bike->leasingCompany?->account_id ?? null;
-        if($leasingId)
+        if ($leasingId)
             $ids[] = $leasingId;
-        $creditAccounts = Accounts::wherein('id',$ids)->get();
-        return view('rta_fines.viewvoucher', compact('fine', 'debitAccount','creditAccounts'));  
+        $creditAccounts = Accounts::wherein('id', $ids)->get();
+        return view('rta_fines.viewvoucher', compact('fine', 'debitAccount', 'creditAccounts'));
     }
 
     /**
@@ -347,14 +348,14 @@ class RtaFinesController extends AppBaseController
     public function create()
     {
         $rtaFineAccount = Accounts::where('id', HeadAccount::RTA_FINE)->first();
-        if(!$rtaFineAccount) {
-            return response()->json(['message' => 'Current Liabilities Account => RTA Fines, not found'],500);
+        if (!$rtaFineAccount) {
+            return response()->json(['message' => 'Current Liabilities Account => RTA Fines, not found'], 500);
         }
-        $bikes = Bikes::with(['leasingCompany','rider'])->get();
+        $bikes = Bikes::with(['leasingCompany', 'rider'])->get();
         $riders = Riders::with(['account'])->get();
-        $companies = BikeRentCompany::with(['account'])->where('customer_type','bike_rental')->get();
+        $companies = BikeRentCompany::with(['account'])->where('customer_type', 'bike_rental')->get();
         $rtaFines = null;
-        return view('rta_fines.create', compact('bikes', 'riders', 'rtaFineAccount','companies', 'rtaFines'));
+        return view('rta_fines.create', compact('bikes', 'riders', 'rtaFineAccount', 'companies', 'rtaFines'));
     }
     /**
      * Store a newly created RtaFines in storage.
@@ -387,11 +388,11 @@ class RtaFinesController extends AppBaseController
             $input['status']          = 'unpaid';
             $input['branch_id']       = $bike->branch_id;
 
-            if(!empty($input['rider_id']) && !empty($input['rental_company_id'])){
+            if (!empty($input['rider_id']) && !empty($input['rental_company_id'])) {
                 throw new \Exception('Either Select a Rider or Rental Company. Cannot Charge Both');
             }
 
-            if(empty($input['rider_id']) && empty($input['rental_company_id'])){
+            if (empty($input['rider_id']) && empty($input['rental_company_id'])) {
                 throw new \Exception('Either Select a Rider or Rental Company.');
             }
 
@@ -404,7 +405,7 @@ class RtaFinesController extends AppBaseController
 
             $rider_account = $rtaFines->rider_id ? $rtaFines->rider->account_id : ($rtaFines->rental_company_id ? $rtaFines->rentalCompany->account_id : null);
             $rta_account = HeadAccount::RTA_FINE;
-            if(!$rider_account)
+            if (!$rider_account)
                 throw new \Exception('Debit Account Not Found');
 
             // --- 1. Main Fine (Rider Debit) ---
@@ -414,19 +415,19 @@ class RtaFinesController extends AppBaseController
                 'reference_type' => 'RTA',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
-                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: '.$rtaFines->plate_no,
+                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
                 'debit'          => $rtaFines->total_amount,
                 'billing_month'  => $billingMonth,
                 'branch_id'      => $bike->branch_id,
             ]);
-                
+
             $TransactionService->recordTransaction([
                 'account_id'     => HeadAccount::RTA_FINE,
                 'reference_id'   => $rtaFines->id,
                 'reference_type' => 'RTA',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
-                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: '.$rtaFines->plate_no,
+                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
                 'credit'         => $rtaFines->total_amount - $rtaFines->vat,
                 'branch_id'      => $bike->branch_id,
                 'billing_month'  => $billingMonth,
@@ -454,7 +455,7 @@ class RtaFinesController extends AppBaseController
                 'billing_month' => $billingMonth,
                 'payment_type'  => 1,
                 'voucher_type'  => 'RFV',
-                'reference_number' => $rtaFines->reference_number,
+                'reference_number' => $rtaFines->reference_number ?? '',
                 'remarks'       => 'RTA Fine Voucher',
                 'amount'        => $rtaFines->total_amount,
                 'Created_By'    => auth()->id(),
@@ -468,15 +469,15 @@ class RtaFinesController extends AppBaseController
             $rtaFines->update(['voucher_id' => $voucher->id]);
 
             DB::commit();
-            if($request->ajax()){
-                return response()->json([ 'message' => 'RTA Fine added successfully', 'reload' => true],200);
+            if ($request->ajax()) {
+                return response()->json(['message' => 'RTA Fine added successfully', 'reload' => true], 200);
             }
             Flash::success('RTA Fine added successfully with all charges and ledger.');
             return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
             report($e);
-            if($path){
+            if ($path) {
                 \Storage::delete($path);
             }
             Flash::error('Error: ' . $e->getMessage());
@@ -488,10 +489,10 @@ class RtaFinesController extends AppBaseController
     public function fileUpload(Request $request, $company_slug, $id)
     {
         $fine = RtaFines::find($id);
-        if(!$fine) {
-            return response()->json(['message' => 'Fine Not Found'],500);
+        if (!$fine) {
+            return response()->json(['message' => 'Fine Not Found'], 500);
         }
-        if($request->isMethod('POST')){
+        if ($request->isMethod('POST')) {
             if ($request->hasFile('attachment_path')) {
                 $old = $fine->attachment_path;
                 $photo = $request->file('attachment_path');
@@ -499,7 +500,7 @@ class RtaFinesController extends AppBaseController
                 $fine->attachment_path = $path;
                 \Storage::delete($old);
             }
-            if($request->hasFile('attachment')){
+            if ($request->hasFile('attachment')) {
                 $old = $fine->attachment;
                 $photo = $request->file('attachment');
                 $path = $photo->store('fines', 'public');
@@ -507,8 +508,8 @@ class RtaFinesController extends AppBaseController
                 \Storage::delete($old);
             }
             $fine->save();
-            return response()->json(['message' => 'File Uploaded Successfully', 'reload' => true],200);
-        }else {
+            return response()->json(['message' => 'File Uploaded Successfully', 'reload' => true], 200);
+        } else {
             return view('rta_fines.attach_file', compact('id', 'fine'));
         }
     }
@@ -536,13 +537,13 @@ class RtaFinesController extends AppBaseController
     {
 
         $rtaFines = $this->rtaFinesRepository->find($id);
-        $bikes = Bikes::with(['leasingCompany','rider'])->get();
+        $bikes = Bikes::with(['leasingCompany', 'rider'])->get();
         $riders = Riders::with(['account'])->get();
-        $companies = BikeRentCompany::with(['account'])->where('customer_type','bike_rental')->get();
+        $companies = BikeRentCompany::with(['account'])->where('customer_type', 'bike_rental')->get();
         $rtaFineAccount = Accounts::where('id', \App\Helpers\HeadAccount::RTA_FINE)->first();
         if (empty($rtaFines)) {
-            if($request->ajax()){
-                return response()->json(['message'=>'RTA Fine Not Found'],500);
+            if ($request->ajax()) {
+                return response()->json(['message' => 'RTA Fine Not Found'], 500);
             }
             Flash::error('Rta Fine not found');
 
@@ -586,7 +587,7 @@ class RtaFinesController extends AppBaseController
             }
 
             // Update fields
-            $input['billing_month']   = $input['billing_month'].'-01';
+            $input['billing_month']   = $input['billing_month'] . '-01';
             $input['plate_no']        = $bike->plate;
             $input['trans_date']      = Carbon::today()->format('Y-m-d');
             $input['branch_id']       = $bike->branch_id;
@@ -599,8 +600,8 @@ class RtaFinesController extends AppBaseController
             | Transactions (update only)
             |--------------------------------------------------------------------------
             */
-            $rider_account = $rtaFines->rider_id ? $rtaFines->rider->account_id : ( $rtaFines->rental_company_id ? $rtaFines->rentalCompany->account_id : null);
-            if(!$rider_account)
+            $rider_account = $rtaFines->rider_id ? $rtaFines->rider->account_id : ($rtaFines->rental_company_id ? $rtaFines->rentalCompany->account_id : null);
+            if (!$rider_account)
                 throw new \Exception('Debit Account Not Found');
 
             Transactions::where('trans_code', $trans_code)->delete();
@@ -612,19 +613,19 @@ class RtaFinesController extends AppBaseController
                 'reference_type' => 'RTA',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
-                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: '.$rtaFines->plate_no,
+                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
                 'debit'          => $rtaFines->total_amount,
                 'billing_month'  => $billingMonth,
                 'branch_id'      => $bike->branch_id,
             ]);
-                
+
             $TransactionService->recordTransaction([
                 'account_id'     => HeadAccount::RTA_FINE,
                 'reference_id'   => $rtaFines->id,
                 'reference_type' => 'RTA',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
-                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: '.$rtaFines->plate_no,
+                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
                 'credit'         => $rtaFines->total_amount - $rtaFines->vat,
                 'branch_id'      => $bike->branch_id,
                 'billing_month'  => $billingMonth,
@@ -650,7 +651,7 @@ class RtaFinesController extends AppBaseController
             |--------------------------------------------------------------------------
             */
             // Update voucher (RFV type created during fine creation)
-            
+
             $rtaFines->voucher()->update([
                 'rider_id'      => $rtaFines->rider_id,
                 'trans_date'    => $rtaFines->trans_date,
@@ -670,15 +671,15 @@ class RtaFinesController extends AppBaseController
 
             DB::commit();
             \Storage::delete($path);
-            if($request->ajax()){
-                return response()->json(['message' => 'RTA Fine updated successfully.', 'reload' => true],200);
+            if ($request->ajax()) {
+                return response()->json(['message' => 'RTA Fine updated successfully.', 'reload' => true], 200);
             }
             Flash::success('RTA Fine updated successfully.');
 
             return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
-            if($newPath) {
+            if ($newPath) {
                 \Storage::delete($newPath);
             }
             report($e);
@@ -693,13 +694,13 @@ class RtaFinesController extends AppBaseController
      *
      * @throws \Exception
      */
-    public function destroy(Request $request,$company_slug, $id)
+    public function destroy(Request $request, $company_slug, $id)
     {
         $rtaFines = $this->rtaFinesRepository->find($id);
 
         if (empty($rtaFines)) {
-            if($request->ajax()){
-                return response()->json(['message' => 'Fine Not Found'],500);
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Fine Not Found'], 500);
             }
             Flash::error('Rta Fines not found');
             return redirect()->back();
@@ -718,24 +719,24 @@ class RtaFinesController extends AppBaseController
                     'pay_account' => null,
                 ]);
                 DB::commit();
-                \Log::info('fine',$rtaFines->toArray());
-                if($path){
+                \Log::info('fine', $rtaFines->toArray());
+                if ($path) {
                     \Storage::delete($path);
                 }
-                if($request->ajax()){
-                    return response()->json(['message' => 'Fine Payment Deleted Successfully.', 'reload' => true],200);
+                if ($request->ajax()) {
+                    return response()->json(['message' => 'Fine Payment Deleted Successfully.', 'reload' => true], 200);
                 }
                 Flash::success('Fine Payment Deleted Successfully');
                 return redirect()->back();
-            }catch(\Exception $e){
+            } catch (\Exception $e) {
                 DB::rollBack();
-                return response()->json(['message' => $e->getMessage()],500);
+                return response()->json(['message' => $e->getMessage()], 500);
             }
-        }else {
+        } else {
             try {
                 $rtaFines->load(['voucher.transactions']);
                 $billingMonth = $rtaFines->billing_month;
-                $ticketIdentifier = $rtaFines->ticket_no ;
+                $ticketIdentifier = $rtaFines->ticket_no;
                 $path = $rtaFines->attachment_path;
 
                 // Get related transactions before deletion for cascade tracking
@@ -745,7 +746,7 @@ class RtaFinesController extends AppBaseController
                 $relatedVoucher = $rtaFines->voucher;
 
                 // Soft delete related transactions and track cascade
-                if($relatedTransactions){
+                if ($relatedTransactions) {
                     foreach ($relatedTransactions as $transaction) {
                         $transaction->delete(); // Soft delete
 
@@ -772,7 +773,7 @@ class RtaFinesController extends AppBaseController
                 }
 
                 // Soft delete related voucher and track cascade
-                if($relatedVoucher){
+                if ($relatedVoucher) {
                     $relatedVoucher->delete(); // Soft delete
 
                     // Track cascade deletion
@@ -827,19 +828,19 @@ class RtaFinesController extends AppBaseController
                     \Log::error("Failed to track RTA Fine deletion: " . $e->getMessage());
                     \Log::error("Stack trace: " . $e->getTraceAsString());
                 }
-                
+
                 DB::commit();
-                if($path)
+                if ($path)
                     \Storage::delete($path);
-                if($request->ajax()){
+                if ($request->ajax()) {
                     return response()->json(['message' => 'Fine Deleted Successfully', 'reload' => true], 200);
                 }
                 Flash::success('RTA Fine deleted successfully with all related records.');
             } catch (\Exception $e) {
                 DB::rollBack();
                 \Log::error("Error deleting RTA Fine ID: {$id} - " . $e->getMessage());
-                if($request->ajax()){
-                    return response()->json(['message' => 'Error occured while deleting fine. '.$e->getMessage()], 500);
+                if ($request->ajax()) {
+                    return response()->json(['message' => 'Error occured while deleting fine. ' . $e->getMessage()], 500);
                 }
                 Flash::error('Error deleting RTA Fine: ' . $e->getMessage());
             }
@@ -859,27 +860,27 @@ class RtaFinesController extends AppBaseController
         }
         $tripDate = request()->input('trip_date') ?? date('1970-01-01');
         $history = $bike->history()
-                    ->where('note_date','<=', $tripDate)
-                    ->where(function($query) use ($tripDate){
-                        $query->where('return_date', '>=', $tripDate)
-                            ->orWhereNull('return_date');
-                    })
-                    ->first();
+            ->where('note_date', '<=', $tripDate)
+            ->where(function ($query) use ($tripDate) {
+                $query->where('return_date', '>=', $tripDate)
+                    ->orWhereNull('return_date');
+            })
+            ->first();
         $currentRiderId = $bike->rider_id;
         $currentCompanyId = $bike->rental_company_id;
-        
+
         // Get rider IDs from history
         $riderIds = $bike->history()->whereNotNull('rider_id')->pluck('rider_id')->toArray();
         // Get company IDs from history
         $companyIds = $bike->history()->whereNotNull('rental_company_id')->pluck('rental_company_id')->toArray();
-        
+
         // Fetch riders and companies
         $riders = \App\Support\CompanyQuery::table('riders')->whereIn('id', $riderIds)->get();
         $companies = \App\Support\CompanyQuery::table('bike_rent_companies')
             ->where('customer_type', 'bike_rental')
             ->whereIn('id', $companyIds)
             ->get();
-        
+
         // Build riders dropdown HTML
         $ridersHtml = '';
         if ($riders->isEmpty()) {
@@ -892,7 +893,7 @@ class RtaFinesController extends AppBaseController
                     . '>' . $r->rider_id . ' - ' . $r->name . '</option>';
             }
         }
-        
+
         // Build companies dropdown HTML
         $companiesHtml = '';
         if ($companies->isEmpty()) {
@@ -901,11 +902,11 @@ class RtaFinesController extends AppBaseController
             $companiesHtml = '<option value="">Select Company</option>';
             foreach ($companies as $c) {
                 $companiesHtml .= '<option value="' . $c->id . '"'
-                    . ($c->id == ( $history?->rental_company_id ?? $currentCompanyId ?? 0) ? ' selected' : '')
+                    . ($c->id == ($history?->rental_company_id ?? $currentCompanyId ?? 0) ? ' selected' : '')
                     . '>' . $c->name . '</option>';
             }
         }
-        
+
         // Return JSON response with both dropdowns
         return response()->json([
             'success' => true,

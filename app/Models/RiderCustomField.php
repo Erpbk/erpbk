@@ -9,38 +9,7 @@ class RiderCustomField extends BaseModel
 {
     private static function ensureDefaultFixedAssignments(array $fieldKeys): void
     {
-        $columns = Schema::getColumnListing('riders');
-        $categories = self::scopedRiderCategoriesQuery()->orderBy('display_order')->orderBy('id')->get();
-        if ($categories->isEmpty()) {
-            return;
-        }
-
-        $jobInfoCategoryId = (int) ($categories->firstWhere('slug', 'job_info')->id ?? 0);
-        $fallbackCategoryId = (int) ($categories->firstWhere('slug', 'other')->id ?? $categories->first()->id);
-        $targetCategoryId = $jobInfoCategoryId > 0 ? $jobInfoCategoryId : $fallbackCategoryId;
-        if ($targetCategoryId <= 0) {
-            return;
-        }
-
-        foreach ($fieldKeys as $fieldKey) {
-            if (!in_array($fieldKey, $columns, true)) {
-                continue;
-            }
-            if (in_array($fieldKey, self::removedRiderColumns(), true)) {
-                continue;
-            }
-            $existing = RiderFieldCategoryAssignment::where('field_key', $fieldKey)->first();
-            if ($existing) {
-                continue;
-            }
-            RiderFieldCategoryAssignment::create([
-                'field_key' => $fieldKey,
-                'category_id' => $targetCategoryId,
-                'display_order' => (int) RiderFieldCategoryAssignment::where('category_id', $targetCategoryId)->max('display_order') + 1,
-                'is_visible' => true,
-                'is_required' => false,
-            ]);
-        }
+        app(\App\Services\Rider\RiderDefaultCategoryService::class)->syncFixedFieldAssignments($fieldKeys);
     }
 
     private static function scopedRiderCategoriesQuery()

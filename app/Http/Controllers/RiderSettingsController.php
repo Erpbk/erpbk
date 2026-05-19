@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Services\Rider\RiderDefaultCategoryService;
 use App\Models\RiderCategory;
 use App\Models\RiderCustomField;
 use App\Models\RiderDocumentType;
@@ -45,6 +46,16 @@ class RiderSettingsController extends Controller
         return RiderCategory::query();
     }
 
+    protected function ensureDefaultRiderCategorySetup(): RiderCategory
+    {
+        $service = app(RiderDefaultCategoryService::class);
+        $defaultCategory = $service->ensure();
+        $service->syncFixedFieldAssignments($this->validFixedAssignableFieldKeys());
+        $service->assignUnassignedCustomFields($defaultCategory);
+
+        return $defaultCategory;
+    }
+
     protected function findScopedRiderCategory(int $id): RiderCategory
     {
         return $this->riderCategoryQuery()->where('id', $id)->firstOrFail();
@@ -60,7 +71,13 @@ class RiderSettingsController extends Controller
      */
     public function index()
     {
-        $categories = $this->riderCategoryQuery()->orderBy('display_order')->orderBy('id')->get();
+        $defaultCategory = $this->ensureDefaultRiderCategorySetup();
+
+        $categories = $this->riderCategoryQuery()
+            ->orderByRaw('CASE WHEN slug = ? THEN 0 ELSE 1 END', [RiderDefaultCategoryService::DEFAULT_SLUG])
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
         $fixedFieldsByCategory = RiderCustomField::fixedRiderFieldsByCategory();
         $customFields = RiderCustomField::with('category')->orderBy('display_order')->orderBy('id')->get();
         $customFieldsByCategory = $customFields->groupBy('category_id');
@@ -87,6 +104,7 @@ class RiderSettingsController extends Controller
             ->get();
 
         return view('settings.rider_settings.index', compact(
+            'defaultCategory',
             'categories',
             'fixedFieldsByCategory',
             'customFields',
@@ -281,19 +299,10 @@ class RiderSettingsController extends Controller
     {
         $keys = $this->validFixedAssignableFieldKeys();
         $assignments = RiderFieldCategoryAssignment::all()->keyBy('field_key');
-        $slugToId = RiderCategory::whereNotNull('slug')->pluck('id', 'slug')->all();
-        $map = RiderCustomField::fixedFieldsSlugMap();
+        $defaultCategoryId = (int) app(RiderDefaultCategoryService::class)->ensure()->id;
         $list = [];
         foreach ($keys as $fieldKey) {
             $a = $assignments->get($fieldKey);
-            $defaultSlug = 'other';
-            foreach ($map as $slug => $slugKeys) {
-                if (in_array($fieldKey, $slugKeys, true)) {
-                    $defaultSlug = $slug;
-                    break;
-                }
-            }
-            $defaultCategoryId = $slugToId[$defaultSlug] ?? $categories->first()?->id;
             $list[] = (object) [
                 'field_key' => $fieldKey,
                 'label' => RiderCustomField::humanizeFieldKey($fieldKey),
@@ -603,7 +612,11 @@ class RiderSettingsController extends Controller
         $validated = $request->validate([
             'label' => 'required|string|max:255',
         ]);
-        if ($this->riderCategoryCompanyScoped() && empty($category->company_id)) {
+        if (
+            $this->riderCategoryCompanyScoped()
+            && empty($category->company_id)
+            && ! app(RiderDefaultCategoryService::class)->isDefaultCategory($category)
+        ) {
             $category->company_id = $this->riderCategoryCompanyId();
         }
         $category->label = $validated['label'];
@@ -619,6 +632,15 @@ class RiderSettingsController extends Controller
     {
         $category = $this->findScopedRiderCategory((int) $id);
         $request = request();
+
+        if (app(RiderDefaultCategoryService::class)->isDefaultCategory($category)) {
+            $message = __('The default category cannot be deleted.');
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
+            return redirect()->route('settings-panel.rider-settings.index')->with('error', $message);
+        }
 
         $hasCustomFields = $category->customFields()->exists();
         $hasFixedFields = RiderFieldCategoryAssignment::where('category_id', $category->id)->exists();
@@ -690,9 +712,8 @@ class RiderSettingsController extends Controller
         $validated['help_text'] = $request->input('help_text');
         $validated['default_value'] = $request->input('default_value');
         $validated['input_format'] = $request->input('input_format');
-        // New custom fields must start as unassigned and only appear in Rider module
-        // after explicit category assignment from Rider Fields settings.
-        $validated['category_id'] = null;
+        $validated['category_id'] = $validated['category_id']
+            ?? (int) app(RiderDefaultCategoryService::class)->ensure()->id;
         $validated['data_privacy'] = [
             'pii' => $request->boolean('data_privacy_pii'),
             'ephi' => $request->boolean('data_privacy_ephi'),

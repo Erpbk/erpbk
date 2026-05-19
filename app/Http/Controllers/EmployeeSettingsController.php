@@ -177,8 +177,9 @@ class EmployeeSettingsController extends Controller
         $result = [];
         foreach ($categories as $cat) {
             $fixedSpecs = EmployeeCustomField::fixedFieldInputSpecs();
-            $items = $grouped->get($cat->id, collect())->map(function ($a) use ($fixedSpecs, $employeeColumns) {
-                if (!isset($employeeColumns[$a->field_key])) {
+            $hiddenKeys = array_flip(EmployeeCustomField::removedEmployeeColumns());
+            $items = $grouped->get($cat->id, collect())->map(function ($a) use ($fixedSpecs, $employeeColumns, $hiddenKeys) {
+                if (!isset($employeeColumns[$a->field_key]) || isset($hiddenKeys[$a->field_key])) {
                     return null;
                 }
                 $rawVisible = $a->getRawOriginal('is_visible');

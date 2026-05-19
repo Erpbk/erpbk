@@ -17,13 +17,19 @@ class EmployeeCustomField extends BaseModel
         return EmployeeCategory::query();
     }
 
-    private static function removedEmployeeColumns(): array
+    /**
+     * Columns hidden from Employee Settings, employee form, and index table.
+     */
+    public static function removedEmployeeColumns(): array
     {
         return [
             'account_id',
             'created_by',
             'updated_by',
             'deleted_at',
+            'company_id',
+            'profile_image',
+            'employee_id',
         ];
     }
     protected $table = 'employee_custom_fields';
@@ -223,7 +229,11 @@ class EmployeeCustomField extends BaseModel
         $result = [];
         foreach ($categories as $cat) {
             $fields = [];
+            $hidden = array_flip(self::removedEmployeeColumns());
             foreach ($assignments->get($cat->id, collect()) as $a) {
+                if (isset($hidden[$a->field_key])) {
+                    continue;
+                }
                 $fields[] = [
                     'key' => $a->field_key,
                     'label' => self::humanizeFieldKey($a->field_key),

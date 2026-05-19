@@ -28,34 +28,7 @@
         </div>
         <div class="card-body">
             @php
-                $moduleTree = [
-                    ['key' => 'dashboard'],
-                    ['key' => 'cash_banks', 'children' => ['cash_banks', 'cheques']],
-                    ['key' => 'employees'],
-                    ['key' => 'attendance', 'children' => ['attendance_records', 'attendance_summary']],
-                    ['key' => 'items', 'children' => ['items_list', 'garage_items']],
-                    ['key' => 'leads'],
-                    ['key' => 'customers'],
-                    ['key' => 'vendors'],
-                    ['key' => 'recruiters'],
-                    ['key' => 'riders', 'children' => ['riders_list', 'invoices', 'activities', 'live_activities', 'rider_report']],
-                    ['key' => 'bikes', 'children' => ['bike_list', 'maintenance_overview']],
-                    ['key' => 'sims'],
-                    ['key' => 'fuel_cards'],
-                    ['key' => 'rta_fines'],
-                    ['key' => 'rta_saliks'],
-                    ['key' => 'inventory'],
-                    ['key' => 'visa_expense'],
-                    ['key' => 'expenses'],
-                    ['key' => 'vat', 'children' => ['vat_ledger', 'vat_return_file']],
-                    ['key' => 'leasing_companies', 'children' => ['leasing_companies_list', 'leasing_invoices']],
-                    ['key' => 'garages'],
-                    ['key' => 'supplier', 'children' => ['suppliers', 'supplier_invoices']],
-                    ['key' => 'assets'],
-                    ['key' => 'documents'],
-                    ['key' => 'vouchers'],
-                    ['key' => 'accounts', 'children' => ['chart_of_accounts', 'ledger']],
-                ];
+                $moduleTree = config('company_module_tree', []);
                 $defaultLabels = config('menu_labels.defaults', []);
             @endphp
             <form action="{{ route('admin.companies.modules.update', $company) }}" method="post">

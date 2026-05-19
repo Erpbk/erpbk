@@ -272,6 +272,20 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::post('module-settings/{module}/visa-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateVisaExpenseTop'])->name('settings-panel.module-settings.update-visa-expense-top')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/bike-registration-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateBikeRegistrationTop'])->name('settings-panel.module-settings.update-bike-registration-top')->where('module', '[A-Za-z0-9_-]+');
 
+    // Centralized top bar settings (generic module storage)
+    Route::prefix('module-settings/{module}/top-bar')->where(['module' => '[A-Za-z0-9_-]+'])->name('settings-panel.module-top-bar.')->group(function () {
+        Route::get('accordion', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'accordionBody'])->name('accordion');
+        Route::post('categories', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'storeCategory'])->name('store-category');
+        Route::put('categories/{id}', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'updateCategory'])->name('update-category');
+        Route::delete('categories/{id}', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'destroyCategory'])->name('destroy-category');
+        Route::post('categories/{id}/visibility', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'updateCategoryVisibility'])->name('update-visibility');
+        Route::get('categories/{id}/field-values', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'categoryFieldValues'])->name('field-values');
+        Route::post('options', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'storeOption'])->name('store-option');
+        Route::put('options/{id}', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'updateOption'])->name('update-option');
+        Route::delete('options/{id}', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'destroyOption'])->name('destroy-option');
+        Route::post('categories/reorder', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'reorderCategories'])->name('reorder-categories');
+    });
+
     // Module settings page + label update
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[A-Za-z0-9_-]+');

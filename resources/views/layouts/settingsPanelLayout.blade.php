@@ -4,93 +4,8 @@
 @php
 $configData = Helper::appClasses();
 $settingsPanelLabels = \App\Models\Settings::getMenuLabels();
-$settingsPanelRidersLabel = \App\Models\Settings::getMenuLabel('rider_settings');
-$settingsPanelEmployeesSettingsLabel = \App\Models\Settings::getMenuLabel('employee_settings');
 $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug');
-$moduleIcons = [
-'dashboard' => 'ti-layout-dashboard',
-'recycle_bin' => 'ti-trash',
-'cash_banks' => 'ti-building-bank',
-'employees' => 'ti-user',
-'employee-settings' => 'ti-user-cog',
-'attendance' => 'ti-calendar-check',
-'items' => 'ti-notes',
-'leads' => 'ti-user-plus',
-'customers' => 'ti-user-star',
-'customer_invoices' => 'ti-file-invoice',
-'vendors' => 'ti-user-star',
-'recruiters' => 'ti-user-star',
-'bikes' => 'ti-motorbike',
-'sims' => 'ti-device-sim',
-'fuel_cards' => 'ti-gas-station',
-'rta_fines' => 'ti-file-alert',
-'rta_saliks' => 'ti-cash',
-'inventory' => 'ti-package',
-'visa_expense' => 'ti-credit-card',
-'expenses' => 'ti-receipt',
-'leasing_companies' => 'ti-building',
-'garages' => 'ti-parking',
-'supplier' => 'ti-truck',
-'assets' => 'ti-box',
-'documents' => 'ti-upload',
-'cheques' => 'ti-file',
-'items_list' => 'ti-list-details',
-'garage_items' => 'ti-tool',
-'attendance_records' => 'ti-calendar-check',
-'attendance_summary' => 'ti-calendar-stats',
-'riders' => 'ti-user-pin',
-'riders_list' => 'ti-users',
-'invoices' => 'ti-file-invoice',
-'activities' => 'ti-bike',
-'live_activities' => 'ti-activity',
-'rider_report' => 'ti-chart-bar',
-'bike_list' => 'ti-motorbike',
-'bike_registration' => 'ti-file-certificate',
-'bike_on_rent' => 'ti-motorbike',
-'bike_rent_customers' => 'ti-users',
-'maintenance_overview' => 'ti-tool',
-'vat' => 'ti-receipt-tax',
-'vat_ledger' => 'ti-receipt-tax',
-'vat_return_file' => 'ti-file-export',
-'leasing_companies_list' => 'ti-building',
-'leasing_invoices' => 'ti-file-invoice',
-'suppliers' => 'ti-truck',
-'supplier_invoices' => 'ti-file-invoice',
-'vouchers' => 'ti-ticket',
-'accounts' => 'ti-graph',
-'chart_of_accounts' => 'ti-list-tree',
-'ledger' => 'ti-book',
-];
 $settingsIsCompanyAdmin = auth()->check() && auth()->user()->isAdmin();
-$erpModuleMenu = [
-['key' => 'dashboard'],
-['key' => 'cash_banks', 'children' => ['cash_banks', 'cheques']],
-['key' => 'employees', 'children' => ['employee-settings']],
-['key' => 'attendance', 'children' => ['attendance', 'attendance_records', 'attendance_summary']],
-['key' => 'items', 'children' => ['items', 'items_list', 'garage_items']],
-['key' => 'leads'],
-['key' => 'customers', 'children' => ['customers', 'customer_invoices', 'customer_receipts']],
-['key' => 'vendors'],
-['key' => 'recruiters'],
-['key' => 'riders', 'children' => ['rider-settings', 'invoices', 'activities', 'live_activities', 'rider_report']],
-['key' => 'bikes', 'children' => ['bike_list', 'bike_registration']],
-['key' => 'bike_on_rent', 'children' => ['bike_on_rent', 'bike_rent_customers']],
-['key' => 'sims'],
-['key' => 'fuel_cards'],
-['key' => 'rta_fines'],
-['key' => 'rta_saliks'],
-['key' => 'inventory'],
-['key' => 'visa_expense'],
-['key' => 'expenses'],
-['key' => 'vat', 'children' => ['vat', 'vat_ledger', 'vat_return_file']],
-['key' => 'leasing_companies', 'children' => ['leasing_companies', 'leasing_companies_list', 'leasing_invoices']],
-['key' => 'garages'],
-['key' => 'supplier', 'children' => ['supplier', 'suppliers', 'supplier_invoices']],
-['key' => 'assets'],
-['key' => 'documents'],
-['key' => 'vouchers'],
-['key' => 'accounts', 'children' => ['accounts', 'chart_of_accounts', 'ledger']],
-];
 @endphp
 @extends('layouts/commonMaster')
 
@@ -212,82 +127,11 @@ $containerNav = 'container-fluid';
         </li>
         @endcan
 
-        {{-- ERP Module Settings (General tab: change module name in menu) --}}
+        {{-- ERP Module Settings — mirrors main app sidebar (layouts/menu.blade.php) --}}
         <li class="menu-header small text-uppercase mt-3">
           <span class="menu-header-text">ERP Module Settings</span>
         </li>
-        {{-- Specific module settings (Account Fields, Voucher, Rider, Visa Status Types) --}}
-        @can('gn_settings')
-        <li class="menu-item {{ Request::is('settings-panel/account-fields*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.account-fields.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-wallet"></i>
-            <div>{{ $settingsPanelLabels['accounts'] ?? 'Accounts' }}</div>
-          </a>
-        </li>
-        <li class="menu-item {{ Request::is('settings-panel/voucher-settings*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.voucher-settings.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-file-invoice"></i>
-            <div>{{ $settingsPanelLabels['vouchers'] ?? 'Vouchers' }}</div>
-          </a>
-        </li>
-        @endcan
-        @can('vat_view')
-        <li class="menu-item {{ Request::is('settings-panel/vat-settings*') ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.vat-settings.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti ti-receipt-tax"></i>
-            <div>{{ $settingsPanelLabels['vat_settings'] ?? 'VAT Settings' }}</div>
-          </a>
-        </li>
-        @endcan
-        @foreach($erpModuleMenu as $menuItem)
-        @php
-        $parentKey = $menuItem['key'];
-        $children = $menuItem['children'] ?? [];
-        $parentRoutePattern = 'settings-panel/module-settings/' . $parentKey;
-        $anyChildActive = false;
-        foreach ($children as $childKey) {
-        if (
-        Request::is('settings-panel/module-settings/' . $childKey)
-        || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*'))
-        || ($childKey === 'cheques' && Request::is('settings-panel/cheques-settings*'))
-        || ($childKey === 'employee-settings' && Request::is('settings-panel/employee-settings*'))
-        || ($childKey === 'bike_registration' && Request::is('settings-panel/bike-registration-statuses*'))
-        ) {
-        $anyChildActive = true;
-        break;
-        }
-        }
-        $isOpen = Request::is($parentRoutePattern) || $anyChildActive;
-        $isVisible = \App\Support\CompanyModuleVisibility::enabled($parentKey);
-        @endphp
-        @if($isVisible)
-        @if(!empty($children))
-        <li class="menu-item {{ $isOpen ? 'open' : '' }}">
-          <a href="javascript:void(0);" class="menu-link menu-toggle">
-            <i class="menu-icon tf-icons ti {{ $moduleIcons[$parentKey] ?? 'ti-adjustments-alt' }}"></i>
-            <div>{{ $parentKey === 'riders' ? $settingsPanelRidersLabel : ($settingsPanelLabels[$parentKey] ?? config('menu_labels.defaults.' . $parentKey, ucwords(str_replace('_', ' ', $parentKey)))) }}</div>
-          </a>
-          <ul class="menu-sub">
-            @foreach($children as $childKey)
-            <li class="menu-item {{ Request::is('settings-panel/module-settings/' . $childKey) || ($childKey === 'rider-settings' && Request::is('settings-panel/rider-settings*')) || ($childKey === 'cheques' && Request::is('settings-panel/cheques-settings*')) || ($childKey === 'employee-settings' && Request::is('settings-panel/employee-settings*')) || ($childKey === 'bike_registration' && Request::is('settings-panel/bike-registration-statuses*')) ? 'active' : '' }}">
-              <a href="{{ $childKey === 'rider-settings' ? route('settings-panel.rider-settings.index', ['company_slug' => $settingsCompanySlug]) : ($childKey === 'cheques' ? route('settings-panel.cheques-settings.index', ['company_slug' => $settingsCompanySlug]) : ($childKey === 'employee-settings' ? route('settings-panel.employee-settings.index', ['company_slug' => $settingsCompanySlug]) : route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $childKey]))) }}" class="menu-link">
-                <i class="menu-icon tf-icons ti {{ $moduleIcons[$childKey] ?? 'ti-adjustments-alt' }}"></i>
-                <div>{{ $childKey === 'rider-settings' ? $settingsPanelRidersLabel : ($childKey === 'employee-settings' ? $settingsPanelEmployeesSettingsLabel : ($settingsPanelLabels[$childKey] ?? config('menu_labels.defaults.' . $childKey, ucwords(str_replace('_', ' ', $childKey))))) }}</div>
-              </a>
-            </li>
-            @endforeach
-          </ul>
-        </li>
-        @else
-        <li class="menu-item {{ Request::is($parentRoutePattern) ? 'active' : '' }}">
-          <a href="{{ route('settings-panel.module-settings.index', ['company_slug' => $settingsCompanySlug, 'module' => $parentKey]) }}" class="menu-link">
-            <i class="menu-icon tf-icons ti {{ $moduleIcons[$parentKey] ?? 'ti-adjustments-alt' }}"></i>
-            <div>{{ $settingsPanelLabels[$parentKey] ?? config('menu_labels.defaults.' . $parentKey, ucwords(str_replace('_', ' ', $parentKey))) }}</div>
-          </a>
-        </li>
-        @endif
-        @endif
-        @endforeach
+        @include('settings.partials.erp_module_settings_nav')
         @else
         <li class="menu-header small text-uppercase">
           <span class="menu-header-text">{{ __('My account') }}</span>

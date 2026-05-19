@@ -12,6 +12,10 @@ use App\Models\Settings;
 use App\Models\BikeRegistrationStatus;
 use App\Models\SimAssignFieldAssignment;
 use App\Models\VisaStatus;
+use App\Services\Module\ModuleLabelService;
+use App\Services\Module\ModuleTopBarSettingsService;
+use App\Support\ErpModuleRegistry;
+use App\Support\ModuleTopBarRoutes;
 use App\Support\SimAssignFields;
 use App\Support\ModuleFieldSource;
 use Illuminate\Http\JsonResponse;
@@ -199,15 +203,17 @@ class ModuleSettingsController extends Controller
      */
     public function index(string $company_slug, string $module)
     {
-        $module = $this->normalizeModuleKey($module);
+        $routeModule = $this->normalizeModuleKey($module);
+        $topBarModuleKey = $routeModule;
+        $module = ErpModuleRegistry::settingsFieldsModuleKey($routeModule);
 
         if ($module === 'bike_list') {
             return app(\App\Http\Controllers\BikeSettingsController::class)->index();
         }
 
         $defaultLabels = config('menu_labels.defaults', []);
-        $defaultLabel = $defaultLabels[$module] ?? ucwords(str_replace('_', ' ', $module));
-        $moduleLabel = Settings::getMenuLabel($module);
+        $defaultLabel = $defaultLabels[$routeModule] ?? $defaultLabels[$module] ?? ucwords(str_replace('_', ' ', $routeModule));
+        $moduleLabel = Settings::getMenuLabel($routeModule) ?: Settings::getMenuLabel($module);
         $pageTitle = $moduleLabel . ' – Settings';
         $companyId = optional(auth()->user())->company_id;
         $moduleSourceTable = $this->syncModuleFixedAssignmentsFromDb($module);
@@ -353,9 +359,25 @@ class ModuleSettingsController extends Controller
                 ->get();
         }
 
+        $topBarCategories = collect();
+        $topBarSelectableColumns = [];
+        if (ErpModuleRegistry::showTopBarTabInModuleSettings($topBarModuleKey)) {
+            $topBarService = app(ModuleTopBarSettingsService::class);
+            $topBarCategories = $topBarService->categoriesForModule($topBarModuleKey);
+            $topBarSelectableColumns = $topBarService->selectableColumns($topBarModuleKey);
+        }
+
         return view('settings.bike_settings.index', [
             'moduleKey' => $module,
+            'topBarModuleKey' => $topBarModuleKey,
             'moduleLabel' => $moduleLabel,
+            'topBarCategories' => $topBarCategories,
+            'topBarSelectableColumns' => $topBarSelectableColumns,
+            'showModuleTopBarTab' => ErpModuleRegistry::showTopBarTabInModuleSettings($topBarModuleKey),
+            'topBarTabLabel' => ErpModuleRegistry::topBarTabLabel($topBarModuleKey, $moduleLabel),
+            'topBarRoutes' => ModuleTopBarRoutes::resolve($topBarModuleKey),
+            'topBarColumnField' => ModuleTopBarRoutes::columnFieldForModule($topBarModuleKey),
+            'topBarColumnLabel' => ModuleTopBarRoutes::columnLabelForModule($topBarModuleKey),
             'defaultLabel' => $defaultLabel,
             'pageTitle' => $pageTitle,
             'categories' => $categories,
@@ -663,11 +685,10 @@ class ModuleSettingsController extends Controller
             return back()->with('error', __('Invalid module key.'));
         }
         $request->validate(['module_label' => 'required|string|max:100']);
-        Settings::updateOrCreate(
-            ['name' => 'menu_label_' . $module],
-            ['value' => trim($request->input('module_label'))]
+        app(ModuleLabelService::class)->saveLabel(
+            $module,
+            trim((string) $request->input('module_label'))
         );
-        Settings::clearMenuLabelsCache();
 
         return redirect()
             ->route('settings-panel.module-settings.index', [
@@ -722,21 +743,44 @@ class ModuleSettingsController extends Controller
             'display_label' => 'nullable|string|max:255',
             'is_visible' => 'nullable|boolean',
             'is_required' => 'nullable|boolean',
+            'input_type' => 'nullable|string|max:50',
+            'input_config_options' => 'nullable|string',
         ]);
 
         $fieldKey = trim((string) $validated['field_key']);
         $isVisible = filter_var((string) ($validated['is_visible'] ?? false), FILTER_VALIDATE_BOOLEAN);
         $isRequired = filter_var((string) ($validated['is_required'] ?? false), FILTER_VALIDATE_BOOLEAN);
 
+        $payload = [
+            'field_label' => $validated['field_label'] ?? null,
+            'category_id' => $validated['category_id'] ?? null,
+            'display_label' => $validated['display_label'] ?? null,
+            'is_visible' => $isVisible,
+            'is_required' => $isRequired,
+        ];
+
+        if (array_key_exists('input_type', $validated)) {
+            $inputType = $validated['input_type'] !== null ? trim((string) $validated['input_type']) : null;
+            $allowedTypes = array_keys(ModuleCustomField::dataTypes());
+            if ($inputType !== null && $inputType !== '' && !in_array($inputType, $allowedTypes, true)) {
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json(['success' => false, 'message' => 'Invalid input type.'], 422);
+                }
+
+                return back()->withErrors(['input_type' => 'Invalid input type.']);
+            }
+            $payload['input_type'] = ($inputType === '' ? null : $inputType);
+        }
+
+        if (array_key_exists('input_config_options', $validated)) {
+            $payload['input_config'] = !empty($validated['input_config_options'])
+                ? ['options' => $validated['input_config_options']]
+                : null;
+        }
+
         $assignment = ModuleFieldCategoryAssignment::updateOrCreate(
             ['module_key' => $module, 'field_key' => $fieldKey],
-            [
-                'field_label' => $validated['field_label'] ?? null,
-                'category_id' => $validated['category_id'] ?? null,
-                'display_label' => $validated['display_label'] ?? null,
-                'is_visible' => $isVisible,
-                'is_required' => $isRequired,
-            ]
+            $payload
         );
 
         if ($request->wantsJson() || $request->ajax()) {

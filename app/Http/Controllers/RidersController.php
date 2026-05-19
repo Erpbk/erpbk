@@ -17,6 +17,7 @@ use App\Helpers\General;
 use App\Helpers\HeadAccount;
 use App\Http\Requests\CreateAccountsRequest;
 use App\Http\Controllers\AppBaseController;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Models\Accounts;
 use App\Models\RiderEmails;
 use App\Models\RiderCategory;
@@ -59,7 +60,7 @@ use Illuminate\Support\Facades\Log;
 
 class RidersController extends AppBaseController
 {
-  use GlobalPagination, TracksCascadingDeletions;
+  use AppliesModuleTopBarFilters, GlobalPagination, TracksCascadingDeletions;
   /** @var RidersRepository $ridersRepository*/
   private $ridersRepository;
 
@@ -344,52 +345,14 @@ class RidersController extends AppBaseController
     if ($request->has('customer_id') && !empty($request->customer_id)) {
       $query->where('customer_id', $request->customer_id);
     }
-    if (
-      Schema::hasColumn('riders', 'rider_top_option_id') &&
-      $request->has('rider_top_option_id') &&
-      !empty($request->rider_top_option_id)
-    ) {
-      $query->where('rider_top_option_id', $request->rider_top_option_id);
-    }
+    $this->applyModuleTopBarFilters($query, $request, 'riders');
     if ($request->has('attendance') && !empty($request->attendance)) {
       $query->where('attendance', $request->attendance);
     }
-    // Filter by rider status (active, inactive)
-    if ($request->has('rider_status') && !empty($request->rider_status)) {
-      $statusFilters = $request->rider_status;
-
-      if (is_array($statusFilters)) {
-        $query->where(function ($q) use ($statusFilters) {
-          foreach ($statusFilters as $status) {
-            if ($status === 'active') {
-              // Active riders: status = 1 (regardless of bike assignment)
-              $q->orWhere('riders.status', 1);
-            } elseif ($status === 'inactive') {
-              // Inactive riders: status = 3 OR no active bike assigned
-              $q->orWhere(function ($subQuery) {
-                $subQuery->where('riders.status', 3);
-              })->orWhere(function ($subQuery) {
-                $subQuery->whereDoesntHave('bikes', function ($bikeQuery) {
-                  $bikeQuery->where('warehouse', 'Active');
-                });
-              });
-            }
-          }
-        });
-      } else {
-        // Handle single selection for backward compatibility
-        if ($statusFilters === 'active') {
-          // Active riders: status = 1 AND have active bike assigned
-          $query->where('riders.status', 1);
-        } elseif ($statusFilters === 'inactive') {
-          // Inactive riders: status = 3 OR no active bike assigned
-          $query->where(function ($q) {
-            $q->where('riders.status', 3)->orWhereDoesntHave('bikes', function ($bikeQuery) {
-              $bikeQuery->where('warehouse', 'Active');
-            });
-          });
-        }
-      }
+    // Filter by rider status (active = 1, inactive = 0 or 2)
+    $riderStatusKeys = \App\Support\TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
+    if ($riderStatusKeys !== []) {
+      \App\Support\TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
     }
     // if ($request->has('status') && !empty($request->status)) {
     //   $query->where('status', $request->status);
@@ -444,10 +407,10 @@ class RidersController extends AppBaseController
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
 
-    return view('riders.index', [
+    return view('riders.index', array_merge([
       'data' => $data,
       'tableColumns' => $this->buildRidersIndexTableColumns(),
-    ]);
+    ], $this->moduleTopBarListingData($request, 'riders')));
   }
 
   /**
@@ -491,53 +454,15 @@ class RidersController extends AppBaseController
     if ($request->has('customer_id') && !empty($request->customer_id)) {
       $query->where('customer_id', $request->customer_id);
     }
-    if (
-      Schema::hasColumn('riders', 'rider_top_option_id') &&
-      $request->has('rider_top_option_id') &&
-      !empty($request->rider_top_option_id)
-    ) {
-      $query->where('rider_top_option_id', $request->rider_top_option_id);
-    }
+    $this->applyModuleTopBarFilters($query, $request, 'riders');
     if ($request->has('attendance') && !empty($request->attendance)) {
       $query->where('attendance', $request->attendance);
     }
 
-    // Filter by rider status (active, inactive)
-    if ($request->has('rider_status') && !empty($request->rider_status)) {
-      $statusFilters = $request->rider_status;
-
-      if (is_array($statusFilters)) {
-        $query->where(function ($q) use ($statusFilters) {
-          foreach ($statusFilters as $status) {
-            if ($status === 'active') {
-              // Active riders: status = 1 (regardless of bike assignment)
-              $q->orWhere('status', 1);
-            } elseif ($status === 'inactive') {
-              // Inactive riders: status = 3 OR no active bike assigned
-              $q->orWhere(function ($subQuery) {
-                $subQuery->where('status', 3);
-              })->orWhere(function ($subQuery) {
-                $subQuery->whereDoesntHave('bikes', function ($bikeQuery) {
-                  $bikeQuery->where('warehouse', 'Active');
-                });
-              });
-            }
-          }
-        });
-      } else {
-        // Handle single selection for backward compatibility
-        if ($statusFilters === 'active') {
-          // Active riders: status = 1 AND have active bike assigned
-          $query->where('status', 1);
-        } elseif ($statusFilters === 'inactive') {
-          // Inactive riders: status = 3 OR no active bike assigned
-          $query->where(function ($q) {
-            $q->where('status', 3)->orWhereDoesntHave('bikes', function ($bikeQuery) {
-              $bikeQuery->where('warehouse', 'Active');
-            });
-          });
-        }
-      }
+    // Filter by rider status (active = 1, inactive = 0 or 2)
+    $riderStatusKeys = \App\Support\TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
+    if ($riderStatusKeys !== []) {
+      \App\Support\TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'status', $riderStatusKeys);
     }
 
     if ($request->filled('quick_search')) {

@@ -63,6 +63,10 @@ $container = (isset($configData['contentLayout']) && $configData['contentLayout'
           <div class="{{$container}} flex-grow-1 container-p-y">
             @endif
 
+            @if(empty($hideModuleTopBarSlider))
+              @include('partials.module_top_bar_slider')
+            @endif
+
             @yield('content')
 
           </div>

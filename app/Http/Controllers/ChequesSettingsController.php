@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
 use App\Models\ChequeCategory;
 use App\Models\ChequeCustomField;
 use App\Models\ChequeDocumentType;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\Schema;
 
 class ChequesSettingsController extends Controller
 {
+    use SavesModuleDisplayLabel;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -604,11 +607,11 @@ class ChequesSettingsController extends Controller
      */
     public function storeModuleLabel(Request $request)
     {
-        $request->validate(['module_label' => 'required|string|max:100']);
-        $value = trim($request->input('module_label'));
-        Settings::updateOrCreate(['name' => 'menu_label_cheques'], ['value' => $value]);
-        Settings::clearMenuLabelsCache();
-        return redirect()->route('settings-panel.cheques-settings.index')->with('success', 'Module name updated.');
+        $this->saveModuleDisplayLabel($request, 'cheques');
+
+        return redirect()->route('settings-panel.cheques-settings.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Module name updated.');
     }
 
     // ---------- cheque categories ----------
@@ -953,7 +956,10 @@ class ChequesSettingsController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('settings.cheques_settings._cheque_top_accordion', compact('chequeTopCategories'));
+        return view('settings.partials.top_bar.accordion', [
+            'topBarCategories' => $chequeTopCategories,
+            'topBarEmptyMessage' => 'No Cheque Top categories yet. Add your first category to begin.',
+        ]);
     }
 
     public function storeChequeTopCategory(Request $request)
@@ -973,14 +979,22 @@ class ChequesSettingsController extends Controller
             return response()->json(['success' => false, 'message' => 'This rider column is already configured as a category.'], 422);
         }
 
-        ChequeTopCategory::create([
+        $category = ChequeTopCategory::create([
             'name' => ChequeCustomField::humanizeFieldKey($riderColumn),
             'cheque_column' => $riderColumn,
             'display_order' => ((int) ChequeTopCategory::max('display_order')) + 1,
             'is_active' => true,
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Cheque Top category added.']);
+        $seeded = app(\App\Services\Module\ModuleTopBarSettingsService::class)
+            ->seedOptionsFromFieldSettings('cheques', $category);
+
+        return response()->json([
+            'success' => true,
+            'message' => $seeded > 0
+                ? 'Cheque Top category added with ' . $seeded . ' option(s) from field settings.'
+                : 'Cheque Top category added.',
+        ]);
     }
 
     public function updateChequeTopCategoryVisibility(Request $request, $company_slug, $id)
@@ -1354,6 +1368,3 @@ class ChequesSettingsController extends Controller
         return response()->json(['success' => true]);
     }
 }
-
-
-

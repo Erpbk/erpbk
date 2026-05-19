@@ -22,6 +22,7 @@ use App\Repositories\RtaFinesRepository;
 use App\Services\TransactionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use App\Helpers\HeadAccount;
@@ -32,7 +33,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class RtaFinesController extends AppBaseController
 {
-    use GlobalPagination, TracksCascadingDeletions;
+    use AppliesModuleTopBarFilters, GlobalPagination, TracksCascadingDeletions;
     /** @var RtaFinesRepository $rtaFinesRepository*/
     private $rtaFinesRepository;
 
@@ -91,8 +92,9 @@ class RtaFinesController extends AppBaseController
         \Log::info('selectedAccountId: '.$selectedAccountId);
         $query = RtaFines::query()
             ->with('branch')
-            ->orderBy('trip_date', 'desc')
-            ->where('status', $status);
+            ->orderBy('trip_date', 'desc');
+
+        $query->where('status', $status);
 
         if ($selectedAccountId) {
             $query->where('rta_account_id', $selectedAccountId);
@@ -122,6 +124,10 @@ class RtaFinesController extends AppBaseController
         if ($request->filled('bike_id')) {
             $query->where('bike_id', $request->bike_id);
         }
+
+        $topBarModuleKey = $status === 'paid' ? 'rta_fines_paid' : 'rta_fines_unpaid';
+        $this->applyModuleTopBarFilters($query, $request, $topBarModuleKey);
+
         // Paginated data
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
@@ -165,7 +171,7 @@ class RtaFinesController extends AppBaseController
                 ]
             ]);
         }
-        return view('rta_fines.index', [
+        return view('rta_fines.index', array_merge([
             'data' => $data,
             'account' => $account,
             'ticketsRouteName' => $ticketsRouteName,
@@ -181,7 +187,7 @@ class RtaFinesController extends AppBaseController
             'serviceCharges' => $serviceCharges,
             'adminFee' => $adminFee,
             'total_Amount' => $total_Amount,
-        ]);
+        ], $this->moduleTopBarListingData($request, $topBarModuleKey)));
     }
 
     public function payfine(Request $request)

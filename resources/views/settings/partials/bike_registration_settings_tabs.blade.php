@@ -21,7 +21,13 @@ $companySlug = request()->route('company_slug') ?? session('company_slug');
       <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
         <p class="text-muted small mb-0">Default category is <strong>Bike Registration Top Status</strong>. Add only the options you want on Bike Registration account listing top cards.</p>
       </div>
-      <form id="bikeRegistrationTopAjaxForm" method="POST" action="{{ route('settings-panel.module-settings.update-bike-registration-top', ['company_slug' => $companySlug, 'module' => 'bike_registration']) }}">
+@once('module-top-visibility-styles')
+  @push('third_party_stylesheets')
+    @include('settings.partials.top_bar._visibility_controls_styles')
+  @endpush
+@endonce
+
+        <form id="bikeRegistrationTopAjaxForm" method="POST" action="{{ route('settings-panel.module-settings.update-bike-registration-top', ['company_slug' => $companySlug, 'module' => 'bike_registration']) }}">
         @csrf
         <div class="accordion" id="bikeRegistrationTopAccordion">
           <div class="accordion-item">
@@ -31,9 +37,11 @@ $companySlug = request()->route('company_slug') ?? session('company_slug');
                   <span>Bike Registration Top Status</span>
                   <span class="badge bg-label-primary ms-2" id="bikeRegistrationTopSelectedCount">{{ count((array)($selectedBikeRegistrationTopStatusIds ?? [])) }}</span>
                 </button>
-                <div class="form-check form-switch mb-0" style="display: inline-flex; align-items: center; gap: 0.4rem;padding: 0.35rem 0.6rem;">
-                  <input style="width: 2rem; height: 1.1rem; margin: 0; cursor: pointer;" class="form-check-input rider-top-visibility-toggle" type="checkbox" id="bikeRegistrationTopEnabled" data-field="show_in_top_bar" {{ (!empty($bikeRegistrationTopEnabled) ? 'checked' : '') }}>
-                  <label style="font-size: 0.78rem; font-weight: 500; color: #5f6b7a; margin-top: 0; cursor: pointer;" class="form-check-label text-nowrap" for="bikeRegistrationTopEnabled">Top Bar</label>
+                <div class="module-top-visibility-controls">
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input module-top-visibility-toggle" type="checkbox" id="bikeRegistrationTopEnabled" data-field="show_in_top_bar" {{ (!empty($bikeRegistrationTopEnabled) ? 'checked' : '') }}>
+                    <label class="form-check-label text-nowrap" for="bikeRegistrationTopEnabled">Top Bar</label>
+                  </div>
                 </div>
               </div>
             </h2>

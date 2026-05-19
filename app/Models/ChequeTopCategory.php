@@ -8,6 +8,7 @@ class ChequeTopCategory extends BaseModel
 
     protected $fillable = [
         'name',
+        'filter_type',
         'cheque_column',
         'display_order',
         'is_active',

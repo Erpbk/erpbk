@@ -52,6 +52,7 @@ return new class extends Migration
                 $table->boolean('is_visible')->default(true);
                 $table->boolean('is_required')->default(false);
                 $table->string('display_label', 255)->nullable();
+                $table->string('input_type', 50)->nullable();
                 $table->json('input_config')->nullable();
                 $table->timestamps();
                 $table->unique(['company_id', 'field_key'], 'cheque_field_assignments_company_field_unique');

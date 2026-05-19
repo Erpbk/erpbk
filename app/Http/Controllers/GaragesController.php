@@ -10,13 +10,14 @@ use App\Helpers\HeadAccount;
 use App\Models\Garages;
 use App\Models\Accounts;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Traits\GlobalPagination;
 use Flash;
 use Illuminate\Support\Facades\DB;
 
 class GaragesController extends AppBaseController
 {
-  use GlobalPagination;
+  use AppliesModuleTopBarFilters, GlobalPagination;
   /** @var GaragesRepository $garagesRepository*/
   private $garagesRepository;
 
@@ -38,6 +39,7 @@ class GaragesController extends AppBaseController
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Garages::query()
       ->orderBy('id', 'desc');
+    $this->applyModuleTopBarFilters($query, $request, 'garages');
     if ($request->has('name') && !empty($request->name)) {
       $query->where('name', 'like', '%' . $request->name . '%');
     }
@@ -62,9 +64,9 @@ class GaragesController extends AppBaseController
         'paginationLinks' => $paginationLinks,
       ]);
     }
-    return view('garages.index', [
+    return view('garages.index', array_merge([
       'data' => $data,
-    ]);
+    ], $this->moduleTopBarListingData($request, 'garages')));
   }
 
 

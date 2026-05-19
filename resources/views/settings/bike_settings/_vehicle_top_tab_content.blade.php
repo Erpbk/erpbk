@@ -2,23 +2,27 @@
 $bikeTopCategories = $bikeTopCategories ?? collect();
 $bikeTopSelectableColumns = $bikeTopSelectableColumns ?? [];
 $bikeTopUserVisibleOptionIds = $bikeTopUserVisibleOptionIds ?? null;
+$topBarRoutes = \App\Support\ModuleTopBarRoutes::resolve('bike_list');
 @endphp
 
 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-  <p class="text-muted small mb-0">Create a Vehicle Top category linked to a column on <code>bikes</code>, then add option values. Cards can filter the Vehicles list; each user can choose which cards appear for their account.</p>
-  <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addBikeTopCategoryModal">
+  <p class="text-muted small mb-0">Create a Vehicle Top category first, then add multiple options under each category.</p>
+  <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRiderTopCategoryModal">
     <i class="ti ti-plus me-1"></i> Add Category
   </button>
 </div>
 
-<div id="bikeTopAccordionContainer">
-  @include('settings.bike_settings._bike_top_accordion', ['bikeTopCategories' => $bikeTopCategories])
+<div id="riderTopAccordionContainer">
+  @include('settings.partials.top_bar.accordion', [
+    'topBarCategories' => $bikeTopCategories,
+    'topBarEmptyMessage' => 'No Vehicle Top categories yet. Add your first category to begin.',
+  ])
 </div>
 
 <div class="card border mt-4">
   <div class="card-body">
     <h6 class="mb-1">My Vehicles top cards</h6>
-    <p class="text-muted small mb-3">Choose which option cards appear at the top of your Vehicles page. When no boxes are selected and you save, all top-bar options are shown. Select specific options to limit what you see.</p>
+    <p class="text-muted small mb-3">Choose which option cards appear at the top of your Vehicles page. When no boxes are selected and you save, all top-bar options are shown.</p>
     @php
     $bikeTopOptionCount = 0;
     foreach ($bikeTopCategories as $__c) {
@@ -62,4 +66,12 @@ $bikeTopUserVisibleOptionIds = $bikeTopUserVisibleOptionIds ?? null;
   </div>
 </div>
 
-@include('settings.bike_settings._bike_top_modals')
+@include('settings.partials.top_bar.modals', [
+  'topBarTabLabel' => 'Vehicle Top',
+  'topBarColumnField' => 'bike_column',
+  'topBarColumnLabel' => 'Vehicle Column',
+  'topBarSelectableColumns' => $bikeTopSelectableColumns,
+])
+@include('settings.partials.top_bar.scripts', ['topBarRoutes' => $topBarRoutes])
+@include('settings.bike_settings._bike_top_user_prefs_script')
+

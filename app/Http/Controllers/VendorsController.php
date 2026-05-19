@@ -11,6 +11,7 @@ use App\Models\Accounts;
 use App\Models\vendors;
 use App\Repositories\VendorsRepository;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
@@ -19,7 +20,7 @@ use Flash;
 
 class VendorsController extends AppBaseController
 {
-  use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
+  use AppliesModuleTopBarFilters, GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
   /** @var VendorsRepository $vendorsRepository*/
   private $vendorsRepository;
 
@@ -37,6 +38,7 @@ class VendorsController extends AppBaseController
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = vendors::query()
       ->orderBy('id', 'desc');
+    $this->applyModuleTopBarFilters($query, $request, 'vendors');
     if ($request->has('name') && !empty($request->name)) {
       $query->where('name', 'like', '%' . $request->name . '%');
     }
@@ -58,9 +60,9 @@ class VendorsController extends AppBaseController
         'paginationLinks' => $paginationLinks,
       ]);
     }
-    return view('vendors.index', [
+    return view('vendors.index', array_merge([
       'data' => $data,
-    ]);
+    ], $this->moduleTopBarListingData($request, 'vendors')));
     return $vendorsDataTable->render('vendors.index');
   }
 

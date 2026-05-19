@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
 use App\Models\EmployeeCategory;
 use App\Models\EmployeeCustomField;
 use App\Models\EmployeeDocumentType;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Schema;
 
 class EmployeeSettingsController extends Controller
 {
+    use SavesModuleDisplayLabel;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -561,11 +564,11 @@ class EmployeeSettingsController extends Controller
      */
     public function storeModuleLabel(Request $request)
     {
-        $request->validate(['module_label' => 'required|string|max:100']);
-        $value = trim($request->input('module_label'));
-        Settings::updateOrCreate(['name' => 'menu_label_employee_settings'], ['value' => $value]);
-        Settings::clearMenuLabelsCache();
-        return redirect()->route('settings-panel.employee-settings.index')->with('success', 'Module name updated.');
+        $this->saveModuleDisplayLabel($request, 'employees');
+
+        return redirect()->route('settings-panel.employee-settings.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Module name updated.');
     }
 
     // ---------- Employee Categories ----------
@@ -898,7 +901,10 @@ class EmployeeSettingsController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('settings.employee_settings._employee_top_accordion', compact('employeeTopCategories'));
+        return view('settings.partials.top_bar.accordion', [
+            'topBarCategories' => $employeeTopCategories,
+            'topBarEmptyMessage' => 'No Employee Top categories yet. Add your first category to begin.',
+        ]);
     }
 
     public function storeEmployeeTopCategory(Request $request)
@@ -918,14 +924,22 @@ class EmployeeSettingsController extends Controller
             return response()->json(['success' => false, 'message' => 'This employee column is already configured as a category.'], 422);
         }
 
-        EmployeeTopCategory::create([
+        $category = EmployeeTopCategory::create([
             'name' => EmployeeCustomField::humanizeFieldKey($employeeColumn),
             'employee_column' => $employeeColumn,
             'display_order' => ((int) EmployeeTopCategory::max('display_order')) + 1,
             'is_active' => true,
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Employee Top category added.']);
+        $seeded = app(\App\Services\Module\ModuleTopBarSettingsService::class)
+            ->seedOptionsFromFieldSettings('employees', $category);
+
+        return response()->json([
+            'success' => true,
+            'message' => $seeded > 0
+                ? 'Employee Top category added with ' . $seeded . ' option(s) from field settings.'
+                : 'Employee Top category added.',
+        ]);
     }
 
     public function updateEmployeeTopCategoryVisibility(Request $request, $company_slug, $id)

@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\View;
 use App\Models\Company;
 use App\Models\Settings;
 use App\Support\CompanyRouteContext;
+use App\Support\ErpModuleRegistry;
+use App\Support\ModuleRouteResolver;
+use App\Services\Module\TopBarListingService;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -42,6 +45,26 @@ class AppServiceProvider extends ServiceProvider
     if (config('app.env') === 'production') {
       URL::forceScheme('https');
     }
+
+    View::composer('layouts.settingsPanelLayout', function ($view) {
+      $view->with('settingsPanelLabels', Settings::getMenuLabels());
+    });
+
+    View::composer('*', function ($view) {
+      static $topBarShared = false;
+      if ($topBarShared) {
+        return;
+      }
+
+      $moduleKey = ModuleRouteResolver::fromRequest();
+      if ($moduleKey === null || !ErpModuleRegistry::hasTopBar($moduleKey)) {
+        return;
+      }
+
+      $listingData = app(TopBarListingService::class)->listingViewData($moduleKey, request());
+      View::share($listingData);
+      $topBarShared = true;
+    });
 
     // Dynamic ERP menu labels (Settings + optional per-company admin overrides)
     View::composer('layouts.menu', function ($view) {

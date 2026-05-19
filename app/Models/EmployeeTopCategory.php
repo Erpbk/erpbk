@@ -10,6 +10,7 @@ class EmployeeTopCategory extends BaseModel
 
     protected $fillable = [
         'name',
+        'filter_type',
         'employee_column',
         'display_order',
         'is_active',

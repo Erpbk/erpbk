@@ -12,6 +12,7 @@ use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Models\ChequeTopCategory;
 use App\Models\ChequeTopOption;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Services\Cheques\ChequeTopDateFilterService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\Storage;
 
 class ChequesController extends Controller
 {
+    use AppliesModuleTopBarFilters;
+
     public function __construct(
         protected ChequeTopDateFilterService $chequeTopDateFilter
     ) {}
@@ -37,23 +40,10 @@ class ChequesController extends Controller
 
         $data = $query->get();
 
-        $chequeTopSliderCategories = collect();
-        $chequeTopOptionStats = [];
-        if (Schema::hasTable('cheque_top_categories')) {
-            $chequeTopSliderCategories = ChequeTopCategory::with(['options' => function ($q) {
-                $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
-            }])
-                ->where('show_in_top_bar', 1)
-                ->orderBy('display_order')
-                ->orderBy('id')
-                ->get()
-                ->filter(fn($cat) => $cat->options->isNotEmpty())
-                ->values();
-
-            $chequeTopOptionStats = $this->chequeTopDateFilter->buildOptionStats($chequeTopSliderCategories);
-        }
-
-        return view('cheques.index', compact('data', 'chequeTopSliderCategories', 'chequeTopOptionStats'));
+        return view('cheques.index', array_merge(
+            compact('data'),
+            $this->moduleTopBarListingData($request, 'cheques')
+        ));
     }
 
     /**

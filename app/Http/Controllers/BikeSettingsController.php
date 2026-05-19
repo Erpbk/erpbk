@@ -10,6 +10,7 @@ use App\Models\BikeFieldCategoryAssignment;
 use App\Models\BikeTopCategory;
 use App\Models\BikeTopOption;
 use App\Models\Bikes;
+use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
 use App\Models\Settings;
 use App\Models\UserTableSettings;
 use App\Support\ModuleFieldSource;
@@ -20,6 +21,8 @@ use Illuminate\Validation\Rule;
 
 class BikeSettingsController extends Controller
 {
+    use SavesModuleDisplayLabel;
+
     /**
      * Fixed bike fields hidden from Bike Settings and Bike form.
      */
@@ -285,15 +288,7 @@ class BikeSettingsController extends Controller
 
     public function storeModuleLabel(Request $request)
     {
-        $request->validate(['module_label' => 'required|string|max:100']);
-        $value = trim((string) $request->input('module_label'));
-
-        Settings::updateOrCreate(
-            ['name' => 'menu_label_bike_settings'],
-            ['value' => $value]
-        );
-
-        Settings::clearMenuLabelsCache();
+        $this->saveModuleDisplayLabel($request, 'bike_list');
 
         return $this->bikeSettingsIndexRedirect()->with('success', 'Module name updated.');
     }
@@ -907,7 +902,10 @@ class BikeSettingsController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('settings.bike_settings._bike_top_accordion', compact('bikeTopCategories'));
+        return view('settings.partials.top_bar.accordion', [
+            'topBarCategories' => $bikeTopCategories,
+            'topBarEmptyMessage' => 'No Vehicle Top categories yet. Add your first category to begin.',
+        ]);
     }
 
     public function storeBikeTopCategory(Request $request)
@@ -923,7 +921,7 @@ class BikeSettingsController extends Controller
             return response()->json(['success' => false, 'message' => 'This vehicle column is already configured as a category.'], 422);
         }
 
-        BikeTopCategory::create([
+        $category = BikeTopCategory::create([
             'name' => BikeCustomField::humanizeFieldKey($bikeColumn),
             'bike_column' => $bikeColumn,
             'display_order' => ((int) BikeTopCategory::max('display_order')) + 1,
@@ -932,7 +930,15 @@ class BikeSettingsController extends Controller
             'show_in_view_cards' => false,
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Vehicle Top category added.']);
+        $seeded = app(\App\Services\Module\ModuleTopBarSettingsService::class)
+            ->seedOptionsFromFieldSettings('bike_list', $category);
+
+        return response()->json([
+            'success' => true,
+            'message' => $seeded > 0
+                ? 'Vehicle Top category added with ' . $seeded . ' option(s) from field settings.'
+                : 'Vehicle Top category added.',
+        ]);
     }
 
     public function updateBikeTopCategoryVisibility(Request $request, string $company_slug, int $id)

@@ -40,6 +40,7 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
           <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-docs-btn" data-bs-toggle="tab" data-bs-target="#tab-docs" type="button" role="tab">Document Types</button>
           </li>
+          @include('settings.partials.top_bar._settings_tab')
         </ul>
 
         <div class="tab-content" id="moduleSettingsTabContent">
@@ -79,26 +80,26 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                 </thead>
                 <tbody>
                   @forelse($categories as $category)
-                    <tr>
-                      <td>{{ $category->label }}</td>
-                      <td>
-                        <form action="{{ route('settings-panel.module-settings.update-category', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey, 'id' => $category->id]) }}" method="POST" class="d-inline-flex gap-2">
-                          @csrf
-                          @method('PUT')
-                          <input type="text" name="label" class="form-control form-control-sm" value="{{ $category->label }}" required>
-                          <button type="submit" class="btn btn-sm btn-outline-primary">Update</button>
-                        </form>
-                        <form action="{{ route('settings-panel.module-settings.destroy-category', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey, 'id' => $category->id]) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this category?')">
-                          @csrf
-                          @method('DELETE')
-                          <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                        </form>
-                      </td>
-                    </tr>
+                  <tr>
+                    <td>{{ $category->label }}</td>
+                    <td>
+                      <form action="{{ route('settings-panel.module-settings.update-category', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey, 'id' => $category->id]) }}" method="POST" class="d-inline-flex gap-2">
+                        @csrf
+                        @method('PUT')
+                        <input type="text" name="label" class="form-control form-control-sm" value="{{ $category->label }}" required>
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Update</button>
+                      </form>
+                      <form action="{{ route('settings-panel.module-settings.destroy-category', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey, 'id' => $category->id]) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this category?')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                      </form>
+                    </td>
+                  </tr>
                   @empty
-                    <tr>
-                      <td colspan="2" class="text-muted text-center">No categories added yet.</td>
-                    </tr>
+                  <tr>
+                    <td colspan="2" class="text-muted text-center">No categories added yet.</td>
+                  </tr>
                   @endforelse
                 </tbody>
               </table>
@@ -121,7 +122,7 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                 <select name="category_id" class="form-select">
                   <option value="">Unassigned</option>
                   @foreach($categories as $category)
-                    <option value="{{ $category->id }}">{{ $category->label }}</option>
+                  <option value="{{ $category->id }}">{{ $category->label }}</option>
                   @endforeach
                 </select>
               </div>
@@ -160,18 +161,18 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                 </thead>
                 <tbody>
                   @forelse($fixedAssignments as $row)
-                    <tr>
-                      <td><code>{{ $row->field_key }}</code></td>
-                      <td>{{ $row->field_label }}</td>
-                      <td>{{ optional($row->category)->label }}</td>
-                      <td>{{ $row->display_label }}</td>
-                      <td>{{ $row->is_visible ? 'Yes' : 'No' }}</td>
-                      <td>{{ $row->is_required ? 'Yes' : 'No' }}</td>
-                    </tr>
+                  <tr>
+                    <td><code>{{ $row->field_key }}</code></td>
+                    <td>{{ $row->field_label }}</td>
+                    <td>{{ optional($row->category)->label }}</td>
+                    <td>{{ $row->display_label }}</td>
+                    <td>{{ $row->is_visible ? 'Yes' : 'No' }}</td>
+                    <td>{{ $row->is_required ? 'Yes' : 'No' }}</td>
+                  </tr>
                   @empty
-                    <tr>
-                      <td colspan="6" class="text-muted text-center">No field assignments yet.</td>
-                    </tr>
+                  <tr>
+                    <td colspan="6" class="text-muted text-center">No field assignments yet.</td>
+                  </tr>
                   @endforelse
                 </tbody>
               </table>
@@ -189,7 +190,7 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                 <label class="form-label">Data type</label>
                 <select name="data_type" class="form-select" required>
                   @foreach(($dataTypes ?? []) as $key => $def)
-                    <option value="{{ $key }}">{{ $def['label'] ?? ucfirst($key) }}</option>
+                  <option value="{{ $key }}">{{ $def['label'] ?? ucfirst($key) }}</option>
                   @endforeach
                 </select>
               </div>
@@ -198,7 +199,7 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                 <select name="category_id" class="form-select">
                   <option value="">Unassigned</option>
                   @foreach($categories as $category)
-                    <option value="{{ $category->id }}">{{ $category->label }}</option>
+                  <option value="{{ $category->id }}">{{ $category->label }}</option>
                   @endforeach
                 </select>
               </div>
@@ -230,23 +231,23 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                 </thead>
                 <tbody>
                   @forelse($customFields as $field)
-                    <tr>
-                      <td>{{ $field->label }}</td>
-                      <td>{{ $field->data_type }}</td>
-                      <td>{{ optional($field->category)->label }}</td>
-                      <td>{{ $field->is_mandatory ? 'Yes' : 'No' }}</td>
-                      <td>
-                        <form action="{{ route('settings-panel.module-settings.destroy-field', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey, 'id' => $field->id]) }}" method="POST" onsubmit="return confirm('Delete this custom field?')">
-                          @csrf
-                          @method('DELETE')
-                          <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-                        </form>
-                      </td>
-                    </tr>
+                  <tr>
+                    <td>{{ $field->label }}</td>
+                    <td>{{ $field->data_type }}</td>
+                    <td>{{ optional($field->category)->label }}</td>
+                    <td>{{ $field->is_mandatory ? 'Yes' : 'No' }}</td>
+                    <td>
+                      <form action="{{ route('settings-panel.module-settings.destroy-field', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey, 'id' => $field->id]) }}" method="POST" onsubmit="return confirm('Delete this custom field?')">
+                        @csrf
+                        @method('DELETE')
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                      </form>
+                    </td>
+                  </tr>
                   @empty
-                    <tr>
-                      <td colspan="5" class="text-muted text-center">No custom fields added yet.</td>
-                    </tr>
+                  <tr>
+                    <td colspan="5" class="text-muted text-center">No custom fields added yet.</td>
+                  </tr>
                   @endforelse
                 </tbody>
               </table>
@@ -298,29 +299,31 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                 </thead>
                 <tbody>
                   @forelse($documentTypes as $doc)
-                    <tr>
-                      <td><code>{{ $doc->key }}</code></td>
-                      <td>{{ $doc->label }}</td>
-                      <td>{{ $doc->type }}</td>
-                      <td>{{ $doc->front_label }}</td>
-                      <td>{{ $doc->back_label }}</td>
-                      <td>
-                        <form action="{{ route('settings-panel.module-settings.destroy-document-type', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey, 'id' => $doc->id]) }}" method="POST" onsubmit="return confirm('Delete this document type?')">
-                          @csrf
-                          @method('DELETE')
-                          <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-                        </form>
-                      </td>
-                    </tr>
+                  <tr>
+                    <td><code>{{ $doc->key }}</code></td>
+                    <td>{{ $doc->label }}</td>
+                    <td>{{ $doc->type }}</td>
+                    <td>{{ $doc->front_label }}</td>
+                    <td>{{ $doc->back_label }}</td>
+                    <td>
+                      <form action="{{ route('settings-panel.module-settings.destroy-document-type', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey, 'id' => $doc->id]) }}" method="POST" onsubmit="return confirm('Delete this document type?')">
+                        @csrf
+                        @method('DELETE')
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                      </form>
+                    </td>
+                  </tr>
                   @empty
-                    <tr>
-                      <td colspan="6" class="text-muted text-center">No document types yet.</td>
-                    </tr>
+                  <tr>
+                    <td colspan="6" class="text-muted text-center">No document types yet.</td>
+                  </tr>
                   @endforelse
                 </tbody>
               </table>
             </div>
           </div>
+
+          @include('settings.partials.top_bar._settings_tab_content')
         </div>
       </div>
     </div>

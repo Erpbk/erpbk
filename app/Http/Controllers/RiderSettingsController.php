@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
 use App\Models\RiderCategory;
 use App\Models\RiderCustomField;
 use App\Models\RiderDocumentType;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Schema;
 
 class RiderSettingsController extends Controller
 {
+    use SavesModuleDisplayLabel;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -566,11 +569,11 @@ class RiderSettingsController extends Controller
      */
     public function storeModuleLabel(Request $request)
     {
-        $request->validate(['module_label' => 'required|string|max:100']);
-        $value = trim($request->input('module_label'));
-        Settings::updateOrCreate(['name' => 'menu_label_rider_settings'], ['value' => $value]);
-        Settings::clearMenuLabelsCache();
-        return redirect()->route('settings-panel.rider-settings.index')->with('success', 'Module name updated.');
+        $this->saveModuleDisplayLabel($request, 'riders');
+
+        return redirect()->route('settings-panel.rider-settings.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Module name updated.');
     }
 
     // ---------- Rider Categories ----------
@@ -923,14 +926,22 @@ class RiderSettingsController extends Controller
             return response()->json(['success' => false, 'message' => 'This rider column is already configured as a category.'], 422);
         }
 
-        RiderTopCategory::create([
+        $category = RiderTopCategory::create([
             'name' => RiderCustomField::humanizeFieldKey($riderColumn),
             'rider_column' => $riderColumn,
             'display_order' => ((int) RiderTopCategory::max('display_order')) + 1,
             'is_active' => true,
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Rider Top category added.']);
+        $seeded = app(\App\Services\Module\ModuleTopBarSettingsService::class)
+            ->seedOptionsFromFieldSettings('riders', $category);
+
+        return response()->json([
+            'success' => true,
+            'message' => $seeded > 0
+                ? 'Rider Top category added with ' . $seeded . ' option(s) from field settings.'
+                : 'Rider Top category added.',
+        ]);
     }
 
     public function updateRiderTopCategoryVisibility(Request $request, $company_slug, $id)

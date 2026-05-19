@@ -6,6 +6,7 @@ use App\DataTables\SimsDataTable;
 use App\Http\Requests\CreateSimsRequest;
 use App\Http\Requests\UpdateSimsRequest;
 use App\Http\Controllers\AppBaseController;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Models\SimHistory;
 use App\Repositories\SimsRepository;
 use App\Models\Sims;
@@ -28,7 +29,7 @@ use Illuminate\Validation\Rule;
 
 class SimsController extends AppBaseController
 {
-    use GlobalPagination, TracksCascadingDeletions;
+    use AppliesModuleTopBarFilters, GlobalPagination, TracksCascadingDeletions;
     /** @var SimsRepository $simsRepository*/
     private $simsRepository;
 
@@ -51,6 +52,7 @@ class SimsController extends AppBaseController
         $query = Sims::query()
             ->with(['branch', 'riders', 'employee'])
             ->orderBy('id', 'asc');
+        $this->applyModuleTopBarFilters($query, $request, 'sims');
         if ($request->has('branch_id') && !empty($request->branch_id)) {
             $query->where('branch_id', $request->branch_id);
         }

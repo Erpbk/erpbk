@@ -73,74 +73,6 @@
             </div>
         </div>
 
-        @if(($employeeTopCategories ?? collect())->isNotEmpty())
-        <div class="fleet-supervisor-section">
-            <div class="fleet-supervisor-accordion expanded" id="fleetSupervisorAccordion">
-                <div class="fleet-supervisor-slider-container">
-                    <div class="slider-controls">
-                        <button class="slider-btn prev-btn" id="prevBtn" type="button">
-                            <i class="ti ti-chevron-left"></i>
-                        </button>
-                        <div class="slider-indicators" id="sliderIndicators"></div>
-                        <button class="slider-btn next-btn" id="nextBtn" type="button">
-                            <i class="ti ti-chevron-right"></i>
-                        </button>
-                    </div>
-                    <div class="fleet-supervisor-cards slider-track" id="sliderTrack">
-                        @php
-                        $slideIndex = 0;
-                        @endphp
-                        @foreach($employeeTopCategories as $category)
-                        @foreach($category->options as $option)
-                        @php
-                        $col = $category->employee_column;
-                        $isStatusColumn = $col === 'status';
-                        $isCardActive = request('employee_top_column') === $col && request('employee_top_value') == $option->name;
-                        $baseQuery = \App\Models\Employee::query();
-                        if ($col && \Illuminate\Support\Facades\Schema::hasColumn('employees', $col)) {
-                            $baseQuery->where($col, $option->name);
-                        }
-                        if ($isStatusColumn) {
-                            $activeCount = (clone $baseQuery)->count();
-                            $inactiveCount = 0;
-                        } else {
-                            $activeCount = (clone $baseQuery)->where('status', 'active')->count();
-                            $inactiveCount = (clone $baseQuery)->whereIn('status', ['inactive', 'on_leave'])->count();
-                        }
-                        @endphp
-                        <div class="fleet-supervisor-card @if($isCardActive) active filtered @endif" data-slide="{{ $slideIndex++ }}" onclick="filterByEmployeeTopOption('{{ $col }}', @json($option->name))">
-                            <h3 class="fleet-supervisor-name">{{ $option->name }}</h3>
-                            <div class="small text-muted mb-1">{{ $category->name }}</div>
-                            <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active @if($isCardActive && in_array('active', request('employee_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByEmployeeTopOptionStatus('{{ $col }}', @json($option->name), 'active')">
-                                    <i class="fleet-stat-icon ti ti-user-check"></i>
-                                    <span class="fleet-stat-label">{{ $isStatusColumn ? 'Total' : 'Active' }}</span>
-                                    <span class="fleet-stat-value">{{ $activeCount }}</span>
-                                </div>
-                                @if(!$isStatusColumn)
-                                <div class="fleet-stat inactive @if($isCardActive && (in_array('inactive', request('employee_status', [])) || in_array('on_leave', request('employee_status', [])))) active-selected @endif" onclick="event.stopPropagation(); filterByEmployeeTopOptionStatus('{{ $col }}', @json($option->name), 'inactive')">
-                                    <i class="fleet-stat-icon ti ti-user-x"></i>
-                                    <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ $inactiveCount }}</span>
-                                </div>
-                                @endif
-                            </div>
-                        </div>
-                        @endforeach
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-        </div>
-        <script>
-            setTimeout(function() {
-                if (typeof initFleetSupervisorSlider === 'function') {
-                    initFleetSupervisorSlider();
-                }
-            }, 150);
-        </script>
-        @endif
-
         <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
             <div class="filter-header">
                 <h5>Filter Employees</h5>
@@ -325,60 +257,6 @@
             }
         });
     });
-
-    function filterByEmployeeTopOption(column, value) {
-        const url = new URL(window.location);
-        url.searchParams.delete('employee_top_column');
-        url.searchParams.delete('employee_top_value');
-        url.searchParams.delete('employee_status');
-        url.searchParams.delete('employee_status[]');
-        url.searchParams.set('employee_top_column', column);
-        url.searchParams.set('employee_top_value', value);
-        if (column !== 'status') {
-            url.searchParams.append('employee_status[]', 'active');
-            url.searchParams.append('employee_status[]', 'inactive');
-            url.searchParams.append('employee_status[]', 'on_leave');
-        } else {
-            url.searchParams.append('employee_status[]', value);
-        }
-        window.location.href = url.toString();
-    }
-
-    function filterByEmployeeTopOptionStatus(column, value, statusKey) {
-        const url = new URL(window.location);
-        const currentColumn = url.searchParams.get('employee_top_column');
-        const currentValue = url.searchParams.get('employee_top_value');
-        const currentStatuses = url.searchParams.getAll('employee_status[]');
-
-        if (column === 'status') {
-            url.searchParams.delete('employee_status');
-            url.searchParams.delete('employee_status[]');
-            url.searchParams.set('employee_top_column', column);
-            url.searchParams.set('employee_top_value', value);
-            url.searchParams.append('employee_status[]', value);
-            window.location.href = url.toString();
-            return;
-        }
-
-        const statusValues = statusKey === 'active' ? ['active'] : ['inactive', 'on_leave'];
-        const isSame = currentColumn === column && currentValue === value &&
-            statusValues.every(function(s) { return currentStatuses.includes(s); }) &&
-            currentStatuses.length === statusValues.length;
-
-        url.searchParams.delete('employee_status');
-        url.searchParams.delete('employee_status[]');
-        if (isSame) {
-            url.searchParams.delete('employee_top_column');
-            url.searchParams.delete('employee_top_value');
-        } else {
-            url.searchParams.set('employee_top_column', column);
-            url.searchParams.set('employee_top_value', value);
-            statusValues.forEach(function(s) {
-                url.searchParams.append('employee_status[]', s);
-            });
-        }
-        window.location.href = url.toString();
-    }
 
     document.addEventListener('DOMContentLoaded', function() {
         const table = document.querySelector('#dataTableBuilder');

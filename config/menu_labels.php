@@ -48,6 +48,8 @@ return [
         'fuel_data'            => 'Fuel Transactions',
         'fuel_companies'       => 'Fuel Companies',
         'rta_fines'            => 'RTA Fines',
+        'rta_fines_unpaid'     => 'Unpaid RTA Fines',
+        'rta_fines_paid'       => 'Paid RTA Fines',
         'rta_saliks'           => 'RTA Saliks',
         'inventory'            => 'Inventory',
         'visa_expense'         => 'Visa Expense',

@@ -8,6 +8,7 @@ use App\DataTables\BikesHistoryDataTable;
 use App\Http\Requests\CreateBikesRequest;
 use App\Http\Requests\UpdateBikesRequest;
 use App\Http\Controllers\AppBaseController;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Models\BikeHistory;
 use App\Models\Bikes;
 use App\Models\BikeTopCategory;
@@ -35,7 +36,7 @@ use Maatwebsite\Excel\Concerns\FromCollection;
 
 class BikesController extends AppBaseController
 {
-  use GlobalPagination, TracksCascadingDeletions;
+  use AppliesModuleTopBarFilters, GlobalPagination, TracksCascadingDeletions;
   /** @var BikesRepository $bikesRepository*/
   private $bikesRepository;
 
@@ -132,25 +133,17 @@ class BikesController extends AppBaseController
       $query->select('bikes.*');
     }
 
-    if (Schema::hasColumn('bikes', 'bike_top_option_id') && $request->filled('bike_top_option_id')) {
-      $query->where('bike_top_option_id', (int) $request->bike_top_option_id);
-    }
-    if ($request->filled('bike_top_wh')) {
-      $wh = (string) $request->bike_top_wh;
-      if ($wh === 'active') {
-        $query->where('bikes.status', 1);
-      } elseif ($wh === 'inactive') {
-        $query->where(function ($q) {
-          $q->whereNull('bikes.status')->orWhere('bikes.status', '!=', 1);
-        });
-      }
+    $this->applyModuleTopBarFilters($query, $request, 'bike_list');
+    $bikeStatusKeys = \App\Support\TopBarNumericStatus::normalizeStatusKeys($request->input('bike_top_wh'));
+    if ($bikeStatusKeys !== []) {
+      \App\Support\TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'bikes.status', $bikeStatusKeys);
     }
 
     $statsQuery = clone $query;
     $stats = [
       'total' => $statsQuery->count(),
       'active' => $statsQuery->clone()->where('bikes.status', 1)->count(),
-      'inactive' => $statsQuery->clone()->where('bikes.status', 2)->count(),
+      'inactive' => $statsQuery->clone()->whereIn('bikes.status', \App\Support\TopBarNumericStatus::INACTIVE_VALUES)->count(),
       'onroad' => $statsQuery->clone()->where('bikes.warehouse', 'Active')->count(),
       'offroad' => $statsQuery->clone()->whereIn('bikes.warehouse', ['Return', 'Vacation', 'Express Garage'])->count(),
       'absconded' => $statsQuery->clone()->where('bikes.warehouse', 'Absconded')->count(),
@@ -172,16 +165,8 @@ class BikesController extends AppBaseController
     // Get table columns configuration
     $tableColumns = $this->getTableColumns();
 
-    $bikeTopSliderCategories = collect();
+    $topBarData = $this->moduleTopBarListingData($request, 'bike_list');
     if (Schema::hasTable('bike_top_categories') && Schema::hasColumn('bikes', 'bike_top_option_id')) {
-      $bikeTopSliderCategories = BikeTopCategory::with(['options' => function ($q) {
-        $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
-      }])
-        ->where('show_in_top_bar', 1)
-        ->orderBy('display_order')
-        ->orderBy('id')
-        ->get();
-
       $userBikeSettings = UserTableSettings::getSettings(auth()->id(), 'bikes_table');
       $allowedIds = null;
       if ($userBikeSettings && is_array($userBikeSettings->additional_settings)) {
@@ -190,26 +175,23 @@ class BikesController extends AppBaseController
 
       if (is_array($allowedIds) && count($allowedIds) > 0) {
         $allowedSet = array_flip(array_map('intval', $allowedIds));
-        $bikeTopSliderCategories->each(function ($cat) use ($allowedSet) {
+        $topBarData['topBarSliderCategories']->each(function ($cat) use ($allowedSet) {
           $cat->setRelation(
             'options',
-            $cat->options->filter(fn($o) => isset($allowedSet[(int) $o->id]))->values()
+            $cat->options->filter(fn ($o) => isset($allowedSet[(int) $o->id]))->values()
           );
         });
-        $bikeTopSliderCategories = $bikeTopSliderCategories->filter(fn($c) => $c->options->isNotEmpty())->values();
-      }
-
-      if ($bikeTopSliderCategories->sum(fn($c) => $c->options->count()) === 0) {
-        $bikeTopSliderCategories = collect();
+        $topBarData['topBarSliderCategories'] = $topBarData['topBarSliderCategories']
+            ->filter(fn ($c) => $c->options->isNotEmpty())
+            ->values();
       }
     }
 
-    return view('bikes.index', [
+    return view('bikes.index', array_merge([
       'data' => $data,
       'stats' => $stats,
       'tableColumns' => $tableColumns,
-      'bikeTopSliderCategories' => $bikeTopSliderCategories,
-    ]);
+    ], $topBarData));
   }
 
   /**

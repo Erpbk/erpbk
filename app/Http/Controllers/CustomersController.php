@@ -18,6 +18,7 @@ use App\Models\Payment;
 use App\Models\Receipt;
 use App\Repositories\CustomersRepository;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
@@ -25,7 +26,7 @@ use Flash;
 
 class CustomersController extends AppBaseController
 {
-  use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
+  use AppliesModuleTopBarFilters, GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
   /** @var CustomersRepository $customersRepository*/
   private $customersRepository;
 
@@ -47,6 +48,7 @@ class CustomersController extends AppBaseController
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Customers::query()
       ->orderBy('id', 'asc');
+    $this->applyModuleTopBarFilters($query, $request, 'customers');
     if ($request->has('company_name') && !empty($request->company_name)) {
       $query->where('company_name', $request->company_name);
     }
@@ -65,9 +67,9 @@ class CustomersController extends AppBaseController
         'paginationLinks' => $paginationLinks,
       ]);
     }
-    return view('customers.index', [
+    return view('customers.index', array_merge([
       'data' => $data,
-    ]);
+    ], $this->moduleTopBarListingData($request, 'customers')));
   }
 
 

@@ -22,12 +22,13 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Traits\GlobalPagination;
 use Laracasts\Flash\Flash;
 
 class EmployeeController extends Controller
 {
-    use GlobalPagination;
+    use AppliesModuleTopBarFilters, GlobalPagination;
     private function employeeFieldsByCategory(bool $includeCustomFields = true): array
     {
         return EmployeeCustomField::fieldsByCategoryForForm($includeCustomFields);
@@ -328,6 +329,8 @@ class EmployeeController extends Controller
             $query->whereIn('status', $statusFilters);
         }
 
+        $this->applyModuleTopBarFilters($query, $request, 'employees');
+
         $topColumn = trim((string) $request->input('employee_top_column', ''));
         $topValue = $request->input('employee_top_value');
         if ($topColumn !== '' && $topValue !== null && $topValue !== '' && Schema::hasColumn('employees', $topColumn)) {
@@ -347,21 +350,10 @@ class EmployeeController extends Controller
         $query->orderBy('name');
         $data = $this->applyPagination($query, $paginationParams);
 
-        $employeeTopCategories = EmployeeTopCategory::with([
-            'options' => function ($q) {
-                $q->where('is_active', true)->orderBy('display_order')->orderBy('id');
-            },
-        ])
-            ->where('show_in_top_bar', true)
-            ->orderBy('display_order')
-            ->orderBy('id')
-            ->get();
-
-        return view('employees.index', [
+        return view('employees.index', array_merge([
             'data' => $data,
             'tableColumns' => $this->buildEmployeesIndexTableColumns(),
-            'employeeTopCategories' => $employeeTopCategories,
-        ]);
+        ], $this->moduleTopBarListingData($request, 'employees')));
     }
 
     /**

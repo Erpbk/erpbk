@@ -25,41 +25,12 @@
   #addVisaExpenseTopOptionModal .modal-body {
     overflow: visible !important;
   }
-  @if(!empty($showBikeRegistrationExtras) && $showBikeRegistrationExtras)
-  .select2-container--open.br-registration-top-select2-wrap {
+
+  @if( !empty($showBikeRegistrationExtras) && $showBikeRegistrationExtras) .select2-container--open.br-registration-top-select2-wrap {
     z-index: 1060;
   }
+
   @endif
-
-  .bike-top-visibility-controls {
-    background: #f8f9fb;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    padding: 0.35rem 0.6rem;
-  }
-
-  .bike-top-visibility-controls .form-check {
-    min-height: auto;
-    margin-bottom: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .bike-top-visibility-controls .form-check-input {
-    width: 2rem;
-    height: 1.1rem;
-    margin: 0;
-    cursor: pointer;
-  }
-
-  .bike-top-visibility-controls .form-check-label {
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: #5f6b7a;
-    margin-top: 0;
-    cursor: pointer;
-  }
 </style>
 
 @php
@@ -91,11 +62,11 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
           <h4 class="card-title mb-0">{{ $settingsHeading }}</h4>
           <p class="text-muted small mb-0 mt-1">
             @if($showBikeRegistrationExtras)
-              Configure registration statuses, top bar cards, fixed/custom fields on <code>bike_registrations</code>, categories, and document types.
+            Configure registration statuses, top bar cards, fixed/custom fields on <code>bike_registrations</code>, categories, and document types.
             @elseif(($moduleKey ?? '') === 'bike_list')
-              Configure Vehicle Top cards for the Vehicles module, fixed/custom fields, categories, and document types.
+            Configure Vehicle Top cards for the Vehicles module, fixed/custom fields, categories, and document types.
             @else
-              Configure fixed/custom fields and document types.
+            Configure fixed/custom fields and document types.
             @endif
           </p>
         </div>
@@ -143,6 +114,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
               {{ $settingsFieldsTabLabel }}
             </button>
           </li>
+          @include('settings.partials.top_bar._settings_tab')
           @if(($moduleKey ?? '') === 'bike_list')
           <li class="nav-item" role="presentation">
             <button class="nav-link {{ $showAssignFieldsTab ? 'active' : '' }}" data-bs-toggle="tab" data-bs-target="#tab-bike-assign-fields" type="button" role="tab" id="tab-bike-assign-fields-btn">
@@ -195,8 +167,10 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
             </form>
           </div>
 
+          @include('settings.partials.top_bar._settings_tab_content')
+
           @if($showBikeRegistrationExtras)
-            @include('settings.partials.bike_registration_settings_tabs')
+          @include('settings.partials.bike_registration_settings_tabs')
           @endif
 
           @if($showVisaStatusManagementTab)
@@ -234,9 +208,11 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
                             <span>Visa Expense Top Status</span>
                             <span class="badge bg-label-primary ms-2" id="visaExpenseTopSelectedCount">{{ count((array)($selectedVisaExpenseTopStatusIds ?? [])) }}</span>
                           </button>
-                          <div class="form-check form-switch mb-0" style="display: inline-flex; align-items: center; gap: 0.4rem;padding: 0.35rem 0.6rem;">
-                            <input style="width: 2rem; height: 1.1rem; margin: 0; cursor: pointer;" class="form-check-input rider-top-visibility-toggle" type="checkbox" id="visaExpenseTopEnabled" data-field="show_in_top_bar" {{ (!empty($visaExpenseTopEnabled) ? 'checked' : '') }}>
-                            <label style="font-size: 0.78rem; font-weight: 500; color: #5f6b7a; margin-top: 0; cursor: pointer;" class="form-check-label text-nowrap" for="visaExpenseTopEnabled">Top Bar</label>
+                          <div class="module-top-visibility-controls">
+                            <div class="form-check form-switch mb-0">
+                              <input class="form-check-input module-top-visibility-toggle" type="checkbox" id="visaExpenseTopEnabled" data-field="show_in_top_bar" {{ (!empty($visaExpenseTopEnabled) ? 'checked' : '') }}>
+                              <label class="form-check-label text-nowrap" for="visaExpenseTopEnabled">Top Bar</label>
+                            </div>
                           </div>
                         </div>
                       </h2>
@@ -1901,12 +1877,39 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
   })();
 
   function bikeSafeJsonParse(value, fallback) {
-    try {
-      if (value === undefined || value === null) return fallback;
-      return JSON.parse(value);
-    } catch (e) {
+    if (value === undefined || value === null) {
       return fallback;
     }
+    if (typeof value === 'object') {
+      return value;
+    }
+    const raw = String(value);
+    if (raw === '') {
+      return fallback;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      // data-input-config-options stores a JSON-encoded string; dataset returns the plain text.
+      return raw;
+    }
+  }
+
+  function bikeNormalizeOptionSource(rawOptions) {
+    if (rawOptions === null || rawOptions === undefined) {
+      return '';
+    }
+    if (typeof rawOptions === 'object') {
+      if (Array.isArray(rawOptions)) {
+        return rawOptions.join('\n');
+      }
+      if (typeof rawOptions.options !== 'undefined') {
+        const opts = rawOptions.options;
+        return Array.isArray(opts) ? opts.join('\n') : String(opts || '');
+      }
+      return '';
+    }
+    return rawOptions;
   }
 
   function bikeParseOptionLines(raw) {
@@ -1963,7 +1966,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
   function bikeRenderOptionRows(container, hiddenInput, rawOptions) {
     if (!container || !hiddenInput) return;
     container.innerHTML = '';
-    const items = bikeParseOptionLines(rawOptions);
+    const items = bikeParseOptionLines(bikeNormalizeOptionSource(rawOptions));
     if (!items.length) {
       bikeCreateOptionRow(container, hiddenInput, '');
       return;
@@ -2030,6 +2033,7 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
     }
     var assignTypeSelect = document.getElementById('addBikeAssignFieldDataType');
     var assignOptionsWrap = document.getElementById('addBikeAssignFieldOptionsWrap');
+
     function toggleAssignAddOptions() {
       if (!assignTypeSelect || !assignOptionsWrap) return;
       assignOptionsWrap.style.display = String(assignTypeSelect.value || '').toLowerCase() === 'dropdown' ? '' : 'none';
@@ -2054,6 +2058,12 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
         bikeCreateOptionRow(editFixedRows, editFixedHidden, '');
       });
     }
+    const editFixedForm = document.getElementById('formEditBikeFixedField');
+    if (editFixedForm && editFixedRows && editFixedHidden) {
+      editFixedForm.addEventListener('submit', function() {
+        bikeSyncOptionsToHidden(editFixedRows, editFixedHidden);
+      });
+    }
     var editFixedTypeSelect = document.getElementById('editBikeFixedInputType');
     if (editFixedTypeSelect) {
       editFixedTypeSelect.addEventListener('change', function() {
@@ -2068,6 +2078,12 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
     if (editCustomAddBtn && editCustomRows && editCustomHidden) {
       editCustomAddBtn.addEventListener('click', function() {
         bikeCreateOptionRow(editCustomRows, editCustomHidden, '');
+      });
+    }
+    const editCustomForm = document.getElementById('formEditBikeCustomField');
+    if (editCustomForm && editCustomRows && editCustomHidden) {
+      editCustomForm.addEventListener('submit', function() {
+        bikeSyncOptionsToHidden(editCustomRows, editCustomHidden);
       });
     }
 
@@ -2953,6 +2969,8 @@ $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
   }
 </script>
 @if(($moduleKey ?? '') === 'bike_list')
-@include('settings.bike_settings._bike_top_page_script')
+  @if(($moduleKey ?? '') === 'bike_list')
+  @include('settings.bike_settings._bike_top_user_prefs_script')
+  @endif
 @endif
 @endsection

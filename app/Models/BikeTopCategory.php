@@ -8,6 +8,7 @@ class BikeTopCategory extends BaseModel
 
     protected $fillable = [
         'name',
+        'filter_type',
         'bike_column',
         'display_order',
         'is_active',

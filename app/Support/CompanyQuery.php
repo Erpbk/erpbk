@@ -33,6 +33,10 @@ class CompanyQuery
             return $query;
         }
 
+        if (AccountsCompanyScope::appliesToTable($table, $connectionName)) {
+            return AccountsCompanyScope::apply($query, $companyId, $table);
+        }
+
         $companyColumn = self::qualifiedCompanyColumn($table);
 
         return $query->where($companyColumn, $companyId)->whereNotNull($companyColumn);

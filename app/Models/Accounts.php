@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
@@ -11,6 +11,38 @@ use App\Traits\BranchScope;
 class Accounts extends BaseModel
 {
   use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
+
+  protected static function boot()
+  {
+    parent::boot();
+
+    static::saving(function (Accounts $account): void {
+      if (!$account->shouldApplyCompanyScope() || !$account->hasCompanyColumn()) {
+        return;
+      }
+
+      if ($account->is_fixed) {
+        $account->company_id = null;
+
+        return;
+      }
+
+      if ($account->company_id === null || $account->company_id === '') {
+        $scopedCompanyId = $account->resolveScopedCompanyId();
+        if ($scopedCompanyId !== null) {
+          $account->company_id = $scopedCompanyId;
+        }
+      }
+    });
+  }
+
+  /**
+   * Fixed shared accounts (company_id NULL) plus this company's own accounts.
+   */
+  protected function applyCompanyScopeConstraint(Builder $builder, int $companyId): void
+  {
+    \App\Support\AccountsCompanyScope::apply($builder, $companyId, $this->getTable());
+  }
 
   public $table = 'accounts';
 

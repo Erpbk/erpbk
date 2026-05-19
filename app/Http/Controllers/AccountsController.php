@@ -445,6 +445,11 @@ class AccountsController extends AppBaseController
     }
 
     $account->is_fixed = !$account->is_fixed;
+    if ($account->is_fixed) {
+      $account->company_id = null;
+    } else {
+      $account->company_id = $this->resolveChartCompanyId();
+    }
     $account->save();
 
     return response()->json([
@@ -502,7 +507,7 @@ class AccountsController extends AppBaseController
       return $account;
     }
 
-    // Unscoped lookup only to verify ownership; orphan rows (company_id NULL) are never accessible.
+    // Unscoped lookup to verify ownership; only fixed accounts (company_id NULL) are shared across tenants.
     $account = Accounts::withoutGlobalScopes(['company', 'branch'])->find($id);
     if (!$account) {
       return null;
@@ -523,7 +528,7 @@ class AccountsController extends AppBaseController
     }
 
     if ($account->company_id === null || $account->company_id === '') {
-      return null;
+      return (bool) $account->is_fixed ? $account : null;
     }
 
     return (int) $account->company_id === (int) $companyId ? $account : null;

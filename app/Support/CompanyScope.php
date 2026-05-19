@@ -65,6 +65,15 @@ final class CompanyScope
             return $query;
         }
 
+        $companyId = CompanyContext::id();
+        if ($companyId === null) {
+            return $query->whereRaw('0 = 1');
+        }
+
+        if (AccountsCompanyScope::appliesToTable($table, $connectionName)) {
+            return AccountsCompanyScope::apply($query, $companyId, $table);
+        }
+
         return self::apply($query, self::qualifyColumn($table, 'company_id'));
     }
 

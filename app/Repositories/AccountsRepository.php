@@ -42,7 +42,7 @@ class AccountsRepository extends BaseRepository
         $input = $this->applyCompanyIdToPayload($input, false);
         $model->fill($input);
 
-        if ($this->modelHasCompanyId() && empty($model->company_id)) {
+        if ($this->modelHasCompanyId() && empty($model->company_id) && ! (bool) $model->is_fixed) {
             $companyId = $this->resolveCurrentCompanyId();
             if ($companyId !== null) {
                 $model->company_id = $companyId;
@@ -52,5 +52,16 @@ class AccountsRepository extends BaseRepository
         $model->save();
 
         return $model;
+    }
+
+    protected function applyCompanyIdToPayload(array $input, bool $forceWhenMissing = true): array
+    {
+        if (! empty($input['is_fixed'])) {
+            $input['company_id'] = null;
+
+            return $input;
+        }
+
+        return parent::applyCompanyIdToPayload($input, $forceWhenMissing);
     }
 }

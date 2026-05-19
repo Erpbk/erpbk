@@ -95,15 +95,13 @@
                         href="javascript:void(0);" data-size="sm" data-title="Import Voucher" data-action="{{ route('voucher.import') }}">
                         Import Voucher
                     </a>
-                    @if(isset(($voucherTypesForFilter ?? [])['JV']))
                     <a class="show-modal action-btn btn btn-primary" style="margin-right:5px;"
                         href="javascript:void(0);"
                         data-size="xl"
-                        data-title="Create {{ $voucherTypesForFilter['JV'] }}"
+                        data-title="Create Journal Voucher"
                         data-action="{{ route('vouchers.create', ['vt' => 'JV']) }}">
-                        <i class="fa fa-plus"></i>&nbsp;{{ $voucherTypesForFilter['JV'] }}
+                        <i class="fa fa-plus"></i>&nbsp;Journal Voucher
                     </a>
-                    @endif
                     @endcan
                 </div>
             </div>

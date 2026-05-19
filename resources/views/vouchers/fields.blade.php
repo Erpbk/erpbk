@@ -75,7 +75,7 @@ $voucherType = $vt ?? request('vt');
         <div class="form-group col-md-3">
             <label for="branch_id">Branch</label>
             @php
-                $branchids = json_decode(auth()->user()->branch_ids) ?? [];
+                $branchids = app('user_branches') ?? [];
                 $branchid = $branchids[0] ?? null;
                 $branch = auth()->user()->branchByid($branchid);
             @endphp

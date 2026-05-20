@@ -54,13 +54,13 @@ class AvailableCompanyContactEmail implements ValidationRule
             return;
         }
 
-        $sameCompanyUserExists = User::withoutGlobalScope('company')
+        $sameCompanyUser = User::withoutGlobalScope('company')
             ->where('company_id', $this->ignoreCompanyId)
             ->whereNotNull('email')
             ->whereRaw('LOWER(TRIM(email)) = ?', [$email])
-            ->exists();
+            ->first();
 
-        if ($sameCompanyUserExists) {
+        if ($sameCompanyUser && !$sameCompanyUser->hasRole('Super Admin')) {
             $fail(__('This email is already used by another user in your company.'));
         }
     }

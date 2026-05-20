@@ -45,12 +45,7 @@
 <div class="form-group col-sm-6">
     {!! Form::label('branch_id', 'Company Branch:',['class'=>'required fw-bold']) !!}
     @php
-    $branchOptions = \App\Models\Branch::query()
-    ->whereIn('id', app('user_branches'))
-    ->selectRaw("id, CONCAT(name, ' (', COALESCE(code, '-'), ')') as label")
-    ->pluck('label', 'id')
-    ->prepend('select', '')
-    ->toArray();
+    $branchOptions = auth()->user()->branchdropdown(true);
     @endphp
     {!! Form::select('branch_id', $branchOptions, null, ['class' => 'form-select select2']) !!}
 </div>

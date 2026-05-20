@@ -462,7 +462,8 @@ class BikeMaintenanceController extends Controller
         $profit = $maintenance->maintenanceItems->sum('profit');
         $total = $maintenance->total_cost - $maintenance->maintenanceItems->sum('profit');
 
-        if ($userItems->isNotEmpty() || $overdueCost > 0) {
+
+        if ($userItems->isNotEmpty()) {
 
             if (!$maintenance->rider_id && !$maintenance->rental_company_id) {
                 \Log::info('maintenance data',$maintenance->toArray());

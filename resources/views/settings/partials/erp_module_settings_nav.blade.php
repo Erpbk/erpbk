@@ -6,7 +6,7 @@ $spCompanySlug = $settingsCompanySlug ?? request()->route('company_slug') ?? ses
 @foreach(\App\Support\SettingsPanelMenuRegistry::items() as $menuItem)
 @php
 if (!\App\Support\SettingsPanelMenuRegistry::isVisible($menuItem) || !\App\Support\SettingsPanelMenuRegistry::hasPermission($menuItem)) {
-    continue;
+continue;
 }
 $parentKey = (string) ($menuItem['key'] ?? '');
 $children = \App\Support\SettingsPanelMenuRegistry::visibleChildren($menuItem['children'] ?? []);
@@ -28,7 +28,7 @@ $parentLabel = \App\Support\SettingsPanelMenuRegistry::label($parentKey, $spMenu
     $childSettings = (string) ($child['settings'] ?? $childKey);
     $childUrl = \App\Support\SettingsPanelMenuRegistry::settingsUrl($childSettings, $spCompanySlug);
     if ($childUrl === null) {
-        continue;
+    continue;
     }
     $childIcon = \App\Support\SettingsPanelMenuRegistry::icon($childKey);
     $childLabel = \App\Support\SettingsPanelMenuRegistry::label($childKey, $spMenuLabels, $child['label'] ?? null);

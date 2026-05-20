@@ -42,8 +42,7 @@
               name="{{ $isSettingsPanel ? 'company_email' : 'settings[company_email]' }}"
               class="form-control @error('company_email') is-invalid @enderror"
               value="{{ old('company_email', $currentCompany->email ?? ($settings['company_email']??'')) }}"
-              @if($isSettingsPanel) data-original-email="{{ old('company_email', $currentCompany->email ?? '') }}" @endif
-            />
+              @if($isSettingsPanel) data-original-email="{{ old('company_email', $currentCompany->email ?? '') }}" @endif />
           </div>
           @error('company_email')
           <div class="text-danger small mt-1">{{ $message }}</div>
@@ -179,187 +178,193 @@
 
 @push('page-scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const form = document.getElementById('companySettingsForm');
-  const emailInput = document.getElementById('company_email');
-  const otpModalEl = document.getElementById('companyEmailOtpModal');
-  const otpForm = document.getElementById('companyEmailOtpForm');
-  const saveBtn = form ? form.querySelector('button[type="submit"]') : null;
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('companySettingsForm');
+    const emailInput = document.getElementById('company_email');
+    const otpModalEl = document.getElementById('companyEmailOtpModal');
+    const otpForm = document.getElementById('companyEmailOtpForm');
+    const saveBtn = form ? form.querySelector('button[type="submit"]') : null;
 
-  if (!form || !emailInput || !otpModalEl || !otpForm) {
-    return;
-  }
-
-  const sendOtpUrl = @json(route('settings-panel.company.email.send-otp', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]));
-  const verifyOtpUrl = @json(route('settings-panel.company.email.verify-otp', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]));
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-  const saveBtnDefaultHtml = saveBtn ? saveBtn.innerHTML : '';
-
-  function normalizeEmail(value) {
-    return (value || '').trim().toLowerCase();
-  }
-
-  function emailChanged() {
-    return normalizeEmail(emailInput.value) !== normalizeEmail(emailInput.dataset.originalEmail || '');
-  }
-
-  function showEmailError(message) {
-    const ajaxErr = document.getElementById('company_email_ajax_error');
-    if (ajaxErr) {
-      ajaxErr.textContent = message;
-      ajaxErr.classList.remove('d-none');
-    }
-    emailInput.classList.add('is-invalid');
-  }
-
-  function clearEmailError() {
-    const ajaxErr = document.getElementById('company_email_ajax_error');
-    if (ajaxErr) {
-      ajaxErr.textContent = '';
-      ajaxErr.classList.add('d-none');
-    }
-    emailInput.classList.remove('is-invalid');
-  }
-
-  function setSaveButtonLoading(loading) {
-    if (!saveBtn) {
-      return;
-    }
-    saveBtn.disabled = loading;
-    saveBtn.innerHTML = loading
-      ? '<span class="spinner-border spinner-border-sm me-1"></span> Sending code...'
-      : saveBtnDefaultHtml;
-  }
-
-  // Step 1: User clicks Save — if email changed, send OTP and open modal (do not save yet).
-  form.addEventListener('submit', function(e) {
-    if (form.dataset.emailVerifiedSubmit === '1' || !emailChanged()) {
+    if (!form || !emailInput || !otpModalEl || !otpForm) {
       return;
     }
 
-    e.preventDefault();
-    e.stopPropagation();
-    clearEmailError();
-    setSaveButtonLoading(true);
+    const sendOtpUrl = @json(route('settings-panel.company.email.send-otp', ['company_slug' => request() - > route('company_slug') ?? session('company_slug')]));
+    const verifyOtpUrl = @json(route('settings-panel.company.email.verify-otp', ['company_slug' => request() - > route('company_slug') ?? session('company_slug')]));
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const saveBtnDefaultHtml = saveBtn ? saveBtn.innerHTML : '';
 
-    const body = new FormData();
-    body.append('email', emailInput.value.trim());
-    body.append('_token', csrfToken);
+    function normalizeEmail(value) {
+      return (value || '').trim().toLowerCase();
+    }
 
-    fetch(sendOtpUrl, {
-      method: 'POST',
-      body: body,
-      credentials: 'same-origin',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-      },
-    })
-      .then(function(r) {
-        return r.json().then(function(data) {
-          return { ok: r.ok, data: data };
+    function emailChanged() {
+      return normalizeEmail(emailInput.value) !== normalizeEmail(emailInput.dataset.originalEmail || '');
+    }
+
+    function showEmailError(message) {
+      const ajaxErr = document.getElementById('company_email_ajax_error');
+      if (ajaxErr) {
+        ajaxErr.textContent = message;
+        ajaxErr.classList.remove('d-none');
+      }
+      emailInput.classList.add('is-invalid');
+    }
+
+    function clearEmailError() {
+      const ajaxErr = document.getElementById('company_email_ajax_error');
+      if (ajaxErr) {
+        ajaxErr.textContent = '';
+        ajaxErr.classList.add('d-none');
+      }
+      emailInput.classList.remove('is-invalid');
+    }
+
+    function setSaveButtonLoading(loading) {
+      if (!saveBtn) {
+        return;
+      }
+      saveBtn.disabled = loading;
+      saveBtn.innerHTML = loading ?
+        '<span class="spinner-border spinner-border-sm me-1"></span> Sending code...' :
+        saveBtnDefaultHtml;
+    }
+
+    // Step 1: User clicks Save — if email changed, send OTP and open modal (do not save yet).
+    form.addEventListener('submit', function(e) {
+      if (form.dataset.emailVerifiedSubmit === '1' || !emailChanged()) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      clearEmailError();
+      setSaveButtonLoading(true);
+
+      const body = new FormData();
+      body.append('email', emailInput.value.trim());
+      body.append('_token', csrfToken);
+
+      fetch(sendOtpUrl, {
+          method: 'POST',
+          body: body,
+          credentials: 'same-origin',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+          },
+        })
+        .then(function(r) {
+          return r.json().then(function(data) {
+            return {
+              ok: r.ok,
+              data: data
+            };
+          });
+        })
+        .then(function(result) {
+          if (!result.ok || !result.data.success) {
+            const msg = result.data.message ||
+              (result.data.errors && result.data.errors.email && result.data.errors.email[0]) ||
+              'Could not send verification code.';
+            showEmailError(msg);
+            return;
+          }
+
+          clearEmailError();
+          document.getElementById('companyEmailOtpHint').textContent =
+            'We sent a 6-digit code to ' + emailInput.value.trim() + '. Enter it below, then click Verify & save.';
+          document.getElementById('company_email_otp').value = '';
+          document.getElementById('companyEmailOtpError').textContent = '';
+          document.getElementById('company_email_otp').classList.remove('is-invalid');
+
+          if (typeof bootstrap !== 'undefined') {
+            bootstrap.Modal.getOrCreateInstance(otpModalEl).show();
+            document.getElementById('company_email_otp').focus();
+          } else {
+            alert('Verification code sent. Please refresh the page and try again.');
+          }
+        })
+        .catch(function() {
+          alert('Network error. Please try again.');
+        })
+        .finally(function() {
+          setSaveButtonLoading(false);
         });
-      })
-      .then(function(result) {
-        if (!result.ok || !result.data.success) {
-          const msg = result.data.message
-            || (result.data.errors && result.data.errors.email && result.data.errors.email[0])
-            || 'Could not send verification code.';
-          showEmailError(msg);
-          return;
-        }
+    });
 
-        clearEmailError();
-        document.getElementById('companyEmailOtpHint').textContent =
-          'We sent a 6-digit code to ' + emailInput.value.trim() + '. Enter it below, then click Verify & save.';
-        document.getElementById('company_email_otp').value = '';
-        document.getElementById('companyEmailOtpError').textContent = '';
-        document.getElementById('company_email_otp').classList.remove('is-invalid');
+    // Step 2: User enters OTP in modal and submits — verify, then save the full form.
+    otpForm.addEventListener('submit', function(e) {
+      e.preventDefault();
 
-        if (typeof bootstrap !== 'undefined') {
-          bootstrap.Modal.getOrCreateInstance(otpModalEl).show();
-          document.getElementById('company_email_otp').focus();
-        } else {
-          alert('Verification code sent. Please refresh the page and try again.');
-        }
-      })
-      .catch(function() {
-        alert('Network error. Please try again.');
-      })
-      .finally(function() {
-        setSaveButtonLoading(false);
-      });
-  });
+      const otp = document.getElementById('company_email_otp').value.trim();
+      const errEl = document.getElementById('companyEmailOtpError');
+      const otpInput = document.getElementById('company_email_otp');
+      const verifyBtn = document.getElementById('companyEmailOtpSubmitBtn');
 
-  // Step 2: User enters OTP in modal and submits — verify, then save the full form.
-  otpForm.addEventListener('submit', function(e) {
-    e.preventDefault();
+      if (otp.length !== 6) {
+        errEl.textContent = 'Please enter the 6-digit code.';
+        otpInput.classList.add('is-invalid');
+        return;
+      }
 
-    const otp = document.getElementById('company_email_otp').value.trim();
-    const errEl = document.getElementById('companyEmailOtpError');
-    const otpInput = document.getElementById('company_email_otp');
-    const verifyBtn = document.getElementById('companyEmailOtpSubmitBtn');
+      otpInput.classList.remove('is-invalid');
+      errEl.textContent = '';
+      verifyBtn.disabled = true;
+      verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Verifying...';
 
-    if (otp.length !== 6) {
-      errEl.textContent = 'Please enter the 6-digit code.';
-      otpInput.classList.add('is-invalid');
-      return;
-    }
+      const body = new FormData();
+      body.append('otp', otp);
+      body.append('_token', csrfToken);
 
-    otpInput.classList.remove('is-invalid');
-    errEl.textContent = '';
-    verifyBtn.disabled = true;
-    verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Verifying...';
+      fetch(verifyOtpUrl, {
+          method: 'POST',
+          body: body,
+          credentials: 'same-origin',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+          },
+        })
+        .then(function(r) {
+          return r.json().then(function(data) {
+            return {
+              ok: r.ok,
+              data: data
+            };
+          });
+        })
+        .then(function(result) {
+          if (!result.ok || !result.data.success) {
+            errEl.textContent = result.data.message || 'Invalid or expired verification code.';
+            otpInput.classList.add('is-invalid');
+            return;
+          }
 
-    const body = new FormData();
-    body.append('otp', otp);
-    body.append('_token', csrfToken);
+          const modal = typeof bootstrap !== 'undefined' ?
+            bootstrap.Modal.getInstance(otpModalEl) :
+            null;
+          if (modal) {
+            modal.hide();
+          }
 
-    fetch(verifyOtpUrl, {
-      method: 'POST',
-      body: body,
-      credentials: 'same-origin',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-      },
-    })
-      .then(function(r) {
-        return r.json().then(function(data) {
-          return { ok: r.ok, data: data };
+          // Native submit skips the submit listener — saves all settings including verified email.
+          form.dataset.emailVerifiedSubmit = '1';
+          if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+          }
+          form.submit();
+        })
+        .catch(function() {
+          alert('Network error. Please try again.');
+        })
+        .finally(function() {
+          verifyBtn.disabled = false;
+          verifyBtn.innerHTML = 'Verify &amp; save';
         });
-      })
-      .then(function(result) {
-        if (!result.ok || !result.data.success) {
-          errEl.textContent = result.data.message || 'Invalid or expired verification code.';
-          otpInput.classList.add('is-invalid');
-          return;
-        }
-
-        const modal = typeof bootstrap !== 'undefined'
-          ? bootstrap.Modal.getInstance(otpModalEl)
-          : null;
-        if (modal) {
-          modal.hide();
-        }
-
-        // Native submit skips the submit listener — saves all settings including verified email.
-        form.dataset.emailVerifiedSubmit = '1';
-        if (saveBtn) {
-          saveBtn.disabled = true;
-          saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
-        }
-        form.submit();
-      })
-      .catch(function() {
-        alert('Network error. Please try again.');
-      })
-      .finally(function() {
-        verifyBtn.disabled = false;
-        verifyBtn.innerHTML = 'Verify &amp; save';
-      });
+    });
   });
-});
 </script>
 @endpush
 

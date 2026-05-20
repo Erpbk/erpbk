@@ -289,6 +289,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     });
 
     // Module settings page + label update
+    Route::post('module-settings/dashboard/cards', [App\Http\Controllers\DashboardSettingsController::class, 'update'])->name('settings-panel.dashboard-settings.cards');
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[A-Za-z0-9_-]+');
     // User Management, Activity Logs, Recycle Bin (moved into Settings)

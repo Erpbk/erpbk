@@ -2,6 +2,7 @@
 
 namespace App\DataTables;
 
+use App\Helpers\IConstants;
 use App\Models\Company;
 use App\Models\User;
 use Yajra\DataTables\Services\DataTable;
@@ -18,7 +19,12 @@ class UserDataTable extends DataTable
   public function dataTable($query)
   {
     $dataTable = new EloquentDataTable($query);
-    $dataTable->addColumn('action', 'users.datatables_actions');
+    $dataTable->addColumn('action', function (User $user) {
+      return view('users.datatables_actions', [
+        'id' => $user->id,
+        'isSuperAdmin' => $user->hasRole(IConstants::ROLE_SUPER_ADMIN),
+      ])->render();
+    });
 
     $dataTable
       ->addColumn('role', function (User $user) {
@@ -37,7 +43,7 @@ class UserDataTable extends DataTable
    */
   public function query(User $model)
   {
-    $query = $model->newQuery()->where('id', '!=', 1);
+    $query = $model->newQuery()->with('roles')->where('id', '!=', 1);
     $companyId = $this->resolveCompanyId();
 
     if ($companyId !== null) {

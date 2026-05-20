@@ -133,15 +133,16 @@ class UserController extends AppBaseController
       return redirect(route('settings-panel.users.index'));
     }
 
-    $user->load('employee');
+    $user->load('employee', 'roles');
     $roles = $this->assignableRolesQuery()->pluck('name', 'name')->all();
     $userRole = $user->roles->pluck('name', 'name')->first();
     $departments = Departments::all()->pluck('name', 'id');
     $countries = Country::countries();
     $branches = Branch::active()->pluck('name', 'id');
     $employees = Employee::active()->get(['id', 'employee_id', 'name']);
+    $isSuperAdmin = $user->hasRole(IConstants::ROLE_SUPER_ADMIN);
 
-    return view('users.edit', compact('user', 'roles', 'countries', 'userRole', 'departments', 'branches', 'employees'));
+    return view('users.edit', compact('user', 'roles', 'countries', 'userRole', 'departments', 'branches', 'employees', 'isSuperAdmin'));
   }
 
   /**
@@ -152,13 +153,27 @@ class UserController extends AppBaseController
     $user = $this->userRepository->find($user);
     $input = $request->all();
     unset($input['company_id']);
-    $this->assertRolesAssignable($request->input('roles'));
 
     if (empty($user) || !$this->belongsToCurrentCompany($user)) {
       Flash::error('User not found');
 
       return redirect(route('settings-panel.users.index'));
     }
+
+    if ($user->hasRole(IConstants::ROLE_SUPER_ADMIN)) {
+      $oldData = $user->toArray();
+
+      if (!empty($input['password'])) {
+        $user->update(['password' => Hash::make($input['password'])]);
+        ActivityLogger::updated('Users', $user, $oldData);
+      }
+
+      Flash::success('User updated successfully.');
+
+      return redirect(route('settings-panel.users.index'));
+    }
+
+    $this->assertRolesAssignable($request->input('roles'));
 
     // Store old data for activity logging
     $oldData = $user->toArray();
@@ -203,6 +218,12 @@ class UserController extends AppBaseController
 
     if (empty($user) || !$this->belongsToCurrentCompany($user)) {
       Flash::error('User not found');
+
+      return redirect(route('settings-panel.users.index'));
+    }
+
+    if ($user->hasRole(IConstants::ROLE_SUPER_ADMIN)) {
+      Flash::error('Super Admin users cannot be deleted.');
 
       return redirect(route('settings-panel.users.index'));
     }

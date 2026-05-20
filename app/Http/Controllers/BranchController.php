@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
-use App\Models\User;
+use App\Support\BranchReferencedChecker;
 use App\Support\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +21,9 @@ class BranchController extends Controller
     public function index(string $company_slug, Request $request)
     {
         $branches = Branch::with(['parent', 'createdBy'])->get();
-        return view('branches.index', compact('branches'));
+        $blockedBranchIds = array_flip(BranchReferencedChecker::inUseIds($branches->pluck('id')->all()));
+
+        return view('branches.index', compact('branches', 'blockedBranchIds'));
     }
 
     /**
@@ -205,18 +207,21 @@ class BranchController extends Controller
      */
     public function destroy(string $company_slug, Branch $branch)
     {
-        // Check if branch has children
-        if ($branch->children()->exists()) {
+        $inUse = BranchReferencedChecker::inUseIds([$branch->id]);
+        if ($inUse !== []) {
+            $message = $branch->children()->exists()
+                ? 'Cannot delete branch with child branches.'
+                : 'Cannot delete this branch while it is linked to other records (e.g. users, riders, or other data).';
             if (request()->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot delete branch with child branches.'
+                    'message' => $message,
                 ], 422);
             }
-            return back()->with('error', 'Cannot delete branch with child branches.');
+
+            return back()->with('error', $message);
         }
 
-        // Check for related records
         $statistics = $branch->getStatistics();
         $hasRecords = array_filter($statistics, function ($count) {
             return $count > 0;
@@ -225,7 +230,7 @@ class BranchController extends Controller
         try {
             DB::beginTransaction();
 
-            if (!empty($hasRecords)) {
+            if (! empty($hasRecords)) {
                 // Soft delete if has related records
                 $branch->delete();
                 $message = 'Branch soft deleted successfully.';
@@ -252,7 +257,7 @@ class BranchController extends Controller
             if (request()->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error deleting branch: ' . $e->getMessage()
+                    'message' => 'Error deleting branch: ' . $e->getMessage(),
                 ], 500);
             }
 

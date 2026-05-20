@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use App\Traits\GlobalPagination;
+use App\Support\DashboardCardRegistry;
 
 class HomeController extends Controller
 {
@@ -38,11 +39,11 @@ class HomeController extends Controller
     $pieData = [
       'labels' => ["Vendors", "Customers", "Riders", "Bikes", "Sims"],
       'data' => [
-        \App\Models\Vendors::count(),
-        \App\Models\Customers::count(),
-        \App\Models\Riders::count(),
-        \App\Models\Bikes::count(),
-        \App\Models\Sims::count()
+        company_table('vendors')->count(),
+        company_table('customers')->count(),
+        company_table('riders')->count(),
+        company_table('bikes')->count(),
+        company_table('sims')->count()
       ],
       'colors' => ["#706c7e", "#5c98e5", "#0760d3", "#211c1d", "#94baec"]
     ];
@@ -54,7 +55,9 @@ class HomeController extends Controller
       $lineData['y'][] = sin($x);
     }
 
-    return view('content.dashboard', compact('pieData', 'lineData'));
+    $dashboardCards = DashboardCardRegistry::cardsForUser(auth()->user());
+
+    return view('content.dashboard', compact('pieData', 'lineData', 'dashboardCards'));
   }
 
   public function settings(Request $request)

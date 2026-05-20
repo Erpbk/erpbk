@@ -18,6 +18,16 @@ class Settings extends BaseModel
     ];
 
     /**
+     * Key/value rows are unique by `name` only (see migrations). Company scoping would hide
+     * existing rows (e.g. legacy NULL company_id) and make updateOrCreate() INSERT again,
+     * triggering SQLSTATE[23000] duplicate key on settings_name_unique.
+     */
+    protected function shouldApplyCompanyScope(): bool
+    {
+        return false;
+    }
+
+    /**
      * Get a single menu label by key (stored value or default).
      */
     public static function getMenuLabel(string $key): string

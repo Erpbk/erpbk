@@ -96,6 +96,7 @@ class SettingsPanelMenuRegistry
             'visa_expense' => ['settings-panel/visa-statuses*', 'settings-panel/module-settings/visa_expense*'],
             'bike_registration' => ['settings-panel/bike-registration-statuses*', 'settings-panel/module-settings/bike_registration*'],
             'bike_list' => ['settings-panel/module-settings/bike_list*'],
+            'dashboard' => ['settings-panel/module-settings/dashboard*'],
             'rta_fines' => ['settings-panel/module-settings/rta_fines*'],
             'rta_fines_unpaid' => ['settings-panel/module-settings/rta_fines_unpaid*'],
             'rta_fines_paid' => ['settings-panel/module-settings/rta_fines_paid*'],

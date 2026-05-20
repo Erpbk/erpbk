@@ -26,6 +26,7 @@ use App\Services\RiderHistoryLogger;
 use App\Support\ModuleFieldSettings;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use App\Support\TopBarNumericStatus;
 
 class SimsController extends AppBaseController
 {
@@ -65,7 +66,17 @@ class SimsController extends AppBaseController
         if ($request->has('company') && !empty($request->company)) {
             $query->where('company', $request->company);
         }
-        if ($request->has('status') && !empty($request->status)) {
+        $simListKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('list_status'));
+        if ($simListKeys !== []) {
+            $query->where(function ($q) use ($simListKeys) {
+                if (in_array(TopBarNumericStatus::ACTIVE_KEY, $simListKeys, true)) {
+                    $q->orWhere('status', '1');
+                }
+                if (in_array(TopBarNumericStatus::INACTIVE_KEY, $simListKeys, true)) {
+                    $q->orWhere('status', '0');
+                }
+            });
+        } elseif ($request->has('status') && !empty($request->status)) {
             if ($request->status == 'active')
                 $query->where('status', '1');
             else

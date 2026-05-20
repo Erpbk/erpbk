@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Helpers\Common;
+use App\Support\ModuleFieldSource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -154,7 +155,7 @@ class BikeCustomField extends BaseModel
 
     public static function humanizeFieldKey(string $key): string
     {
-        return ucwords(str_replace(['_', '-'], ' ', $key));
+        return ModuleFieldSource::humanizeFieldKey($key);
     }
 
     /**
@@ -164,7 +165,7 @@ class BikeCustomField extends BaseModel
     public static function resolvedFixedFieldSpec(string $fieldKey): array
     {
         $specs = self::fixedFieldInputSpecs();
-        $spec = $specs[$fieldKey] ?? ['type' => 'text'];
+        $spec = ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null);
 
         $assignment = BikeFieldCategoryAssignment::where('field_key', $fieldKey)->first();
         if ($assignment) {
@@ -451,7 +452,7 @@ class BikeCustomField extends BaseModel
                         ? trim((string) $a->display_label)
                         : self::humanizeFieldKey($fieldKey);
 
-                    $spec = $specs[$fieldKey] ?? ['type' => 'text'];
+                    $spec = ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null);
 
                     // Settings can override fixed input type + config.
                     if (!empty($a->input_type)) {
@@ -483,7 +484,7 @@ class BikeCustomField extends BaseModel
                         'kind' => 'fixed',
                         'field_key' => $fieldKey,
                         'label' => self::humanizeFieldKey($fieldKey),
-                        'spec' => $specs[$fieldKey] ?? ['type' => 'text'],
+                        'spec' => ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null),
                     ];
                 }
             }

@@ -62,7 +62,15 @@ class RolesController extends AppBaseController
    */
   public function create()
   {
-    return view('roles.create');
+    $modulesQuery = Permission::query();
+    if (Schema::hasColumn('permissions', 'parent_id')) {
+      $modulesQuery->where(function ($q) {
+        $q->whereNull('parent_id')->orWhere('parent_id', 0);
+      });
+    }
+    $modules = $modulesQuery->get();
+
+    return view('roles.create', compact('modules'));
   }
 
   /**

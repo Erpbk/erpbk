@@ -695,8 +695,8 @@ Route::group(['prefix' => 'laravel-filemanager', 'middleware' => ['web', 'auth']
   Lfm::routes();
 }); */
 
-Route::get('/storage/{folder}/{filename}', [FileController::class, 'show'])->where('filename', '.*');
-Route::get('/storage2/{folder}/{filename}', [FileController::class, 'root'])->where('filename', '.*');
+Route::get('/storage/{path}', [FileController::class, 'show'])->where('path', '.+');
+Route::get('/storage2/{path}', [FileController::class, 'root'])->where('path', '.+');
 
 
 Route::get('/artisan-cache', function () {

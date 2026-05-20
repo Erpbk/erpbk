@@ -45,4 +45,9 @@ class salik extends BaseModel
     ];
 
     protected $dates = ['deleted_at'];
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class, 'branch_id');
+    }
 }

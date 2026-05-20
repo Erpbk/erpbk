@@ -203,7 +203,7 @@
 </head>
 <body>
     <div class="controls no-print">
-        <button type="button" class="print-btn" onclick="window.print()">Print</button>
+        <button type="button" class="print-btn" onclick="printModalContent()">Print</button>
     </div>
 
     <div class="invoice-box">
@@ -223,20 +223,18 @@
         <table width="100%" style="font-family: sans-serif;">
             <tr>
                 <td width="33%" style="border: none !important;">
-                    @if(!empty($companyLogoUrl))
-                        <img src="{{ $companyLogoUrl }}" width="150" />
-                    @else
-                        <h3>{{ $settings['company_name'] ?? 'Company Name' }}</h3>
+                    @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
+                        <img src="{{ Storage::url($settings['company_logo']) }}" width="150" alt="logo" />
                     @endif
                 </td>
-                <td width="37%" style="text-align: center; border: none !important;">
+                <td width="37%" style="text-align: center; align-content: center; border: none !important;">
                     <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ $settings['company_name'] }}</h4>
                     <p style="margin-bottom: 5px;font-size: 12px;margin-top: 5px;">{{ $settings['company_address'] }}</p>
                     <p style="margin-bottom: 5px;font-size: 12px;margin-top: 5px;">TRN {{ $settings['vat_number']}}</p>
                     <p style="margin-bottom: 5px;font-size: 11px;margin-top: 5px;">Tel: {{ $settings['company_phone'] }} | Email: {{ $settings['company_email'] }}</p>
                 </td>
-                <td width="30%" style="text-align: center; border: none !important;">
-                    <h3 style="margin: 0; font-weight: 600; color: #004aad; font-size: 20px;">TAX INVOICE</h3>
+                <td width="30%" style="text-align: center; align-content: center; border: none !important;">
+                    <h3 style="margin: 0; font-weight: 600; color: #004aad; font-size: 20px;">VEHICLE FINE</h3>
                 </td>
             </tr>
         </table>

@@ -14,7 +14,8 @@ class Settings extends BaseModel
     protected $table = "settings";
     protected $fillable = [
         'name',
-        'value'
+        'value',
+        'company_id',
     ];
 
     /**

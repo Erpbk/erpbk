@@ -122,6 +122,7 @@ class HomeController extends Controller
           Storage::disk('public')->delete($currentCompany->logo);
         }
         $currentCompany->logo = $path;
+        Settings::updateOrCreate(['name' => 'company_logo', 'company_id' => $currentCompany->id], ['name' => 'company_logo', 'value' => $path, 'company_id' => $currentCompany->id]);
       }
 
       $currentCompany->save();

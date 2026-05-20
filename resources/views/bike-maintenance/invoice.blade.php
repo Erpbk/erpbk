@@ -213,18 +213,16 @@
         <table width="100%" style="font-family: sans-serif;">
             <tr>
                 <td width="33.33%" style=" border: none !important;">
-                    @if(!empty($companyLogoUrl))
-                    <img src="{{ $companyLogoUrl }}" width="150" />
-                    @else
-                    <h3>{{ $settings['company_name'] ?? 'Company Name' }}</h3>
+                    @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
+                        <img src="{{ Storage::url($settings['company_logo']) }}" width="150" alt="logo" />
                     @endif
                 </td>
-                <td width="33.33%" style="text-align: center;  border: none !important;">
+                <td width="33.33%" style="text-align: center; align-content: center; border: none !important;">
                     <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ $settings['company_name'] ?? 'Company Name' }}</h4>
                     <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{ $settings['company_address'] ?? 'Company Address' }}</p>
                     <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TRN {{ $settings['vat_number'] ?? 'TRN Number' }}</p>
                 </td>
-                <td width="33.33%" style="text-align: center;  border: none !important;">
+                <td width="33.33%" style="text-align: center; align-content: center; border: none !important;">
                     <h3 style="margin: 0; font-weight: 600; color: #004aad; font-size: 20px;">Maintenance Bill</h3>
                 </td>
             </tr>

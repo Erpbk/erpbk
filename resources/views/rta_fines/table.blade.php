@@ -33,7 +33,7 @@
          $voucher = $r->paid_voucher_id ? $r->paidVoucher : $r->voucher;
          $voucherNumber = $voucher ? $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) : null;
          @endphp
-         <td><a href="{{ route('rtaFines.show',$r->id) }}" target="_blank">{{$r->ticket_no}}</a></td>
+         <td><a data-action="{{ route('rtaFines.show',$r->id) }}" href="javascript:void(0);" class="show-modal-right">{{$r->ticket_no}}</a></td>
          <td>
             @if($r->is_impound)
             <span style="font-weight: bold;">Yes</span><br>

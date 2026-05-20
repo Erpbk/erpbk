@@ -104,7 +104,7 @@
           @enderror
           @if(!empty($currentCompany?->logo))
           <div class="mt-2">
-            <img src="{{ asset('storage/' . $currentCompany->logo) }}" alt="Company Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;">
+            <img src="{{ Storage::url($currentCompany->logo) }}" alt="Company Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;">
           </div>
           @endif
         </div>
@@ -189,8 +189,8 @@
       return;
     }
 
-    const sendOtpUrl = @json(route('settings-panel.company.email.send-otp', ['company_slug' => request() - > route('company_slug') ?? session('company_slug')]));
-    const verifyOtpUrl = @json(route('settings-panel.company.email.verify-otp', ['company_slug' => request() - > route('company_slug') ?? session('company_slug')]));
+    const sendOtpUrl = @json(route('settings-panel.company.email.send-otp', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]));
+    const verifyOtpUrl = @json(route('settings-panel.company.email.verify-otp', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]));
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const saveBtnDefaultHtml = saveBtn ? saveBtn.innerHTML : '';
 

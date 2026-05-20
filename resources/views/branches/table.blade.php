@@ -44,10 +44,19 @@
                         </a>
                     @endcan
                     @can('branches_delete')
-                    <a href="javascript:void(0);" class='dropdown-item waves-effect delete-branch' 
-                        data-url="{{ route($branchRoute . '.destroy', $branch) }}">
-                        <i class="fa fa-trash my-1"></i> Delete
-                    </a>
+                    @php
+                        $deleteBlocked = isset(($blockedBranchIds ?? [])[$branch->id]);
+                    @endphp
+                    @if($deleteBlocked)
+                        <span class="dropdown-item disabled text-muted" title="{{ __('This branch is linked to other records and cannot be deleted.') }}">
+                            <i class="fa fa-trash my-1"></i> {{ __('Delete') }}
+                        </span>
+                    @else
+                        <a href="javascript:void(0);" class='dropdown-item waves-effect delete-branch' 
+                            data-url="{{ route($branchRoute . '.destroy', $branch) }}">
+                            <i class="fa fa-trash my-1"></i> {{ __('Delete') }}
+                        </a>
+                    @endif
                     @endcan
                 </div>
                 </div>

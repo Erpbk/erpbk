@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ModuleFieldSource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 
@@ -260,7 +261,7 @@ class EmployeeCustomField extends BaseModel
 
     public static function humanizeFieldKey(string $key): string
     {
-        return ucwords(str_replace(['_', '-'], ' ', $key));
+        return ModuleFieldSource::humanizeFieldKey($key);
     }
 
     /**
@@ -350,7 +351,7 @@ class EmployeeCustomField extends BaseModel
                     $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
                         ? trim($a->display_label)
                         : self::humanizeFieldKey($a->field_key);
-                    $spec = $specs[$a->field_key] ?? ['type' => 'text'];
+                    $spec = ModuleFieldSource::mergeFixedFieldSpec($a->field_key, $specs[$a->field_key] ?? null);
 
                     // Employee Settings can override a fixed field's input type + config (e.g. dropdown options).
                     // The employee module renderer reads from "$spec", so we merge relevant config here.
@@ -385,7 +386,7 @@ class EmployeeCustomField extends BaseModel
                         'kind' => 'fixed',
                         'field_key' => $fieldKey,
                         'label' => self::humanizeFieldKey($fieldKey),
-                        'spec' => $specs[$fieldKey] ?? ['type' => 'text'],
+                        'spec' => ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null),
                     ];
                 }
             }

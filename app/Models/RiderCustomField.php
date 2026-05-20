@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ModuleFieldSource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 
@@ -91,7 +92,6 @@ class RiderCustomField extends BaseModel
             'rider_status',
             'image_name',
             'attendance',
-            'branch_id',
             'customer_id',
         ];
     }
@@ -242,6 +242,7 @@ class RiderCustomField extends BaseModel
                 'emirate_exp',
                 'fleet_supervisor',
                 'recruiter_id',
+                'branch_id',
             ],
             'labor_info' => [
                 'person_code',
@@ -318,7 +319,7 @@ class RiderCustomField extends BaseModel
 
     public static function humanizeFieldKey(string $key): string
     {
-        return ucwords(str_replace(['_', '-'], ' ', $key));
+        return ModuleFieldSource::humanizeFieldKey($key);
     }
 
     /**
@@ -453,7 +454,7 @@ class RiderCustomField extends BaseModel
                     $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
                         ? trim($a->display_label)
                         : self::humanizeFieldKey($a->field_key);
-                    $spec = $specs[$a->field_key] ?? ['type' => 'text'];
+                    $spec = ModuleFieldSource::mergeFixedFieldSpec($a->field_key, $specs[$a->field_key] ?? null);
 
                     // Rider Settings can override a fixed field's input type + config (e.g. dropdown options).
                     // The rider module renderer reads from "$spec", so we merge relevant config here.
@@ -488,7 +489,7 @@ class RiderCustomField extends BaseModel
                         'kind' => 'fixed',
                         'field_key' => $fieldKey,
                         'label' => self::humanizeFieldKey($fieldKey),
-                        'spec' => $specs[$fieldKey] ?? ['type' => 'text'],
+                        'spec' => ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null),
                     ];
                 }
             }

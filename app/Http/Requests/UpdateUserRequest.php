@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Helpers\IConstants;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -25,6 +26,15 @@ class UpdateUserRequest extends FormRequest
    */
   public function rules()
   {
+    $userId = $this->route('user') ?? $this->route('id');
+    $user = User::find($userId);
+
+    if ($user && $user->hasRole(IConstants::ROLE_SUPER_ADMIN)) {
+      return [
+        'password' => 'nullable|string|min:6|confirmed',
+      ];
+    }
+
     $rules = User::$rules;
     $userId = $this->route('user') ?? $this->route('id');
 

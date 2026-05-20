@@ -17,6 +17,7 @@ use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
 use Illuminate\Support\Facades\DB;
 use Flash;
+use App\Support\TopBarNumericStatus;
 
 class VendorsController extends AppBaseController
 {
@@ -45,7 +46,10 @@ class VendorsController extends AppBaseController
     if ($request->has('account_id') && !empty($request->account_id)) {
       $query->where('account_id', $request->account_id);
     }
-    if ($request->has('status') && !empty($request->status)) {
+    $listStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('list_status'));
+    if ($listStatusKeys !== []) {
+      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'vendors.status', $listStatusKeys);
+    } elseif ($request->has('status') && !empty($request->status)) {
       $query->where('status', $request->status);
     }
     // Apply pagination using the trait

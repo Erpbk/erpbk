@@ -542,7 +542,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::delete('fuelCompanies/trash/{id}/force-destroy', [\App\Http\Controllers\FuelCompaniesController::class, 'forceDestroyTrash'])->name('fuelCompanies.force-destroy');
     Route::resource('fuelCompanies', App\Http\Controllers\FuelCompaniesController::class);
     Route::delete('fuelCompanies/delete/{id}', [\App\Http\Controllers\FuelCompaniesController::class, 'destroy'])->name('fuelCompanies.delete');
-    
+
     Route::any('inventory/showBatch/{batch_no}', [\App\Http\Controllers\InventoryPurchaseController::class, 'showBatch'])->name('inventory.showBatch');
     Route::any('inventory/purchase/history', [\App\Http\Controllers\InventoryPurchaseController::class, 'indexBatches'])->name('inventory.indexBatch');
     Route::resource('inventory', App\Http\Controllers\InventoryPurchaseController::class);

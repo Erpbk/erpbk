@@ -391,6 +391,9 @@ $('body').on('click', '.show-modal', function () {
   $('#modalTopTitle').text(title);
   $('#modalTopbody').load(action, function () {
     unblock();
+    if (window.Helpers && typeof window.Helpers.initPasswordToggle === 'function') {
+      window.Helpers.initPasswordToggle();
+    }
   });
 
   if (table) {

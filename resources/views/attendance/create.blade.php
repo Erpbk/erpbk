@@ -133,6 +133,16 @@
             </label>
             @php
             $selectedType = $refTypes ?? 'employee';
+            $refIdLabel = match ($selectedType) {
+                'employee' => 'Select Employee',
+                'rider' => 'Select Rider',
+                default => 'Select Employee or Rider',
+            };
+            $refIdPlaceholder = match ($selectedType) {
+                'employee' => '-- Select Employee --',
+                'rider' => '-- Select Rider --',
+                default => '-- Select employee or rider first --',
+            };
             @endphp
             <div class="btn-group w-100" role="group">
                 @if($selectedType === 'employee')
@@ -157,12 +167,12 @@
 
         <!-- User Selection -->
         <div class="col-md-6">
-            <label for="ref_id" class="form-label fw-bold required">
-                Select User
+            <label for="ref_id" id="ref_id_label" class="form-label fw-bold required">
+                {{ $refIdLabel }}
             </label>
             <select class="form-select @error('ref_id') is-invalid @enderror select2"
                 id="form_ref_id" name="ref_id" required>
-                <option value="">-- Select user type first --</option>
+                <option value="">{{ $refIdPlaceholder }}</option>
             </select>
             @error('ref_id')
             <div class="invalid-feedback">{{ $message }}</div>
@@ -284,6 +294,7 @@
 
         // Ensure selected type is reflected and users are loaded on first render
         $('input[name="ref_type"][value="' + selectedRefType + '"]').prop('checked', true);
+        updateRefIdLabel(selectedRefType);
         loadUsers(selectedRefType, selectedRefId);
         if (selectedRefId) {
             // We need to wait for users to load then set the value
@@ -298,6 +309,7 @@
         $('input[name="ref_type"]').change(function() {
             var refType = $(this).val();
             $('#form_ref_id').val('');
+            updateRefIdLabel(refType);
             loadUsers(refType);
         });
 
@@ -349,18 +361,34 @@
         });
     });
 
+    function updateRefIdLabel(refType) {
+        var label = 'Select Employee or Rider';
+        var placeholder = '-- Select employee or rider first --';
+
+        if (refType === 'employee') {
+            label = 'Select Employee';
+            placeholder = '-- Select Employee --';
+        } else if (refType === 'rider') {
+            label = 'Select Rider';
+            placeholder = '-- Select Rider --';
+        }
+
+        $('#ref_id_label').text(label);
+    }
+
     // Function to load users based on type
     function loadUsers(refType, selectedRefId = null) {
         var select = $('#form_ref_id');
         select.html('<option value="">Loading users...</option>').prop('disabled', true);
 
         if (refType === 'employee' || refType === 'rider') {
+            var placeholder = refType === 'employee' ? '-- Select Employee --' : '-- Select Rider --';
             $.ajax({
                 url: '{{ route("attendance.users", "refType") }}'.replace("refType", refType),
                 type: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    select.html('<option value="">-- Select User --</option>');
+                    select.html('<option value="">' + placeholder + '</option>');
                     $.each(data, function(index, user) {
                         var selected = (selectedRefId && String(selectedRefId) === String(user.id)) ? 'selected' : '';
                         select.append('<option value="' + user.id + '"' + selected + '>' + user.name + '</option>');
@@ -373,7 +401,7 @@
                 }
             });
         } else {
-            select.html('<option value="">-- Select user type first --</option>').prop('disabled', true);
+            select.html('<option value="">-- Select employee or rider first --</option>').prop('disabled', true);
         }
     }
 

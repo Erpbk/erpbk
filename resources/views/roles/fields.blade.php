@@ -14,17 +14,6 @@
 <div class="table-responsive scrollbar" >
     <table class="table table-flush-spacing">
       <tbody>
-       {{--  <tr>
-          <td class="text-nowrap fw-medium">Administrator Access <i class="ti ti-info-circle" data-bs-toggle="tooltip" data-bs-placement="top" aria-label="Allows a full access to the system" data-bs-original-title="Allows a full access to the system"></i></td>
-          <td>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="selectAll">
-              <label class="form-check-label" for="selectAll">
-                Select All
-              </label>
-            </div>
-          </td>
-        </tr> --}}
         @php
             use Spatie\Permission\Models\Permission;
             $hasParentId = \Illuminate\Support\Facades\Schema::hasColumn('permissions', 'parent_id');
@@ -38,24 +27,30 @@
         @endphp
         @if ($hasParentId)
         @foreach ($modules as $module)
-
+        @php
+            $permissions = Permission::where('parent_id', $module->id)->get();
+            $moduleKey = 'module-' . $module->id;
+        @endphp
         <tr>
-          <td class="text-nowrap fw-medium">{{$module->name}}</td>
-          @php
-              $permissions = Permission::where('parent_id',$module->id)->get();
-          @endphp
+          <td class="text-nowrap fw-medium align-top">
+            <div>{{ $module->name }}</div>
+            <div class="form-check mt-2">
+              <input class="form-check-input module-select-all" type="checkbox" id="{{ $moduleKey }}-all" data-module-key="{{ $moduleKey }}">
+              <label class="form-check-label small text-muted" for="{{ $moduleKey }}-all">Select All</label>
+            </div>
+          </td>
           <td>
-            <div class="d-flex">
+            <div class="d-flex flex-wrap module-permissions" data-module-key="{{ $moduleKey }}">
           @foreach ($permissions as $item)
 
-                <div class="form-check me-3 me-lg-5">
-                    <input class="form-check-input" name="permission[]" id="{{$item->id}}" value="{{$item->id}}" type="checkbox"
+                <div class="form-check me-3 me-lg-5 mb-2">
+                    <input class="form-check-input module-permission" name="permission[]" id="{{ $item->id }}" value="{{ $item->id }}" type="checkbox" data-module-key="{{ $moduleKey }}"
                     @isset($rolePermissions[$item->id]) checked @endisset >
                     @php
                          $name = explode('_',$item->name,2);
-                        $name = ucwords(str_replace("_"," ",$name[1]));
+                        $name = ucwords(str_replace("_"," ",$name[1] ?? $item->name));
                     @endphp
-                    <label class="form-check-label" for="{{$item->id}}">{{$name}}</label>
+                    <label class="form-check-label" for="{{ $item->id }}">{{ $name }}</label>
                 </div>
 
             @endforeach
@@ -78,13 +73,22 @@
             });
         @endphp
         @foreach ($groupedPermissions as $moduleName => $permissions)
+        @php
+            $moduleKey = 'module-' . \Illuminate\Support\Str::slug($moduleName);
+        @endphp
         <tr>
-          <td class="text-nowrap fw-medium">{{ $moduleName }}</td>
+          <td class="text-nowrap fw-medium align-top">
+            <div>{{ $moduleName }}</div>
+            <div class="form-check mt-2">
+              <input class="form-check-input module-select-all" type="checkbox" id="{{ $moduleKey }}-all" data-module-key="{{ $moduleKey }}">
+              <label class="form-check-label small text-muted" for="{{ $moduleKey }}-all">Select All</label>
+            </div>
+          </td>
           <td>
-            <div class="d-flex">
+            <div class="d-flex flex-wrap module-permissions" data-module-key="{{ $moduleKey }}">
               @foreach ($permissions as $item)
-              <div class="form-check me-3 me-lg-5">
-                <input class="form-check-input" name="permission[]" id="{{ $item->id }}" value="{{ $item->id }}" type="checkbox"
+              <div class="form-check me-3 me-lg-5 mb-2">
+                <input class="form-check-input module-permission" name="permission[]" id="{{ $item->id }}" value="{{ $item->id }}" type="checkbox" data-module-key="{{ $moduleKey }}"
                   @isset($rolePermissions[$item->id]) checked @endisset>
                 @php
                   $parts = explode('_', $item->name, 2);
@@ -103,17 +107,35 @@
     </table>
   </div>
 
-  @push('third_party_scripts')
-     <script>
-$("#selectAll").click(function(){
-
-    $(':checkbox').each(function() {
-    if(this.checked == true) {
-      this.checked = false;
-    } else {
-      this.checked = true;
+  <script>
+(function () {
+  function syncModuleSelectAll(moduleKey) {
+    var $permissions = $('.module-permission[data-module-key="' + moduleKey + '"]');
+    var $selectAll = $('.module-select-all[data-module-key="' + moduleKey + '"]');
+    if (!$permissions.length || !$selectAll.length) {
+      return;
     }
+
+    var checkedCount = $permissions.filter(':checked').length;
+    $selectAll.prop('checked', checkedCount === $permissions.length);
+    $selectAll.prop('indeterminate', checkedCount > 0 && checkedCount < $permissions.length);
+  }
+
+  $(document).on('change', '.module-select-all', function () {
+    var moduleKey = $(this).data('module-key');
+    var checked = this.checked;
+    $('.module-permission[data-module-key="' + moduleKey + '"]').prop('checked', checked);
+    $(this).prop('indeterminate', false);
   });
-})
+
+  $(document).on('change', '.module-permission', function () {
+    syncModuleSelectAll($(this).data('module-key'));
+  });
+
+  $(function () {
+    $('.module-select-all').each(function () {
+      syncModuleSelectAll($(this).data('module-key'));
+    });
+  });
+})();
 </script>
-  @endpush

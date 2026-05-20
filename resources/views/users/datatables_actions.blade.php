@@ -12,7 +12,7 @@
     </a>
 
     @can('user_delete')
-    @if($id !=1 && $id !=2)
+    @if(empty($isSuperAdmin))
     {!! Form::button('<i class="fa fa-trash"></i>', [
         'type' => 'submit',
         'class' => 'btn btn-danger btn-sm',

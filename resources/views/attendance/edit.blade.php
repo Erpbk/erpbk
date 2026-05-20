@@ -11,6 +11,16 @@
             @php
             $selectedType = old('ref_type', $attendance->ref_type ?? 'employee');
             $selectedRefId = old('ref_id', $attendance->ref_id);
+            $refIdLabel = match ($selectedType) {
+                'employee' => 'Select Employee',
+                'rider' => 'Select Rider',
+                default => 'Select Employee or Rider',
+            };
+            $refIdPlaceholder = match ($selectedType) {
+                'employee' => '-- Select Employee --',
+                'rider' => '-- Select Rider --',
+                default => '-- Select employee or rider first --',
+            };
             $selectedStatus = str_replace('-', ' ', strtolower(trim(old('status', $attendance->status ?? ''))));
             $checkInValue = old('check_in');
             if ($checkInValue === null) {
@@ -42,12 +52,12 @@
 
         <!-- User Selection -->
         <div class="col-md-6">
-            <label for="ref_id" class="form-label fw-bold required">
-                Select User
+            <label for="ref_id" id="ref_id_label" class="form-label fw-bold required">
+                {{ $refIdLabel }}
             </label>
             <select class="form-select @error('ref_id') is-invalid @enderror select2"
                 id="form_ref_id" name="ref_id" required>
-                <option value="">-- Select user type first --</option>
+                <option value="">{{ $refIdPlaceholder }}</option>
                 @if($selectedRefId && $selectedRefId != $attendance->ref_id)
                 <option value="{{ $selectedRefId }}" selected>Selected User (ID: {{ $selectedRefId }})</option>
                 @elseif($attendance->ref_type && $attendance->user)
@@ -308,6 +318,7 @@
         // Load users when user type is selected
         $('input[name="ref_type"]').change(function() {
             var refType = $(this).val();
+            updateRefIdLabel(refType);
             loadUsers(refType);
         });
 
@@ -322,6 +333,7 @@
         var initialRefType = "{{ old('ref_type', $attendance->ref_type ?? 'employee') }}";
         var initialRefId = "{{ old('ref_id', $attendance->ref_id) }}";
         $('input[name="ref_type"][value="' + initialRefType + '"]').prop('checked', true);
+        updateRefIdLabel(initialRefType);
         loadUsers(initialRefType, initialRefId);
 
         // Check-in/Check-out time validation
@@ -392,18 +404,36 @@
         });
     });
 
+    function updateRefIdLabel(refType) {
+        var label = 'Select Employee or Rider';
+        var placeholder = '-- Select employee or rider first --';
+
+        if (refType === 'employee') {
+            label = 'Select Employee';
+            placeholder = '-- Select Employee --';
+        } else if (refType === 'rider') {
+            label = 'Select Rider';
+            placeholder = '-- Select Rider --';
+        }
+
+        $('#ref_id_label').text(label);
+    }
+
     // Function to load users based on type
     function loadUsers(refType, selectedUserId = null) {
         var select = $('#form_ref_id');
         select.html('<option value="">Loading users...</option>').prop('disabled', true);
 
         if (refType) {
+            var placeholder = refType === 'employee'
+                ? '-- Select Employee --'
+                : (refType === 'rider' ? '-- Select Rider --' : '-- Select employee or rider first --');
             $.ajax({
                 url: '{{ route("attendance.users", "refType") }}'.replace("refType", refType),
                 type: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    select.html('<option value="">-- Select User --</option>');
+                    select.html('<option value="">' + placeholder + '</option>');
                     $.each(data, function(index, user) {
                         var selected = (selectedUserId && user.id == selectedUserId) ? 'selected' : '';
                         select.append('<option value="' + user.id + '" ' + selected + '>' + user.name + '</option>');
@@ -419,7 +449,7 @@
                 }
             });
         } else {
-            select.html('<option value="">-- Select user type first --</option>').prop('disabled', true);
+            select.html('<option value="">-- Select employee or rider first --</option>').prop('disabled', true);
         }
     }
 

@@ -171,7 +171,7 @@ class ModuleSettingsController extends Controller
                         'field_key' => $column,
                         'company_id' => \App\Support\CompanyContext::id(),
                         'category_id' => $defaultCategoryId,
-                        'field_label' => ucwords(str_replace('_', ' ', $column)),
+                        'field_label' => ModuleFieldSource::defaultAssignmentFieldLabel($column),
                         'display_label' => null,
                         'is_visible' => true,
                         'is_required' => true,
@@ -187,7 +187,7 @@ class ModuleSettingsController extends Controller
                     $dirty = true;
                 }
                 if (empty($assignment->field_label)) {
-                    $assignment->field_label = ucwords(str_replace('_', ' ', $column));
+                    $assignment->field_label = ModuleFieldSource::defaultAssignmentFieldLabel($column);
                     $dirty = true;
                 }
                 if ($dirty) {
@@ -212,6 +212,10 @@ class ModuleSettingsController extends Controller
     public function index(string $company_slug, string $module)
     {
         $routeModule = $this->normalizeModuleKey($module);
+        if ($routeModule === 'dashboard') {
+            return app(DashboardSettingsController::class)->index($company_slug);
+        }
+
         $topBarModuleKey = $routeModule;
         $module = ErpModuleRegistry::settingsFieldsModuleKey($routeModule);
 

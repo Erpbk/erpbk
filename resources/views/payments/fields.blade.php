@@ -50,9 +50,12 @@
         <!-- Paying Account (Credit) -->
         <div class="form-group col-md-3">
             {!! Form::label('bank_id', 'Sending Account:') !!}
-            @if(isset($bank))
+            @php
+                $banks = $banks ?? \App\Models\Banks::active()->get();
+            @endphp
+            @if(isset($bank) && $bank)
                 {!! Form::hidden('bank_id', $bank->id)!!}
-                {!! Form::text('bank-name', $bank->account->account_code.'-'.$bank->account->name, ['class' => 'form-control bg-light', 'readonly' => true]) !!}
+                {!! Form::text('bank-name', ($bank->account->account_code ?? '').'-'.($bank->account->name ?? $bank->name), ['class' => 'form-control bg-light', 'readonly' => true]) !!}
             @else
                 <select name="bank_id" class="form-control select2" required>
                     <option value="">-- Select Paying Account --</option>

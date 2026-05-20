@@ -209,12 +209,25 @@ class BanksController extends AppBaseController
     $banks = $this->banksRepository->find($id);
 
     if (empty($banks)) {
+      if ($request->ajax()) {
+        return response()->json(['message' => 'Bank not found!'], 404);
+      }
       Flash::error('Bank not found!');
+      return redirect()->back();
     }
 
     $banks = $this->banksRepository->update($request->all(), $id);
-    $banks->account->status = $banks->status;
-    $banks->save();
+    if ($banks->account) {
+      $banks->account->status = $banks->status;
+      $banks->account->save();
+    }
+
+    if ($request->ajax()) {
+      return response()->json([
+        'message' => 'Bank updated successfully.',
+        'reload' => true,
+      ], 200);
+    }
 
     Flash::success('Bank updated successfully.');
     return redirect()->back();

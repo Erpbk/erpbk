@@ -433,7 +433,7 @@ $('body').on('click', '.show-voucher-panel', function (e) {
       $('#voucherListSidebarBackdrop').addClass('visible').attr('aria-hidden', 'false');
       $('body').addClass('voucher-panels-open');
       listBody.html('<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><p class="mb-0 mt-2 small">Loading…</p></div>');
-      var listUrl = customListUrl || (($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar');
+      var listUrl = customListUrl || $('#vouchers_list_sidebar_url').val() || (($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar');
       listBody.load(listUrl);
     }
     if (collapseSidebar) {

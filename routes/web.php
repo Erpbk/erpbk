@@ -79,7 +79,7 @@ Route::post('admin/logout', [AdminLoginController::class, 'logout'])->name('admi
 // Tenant UI lives in one Route::prefix('app/{company_slug}') group below. Avoid a second group with the same prefix (duplicate URIs break route names / matching).
 
 // Settings panel must live under /app/{company_slug}/ so company context is active (same names: settings-panel.*)
-Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
+Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
     require base_path('routes/settings_panel.php');
 });
 
@@ -154,7 +154,7 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
 // pages
 Route::get('/pages/misc-error', [MiscError::class, 'index'])->name('pages-misc-error');
 
-Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
+Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
 
     Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home-dashboard');
@@ -695,8 +695,8 @@ Route::group(['prefix' => 'laravel-filemanager', 'middleware' => ['web', 'auth']
   Lfm::routes();
 }); */
 
-Route::get('/storage/{folder}/{filename}', [FileController::class, 'show'])->where('filename', '.*');
-Route::get('/storage2/{folder}/{filename}', [FileController::class, 'root'])->where('filename', '.*');
+Route::get('/storage/{path}', [FileController::class, 'show'])->where('path', '.+');
+Route::get('/storage2/{path}', [FileController::class, 'root'])->where('path', '.+');
 
 
 Route::get('/artisan-cache', function () {
@@ -783,7 +783,7 @@ Route::prefix('settings')->group(function () {
 
 
 /* Suppliers section start here */
-Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
+Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
     // Suppliers: explicit routes before resource (avoid clashes with {supplier})
     Route::get('suppliers/datatable', [SupplierController::class, 'datatable'])->name('suppliers.datatable');
     Route::get('suppliers/trash', [SupplierController::class, 'trash'])->name('suppliers.trash');
@@ -814,7 +814,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 });
 
 /* Suppliers section end here */
-Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
+Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
     Route::resource('upload_files', UploadFilesController::class);
     Route::get('/upload_files', [UploadFilesController::class, 'index'])->name('upload_files.index');
     Route::get('/upload_files/create', [UploadFilesController::class, 'create'])->name('upload_files.create');
@@ -827,7 +827,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
 
 
 
-Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenant', 'auth'])->group(function () {
+Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
     // Specific Salik routes (must come before resource route)
     Route::get('salik/missing-records', [\App\Http\Controllers\SalikController::class, 'showMissingRecords'])->name('salik.missing.records');
     Route::get('salik/export-missing-records', [\App\Http\Controllers\SalikController::class, 'exportMissingRecords'])->name('salik.export.missing.records');

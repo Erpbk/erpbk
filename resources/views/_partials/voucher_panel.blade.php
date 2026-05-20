@@ -1,4 +1,8 @@
 {{-- Left sidebar: voucher list — appears alongside the voucher detail panel (reference layout) --}}
+@php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
+@if(Route::has('vouchers.list-sidebar') && $__companySlug)
+<input type="hidden" id="vouchers_list_sidebar_url" value="{{ route('vouchers.list-sidebar', ['company_slug' => $__companySlug]) }}" />
+@endif
 <div id="voucherListSidebar" class="voucher-list-sidebar-wrapper" aria-hidden="true">
   <div id="voucherListSidebarBody" class="flex-grow-1 overflow-hidden d-flex flex-column">
     <div class="p-3 text-center text-muted">

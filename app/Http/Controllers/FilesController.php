@@ -62,7 +62,7 @@ class FilesController extends AppBaseController
 
       $extension = $input['file_name']->extension();
       $name = $input['type'] . '-' . $input['type_id'] . '-' . time() . '.' . $extension;
-      $input['file_name']->storeAs($input['type'] . '/' . $input['type_id'] . '/', $name);
+      $input['file_name']->storeAs($input['type'] . '/' . $input['type_id'] . '/', $name, 'public');
 
       if(empty($input['suggested_name']))
         $input['name'] = $input['file_name']->getClientOriginalName();
@@ -141,9 +141,16 @@ class FilesController extends AppBaseController
   public function destroy($company_slug, $id)
   {
     $files = $this->filesRepository->find($id);
-    if (file_exists(storage_path('app/' . $files->type . '/' . $files->type_id . '/' . $files->file_name))) {
-      unlink(storage_path('app/' . $files->type . '/' . $files->type_id . '/' . $files->file_name));
-
+    if (!empty($files)) {
+      $relativeDir = $files->type . '/' . $files->type_id . '/' . $files->file_name;
+      foreach ([
+        storage_path('app/' . $relativeDir),
+        storage_path('app/public/' . $relativeDir),
+      ] as $filePath) {
+        if (file_exists($filePath)) {
+          unlink($filePath);
+        }
+      }
     }
 
     if (empty($files)) {

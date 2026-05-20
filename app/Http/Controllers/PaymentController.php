@@ -148,8 +148,9 @@ class PaymentController extends Controller
             $invoices = null;
         }
         if ($accountId) {
-            $bank = Banks::find($accountId);
-            return view('payments.create', compact('bank', 'payment'));
+            $bank = Banks::with('account')->find($accountId);
+            $banks = Banks::with('account')->active()->get();
+            return view('payments.create', compact('bank', 'banks', 'payment'));
         } elseif ($leasingCompanyId || $leasingIds) {
             $leasingCompany = LeasingCompanies::find($leasingCompanyId ?? 0);
             $banks = Banks::with('account')->active()->get();
@@ -468,9 +469,9 @@ class PaymentController extends Controller
             $invoice_numbers = explode(' ', $payment->reference);
             $invoiceIds = [];
             foreach ($invoice_numbers as $invoice_number) {
-                $id = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoice_number);
-                if ($id) {
-                    $invoiceIds[] = $id;
+                $invoiceId = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
                 }
             }
             $existingInvoices = LeasingCompanyInvoice::with('leasingCompany')
@@ -490,9 +491,9 @@ class PaymentController extends Controller
             $invoice_numbers = explode(' ', $payment->reference);
             $invoiceIds = [];
             foreach ($invoice_numbers as $invoice_number) {
-                $id = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
-                if ($id) {
-                    $invoiceIds[] = $id;
+                $invoiceId = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
                 }
             }
             $existingInvoices = SupplierInvoices::with('supplier')
@@ -514,9 +515,9 @@ class PaymentController extends Controller
             $invoice_numbers = explode(' ', $payment->reference);
             $invoiceIds = [];
             foreach ($invoice_numbers as $invoice_number) {
-                $id = EmployeeInvoices::getIdFromInvoiceNumber($invoice_number);
-                if ($id) {
-                    $invoiceIds[] = $id;
+                $invoiceId = EmployeeInvoices::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
                 }
             }
             $existingInvoices = EmployeeInvoices::with('employee')

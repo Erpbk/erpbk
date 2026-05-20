@@ -116,16 +116,36 @@ class HomeController extends Controller
       $currentCompany->country = $validated['company_country'] ?? null;
       $currentCompany->city = $validated['company_city'] ?? null;
 
+
       if ($request->hasFile('company_logo')) {
         $path = $request->file('company_logo')->store('company-logos', 'public');
         if (!empty($currentCompany->logo)) {
           Storage::disk('public')->delete($currentCompany->logo);
         }
         $currentCompany->logo = $path;
-        Settings::updateOrCreate(['name' => 'company_logo', 'company_id' => $currentCompany->id], ['name' => 'company_logo', 'value' => $path, 'company_id' => $currentCompany->id]);
       }
 
       $currentCompany->save();
+      $settings = [
+        'company_logo'    => $currentCompany->logo,
+        'company_name'    => $currentCompany->name,
+        'company_address' => $currentCompany->address,
+      ];
+
+      foreach ($settings as $name => $value) {
+        Settings::updateOrCreate(
+          [
+            'name' => $name,
+            'company_id' => $currentCompany->id,
+          ],
+          [
+            'name' => $name,
+            'value' => $value,
+            'company_id' => $currentCompany->id,
+          ]
+        );
+      }
+
       AdminCompany::syncFromCentralCompany($currentCompany);
 
       if ($newEmail !== $currentEmail && $newEmail && $currentEmail !== '') {
@@ -146,9 +166,8 @@ class HomeController extends Controller
           }
         }
       }
-
       foreach ((array) $request->post('settings', []) as $key => $value) {
-        Settings::updateOrCreate(['name' => $key], ['name' => $key, 'value' => $value]);
+        Settings::updateOrCreate(['name' => $key, 'company_id' => $currentCompany->id], ['name' => $key, 'value' => $value, 'company_id' => $currentCompany->id]);
       }
 
       return back()->with('success', __('Company details updated successfully.'));
@@ -158,7 +177,7 @@ class HomeController extends Controller
 
       foreach ($request->post('settings') as $key => $value) {
         //echo $key.'-'.$value;
-        Settings::updateOrCreate(['name' => $key], ['name' => $key, 'value' => $value]);
+        Settings::updateOrCreate(['name' => $key, 'company_id' => $currentCompany->id], ['name' => $key, 'value' => $value, 'company_id' => $currentCompany->id]);
         session()->flash('success', 'Settings updated successfully.');
       }
     }

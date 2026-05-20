@@ -1,4 +1,7 @@
 {{-- Left sidebar: voucher list — appears alongside the voucher detail panel (reference layout) --}}
+@if(Route::has('vouchers.list-sidebar'))
+<input type="hidden" id="vouchers_list_sidebar_url" value="{{ route('vouchers.list-sidebar') }}" />
+@endif
 <div id="voucherListSidebar" class="voucher-list-sidebar-wrapper" aria-hidden="true">
   <div id="voucherListSidebarBody" class="flex-grow-1 overflow-hidden d-flex flex-column">
     <div class="p-3 text-center text-muted">

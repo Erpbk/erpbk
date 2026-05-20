@@ -28,7 +28,7 @@
           $voucherId = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
           $typeLabel = $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type;
         @endphp
-        <a href="javascript:void(0);" class="voucher-list-sidebar-row show-voucher-panel d-flex align-items-stretch gap-2 px-3 py-2 border-bottom text-decoration-none text-body" data-action="{{ route('vouchers.show', $voucher->id) }}" data-title="{{ $typeLabel }} #{{ $voucherId }}" data-collapse-sidebar="1">
+        <a href="javascript:void(0);" class="voucher-list-sidebar-row show-voucher-panel d-flex align-items-stretch gap-2 px-3 py-2 border-bottom text-decoration-none text-body" data-action="{{ route('vouchers.show', $voucher->id) }}" data-title="{{ $typeLabel }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar') }}">
           <div class="d-flex align-items-start pt-1">
             <input type="checkbox" class="form-check-input mt-0" onclick="event.preventDefault(); event.stopPropagation();" aria-label="Select">
           </div>

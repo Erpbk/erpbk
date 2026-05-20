@@ -1,4 +1,5 @@
 @php
+  $__companySlug = \App\Support\CompanyRouteContext::slug();
   $voucherTypes = \App\Helpers\General::VoucherType();
   $voucherTypesForCreate = $voucherTypesForCreate ?? \App\Models\VoucherType::activeCodeLabelMapForModule('vouchers');
 @endphp
@@ -12,7 +13,7 @@
       @can('voucher_create')
         @php $firstVt = collect($voucherTypesForCreate)->keys()->first(); @endphp
         @if($firstVt)
-          <a href="javascript:void(0);" class="btn btn-sm btn-primary py-1 px-2 show-modal" data-size="xl" data-title="Create Voucher" data-action="{{ route('vouchers.create', ['vt' => $firstVt]) }}" title="Add"><i class="ti ti-plus"></i></a>
+          <a href="javascript:void(0);" class="btn btn-sm btn-primary py-1 px-2 show-modal" data-size="xl" data-title="Create Voucher" data-action="{{ route('vouchers.create', ['company_slug' => $__companySlug, 'vt' => $firstVt]) }}" title="Add"><i class="ti ti-plus"></i></a>
         @endif
       @endcan
       <span class="badge bg-label-secondary">{{ $data->total() }}</span>
@@ -28,7 +29,7 @@
           $voucherId = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
           $typeLabel = $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type;
         @endphp
-        <a href="javascript:void(0);" class="voucher-list-sidebar-row show-voucher-panel d-flex align-items-stretch gap-2 px-3 py-2 border-bottom text-decoration-none text-body" data-action="{{ route('vouchers.show', $voucher->id) }}" data-title="{{ $typeLabel }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar') }}">
+        <a href="javascript:void(0);" class="voucher-list-sidebar-row show-voucher-panel d-flex align-items-stretch gap-2 px-3 py-2 border-bottom text-decoration-none text-body" data-action="{{ route('vouchers.show', ['company_slug' => $__companySlug, 'voucher' => $voucher->id]) }}" data-title="{{ $typeLabel }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', ['company_slug' => $__companySlug]) }}">
           <div class="d-flex align-items-start pt-1">
             <input type="checkbox" class="form-check-input mt-0" onclick="event.preventDefault(); event.stopPropagation();" aria-label="Select">
           </div>

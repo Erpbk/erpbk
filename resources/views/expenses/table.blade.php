@@ -20,6 +20,7 @@
     </tr>
   </thead>
   <tbody>
+    @php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
     @if(isset($data) && $data->count() > 0)
     @foreach($data as $voucher)
     <tr class="text-center">
@@ -27,7 +28,7 @@
         @php
         $voucherId = 'EXP-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
         @endphp
-        <a href="javascript:void(0);" class="text-primary show-voucher-panel" data-action="{{ route('expenses.voucher.show', $voucher->id) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar') }}">{{ $voucherId }}</a>
+        <a href="javascript:void(0);" class="text-primary show-voucher-panel" data-action="{{ route('expenses.voucher.show', ['company_slug' => $__companySlug, 'id' => $voucher->id]) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', ['company_slug' => $__companySlug]) }}">{{ $voucherId }}</a>
       </td>
       <td>{{ \App\Helpers\Common::DateFormat($voucher->trans_date) }}</td>
       <td>{{ $voucher->trans_code }}</td>
@@ -58,7 +59,7 @@
               </a></li>
             @endcan
             @can('expenses_view')
-            <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('expenses.voucher.show', $voucher->id) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar') }}">
+            <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('expenses.voucher.show', ['company_slug' => $__companySlug, 'id' => $voucher->id]) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', ['company_slug' => $__companySlug]) }}">
                 <i class="fa fa-eye my-1"></i> View
               </a></li>
             @endcan

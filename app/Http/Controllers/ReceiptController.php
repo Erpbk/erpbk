@@ -354,9 +354,9 @@ class ReceiptController extends Controller
             $invoice_numbers = explode(' ', $receipt->reference);
             $invoiceIds = [];
             foreach ($invoice_numbers as $invoice_number) {
-                $id = CustomerInvoices::getIdFromInvoiceNumber($invoice_number);
-                if ($id) {
-                    $invoiceIds[] = $id;
+                $invoiceId = CustomerInvoices::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
                 }
             }
             $existingInvoices = CustomerInvoices::with('customer')
@@ -377,9 +377,9 @@ class ReceiptController extends Controller
             $invoice_numbers = explode(' ', $receipt->reference);
             $invoiceIds = [];
             foreach ($invoice_numbers as $invoice_number) {
-                $id = LeasingCompanyBillingInvoice::getIdFromInvoiceNumber($invoice_number);
-                if ($id) {
-                    $invoiceIds[] = $id;
+                $invoiceId = LeasingCompanyBillingInvoice::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
                 }
             }
             $existingInvoices = LeasingCompanyBillingInvoice::with('customer')
@@ -400,7 +400,41 @@ class ReceiptController extends Controller
 
         $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
 
-        return view('receipts.edit', compact('receipt', 'banks', 'invoices', 'existingInvoices', 'customerIds', 'customerId', 'invoiceType'));
+        $payerAccounts = $this->resolvePayerAccountsForForm($receipt, $customerIds);
+        $leasingCompany = null;
+        if ($invoiceType === 'leasingCompany' && $receipt->payer_account_id) {
+            $leasingCompany = BikeRentCompany::where('account_id', $receipt->payer_account_id)->first();
+        }
+
+        return view('receipts.edit', compact('receipt', 'banks', 'invoices', 'existingInvoices', 'customerIds', 'customerId', 'invoiceType', 'payerAccounts', 'leasingCompany'));
+    }
+
+    /**
+     * Accounts for the sending-account dropdown (edit/create).
+     * Always includes the receipt's current payer so Select2 can display it.
+     */
+    private function resolvePayerAccountsForForm(?Receipt $receipt, ?array $filterAccountIds)
+    {
+        $query = Accounts::query()->where('status', 1)->orderBy('name');
+
+        if (!empty($filterAccountIds)) {
+            $ids = collect($filterAccountIds);
+            if ($receipt?->payer_account_id) {
+                $ids->push($receipt->payer_account_id);
+            }
+            $query->whereIn('id', $ids->unique()->filter()->values());
+        }
+
+        $accounts = $query->get();
+
+        if ($receipt?->payer_account_id && !$accounts->contains('id', (int) $receipt->payer_account_id)) {
+            $currentPayer = Accounts::withoutGlobalScope('branch')->find($receipt->payer_account_id);
+            if ($currentPayer) {
+                $accounts->prepend($currentPayer);
+            }
+        }
+
+        return $accounts;
     }
 
     public function update(Request $request, $comapny_slug, $id)

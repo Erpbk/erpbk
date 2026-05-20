@@ -87,7 +87,7 @@ class EmployeeInvoicesRepository extends BaseRepository
 
                 $amountValue = is_numeric($amountValue) ? round((float) $amountValue, 2) : 0;
 
-                EmployeeInvoiceItem::create([
+                $item = EmployeeInvoiceItem::create([
                     'item_id' => $request['item_id'][$key],
                     'qty' => $request['qty'][$key] ?? 0,
                     'rate' => $request['rate'][$key],
@@ -96,6 +96,7 @@ class EmployeeInvoicesRepository extends BaseRepository
                     'inv_id' => $invoice->id,
                     'tax' => $request['tax'][$key]
                 ]);
+                \Log::info('item:', $item->toArray());
             }
         }
 

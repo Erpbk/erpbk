@@ -1,4 +1,5 @@
 ﻿@extends('layouts.app')
+
 @section('title','Items')
 @push('third_party_stylesheets')
 <style>
@@ -110,8 +111,8 @@
         <div class="clearfix"></div>
         <div class="card">
             <div class="card-header text-end">
-            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Cards</button>
-        </div>
+                <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Cards</button>
+            </div>
         <div class="totals-cards">
             <div class="total-card total-blue">
                 <div class="label"><i class="fa fa-motorcycle"></i>Total Cards</div>

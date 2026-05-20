@@ -1,17 +1,7 @@
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
     <thead class="text-center">
         <tr>
-            <th colspan="11" class="text-start">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Employee Invoices</h5>
-                    <span id="current-month-total" class="badge bg-primary fs-6">
-                        Current Month Total: {{ number_format($currentMonthTotal, 1) }}
-                    </span>
-                </div>
-            </th>
-        </tr>
-        <tr>
-            <th>Id</th>
+            <th>Invoice Id</th>
             <th>Inv Date</th>
             <th>Billing Month</th>
             <th>Employee</th>
@@ -27,7 +17,7 @@
     <tbody>
         @foreach($data as $r)
             <tr class="text-center">
-                <td><a href="javascript:void(0);" data-action="{{ route('employeeInvoices.show', $r->id) }}" class="show-modal-right">{{ $r->id }}</td>
+                <td><a href="javascript:void(0);" data-action="{{ route('employeeInvoices.show', $r->id) }}" class="show-modal-right">{{ 'INV'.str_pad($r->id, 4, '0', STR_PAD_LEFT) }}</a></td>
                 <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
                 <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
                 <td>{{ optional($r->employee)->employee_id }} - {{ optional($r->employee)->name }}</td>

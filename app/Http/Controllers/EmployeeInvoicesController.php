@@ -13,7 +13,8 @@ use App\Repositories\EmployeeInvoicesRepository;
 use App\Traits\GlobalPagination;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Support\Facades\DB;
+use Flash;
 class EmployeeInvoicesController extends AppBaseController
 {
     use GlobalPagination;
@@ -85,12 +86,21 @@ class EmployeeInvoicesController extends AppBaseController
 
     public function store(CreateEmployeeInvoicesRequest $request)
     {
+        DB::beginTransaction();
         try {
             $this->employeeInvoicesRepository->record($request);
-            session()->flash('success', 'Employee invoice saved successfully.');
-            return redirect(route('employeeInvoices.index'));
+            DB::commit();
+            if($request->ajax()){
+                return response()->json(['success' => true, 'message' => 'Employee invoice saved successfully.']);
+            }
+           Flash::success('Employee invoice saved successfully.');
+            return redirect()->back();
         } catch (\Exception $e) {
-            session()->flash('error', $e->getMessage());
+            DB::rollback();
+            if($request->ajax()){
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+            }
+            Flash::error($e->getMessage());
             return redirect()->back()->withInput();
         }
     }

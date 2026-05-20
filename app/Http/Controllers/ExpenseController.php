@@ -479,7 +479,7 @@ class ExpenseController extends AppBaseController
                     Transactions::create([
                         'trans_code' => $transCode,
                         'trans_date' => $request->input('trans_date'),
-                        'account_id' => HeadAccount::TAX_ACCOUNT,
+                        'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
                         'debit' => $vatAmount,
                         'credit' => 0,
                         'narration' => 'VAT: ' . $debitNarration,

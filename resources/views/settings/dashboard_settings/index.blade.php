@@ -69,38 +69,42 @@ $companySlug = request()->route('company_slug') ?? session('company_slug');
 
 @push('page-scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  var maxCards = {{ (int) ($maxVisibleCards ?? 8) }};
-  var checkboxes = document.querySelectorAll('.dash-card-checkbox');
-  var countEl = document.getElementById('dash-card-count');
+  document.addEventListener('DOMContentLoaded', function() {
+    var maxCards = {
+      {
+        (int)($maxVisibleCards ?? 8)
+      }
+    };
+    var checkboxes = document.querySelectorAll('.dash-card-checkbox');
+    var countEl = document.getElementById('dash-card-count');
 
-  function selectedCount() {
-    return document.querySelectorAll('.dash-card-checkbox:checked').length;
-  }
-
-  function refreshCount() {
-    if (countEl) {
-      countEl.textContent = '(' + selectedCount() + ' / ' + maxCards + ')';
+    function selectedCount() {
+      return document.querySelectorAll('.dash-card-checkbox:checked').length;
     }
-    var atLimit = selectedCount() >= maxCards;
-    checkboxes.forEach(function (cb) {
-      if (!cb.checked) {
-        cb.disabled = atLimit;
-      }
-    });
-  }
 
-  checkboxes.forEach(function (cb) {
-    cb.addEventListener('change', function () {
-      if (selectedCount() > maxCards) {
-        cb.checked = false;
+    function refreshCount() {
+      if (countEl) {
+        countEl.textContent = '(' + selectedCount() + ' / ' + maxCards + ')';
       }
-      refreshCount();
+      var atLimit = selectedCount() >= maxCards;
+      checkboxes.forEach(function(cb) {
+        if (!cb.checked) {
+          cb.disabled = atLimit;
+        }
+      });
+    }
+
+    checkboxes.forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        if (selectedCount() > maxCards) {
+          cb.checked = false;
+        }
+        refreshCount();
+      });
     });
+
+    refreshCount();
   });
-
-  refreshCount();
-});
 </script>
 @endpush
 @endsection

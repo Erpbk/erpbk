@@ -34,14 +34,14 @@
         </div>
     </div>
 </section>
-<div class="content px-3">
+<div class="content px-0 mt-3">
     @include('flash::message')
     <div class="clearfix"></div>
     <div class="card">
         <div class="card-header text-end">
             <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Cards</button>
         </div>
-        <div class="card-body table-responsive px-2 py-0" id="table-data">
+        <div class="card-body table-responsive py-0" id="table-data">
             @include('employee_invoices.table', ['data' => $data, 'currentMonthTotal' => $currentMonthTotal])
         </div>
     </div>

@@ -19,7 +19,6 @@ class BikeMaintenance extends BaseModel
         'description',
         'current_km',
         'previous_km',
-        'maintenance_at',
         'overdue_km',
         'overdue_cost_per_km',
         'total_cost',

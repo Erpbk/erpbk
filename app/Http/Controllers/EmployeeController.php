@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use App\Models\Accounts;
+use App\Models\Payment;
 use App\DataTables\LedgerDataTable;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Schema;
@@ -644,6 +645,23 @@ class EmployeeController extends Controller
             'simHistories',
             'simHistoryCount'
         ));
+    }
+
+    public function payment(Request $request)
+    {
+        $accountIds = Employee::whereNotNull('account_id')->pluck('account_id')->toArray();
+
+        if (empty($accountIds)) {
+            Flash::error('No Employees found');
+            return redirect()->back();
+        }
+
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+        $query = Payment::query()->latest('date_of_payment');
+        $query->whereIn('payee_account_id', $accountIds);
+
+        $data = $this->applyPagination($query, $paginationParams);
+        return view('employees.payments', compact('data'));
     }
 
     public function sendEmail($company_slug, $id, Request $request)

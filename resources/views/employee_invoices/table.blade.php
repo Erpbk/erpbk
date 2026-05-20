@@ -1,7 +1,7 @@
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
     <thead class="text-center">
         <tr>
-            <th>Invoice Id</th>
+            <th>Invoice #</th>
             <th>Inv Date</th>
             <th>Billing Month</th>
             <th>Employee</th>
@@ -17,7 +17,7 @@
     <tbody>
         @foreach($data as $r)
             <tr class="text-center">
-                <td><a href="javascript:void(0);" data-action="{{ route('employeeInvoices.show', $r->id) }}" class="show-modal-right">{{ 'INV'.str_pad($r->id, 4, '0', STR_PAD_LEFT) }}</a></td>
+                <td><a href="javascript:void(0);" data-action="{{ route('employeeInvoices.show', $r->id) }}" class="show-modal-right">{{ $r->invoice_number }}</a></td>
                 <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
                 <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
                 <td>{{ optional($r->employee)->employee_id }} - {{ optional($r->employee)->name }}</td>
@@ -29,6 +29,9 @@
                 <td>
                     @if($r->status == 1)
                         <span class="badge bg-success">Paid</span>
+                    @elseif($r->status == 3 || (count($r->partial_paid_amount ?? []) > 0 && $r->balance > 0))
+                        <span class="badge bg-warning">Partially Paid</span>
+                        <small>({{ \App\Helpers\Currency::format($r->balance) }} due)</small>
                     @else
                         <span class="badge bg-danger">Unpaid</span>
                     @endif
@@ -39,6 +42,11 @@
                             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
+                            @can('payment_create')
+                                <a href="javascript:void(0);" data-action="{{ route('payments.create', ['employee_payment' => 1, 'invoice_id' => $r->id]) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Add Payment">
+                                    <i class="fa fa-money-bill mx-1"></i> Add Payment
+                                </a>
+                            @endcan
                             @can('employeeinvoice_edit')
                                 <a href="javascript:void(0);" data-action="{{ route('employeeInvoices.edit', $r->id) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Update Invoice">
                                     <i class="fa fa-edit mx-1"></i> Update

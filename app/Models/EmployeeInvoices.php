@@ -31,6 +31,7 @@ class EmployeeInvoices extends BaseModel
         'gaurantee',
         'notes',
         'status',
+        'partial_paid_amount',
         'deleted_by',
     ];
 
@@ -41,6 +42,7 @@ class EmployeeInvoices extends BaseModel
         'subtotal' =>  'float',
         'vat' => 'float',
         'status' => 'integer',
+        'partial_paid_amount' => 'array',
     ];
 
     public static array $rules = [
@@ -67,6 +69,28 @@ class EmployeeInvoices extends BaseModel
     public function items()
     {
         return $this->hasMany(EmployeeInvoiceItem::class, 'inv_id', 'id');
+    }
+
+    public function getInvoiceNumberAttribute()
+    {
+        return 'EMP_INV' . str_pad($this->id, 5, '0', STR_PAD_LEFT);
+    }
+
+    public static function getIdFromInvoiceNumber($invoiceNumber)
+    {
+        $numericPart = str_replace('EMP_INV', '', $invoiceNumber);
+        $id = (int) ltrim($numericPart, '0');
+        return self::where('id', $id)->exists() ? $id : null;
+    }
+
+    public function getPaidAmountAttribute()
+    {
+        return array_sum($this->partial_paid_amount ?? []);
+    }
+
+    public function getBalanceAttribute()
+    {
+        return $this->total_amount - $this->paid_amount;
     }
 }
 

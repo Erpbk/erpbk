@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Employee Invoice #{{ $employeeInvoice->id }} Month: {{ date('M-Y', strtotime($employeeInvoice->billing_month)) }}</title>
+    <title>Employee Invoice {{ $employeeInvoice->invoice_number }} Month: {{ date('M-Y', strtotime($employeeInvoice->billing_month)) }}</title>
     <style>
         /* ----- RESET & GLOBAL (modern card style) ----- */
         * {
@@ -301,7 +301,7 @@
                 </div>
                 <div class="details-grid">
                     <span class="detail-label">Invoice No:</span>
-                    <span class="detail-value">{{ $employeeInvoice->id }}</span>
+                    <span class="detail-value">{{ $employeeInvoice->invoice_number }}</span>
                     <span class="detail-label">Invoice Date:</span>
                     <span class="detail-value">{{ \Carbon\Carbon::parse($employeeInvoice->inv_date)->format('d M Y') }}</span>
                     <span class="detail-label">Billing Month:</span>

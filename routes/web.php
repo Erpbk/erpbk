@@ -233,6 +233,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'company.routes', 'tenan
     Route::get('/customer_invoices/{id}/clone', [App\Http\Controllers\CustomerInvoicesController::class, 'clone'])->name('customer_invoice.clone');
     Route::resource('customer_invoices', App\Http\Controllers\CustomerInvoicesController::class);
 
+    Route::get('employees/payments', [App\Http\Controllers\EmployeeController::class, 'payment'])->name('employee.payment');
     Route::resource('employees', App\Http\Controllers\EmployeeController::class);
     Route::get('/employees/{id}/ledger', [App\Http\Controllers\EmployeeController::class, 'ledger'])->name('employee.ledger');
     Route::get('/employees/{id}/files', [App\Http\Controllers\EmployeeController::class, 'files'])->name('employee.files');

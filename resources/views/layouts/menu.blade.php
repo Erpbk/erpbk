@@ -88,6 +88,14 @@ $homeLink = $isAdminLogin
       </a>
     </li>
     @endcan
+    @can('payments_view')
+    <li class="menu-item {{ Route::is('employee.payment') ? 'active' : '' }}">
+      <a href="{{ route('employee.payment') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-wallet"></i>
+        <div>{{ $menuLabels['payments_sent'] ?? 'Payments Sent' }}</div>
+      </a>
+    </li>
+    @endcan
   </ul>
 </li>
 @else

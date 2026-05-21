@@ -105,11 +105,22 @@ class User extends Authenticatable
 
   public function branchDropdown($all = null)
   {
+    $options = Branch::whereIn('id', app('user_branches'))
+      ->orderBy('name')
+      ->get(['id', 'name', 'code'])
+      ->mapWithKeys(function (Branch $branch) {
+        $label = $branch->code
+          ? $branch->name . ' (' . $branch->code . ')'
+          : $branch->name;
+
+        return [$branch->id => $label];
+      });
+
     if ($all) {
-      return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id', 'code')->prepend('select', '')->prepend('All', null)->toArray();
-    } else {
-      return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->toArray();
+      return $options->prepend('All', null)->prepend('select', '')->toArray();
     }
+
+    return $options->prepend('select', '')->toArray();
   }
 
   public function hasMultiplebranches()

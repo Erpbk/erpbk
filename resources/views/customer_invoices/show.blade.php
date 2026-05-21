@@ -254,7 +254,7 @@
 <body>
 
     <div class="controls no-print">
-        <button type="button" class="print-btn" onclick="printModalContent()">Print Invoice</button>
+        <button type="button" class="print-btn js-print-modal-content">Print Invoice</button>
     </div>
 
     <div class="invoice-box">
@@ -433,6 +433,48 @@
                 }
             });
         });
+
+        (function () {
+            if (typeof window.printModalContent === 'function') {
+                return;
+            }
+            window.printModalContent = function () {
+                var box = document.querySelector('.invoice-box');
+                if (!box) {
+                    window.print();
+                    return;
+                }
+                var styles = '';
+                document.querySelectorAll('style').forEach(function (node) {
+                    styles += node.outerHTML;
+                });
+                var title = (document.title || 'Customer Invoice').replace(/</g, '');
+                var win = window.open('', '_blank');
+                if (!win) {
+                    window.print();
+                    return;
+                }
+                win.document.open();
+                win.document.write(
+                    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + title + '</title></head><body>' +
+                    styles + box.outerHTML + '</body></html>'
+                );
+                win.document.close();
+                setTimeout(function () {
+                    try {
+                        win.focus();
+                        win.print();
+                    } catch (e) {}
+                    win.onafterprint = function () { win.close(); };
+                }, 400);
+            };
+            document.querySelectorAll('.js-print-modal-content').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    window.printModalContent();
+                });
+            });
+        })();
     </script>
 </body>
 

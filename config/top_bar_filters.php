@@ -33,7 +33,6 @@ return [
         'bike_settings' => ['bike_list', 'bikes'],
         'employees' => ['employee_settings'],
         'employee_settings' => ['employees'],
-        'cheques' => ['cash_banks'],
         'accounts' => ['account_fields', 'chart_of_accounts'],
         'account_fields' => ['accounts'],
         'vouchers' => ['voucher_settings'],

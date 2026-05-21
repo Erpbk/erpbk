@@ -217,80 +217,75 @@ $('#rightSideModal').on('click', '.modal-content', function(e) {
     e.stopPropagation();
 });
 
-// Function to print modal content
-function printModalContent() {
-    // Get the modal content
-    var modalContent = $('#rightSideModalBody').html();
-    
-    // Create a new print window
+// Print invoice/content from right-side modal or standalone invoice pages (global for onclick handlers).
+window.printModalContent = function printModalContent() {
+    var title = (document.title || 'Print').replace(/</g, '');
+    var bodyHtml = '';
+    var embeddedStyles = '';
+
+    if (window.jQuery && $('#rightSideModalBody').length && $('#rightSideModalBody').find('.invoice-box').length) {
+        bodyHtml = $('#rightSideModalBody').html();
+        var modalTitle = ($('#rightSideModalTitle').text() || '').trim();
+        if (modalTitle) {
+            title = modalTitle.replace(/</g, '');
+        }
+    } else {
+        var invoiceBox = document.querySelector('.invoice-box');
+        if (!invoiceBox) {
+            window.print();
+            return;
+        }
+        document.querySelectorAll('style').forEach(function (node) {
+            embeddedStyles += node.outerHTML;
+        });
+        bodyHtml = embeddedStyles + invoiceBox.outerHTML;
+    }
+
+    if (!bodyHtml || !String(bodyHtml).trim()) {
+        window.print();
+        return;
+    }
+
     var printWindow = window.open('', '_blank');
-    
-    // Write content to the new window
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>${$('#rightSideModalTitle').text()}</title>
-            <meta charset="utf-8">
-            <style>
-                body {
-                    font-family: Calibri, Arial, sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                    color: #000;
-                }
-                .no-print {
-                    display: none;
-                }
-                .invoice-box {
-                    max-width: 100%;
-                    margin: 0 auto;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-bottom: 10px;
-                }
-                th, td {
-                    border: 1px solid #000;
-                    padding: 8px;
-                    text-align: left;
-                }
-                th {
-                    background: #004aad;
-                    color: white;
-                }
-                .text-center {
-                    text-align: center;
-                }
-                @media print {
-                    body {
-                        margin: 0;
-                        padding: 0;
-                    }
-                    .no-print {
-                      display: none !important;
-                  }
-                }
-            </style>
-        </head>
-        <body>
-            ${modalContent}
-        </body>
-        </html>
-    `);
-    
-    // Close the document to finish writing
+    if (!printWindow) {
+        window.print();
+        return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
+            title +
+            '</title><style>' +
+            'body{font-family:Calibri,Arial,sans-serif;margin:0;padding:20px;color:#000;}' +
+            '.no-print{display:none!important;}' +
+            '.invoice-box{max-width:100%;margin:0 auto;}' +
+            'table{width:100%;border-collapse:collapse;margin-bottom:10px;}' +
+            'th,td{border:1px solid #000;padding:8px;text-align:left;}' +
+            'th{background:#004aad;color:#fff;}' +
+            '.text-center{text-align:center;}' +
+            '@media print{body{margin:0;padding:0;}.no-print{display:none!important;}}' +
+            '</style></head><body>' +
+            bodyHtml +
+            '</body></html>'
+    );
     printWindow.document.close();
-    
-    // Wait for content to load then print
-    printWindow.onload = function() {
-        printWindow.print();
-        printWindow.onafterprint = function() {
+
+    setTimeout(function () {
+        try {
+            printWindow.focus();
+            printWindow.print();
+        } catch (e) {}
+        printWindow.onafterprint = function () {
             printWindow.close();
         };
-    };
-}
+    }, 400);
+};
+
+$('body').on('click', '.js-print-modal-content', function (e) {
+    e.preventDefault();
+    window.printModalContent();
+});
 
 /**
  * Print only the Visa installment invoice fragment (modal #modalTopbody or standalone .visa-installment-invo-wrap).

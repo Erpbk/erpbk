@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Settings;
 use App\Models\VoucherType;
+use App\Services\Module\ModuleLabelService;
 use App\Models\VoucherCustomField;
 use App\Support\CompanyContext;
 use Illuminate\Http\Request;
@@ -40,10 +41,8 @@ class VoucherSettingsController extends Controller
     public function storeModuleLabel(Request $request)
     {
         $request->validate(['module_label' => 'required|string|max:100']);
-        $value = trim($request->input('module_label'));
-        Settings::updateOrCreate(['name' => 'menu_label_voucher_settings'], ['value' => $value]);
-        Settings::updateOrCreate(['name' => 'menu_label_vouchers'], ['value' => $value]);
-        Settings::clearMenuLabelsCache();
+        app(ModuleLabelService::class)->saveLabel('voucher_settings', trim((string) $request->input('module_label')));
+
         return redirect()->route('settings-panel.voucher-settings.index')->with('success', 'Module name updated.');
     }
 

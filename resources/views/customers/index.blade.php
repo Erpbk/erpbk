@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title','Customers')
 @section('content')
@@ -6,30 +6,30 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 <section class="content-header">
-    <div class="container">
+    <div class="">
         <div class="row mb-2">
             <div class="col-sm-6">
             </div>
             <div class="col-sm-6">
                 @can('customer_create')
-                    <div class="action-buttons d-flex justify-content-end">
-                        <div class="action-dropdown-container">
-                            <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                <div class="action-buttons d-flex justify-content-end">
+                    <div class="action-dropdown-container">
+                        <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                            <i class="ti ti-plus"></i>
+                            <span>Add New</span>
+                            <i class="ti ti-chevron-down"></i>
+                        </button>
+                        <div class="action-dropdown-menu" id="addBikeDropdown">
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Customer" data-action="{{ route('customers.create') }}">
                                 <i class="ti ti-plus"></i>
-                                <span>Add New</span>
-                                <i class="ti ti-chevron-down"></i>
-                            </button>
-                            <div class="action-dropdown-menu" id="addBikeDropdown">
-                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Customer" data-action="{{ route('customers.create') }}">
-                                    <i class="ti ti-plus"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">New Customer</div>
-                                        <div class="action-dropdown-item-desc">Add a new Customer</div>
-                                    </div>
-                                </a>
-                            </div>
+                                <div>
+                                    <div class="action-dropdown-item-text">New Customer</div>
+                                    <div class="action-dropdown-item-desc">Add a new Customer</div>
+                                </div>
+                            </a>
                         </div>
                     </div>
+                </div>
                 @endcan
             </div>
         </div>

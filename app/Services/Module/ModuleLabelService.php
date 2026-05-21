@@ -4,8 +4,8 @@ namespace App\Services\Module;
 
 use App\Models\Company;
 use App\Models\Settings;
+use App\Support\CompanyContext;
 use App\Support\ErpModuleRegistry;
-use Illuminate\Support\Facades\Auth;
 
 class ModuleLabelService
 {
@@ -28,11 +28,23 @@ class ModuleLabelService
             }
         }
         $allKeys = array_values(array_unique($allKeys));
+        $allKeys = array_values(array_filter(
+            $allKeys,
+            fn (string $key): bool => array_key_exists($key, config('menu_labels.defaults', []))
+        ));
+
+        if ($allKeys === []) {
+            return;
+        }
+
+        if ($this->shouldSaveCompanyScoped()) {
+            $this->saveCompanyLabelOverrides($allKeys, $label);
+            Settings::clearMenuLabelsCache();
+
+            return;
+        }
 
         foreach ($allKeys as $key) {
-            if (!array_key_exists($key, config('menu_labels.defaults', []))) {
-                continue;
-            }
             Settings::updateOrCreate(
                 ['name' => 'menu_label_' . $key],
                 ['value' => $label]
@@ -40,7 +52,6 @@ class ModuleLabelService
         }
 
         Settings::clearMenuLabelsCache();
-        $this->syncCompanyLabelOverrides($allKeys, $label);
     }
 
     public function saveLabel(string $key, string $label): void
@@ -48,19 +59,24 @@ class ModuleLabelService
         $this->saveLabels([$key], $label);
     }
 
+    protected function shouldSaveCompanyScoped(): bool
+    {
+        return CompanyContext::shouldApplyScope() && CompanyContext::id() !== null;
+    }
+
     /**
-     * Keep company-level label_overrides in sync (they override Settings in the menu composer).
+     * Per-company label overrides (used by the main app menu for that tenant only).
      *
      * @param  list<string>  $keys
      */
-    protected function syncCompanyLabelOverrides(array $keys, string $label): void
+    protected function saveCompanyLabelOverrides(array $keys, string $label): void
     {
-        $user = Auth::user();
-        if (!$user || !$user->company_id) {
+        $companyId = CompanyContext::id();
+        if ($companyId === null) {
             return;
         }
 
-        $company = Company::query()->find($user->company_id);
+        $company = Company::query()->find($companyId);
         if (!$company) {
             return;
         }

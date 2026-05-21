@@ -47,15 +47,54 @@ class Settings extends BaseModel
 
         return Cache::remember($cacheKey, 300, function () {
             $defaults = config('menu_labels.defaults', []);
-            $stored = self::where('name', 'like', 'menu_label_%')
-                ->pluck('value', 'name');
-            $overrides = [];
-            foreach ($stored as $name => $value) {
-                $overrides[str_replace('menu_label_', '', $name)] = $value;
+
+            // In the tenant app, menu labels are per-company only (see Company::modules_settings).
+            if (CompanyContext::shouldApplyScope() && CompanyContext::id() !== null) {
+                return self::mergeCompanyLabelOverrides($defaults);
             }
 
-            return array_merge($defaults, $overrides);
+            $stored = self::where('name', 'like', 'menu_label_%')
+                ->pluck('value', 'name');
+            $globalOverrides = [];
+            foreach ($stored as $name => $value) {
+                $globalOverrides[str_replace('menu_label_', '', $name)] = $value;
+            }
+
+            return array_merge($defaults, $globalOverrides);
         });
+    }
+
+    /**
+     * Apply the current tenant's label_overrides on top of global defaults/settings.
+     *
+     * @param  array<string, string>  $labels
+     * @return array<string, string>
+     */
+    public static function mergeCompanyLabelOverrides(array $labels): array
+    {
+        if (! CompanyContext::shouldApplyScope()) {
+            return $labels;
+        }
+
+        $companyId = CompanyContext::id();
+        if ($companyId === null) {
+            return $labels;
+        }
+
+        $company = Company::query()->find($companyId);
+        if (! $company || ! is_array($company->modules_settings)) {
+            return $labels;
+        }
+
+        $overrides = $company->modules_settings['label_overrides'] ?? [];
+        if ($overrides === []) {
+            return $labels;
+        }
+
+        return array_merge($labels, array_filter(
+            $overrides,
+            static fn ($value): bool => $value !== null && $value !== ''
+        ));
     }
 
     /**

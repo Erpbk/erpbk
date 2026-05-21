@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Settings;
+use App\Services\Module\ModuleLabelService;
 use Illuminate\Http\Request;
 
 class ErpSettingsController extends Controller
@@ -33,20 +34,16 @@ class ErpSettingsController extends Controller
         $defaults = config('menu_labels.defaults', []);
         $labels = $request->input('menu_labels', []);
 
+        $labelService = app(ModuleLabelService::class);
         foreach ($labels as $key => $value) {
             if (!array_key_exists($key, $defaults)) {
                 continue;
             }
             $value = is_string($value) ? trim($value) : (string) $value;
             if ($value !== '') {
-                Settings::updateOrCreate(
-                    ['name' => 'menu_label_' . $key],
-                    ['value' => $value]
-                );
+                $labelService->saveLabel($key, $value);
             }
         }
-
-        Settings::clearMenuLabelsCache();
 
         $route = $request->route() && str_starts_with($request->route()->getName(), 'settings-panel.')
             ? 'settings-panel.erp'

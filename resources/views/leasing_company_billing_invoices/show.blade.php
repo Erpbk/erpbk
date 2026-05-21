@@ -314,9 +314,10 @@
                 @endif
             </td>
             <td style="width: 34%; text-align: center; align-content: center; border: none !important;">
-                <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ $companyName }}</h4>
-                <p style="margin: 3px 0; font-size: 12px;">{{ $companyAddress }}</p>
-                <p style="margin: 3px 0; font-size: 12px;">TRN {{ $vatNumber }}</p>
+                <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ ucwords($companyName) }}</h4>
+                <p style="margin: 3px 0; font-size: 12px;">{{ ucwords($companyAddress) }}</p>
+                <p style="margin: 3px 0; font-size: 12px;">TEL: {{ $companyPhone }}</p>
+                <p style="margin: 3px 0; font-size: 12px;">TRN: {{ $vatNumber }}</p>
             </td>
             <td style="width: 33%; text-align: center; align-content: center; border: none !important;">
                 <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 22px;">RENTAL BILL</h2>

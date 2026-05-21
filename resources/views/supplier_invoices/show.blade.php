@@ -290,9 +290,10 @@
                 @endif
             </td>
             <td style="width: 34%; text-align: center; align-content: center; border: none !important;">
-                <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ $settings['company_name'] ?? 'Company Name' }}</h4>
-                <p style="margin: 3px 0; font-size: 12px;">{{ $settings['company_address'] ?? 'Company Address' }}</p>
-                <p style="margin: 3px 0; font-size: 12px;">TRN {{ $settings['vat_number'] ?? 'TRN Number' }}</p>
+                <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ ucwords($settings['company_name']) ?? 'Company Name' }}</h4>
+                <p style="margin: 3px 0; font-size: 12px;">{{ ucwords($settings['company_address']) ?? 'Company Address' }}</p>
+                <p style="margin: 3px 0; font-size: 12px;">TEL: {{ $settings['company_phone'] ?? 'TRN Number' }}</p>
+                <p style="margin: 3px 0; font-size: 12px;">TRN: {{ $settings['vat_number'] ?? 'TRN Number' }}</p>
             </td>
             <td style="width: 33%; text-align: center; align-content: center; border: none !important;">
                 <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 22px;">SUPPLIER INVOICE</h2>

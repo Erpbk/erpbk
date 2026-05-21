@@ -27,7 +27,14 @@ class LedgerController extends Controller
       abort(403, 'Unauthorized action.');
     }
     if(!$request->has('account') && !$request->has('month')){
-      return redirect()->to(request()->fullUrlWithQuery(['account' => Banks::first()->account_id]));
+      $account = Banks::first();
+      if($account){
+        return redirect()->to(request()->fullUrlWithQuery(['account' => Banks::first()->account_id]));
+      }else {
+        return view('ledger.index2', [
+          'data' => false,
+        ]);
+      }
     }
     return $ledgerDataTable->render('ledger.index2');
 
@@ -292,4 +299,92 @@ class LedgerController extends Controller
 
     return Excel::download(new LedgerExport($account_id, $month), $filename);
   }
+
+  public function print(Request $request)
+  {
+    $query = Transactions::query()
+        ->with(['account', 'voucher']);
+
+    // Account Filter
+    if ($request->account) {
+        $query->where('account_id', $request->account);
+    }
+
+    // Date Filters
+    if ($request->from_date && $request->to_date) {
+
+        $query->whereBetween('trans_date', [
+            $request->from_date,
+            $request->to_date
+        ]);
+
+    } elseif ($request->month) {
+
+        $query->whereDate(
+            'billing_month',
+            $request->month . '-01'
+        );
+    }
+
+    $transactions = $query
+        ->orderBy('billing_month', 'ASC')
+        ->orderBy('trans_date', 'ASC')
+        ->get();
+
+    // Opening Balance
+    $openingBalance = 0;
+    $closingBalance = 0;
+
+    if ($request->account) {
+
+        if ($request->from_date) {
+
+            $openingBalance = Transactions::where(
+              'account_id',
+              $request->account
+            )
+            ->where('trans_date', '<', $request->from_date)
+            ->sum(DB::raw('debit - credit'));
+
+            $closingBalance = $openingBalance + Transactions::where(
+              'account_id',
+              $request->account
+            )            ->whereBetween('trans_date', [
+              $request->from_date,
+              $request->to_date
+            ])
+            ->sum(DB::raw('debit - credit'));
+
+        } elseif ($request->month) {
+
+            $openingBalance = Transactions::where(
+                'account_id',
+                $request->account
+            )
+            ->whereDate(
+                'billing_month',
+                '<',
+                $request->month . '-01'
+            )
+            ->sum(DB::raw('debit - credit'));
+
+            $closingBalance = $openingBalance + Transactions::where(
+                'account_id',
+                $request->account
+            )            ->whereDate(
+                'billing_month',
+                $request->month . '-01'
+            )
+            ->sum(DB::raw('debit - credit'));
+        }
+    }
+
+    return view('ledger.ledger-print', [
+        'transactions' => $transactions,
+        'openingBalance' => $openingBalance,
+        'closingBalance' => $closingBalance,
+        'request' => $request
+    ]);
+  }
+
 }

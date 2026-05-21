@@ -228,10 +228,10 @@
                     @endif
                 </td>
                 <td width="37%" style="text-align: center; align-content: center; border: none !important;">
-                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ $settings['company_name'] }}</h4>
-                    <p style="margin-bottom: 5px;font-size: 12px;margin-top: 5px;">{{ $settings['company_address'] }}</p>
+                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ ucwords($settings['company_name']) }}</h4>
+                    <p style="margin-bottom: 5px;font-size: 12px;margin-top: 5px;">{{ ucwords($settings['company_address']) }}</p>
                     <p style="margin-bottom: 5px;font-size: 12px;margin-top: 5px;">TRN {{ $settings['vat_number']}}</p>
-                    <p style="margin-bottom: 5px;font-size: 11px;margin-top: 5px;">Tel: {{ $settings['company_phone'] }} | Email: {{ $settings['company_email'] }}</p>
+                    <p style="margin-bottom: 5px;font-size: 11px;margin-top: 5px;">{{ $settings['company_phone'] }} | {{ $settings['company_email'] }}</p>
                 </td>
                 <td width="30%" style="text-align: center; align-content: center; border: none !important;">
                     <h3 style="margin: 0; font-weight: 600; color: #004aad; font-size: 20px;">VEHICLE FINE</h3>

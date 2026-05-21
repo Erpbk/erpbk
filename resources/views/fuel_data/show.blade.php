@@ -227,9 +227,10 @@
                     @endif
                 </td>
                 <td width="33.33%" style="text-align: center; align-content: center; border: none !important;">
-                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ $settings['company_name'] ?? '' }}</h4>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{ $settings['company_address'] ?? '' }}</p>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TRN {{ $settings['vat_number'] ?? '' }}</p>
+                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ ucwords($settings['company_name']) ?? '' }}</h4>
+                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{ ucwords($settings['company_address']) ?? '' }}</p>
+                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TEL: {{ $settings['company_phone'] ?? '' }}</p>
+                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TRN: {{ $settings['vat_number'] ?? '' }}</p>
                 </td>
                 <td width="33.33%" style="text-align: center; align-content: center; border: none !important;">
                     <h2 style="margin: 0; font-weight: 600; color: #004aad; font-size: 24px;">FUEL INVOICE</h2>

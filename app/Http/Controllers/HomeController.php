@@ -130,6 +130,10 @@ class HomeController extends Controller
         'company_logo'    => $currentCompany->logo,
         'company_name'    => $currentCompany->name,
         'company_address' => $currentCompany->address,
+        'company_phone'   => $currentCompany->phone,
+        'company_email'   => $currentCompany->email,
+        'company_city'    => $currentCompany->city,
+        'company_country' => $currentCompany->country,
       ];
 
       foreach ($settings as $name => $value) {

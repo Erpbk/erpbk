@@ -660,6 +660,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('/ledger', [LedgerController::class, 'index'])->name('accounts.ledger');
         Route::get('/ledger/data', [LedgerController::class, 'getLedgerData'])->name('ledger.data');
         Route::get('/ledger/export', [LedgerController::class, 'export'])->name('ledger.export');
+        Route::get('/ledger/print', [LedgerController::class, 'print'])->name('ledger.print');
         Route::get('/vat', [App\Http\Controllers\VatController::class, 'index'])->name('vat.index');
         Route::get('/vat/returns', [App\Http\Controllers\VatController::class, 'returnsIndex'])->name('vat.returns.index');
         Route::get('/vat/returns/{vat_return}', [App\Http\Controllers\VatController::class, 'returnsShow'])->name('vat.returns.show');

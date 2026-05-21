@@ -267,9 +267,10 @@
                     @endif
                 </td>
                 <td style="width: 34%; text-align: center; align-content: center; border: none !important;">
-                    <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ $settings['company_name'] ?? '' }}</h4>
-                    <p style="margin: 3px 0; font-size: 12px;">{{ $settings['company_address'] ?? '' }}</p>
-                    <p style="margin: 3px 0; font-size: 12px;">TRN {{ $settings['vat_number'] ?? '' }}</p>
+                    <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ ucwords($settings['company_name']) ?? '' }}</h4>
+                    <p style="margin: 3px 0; font-size: 12px;">{{ ucwords($settings['company_address']) ?? '' }}</p>
+                    <p style="margin: 3px 0; font-size: 12px;">TEL: {{ $settings['company_phone'] ?? '' }}</p>
+                    <p style="margin: 3px 0; font-size: 12px;">TRN: {{ $settings['vat_number'] ?? '' }}</p>
                 </td>
                 <td style="width: 33%; text-align: center; align-content: center; border: none !important;">
                     <h4 style="margin: 0; font-weight: 600; color: #004aad; font-size: 24px;">EMPLOYEE INVOICE</h4>

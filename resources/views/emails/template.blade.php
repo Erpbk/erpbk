@@ -1,6 +1,4 @@
 @php
-dd($emailBranding);
-
 $brand = $emailBranding ?? [];
 
 $companyName = $brand['name'] ?? config('app.name');

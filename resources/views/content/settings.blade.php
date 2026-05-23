@@ -200,8 +200,8 @@
       return;
     }
 
-    const sendOtpUrl = @json(route('settings-panel.company.email.send-otp', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]));
-    const verifyOtpUrl = @json(route('settings-panel.company.email.verify-otp', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]));
+    const sendOtpUrl = @json(route('settings-panel.company.email.send-otp', ['company_slug' => request() - > route('company_slug') ?? session('company_slug')]));
+    const verifyOtpUrl = @json(route('settings-panel.company.email.verify-otp', ['company_slug' => request() - > route('company_slug') ?? session('company_slug')]));
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const saveBtnDefaultHtml = saveBtn ? saveBtn.innerHTML : '';
 

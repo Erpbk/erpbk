@@ -537,6 +537,7 @@ class RidersController extends AppBaseController
     if (Schema::hasColumn('riders', 'company_id')) {
       $input['company_id'] = auth()->user()->company_id;
     }
+    $input = \App\Support\SimAssigneeContactSync::stripManagedContactFromRequestData($input, null, 'rider');
     $items = $request->get('items');
 
 
@@ -697,6 +698,7 @@ class RidersController extends AppBaseController
     if (Schema::hasColumn('riders', 'company_id')) {
       $data['company_id'] = auth()->user()->company_id;
     }
+    $data = \App\Support\SimAssigneeContactSync::stripManagedContactFromRequestData($data, $riders, 'rider');
 
     $prevCustomerId = $riders->customer_id;
     $prevFleetSupervisor = $riders->fleet_supervisor;
@@ -1885,6 +1887,7 @@ class RidersController extends AppBaseController
 
     $section = $request->input('section');
     $data = $request->except(['_token', 'section']);
+    $data = \App\Support\SimAssigneeContactSync::stripManagedContactFromRequestData($data, $rider, 'rider');
     $prevFleetSupervisor = $rider->fleet_supervisor;
 
     try {

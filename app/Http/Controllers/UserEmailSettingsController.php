@@ -57,7 +57,7 @@ class UserEmailSettingsController extends Controller
     $companyId = CompanyContext::id();
     $ccUserRule = Rule::exists('users', 'id');
     if ($companyId !== null) {
-      $ccUserRule = $ccUserRule->where(fn ($query) => $query->where('company_id', $companyId));
+      $ccUserRule = $ccUserRule->where(fn($query) => $query->where('company_id', $companyId));
     }
 
     $validated = $request->validate([
@@ -68,7 +68,7 @@ class UserEmailSettingsController extends Controller
 
     $ccRecipientIds = $request->input('cc_recipient_user_ids', []);
     // Never allow selecting self as CC recipient.
-    $ccRecipientIds = array_values(array_filter($ccRecipientIds, fn ($id) => (int) $id !== (int) $user->id));
+    $ccRecipientIds = array_values(array_filter($ccRecipientIds, fn($id) => (int) $id !== (int) $user->id));
 
     // Update SMTP app password (encrypted) if user provided one.
     // Row is unique by user_id; do not scope by company_id on lookup (legacy rows may have NULL company_id).
@@ -126,4 +126,3 @@ class UserEmailSettingsController extends Controller
     return redirect()->route($redirectRoute);
   }
 }
-

@@ -17,7 +17,13 @@ if (($item->kind ?? '') === 'fixed') {
 @endphp
 <div class="form-group col-sm-4 mb-3">
     @if (($item->kind ?? '') === 'fixed')
-        @php $spec = $item->spec ?? []; $req = !empty($spec['required']); @endphp
+        @php
+        $spec = $item->spec ?? [];
+        $req = !empty($spec['required']);
+        $isReadonly = !empty($spec['readonly'])
+            || \App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($item->field_key ?? null);
+        $readonlyAttrs = $isReadonly ? ['readonly' => 'readonly'] : [];
+        @endphp
         {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
         @if (($spec['type'] ?? 'text') === 'select')
             @php
@@ -55,7 +61,7 @@ if (($item->kind ?? '') === 'fixed') {
             @endphp
             {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select'] + ($req ? ['required' => true] : [])) !!}
         @elseif (($spec['type'] ?? '') === 'textarea')
-            {!! Form::textarea($item->field_key, $value, ['class' => 'form-control', 'rows' => $spec['rows'] ?? 3] + ($req ? ['required' => true] : [])) !!}
+            {!! Form::textarea($item->field_key, $value, ['class' => 'form-control', 'rows' => $spec['rows'] ?? 3] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
         @elseif (($spec['type'] ?? '') === 'checkbox')
             <div class="form-check mt-2">
                 <input type="hidden" name="{{ $item->field_key }}" value="0" />
@@ -63,21 +69,26 @@ if (($item->kind ?? '') === 'fixed') {
                 {!! Form::label('field_' . $item->field_key, $item->label, ['class' => 'form-check-label fw-bold pt-0']) !!}
             </div>
         @else
-            {!! Form::input($spec['type'] ?? 'text', $item->field_key, $value, ['class' => 'form-control'] + array_filter(['required' => $req])) !!}
+            {!! Form::input($spec['type'] ?? 'text', $item->field_key, $value, ['class' => 'form-control'] + array_filter(['required' => $req]) + $readonlyAttrs) !!}
         @endif
     @else
-        @php $f = $item->field; $req = $f->is_mandatory ?? false; @endphp
+        @php
+        $f = $item->field;
+        $req = $f->is_mandatory ?? false;
+        $isReadonly = \App\Support\SimAssigneeContactSync::isManagedCustomFieldId((int) $f->id, 'employee_custom_fields');
+        $readonlyAttrs = $isReadonly ? ['readonly' => 'readonly'] : [];
+        @endphp
         {!! Form::label($name, $f->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
         @switch($f->data_type)
             @case('textarea')
-                {!! Form::textarea($name, $value, ['class' => 'form-control', 'rows' => $f->config['rows'] ?? 4] + ($req ? ['required' => true] : [])) !!}
+                {!! Form::textarea($name, $value, ['class' => 'form-control', 'rows' => $f->config['rows'] ?? 4] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
                 @break
             @case('number')
             @case('decimal')
-                {!! Form::input($f->data_type, $name, $value, ['class' => 'form-control', 'step' => $f->data_type === 'decimal' ? '0.01' : '1'] + ($req ? ['required' => true] : [])) !!}
+                {!! Form::input($f->data_type, $name, $value, ['class' => 'form-control', 'step' => $f->data_type === 'decimal' ? '0.01' : '1'] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
                 @break
             @case('date')
-                {!! Form::date($name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d')) : null, ['class' => 'form-control'] + ($req ? ['required' => true] : [])) !!}
+                {!! Form::date($name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d')) : null, ['class' => 'form-control'] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
                 @break
             @case('dropdown')
                 @php
@@ -93,7 +104,7 @@ if (($item->kind ?? '') === 'fixed') {
                 {!! Form::select($name, $dd, $value, ['class' => 'form-select'] + ($req ? ['required' => true] : [])) !!}
                 @break
             @default
-                {!! Form::input('text', $name, $value, ['class' => 'form-control'] + ($req ? ['required' => true] : [])) !!}
+                {!! Form::input('text', $name, $value, ['class' => 'form-control'] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
         @endswitch
     @endif
 </div>

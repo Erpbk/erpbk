@@ -354,26 +354,10 @@ class SimsController extends AppBaseController
                                 $fail('The selected employee does not exist.');
                                 return;
                             }
-                            if ($employee->status !== 'active') {
-                                $fail('Employee is not active. Cannot assign SIM.');
-                                return;
-                            }
-                            if ($branchId && (int) $employee->branch_id !== $branchId) {
-                                $fail('Employee must belong to the same branch as this SIM.');
-                                return;
-                            }
                         } else {
                             $rider = Riders::find($value);
                             if (!$rider) {
                                 $fail('The selected rider does not exist.');
-                                return;
-                            }
-                            if ((int) $rider->status !== 1) {
-                                $fail('Rider is not active. Cannot assign SIM.');
-                                return;
-                            }
-                            if ($branchId && (int) $rider->branch_id !== $branchId) {
-                                $fail('Rider must belong to the same branch as this SIM.');
                                 return;
                             }
                         }
@@ -439,9 +423,7 @@ class SimsController extends AppBaseController
                         'rider_id' => null,
                     ]);
 
-                    if (Schema::hasColumn('employees', 'company_contact')) {
-                        Employee::where('id', $assignTo)->update(['company_contact' => $sims->number]);
-                    }
+                    \App\Support\SimAssigneeContactSync::sync($employee, $sims->number);
 
                     EmployeeHistoryLogger::simAssigned(
                         $employee,
@@ -468,9 +450,7 @@ class SimsController extends AppBaseController
                         'employee_id' => null,
                     ]);
 
-                    if (Schema::hasColumn('riders', 'company_contact')) {
-                        Riders::where('id', $assignTo)->update(['company_contact' => $sims->number]);
-                    }
+                    \App\Support\SimAssigneeContactSync::sync($rider, $sims->number);
 
                     RiderHistoryLogger::simAssigned(
                         $rider,
@@ -497,8 +477,8 @@ class SimsController extends AppBaseController
         }
 
         $branchScopedOptions = [
-            'assign_to_rider' => Riders::dropdownForBranch($branchId),
-            'assign_to_employee' => Employee::dropdownForBranch($branchId),
+            'assign_to_rider' => Riders::dropdownForSimAssign(),
+            'assign_to_employee' => Employee::dropdownForSimAssign(),
         ];
 
         return view('sims.assign', [
@@ -507,7 +487,6 @@ class SimsController extends AppBaseController
             'employees' => $branchScopedOptions['assign_to_employee'],
             'branchScopedOptions' => $branchScopedOptions,
             'assignFields' => \App\Support\SimAssignFields::assignModalFields('assign'),
-            'simBranchName' => $sims->branch?->name,
         ]);
     }
 
@@ -562,11 +541,11 @@ class SimsController extends AppBaseController
                 'status' => 0,
             ]);
 
-            if ($rider && Schema::hasColumn('riders', 'company_contact')) {
-                Riders::where('id', $rider->id)->update(['company_contact' => null]);
+            if ($rider) {
+                \App\Support\SimAssigneeContactSync::clear($rider);
             }
-            if ($employee && Schema::hasColumn('employees', 'company_contact')) {
-                Employee::where('id', $employee->id)->update(['company_contact' => null]);
+            if ($employee) {
+                \App\Support\SimAssigneeContactSync::clear($employee);
             }
 
             $history = $sims->histories()->orderBy('created_at', 'desc')->first();

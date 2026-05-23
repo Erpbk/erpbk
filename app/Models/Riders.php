@@ -279,11 +279,32 @@ class Riders extends BaseModel
     $query = self::query()->where('status', 1);
 
     if ($branchId !== null && $branchId > 0) {
-      $query->where('branch_id', $branchId);
+      $query->where(function ($q) use ($branchId) {
+        $q->where('branch_id', $branchId)->orWhereNull('branch_id');
+      });
     }
 
     return $query
-      ->select('id', DB::raw("CONCAT(rider_id, '-', name) as full_name"))
+      ->select('id', DB::raw("CONCAT(COALESCE(rider_id, ''), '-', name) as full_name"))
+      ->orderBy('name')
+      ->pluck('full_name', 'id')
+      ->prepend('Select', '')
+      ->all();
+  }
+
+  /**
+   * All riders for SIM assignment (any status, all branches).
+   *
+   * @return array<int|string, string>
+   */
+  public static function dropdownForSimAssign(): array
+  {
+    $statusSuffix = Schema::hasColumn('riders', 'display_status')
+      ? "CASE WHEN status = 1 THEN '' ELSE CONCAT(' (', COALESCE(NULLIF(display_status, ''), 'Inactive'), ')') END"
+      : "CASE WHEN status = 1 THEN '' ELSE ' (Inactive)' END";
+
+    return self::query()
+      ->select('id', DB::raw("CONCAT(COALESCE(rider_id, ''), '-', name, {$statusSuffix}) as full_name"))
       ->orderBy('name')
       ->pluck('full_name', 'id')
       ->prepend('Select', '')

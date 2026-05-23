@@ -29,11 +29,9 @@ $wideFields = $assignFields->filter(function ($f) {
 {!! Form::model($sims, ['url' => route('sims.assign', $sims->id), 'method' => 'post', 'id' => 'formajax']) !!}
 
 <div class="card-body">
-    @if(!empty($simBranchName))
     <p class="text-muted small mb-3">
-        <i class="ti ti-building me-1"></i>Showing only users from branch: <strong>{{ $simBranchName }}</strong>
+        <i class="ti ti-users me-1"></i>Showing all riders and employees (including inactive).
     </p>
-    @endif
 
     <div class="row">
         @foreach($inlineFields as $field)
@@ -69,6 +67,24 @@ $wideFields = $assignFields->filter(function ($f) {
 
 <script>
 (function() {
+    function initAssigneeSelect2(selectEl) {
+        if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) {
+            return;
+        }
+
+        const $select = $(selectEl);
+        if ($select.hasClass('select2-hidden-accessible')) {
+            $select.select2('destroy');
+        }
+
+        $select.select2({
+            dropdownParent: $('#modalTopbody'),
+            placeholder: 'Search...',
+            allowClear: true,
+            width: '100%'
+        });
+    }
+
     function syncAssigneeFields() {
         const type = document.querySelector('input[name="assignee_type"]:checked')?.value || 'rider';
         const riderWrap = document.querySelector('.assignee-field-rider');
@@ -87,6 +103,8 @@ $wideFields = $assignFields->filter(function ($f) {
             if (employeeSelect) {
                 employeeSelect.setAttribute('name', 'assign_to');
                 employeeSelect.disabled = false;
+                employeeSelect.setAttribute('required', 'required');
+                initAssigneeSelect2(employeeSelect);
             }
         } else {
             employeeWrap?.classList.add('d-none');
@@ -99,11 +117,9 @@ $wideFields = $assignFields->filter(function ($f) {
             if (riderSelect) {
                 riderSelect.setAttribute('name', 'assign_to');
                 riderSelect.disabled = false;
+                riderSelect.setAttribute('required', 'required');
+                initAssigneeSelect2(riderSelect);
             }
-        }
-
-        if (typeof $ !== 'undefined' && $.fn.select2) {
-            $('#assign_to_rider, #assign_to_employee').trigger('change.select2');
         }
     }
 

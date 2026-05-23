@@ -871,19 +871,22 @@ class EmployeeController extends Controller
         }
 
         if ($section == 'photo' && $request->hasFile('profile_image')) {
-            // Handle file upload
+
             if ($employee->profile_image) {
                 Storage::disk('public')->delete($employee->profile_image);
             }
 
-            $imagePath = $request->file('profile_image')->store('employees/profile', 'public');
+            $imagePath = $request->file('profile_image')
+                ->store('employees/profile', 'public');
+
             $employee->profile_image = $imagePath;
             $employee->save();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Profile photo updated successfully',
                 'data' => $employee,
-                'image_url' => Storage::url($imagePath)
+                'image_url' => asset('storage/' . $imagePath)
             ]);
         }
 

@@ -545,14 +545,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </li>
                 @endcan
 
-                @can('employee_leave')
-                <li class="nav-item nav-priority-6">
-                  <a class="nav-link @if(request()->segment(2) == 'leaves') active @endif"
-                    href="{{ route('employee.leaves', $employee->id) }}">
-                    <i class="ti ti-calendar-off ti-sm me-1_5"></i>Leaves
-                  </a>
-                </li>
-                @endcan
+
 
                 <li class="nav-item nav-priority-7">
                   <a class="nav-link @if(request()->routeIs('employee.history')) active @endif"
@@ -800,9 +793,9 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
       const updateFieldUrl = "{{ route('employee.update-profile-field') }}";
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
       const employeeTopOptionDateModalEl = document.getElementById('employeeTopOptionDateModal');
-      const employeeTopOptionModal = employeeTopOptionDateModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal
-        ? new bootstrap.Modal(employeeTopOptionDateModalEl)
-        : null;
+      const employeeTopOptionModal = employeeTopOptionDateModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal ?
+        new bootstrap.Modal(employeeTopOptionDateModalEl) :
+        null;
       let pendingEmployeeChange = null;
 
       function employeeTopOptionTodayYmd() {

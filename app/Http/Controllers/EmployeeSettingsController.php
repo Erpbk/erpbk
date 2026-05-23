@@ -177,7 +177,7 @@ class EmployeeSettingsController extends Controller
         $result = [];
         foreach ($categories as $cat) {
             $fixedSpecs = EmployeeCustomField::fixedFieldInputSpecs();
-            $hiddenKeys = array_flip(EmployeeCustomField::removedEmployeeColumns());
+            $hiddenKeys = array_flip(EmployeeCustomField::excludedFromFieldSettings());
             $items = $grouped->get($cat->id, collect())->map(function ($a) use ($fixedSpecs, $employeeColumns, $hiddenKeys) {
                 if (!isset($employeeColumns[$a->field_key]) || isset($hiddenKeys[$a->field_key])) {
                     return null;
@@ -317,9 +317,10 @@ class EmployeeSettingsController extends Controller
     {
         $keys = EmployeeCustomField::allFixedFieldKeys();
         $employeeColumns = array_flip(Schema::getColumnListing('employees'));
+        $excluded = array_flip(EmployeeCustomField::excludedFromFieldSettings());
 
-        return array_values(array_filter($keys, function ($fieldKey) use ($employeeColumns) {
-            return isset($employeeColumns[$fieldKey]);
+        return array_values(array_filter($keys, function ($fieldKey) use ($employeeColumns, $excluded) {
+            return isset($employeeColumns[$fieldKey]) && !isset($excluded[$fieldKey]);
         }));
     }
 

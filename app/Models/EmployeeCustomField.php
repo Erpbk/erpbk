@@ -30,8 +30,30 @@ class EmployeeCustomField extends BaseModel
             'deleted_at',
             'company_id',
             'profile_image',
-            'employee_id',
         ];
+    }
+
+    /**
+     * Fixed columns that stay on employee records/forms but are not listed in Employee Settings fields UI.
+     *
+     * @return list<string>
+     */
+    public static function hiddenFromEmployeeFieldSettings(): array
+    {
+        return [
+            'status',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function excludedFromFieldSettings(): array
+    {
+        return array_values(array_unique(array_merge(
+            self::removedEmployeeColumns(),
+            self::hiddenFromEmployeeFieldSettings(),
+        )));
     }
     protected $table = 'employee_custom_fields';
 
@@ -209,7 +231,7 @@ class EmployeeCustomField extends BaseModel
             }
             $keys[] = $column;
         }
-        // Keep these employee table fields visible in Employee Settings field list.
+        // Keep these employee table fields visible in employee forms (not necessarily in settings).
         foreach (['custom_field_values', 'status'] as $mustHaveKey) {
             if (in_array($mustHaveKey, $columns, true)) {
                 $keys[] = $mustHaveKey;

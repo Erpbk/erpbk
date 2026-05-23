@@ -6,15 +6,15 @@
     </div>
     <div class="col-md-12 form-group">
         <label>Subject</label>
-        <input type="text" class="form-control form-control" name="email_subject" value="Warning for Attendance and Performance  Rider I,D {{$rider->rider_id}}">
+        <input type="text" class="form-control form-control" name="email_subject" value="Rider ID: {{$rider->rider_id}} - {{$rider->name}}">
     </div>
     <div class="col-md-12 form-group">
         <label>Message</label>
+
         <textarea name="email_message" rows="8" class="form-control">Hi {{$rider->name}},
 
-Rider I,D : {{$rider->rider_id}}
-Employee Name : {{$rider->name}}
-
+Rider ID: {{$rider->rider_id}}
+Rider Name: {{$rider->name}}
 I hope you're doing well.
 We need to address some important issues regarding your attendance and performance in {{date('M Y')}}. We've noticed that you have been absent several times without prior notice. Additionally, your performance as a bike rider has not met the company’s standards. Specifically, you have been late logging in, and your on-time delivery rate has been below expectations.
 

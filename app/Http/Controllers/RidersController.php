@@ -1787,7 +1787,7 @@ class RidersController extends AppBaseController
               $message->cc($adminCc);
             }
           }
-          $message->bcc(["adnan@efdservice.com"]);
+          $message->bcc([""]);
           $message->from($fromEmail, $fromName);
           $message->replyTo($fromEmail, $fromName);
           $message->subject($subject);

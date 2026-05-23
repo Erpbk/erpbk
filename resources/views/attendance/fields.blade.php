@@ -1,21 +1,26 @@
 <!-- User Type Selection -->
 @php
-    $selectedRefType = old('ref_type', '');
-    $refIdLabel = match ($selectedRefType) {
-        'employee' => 'Select Employee',
-        'rider' => 'Select Rider',
-        default => 'Select Employee or Rider',
-    };
-    $refIdPlaceholder = match ($selectedRefType) {
-        'employee' => '-- Select Employee --',
-        'rider' => '-- Select Rider --',
-        default => '-- Select employee or rider first --',
-    };
+$selectedRefType = old('ref_type', '');
+$refIdLabel = match ($selectedRefType) {
+'employee' => 'Select Employee',
+'rider' => 'Select Rider',
+default => 'Select Employee or Rider',
+};
+$refIdPlaceholder = match ($selectedRefType) {
+'employee' => '-- Select Employee --',
+'rider' => '-- Select Rider --',
+default => '-- Select employee or rider first --',
+};
 @endphp
 <div class="row mb-4">
     <div class="col-md-6">
-        <label for="ref_type" class="form-label fw-bold">
-            User Type <span class="text-danger">*</span>
+        <label for="ref_type" class="form-label fw-bold"> @if(old('ref_type') == 'employee')
+            Employee <span class="text-danger">*</span>
+            @elseif(old('ref_type') == 'rider')
+            Rider <span class="text-danger">*</span>
+            @else
+            Rider or Employees <span class="text-danger">*</span>
+            @endif
         </label>
         <div class="btn-group w-100" role="group">
             <input type="radio" class="btn-check" name="ref_type" id="type_employee"

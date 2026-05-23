@@ -2,27 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Repositories\ReceiptsRepository;
-use App\Models\Receipt;
+use App\Helpers\Account;
+use App\Models\Accounts;
 use App\Models\Banks;
+use App\Models\BikeRentCompany;
+use App\Models\Cheques;
 use App\Models\CustomerInvoices;
-use App\Models\LeasingCompanies;
+use App\Models\Customers;
+use App\Models\LeasingCompanyBillingInvoice;
+use App\Models\Receipt;
 use App\Models\Transactions;
 use App\Models\Vouchers;
-use App\Models\Customers;
-use App\Models\Accounts;
-use App\Models\LeasingCompanyInvoice;
-use App\Models\LeasingCompanyBillingInvoice;
-use App\Models\BikeRentCompany;
-use Illuminate\Http\Request;
+use App\Repositories\ReceiptsRepository;
 use App\Traits\GlobalPagination;
-use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use Flash;
-
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReceiptController extends Controller
 {
     use GlobalPagination;
+
     private $receiptsRepository;
 
     public function __construct(ReceiptsRepository $receiptsRepo)
@@ -37,7 +38,7 @@ class ReceiptController extends Controller
         $banks = Banks::all();
         foreach ($banks as $bank) {
             $credit = Transactions::where('account_id', $bank->account_id)->sum('credit');
-            $debit  = Transactions::where('account_id', $bank->account_id)->sum('debit');
+            $debit = Transactions::where('account_id', $bank->account_id)->sum('debit');
             $balance = $debit - $credit;
             $fundIn += $debit;
             $fundOut += $credit;
@@ -53,10 +54,11 @@ class ReceiptController extends Controller
         $banks = Banks::all();
         foreach ($banks as $bank) {
             $credit = Transactions::where('account_id', $bank->account_id)->sum('credit');
-            $debit  = Transactions::where('account_id', $bank->account_id)->sum('debit');
+            $debit = Transactions::where('account_id', $bank->account_id)->sum('debit');
             $fundsIn += $debit;
             $fundsOut += $credit;
         }
+
         return view('receipts.index', compact('data', 'fundsIn', 'fundsOut'));
     }
 
@@ -74,8 +76,15 @@ class ReceiptController extends Controller
             $accountIds = Customers::pluck('account_id')->toArray();
         }
         if (request()->input('leasing_receipt')) {
-            $leasingIds = BikeRentCompany::pluck('id')->toArray();
-            $accountIds = BikeRentCompany::pluck('account_id')->toArray();
+            if (request()->input('leasing_receipt') == 'bike') {
+                $leasingIds = BikeRentCompany::where('customer_type', 'bike_rental')->pluck('id')->toArray();
+                $accountIds = BikeRentCompany::where('customer_type', 'bike_rental')->pluck('account_id')->toArray();
+            } else {
+
+                $leasingIds = BikeRentCompany::where('customer_type', 'garage')->pluck('id')->toArray();
+                $accountIds = BikeRentCompany::where('customer_type', 'garage')->pluck('account_id')->toArray();
+
+            }
         }
         if ($customerId) {
             $invoices = CustomerInvoices::with('customer')
@@ -121,18 +130,22 @@ class ReceiptController extends Controller
             $banks = Banks::active()->get();
             $bank = Banks::find($accountId);
             $receipt = Receipt::where('bank_id', $accountId)->first();
+
             return view('receipts.create', compact('bank', 'banks', 'receipt'));
         } elseif ($bikeRentCompanyId || $leasingIds) {
             $leasingCompany = BikeRentCompany::find($bikeRentCompanyId ?? 0);
             $banks = Banks::with('account')->active()->get();
             $invoiceType = 'leasingCompany';
+
             return view('receipts.create', compact('leasingCompany', 'banks', 'receipt', 'invoices', 'customerIds', 'invoiceType', 'customerId'));
         } elseif ($customerId || $customerIds) {
             $banks = Banks::with('account')->active()->get();
             $invoiceType = 'customer';
+
             return view('receipts.create', compact('banks', 'receipt', 'invoices', 'customerIds', 'customerId', 'invoiceType'));
         } else {
             $banks = Banks::with('account')->active()->get();
+
             return view('receipts.create', compact('banks', 'receipt', 'invoices'));
         }
     }
@@ -171,18 +184,19 @@ class ReceiptController extends Controller
         $this->validate($request, $rules, $messages);
 
         $bank = Banks::find($request->input('bank_id'));
-        if (!$bank) {
+        if (! $bank) {
             if ($request->ajax()) {
                 return response()->json(['message' => 'Selected bank account not found'], 422);
             }
             Flash::error('Selected bank account not found.');
+
             return redirect()->back()->withInput();
         }
 
         $input = $request->all();
 
         $input['created_by'] = auth()->id();
-        $input['billing_month'] = $input['billing_month'] . '-01';
+        $input['billing_month'] = $input['billing_month'].'-01';
         $input['branch_id'] = Accounts::where('id', $input['payer_account_id'])->value('branch_id');
         $input['account_id'] = $bank->account_id;
         try {
@@ -232,7 +246,7 @@ class ReceiptController extends Controller
                 }
             }
 
-            $transCode = \App\Helpers\Account::trans_code();
+            $transCode = Account::trans_code();
             $date = $input['date_of_receipt'] ?? now();
             $billingMonth = $input['billing_month'];
             $desc = $input['description'];
@@ -266,8 +280,6 @@ class ReceiptController extends Controller
                 'narration' => $desc,
             ]);
 
-
-
             // voucher
             $voucherData = [
                 'trans_date' => $date,
@@ -287,7 +299,7 @@ class ReceiptController extends Controller
 
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
-                $fileName = time() . '_' . $file->getClientOriginalName();
+                $fileName = time().'_'.$file->getClientOriginalName();
                 $file->storeAs('public/vouchers', $fileName);
                 $voucherData['attach_file'] = $fileName;
             }
@@ -303,24 +315,26 @@ class ReceiptController extends Controller
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Receipt creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            \Log::error('Receipt creation failed: '.$e->getMessage()."\n".$e->getTraceAsString());
 
             if ($request->ajax()) {
-                return response()->json(['message' => "An Error Occurred: " . $e->getMessage()], 500);
+                return response()->json(['message' => 'An Error Occurred: '.$e->getMessage()], 500);
             }
 
-            Flash::error('Error Occurred: ' . $e->getMessage());
+            Flash::error('Error Occurred: '.$e->getMessage());
+
             return redirect()->back()->withInput();
         }
 
         if ($request->ajax()) {
             return response()->json([
-                "message" => "Receipt Added Successfully",
-                'reload' => true
+                'message' => 'Receipt Added Successfully',
+                'reload' => true,
             ]);
         }
 
         Flash::success('Receipt added successfully.');
+
         return redirect()->bacK();
     }
 
@@ -329,8 +343,10 @@ class ReceiptController extends Controller
         $receipt = $this->receiptsRepository->find($id);
         if (empty($receipt)) {
             Flash::error('Receipt not found');
+
             return redirect(route('receipts.index'));
         }
+
         return view('receipts.show')->with('receipt', $receipt);
     }
 
@@ -347,6 +363,7 @@ class ReceiptController extends Controller
                 return response()->json(['message' => 'Receipt Not found'], 404);
             }
             Flash::error('Receipt not found');
+
             return redirect()->back();
         }
         if (str_contains($receipt->reference, 'CI-')) {
@@ -398,7 +415,7 @@ class ReceiptController extends Controller
 
         $banks = Banks::active()->get();
 
-        $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
+        $receipt->billing_month = Carbon::parse($receipt->billing_month)->format('Y-m');
 
         $payerAccounts = $this->resolvePayerAccountsForForm($receipt, $customerIds);
         $leasingCompany = null;
@@ -417,7 +434,7 @@ class ReceiptController extends Controller
     {
         $query = Accounts::query()->where('status', 1)->orderBy('name');
 
-        if (!empty($filterAccountIds)) {
+        if (! empty($filterAccountIds)) {
             $ids = collect($filterAccountIds);
             if ($receipt?->payer_account_id) {
                 $ids->push($receipt->payer_account_id);
@@ -427,7 +444,7 @@ class ReceiptController extends Controller
 
         $accounts = $query->get();
 
-        if ($receipt?->payer_account_id && !$accounts->contains('id', (int) $receipt->payer_account_id)) {
+        if ($receipt?->payer_account_id && ! $accounts->contains('id', (int) $receipt->payer_account_id)) {
             $currentPayer = Accounts::withoutGlobalScope('branch')->find($receipt->payer_account_id);
             if ($currentPayer) {
                 $accounts->prepend($currentPayer);
@@ -445,10 +462,11 @@ class ReceiptController extends Controller
                 return response()->json(['message' => 'Receipt Not Found'], 500);
             }
             Flash::error('Receipt not found!');
+
             return redirect()->back();
         }
 
-        $request['billing_month'] = $request['billing_month'] . "-01";
+        $request['billing_month'] = $request['billing_month'].'-01';
 
         $rules = [
             'reference' => 'nullable|string|max:255',
@@ -482,11 +500,12 @@ class ReceiptController extends Controller
 
         // Get bank account
         $bank = Banks::find($request->input('bank_id'));
-        if (!$bank) {
+        if (! $bank) {
             if ($request->ajax()) {
                 return response()->json(['message' => 'Selected bank account not found'], 422);
             }
             Flash::error('Selected bank account not found.');
+
             return redirect()->back()->withInput();
         }
 
@@ -495,7 +514,7 @@ class ReceiptController extends Controller
 
             // Prepare data for receipt update
             $input = $request->all();
-            $input['billing_month'] = $input['billing_month'] . '-01';
+            $input['billing_month'] = $input['billing_month'].'-01';
             $input['branch_id'] = Accounts::where('id', $input['payer_account_id'])->value('branch_id');
             $input['updated_by'] = auth()->id();
             $pending = null;
@@ -552,13 +571,13 @@ class ReceiptController extends Controller
             $receiptHasChanges = $receipt->isDirty();
             $hasNewAttachment = $request->hasFile('attachment');
 
-
             // If nothing changed, return early
-            if (!$receiptHasChanges && !$hasNewAttachment) {
+            if (! $receiptHasChanges && ! $hasNewAttachment) {
                 DB::commit();
+
                 return response()->json([
                     'message' => 'Nothing New Entered to Update',
-                    'reload' => true
+                    'reload' => true,
                 ], 200);
             }
             if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
@@ -592,7 +611,7 @@ class ReceiptController extends Controller
             // Save receipt if it has changes
             if ($receiptHasChanges) {
                 $receipt->save();
-                if (!$receipt->voucher) {
+                if (! $receipt->voucher) {
                     throw new \Exception('Voucher not found for this receipt');
                 }
 
@@ -655,7 +674,7 @@ class ReceiptController extends Controller
             // Handle attachment if provided (can be updated independently)
             if ($hasNewAttachment) {
                 $file = $request->file('attachment');
-                $fileName = time() . '_' . $file->getClientOriginalName();
+                $fileName = time().'_'.$file->getClientOriginalName();
                 $file->storeAs('public/vouchers', $fileName);
 
                 $receipt->update(['attachment' => $fileName]);
@@ -669,25 +688,26 @@ class ReceiptController extends Controller
 
             // Determine appropriate success message
             $message = 'Receipt Updated Successfully';
-            if ($hasNewAttachment && !$receiptHasChanges) {
+            if ($hasNewAttachment && ! $receiptHasChanges) {
                 $message = 'File uploaded Successfully';
             }
 
             return response()->json([
                 'message' => $message,
-                'reload' => true
+                'reload' => true,
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Receipt update failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            \Log::error('Receipt update failed: '.$e->getMessage()."\n".$e->getTraceAsString());
 
             if ($request->ajax()) {
                 return response()->json([
-                    'message' => 'Error: ' . $e->getMessage()
+                    'message' => 'Error: '.$e->getMessage(),
                 ], 500);
             }
 
-            Flash::error('Error Occurred: ' . $e->getMessage());
+            Flash::error('Error Occurred: '.$e->getMessage());
+
             return redirect()->back()->withInput();
         }
     }
@@ -700,13 +720,14 @@ class ReceiptController extends Controller
                 return response()->json(['success' => false, 'message' => 'Receipt Not Found']);
             }
             Flash::error('Receipt not found!');
+
             return redirect()->back();
         } else {
             Transactions::where('trans_code', $receipt->voucher->trans_code)->delete();
             Vouchers::where('id', $receipt->voucher_id)->delete();
             if ($receipt->amount_type == 'Cheque') {
                 // Also delete associated cheque record if receipt was created by cheque
-                $cheque = \App\Models\Cheques::where('voucher_id', $receipt->voucher_id)->first();
+                $cheque = Cheques::where('voucher_id', $receipt->voucher_id)->first();
                 if ($cheque) {
                     $cheque->update([
                         'status' => 'Issued',
@@ -766,6 +787,7 @@ class ReceiptController extends Controller
             }
         }
         Flash::success('Receipt deleted successfully.');
+
         return redirect()->back();
     }
 
@@ -777,12 +799,13 @@ class ReceiptController extends Controller
                 return response()->json(['message' => 'Receipt Not found'], 404);
             }
             Flash::error('Receipt not found');
+
             return redirect()->back();
         }
 
         $banks = Banks::active()->get();
 
-        $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
+        $receipt->billing_month = Carbon::parse($receipt->billing_month)->format('Y-m');
 
         return view('receipts.create', compact('receipt', 'banks'));
     }

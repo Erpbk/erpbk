@@ -408,14 +408,14 @@ $homeLink = $isAdminLogin
     @can('rtafine_view')
     <li class="menu-item {{ Route::is('rtaFines.tickets') ? 'active' : '' }}">
       <a href="{{ route('rtaFines.tickets') }}" class="menu-link">
-        <div>Unpaid Fines</div>
+        <div>{{ $menuLabels['rta_fines_tickets'] ?? 'Fine Tickets' }}</div>
       </a>
     </li>
     @endcan
     @can('rtafine_paid_view')
     <li class="menu-item {{ Route::is('rtaFines.paid') ? 'active' : '' }}">
       <a href="{{ route('rtaFines.paid') }}" class="menu-link">
-        <div>Paid Fines</div>
+        <div>{{ $menuLabels['rta_fines_paid'] ?? 'Paid Fines' }}</div>
       </a>
     </li>
     @endcan
@@ -502,14 +502,6 @@ $homeLink = $isAdminLogin
       <a href="{{ route('leasingCompanyInvoices.index') }}" class="menu-link ">
         <i class="menu-icon tf-icons ti ti-file-invoice"></i>
         <div>{{ $menuLabels['leasing_invoices'] ?? 'Invoices' }}</div>
-      </a>
-    </li>
-    @endcan
-    @can('billing_invoice_view')
-    <li class="menu-item {{ Route::is('leasingCompanies.receipt') ? 'active' : '' }}">
-      <a href="{{ route('leasingCompanies.receipt') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-file-plus"></i>
-        <div>{{ $menuLabels['leasing_receipt'] ?? 'Payments Received' }}</div>
       </a>
     </li>
     @endcan

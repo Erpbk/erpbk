@@ -147,11 +147,28 @@ class Employee extends BaseModel
         $query = self::query()->where('status', 'active');
 
         if ($branchId !== null && $branchId > 0) {
-            $query->where('branch_id', $branchId);
+            $query->where(function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId)->orWhereNull('branch_id');
+            });
         }
 
         return $query
             ->select('id', DB::raw("CONCAT(employee_id, '-', name) as full_name"))
+            ->orderBy('name')
+            ->pluck('full_name', 'id')
+            ->prepend('Select', '')
+            ->all();
+    }
+
+    /**
+     * All employees for SIM assignment (any status, all branches).
+     *
+     * @return array<int|string, string>
+     */
+    public static function dropdownForSimAssign(): array
+    {
+        return self::query()
+            ->select('id', DB::raw("CONCAT(employee_id, '-', name, CASE WHEN status = 'active' THEN '' ELSE CONCAT(' (', status, ')') END) as full_name"))
             ->orderBy('name')
             ->pluck('full_name', 'id')
             ->prepend('Select', '')

@@ -1,18 +1,20 @@
 @php
 $fieldKey = $field->field_key;
 $spec = $field->resolvedInputSpec();
-$assignGroup = $spec['assign_group'] ?? null;
 $label = $field->resolvedLabel();
 $required = (bool) ($spec['required'] ?? false);
 $isReadonly = !empty($spec['readonly']);
 $colClass = in_array($spec['type'] ?? '', ['textarea'], true) ? 'col-md-12' : 'col-sm-6';
-$groupClass = $assignGroup ? ' d-none assignee-field assignee-field-' . $assignGroup : '';
 $wrapperId = 'assign-field-' . $fieldKey;
 $branchOpts = $branchScopedOptions ?? [];
 $simsModel = $sims ?? null;
 $defaultAssigneeType = old('assignee_type', ($simsModel->assign_type ?? 'rider') === 'employee' ? 'employee' : 'rider');
 $riderSelected = old('assign_to', ($simsModel->assign_type ?? 'rider') === 'rider' ? $simsModel->assign_to : null);
 $employeeSelected = old('assign_to', ($simsModel->assign_type ?? '') === 'employee' ? $simsModel->assign_to : null);
+$riderOpts = $branchOpts['assign_to_rider'] ?? [];
+$empOpts = $branchOpts['assign_to_employee'] ?? [];
+$riderHasChoices = count(array_filter(array_keys($riderOpts), fn ($k) => (string) $k !== '')) > 0;
+$employeeHasChoices = count(array_filter(array_keys($empOpts), fn ($k) => (string) $k !== '')) > 0;
 @endphp
 
 @if($fieldKey === 'number')
@@ -39,18 +41,21 @@ $employeeSelected = old('assign_to', ($simsModel->assign_type ?? '') === 'employ
     </div>
 </div>
 @elseif($fieldKey === 'assign_to_rider')
-@php $riderOpts = $field->resolvedSelectOptions($branchOpts) ?: ($branchOpts['assign_to_rider'] ?? []); @endphp
 <div class="{{ $colClass }} form-group assignee-field assignee-field-rider{{ $defaultAssigneeType === 'employee' ? ' d-none' : '' }}" id="{{ $wrapperId }}" data-assign-field="assign_to_rider">
     {!! Form::label('assign_to', $label . ':') !!}
-    {!! Form::select('assign_to', $riderOpts, $riderSelected, [
-        'class' => 'form-select select2 assignee-select',
-        'id' => 'assign_to_rider',
-        'data-assignee' => 'rider',
-        'required' => $required && $defaultAssigneeType === 'rider',
-    ]) !!}
+    <select class="form-select select2 assignee-select" id="assign_to_rider" data-assignee="rider"
+        name="{{ $defaultAssigneeType === 'rider' ? 'assign_to' : '' }}"
+        @if($defaultAssigneeType !== 'rider') disabled @endif
+        @if($required && $defaultAssigneeType === 'rider') required @endif>
+        @foreach($riderOpts as $riderId => $riderLabel)
+        <option value="{{ $riderId }}" @selected((string) $riderSelected === (string) $riderId)>{{ $riderLabel }}</option>
+        @endforeach
+    </select>
+    @if(!$riderHasChoices)
+    <small class="text-warning d-block mt-1">No riders found.</small>
+    @endif
 </div>
 @elseif($fieldKey === 'assign_to_employee')
-@php $empOpts = $field->resolvedSelectOptions($branchOpts) ?: ($branchOpts['assign_to_employee'] ?? []); @endphp
 <div class="{{ $colClass }} form-group assignee-field assignee-field-employee{{ $defaultAssigneeType === 'rider' ? ' d-none' : '' }}" id="{{ $wrapperId }}" data-assign-field="assign_to_employee">
     {!! Form::label('assign_to_employee', $label . ':') !!}
     <select class="form-select select2 assignee-select" id="assign_to_employee" data-assignee="employee"
@@ -61,5 +66,8 @@ $employeeSelected = old('assign_to', ($simsModel->assign_type ?? '') === 'employ
         <option value="{{ $empId }}" @selected((string) $employeeSelected === (string) $empId)>{{ $empLabel }}</option>
         @endforeach
     </select>
+    @if(!$employeeHasChoices)
+    <small class="text-warning d-block mt-1">No employees found.</small>
+    @endif
 </div>
 @endif

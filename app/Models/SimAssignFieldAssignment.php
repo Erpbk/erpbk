@@ -127,12 +127,16 @@ class SimAssignFieldAssignment extends BaseModel
         $spec = $this->resolvedInputSpec();
         $fieldKey = (string) $this->field_key;
 
-        if (is_array($spec['assign_options'] ?? null) && $spec['assign_options'] !== []) {
-            return $spec['assign_options'];
-        }
-
         if (isset($branchScopedOptions[$fieldKey]) && is_array($branchScopedOptions[$fieldKey])) {
             return $branchScopedOptions[$fieldKey];
+        }
+
+        if (
+            $fieldKey === 'assignee_type'
+            && is_array($spec['assign_options'] ?? null)
+            && $spec['assign_options'] !== []
+        ) {
+            return $spec['assign_options'];
         }
 
         $parsed = [];

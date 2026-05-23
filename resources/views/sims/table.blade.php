@@ -1,5 +1,3 @@
-
-
 <!-- Statistics Section - Will stick with headers -->
 <div class="sticky-table-header">
   <div class="sticky-statistics">
@@ -9,7 +7,7 @@
           <i class="fa fa-search"></i>
         </button> --}}
         <div></div>
-        <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i>  Filter Sims</button>
+        <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Sims</button>
       </div>
       <div class="totals-cards">
         <div class="total-card total-sims">
@@ -42,17 +40,17 @@
   <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
     <thead class="text-center">
       <tr role="row">
-         @php
-         $tableCols = $tableColumns ?? [];
-         $dataColumns = array_values(array_filter($tableCols, function($c){
-         $k = $c['data'] ?? ($c['key'] ?? null);
-         return $k !== 'search' && $k !== 'control';
-         }));
-         @endphp
-         @foreach($dataColumns as $col)
-         @php $title = $col['title'] ?? ($col['name'] ?? ($col['data'] ?? '')); @endphp
-         <th title="{{ $title }}" class="sorting" tabindex="0" rowspan="1" colspan="1">{{ $title }}</th>
-         @endforeach
+        @php
+        $tableCols = $tableColumns ?? [];
+        $dataColumns = array_values(array_filter($tableCols, function($c){
+        $k = $c['data'] ?? ($c['key'] ?? null);
+        return $k !== 'search' && $k !== 'control';
+        }));
+        @endphp
+        @foreach($dataColumns as $col)
+        @php $title = $col['title'] ?? ($col['name'] ?? ($col['data'] ?? '')); @endphp
+        <th title="{{ $title }}" class="sorting" tabindex="0" rowspan="1" colspan="1">{{ $title }}</th>
+        @endforeach
       </tr>
     </thead>
     <tbody>
@@ -68,89 +66,98 @@
         <td>{{$r->emi}}</td>
         <td>
           @if($r->assign_to)
-            @if($r->assign_type === 'employee' && $r->employee)
-              {{ $r->employee->employee_id }}
-            @elseif($r->riders)
-              {{ $r->riders->rider_id }}
-            @else
-              -
-            @endif
+          @if($r->assign_type === 'employee' && $r->employee)
+          {{ $r->employee->employee_id }}
+          @elseif($r->riders)
+          {{ $r->riders->rider_id }}
           @else
-            -
+          -
+          @endif
+          @else
+          -
           @endif
         </td>
         <td>
           @if($r->assign_to)
-            @if($r->assign_type === 'employee' && $r->employee)
-              <a href="{{ route('employees.show', $r->employee->id) }}" class="table-link">{{ $r->employee->name }}</a>
-            @elseif($r->riders)
-              <a href="{{ route('riders.show', $r->riders->id) }}" class="table-link">{{ $r->riders->name }}</a>
-            @else
-              -
-            @endif
+          @if($r->assign_type === 'employee' && $r->employee)
+          <a href="{{ route('employees.show', $r->employee->id) }}" class="table-link">{{ $r->employee->name }}</a>
+          @elseif($r->riders)
+          <a href="{{ route('riders.show', $r->riders->id) }}" class="table-link">{{ $r->riders->name }}</a>
           @else
-            -
+          -
+          @endif
+          @else
+          -
           @endif
         </td>
         <td>
           @if($r->vendors)
-            {{$r->vendors->name}}
+          {{$r->vendors->name}}
           @else
-            -
+          -
           @endif
         </td>
         <td>
           @if($r->status === null)
-            <span class="badge bg-secondary">Unknown</span>
+          <span class="badge bg-secondary">Unknown</span>
           @elseif($r->status)
-            <span class="badge bg-success" style="font-size: 0.8rem;">Active</span>
+          <span class="badge bg-success" style="font-size: 0.8rem;">Active</span>
           @else
-            <span class="badge bg-danger">Inactive</span>
+          <span class="badge bg-danger">Inactive</span>
+          @endif
+        </td>
+        <td>
+          @if($r->assign_type === 'employee' && $r->employee)
+          {{ $r->employee->employee_id }}
+          @elseif($r->riders)
+          {{ $r->riders->rider_id }}
+          @else
+          -
           @endif
         </td>
         <td style="position: relative;">
-            <div class="dropdown sim-table-action-dropdown">
-               <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
-                  <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
-               </button>
-               <div class="dropdown-menu dropdown-menu-end sim-table-dropdown-menu" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  @can('sim_assign_edit')
-                     @if(!$r->assign_to)
-                        <a href="javascript:void(0);" data-size="lg" data-title="Assign Sim" data-action="{{ route('sims.assign', $r->id) }}" class='show-modal dropdown-item waves-effect'>
-                           <i class="fa fa-motorcycle my-1"></i>Assign
-                        </a>
-                     @else
-                        <a href="javascript:void(0);" data-size="lg" data-title="Return Sim" data-action="{{ route('sims.return', $r->id) }}" class='dropdown-item waves-effect show-modal'>
-                           <i class="fa fa-undo my-1"></i>Return
-                        </a>
-                     @endif
-                  @endcan
-                  @can('sim_edit')
-                  <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit Sim" data-action="{{ route('sims.edit', $r->id) }} ">
-                     <i class="fa fa-edit my-1"></i> Edit
-                  </a>
-                  @endcan
-                  @can('sim_delete')
-                  <a href="#" class='dropdown-item waves-effect'
-                    data-delete-url="{{ route('sims.delete', $r->id) }}"
-                    onclick="confirmDelete(this.dataset.deleteUrl)">
-                    <i class="fa fa-trash my-1"></i> Delete
-                  </a>
-                  @endcan
-               </div>
+          <div class="dropdown sim-table-action-dropdown">
+            <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
+              <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end sim-table-dropdown-menu" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
+              @can('sim_assign_edit')
+              @if(!$r->assign_to)
+              <a href="javascript:void(0);" data-size="lg" data-title="Assign Sim" data-action="{{ route('sims.assign', $r->id) }}" class='show-modal dropdown-item waves-effect'>
+                <i class="fa fa-motorcycle my-1"></i>Assign
+              </a>
+              @else
+              <a href="javascript:void(0);" data-size="lg" data-title="Return Sim" data-action="{{ route('sims.return', $r->id) }}" class='dropdown-item waves-effect show-modal'>
+                <i class="fa fa-undo my-1"></i>Return
+              </a>
+              @endif
+              @endcan
+              @can('sim_edit')
+              <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit Sim" data-action="{{ route('sims.edit', $r->id) }} ">
+                <i class="fa fa-edit my-1"></i> Edit
+              </a>
+              @endcan
+              @can('sim_delete')
+              <a href="#" class='dropdown-item waves-effect'
+                data-delete-url="{{ route('sims.delete', $r->id) }}"
+                onclick="confirmDelete(this.dataset.deleteUrl)">
+                <i class="fa fa-trash my-1"></i> Delete
+              </a>
+              @endcan
             </div>
+          </div>
         </td>
       </tr>
       @endforeach
     </tbody>
   </table>
   @if($data->isEmpty())
-   <div class="text-center mt-5">
-      <h3>No Sims found</h3> 
-   </div>
+  <div class="text-center mt-5">
+    <h3>No Sims found</h3>
+  </div>
   @endif
 </div>
 
 @if(method_exists($data, 'links'))
-  {!! $data->links('components.global-pagination') !!}
+{!! $data->links('components.global-pagination') !!}
 @endif

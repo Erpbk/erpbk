@@ -354,26 +354,10 @@ class SimsController extends AppBaseController
                                 $fail('The selected employee does not exist.');
                                 return;
                             }
-                            if ($employee->status !== 'active') {
-                                $fail('Employee is not active. Cannot assign SIM.');
-                                return;
-                            }
-                            if ($branchId && (int) $employee->branch_id !== $branchId) {
-                                $fail('Employee must belong to the same branch as this SIM.');
-                                return;
-                            }
                         } else {
                             $rider = Riders::find($value);
                             if (!$rider) {
                                 $fail('The selected rider does not exist.');
-                                return;
-                            }
-                            if ((int) $rider->status !== 1) {
-                                $fail('Rider is not active. Cannot assign SIM.');
-                                return;
-                            }
-                            if ($branchId && (int) $rider->branch_id !== $branchId) {
-                                $fail('Rider must belong to the same branch as this SIM.');
                                 return;
                             }
                         }
@@ -497,8 +481,8 @@ class SimsController extends AppBaseController
         }
 
         $branchScopedOptions = [
-            'assign_to_rider' => Riders::dropdownForBranch($branchId),
-            'assign_to_employee' => Employee::dropdownForBranch($branchId),
+            'assign_to_rider' => Riders::dropdownForSimAssign(),
+            'assign_to_employee' => Employee::dropdownForSimAssign(),
         ];
 
         return view('sims.assign', [
@@ -507,7 +491,6 @@ class SimsController extends AppBaseController
             'employees' => $branchScopedOptions['assign_to_employee'],
             'branchScopedOptions' => $branchScopedOptions,
             'assignFields' => \App\Support\SimAssignFields::assignModalFields('assign'),
-            'simBranchName' => $sims->branch?->name,
         ]);
     }
 

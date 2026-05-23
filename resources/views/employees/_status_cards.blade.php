@@ -56,7 +56,7 @@ $icons = ['ti ti-bell', 'ti ti-star', 'ti ti-flag', 'ti ti-briefcase'];
         $col = $category->employee_column;
         $isSelected = $col && Schema::hasColumn('employees', $col) && (string) data_get($employee, $col) === (string) $option->name;
       @endphp
-      <div class="status-card {{ $isSelected ? 'active-success' : '' }} employee-top-option-card" data-column="{{ $col }}" data-value="{{ $option->name }}">
+      <div class="status-card {{ $isSelected ? 'active-success' : '' }} employee-top-option-card" data-column="{{ $col }}" data-value="{{ $option->name }}" data-category="{{ $category->name }}">
         <div class="d-flex justify-content-between align-items-start">
           <div class="status-icon"><i class="{{ $icons[$cardIndex % count($icons)] }}"></i></div>
           <div class="status-content">
@@ -73,4 +73,24 @@ $icons = ['ti ti-bell', 'ti ti-star', 'ti ti-flag', 'ti ti-briefcase'];
       @php $cardIndex++; @endphp
     @endforeach
   @endforeach
+</div>
+
+<div class="modal fade" id="employeeTopOptionDateModal" tabindex="-1" aria-labelledby="employeeTopOptionDateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="employeeTopOptionDateModalLabel">Confirm change</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">Choose the effective date for <strong id="employeeTopOptionModalStatusName">—</strong>. Dates after today are not allowed.</p>
+        <label for="employeeTopOptionEffectiveDate" class="form-label">Effective date <span class="text-danger">*</span></label>
+        <input type="date" class="form-control" id="employeeTopOptionEffectiveDate" required autocomplete="off">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="employeeTopOptionDateSave">Save</button>
+      </div>
+    </div>
+  </div>
 </div>

@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\UploadFile;
+use App\Support\DocumentExpiry;
+use App\Support\DocumentExpiryDashboard;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\DataTables\UploadFilesDataTable;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class UploadFilesController extends Controller
@@ -16,8 +19,28 @@ class UploadFilesController extends Controller
         $this->middleware('auth');
     }
 
-    public function index($company_slug, UploadFilesDataTable $dataTable)
+    public function index($company_slug, UploadFilesDataTable $dataTable, Request $request)
     {
+        $expiry = (string) $request->query('expiry', '');
+        if (in_array($expiry, ['expiring', 'expired'], true) && Schema::hasTable('files')) {
+            $days = DocumentExpiry::windowDays((int) $request->query('days', DocumentExpiry::DEFAULT_WINDOW_DAYS));
+            $user = auth()->user();
+            $section = DocumentExpiryDashboard::listSectionForUser($user, $expiry);
+
+            $filterLabel = $expiry === 'expired'
+                ? __('Expired documents')
+                : __('Documents expiring within :days days', ['days' => $days]);
+
+            return view('upload_files.expiry', [
+                'expiry' => $expiry,
+                'days' => $days,
+                'filterLabel' => $filterLabel,
+                'items' => $section['items'] ?? [],
+                'byModule' => $section['by_module'] ?? [],
+                'total' => (int) ($section['total'] ?? 0),
+            ]);
+        }
+
         return $dataTable->render('upload_files.index');
     }
 

@@ -72,6 +72,59 @@ class EmployeeHistoryLogger
         );
     }
 
+    public static function statusChange(
+        Employee $employee,
+        ?string $previousStatus,
+        string $newStatus,
+        ?string $effectiveDate = null
+    ): void {
+        $prevLabel = $previousStatus ? ucfirst(str_replace('_', ' ', $previousStatus)) : '—';
+        $newLabel = ucfirst(str_replace('_', ' ', $newStatus));
+
+        self::record(
+            (int) $employee->id,
+            'status_change',
+            'Employment status: ' . $newLabel,
+            $prevLabel . ' → ' . $newLabel,
+            [
+                'column' => 'status',
+                'previous_status' => $previousStatus,
+                'new_status' => $newStatus,
+            ],
+            $effectiveDate,
+            self::resolveBranchId($employee)
+        );
+    }
+
+    public static function profileFieldChange(
+        Employee $employee,
+        string $column,
+        $previousValue,
+        $newValue,
+        ?string $categoryName = null,
+        ?string $effectiveDate = null
+    ): void {
+        $fieldLabel = $categoryName ?: $column;
+        $prevText = $previousValue !== null && $previousValue !== '' ? (string) $previousValue : '—';
+        $newText = $newValue !== null && $newValue !== '' ? (string) $newValue : '—';
+        $cleared = $newValue === null || $newValue === '';
+
+        self::record(
+            (int) $employee->id,
+            $cleared ? 'field_cleared' : 'field_change',
+            $cleared ? ($fieldLabel . ' cleared') : ($fieldLabel . ': ' . $newText),
+            $prevText . ' → ' . $newText,
+            [
+                'column' => $column,
+                'category' => $categoryName,
+                'previous_value' => $previousValue,
+                'new_value' => $newValue,
+            ],
+            $effectiveDate,
+            self::resolveBranchId($employee)
+        );
+    }
+
     public static function simReturned(Employee $employee, Sims $sim, ?string $returnDate = null, ?string $notes = null): void
     {
         $simNumber = $sim->number ?? (string) $sim->id;

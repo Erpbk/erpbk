@@ -226,6 +226,27 @@
       font-size: 18px;
     }
   }
+
+  .info-container .user_list {
+    align-items: flex-start;
+  }
+
+  .info-container .user_list .icons {
+    flex-shrink: 0;
+  }
+
+  .info-container .user_list_content {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .info-container .user_list_content b {
+    display: block;
+    float: none;
+    margin-top: 2px;
+  }
 </style>
 
 @php
@@ -248,10 +269,10 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
 @endphp
 
 <div class="row" style="">
-  <div class="col-xl-3 col-md-3 col-lg-5 order-1 order-md-0">
+  <div class="col-xl-2 col-md-2 col-lg-5 order-1 order-md-0">
     <!-- User Card -->
     <div class="card mb-6" style="border-radius: 25px 25px 0px 0px;">
-      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px;height: 291px;position: relative;background-image: url({{ asset('assets/img/user_back.jpg') }});background-size: cover;">
+      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px;height: 220px;position: relative;background-image: url({{ asset('assets/img/user_back.jpg') }});background-size: cover;">
         <div class="profile-img">
           @php
           if(isset($employee)) {
@@ -301,8 +322,9 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                   </h6>
                 </div>
                 @if($employee)
-                <div class="text-end" style="width: 14%;" id="photo-icon">
+                <div class="text-end" style="width: 14%;">
                   <i class="ti ti-edit ti-sm"
+                    id="edit-icon"
                     style="border: 2px solid #9593997a !important; border-radius: 24px; padding: 8px; cursor: pointer;">
                   </i>
                 </div>
@@ -311,7 +333,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
             </div>
             @if($employee)
             <div id="photo-upload-form" class="mt-4" style="display: none;">
-              <form action="{{ route('employees.updateSection', $employee->id) }}" method="POST" enctype="multipart/form-data" id="formAjax2">
+              <form action="{{ route('employees.updateSection', $employee->id) }}" method="POST" enctype="multipart/form-data" id="formajax2">
                 @csrf
                 <div class="button-wrapper">
                   <label for="upload" class="btn btn-default me-2 mb-3 mt-3" tabindex="0">
@@ -535,7 +557,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 <li class="nav-item nav-priority-7">
                   <a class="nav-link @if(request()->routeIs('employee.history')) active @endif"
                     href="{{ route('employee.history', $employee->id) }}">
-                    <i class="ti ti-device-mobile ti-sm me-1_5"></i>SIM History
+                    <i class="ti ti-history ti-sm me-1_5"></i>Employee history
                   </a>
                 </li>
 
@@ -777,6 +799,33 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
       const updateStatusUrl = "{{ route('employee.update-status') }}";
       const updateFieldUrl = "{{ route('employee.update-profile-field') }}";
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      const employeeTopOptionDateModalEl = document.getElementById('employeeTopOptionDateModal');
+      const employeeTopOptionModal = employeeTopOptionDateModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal
+        ? new bootstrap.Modal(employeeTopOptionDateModalEl)
+        : null;
+      let pendingEmployeeChange = null;
+
+      function employeeTopOptionTodayYmd() {
+        const t = new Date();
+        return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+      }
+
+      function openEmployeeDateModal(label) {
+        const nameEl = document.getElementById('employeeTopOptionModalStatusName');
+        if (nameEl) nameEl.textContent = label || 'Change';
+        const dateInput = document.getElementById('employeeTopOptionEffectiveDate');
+        const today = employeeTopOptionTodayYmd();
+        if (dateInput) {
+          dateInput.max = today;
+          dateInput.value = today;
+        }
+        if (employeeTopOptionModal) {
+          employeeTopOptionModal.show();
+        } else {
+          showNotification('Date dialog is unavailable', 'error');
+          pendingEmployeeChange = null;
+        }
+      }
 
       function syncEmployeeStatusCards(activeStatus) {
         const map = {
@@ -786,10 +835,13 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
         };
         Object.keys(map).forEach((key) => {
           const card = document.getElementById(map[key]);
+          const radio = card ? card.querySelector('input[name="employee_status_toggle"]') : null;
           if (!card) return;
-          card.classList.toggle('active-success', key === 'active' && activeStatus === 'active');
-          card.classList.toggle('active-info', key === 'on_leave' && activeStatus === 'on_leave');
-          card.classList.toggle('active-danger', key === 'inactive' && activeStatus === 'inactive');
+          const isActive = activeStatus === key;
+          card.classList.toggle('active-success', key === 'active' && isActive);
+          card.classList.toggle('active-info', key === 'on_leave' && isActive);
+          card.classList.toggle('active-danger', key === 'inactive' && isActive);
+          if (radio) radio.checked = isActive;
         });
         const badge = document.getElementById('employee-status-value-badge');
         if (badge) {
@@ -802,99 +854,202 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
         }
       }
 
+      function syncEmployeeTopOptionCards(column) {
+        employeeStatusCards.querySelectorAll('.employee-top-option-card[data-column="' + column + '"]').forEach((c) => {
+          const cb = c.querySelector('.employee-top-option-checkbox');
+          c.classList.toggle('active-success', !!(cb && cb.checked));
+        });
+      }
+
+      function getActiveEmployeeStatus() {
+        const checked = employeeStatusCards.querySelector('input[name="employee_status_toggle"]:checked');
+        return checked ? checked.value : 'active';
+      }
+
+      function submitEmployeeStatusChange(status, effectiveDate) {
+        const card = document.getElementById(
+          status === 'active' ? 'employee-status-active-card' :
+          status === 'on_leave' ? 'employee-status-leave-card' : 'employee-status-inactive-card'
+        );
+        if (card) card.classList.add('loading');
+
+        return fetch(updateStatusUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify({
+              employee_id: employeeId,
+              status: status,
+              effective_date: effectiveDate,
+            }),
+          })
+          .then((r) => r.json().then((data) => ({
+            ok: r.ok,
+            data
+          })))
+          .then(({
+            ok,
+            data
+          }) => {
+            if (ok && data.success) {
+              syncEmployeeStatusCards(status);
+              showNotification(data.message || 'Status updated', 'success');
+              return true;
+            }
+            const msg = data.message || (data.errors ? Object.values(data.errors).flat().join(' ') : 'Failed to update status');
+            showNotification(msg, 'error');
+            syncEmployeeStatusCards(getActiveEmployeeStatus());
+            return false;
+          })
+          .catch(() => {
+            showNotification('Failed to update status', 'error');
+            syncEmployeeStatusCards(getActiveEmployeeStatus());
+            return false;
+          })
+          .finally(() => {
+            if (card) card.classList.remove('loading');
+          });
+      }
+
+      function submitEmployeeFieldChange(checkbox, value, effectiveDate) {
+        const column = checkbox.getAttribute('data-column');
+        const card = checkbox.closest('.status-card');
+        const categoryName = card ? card.getAttribute('data-category') : null;
+        if (!column) return Promise.resolve(false);
+        if (card) card.classList.add('loading');
+
+        const payload = {
+          employee_id: employeeId,
+          column: column,
+          value: value,
+          category_name: categoryName,
+        };
+        if (value) payload.effective_date = effectiveDate;
+
+        return fetch(updateFieldUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify(payload),
+          })
+          .then((r) => r.json().then((data) => ({
+            ok: r.ok,
+            data
+          })))
+          .then(({
+            ok,
+            data
+          }) => {
+            if (ok && data.success) {
+              if (value) {
+                employeeStatusCards.querySelectorAll('.employee-top-option-card[data-column="' + column + '"]').forEach((c) => {
+                  const cb = c.querySelector('.employee-top-option-checkbox');
+                  if (cb && cb !== checkbox) cb.checked = false;
+                });
+                checkbox.checked = true;
+              } else {
+                checkbox.checked = false;
+              }
+              syncEmployeeTopOptionCards(column);
+              showNotification(data.message || 'Updated', 'success');
+              return true;
+            }
+            const msg = data.message || (data.errors ? Object.values(data.errors).flat().join(' ') : 'Failed to update');
+            showNotification(msg, 'error');
+            return false;
+          })
+          .catch(() => {
+            showNotification('Failed to update', 'error');
+            return false;
+          })
+          .finally(() => {
+            if (card) card.classList.remove('loading');
+          });
+      }
+
+      employeeStatusCards.addEventListener('click', function(e) {
+        const toggleArea = e.target.closest('.status-toggle');
+        if (!toggleArea || !employeeStatusCards.contains(toggleArea)) return;
+
+        const radio = toggleArea.querySelector('input[name="employee_status_toggle"]');
+        if (radio) {
+          if (radio.checked) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const titleEl = radio.closest('.status-card')?.querySelector('.status-title');
+          pendingEmployeeChange = {
+            type: 'status',
+            status: radio.value,
+          };
+          openEmployeeDateModal(titleEl ? titleEl.textContent.trim() : 'Status');
+          return;
+        }
+
+        const checkbox = toggleArea.querySelector('.employee-top-option-checkbox');
+        if (checkbox) {
+          if (checkbox.checked) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const card = checkbox.closest('.status-card');
+          const titleEl = card ? card.querySelector('.status-title') : null;
+          pendingEmployeeChange = {
+            type: 'field',
+            checkbox: checkbox,
+            value: checkbox.getAttribute('data-value'),
+          };
+          openEmployeeDateModal(titleEl ? titleEl.textContent.trim() : 'Option');
+        }
+      }, true);
+
+      if (employeeTopOptionDateModalEl) {
+        employeeTopOptionDateModalEl.addEventListener('hidden.bs.modal', function() {
+          pendingEmployeeChange = null;
+        });
+      }
+
+      document.getElementById('employeeTopOptionDateSave')?.addEventListener('click', function() {
+        const pending = pendingEmployeeChange;
+        if (!pending) return;
+        const dateInput = document.getElementById('employeeTopOptionEffectiveDate');
+        const effectiveDate = dateInput ? dateInput.value : '';
+        const today = employeeTopOptionTodayYmd();
+        if (!effectiveDate) {
+          showNotification('Please select an effective date', 'error');
+          return;
+        }
+        if (effectiveDate > today) {
+          showNotification('Future dates are not allowed', 'error');
+          return;
+        }
+
+        if (pending.type === 'status') {
+          submitEmployeeStatusChange(pending.status, effectiveDate).then((ok) => {
+            if (ok && employeeTopOptionModal) employeeTopOptionModal.hide();
+          });
+          return;
+        }
+
+        if (pending.type === 'field' && pending.checkbox) {
+          submitEmployeeFieldChange(pending.checkbox, pending.value, effectiveDate).then((ok) => {
+            if (ok && employeeTopOptionModal) employeeTopOptionModal.hide();
+          });
+        }
+      });
+
       employeeStatusCards.addEventListener('change', function(e) {
         const target = e.target;
         if (!employeeId || !csrfToken) return;
 
-        if (target.matches('input[name="employee_status_toggle"]')) {
-          const status = target.value;
-          const card = target.closest('.status-card');
-          if (card) card.classList.add('loading');
-
-          fetch(updateStatusUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-              },
-              body: JSON.stringify({
-                employee_id: employeeId,
-                status: status
-              }),
-            })
-            .then((r) => r.json().then((data) => ({
-              ok: r.ok,
-              data
-            })))
-            .then(({
-              ok,
-              data
-            }) => {
-              if (ok && data.success) {
-                syncEmployeeStatusCards(status);
-                showNotification(data.message || 'Status updated', 'success');
-              } else {
-                showNotification(data.message || 'Failed to update status', 'error');
-              }
-            })
-            .catch(() => showNotification('Failed to update status', 'error'))
-            .finally(() => {
-              if (card) card.classList.remove('loading');
-            });
-          return;
-        }
-
-        if (target.classList.contains('employee-top-option-checkbox')) {
-          const column = target.getAttribute('data-column');
-          const value = target.getAttribute('data-value');
-          if (!column) return;
-
-          const card = target.closest('.status-card');
-          if (card) card.classList.add('loading');
-
-          const payload = {
-            employee_id: employeeId,
-            column: column,
-            value: target.checked ? value : null,
-          };
-
-          fetch(updateFieldUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-              },
-              body: JSON.stringify(payload),
-            })
-            .then((r) => r.json().then((data) => ({
-              ok: r.ok,
-              data
-            })))
-            .then(({
-              ok,
-              data
-            }) => {
-              if (ok && data.success) {
-                employeeStatusCards.querySelectorAll('.employee-top-option-card[data-column="' + column + '"]').forEach((c) => {
-                  const cb = c.querySelector('.employee-top-option-checkbox');
-                  const isSelected = cb && cb.checked;
-                  c.classList.toggle('active-success', !!isSelected);
-                });
-                showNotification(data.message || 'Updated', 'success');
-              } else {
-                target.checked = !target.checked;
-                showNotification(data.message || 'Failed to update', 'error');
-              }
-            })
-            .catch(() => {
-              target.checked = !target.checked;
-              showNotification('Failed to update', 'error');
-            })
-            .finally(() => {
-              if (card) card.classList.remove('loading');
-            });
+        if (target.classList.contains('employee-top-option-checkbox') && !target.checked) {
+          submitEmployeeFieldChange(target, null, null).then((ok) => {
+            if (!ok) target.checked = true;
+          });
         }
       });
     }

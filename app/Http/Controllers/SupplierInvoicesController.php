@@ -344,9 +344,10 @@ class SupplierInvoicesController extends AppBaseController
     public function sendEmail($company_slug, $id, Request $request)
     {
         if ($request->isMethod('post')) {
-            $data = [
-                'html' => $request->email_message
-            ];
+            $brandingService = app(\App\Services\Email\CompanyEmailBrandingService::class);
+            $data = $brandingService->mergeIntoMailData([
+                'html' => $request->email_message,
+            ]);
 
             $res = SupplierInvoices::with(['supplierInv_item'])->where('id', $id)->get();
             $pdf = \PDF::loadView('invoices.supplier_invoices.show', ['res' => $res]);

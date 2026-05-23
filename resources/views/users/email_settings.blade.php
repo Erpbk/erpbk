@@ -33,10 +33,18 @@
                 autocomplete="off"
               />
               <div class="form-text">
-                Leave blank to keep the existing SMTP password.
-                <br/>
-                Stored encrypted in the database.
+                Required before anyone in this company can send rider or employee emails.
+                <ol class="mb-0 ps-3">
+                  <li>Enable <strong>2-Step Verification</strong> on the Gmail account.</li>
+                  <li>Open <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">Google App passwords</a> → create one for <strong>Mail</strong>.</li>
+                  <li>Copy the <strong>16-character</strong> password (paste here; spaces are removed automatically).</li>
+                  <li>Your user login email must be the <strong>same Gmail address</strong> (e.g. absdevelops.17@gmail.com).</li>
+                </ol>
+                Do <strong>not</strong> use your normal Gmail login password. Leave blank to keep the existing app password.
               </div>
+              @error('smtp_app_password')
+                <div class="text-danger small mt-1">{{ $message }}</div>
+              @enderror
               @if($hasAppPassword)
                 <div class="alert alert-info py-2 mt-2 mb-0">
                   An SMTP app password is already configured for this account.

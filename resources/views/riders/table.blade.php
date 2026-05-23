@@ -112,15 +112,15 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  <a href="javascript:void();" data-action="{{route('rider_contract_upload', $r->id)}}" data-size="md" data-title="{{ $r->name }} ({{ $r->rider_id }}) Contract" class="dropdown-item waves-effect show-modal"><i class="fas fa-file my-1"></i> Contract</a>
-                  <a href="javascript:void();" data-action="{{route('rider.sendemail', $r->id)}}" data-size="md" data-title="{{ $r->name }} ({{ $r->rider_id }})" class="dropdown-item waves-effect show-modal"><i class="fas fa-envelope my-1"></i> Send Email</a>
+                  <a href="javascript:void();" data-action="{{ route('rider_contract_upload', ['company_slug' => request()->route('company_slug'), 'id' => $r->id]) }}" data-size="md" data-title="{{ $r->name }} ({{ $r->rider_id }}) Contract" class="dropdown-item waves-effect show-modal"><i class="fas fa-file my-1"></i> Contract</a>
+                  <a href="javascript:void();" data-action="{{ route('rider.sendemail', ['company_slug' => request()->route('company_slug'), 'id' => $r->id]) }}" data-size="md" data-title="{{ $r->name }} ({{ $r->rider_id }})" class="dropdown-item waves-effect show-modal"><i class="fas fa-envelope my-1"></i> Send Email</a>
                   @can('rider_edit')
-                  <a href="{{ route('riders.edit', $r->id) }}" class='dropdown-item waves-effect'>
+                  <a href="{{ route('riders.edit', ['company_slug' => request()->route('company_slug'), 'rider' => $r->id]) }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit my-1"></i> Edit
                   </a>
                   @endcan
                   @can('rider_delete')
-                  <a href="javascript:void(0);" onclick="confirmDelete('{{ route('rider.delete', $r->id) }}')" class='dropdown-item waves-effect'>
+                  <a href="javascript:void(0);" onclick="confirmDelete('{{ route('rider.delete', ['company_slug' => request()->route('company_slug'), 'id' => $r->id]) }}')" class='dropdown-item waves-effect'>
                      <i class="fa fa-trash my-1"></i> Delete
                   </a>
                   @endcan

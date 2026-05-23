@@ -670,13 +670,16 @@ class EmployeeController extends Controller
 
         if ($request->isMethod('post')) {
             $user = Auth::user();
-            $fromName = is_string($user?->name) ? trim($user->name) : '';
-            $fromEmailCandidate = is_string($user?->email) && trim($user->email) !== ''
-                ? trim($user->email)
-                : (is_string($user?->username) ? trim($user->username) : '');
-            $fromEmail = (is_string($fromEmailCandidate) && filter_var($fromEmailCandidate, FILTER_VALIDATE_EMAIL))
-                ? $fromEmailCandidate
-                : (config('mail.from.address') ?: env('MAIL_FROM_ADDRESS') ?: 'hello@example.com');
+            $emailService = app(\App\Services\Email\UserEmailService::class);
+            $smtpPrep = $emailService->prepareCompanySmtp($user);
+            if (!$smtpPrep['ready']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $smtpPrep['message'],
+                ], $smtpPrep['status'] ?? 422);
+            }
+            $fromEmail = $smtpPrep['from_email'];
+            $fromName = $smtpPrep['from_name'];
 
             $toEmail = $request->input('email_to');
             if (!is_string($toEmail) || trim($toEmail) === '') {
@@ -691,12 +694,11 @@ class EmployeeController extends Controller
                 ? trim($request->input('email_subject'))
                 : '(Employee email)';
 
-            $data = [
+            $brandingService = app(\App\Services\Email\CompanyEmailBrandingService::class);
+            $data = $brandingService->mergeIntoMailData([
                 'html' => $request->input('email_message'),
-            ];
+            ]);
 
-            $emailService = app(\App\Services\Email\UserEmailService::class);
-            $emailService->configureSmtpForUser($user, $fromEmail);
             $ccEmails = $emailService->getCcRecipientEmails($user);
 
             Mail::send('emails.general', $data, function ($message) use ($toEmail, $subject, $fromEmail, $fromName, $ccEmails) {

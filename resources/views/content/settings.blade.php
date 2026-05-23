@@ -107,6 +107,17 @@
             <img src="{{ Storage::url($currentCompany->logo) }}" alt="Company Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;">
           </div>
           @endif
+          <small class="text-muted d-block mt-1">Used in PDFs and outbound emails for this company only.</small>
+        </div>
+        <div class="col-md-2 mb-3">
+          <label>Email header color</label>
+          <input type="color" name="company_primary_color" class="form-control form-control-color w-100"
+            value="{{ old('company_primary_color', $currentCompany->primary_color ?? '#2563eb') }}" />
+        </div>
+        <div class="col-md-2 mb-3">
+          <label>Email accent color</label>
+          <input type="color" name="company_secondary_color" class="form-control form-control-color w-100"
+            value="{{ old('company_secondary_color', $currentCompany->secondary_color ?? '#1e3a8a') }}" />
         </div>
         @endif
 

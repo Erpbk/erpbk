@@ -87,6 +87,8 @@ class HomeController extends Controller
         'company_country' => 'nullable|string|max:255',
         'company_city' => 'nullable|string|max:255',
         'company_logo' => 'nullable|image|mimes:jpg,jpeg,png,webp',
+        'company_primary_color' => 'nullable|string|max:20',
+        'company_secondary_color' => 'nullable|string|max:20',
         'settings.currency_code' => 'nullable|string|max:10',
         'settings.currency_symbol' => 'nullable|string|max:10',
         'settings.vat_number' => 'nullable|string|max:50',
@@ -115,7 +117,12 @@ class HomeController extends Controller
       $currentCompany->address = $validated['company_address'] ?? null;
       $currentCompany->country = $validated['company_country'] ?? null;
       $currentCompany->city = $validated['company_city'] ?? null;
-
+      if ($request->filled('company_primary_color')) {
+        $currentCompany->primary_color = $request->input('company_primary_color');
+      }
+      if ($request->filled('company_secondary_color')) {
+        $currentCompany->secondary_color = $request->input('company_secondary_color');
+      }
 
       if ($request->hasFile('company_logo')) {
         $path = $request->file('company_logo')->store('company-logos', 'public');

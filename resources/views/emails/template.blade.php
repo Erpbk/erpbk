@@ -1,404 +1,114 @@
-<!doctype html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>{{env('APP_NAME')}}</title>
-    <style>
-      /* -------------------------------------
-          GLOBAL RESETS
-      ------------------------------------- */
+@php
+dd($emailBranding);
 
-      /*All the styling goes here*/
+$brand = $emailBranding ?? [];
 
-      img {
-        border: none;
-        -ms-interpolation-mode: bicubic;
-        max-width: 100%;
-      }
+$companyName = $brand['name'] ?? config('app.name');
+$primaryColor = $brand['primary_color'] ?? '#2563eb';
+$secondaryColor = $brand['secondary_color'] ?? '#1e3a8a';
+$logoUrl = $brand['logo_url'] ?? null;
+$footerLines = $brand['footer_lines'] ?? [];
+$contactEmail = $brand['email'] ?? '';
+@endphp
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 
-      body {
-        background-color: #edf2f7;
-        font-family: sans-serif;
-        -webkit-font-smoothing: antialiased;
-        font-size: 14px;
-        line-height: 1.4;
-        margin: 0;
-        padding: 0;
-        -ms-text-size-adjust: 100%;
-        -webkit-text-size-adjust: 100%;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>{{ $companyName }}</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+</head>
 
-      table {
-        border-collapse: separate;
-        mso-table-lspace: 0pt;
-        mso-table-rspace: 0pt;
-        width: 100%; }
-        table td {
-          font-family: sans-serif;
-          font-size: 14px;
-          vertical-align: top;
-      }
+<body style="margin:0;padding:0;background-color:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef2f7;min-height:100%;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
 
-      /* -------------------------------------
-          BODY & CONTAINER
-      ------------------------------------- */
+          {{-- Top accent bar --}}
+          <tr>
+            <td style="height:5px;background-color:{{ $primaryColor }};border-radius:12px 12px 0 0;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
 
-      .body {
-        background-color: #f6f6f6;
-        width: 100%;
-      }
-
-      /* Set a max-width, and make it display as block so it will automatically stretch to that width, but will also shrink down on a phone or something */
-      .container {
-        display: block;
-        margin: 0 auto !important;
-        /* makes it centered */
-        max-width: 580px;
-        padding: 10px;
-        width: 580px;
-      }
-
-      /* This should also be a block element, so that it will fill 100% of the .container */
-      .content {
-        box-sizing: border-box;
-        display: block;
-        margin: 0 auto;
-        max-width: 580px;
-        padding: 10px;
-      }
-
-      /* -------------------------------------
-          HEADER, FOOTER, MAIN
-      ------------------------------------- */
-      .main {
-        background: #ffffff;
-        border-radius: 3px;
-        width: 100%;
-      }
-
-      .wrapper {
-        box-sizing: border-box;
-        padding: 20px;
-      }
-
-      .content-block {
-        padding-bottom: 10px;
-        padding-top: 10px;
-      }
-
-      .footer {
-        clear: both;
-        margin-top: 10px;
-        text-align: center;
-        width: 100%;
-      }
-        .footer td,
-        .footer p,
-        .footer span,
-        .footer a {
-          color: #999999;
-          font-size: 12px;
-          text-align: center;
-      }
-
-      /* -------------------------------------
-          TYPOGRAPHY
-      ------------------------------------- */
-      h1,
-      h2,
-      h3,
-      h4 {
-        color: #000000;
-        font-family: sans-serif;
-        font-weight: 400;
-        line-height: 1.4;
-        margin: 0;
-        margin-bottom: 30px;
-      }
-
-      h1 {
-        font-size: 35px;
-        font-weight: 300;
-        text-align: center;
-        text-transform: capitalize;
-      }
-
-      p,
-      ul,
-      ol {
-        font-family: sans-serif;
-        font-size: 14px;
-        font-weight: normal;
-        margin: 0;
-        margin-bottom: 15px;
-      }
-        p li,
-        ul li,
-        ol li {
-          list-style-position: inside;
-          margin-left: 5px;
-      }
-
-      a {
-        color: #3498db;
-        text-decoration: underline;
-      }
-
-      /* -------------------------------------
-          BUTTONS
-      ------------------------------------- */
-      .btn {
-        box-sizing: border-box;
-        width: 100%; }
-        .btn > tbody > tr > td {
-          padding-bottom: 15px; }
-        .btn table {
-          width: auto;
-      }
-        .btn table td {
-          background-color: #ffffff;
-          border-radius: 5px;
-          text-align: center;
-      }
-        .btn a {
-          background-color: #ffffff;
-          border: solid 1px #504ccb;
-          border-radius: 5px;
-          box-sizing: border-box;
-          color: #504ccb;
-          cursor: pointer;
-          display: inline-block;
-          font-size: 14px;
-          font-weight: bold;
-          margin: 0;
-          padding: 12px 25px;
-          text-decoration: none;
-          text-transform: capitalize;
-      }
-
-      .btn-primary table td {
-        background-color: #504ccb;
-      }
-
-      .btn-primary a {
-        background-color: #504ccb;
-        border-color: #504ccb;
-        color: #ffffff;
-      }
-    .button {
-    background-color: #504ccb;
-    border: none;
-    color: white;
-    padding: 10px 22px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    margin: 4px 2px;
-    cursor: pointer;
-  }
-  .button-danger {
-    background-color: #aa2504;
-    border: none;
-    color: white;
-    padding: 10px 22px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    margin: 4px 2px;
-    cursor: pointer;
-  }
-
-      /* -------------------------------------
-          OTHER STYLES THAT MIGHT BE USEFUL
-      ------------------------------------- */
-      .last {
-        margin-bottom: 0;
-      }
-
-      .first {
-        margin-top: 0;
-      }
-
-      .align-center {
-        text-align: center;
-      }
-
-      .align-right {
-        text-align: right;
-      }
-
-      .align-left {
-        text-align: left;
-      }
-
-      .clear {
-        clear: both;
-      }
-
-      .mt0 {
-        margin-top: 0;
-      }
-
-      .mb0 {
-        margin-bottom: 0;
-      }
-
-      .preheader {
-        color: transparent;
-        display: none;
-        height: 0;
-        max-height: 0;
-        max-width: 0;
-        opacity: 0;
-        overflow: hidden;
-        mso-hide: all;
-        visibility: hidden;
-        width: 0;
-      }
-
-      .powered-by a {
-        text-decoration: none;
-      }
-
-      hr {
-        border: 0;
-        border-bottom: 1px solid #f6f6f6;
-        margin: 20px 0;
-      }
-
-      /* -------------------------------------
-          RESPONSIVE AND MOBILE FRIENDLY STYLES
-      ------------------------------------- */
-      @media only screen and (max-width: 620px) {
-        table.body h1 {
-          font-size: 28px !important;
-          margin-bottom: 10px !important;
-        }
-        table.body p,
-        table.body ul,
-        table.body ol,
-        table.body td,
-        table.body span,
-        table.body a {
-          font-size: 16px !important;
-        }
-        table.body .wrapper,
-        table.body .article {
-          padding: 10px !important;
-        }
-        table.body .content {
-          padding: 0 !important;
-        }
-        table.body .container {
-          padding: 0 !important;
-          width: 100% !important;
-        }
-        table.body .main {
-          border-left-width: 0 !important;
-          border-radius: 0 !important;
-          border-right-width: 0 !important;
-        }
-        table.body .btn table {
-          width: 100% !important;
-        }
-        table.body .btn a {
-          width: 100% !important;
-        }
-        table.body .img-responsive {
-          height: auto !important;
-          max-width: 100% !important;
-          width: auto !important;
-        }
-      }
-
-      /* -------------------------------------
-          PRESERVE THESE STYLES IN THE HEAD
-      ------------------------------------- */
-      @media all {
-        .ExternalClass {
-          width: 100%;
-        }
-        .ExternalClass,
-        .ExternalClass p,
-        .ExternalClass span,
-        .ExternalClass font,
-        .ExternalClass td,
-        .ExternalClass div {
-          line-height: 100%;
-        }
-        .apple-link a {
-          color: inherit !important;
-          font-family: inherit !important;
-          font-size: inherit !important;
-          font-weight: inherit !important;
-          line-height: inherit !important;
-          text-decoration: none !important;
-        }
-        #MessageViewBody a {
-          color: inherit;
-          text-decoration: none;
-          font-size: inherit;
-          font-family: inherit;
-          font-weight: inherit;
-          line-height: inherit;
-        }
-        .btn-primary table td:hover {
-          background-color: #34495e !important;
-        }
-        .btn-primary a:hover {
-          background-color: #34495e !important;
-          border-color: #34495e !important;
-        }
-      }
-
-    </style>
-  </head>
-  <body>
-    <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="body">
-      <tr>
-        <td>&nbsp;</td>
-        <td class="container">
-          <div class="content">
-            <h1 style="text-align: center;">{{env('APP_NAME')}}</h1>
-            <!-- START CENTERED WHITE CONTAINER -->
-            <table role="presentation" class="main">
-
-              <!-- START MAIN CONTENT AREA -->
-              <tr>
-                <td class="wrapper">
-              @yield('message')
-                </td>
-              </tr>
-
-            <!-- END MAIN CONTENT AREA -->
-            </table>
-            <!-- END CENTERED WHITE CONTAINER -->
-
-            <!-- START FOOTER -->
-            <div class="footer">
-              <table role="presentation" border="0" cellpadding="0" cellspacing="0">
-                {{-- <tr>
-                  <td class="content-block">
-                    <span class="apple-link">Company Inc, 3 Abbey Road, San Francisco CA 94102</span>
-                    <br> Don't like these emails? <a href="http://i.imgur.com/CScmqnj.gif">Unsubscribe</a>.
-                  </td>
-                </tr> --}}
+          {{-- Header: logo + company name --}}
+          <tr>
+            <td style="background-color:#ffffff;padding:28px 32px 24px;text-align:center;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              @if($logoUrl)
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 16px;">
                 <tr>
-                  <td class="content-block powered-by">
-                    Powered by <a href="{{env('APP_URL')}}">{{env('APP_NAME')}}</a>.
+                  <td style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 20px;">
+                    <img
+                      src="{{ $logoUrl }}"
+                      alt="{{ $companyName }}"
+                      width="180"
+                      style="display:block;max-width:180px;max-height:72px;width:auto;height:auto;margin:0 auto;border:0;outline:none;text-decoration:none;" />
                   </td>
                 </tr>
               </table>
-            </div>
-            <!-- END FOOTER -->
+              @endif
+              <p style="margin:0;font-size:22px;font-weight:700;color:{{ $secondaryColor }};letter-spacing:-0.02em;line-height:1.3;">
+                {{ $companyName }}
+              </p>
+              <p style="margin:8px 0 0;font-size:13px;color:#64748b;line-height:1.4;">
+                Official communication
+              </p>
+            </td>
+          </tr>
 
-          </div>
-        </td>
-        <td>&nbsp;</td>
-      </tr>
-    </table>
-  </body>
+          {{-- Message body --}}
+          <tr>
+            <td style="background-color:#ffffff;padding:0 32px 32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background-color:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid {{ $primaryColor }};border-radius:8px;padding:24px 28px;">
+                    <div style="font-size:15px;line-height:1.65;color:#334155;">
+                      @yield('message')
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          {{-- Footer --}}
+          <tr>
+            <td style="background-color:#f1f5f9;padding:24px 32px;text-align:center;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
+              <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:{{ $secondaryColor }};">
+                {{ $companyName }}
+              </p>
+              @foreach($footerLines as $line)
+              <p style="margin:0 0 4px;font-size:12px;color:#64748b;line-height:1.5;">{{ $line }}</p>
+              @endforeach
+              @if($contactEmail !== '')
+              <p style="margin:12px 0 0;font-size:12px;line-height:1.5;">
+                <a href="mailto:{{ $contactEmail }}" style="color:{{ $primaryColor }};text-decoration:none;font-weight:500;">{{ $contactEmail }}</a>
+              </p>
+              @endif
+              <table role="presentation" width="80" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:16px auto 0;">
+                <tr>
+                  <td style="height:1px;background-color:#cbd5e1;font-size:0;line-height:0;">&nbsp;</td>
+                </tr>
+              </table>
+              <p style="margin:12px 0 0;font-size:11px;color:#94a3b8;line-height:1.4;">
+                This message was sent on behalf of {{ $companyName }}.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+
 </html>

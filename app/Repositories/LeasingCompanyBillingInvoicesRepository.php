@@ -10,6 +10,7 @@ use App\Models\LeasingCompanyBillingInvoice;
 use App\Models\LeasingCompanyBillingInvoiceItem;
 use App\Models\Transactions;
 use App\Services\TransactionService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -43,7 +44,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
 
         try {
             $input = $request->except(['bike_id', '_method', '_token', 'rental_amount']);
-            $input['billing_month'] = $request->billing_month . '-01';
+            $input['billing_month'] = $request->billing_month.'-01';
 
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
@@ -82,7 +83,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
                 $invoice = LeasingCompanyBillingInvoice::create($input);
 
                 if (empty($invoice->invoice_number)) {
-                    $invoice->invoice_number = 'LBI-' . $invoice->id;
+                    $invoice->invoice_number = 'LBI-'.$invoice->id;
                     $invoice->save();
                 }
             }
@@ -93,13 +94,13 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
 
             if (isset($request['bike_id']) && is_array($request['bike_id'])) {
                 foreach ($request['bike_id'] as $key => $bikeId) {
-                    if (!empty($bikeId) && isset($request['rental_amount'][$key]) && $request['rental_amount'][$key] > 0) {
+                    if (! empty($bikeId) && isset($request['rental_amount'][$key]) && $request['rental_amount'][$key] > 0) {
                         $bike = Bikes::where('id', $bikeId)
                             ->where('status', 1)
                             ->first();
 
-                        if (!$bike) {
-                            throw new \Exception('Bike ID ' . $bikeId . ' is not active.');
+                        if (! $bike) {
+                            throw new \Exception('Bike ID '.$bikeId.' is not active.');
                         }
 
                         $monthlyRate = (float) $request['rental_amount'][$key];
@@ -141,10 +142,10 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
             $invoice->save();
 
             if ($id) {
-                $oldTransCode = Transactions::where('reference_type', 'LeasingCompanyBillingInvoice')
+                $oldTransCode = Transactions::where('reference_type', 'Rental Invoice')
                     ->where('reference_id', $id)
                     ->value('trans_code');
-                Transactions::where('reference_type', 'LeasingCompanyBillingInvoice')
+                Transactions::where('reference_type', 'Rental Invoice')
                     ->where('reference_id', $id)
                     ->delete();
                 $this->recordTransactionsForInvoice($invoice, $oldTransCode ?: null);
@@ -153,6 +154,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
             }
 
             DB::commit();
+
             return $invoice;
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -164,7 +166,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
     {
         $invoice->load('customer');
         $customer = $invoice->customer;
-        if (!$customer || !$customer->account_id) {
+        if (! $customer || ! $customer->account_id) {
             throw new \Exception('Customer does not have a linked ledger account. Please set the account before creating billing invoices.');
         }
 
@@ -172,30 +174,30 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
         $subtotal = (float) $invoice->subtotal;
         $vatAmount = (float) $invoice->vat;
         $totalAmount = (float) $invoice->total_amount;
-        $invoiceRef = $invoice->invoice_number ?: ('LBI-' . $invoice->id);
-        $narration = 'bike Rental Billing Invoice #' . $invoiceRef . ' - ' . ($invoice->descriptions ?? 'Billing Invoice');
+        $invoiceRef = $invoice->invoice_number ?: ('LBI-'.$invoice->id);
+        $narration = 'Rental Billing Invoice #'.$invoiceRef.' - '.($invoice->descriptions ?? 'Billing Invoice');
 
         $vehicalIncomeAccountId = HeadAccount::VEHICAL_INCOME;
         $vatOnSalesAccountId = HeadAccount::VAT_ON_SALES;
-        if (!$vehicalIncomeAccountId) {
-            throw new \Exception('Bike rental account not found in Chart of Accounts.');
+        if (! $vehicalIncomeAccountId) {
+            throw new \Exception('Vehicle Rental account not found in Chart of Accounts.');
         }
-        if (!$vatOnSalesAccountId) {
+        if (! $vatOnSalesAccountId) {
             throw new \Exception('VAT account not found in Chart of Accounts.');
         }
-        if (!$customer->account_id) {
+        if (! $customer->account_id) {
             throw new \Exception('Customer does not have a linked ledger account. Please set the account before creating billing invoices.');
         }
 
-        $transDate = $invoice->inv_date ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d');
-        $billingMonthStr = $invoice->billing_month ? \Carbon\Carbon::parse($invoice->billing_month)->format('Y-m-d') : date('Y-m-01');
+        $transDate = $invoice->inv_date ? Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d');
+        $billingMonthStr = $invoice->billing_month ? Carbon::parse($invoice->billing_month)->format('Y-m-d') : date('Y-m-01');
 
-        $transactionService = new TransactionService();
+        $transactionService = new TransactionService;
         try {
             $transactionService->recordTransaction([
                 'account_id' => $vehicalIncomeAccountId,
                 'reference_id' => $invoice->id,
-                'reference_type' => 'bike Rental Invoice',
+                'reference_type' => 'Rental Invoice',
                 'trans_code' => $trans_code,
                 'trans_date' => $transDate,
                 'narration' => $narration,
@@ -207,10 +209,10 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
                 $transactionService->recordTransaction([
                     'account_id' => $vatOnSalesAccountId,
                     'reference_id' => $invoice->id,
-                    'reference_type' => 'bike Rental Invoice',
+                    'reference_type' => 'Rental Invoice',
                     'trans_code' => $trans_code,
                     'trans_date' => $transDate,
-                    'narration' => $narration . ' - VAT',
+                    'narration' => $narration.' - VAT',
                     'credit' => $vatAmount,
                     'billing_month' => $billingMonthStr,
                 ], true);
@@ -219,7 +221,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
             $transactionService->recordTransaction([
                 'account_id' => $customer->account_id,
                 'reference_id' => $invoice->id,
-                'reference_type' => 'bike Rental Invoice',
+                'reference_type' => 'Rental Invoice',
                 'trans_code' => $trans_code,
                 'trans_date' => $transDate,
                 'narration' => $narration,
@@ -227,7 +229,7 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
                 'billing_month' => $billingMonthStr,
             ], true);
         } catch (\Throwable $e) {
-            throw new \Exception('Failed to record transaction for bike Rental Billing Invoice. ' . $e->getMessage(), 0, $e);
+            throw new \Exception('Failed to record transaction for Rental Billing Invoice. '.$e->getMessage(), 0, $e);
         }
     }
 }

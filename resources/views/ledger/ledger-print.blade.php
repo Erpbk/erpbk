@@ -14,7 +14,6 @@
             font-size:12px;
             color:#222;
         }
-
         .header{
             display:flex;
             justify-content:space-between;
@@ -283,7 +282,7 @@ if(request('account')){
 
                 <td  style="white-space: nowrap;">
 
-                    {{ $row->voucher?->voucher_type ?? '' }}-{{ str_pad($row->voucher?->id ?? '', 4, '0', STR_PAD_LEFT) }}
+                    {{ $row->voucher_number }}
 
                 </td>
 
@@ -316,7 +315,6 @@ if(request('account')){
             <td colspan="2">
 
                 <strong>Total</strong>
-
             </td>
 
             <td class="text-right">

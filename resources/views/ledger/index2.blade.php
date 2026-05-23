@@ -3,69 +3,48 @@
 @section('content')
 
 <div class="container-fluid card mb-1">
-  <div class="card-header">
-    
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
 
-        {{-- Title --}}
-        <h5 class="mb-0">
-            <i class="ti ti-file-stack ti-lg text-body me-2"></i>
-            Account Ledger
-        </h5>
+  <div class="card-header">
+
+    {{-- Title --}}
+    <h5 class="mb-2">
+        <i class="ti ti-file-stack ti-lg text-body me-2"></i>
+        Account Ledger
+    </h5>
+
+    <div class="d-flex justify-content-end align-items-center w-100">
 
         {{-- Filters --}}
-        <form action="" method="get" class="d-flex gap-4 flex-wrap">
+        <form action="" method="get"
+              class="d-flex align-items-center flex-wrap gap-3 justify-content-end w-100">
 
-            {{-- Left Side --}}
-            <div class="d-flex flex-column gap-2">
-
-                {{-- From Date --}}
-                <div class="d-flex align-items-center gap-2">
-                    <label class="fw-semibold mb-0" style="min-width: 90px;">
-                        From Date
-                    </label>
-
-                    <input type="date"
-                           name="from_date"
-                           value="{{ request('from_date') }}"
-                           class="form-control"
-                           style="width: 220px; height:38px;">
-                </div>
-
-                {{-- To Date --}}
-                <div class="d-flex align-items-center gap-2">
-                    <label class="fw-semibold mb-0" style="min-width: 90px;">
-                        To Date
-                    </label>
-
-                    <input type="date"
-                           name="to_date"
-                           value="{{ request('to_date') }}"
-                           class="form-control"
-                           style="width: 220px; height:38px;"
-                           onchange="this.form.submit();">
-                </div>
-
+            {{-- From Date --}}
+            <div class="d-flex align-items-center gap-2">
+                <label class="fw-semibold mb-0">From</label>
+                <input type="date" name="from_date"
+                       value="{{ request('from_date') }}"
+                       class="form-control"
+                       style="width: 160px; height:38px;">
             </div>
 
-            {{-- Right Side --}}
-            <div class="d-flex flex-column gap-2">
+            {{-- To Date --}}
+            <div class="d-flex align-items-center gap-2">
+                <label class="fw-semibold mb-0">To</label>
+                <input type="date" name="to_date"
+                       value="{{ request('to_date') }}"
+                       class="form-control"
+                       style="width: 160px; height:38px;">
+            </div>
 
-                {{-- Month --}}
-                <div class="d-flex align-items-center gap-2">
-                    <label class="fw-semibold mb-0" style="min-width: 70px;">
-                        Month
-                    </label>
-
-                    <input type="month"
-                           name="month"
-                           value="{{ request('month') }}"
-                           class="form-control"
-                           style="width: 220px; height:38px;"
-                           onchange="this.form.submit();">
-                </div>
-
-                {{-- Account --}}
+            {{-- Month --}}
+            <div class="d-flex align-items-center gap-2">
+                <label class="fw-semibold mb-0">Month</label>
+                <input type="month" name="month"
+                       value="{{ request('month') }}"
+                       class="form-control"
+                       style="width: 160px; height:38px;">
+            </div>
+            {{-- Account --}}
                 <div class="d-flex align-items-center gap-2">
                     <label class="fw-semibold mb-0" style="min-width: 70px;">
                         Account
@@ -73,8 +52,7 @@
 
                     <select name="account"
                             class="form-control select-2"
-                            style="width: 220px; height:38px;"
-                            onchange="this.form.submit();">
+                            style="width: 220px; height:38px;">
 
                         <option value="">Select Account</option>
 
@@ -88,12 +66,16 @@
                     </select>
                 </div>
 
-            </div>
+            {{-- Submit --}}
+            <button type="submit"
+                    class="btn btn-primary"
+                    style="height:38px;">
+                Filter
+            </button>
 
         </form>
 
     </div>
-
 </div>
   
   <div class="card-body pt-0 px-0">

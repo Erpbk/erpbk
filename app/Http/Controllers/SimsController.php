@@ -423,9 +423,7 @@ class SimsController extends AppBaseController
                         'rider_id' => null,
                     ]);
 
-                    if (Schema::hasColumn('employees', 'company_contact')) {
-                        Employee::where('id', $assignTo)->update(['company_contact' => $sims->number]);
-                    }
+                    \App\Support\SimAssigneeContactSync::sync($employee, $sims->number);
 
                     EmployeeHistoryLogger::simAssigned(
                         $employee,
@@ -452,9 +450,7 @@ class SimsController extends AppBaseController
                         'employee_id' => null,
                     ]);
 
-                    if (Schema::hasColumn('riders', 'company_contact')) {
-                        Riders::where('id', $assignTo)->update(['company_contact' => $sims->number]);
-                    }
+                    \App\Support\SimAssigneeContactSync::sync($rider, $sims->number);
 
                     RiderHistoryLogger::simAssigned(
                         $rider,
@@ -545,11 +541,11 @@ class SimsController extends AppBaseController
                 'status' => 0,
             ]);
 
-            if ($rider && Schema::hasColumn('riders', 'company_contact')) {
-                Riders::where('id', $rider->id)->update(['company_contact' => null]);
+            if ($rider) {
+                \App\Support\SimAssigneeContactSync::clear($rider);
             }
-            if ($employee && Schema::hasColumn('employees', 'company_contact')) {
-                Employee::where('id', $employee->id)->update(['company_contact' => null]);
+            if ($employee) {
+                \App\Support\SimAssigneeContactSync::clear($employee);
             }
 
             $history = $sims->histories()->orderBy('created_at', 'desc')->first();

@@ -275,7 +275,7 @@ class EmployeeCustomField extends BaseModel
             'company_email' => ['type' => 'email'],
             'personal_email' => ['type' => 'email'],
             'personal_contact' => ['type' => 'tel', 'maxlength' => 20],
-            'company_contact' => ['type' => 'tel', 'maxlength' => 20],
+            'company_contact' => ['type' => 'tel', 'maxlength' => 20, 'readonly' => true],
             'emergency_contact' => ['type' => 'tel', 'maxlength' => 20],
             'dob' => ['type' => 'date'],
             'doj' => ['type' => 'date'],

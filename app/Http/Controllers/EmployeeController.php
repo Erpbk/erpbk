@@ -173,6 +173,12 @@ class EmployeeController extends Controller
             $input['custom_field_values'] = $request->input('custom_field_values', []);
         }
 
+        $input = \App\Support\SimAssigneeContactSync::stripManagedContactFromRequestData(
+            $input,
+            $employee,
+            'employee'
+        );
+
         if ($employee === null) {
             if (empty($input['employee_id'])) {
                 $input['employee_id'] = $this->nextEmployeeId();
@@ -862,7 +868,12 @@ class EmployeeController extends Controller
         }
 
         // Update employee
-        $employee->update($request->all());
+        $sectionData = \App\Support\SimAssigneeContactSync::stripManagedContactFromRequestData(
+            $request->all(),
+            $employee,
+            'employee'
+        );
+        $employee->update($sectionData);
         $employee->refresh();
 
         return response()->json([
@@ -972,6 +983,13 @@ class EmployeeController extends Controller
         ]);
 
         $column = $validated['column'];
+        if (\App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($column)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contact is updated automatically when a SIM is assigned or returned.',
+            ], 422);
+        }
+
         if (!Schema::hasColumn('employees', $column)) {
             return response()->json(['success' => false, 'message' => 'Invalid column.'], 422);
         }

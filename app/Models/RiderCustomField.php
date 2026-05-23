@@ -337,7 +337,7 @@ class RiderCustomField extends BaseModel
             'passport_expiry' => ['type' => 'date'],
             'ethnicity' => ['type' => 'select', 'dropdown' => 'ethnicity'],
             'dob' => ['type' => 'date'],
-            'company_contact' => ['type' => 'tel'],
+            'company_contact' => ['type' => 'tel', 'readonly' => true],
             'email' => ['type' => 'email'],
             'courier_id' => ['type' => 'text'],
             'image_name' => ['type' => 'text'],

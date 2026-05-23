@@ -108,9 +108,9 @@
         </td>
         <td>
           @if($r->assign_type === 'employee' && $r->employee)
-          {{ $r->employee->employee_id }}
+          <a href="{{ route('employees.show', $r->employee->id) }}" class="table-link">{{ $r->employee->employee_id }} - {{ $r->employee->name }}</a>
           @elseif($r->riders)
-          {{ $r->riders->rider_id }}
+          <a href="{{ route('riders.show', $r->riders->id) }}" class="table-link">{{ $r->riders->rider_id }} - {{ $r->riders->name }}</a>
           @else
           -
           @endif

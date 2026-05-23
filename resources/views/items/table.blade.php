@@ -18,7 +18,7 @@
          <td>
             @if($r->attachment)
                <div class="image-container">
-                     <img src="{{ Storage::url($r->attachment) }}" 
+                     <img src="{{ asset('storage/'.$r->attachment) }}" 
                         alt="{{ $r->name }}" 
                         style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; transition: transform 0.3s;"
                         onmouseover="this.style.transform='scale(1.5)'"

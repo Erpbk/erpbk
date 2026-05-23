@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\EmployeeHistory;
 use App\Models\EmployeeCategory;
 use App\Models\EmployeeCustomField;
 use App\Models\EmployeeDocumentType;
@@ -24,6 +25,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
+use App\Services\EmployeeHistoryLogger;
 use App\Traits\GlobalPagination;
 use Laracasts\Flash\Flash;
 
@@ -631,15 +633,30 @@ class EmployeeController extends Controller
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
 
+        $statusHistories = null;
+        $statusHistoryCount = 0;
         $simHistories = null;
         $simHistoryCount = 0;
+        $activeTab = in_array(request('tab'), ['status', 'sim'], true) ? request('tab') : 'status';
+
+        if (Schema::hasTable('employee_histories')) {
+            $statusHistories = EmployeeHistory::with(['branch', 'creator'])
+                ->where('employee_id', $id)
+                ->whereNotIn('event_type', ['sim_assign', 'sim_return'])
+                ->orderByDesc('effective_date')
+                ->orderByDesc('id')
+                ->paginate(50, ['*'], 'status_page');
+            $statusHistoryCount = EmployeeHistory::where('employee_id', $id)
+                ->whereNotIn('event_type', ['sim_assign', 'sim_return'])
+                ->count();
+        }
 
         if (Schema::hasTable('sim_histories') && Schema::hasColumn('sim_histories', 'employee_id')) {
             $simHistories = SimHistory::with('sim')
                 ->where('employee_id', $id)
                 ->orderByDesc('note_date')
                 ->orderByDesc('id')
-                ->paginate(50);
+                ->paginate(50, ['*'], 'sim_page');
             $simHistoryCount = SimHistory::where('employee_id', $id)->count();
         }
 
@@ -648,8 +665,11 @@ class EmployeeController extends Controller
             'nationalities',
             'branches',
             'departments',
+            'statusHistories',
+            'statusHistoryCount',
             'simHistories',
-            'simHistoryCount'
+            'simHistoryCount',
+            'activeTab'
         ));
     }
 
@@ -936,27 +956,35 @@ class EmployeeController extends Controller
      */
     public function updateStatus(Request $request)
     {
-        // Validate request
         $validator = Validator::make($request->all(), [
             'employee_id' => 'required|exists:employees,id',
-            'status' => 'required|in:active,inactive,on_leave'
+            'status' => 'required|in:active,inactive,on_leave',
+            'effective_date' => ['required', 'date', 'before_or_equal:' . now()->toDateString()],
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
+                'message' => $validator->errors()->first(),
             ], 422);
         }
 
         try {
             $employee = Employee::findOrFail($request->employee_id);
-            $employee->status = $request->status;
+            $previousStatus = (string) ($employee->status ?? '');
+            $newStatus = (string) $request->status;
+            $effectiveDate = $request->input('effective_date', now()->toDateString());
+
+            $employee->status = $newStatus;
             $employee->save();
+
+            EmployeeHistoryLogger::statusChange($employee, $previousStatus ?: null, $newStatus, $effectiveDate);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Employee status updated successfully',
+                'status' => $newStatus,
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to update employee status', [
@@ -976,11 +1004,18 @@ class EmployeeController extends Controller
      */
     public function updateProfileField(Request $request)
     {
-        $validated = $request->validate([
+        $rules = [
             'employee_id' => 'required|exists:employees,id',
             'column' => 'required|string|max:80',
             'value' => 'nullable|string|max:255',
-        ]);
+            'category_name' => 'nullable|string|max:255',
+        ];
+        if ($request->filled('value')) {
+            $rules['effective_date'] = ['required', 'date', 'before_or_equal:' . now()->toDateString()];
+        } else {
+            $rules['effective_date'] = ['nullable', 'date', 'before_or_equal:' . now()->toDateString()];
+        }
+        $validated = $request->validate($rules);
 
         $column = $validated['column'];
         if (\App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($column)) {
@@ -1007,8 +1042,26 @@ class EmployeeController extends Controller
 
         try {
             $employee = Employee::findOrFail($validated['employee_id']);
-            $employee->{$column} = $validated['value'] ?? null;
+            $previousValue = $employee->{$column};
+            $newValue = $validated['value'] ?? null;
+            $effectiveDate = $validated['effective_date'] ?? now()->toDateString();
+            $categoryName = $validated['category_name'] ?? null;
+
+            if (!$categoryName) {
+                $categoryName = EmployeeTopCategory::where('employee_column', $column)->value('name');
+            }
+
+            $employee->{$column} = $newValue;
             $employee->save();
+
+            EmployeeHistoryLogger::profileFieldChange(
+                $employee,
+                $column,
+                $previousValue,
+                $newValue,
+                $categoryName,
+                $effectiveDate
+            );
 
             return response()->json([
                 'success' => true,

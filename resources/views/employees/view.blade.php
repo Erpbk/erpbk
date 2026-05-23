@@ -290,7 +290,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
           ->first();
 
           if($employee->profile_image)
-          $image_name = asset('storage/' . $employee->profile_image);
+          $image_name = $employee->profile_image_url;
           elseif (isset($profile))
           $image_name = asset('storage2/'. $profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
           else

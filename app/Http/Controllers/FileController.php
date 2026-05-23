@@ -25,6 +25,10 @@ class FileController extends Controller
       abort(404);
     }
 
+    if ($preferPublic && Storage::disk('public')->exists($relativePath)) {
+      return response()->file(Storage::disk('public')->path($relativePath));
+    }
+
     $candidates = $preferPublic
       ? ["public/{$relativePath}", $relativePath]
       : [$relativePath, "public/{$relativePath}"];

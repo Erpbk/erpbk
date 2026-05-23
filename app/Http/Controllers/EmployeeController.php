@@ -955,7 +955,7 @@ class EmployeeController extends Controller
                 'success' => true,
                 'message' => 'Profile photo updated successfully',
                 'data' => $employee,
-                'image_url' => asset('storage/' . $imagePath)
+                'image_url' => $employee->profile_image_url
             ]);
         }
 

@@ -15,6 +15,7 @@ use App\Support\CompanyRouteContext;
 use Illuminate\Support\Facades\DB;
 use App\Support\ErpModuleRegistry;
 use App\Support\ModuleRouteResolver;
+use App\Support\PublicStorageLink;
 use App\Services\Email\CompanyEmailBrandingService;
 use App\Services\Module\TopBarListingService;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -36,6 +37,8 @@ class AppServiceProvider extends ServiceProvider
    */
   public function boot(): void
   {
+    PublicStorageLink::ensure();
+
     DB::macro('companyTable', function (string $table, ?string $connection = null) {
       return CompanyQuery::table($table, $connection);
     });

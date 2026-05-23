@@ -186,4 +186,16 @@ class Employee extends BaseModel
             ->orderByDesc('effective_date')
             ->orderByDesc('id');
     }
+
+    public function getProfileImageUrlAttribute(): ?string
+    {
+        if (empty($this->profile_image)) {
+            return null;
+        }
+
+        $path = ltrim(str_replace('\\', '/', $this->profile_image), '/');
+
+        // Use the current request host (not only APP_URL) so images work on Laravel Cloud domains.
+        return url('/storage/' . $path);
+    }
 }

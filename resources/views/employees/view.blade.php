@@ -301,8 +301,9 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                   </h6>
                 </div>
                 @if($employee)
-                <div class="text-end" style="width: 14%;" id="photo-icon">
+                <div class="text-end" style="width: 14%;">
                   <i class="ti ti-edit ti-sm"
+                    id="edit-icon"
                     style="border: 2px solid #9593997a !important; border-radius: 24px; padding: 8px; cursor: pointer;">
                   </i>
                 </div>
@@ -311,7 +312,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
             </div>
             @if($employee)
             <div id="photo-upload-form" class="mt-4" style="display: none;">
-              <form action="{{ route('employees.updateSection', $employee->id) }}" method="POST" enctype="multipart/form-data" id="formAjax2">
+              <form action="{{ route('employees.updateSection', $employee->id) }}" method="POST" enctype="multipart/form-data" id="formajax2">
                 @csrf
                 <div class="button-wrapper">
                   <label for="upload" class="btn btn-default me-2 mb-3 mt-3" tabindex="0">

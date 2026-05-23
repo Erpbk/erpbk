@@ -710,24 +710,11 @@ class RiderInvoicesController extends AppBaseController
         'html' => $request->input('email_message'),
       ]);
 
-      $ccEmails = $emailService->getCcRecipientEmails($user);
-
       $res = RiderInvoices::with(['riderInv_item'])->where('id', $id)->get();
       $pdf = \PDF::loadView('invoices.rider_invoices.show', ['res' => $res]);
 
-      Mail::send('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $ccEmails) {
+      $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject) {
         $message->to([$toEmail]);
-        //$message->replyTo([$request->email]);
-
-        if (!empty($ccEmails)) {
-          $message->cc($ccEmails);
-        } else {
-          $adminCc = env('ADMIN_CC_EMAIL');
-          if (!empty($adminCc)) {
-            $message->cc($adminCc);
-          }
-        }
-
         $message->from($fromEmail, $fromName);
         $message->replyTo($fromEmail, $fromName);
         $message->subject($subject);

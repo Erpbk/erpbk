@@ -1764,30 +1764,26 @@ class RidersController extends AppBaseController
 
       $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
         ? trim($request->input('email_subject'))
-        : '(Rider email)';
+        : 'Warning for Attendance and Performance - ' . $rider->name . ' (Rider ID: ' . $rider->rider_id . ')';
+
+      $emailHeading = is_string($request->input('email_heading')) && trim($request->input('email_heading')) !== ''
+        ? trim($request->input('email_heading'))
+        : 'Warning for Attendance and Performance  Rider I,D ' . $rider->rider_id;
 
       $brandingService = app(\App\Services\Email\CompanyEmailBrandingService::class);
       $data = $brandingService->mergeIntoMailData([
         'html' => $request->input('email_message'),
+        'email_heading' => $emailHeading,
+        'rider_name' => $rider->name,
+        'rider_id' => $rider->rider_id,
       ]);
 
       try {
-        $ccEmails = $emailService->getCcRecipientEmails($user);
         $fileName = $id . "_monthly_activity_{$request->month}.xlsx";
         $filePath = storage_path("app/public/{$fileName}");
         Excel::store(new MonthlyActivityExport($id, $request->month), "public/{$fileName}");
-        Mail::send('emails.general', $data, function ($message) use ($toEmail, $subject, $filePath, $fromEmail, $fromName, $ccEmails) {
+        $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $subject, $filePath, $fromEmail, $fromName) {
           $message->to([$toEmail]);
-
-          if (!empty($ccEmails)) {
-            $message->cc($ccEmails);
-          } else {
-            $adminCc = env('ADMIN_CC_EMAIL');
-            if (!empty($adminCc)) {
-              $message->cc($adminCc);
-            }
-          }
-          $message->bcc([""]);
           $message->from($fromEmail, $fromName);
           $message->replyTo($fromEmail, $fromName);
           $message->subject($subject);
@@ -1814,7 +1810,9 @@ class RidersController extends AppBaseController
       ]);
     }
 
-    return view('riders.send_email', compact('rider'));
+    $emailBranding = app(\App\Services\Email\CompanyEmailBrandingService::class)->resolveForEmail();
+
+    return view('riders.send_email', compact('rider', 'emailBranding'));
   }
 
   public function exportRiders()

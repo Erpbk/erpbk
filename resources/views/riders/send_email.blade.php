@@ -1,3 +1,9 @@
+@php
+$companyName = $emailBranding['name']
+?? ($companyDisplayName ?? (view()->shared('currentCompany')?->name ?? config('app.name')));
+$defaultSubject = 'Rider ID: ' . $rider->rider_id . ' - ' . $rider->name;
+$defaultHeading = 'Warning for Attendance and Performance Rider ID: ' . $rider->rider_id;
+@endphp
 <form action="{{ route('rider.sendemail', ['company_slug' => request()->route('company_slug'), 'id' => $rider->id]) }}" method="POST" id="formajax">
     @csrf
     <div class="col-md-12 form-group">
@@ -6,15 +12,16 @@
     </div>
     <div class="col-md-12 form-group">
         <label>Subject</label>
-        <input type="text" class="form-control form-control" name="email_subject" value="Rider ID: {{$rider->rider_id}} - {{$rider->name}}">
+        <input type="text" class="form-control form-control" name="email_subject" value="{{ old('email_subject', $defaultSubject) }}">
+        <input type="hidden" name="email_heading" value="{{ old('email_heading', $defaultHeading) }}">
     </div>
     <div class="col-md-12 form-group">
         <label>Message</label>
-
         <textarea name="email_message" rows="8" class="form-control">Hi {{$rider->name}},
 
-Rider ID: {{$rider->rider_id}}
-Rider Name: {{$rider->name}}
+Rider I,D : {{$rider->rider_id}}
+Employee Name : {{$rider->name}}
+
 I hope you're doing well.
 We need to address some important issues regarding your attendance and performance in {{date('M Y')}}. We've noticed that you have been absent several times without prior notice. Additionally, your performance as a bike rider has not met the company’s standards. Specifically, you have been late logging in, and your on-time delivery rate has been below expectations.
 
@@ -24,6 +31,7 @@ If there are any challenges affecting your work, please speak with your Fleet Su
 We expect to see improvement starting right away.
 
 Best regards,
+{{ $companyName }}
 </textarea>
     </div>
     <div class="col-md-6 form-group">

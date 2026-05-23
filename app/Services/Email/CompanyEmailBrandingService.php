@@ -5,6 +5,7 @@ namespace App\Services\Email;
 use App\Models\Company;
 use App\Models\Settings;
 use App\Support\CompanyContext;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
@@ -41,7 +42,6 @@ class CompanyEmailBrandingService
     $brandingJson = $this->decodeBrandingJson($company->branding_json);
 
     $name = trim((string) ($company->name ?: ($stored['company_name'] ?? '')));
-    $appUrl = URL::to('/app/' . $company->slug);
     $logoPath = $company->logo ?: ($stored['company_logo'] ?? null);
     $primaryColor = $this->normalizeColor(
       $brandingJson['email_primary_color'] ?? $company->primary_color ?? null,
@@ -68,16 +68,11 @@ class CompanyEmailBrandingService
     if ($customFooter !== '') {
       $footerLines[] = $customFooter;
     }
-    $logoUrl = $this->resolveLogoUrl($logoPath);
-    if ($logoUrl) {
-      $appBase = URL::to('/'); // Gets http://127.0.0.1:8000
-      $logoUrl = preg_replace('#^https?://[^/]+#', $appBase, $logoUrl);
-    }
 
     return [
       'company_id' => (int) $company->id,
       'name' => $name !== '' ? $name : config('app.name'),
-      'logo_url' => $logoUrl,
+      'logo_url' => $this->resolveLogoUrl($logoPath),
       'primary_color' => $primaryColor,
       'secondary_color' => $secondaryColor,
       'address' => $address,
@@ -86,7 +81,7 @@ class CompanyEmailBrandingService
       'city' => $city,
       'country' => $country,
       'footer_lines' => $footerLines,
-      'app_url' => $appUrl,
+      'app_url' => URL::to('/app/' . $company->slug),
     ];
   }
 
@@ -118,6 +113,44 @@ class CompanyEmailBrandingService
     $data['emailBranding'] = $data['emailBranding'] ?? $this->resolveForEmail($companyId);
 
     return $data;
+  }
+
+  /**
+   * Full path to the company logo on disk (for inline embedding in email).
+   */
+  public function resolveLogoFilesystemPath(?int $companyId = null): ?string
+  {
+    $relative = $this->resolveLogoPathFromCompany($companyId);
+    if ($relative === null) {
+      return null;
+    }
+
+    $relative = ltrim(preg_replace('#^storage/#', '', $relative) ?? '', '/');
+    $fullPath = storage_path('app/public/' . $relative);
+
+    return is_readable($fullPath) ? $fullPath : null;
+  }
+
+  /**
+   * Send branded HTML mail with logo embedded inline (CID).
+   * Avoids broken images when Gmail cannot reach localhost/private URLs.
+   *
+   * @param  callable(\Illuminate\Mail\Message): void  $configureMessage
+   */
+  public function sendBrandedEmail(string $view, array $data, callable $configureMessage, ?int $companyId = null): void
+  {
+    Mail::send([], [], function ($message) use ($view, $data, $configureMessage, $companyId) {
+      $branding = $data['emailBranding'] ?? $this->resolveForEmail($companyId);
+      $logoPath = $this->resolveLogoFilesystemPath($companyId);
+
+      if ($logoPath !== null) {
+        $branding['logo_url'] = $message->embed($logoPath);
+      }
+
+      $data['emailBranding'] = $branding;
+      $message->html(view($view, $data)->render());
+      $configureMessage($message);
+    });
   }
 
   private function resolveCompany(?int $companyId): ?Company
@@ -187,7 +220,24 @@ class CompanyEmailBrandingService
       return $relative;
     }
 
-    return rtrim((string) config('app.url'), '/') . '/' . ltrim($relative, '/');
+    return $this->absoluteUrlForCurrentDomain($relative);
+  }
+
+  /**
+   * Build a full URL using the current HTTP host (localhost, staging, production).
+   */
+  private function absoluteUrlForCurrentDomain(string $relativePath): string
+  {
+    $relativePath = '/' . ltrim($relativePath, '/');
+
+    $request = request();
+    if ($request && $request->getHttpHost()) {
+      $root = rtrim($request->getSchemeAndHttpHost() . $request->getBaseUrl(), '/');
+
+      return $root . $relativePath;
+    }
+
+    return rtrim((string) config('app.url'), '/') . $relativePath;
   }
 
   /**

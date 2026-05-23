@@ -1,9 +1,9 @@
 @extends($layout ?? 'layouts.app')
 
 @php
-$isPanel = (View::shared('settings_panel') ?? false);
-$updateRoute = $isPanel ? 'settings-panel.email-settings.update' : 'user.email-settings.update';
-$cancelRoute = $isPanel ? 'settings-panel.profile' : 'profile';
+  $isPanel = (View::shared('settings_panel') ?? false);
+  $updateRoute = $isPanel ? 'settings-panel.email-settings.update' : 'user.email-settings.update';
+  $cancelRoute = $isPanel ? 'settings-panel.profile' : 'profile';
 @endphp
 
 @section('title', 'Email Settings')
@@ -30,7 +30,8 @@ $cancelRoute = $isPanel ? 'settings-panel.profile' : 'profile';
                 name="smtp_app_password"
                 class="form-control"
                 placeholder="Enter your Gmail app password"
-                autocomplete="off" />
+                autocomplete="off"
+              />
               <div class="form-text">
                 Required before anyone in this company can send rider or employee emails.
                 <ol class="mb-0 ps-3">
@@ -42,12 +43,12 @@ $cancelRoute = $isPanel ? 'settings-panel.profile' : 'profile';
                 Do <strong>not</strong> use your normal Gmail login password. Leave blank to keep the existing app password.
               </div>
               @error('smtp_app_password')
-              <div class="text-danger small mt-1">{{ $message }}</div>
+                <div class="text-danger small mt-1">{{ $message }}</div>
               @enderror
               @if($hasAppPassword)
-              <div class="alert alert-info py-2 mt-2 mb-0">
-                An SMTP app password is already configured for this account.
-              </div>
+                <div class="alert alert-info py-2 mt-2 mb-0">
+                  An SMTP app password is already configured for this account.
+                </div>
               @endif
             </div>
 
@@ -59,28 +60,29 @@ $cancelRoute = $isPanel ? 'settings-panel.profile' : 'profile';
 
               <div class="border rounded p-3" style="max-height: 360px; overflow: auto;">
                 @forelse($otherUsers as $u)
-                @php
-                $checked = in_array($u->id, (array) $ccRecipientIds, true);
-                $displayEmail = $u->email ?: $u->username;
-                $displayName = $u->name ?: trim(($u->first_name ?? '').' '.($u->last_name ?? ''));
-                @endphp
-                <div class="form-check mb-2">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    name="cc_recipient_user_ids[]"
-                    value="{{ $u->id }}"
-                    id="cc_user_{{ $u->id }}"
-                    {{ $checked ? 'checked' : '' }}>
-                  <label class="form-check-label" for="cc_user_{{ $u->id }}">
-                    {{ $displayName ?: 'User' }}
-                    @if($displayEmail)
-                    <span class="text-muted">({{ $displayEmail }})</span>
-                    @endif
-                  </label>
-                </div>
+                  @php
+                    $checked = in_array($u->id, (array) $ccRecipientIds, true);
+                    $displayEmail = $u->email ?: $u->username;
+                    $displayName = $u->name ?: trim(($u->first_name ?? '').' '.($u->last_name ?? ''));
+                  @endphp
+                  <div class="form-check mb-2">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      name="cc_recipient_user_ids[]"
+                      value="{{ $u->id }}"
+                      id="cc_user_{{ $u->id }}"
+                      {{ $checked ? 'checked' : '' }}
+                    >
+                    <label class="form-check-label" for="cc_user_{{ $u->id }}">
+                      {{ $displayName ?: 'User' }}
+                      @if($displayEmail)
+                        <span class="text-muted">({{ $displayEmail }})</span>
+                      @endif
+                    </label>
+                  </div>
                 @empty
-                <div class="text-muted">No other users found.</div>
+                  <div class="text-muted">No other users found.</div>
                 @endforelse
               </div>
             </div>
@@ -98,3 +100,4 @@ $cancelRoute = $isPanel ? 'settings-panel.profile' : 'profile';
   </div>
 </div>
 @endsection
+

@@ -24,6 +24,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Database\UniqueConstraintViolationException;
+use App\Support\CompanyScope;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Services\EmployeeHistoryLogger;
 use App\Traits\GlobalPagination;
@@ -136,7 +138,7 @@ class EmployeeController extends Controller
         $rules['account'] = 'nullable|in:new,existing';
         $rules['account_id'] = 'nullable|required_if:account,existing|exists:accounts,id';
 
-        foreach (['employee_id', 'company_email', 'personal_email', 'passport', 'emirate_id'] as $uniqueKey) {
+        foreach ($this->employeeUniqueFieldKeys() as $uniqueKey) {
             if (!isset($employeeColumns[$uniqueKey])) {
                 continue;
             }
@@ -145,16 +147,88 @@ class EmployeeController extends Controller
             $tokens = array_values(array_filter($tokens, function ($token) {
                 return !(is_string($token) && str_starts_with($token, 'unique:'));
             }));
-            $tokens[] = \App\Support\CompanyScope::unique('employees', $uniqueKey, $ignoreEmployeeId);
+            $uniqueRule = $this->employeeUniqueFieldRule($uniqueKey, $ignoreEmployeeId);
+            if ($uniqueRule !== null) {
+                $tokens[] = $uniqueRule;
+            }
             $rules[$uniqueKey] = $tokens;
         }
 
         return array_merge($rules, $this->employeeDynamicFieldRules());
     }
 
+    /**
+     * @return list<string>
+     */
+    private function employeeUniqueFieldKeys(): array
+    {
+        return ['employee_id', 'company_email', 'personal_email', 'passport', 'emirate_id'];
+    }
+
+    private function employeeUniqueFieldRule(string $column, ?int $ignoreEmployeeId = null): ?\Illuminate\Validation\Rules\Unique
+    {
+        if (! Schema::hasColumn('employees', $column)) {
+            return null;
+        }
+
+        return CompanyScope::unique('employees', $column, $ignoreEmployeeId);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function employeeUniqueValueRules(string $column, ?int $ignoreEmployeeId = null): array
+    {
+        $rules = ['nullable', 'string', 'max:191'];
+        if (str_contains($column, 'email')) {
+            $rules[] = 'email';
+        }
+        $uniqueRule = $this->employeeUniqueFieldRule($column, $ignoreEmployeeId);
+        if ($uniqueRule !== null) {
+            $rules[] = $uniqueRule;
+        }
+
+        return $rules;
+    }
+
+    private function employeeUniqueViolationResponse(UniqueConstraintViolationException $e, Request $request)
+    {
+        $field = null;
+        foreach ($this->employeeUniqueFieldKeys() as $column) {
+            if (str_contains($e->getMessage(), $column)) {
+                $field = $column;
+                break;
+            }
+        }
+
+        $label = $field ? str_replace('_', ' ', $field) : 'value';
+        $message = "This {$label} is already used by another employee.";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => $field ? [$field => [$message]] : [],
+            ], 422);
+        }
+
+        return redirect()->back()->withInput()->withErrors(
+            $field ? [$field => $message] : ['error' => $message]
+        );
+    }
+
     private function nextEmployeeId(): string
     {
         return 'EMP-' . ((Employee::latest('id')->value('id') ?? 0) + 1001);
+    }
+
+    private function normalizeEmployeeEmailsInRequest(Request $request): void
+    {
+        foreach (['company_email', 'personal_email'] as $emailKey) {
+            if ($request->filled($emailKey)) {
+                $request->merge([$emailKey => strtolower(trim((string) $request->input($emailKey)))]);
+            }
+        }
     }
 
     /**
@@ -169,6 +243,8 @@ class EmployeeController extends Controller
                 $request->merge([$key => null]);
             }
         }
+
+        $this->normalizeEmployeeEmailsInRequest($request);
 
         if ($request->has('custom_field_values') && is_array($request->input('custom_field_values'))) {
             $normalized = [];
@@ -451,6 +527,7 @@ class EmployeeController extends Controller
         if (!$request->filled('account')) {
             $request->merge(['account' => 'new']);
         }
+        $this->normalizeEmployeeEmailsInRequest($request);
     }
 
     public function store(Request $request)
@@ -848,7 +925,13 @@ class EmployeeController extends Controller
         }
 
         $input['updated_by'] = auth()->id();
-        $employee->update($input);
+
+        try {
+            $employee->update($input);
+        } catch (UniqueConstraintViolationException $e) {
+            return $this->employeeUniqueViolationResponse($e, $request);
+        }
+
         $employee->refresh();
 
         if ($request->ajax() || $request->wantsJson()) {
@@ -914,7 +997,7 @@ class EmployeeController extends Controller
         }
 
         // Get validation rules
-        $rules = $this->getSectionRules($section);
+        $rules = $this->getSectionRules($section, (int) $employee->id);
 
         // Create validator
         $validator = Validator::make($request->all(), $rules);
@@ -965,7 +1048,11 @@ class EmployeeController extends Controller
             $employee,
             'employee'
         );
-        $employee->update($sectionData);
+        try {
+            $employee->update($sectionData);
+        } catch (UniqueConstraintViolationException $e) {
+            return $this->employeeUniqueViolationResponse($e, $request);
+        }
         $employee->refresh();
 
         return response()->json([
@@ -975,7 +1062,7 @@ class EmployeeController extends Controller
         ]);
     }
 
-    private function getSectionRules($section)
+    private function getSectionRules($section, ?int $ignoreEmployeeId = null)
     {
         switch ($section) {
             case 'personal':
@@ -993,7 +1080,7 @@ class EmployeeController extends Controller
                     'branch_id' => 'required|exists:branches,id',
                     'doj' => 'required|date',
                     'salary' => 'nullable|numeric|min:0',
-                    'company_email' => 'nullable|email|max:255',
+                    'company_email' => $this->employeeUniqueValueRules('company_email', $ignoreEmployeeId),
                     'company_contact' => 'nullable|string|max:20'
                 ];
 
@@ -1119,11 +1206,21 @@ class EmployeeController extends Controller
             $employee = Employee::findOrFail($validated['employee_id']);
             $previousValue = $employee->{$column};
             $newValue = $validated['value'] ?? null;
+            if (in_array($column, ['company_email', 'personal_email'], true) && $newValue !== null && $newValue !== '') {
+                $newValue = strtolower(trim((string) $newValue));
+            }
             $effectiveDate = $validated['effective_date'] ?? now()->toDateString();
             $categoryName = $validated['category_name'] ?? null;
 
             if (!$categoryName) {
                 $categoryName = EmployeeTopCategory::where('employee_column', $column)->value('name');
+            }
+
+            if (in_array($column, $this->employeeUniqueFieldKeys(), true)) {
+                Validator::make(
+                    ['value' => $newValue],
+                    ['value' => $this->employeeUniqueValueRules($column, (int) $employee->id)]
+                )->validate();
             }
 
             $employee->{$column} = $newValue;
@@ -1145,6 +1242,14 @@ class EmployeeController extends Controller
                 'value' => $employee->{$column},
                 'employee' => $this->employeeProfileSidebarPayload($employee->fresh()),
             ]);
+        } catch (UniqueConstraintViolationException $e) {
+            return $this->employeeUniqueViolationResponse($e, $request);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first(),
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Failed to update employee profile field', [
                 'employee_id' => $validated['employee_id'],

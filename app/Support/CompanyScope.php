@@ -97,6 +97,10 @@ final class CompanyScope
             $rule->ignore($ignore);
         }
 
+        if (Schema::hasColumn($table, 'deleted_at')) {
+            $rule->whereNull('deleted_at');
+        }
+
         if (CompanyContext::shouldApplyScope() && Schema::hasColumn($table, 'company_id')) {
             $companyId = CompanyContext::id();
             $rule->where(function ($query) use ($companyId) {

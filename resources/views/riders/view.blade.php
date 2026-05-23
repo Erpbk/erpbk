@@ -280,7 +280,7 @@ $companySlug = request()->route('company_slug');
 
 @endphp
 <div class="row" style="">
-  <div class="col-xl-3 col-md-3 col-lg-5 order-1 order-md-0">
+  <div class="col-xl-2 col-md-3 col-lg-5 order-1 order-md-0">
     <!-- User Card -->
     <div class="card mb-6" style="border-radius: 25px 25px 0px 0px;">
       <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px; height: 291px; position: relative; background-image: url({{ asset('assets/img/user_back.jpg') }}); background-size: cover;">
@@ -999,9 +999,9 @@ $companySlug = request()->route('company_slug');
 
     const statusCardsContainer = document.getElementById('rider-status-cards');
     const riderTopOptionDateModalEl = document.getElementById('riderTopOptionDateModal');
-    const riderTopOptionModal = riderTopOptionDateModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal
-      ? new bootstrap.Modal(riderTopOptionDateModalEl)
-      : null;
+    const riderTopOptionModal = riderTopOptionDateModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal ?
+      new bootstrap.Modal(riderTopOptionDateModalEl) :
+      null;
     let pendingRiderTopOptionCheckbox = null;
 
     function riderTopOptionTodayYmd() {

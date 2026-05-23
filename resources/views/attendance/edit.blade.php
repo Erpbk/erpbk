@@ -5,30 +5,35 @@
     <!-- User Type Selection -->
     <div class="row mb-4">
         <div class="col-md-6">
-            <label for="ref_type" class="form-label fw-bold">
-                User Type <span class="text-danger">*</span>
+            <label for="ref_type" class="form-label fw-bold"> @if(old('ref_type') == 'employee')
+                Employee <span class="text-danger">*</span>
+                @elseif(old('ref_type') == 'rider')
+                Rider <span class="text-danger">*</span>
+                @else
+                Rider or Employees <span class="text-danger">*</span>
+                @endif
             </label>
             @php
             $selectedType = old('ref_type', $attendance->ref_type ?? 'employee');
             $selectedRefId = old('ref_id', $attendance->ref_id);
             $refIdLabel = match ($selectedType) {
-                'employee' => 'Select Employee',
-                'rider' => 'Select Rider',
-                default => 'Select Employee or Rider',
+            'employee' => 'Select Employee',
+            'rider' => 'Select Rider',
+            default => 'Select Employee or Rider',
             };
             $refIdPlaceholder = match ($selectedType) {
-                'employee' => '-- Select Employee --',
-                'rider' => '-- Select Rider --',
-                default => '-- Select employee or rider first --',
+            'employee' => '-- Select Employee --',
+            'rider' => '-- Select Rider --',
+            default => '-- Select employee or rider first --',
             };
             $selectedStatus = str_replace('-', ' ', strtolower(trim(old('status', $attendance->status ?? ''))));
             $checkInValue = old('check_in');
             if ($checkInValue === null) {
-                $checkInValue = $attendance->check_in ? \Carbon\Carbon::parse($attendance->check_in)->format('H:i:s') : '';
+            $checkInValue = $attendance->check_in ? \Carbon\Carbon::parse($attendance->check_in)->format('H:i:s') : '';
             }
             $checkOutValue = old('check_out');
             if ($checkOutValue === null) {
-                $checkOutValue = $attendance->check_out ? \Carbon\Carbon::parse($attendance->check_out)->format('H:i:s') : '';
+            $checkOutValue = $attendance->check_out ? \Carbon\Carbon::parse($attendance->check_out)->format('H:i:s') : '';
             }
             @endphp
             <div class="btn-group w-100" role="group">
@@ -425,9 +430,9 @@
         select.html('<option value="">Loading users...</option>').prop('disabled', true);
 
         if (refType) {
-            var placeholder = refType === 'employee'
-                ? '-- Select Employee --'
-                : (refType === 'rider' ? '-- Select Rider --' : '-- Select employee or rider first --');
+            var placeholder = refType === 'employee' ?
+                '-- Select Employee --' :
+                (refType === 'rider' ? '-- Select Rider --' : '-- Select employee or rider first --');
             $.ajax({
                 url: '{{ route("attendance.users", "refType") }}'.replace("refType", refType),
                 type: 'GET',

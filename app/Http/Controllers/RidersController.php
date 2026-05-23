@@ -1728,13 +1728,30 @@ class RidersController extends AppBaseController
 
   public function sendEmail($company_slug, $id, Request $request)
   {
+    $rider = $this->findAccessibleRider((int) $id);
+    if (empty($rider) || (!empty($rider->branch_id) && !in_array($rider->branch_id, app('user_branches')))) {
+      if ($request->isMethod('post')) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Rider not found.',
+        ], 404);
+      }
+      Flash::error('Rider not found');
+      return redirect(route('riders.index', ['company_slug' => $company_slug]));
+    }
+
     if ($request->isMethod('post')) {
       $user = Auth::user();
-      $fromName = is_string($user?->name) ? trim($user?->name) : '';
-      $fromEmailCandidate = is_string($user?->email) && trim($user?->email) !== '' ? trim($user?->email) : (is_string($user?->username) ? trim($user?->username) : '');
-      $fromEmail = (is_string($fromEmailCandidate) && filter_var($fromEmailCandidate, FILTER_VALIDATE_EMAIL))
-        ? $fromEmailCandidate
-        : (config('mail.from.address') ?: env('MAIL_FROM_ADDRESS') ?: 'hello@example.com');
+      $emailService = app(\App\Services\Email\UserEmailService::class);
+      $smtpPrep = $emailService->prepareCompanySmtp($user);
+      if (!$smtpPrep['ready']) {
+        return response()->json([
+          'success' => false,
+          'message' => $smtpPrep['message'],
+        ], $smtpPrep['status'] ?? 422);
+      }
+      $fromEmail = $smtpPrep['from_email'];
+      $fromName = $smtpPrep['from_name'];
 
       $toEmail = $request->input('email_to');
       if (!is_string($toEmail) || trim($toEmail) === '') {
@@ -1749,52 +1766,54 @@ class RidersController extends AppBaseController
         ? trim($request->input('email_subject'))
         : '(Rider email)';
 
-      $data = [
+      $brandingService = app(\App\Services\Email\CompanyEmailBrandingService::class);
+      $data = $brandingService->mergeIntoMailData([
         'html' => $request->input('email_message'),
-      ];
+      ]);
 
-      $emailService = app(\App\Services\Email\UserEmailService::class);
-      // If the user configured an SMTP app password, switch Laravel transport for this request.
-      $emailService->configureSmtpForUser($user, $fromEmail);
-      $ccEmails = $emailService->getCcRecipientEmails($user);
-      /* $res = RiderInvoices::with(['riderInv_item'])->where('id', $id)->get();
-      $pdf = \PDF::loadView('invoices.rider_invoices.show', ['res' => $res]); */
-      $fileName = $id . "_monthly_activity_{$request->month}.xlsx";
-      $filePath = storage_path("app/public/{$fileName}");
-      Excel::store(new MonthlyActivityExport($id, $request->month), "public/{$fileName}");
-      Mail::send('emails.general', $data, function ($message) use ($toEmail, $subject, $filePath, $fromEmail, $fromName, $ccEmails) {
-        $message->to([$toEmail]);
+      try {
+        $ccEmails = $emailService->getCcRecipientEmails($user);
+        $fileName = $id . "_monthly_activity_{$request->month}.xlsx";
+        $filePath = storage_path("app/public/{$fileName}");
+        Excel::store(new MonthlyActivityExport($id, $request->month), "public/{$fileName}");
+        Mail::send('emails.general', $data, function ($message) use ($toEmail, $subject, $filePath, $fromEmail, $fromName, $ccEmails) {
+          $message->to([$toEmail]);
 
-        if (!empty($ccEmails)) {
-          $message->cc($ccEmails);
-        } else {
-          // Backwards compatible fallback if CC selection is not configured yet.
-          $adminCc = env('ADMIN_CC_EMAIL');
-          if (!empty($adminCc)) {
-            $message->cc($adminCc);
+          if (!empty($ccEmails)) {
+            $message->cc($ccEmails);
+          } else {
+            $adminCc = env('ADMIN_CC_EMAIL');
+            if (!empty($adminCc)) {
+              $message->cc($adminCc);
+            }
           }
-        }
-        $message->bcc(["adnan@efdservice.com"]);
-        $message->from($fromEmail, $fromName);
-        $message->replyTo($fromEmail, $fromName);
-        $message->subject($subject);
-        //$message->attachData($pdf->output(), $request->email_subject . '.pdf');
-        $message->attach($filePath);
-        $message->priority(3);
-      });
-      $email_data = [
-        'rider_id' => $id,
-        'mail_to' => $toEmail,
-        'subject' => $subject,
-        'message' => $request->email_message,
-      ];
-      RiderEmails::create($email_data);
+          $message->bcc([""]);
+          $message->from($fromEmail, $fromName);
+          $message->replyTo($fromEmail, $fromName);
+          $message->subject($subject);
+          $message->attach($filePath);
+          $message->priority(3);
+        });
+        RiderEmails::create([
+          'rider_id' => $id,
+          'mail_to' => $toEmail,
+          'subject' => $subject,
+          'message' => $request->email_message,
+        ]);
+      } catch (\Throwable $e) {
+        report($e);
+        return response()->json([
+          'success' => false,
+          'message' => $emailService->formatMailFailureMessage($e),
+        ], 500);
+      }
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Email sent successfully.',
+      ]);
     }
-    $rider = $this->findAccessibleRider((int) $id);
-    if (empty($rider) || (!empty($rider->branch_id) && !in_array($rider->branch_id, app('user_branches')))) {
-      Flash::error('Rider not found');
-      return redirect(route('riders.index'));
-    }
+
     return view('riders.send_email', compact('rider'));
   }
 

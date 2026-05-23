@@ -1,20 +1,20 @@
-<form action="{{url('riders/sendemail/'.$rider->id)}}" method="POST" id="formajax">
-
+<form action="{{ route('rider.sendemail', ['company_slug' => request()->route('company_slug'), 'id' => $rider->id]) }}" method="POST" id="formajax">
+    @csrf
     <div class="col-md-12 form-group">
         <label>Email Address</label>
         <input type="email" class="form-control form-control" name="email_to" value="{{$rider->email}}" readonly>
     </div>
     <div class="col-md-12 form-group">
         <label>Subject</label>
-        <input type="text" class="form-control form-control" name="email_subject" value="Warning for Attendance and Performance  Rider I,D {{$rider->rider_id}}" >
+        <input type="text" class="form-control form-control" name="email_subject" value="Rider ID: {{$rider->rider_id}} - {{$rider->name}}">
     </div>
     <div class="col-md-12 form-group">
         <label>Message</label>
-<textarea name="email_message" rows="8" class="form-control">Hi {{$rider->name}},
 
-Rider I,D : {{$rider->rider_id}}
-Employee Name : {{$rider->name}}
+        <textarea name="email_message" rows="8" class="form-control">Hi {{$rider->name}},
 
+Rider ID: {{$rider->rider_id}}
+Rider Name: {{$rider->name}}
 I hope you're doing well.
 We need to address some important issues regarding your attendance and performance in {{date('M Y')}}. We've noticed that you have been absent several times without prior notice. Additionally, your performance as a bike rider has not met the company’s standards. Specifically, you have been late logging in, and your on-time delivery rate has been below expectations.
 
@@ -24,13 +24,12 @@ If there are any challenges affecting your work, please speak with your Fleet Su
 We expect to see improvement starting right away.
 
 Best regards,
-{{env('APP_NAME')}}
 </textarea>
     </div>
     <div class="col-md-6 form-group">
-      <label>Activity Attachment Month</label>
-      <input type="month" name="month" value="{{request('month')??date('Y-m')}}" class="form-control" />
-  </div>
+        <label>Activity Attachment Month</label>
+        <input type="month" name="month" value="{{request('month')??date('Y-m')}}" class="form-control" />
+    </div>
 
     <button type="submit" class="btn btn-primary pull-right mt-3">Send Email</button>
-  </form>
+</form>

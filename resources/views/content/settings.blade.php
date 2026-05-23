@@ -107,6 +107,17 @@
             <img src="{{ Storage::url($currentCompany->logo) }}" alt="Company Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;">
           </div>
           @endif
+          <small class="text-muted d-block mt-1">Used in PDFs and outbound emails for this company only.</small>
+        </div>
+        <div class="col-md-2 mb-3">
+          <label>Email header color</label>
+          <input type="color" name="company_primary_color" class="form-control form-control-color w-100"
+            value="{{ old('company_primary_color', $currentCompany->primary_color ?? '#2563eb') }}" />
+        </div>
+        <div class="col-md-2 mb-3">
+          <label>Email accent color</label>
+          <input type="color" name="company_secondary_color" class="form-control form-control-color w-100"
+            value="{{ old('company_secondary_color', $currentCompany->secondary_color ?? '#1e3a8a') }}" />
         </div>
         @endif
 
@@ -133,13 +144,6 @@
           <div class="input-group ">
             <input type="number" step="any" name="settings[vat_percentage]" class="form-control" value="{{$settings['vat_percentage']??''}}" />
             <div class="input-group-text">%</div>
-          </div>
-        </div>
-        <div class="col-md-4 mb-3">
-          <label class="">RTA Admin Fee</label>
-          <div class="input-group ">
-            <input type="number" step="any" name="settings[rta_admin_fee]" class="form-control" value="{{$settings['rta_admin_fee']??''}}" />
-            <div class="input-group-text">{{ \App\Helpers\Currency::symbol() }}</div>
           </div>
         </div>
 
@@ -189,8 +193,8 @@
       return;
     }
 
-    const sendOtpUrl = @json(route('settings-panel.company.email.send-otp', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]));
-    const verifyOtpUrl = @json(route('settings-panel.company.email.verify-otp', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]));
+    const sendOtpUrl = @json(route('settings-panel.company.email.send-otp', ['company_slug' => request() -> route('company_slug') ?? session('company_slug')]));
+    const verifyOtpUrl = @json(route('settings-panel.company.email.verify-otp', ['company_slug' => request() -> route('company_slug') ?? session('company_slug')]));
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const saveBtnDefaultHtml = saveBtn ? saveBtn.innerHTML : '';
 

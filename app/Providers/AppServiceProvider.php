@@ -15,6 +15,7 @@ use App\Support\CompanyRouteContext;
 use Illuminate\Support\Facades\DB;
 use App\Support\ErpModuleRegistry;
 use App\Support\ModuleRouteResolver;
+use App\Services\Email\CompanyEmailBrandingService;
 use App\Services\Module\TopBarListingService;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Auth;
@@ -57,6 +58,12 @@ class AppServiceProvider extends ServiceProvider
       $view->with('settingsPanelLabels', Settings::getMenuLabels());
     });
 
+    View::composer(['emails.template', 'emails.general'], function ($view) {
+      if (!$view->offsetExists('emailBranding')) {
+        $view->with('emailBranding', app(CompanyEmailBrandingService::class)->resolveForEmail());
+      }
+    });
+
     View::composer('*', function ($view) {
       static $topBarShared = false;
       if ($topBarShared) {
@@ -94,25 +101,16 @@ class AppServiceProvider extends ServiceProvider
 
     // Make company branding available across all Blade views.
     View::composer('*', function ($view) {
-      $shared = app('view')->getShared();
-      $company = $view->getData()['currentCompany'] ?? ($shared['currentCompany'] ?? null);
-      $logoUrl = asset('assets/img/logo-full.png');
-      $companyName = config('app.name');
+      $branding = app(\App\Services\Email\CompanyEmailBrandingService::class)->resolve();
+      $companyName = $branding['name'] ?? config('app.name');
 
-      if ($company instanceof Company) {
-        if (!empty($company->logo)) {
-          $logoUrl = asset('storage/' . $company->logo);
-        }
-        if (!empty($company->name)) {
-          $companyName = $company->name;
-
-          config([
-            'variables.templateName' => $company->name,
-          ]);
-        }
+      if (!empty($branding['company_id'])) {
+        config([
+          'variables.templateName' => $companyName,
+        ]);
       }
 
-      $view->with('companyLogoUrl', $logoUrl);
+      $view->with('companyLogoUrl', $branding['logo_url'] ?? null);
       $view->with('companyDisplayName', $companyName);
       $view->with('appCurrencyCode', Currency::code());
       $view->with('appCurrencySymbol', Currency::symbol());

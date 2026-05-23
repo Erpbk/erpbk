@@ -75,7 +75,7 @@
                         <div class="action-dropdown-container">
                             <button class="action-dropdown-btn" id="addRiderDropdownBtn">
                                 <i class="ti ti-plus"></i>
-                                <span>Add Rider</span>
+                                <span>Riders Actions</span>
                                 <i class="ti ti-chevron-down"></i>
                             </button>
                             <div class="action-dropdown-menu" id="addRiderDropdown">
@@ -414,7 +414,6 @@
 
         // Fleet supervisor and balance filter cards now use direct links - no JavaScript needed
     });
-
 </script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {

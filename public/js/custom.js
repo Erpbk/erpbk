@@ -640,6 +640,22 @@ $(document).on('submit', '#formajax2', function (e) {
     cache: false,
     processData: false,
     success: function (data) {
+      if (data && typeof data === 'object' && data.success !== undefined) {
+        if (data.image_url) {
+          const $img = $('#output');
+          if ($img.length) {
+            $img.attr('src', data.image_url);
+          }
+        }
+        unblock();
+        if (data.message) {
+          toastr.success(data.message);
+        } else {
+          toastr.success('Action performed successfully.');
+        }
+        return;
+      }
+
       if ($('#reload_modal').length != 0) {
         $('#modalTopbody').load($('#reload_modal').val(), function () {
           unblock();
@@ -650,7 +666,7 @@ $(document).on('submit', '#formajax2', function (e) {
       }
 
       unblock();
-      if (data.message) {
+      if (data && data.message) {
         toastr.success(data.message);
       } else {
         toastr.success('Action performed successfully.');
@@ -1030,8 +1046,14 @@ function bodyunblock() {
   $('#bodyloader').unblock();
 }
 
-$(document).on('click', '#edit-icon', function () {
-  $('#photo-upload-form').fadeToggle('fast');
+$(document).on('click', '#edit-icon', function (e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const $root = $(this).closest('.user-avatar-section');
+  const $panel = $root.length ? $root.find('#photo-upload-form') : $('#photo-upload-form');
+  if ($panel.length) {
+    $panel.fadeToggle('fast');
+  }
 });
 
 

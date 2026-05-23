@@ -158,21 +158,78 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Collect mass-assignable employee attributes from the request (same approach as riders store/update).
+     * On update, convert empty strings to null so validation and persistence can clear fields.
+     */
+    private function normalizeEmployeeRequestForUpdate(Request $request): void
+    {
+        $fillable = (new Employee())->getFillable();
+
+        foreach ($fillable as $key) {
+            if ($request->has($key) && $request->input($key) === '') {
+                $request->merge([$key => null]);
+            }
+        }
+
+        if ($request->has('custom_field_values') && is_array($request->input('custom_field_values'))) {
+            $normalized = [];
+            foreach ($request->input('custom_field_values') as $id => $value) {
+                $normalized[$id] = ($value === '' || $value === null) ? null : $value;
+            }
+            $request->merge(['custom_field_values' => $normalized]);
+        }
+    }
+
+    /**
+     * Merge submitted custom field values; empty values clear existing keys on update.
+     */
+    private function mergeEmployeeCustomFieldValues(array $existing, array $incoming, bool $isUpdate): array
+    {
+        if (!$isUpdate) {
+            return $incoming;
+        }
+
+        $merged = $existing;
+        foreach ($incoming as $id => $value) {
+            if ($value === null || $value === '') {
+                unset($merged[$id], $merged[(string) $id]);
+            } else {
+                $merged[$id] = $value;
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Collect mass-assignable employee attributes from the request.
      */
     private function employeeAttributesFromRequest(Request $request, ?Employee $employee = null): array
     {
+        $isUpdate = $employee !== null;
         $fillable = (new Employee())->getFillable();
         $input = array_intersect_key($request->all(), array_flip($fillable));
 
         foreach ($input as $key => $value) {
             if ($value === '' || $value === null) {
-                unset($input[$key]);
+                if ($isUpdate) {
+                    $input[$key] = null;
+                } else {
+                    unset($input[$key]);
+                }
             }
         }
 
         if ($request->has('custom_field_values')) {
-            $input['custom_field_values'] = $request->input('custom_field_values', []);
+            $incoming = $request->input('custom_field_values', []);
+            if (!is_array($incoming)) {
+                $incoming = [];
+            }
+            if ($isUpdate) {
+                $existing = is_array($employee->custom_field_values) ? $employee->custom_field_values : [];
+                $input['custom_field_values'] = $this->mergeEmployeeCustomFieldValues($existing, $incoming, true);
+            } else {
+                $input['custom_field_values'] = $incoming;
+            }
         }
 
         $input = \App\Support\SimAssigneeContactSync::stripManagedContactFromRequestData(
@@ -181,7 +238,7 @@ class EmployeeController extends Controller
             'employee'
         );
 
-        if ($employee === null) {
+        if (!$isUpdate) {
             if (empty($input['employee_id'])) {
                 $input['employee_id'] = $this->nextEmployeeId();
             }
@@ -777,6 +834,7 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, $comapny_slug, Employee $employee)
     {
+        $this->normalizeEmployeeRequestForUpdate($request);
         $request->validate($this->employeeValidationRules((int) $employee->id));
 
         $input = $this->employeeAttributesFromRequest($request, $employee);
@@ -791,15 +849,18 @@ class EmployeeController extends Controller
 
         $input['updated_by'] = auth()->id();
         $employee->update($input);
-        if (request()->ajax()) {
+        $employee->refresh();
+
+        if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Employee updated successfully!',
-                'redirect' => route('employees.index')
+                'redirect' => route('employees.show', $employee->id),
+                'employee' => $this->employeeProfileSidebarPayload($employee),
             ], 200);
         }
         Flash::success('Employee updated successfully.');
-        return redirect()->route('employees.index');
+        return redirect()->route('employees.show', $employee->id);
     }
 
     /**
@@ -866,7 +927,15 @@ class EmployeeController extends Controller
             ]);
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        if ($section == 'photo' && !$request->hasFile('profile_image')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please select a profile image to upload.',
             ], 422);
         }
 
@@ -984,10 +1053,13 @@ class EmployeeController extends Controller
 
             EmployeeHistoryLogger::statusChange($employee, $previousStatus ?: null, $newStatus, $effectiveDate);
 
+            $employee->refresh();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Employee status updated successfully',
                 'status' => $newStatus,
+                'employee' => $this->employeeProfileSidebarPayload($employee),
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to update employee status', [
@@ -1071,6 +1143,7 @@ class EmployeeController extends Controller
                 'message' => 'Employee updated successfully.',
                 'column' => $column,
                 'value' => $employee->{$column},
+                'employee' => $this->employeeProfileSidebarPayload($employee->fresh()),
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to update employee profile field', [
@@ -1084,5 +1157,42 @@ class EmployeeController extends Controller
                 'message' => 'Failed to update employee: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Sidebar display payload returned after profile card AJAX updates.
+     */
+    private function employeeProfileSidebarPayload(Employee $employee): array
+    {
+        $employee->loadMissing(['department', 'branch', 'nationality']);
+
+        $age = 'not-set';
+        if ($employee->dob) {
+            $age = (string) \Carbon\Carbon::parse($employee->dob)->age;
+        }
+
+        $whatsappHtml = 'N/A';
+        if ($employee->company_contact) {
+            $phone = preg_replace('/[^0-9]/', '', $employee->company_contact);
+            $whatsappNumber = '+971' . ltrim($phone, '0');
+            $whatsappHtml = '<a href="https://wa.me/' . e($whatsappNumber) . '" target="_blank" class="text-success">'
+                . e($employee->company_contact) . '</a>';
+        }
+
+        return [
+            'name' => $employee->name,
+            'designation' => $employee->designation,
+            'status' => $employee->status,
+            'company_email' => $employee->company_email,
+            'company_contact' => $employee->company_contact,
+            'company_contact_html' => $whatsappHtml,
+            'nationality' => $employee->nationality?->name,
+            'age' => $age,
+            'doj' => $employee->doj ? \App\Helpers\General::DateFormat($employee->doj) : 'not-set',
+            'salary' => number_format((float) ($employee->salary ?? 0), 2) . ' ' . \App\Helpers\Currency::code(),
+            'emirate_id' => $employee->emirate_id,
+            'department' => $employee->department?->name,
+            'branch' => $employee->branch?->name,
+        ];
     }
 }

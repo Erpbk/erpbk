@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use App\Traits\GlobalPagination;
 use App\Support\DashboardCardRegistry;
+use App\Support\DocumentExpiryDashboard;
 
 class HomeController extends Controller
 {
@@ -36,28 +37,11 @@ class HomeController extends Controller
    */
   public function index()
   {
-    $pieData = [
-      'labels' => ["Vendors", "Customers", "Riders", "Bikes", "Sims"],
-      'data' => [
-        company_table('vendors')->count(),
-        company_table('customers')->count(),
-        company_table('riders')->count(),
-        company_table('bikes')->count(),
-        company_table('sims')->count()
-      ],
-      'colors' => ["#706c7e", "#5c98e5", "#0760d3", "#211c1d", "#94baec"]
-    ];
+    $user = auth()->user();
+    $dashboardCards = DashboardCardRegistry::cardsForUser($user);
+    $documentExpiryAlerts = DocumentExpiryDashboard::forUser($user);
 
-    // LINE CHART: x from 0 to 10, y = sin(x)
-    $lineData = ['x' => [], 'y' => []];
-    for ($x = 0; $x <= 10; $x += 0.5) {
-      $lineData['x'][] = $x;
-      $lineData['y'][] = sin($x);
-    }
-
-    $dashboardCards = DashboardCardRegistry::cardsForUser(auth()->user());
-
-    return view('content.dashboard', compact('pieData', 'lineData', 'dashboardCards'));
+    return view('content.dashboard', compact('dashboardCards', 'documentExpiryAlerts'));
   }
 
   public function settings(Request $request)

@@ -261,9 +261,10 @@ class DashboardCardRegistry
             return [];
         }
 
+        $decoded = self::normalizeAttendanceCardKeys(array_map(static fn ($k) => (string) $k, $decoded));
+
         $picked = [];
         foreach ($decoded as $key) {
-            $key = (string) $key;
             if (in_array($key, $ordered, true)) {
                 $picked[] = $key;
             }
@@ -274,6 +275,33 @@ class DashboardCardRegistry
         }
 
         return array_slice($picked, 0, self::maxVisibleCards());
+    }
+
+    /**
+     * Map legacy combined "attendance" selection to separate employee / rider cards.
+     *
+     * @param  list<string>  $keys
+     * @return list<string>
+     */
+    protected static function normalizeAttendanceCardKeys(array $keys): array
+    {
+        $out = [];
+        foreach ($keys as $key) {
+            if ($key === 'attendance') {
+                foreach (['attendance_employees', 'attendance_riders'] as $replacement) {
+                    if (! in_array($replacement, $out, true)) {
+                        $out[] = $replacement;
+                    }
+                }
+
+                continue;
+            }
+            if (! in_array($key, $out, true)) {
+                $out[] = $key;
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -289,6 +317,8 @@ class DashboardCardRegistry
                 $normalized[] = $key;
             }
         }
+
+        $normalized = self::normalizeAttendanceCardKeys($normalized);
 
         Settings::updateOrCreate(
             ['name' => self::settingNameForUser((int) $user->id)],
@@ -385,7 +415,7 @@ class DashboardCardRegistry
             }
         }
 
-        $filterQuery = is_array($def['filter_query'] ?? null) ? $def['filter_query'] : [];
+        $filterQuery = self::filterQueryForDefinition($def);
         $activeQuery = is_array($filterQuery['active'] ?? null) ? $filterQuery['active'] : [];
         $inactiveQuery = is_array($filterQuery['inactive'] ?? null) ? $filterQuery['inactive'] : [];
 
@@ -496,8 +526,85 @@ class DashboardCardRegistry
             'employee_enum_status' => self::countsEmployeeEnum($table),
             'fuel_card_status' => self::countsFuelCard($table),
             'cheque_cleared_pending' => self::countsChequeClearedPending($table),
+            'attendance_today_present_absent' => self::countsAttendanceTodayPresentAbsent($table, $def),
+            'documents_expiry_stats' => self::countsDocumentsExpiryStats($def),
             default => self::countsNumericStatus($table),
         };
+    }
+
+    /**
+     * @return array{active: array<string, string>, inactive: array<string, string>}
+     */
+    protected static function filterQueryForDefinition(array $def): array
+    {
+        if ((string) ($def['count_strategy'] ?? '') === 'attendance_today_present_absent') {
+            $today = now()->toDateString();
+            $refType = (string) ($def['attendance_ref_type'] ?? '');
+            $active = ['date' => $today];
+            $inactive = ['date' => $today, 'status' => 'absent'];
+            if ($refType !== '') {
+                $active['ref_type'] = $refType;
+                $inactive['ref_type'] = $refType;
+            }
+
+            return [
+                'active' => $active,
+                'inactive' => $inactive,
+            ];
+        }
+
+        if ((string) ($def['count_strategy'] ?? '') === 'documents_expiry_stats') {
+            $days = DocumentExpiry::windowDays((int) ($def['document_expiry_days'] ?? DocumentExpiry::DEFAULT_WINDOW_DAYS));
+
+            return [
+                'active' => ['expiry' => 'expiring', 'days' => (string) $days],
+                'inactive' => ['expiry' => 'expired'],
+            ];
+        }
+
+        $filterQuery = $def['filter_query'] ?? null;
+
+        return is_array($filterQuery) ? $filterQuery : [];
+    }
+
+    /**
+     * Present / absent counts for today across employees and riders (matches attendance summary logic).
+     *
+     * @return array{0: int, 1: int}
+     */
+    protected static function countsAttendanceTodayPresentAbsent(string $table, array $def): array
+    {
+        if (! self::tableHasColumn($table, 'status') || ! self::tableHasColumn($table, 'date')) {
+            return [0, 0];
+        }
+
+        $today = now()->toDateString();
+        $base = company_table($table)->whereDate('date', $today);
+        $refType = (string) ($def['attendance_ref_type'] ?? '');
+        if ($refType !== '' && self::tableHasColumn($table, 'ref_type')) {
+            $base = $base->where('ref_type', $refType);
+        } elseif (self::tableHasColumn($table, 'ref_type')) {
+            $base = $base->whereIn('ref_type', ['employee', 'rider']);
+        }
+
+        $present = (int) (clone $base)->whereIn('status', ['present', 'late', 'half day'])->count();
+        $absent = (int) (clone $base)->where('status', 'absent')->count();
+
+        return [$present, $absent];
+    }
+
+    /**
+     * @return array{0: int, 1: int}
+     */
+    protected static function countsDocumentsExpiryStats(array $def): array
+    {
+        $days = DocumentExpiry::windowDays((int) ($def['document_expiry_days'] ?? DocumentExpiry::DEFAULT_WINDOW_DAYS));
+        $user = auth()->user();
+
+        return [
+            DocumentExpiry::expiringCountForUser($user, $days),
+            DocumentExpiry::expiredCountForUser($user),
+        ];
     }
 
     /**

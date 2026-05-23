@@ -15,7 +15,7 @@ $companySlug = request()->route('company_slug') ?? session('company_slug');
       <div class="card-header">
         <h4 class="card-title mb-0">{{ $pageTitle }}</h4>
         <p class="text-muted small mb-0 mt-2">
-          {{ __('Choose up to :count summary cards for your home dashboard. Each card shows active and inactive counts.', ['count' => $maxVisibleCards ?? 8]) }}
+          {{ __('Choose up to :count summary cards for your home dashboard. Attendance can be shown separately for employees and riders. Documents show expiring (10 days) and expired counts.', ['count' => $maxVisibleCards ?? 8]) }}
         </p>
       </div>
     </div>

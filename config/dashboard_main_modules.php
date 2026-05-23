@@ -14,6 +14,7 @@ return [
         'dashboard',
         'recycle_bin',
         'assets',
+        'attendance',
     ],
 
     'index_routes' => [

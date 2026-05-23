@@ -61,4 +61,40 @@ return [
             'inactive' => ['list_status' => 'inactive'],
         ],
     ],
+    'attendance_employees' => [
+        'label' => 'Employee Attendance',
+        'icon' => 'ti-users',
+        'table' => 'attendance',
+        'route' => 'attendance.index',
+        'count_strategy' => 'attendance_today_present_absent',
+        'attendance_ref_type' => 'employee',
+        'stat_labels' => [
+            'active' => 'Present today',
+            'inactive' => 'Absent today',
+        ],
+    ],
+    'attendance_riders' => [
+        'label' => 'Rider Attendance',
+        'icon' => 'ti-user-star',
+        'table' => 'attendance',
+        'route' => 'attendance.index',
+        'count_strategy' => 'attendance_today_present_absent',
+        'attendance_ref_type' => 'rider',
+        'stat_labels' => [
+            'active' => 'Present today',
+            'inactive' => 'Absent today',
+        ],
+    ],
+    'documents' => [
+        'label' => 'Documents',
+        'icon' => 'ti-files',
+        'table' => 'files',
+        'route' => 'upload_files.index',
+        'count_strategy' => 'documents_expiry_stats',
+        'document_expiry_days' => 10,
+        'stat_labels' => [
+            'active' => 'Expiring within 10 days',
+            'inactive' => 'Expired',
+        ],
+    ],
 ];

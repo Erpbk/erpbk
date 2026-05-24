@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\DeployDatabaseConfig;
 use Illuminate\Console\Command;
 use Illuminate\Database\Console\Migrations\MigrateCommand as FrameworkMigrateCommand;
 use Illuminate\Support\Facades\Artisan;
@@ -27,6 +28,8 @@ class DeployMigrateCommand extends Command
 
   public function handle()
   {
+    DeployDatabaseConfig::refreshFromEnvironment();
+
     if ($this->hasExplicitTarget()) {
       return $this->runFrameworkMigrate();
     }

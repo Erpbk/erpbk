@@ -2,8 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Support\DeployDatabaseConfig;
+use App\Support\MigrateConnectionRunner;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
 
 class MainMigrate extends Command
 {
@@ -16,13 +17,12 @@ class MainMigrate extends Command
 
         $this->info('Running main migrations (database/migrations) on mysql ...');
 
-        $exitCode = Artisan::call('migrate', [
-            '--database' => 'mysql',
-            '--path' => 'database/migrations',
-            '--force' => $force,
-        ]);
-
-        $this->output->writeln(Artisan::output());
+        $exitCode = MigrateConnectionRunner::run(
+            'mysql',
+            'database/migrations',
+            $force,
+            $this->output
+        );
 
         if ($exitCode !== 0) {
             $this->error('Main migrations failed.');
@@ -33,4 +33,3 @@ class MainMigrate extends Command
         return 0;
     }
 }
-

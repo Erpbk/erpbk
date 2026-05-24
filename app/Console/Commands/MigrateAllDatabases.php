@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\DeployDatabaseConfig;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 
@@ -13,6 +14,8 @@ class MigrateAllDatabases extends Command
     public function handle(): int
     {
         $force = (bool) $this->option('force');
+
+        DeployDatabaseConfig::refreshFromEnvironment();
 
         $this->info('Running central migrations (mysql / database/migrations)...');
         $centralExitCode = Artisan::call('main:migrate', [

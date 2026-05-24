@@ -14,8 +14,8 @@ class MigrateAllDatabases extends Command
     {
         $force = (bool) $this->option('force');
 
-        $this->info('Running central migrations...');
-        $centralExitCode = Artisan::call('migrate', [
+        $this->info('Running central migrations (mysql / database/migrations)...');
+        $centralExitCode = Artisan::call('main:migrate', [
             '--force' => $force,
         ]);
         $this->output->writeln(Artisan::output());

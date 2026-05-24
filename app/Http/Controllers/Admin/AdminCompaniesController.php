@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\AdminCompany;
+use App\Helpers\IConstants;
 use App\Models\User;
 use App\Models\Countries;
 use Illuminate\Http\Request;
@@ -248,20 +249,30 @@ class AdminCompaniesController extends Controller
     protected function createFirstUserForCompany(Company $company): void
     {
         $passwordHash = $company->getRawOriginal('password');
-        $user = User::query()->updateOrCreate(
-            ['email' => $company->email, 'company_id' => $company->id],
-            [
-                'name' => $company->name,
-                'first_name' => $company->name,
-                'email' => $company->email,
-                'company_id' => $company->id,
-                'password' => $passwordHash,
-                'branch_ids' => [],
-                'status' => 1,
-            ]
-        );
+        $attributes = [
+            'name' => $company->name,
+            'first_name' => $company->name,
+            'email' => $company->email,
+            'company_id' => $company->id,
+            'password' => $passwordHash,
+            'branch_ids' => [],
+            'status' => 1,
+        ];
+
+        $user = User::withoutGlobalScope('company')
+            ->where('company_id', $company->id)
+            ->whereHas('roles', fn ($query) => $query->where('name', IConstants::ROLE_SUPER_ADMIN))
+            ->first();
+
+        if ($user) {
+            $user->fill($attributes);
+            $user->save();
+        } else {
+            $user = User::query()->create($attributes);
+        }
+
         if (method_exists($user, 'assignRole')) {
-            $user->syncRoles(['Super Admin']);
+            $user->syncRoles([IConstants::ROLE_SUPER_ADMIN]);
         }
     }
 

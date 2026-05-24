@@ -22,7 +22,6 @@ class AvailableCompanyContactEmail implements ValidationRule
         if ($email === '') {
             return;
         }
-        \Log::info('companyId: ' . $this->ignoreCompanyId);
         $companyQuery = Company::query()->whereRaw('LOWER(TRIM(email)) = ?', [$email]);
         if ($this->ignoreCompanyId !== null) {
             $companyQuery->where('id', '!=', $this->ignoreCompanyId);

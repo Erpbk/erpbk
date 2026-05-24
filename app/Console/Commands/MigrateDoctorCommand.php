@@ -18,6 +18,9 @@ class MigrateDoctorCommand extends Command
 
         $this->info('Migration doctor');
         $this->line('APP_ENV: ' . config('app.env'));
+        if (config('app.env') !== 'production' && str_contains((string) config('database.connections.mysql.host'), 'laravel.cloud')) {
+            $this->warn('APP_ENV is not "production" on Laravel Cloud — set APP_ENV=production in environment variables.');
+        }
         $this->line('Default connection: ' . config('database.default'));
         $this->line('Config cached: ' . (file_exists(base_path('bootstrap/cache/config.php')) ? 'yes' : 'no'));
         $this->newLine();
@@ -44,6 +47,7 @@ class MigrateDoctorCommand extends Command
         try {
             $databaseName = DB::connection($connection)->getDatabaseName();
             $this->line("Connected database: {$databaseName}");
+            $this->line('Connected host: ' . DB::connection($connection)->getConfig('host'));
 
             $ran = DB::connection($connection)->table('migrations')->count();
             $this->line("Recorded migrations: {$ran}");
@@ -55,22 +59,27 @@ class MigrateDoctorCommand extends Command
 
             $ranNames = DB::connection($connection)
                 ->table('migrations')
-                ->pluck('migration')
-                ->flip();
+                ->pluck('migration');
 
-            $pending = $files->reject(fn ($name) => $ranNames->has($name))->values();
+            $ranLookup = $ranNames->flip();
+            $pending = $files->reject(fn ($name) => $ranLookup->has($name))->values();
+            $orphaned = $ranNames->reject(fn ($name) => $files->contains($name))->values();
 
             $this->line('Migration files on disk: ' . $files->count());
             $this->line('Pending migrations: ' . $pending->count());
 
             if ($pending->isNotEmpty()) {
-                $this->warn('Pending:');
+                $this->warn('Pending (on disk but not recorded in DB):');
                 $pending->take(15)->each(fn ($name) => $this->line("  - {$name}"));
                 if ($pending->count() > 15) {
                     $this->line('  ... and ' . ($pending->count() - 15) . ' more');
                 }
+            } elseif ($orphaned->isNotEmpty()) {
+                $this->warn('Recorded in DB but migration file missing on disk (' . $orphaned->count() . '):');
+                $orphaned->take(10)->each(fn ($name) => $this->line("  - {$name}"));
+                $this->line('These were already applied — no re-run needed unless schema is wrong.');
             } else {
-                $this->info('Nothing pending for this connection/path.');
+                $this->info('All migration files are recorded. Schema should be up to date.');
             }
         } catch (\Throwable $e) {
             $this->error('Could not inspect connection: ' . $e->getMessage());

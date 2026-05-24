@@ -277,6 +277,14 @@
         </textarea>
     </div>
 
+    @include('attendance.partials.rider_activity_fields', [
+        'refType' => $refTypes ?? old('ref_type', 'employee'),
+        'total_orders' => old('total_orders'),
+        'working_hours' => old('working_hours'),
+        'cancelled_orders' => old('cancelled_orders'),
+        'rejected_orders' => old('rejected_orders'),
+    ])
+
     <!-- Form Actions -->
     <div class="d-flex justify-content-end">
         <div>
@@ -316,7 +324,10 @@
             $('#form_ref_id').val('');
             updateRefIdLabel(refType);
             loadUsers(refType);
+            toggleRiderActivitySection(refType);
         });
+
+        toggleRiderActivitySection(selectedRefType);
 
         $('.select2').select2({
             dropdownParent: $('#attendanceForm'),
@@ -365,6 +376,19 @@
 
         });
     });
+
+    function toggleRiderActivitySection(refType) {
+        var section = $('#rider_activity_section');
+        if (!section.length) {
+            return;
+        }
+        if (refType === 'rider') {
+            section.show();
+        } else {
+            section.hide();
+            section.find('input').val('');
+        }
+    }
 
     function updateRefIdLabel(refType) {
         var label = 'Select Employee or Rider';

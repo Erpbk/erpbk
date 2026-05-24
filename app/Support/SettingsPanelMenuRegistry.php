@@ -28,14 +28,14 @@ class SettingsPanelMenuRegistry
             ?? config('menu_labels.defaults.' . $labelKey, ucwords(str_replace('_', ' ', $labelKey)));
     }
 
-    public static function settingsUrl(string $settingsModuleKey, ?string $companySlug = null): ?string
+    public static function settingsUrl(string $settingsModuleKey, ?string $companySlug = null, array $query = []): ?string
     {
         $companySlug ??= (string) (request()->route('company_slug') ?? session('company_slug') ?? '');
         if ($companySlug === '') {
             return null;
         }
 
-        $params = ['company_slug' => $companySlug];
+        $params = array_merge(['company_slug' => $companySlug], $query);
 
         $dedicated = [
             'riders' => 'settings-panel.rider-settings.index',

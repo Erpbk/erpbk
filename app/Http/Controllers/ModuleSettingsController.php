@@ -18,6 +18,7 @@ use App\Services\Module\ModuleTopBarSettingsService;
 use App\Support\ErpModuleRegistry;
 use App\Support\ModuleTopBarRoutes;
 use App\Support\SimAssignFields;
+use App\Support\AttendanceFieldScope;
 use App\Support\ModuleFieldSource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -193,7 +194,18 @@ class ModuleSettingsController extends Controller
                 if ($dirty) {
                     $assignment->save();
                 }
+
+                if ($module === AttendanceFieldScope::MODULE_KEY) {
+                    AttendanceFieldScope::ensureRiderScopeOnAssignment($assignment);
+                }
             }
+        }
+
+        if ($module === AttendanceFieldScope::MODULE_KEY) {
+            ModuleFieldCategoryAssignment::query()
+                ->where('module_key', $module)
+                ->whereIn('field_key', AttendanceFieldScope::RIDER_ONLY_FIELDS)
+                ->each(fn (ModuleFieldCategoryAssignment $row) => AttendanceFieldScope::ensureRiderScopeOnAssignment($row));
         }
 
         app(ModuleDefaultCategoryService::class)->assignAllFieldsToDefault($module, $defaultCategory);
@@ -252,6 +264,14 @@ class ModuleSettingsController extends Controller
         $fixedAssignments = $fixedAssignments
             ->filter(fn($row) => !isset($hiddenFieldKeys[(string) $row->field_key]))
             ->values();
+
+        $attendanceRefType = null;
+        if ($module === AttendanceFieldScope::MODULE_KEY) {
+            $attendanceRefType = in_array(request('ref_type'), ['employee', 'rider'], true)
+                ? request('ref_type')
+                : 'rider';
+            $fixedAssignments = AttendanceFieldScope::filterAssignmentsForRefType($fixedAssignments, $attendanceRefType);
+        }
 
         $customFields = ModuleCustomField::with('category')
             ->where('module_key', $module)
@@ -402,6 +422,8 @@ class ModuleSettingsController extends Controller
             'selectedBikeRegistrationTopStatusIds' => $selectedBikeRegistrationTopStatusIds,
             'bikeRegistrationTopEnabled' => $bikeRegistrationTopEnabled,
             'defaultCategory' => $defaultCategory,
+            'attendanceRefType' => $attendanceRefType,
+            'showAttendanceRiderOnlyHint' => $module === AttendanceFieldScope::MODULE_KEY,
         ]);
     }
 

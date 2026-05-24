@@ -179,6 +179,14 @@
         @enderror
     </div>
 
+    @include('attendance.partials.rider_activity_fields', [
+        'refType' => $selectedType,
+        'total_orders' => old('total_orders', $attendance->total_orders),
+        'working_hours' => old('working_hours', $attendance->working_hours),
+        'cancelled_orders' => old('cancelled_orders', $attendance->cancelled_orders),
+        'rejected_orders' => old('rejected_orders', $attendance->rejected_orders),
+    ])
+
     <!-- Form Actions -->
     <div class="d-flex justify-content-end gap-2">
         <div>
@@ -325,6 +333,7 @@
             var refType = $(this).val();
             updateRefIdLabel(refType);
             loadUsers(refType);
+            toggleRiderActivitySection(refType);
         });
 
         // Initialize Select2
@@ -340,6 +349,7 @@
         $('input[name="ref_type"][value="' + initialRefType + '"]').prop('checked', true);
         updateRefIdLabel(initialRefType);
         loadUsers(initialRefType, initialRefId);
+        toggleRiderActivitySection(initialRefType);
 
         // Check-in/Check-out time validation
         $('#check_in, #check_out').change(function() {
@@ -408,6 +418,19 @@
             }
         });
     });
+
+    function toggleRiderActivitySection(refType) {
+        var section = $('#rider_activity_section');
+        if (!section.length) {
+            return;
+        }
+        if (refType === 'rider') {
+            section.show();
+        } else {
+            section.hide();
+            section.find('input').val('');
+        }
+    }
 
     function updateRefIdLabel(refType) {
         var label = 'Select Employee or Rider';

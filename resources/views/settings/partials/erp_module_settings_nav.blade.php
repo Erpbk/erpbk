@@ -26,7 +26,7 @@ $parentLabel = \App\Support\SettingsPanelMenuRegistry::label($parentKey, $spMenu
     @php
     $childKey = (string) ($child['key'] ?? '');
     $childSettings = (string) ($child['settings'] ?? $childKey);
-    $childUrl = \App\Support\SettingsPanelMenuRegistry::settingsUrl($childSettings, $spCompanySlug);
+    $childUrl = \App\Support\SettingsPanelMenuRegistry::settingsUrl($childSettings, $spCompanySlug, $child['settings_query'] ?? []);
     if ($childUrl === null) {
     continue;
     }
@@ -46,7 +46,7 @@ $parentLabel = \App\Support\SettingsPanelMenuRegistry::label($parentKey, $spMenu
 @php
 $onlyChild = $children[0];
 $childSettings = (string) ($onlyChild['settings'] ?? $onlyChild['key'] ?? '');
-$leafUrl = \App\Support\SettingsPanelMenuRegistry::settingsUrl($childSettings, $spCompanySlug);
+$leafUrl = \App\Support\SettingsPanelMenuRegistry::settingsUrl($childSettings, $spCompanySlug, $onlyChild['settings_query'] ?? []);
 @endphp
 @if($leafUrl !== null)
 <li class="menu-item {{ \App\Support\SettingsPanelMenuRegistry::isActive($childSettings) ? 'active' : '' }}">

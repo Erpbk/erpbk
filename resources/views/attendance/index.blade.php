@@ -227,19 +227,23 @@
                             <div class="table-responsive" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px;">
                                 <table class="table table-bordered mb-0" id="selectedUsersTable">
                                     <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 10;">
-                                        <tr>
+                                        <tr id="bulkAttendanceTableHead">
                                             <th style="width: 50px; background: #f8f9fa;">#</th>
                                             <th style="min-width: 200px; background: #f8f9fa;">User</th>
                                             <th style="min-width: 150px; background: #f8f9fa;">Status</th>
                                             <th style="min-width: 130px; background: #f8f9fa;">Check In</th>
                                             <th style="min-width: 130px; background: #f8f9fa;">Check Out</th>
+                                            <th class="bulk-rider-order-col d-none" style="min-width: 100px; background: #f8f9fa;">Total Orders</th>
+                                            <th class="bulk-rider-order-col d-none" style="min-width: 100px; background: #f8f9fa;">Working Hours</th>
+                                            <th class="bulk-rider-order-col d-none" style="min-width: 100px; background: #f8f9fa;">Cancelled</th>
+                                            <th class="bulk-rider-order-col d-none" style="min-width: 100px; background: #f8f9fa;">Rejected</th>
                                             <th style="min-width: 200px; background: #f8f9fa;">Notes</th>
                                             <th style="width: 80px; background: #f8f9fa;">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody id="selectedUsersBody">
                                         <tr id="noUsersRow">
-                                            <td colspan="7" class="text-center py-5">
+                                            <td colspan="11" class="text-center py-5" id="noUsersRowPlaceholder">
                                                 <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
                                                 <h6 class="text-muted">No users selected</h6>
                                                 <p class="text-muted small">Select user type and add users from the dropdown above</p>
@@ -290,6 +294,50 @@
         var allUsers = [];
         var selectedUsers = []; // Array to store selected user objects with their data
         var nextId = 1;
+        var bulkRefType = '';
+
+        function isBulkRiderMode() {
+            return bulkRefType === 'rider';
+        }
+
+        function toggleBulkRiderOrderColumns() {
+            if (isBulkRiderMode()) {
+                $('.bulk-rider-order-col').removeClass('d-none');
+            } else {
+                $('.bulk-rider-order-col').addClass('d-none');
+            }
+        }
+
+        function bulkTableColspan() {
+            return isBulkRiderMode() ? 11 : 7;
+        }
+
+        function riderOrderCellsHtml(user) {
+            if (!isBulkRiderMode()) {
+                return '';
+            }
+            return `
+                    <td class="align-middle bulk-rider-order-col">
+                        <input type="number" name="attendances[${user.tempId}][total_orders]"
+                               class="form-control form-control-sm total-orders" min="0" step="1"
+                               value="${user.totalOrders ?? ''}" placeholder="0">
+                    </td>
+                    <td class="align-middle bulk-rider-order-col">
+                        <input type="number" name="attendances[${user.tempId}][working_hours]"
+                               class="form-control form-control-sm working-hours" min="0" step="0.01"
+                               value="${user.workingHours ?? ''}" placeholder="0">
+                    </td>
+                    <td class="align-middle bulk-rider-order-col">
+                        <input type="number" name="attendances[${user.tempId}][cancelled_orders]"
+                               class="form-control form-control-sm cancelled-orders" min="0" step="1"
+                               value="${user.cancelledOrders ?? ''}" placeholder="0">
+                    </td>
+                    <td class="align-middle bulk-rider-order-col">
+                        <input type="number" name="attendances[${user.tempId}][rejected_orders]"
+                               class="form-control form-control-sm rejected-orders" min="0" step="1"
+                               value="${user.rejectedOrders ?? ''}" placeholder="0">
+                    </td>`;
+        }
 
         $('.select2-2').select2({
             dropdownParent: $('#bulkAttendanceModal')
@@ -302,6 +350,8 @@
         // Load users when type changes
         $('#bulk_ref_type').change(function() {
             var refType = $(this).val();
+            bulkRefType = refType;
+            toggleBulkRiderOrderColumns();
             selectedUsers = [];
             renderSelectedUsers();
             if (refType) {
@@ -374,7 +424,11 @@
                 status: $('#default_status').val(),
                 checkIn: '',
                 checkOut: '',
-                notes: ''
+                notes: '',
+                totalOrders: '',
+                workingHours: '',
+                cancelledOrders: '',
+                rejectedOrders: ''
             };
 
             selectedUsers.push(selectedUser);
@@ -392,13 +446,14 @@
             if (selectedUsers.length === 0) {
                 tbody.append(`
                 <tr id="noUsersRow">
-                    <td colspan="7" class="text-center py-5">
+                    <td colspan="${bulkTableColspan()}" class="text-center py-5">
                         <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
                         <h6 class="text-muted">No users selected</h6>
                         <p class="text-muted small">Select user type and add users from the dropdown above</p>
                     </td>
                 </tr>
             `);
+            toggleBulkRiderOrderColumns();
                 $('#selectedUsersCount').text('0');
                 $('#totalSelectedCount').text('0');
                 $('#presentCount').text('0');
@@ -440,6 +495,7 @@
                                class="form-control form-control-sm check-out" 
                                value="${user.checkOut}" step="1">
                     </td>
+                    ${riderOrderCellsHtml(user)}
                     <td class="align-middle">
                         <input type="text" name="attendances[${user.tempId}][notes]" 
                                class="form-control form-control-sm notes" 
@@ -498,6 +554,38 @@
             var user = selectedUsers.find(u => u.tempId === tempId);
             if (user) {
                 user.notes = $(this).val();
+            }
+        });
+
+        $(document).on('change', '.total-orders', function() {
+            var tempId = $(this).closest('tr').data('temp-id');
+            var user = selectedUsers.find(u => u.tempId === tempId);
+            if (user) {
+                user.totalOrders = $(this).val();
+            }
+        });
+
+        $(document).on('change', '.working-hours', function() {
+            var tempId = $(this).closest('tr').data('temp-id');
+            var user = selectedUsers.find(u => u.tempId === tempId);
+            if (user) {
+                user.workingHours = $(this).val();
+            }
+        });
+
+        $(document).on('change', '.rejected-orders', function() {
+            var tempId = $(this).closest('tr').data('temp-id');
+            var user = selectedUsers.find(u => u.tempId === tempId);
+            if (user) {
+                user.rejectedOrders = $(this).val();
+            }
+        });
+
+        $(document).on('change', '.cancelled-orders', function() {
+            var tempId = $(this).closest('tr').data('temp-id');
+            var user = selectedUsers.find(u => u.tempId === tempId);
+            if (user) {
+                user.cancelledOrders = $(this).val();
             }
         });
 
@@ -598,6 +686,8 @@
         $('#bulkAttendanceModal').on('hidden.bs.modal', function() {
             selectedUsers = [];
             allUsers = [];
+            bulkRefType = '';
+            toggleBulkRiderOrderColumns();
             $('#bulk_ref_type').val('');
             $('#userSearchInput').val('').prop('disabled', true);
             $('#userSelect').html('<option value="">Select user to add</option>').prop('disabled', true);

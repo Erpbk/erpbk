@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use App\Models\Riders;
 use App\Models\RiderActivities;
+use App\Services\Attendance\RiderAttendanceActivitySync;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -260,15 +261,20 @@ class ImportRiderActivities implements ToCollection
       throw new \Exception('Invalid date format: ' . $row[0]);
     }
 
+    $totalOrders = (int) ($row[14] ?? 0);
+    $rejectedOrders = (int) ($row[17] ?? 0);
+    $cancelledOrders = (int) ($row[16] ?? 0);
+    $loginHr = (float) ($row[10] ?? 0);
+
     $data = [
       'rider_id'                    => $rider->id,
       'd_rider_id'                  => trim($row[1]),
       'date'                        => $date,
       'payout_type'                 => $row[5] ?? null,
-      'delivered_orders'            => (int) ($row[14] ?? 0),
+      'delivered_orders'            => $totalOrders,
       'ontime_orders_percentage'    => (float) str_replace('%', '', $row[22] ?? 0),
-      'rejected_orders'             => (int) ($row[17] ?? 0),
-      'login_hr'                    => (float) ($row[10] ?? 0),
+      'rejected_orders'             => $rejectedOrders,
+      'login_hr'                    => $loginHr,
       'delivery_rating'             => $row[8] ?? '-',
     ];
 
@@ -283,6 +289,13 @@ class ImportRiderActivities implements ToCollection
     if (!$result || !$result->id) {
       throw new \Exception('Failed to save rider activity for Rider ID: ' . trim($row[1]) . ', Date: ' . $date);
     }
+
+    RiderAttendanceActivitySync::syncAttendanceFromActivity($rider, $date, [
+      'total_orders' => $totalOrders,
+      'working_hours' => $loginHr,
+      'cancelled_orders' => $cancelledOrders,
+      'rejected_orders' => $rejectedOrders,
+    ]);
 
     return $result;
   }

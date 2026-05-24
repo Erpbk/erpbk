@@ -87,11 +87,13 @@
             color: #fff;
             border: none;
             padding: 8px 12px;
-            font-size: 16px;
+            font-size: 13px;
             cursor: pointer;
-            border-radius: 3px;
+            border-radius: 4px;
             text-decoration: none;
             display: inline-block;
+            font-weight: 500;
+            transition: 0.2s;
         }
 
         .print-btn:hover {
@@ -124,11 +126,11 @@
             top: 10px;
             z-index: 100;
             display: flex;
-            gap: 10px;
+            gap: 12px;
             background: white;
             padding: 10px 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            border-radius: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             margin-bottom: 20px;
             width: 95%;
             justify-self: center;
@@ -185,14 +187,19 @@
         }
 
         .rider-card, .summary-card {
-            padding: 15px;
-            margin-bottom: 15px;
+            padding: 16px 18px;
+            margin-bottom: 0;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
         }
 
         .card-header {
             margin-bottom: 12px;
             padding-bottom: 8px;
             border-bottom: 2px solid #004aad;
+            background-color: white !important;
         }
 
         .card-header strong {
@@ -209,27 +216,24 @@
     <div class="invoice-box">
         <!-- Header Table -->
         @php
-        $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+        $settings = company_table('settings')->pluck('value', 'name')->toArray();
         $serviceCharges = 0;
         @endphp
         <table width="100%" style="font-family: sans-serif;">
             <tr>
                 <td width="33.33%" style="border: none !important;">
-                    @if(file_exists(public_path('assets/img/logo-full.png')))
-                    <img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" />
-                    @else
-                    <h3>{{ $settings['company_name'] ?? 'Company Name' }}</h3>
+                    @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
+                        <img src="{{ Storage::url($settings['company_logo']) }}" width="150" alt="logo" />
                     @endif
                 </td>
-                <td width="33.33%" style="text-align: center; border: none !important;">
-                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ $settings['company_name'] ?? 'Company Name' }}</h4>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{ $settings['company_address'] ?? 'Company Address' }}</p>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TRN {{ $settings['vat_number'] ?? 'TRN Number' }}</p>
+                <td width="33.33%" style="text-align: center; align-content: center; border: none !important;">
+                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ ucwords($settings['company_name']) ?? '' }}</h4>
+                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{ ucwords($settings['company_address']) ?? '' }}</p>
+                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TEL: {{ $settings['company_phone'] ?? '' }}</p>
+                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TRN: {{ $settings['vat_number'] ?? '' }}</p>
                 </td>
-                <td width="33.33%" style="text-align: center; border: none !important;">
-                    <h2 style="margin: 0; font-weight: bold;">
-                        FUEL INVOICE
-                    </h2>
+                <td width="33.33%" style="text-align: center; align-content: center; border: none !important;">
+                    <h2 style="margin: 0; font-weight: 600; color: #004aad; font-size: 24px;">FUEL INVOICE</h2>
                 </td>
             </tr>
         </table>
@@ -321,10 +325,6 @@
                     <td class="num">{{ \App\Helpers\Currency::format($transaction->service_charges, 2) }}</td>
                 </tr>
                 @endif
-                <tr style="background: #004aad; color: white;">
-                    <td><strong>Total Amount:</strong></td>
-                    <td class="num"><strong>{{ \App\Helpers\Currency::format($summary->total_amount + $transaction->service_charges, 2) }}</strong></td>
-                </tr>
             </tbody>
         </table>
         @else
@@ -337,7 +337,8 @@
 
         <!-- Grand Total -->
         <div style="margin-top: 30px; text-align: right;">
-            <div style="display: inline-block; padding: 15px; background: #004aad; color: white; border-radius: 5px;">
+            <div style="display: inline-block; padding: 12px 28px; background: #004aad; color: white; border-radius: 20px; text-align: center;
+            box-shadow: 0 4px 10px rgba(0,74,173,0.2);">
                 <div style="font-size: 16px; margin-bottom: 5px; text-align: center;">Grand Total</div>
                 <div style="font-size: 24px; font-weight: bold;">{{ \App\Helpers\Currency::format($summary->total_amount + $transaction->service_charges, 2) }}</div>
             </div>

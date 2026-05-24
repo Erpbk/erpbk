@@ -8,6 +8,14 @@ class RiderFieldCategoryAssignment extends BaseModel
 {
     protected $table = 'rider_field_category_assignments';
 
+    /**
+     * Assignments are keyed globally by field_key (unique), not per company.
+     */
+    protected function shouldApplyCompanyScope(): bool
+    {
+        return false;
+    }
+
     protected $fillable = [
         'field_key',
         'display_label',

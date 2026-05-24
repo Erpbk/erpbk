@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Sims;
+use App\Support\ModuleFieldSettings;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateSimsRequest extends FormRequest
@@ -24,8 +25,11 @@ class UpdateSimsRequest extends FormRequest
      */
     public function rules()
     {
-        $rules = Sims::$rules;
-        
-        return $rules;
+        $baseRules = Sims::$rules;
+        unset($baseRules['number']);
+
+        return ModuleFieldSettings::validationRulesForModule('sims', $baseRules, [
+            'fields' => ['company', 'vendor', 'fleet_supervisor', 'emi', 'branch_id'],
+        ]);
     }
 }

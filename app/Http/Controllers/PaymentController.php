@@ -9,6 +9,7 @@ use App\Models\Banks;
 use App\Models\LeasingCompanies;
 use App\Models\LeasingCompanyInvoice;
 use App\Models\SupplierInvoices;
+use App\Models\EmployeeInvoices;
 use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Models\Customers;
@@ -69,6 +70,8 @@ class PaymentController extends Controller
         $leasingIds = null;
         $supplierIds = null;
         $invoiceType = null;
+        $existingInvoices = null;
+        $employeePayment = request()->input('employee_payment') || request()->input('invoice_type') == 'employee';
         if (request()->input('leasing_payment')) {
             $leasingIds = LeasingCompanies::pluck('id')->toArray();
             $accountIds = LeasingCompanies::pluck('account_id')->toArray();
@@ -113,12 +116,41 @@ class PaymentController extends Controller
                         ->orWhere('status', 'partially_paid');
                 })
                 ->get();
+        } elseif ($employeePayment) {
+            $invoiceType = 'employee';
+            $selectedInvoice = null;
+            if (request()->input('invoice_id')) {
+                $selectedInvoice = EmployeeInvoices::with('employee')->find(request()->input('invoice_id'));
+            }
+            if ($selectedInvoice) {
+                $existingInvoices = collect([$selectedInvoice]);
+                $invoices = EmployeeInvoices::with('employee')
+                    ->where('employee_id', $selectedInvoice->employee_id)
+                    ->where('status', '!=', 1)
+                    ->where('id', '!=', $selectedInvoice->id)
+                    ->get();
+            } else {
+                $invoices = EmployeeInvoices::with('employee')
+                    ->where('status', '!=', 1)
+                    ->get();
+            }
+            $accountIds = [];
+            foreach ($invoices as $invoice) {
+                if ($invoice->employee && $invoice->employee->account_id) {
+                    $accountIds[] = $invoice->employee->account_id;
+                }
+            }
+            if ($selectedInvoice && $selectedInvoice->employee && $selectedInvoice->employee->account_id) {
+                $accountIds[] = $selectedInvoice->employee->account_id;
+            }
+            $accountIds = array_values(array_unique($accountIds));
         } else {
             $invoices = null;
         }
         if ($accountId) {
-            $bank = Banks::find($accountId);
-            return view('payments.create', compact('bank', 'payment'));
+            $bank = Banks::with('account')->find($accountId);
+            $banks = Banks::with('account')->active()->get();
+            return view('payments.create', compact('bank', 'banks', 'payment'));
         } elseif ($leasingCompanyId || $leasingIds) {
             $leasingCompany = LeasingCompanies::find($leasingCompanyId ?? 0);
             $banks = Banks::with('account')->active()->get();
@@ -129,6 +161,9 @@ class PaymentController extends Controller
             $banks = Banks::with('account')->active()->get();
             $invoiceType = 'supplier';
             return view('payments.create', compact('leasingCompany', 'banks', 'payment', 'invoices', 'accountIds', 'invoiceType'));
+        } elseif ($employeePayment) {
+            $banks = Banks::with('account')->active()->get();
+            return view('payments.create', compact('banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'existingInvoices'));
         } elseif ($customerId) {
             $customer = Customers::find($customerId);
             $banks = Banks::with('account')->active()->get();
@@ -218,7 +253,8 @@ class PaymentController extends Controller
                 $invoiceIds = $request->input('invoice_ids');
                 $paymentAmounts = $request->input('payment_amounts');
 
-                if ($request->invoiceType == 'leasingCompany') {
+                $invoiceType = $request->input('invoice_type');
+                if ($invoiceType == 'leasingCompany') {
                     $invoices = LeasingCompanyInvoice::whereIn('id', $invoiceIds)->get();
 
                     foreach ($invoices as $invoice) {
@@ -241,6 +277,25 @@ class PaymentController extends Controller
                                     'updated_by' => auth()->id()
                                 ]);
                             }
+                        }
+                    }
+                } elseif ($invoiceType == 'employee') {
+                    $invoices = EmployeeInvoices::whereIn('id', $invoiceIds)->get();
+
+                    foreach ($invoices as $invoice) {
+                        $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+                        $partialAmount = $invoice->partial_paid_amount ?? [];
+                        $partialAmount[$payment->id] = $invoicePaymentAmount;
+
+                        if ($invoicePaymentAmount > 0) {
+                            if ($invoicePaymentAmount >= ($invoice->balance ?? 0)) {
+                                $invoice->status = 1; // Paid
+                            } else {
+                                $invoice->status = 3; // Partially Paid
+                            }
+                            $invoice->partial_paid_amount = $partialAmount;
+                            $invoice->updated_by = auth()->id();
+                            $invoice->save();
                         }
                     }
                 } else {
@@ -414,9 +469,9 @@ class PaymentController extends Controller
             $invoice_numbers = explode(' ', $payment->reference);
             $invoiceIds = [];
             foreach ($invoice_numbers as $invoice_number) {
-                $id = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoice_number);
-                if ($id) {
-                    $invoiceIds[] = $id;
+                $invoiceId = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
                 }
             }
             $existingInvoices = LeasingCompanyInvoice::with('leasingCompany')
@@ -436,9 +491,9 @@ class PaymentController extends Controller
             $invoice_numbers = explode(' ', $payment->reference);
             $invoiceIds = [];
             foreach ($invoice_numbers as $invoice_number) {
-                $id = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
-                if ($id) {
-                    $invoiceIds[] = $id;
+                $invoiceId = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
                 }
             }
             $existingInvoices = SupplierInvoices::with('supplier')
@@ -455,6 +510,26 @@ class PaymentController extends Controller
                 ->get();
             $accountIds = $existingInvoices->pluck('supplier.account_id')->toArray();
             $invoiceType = 'supplier';
+        }
+        if ((str_contains($payment->reference, 'EMP_INV'))) {
+            $invoice_numbers = explode(' ', $payment->reference);
+            $invoiceIds = [];
+            foreach ($invoice_numbers as $invoice_number) {
+                $invoiceId = EmployeeInvoices::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
+                }
+            }
+            $existingInvoices = EmployeeInvoices::with('employee')
+                ->whereIn('id', $invoiceIds)
+                ->get();
+            $invoices = EmployeeInvoices::with('employee')
+                ->whereIn('employee_id', $existingInvoices->pluck('employee_id'))
+                ->where('status', '!=', 1)
+                ->whereNotIn('id', $invoiceIds)
+                ->get();
+            $accountIds = $existingInvoices->pluck('employee.account_id')->toArray();
+            $invoiceType = 'employee';
         }
         $banks = Banks::active()->get();
         $payment->billing_month = \Carbon\Carbon::parse($payment->billing_month)->format('Y-m');
@@ -563,6 +638,18 @@ class PaymentController extends Controller
                     $existingInvoices = LeasingCompanyInvoice::whereIn('id', $invoiceIds)->get();
                     $partial = 3;
                     $pending = 0;
+                } elseif ($input['invoice_type'] == 'employee') {
+                    foreach ($invoice_numbers as $invoice_number) {
+                        $id = EmployeeInvoices::getIdFromInvoiceNumber($invoice_number);
+                        if ($id) {
+                            $invoiceIds[] = $id;
+                        }
+                    }
+
+                    // Get existing invoices and revert their status
+                    $existingInvoices = EmployeeInvoices::whereIn('id', $invoiceIds)->get();
+                    $partial = 0;
+                    $pending = 0;
                 } else {
                     foreach ($invoice_numbers as $invoice_number) {
                         $id = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
@@ -610,9 +697,13 @@ class PaymentController extends Controller
             if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
                 $invoiceIds = $request->input('invoice_ids');
                 $paymentAmounts = $request->input('payment_amounts');
-                if ($input['invoice_type'] == 'leasingcompany') {
+                if ($input['invoice_type'] == 'leasingCompany') {
                     $invoices = LeasingCompanyInvoice::whereIn('id', $invoiceIds)->get();
                     $partial = 3;
+                    $paid = 1;
+                } elseif ($input['invoice_type'] == 'employee') {
+                    $invoices = EmployeeInvoices::whereIn('id', $invoiceIds)->get();
+                    $partial = 0;
                     $paid = 1;
                 } else {
                     $invoices = SupplierInvoices::whereIn('id', $invoiceIds)->get();
@@ -626,7 +717,6 @@ class PaymentController extends Controller
                     $partialAmount[$payment->id] = $invoicePaymentAmount;
 
                     if ($invoicePaymentAmount > 0) {
-
                         // Update the invoice status based on the payment
                         if ($invoicePaymentAmount >= ($invoice->total_amount - ($invoice->paid_amount ?? 0))) {
                             $invoice->status = $paid; // Paid
@@ -832,6 +922,30 @@ class PaymentController extends Controller
                         $invoice->status = 'unpaid'; // Revert to unpaid if no payments left
                     } else {
                         $invoice->status = 'partially_paid';
+                    }
+                    $invoice->save();
+                }
+            }
+            if ((str_contains($payment->reference, 'EMP_INV'))) {
+                $invoice_numbers = explode(' ', $payment->reference);
+                $invoiceIds = [];
+                foreach ($invoice_numbers as $invoice_number) {
+                    $id = EmployeeInvoices::getIdFromInvoiceNumber($invoice_number);
+                    if ($id) {
+                        $invoiceIds[] = $id;
+                    }
+                }
+                $invoices = EmployeeInvoices::with('employee')
+                    ->whereIn('id', $invoiceIds)
+                    ->get();
+                foreach ($invoices as $invoice) {
+                    $partialAmount = $invoice->partial_paid_amount ?? [];
+                    unset($partialAmount[$payment->id]); // Remove payment for this receipt
+                    $invoice->partial_paid_amount = $partialAmount;
+                    if (count($partialAmount) < 1) {
+                        $invoice->status = 0; // Unpaid if no payments remain
+                    } else {
+                        $invoice->status = 3; // Partially Paid if some payments remain
                     }
                     $invoice->save();
                 }

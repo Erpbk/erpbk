@@ -10,6 +10,14 @@ use Illuminate\Support\Facades\Schema;
 
 class UpdateBikesRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $v = $this->input('leased_return_company_id');
+        if ($v === '' || $v === null) {
+            $this->merge(['leased_return_company_id' => null]);
+        }
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -30,6 +38,11 @@ class UpdateBikesRequest extends FormRequest
         $rules = Bikes::$rules;
 
         $bikeColumns = array_flip(Schema::getColumnListing('bikes'));
+
+        if (!isset($bikeColumns['leased_return_company_id'])) {
+            unset($rules['leased_return_company_id']);
+        }
+
         $assignmentTable = (new BikeFieldCategoryAssignment())->getTable();
 
         $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
@@ -84,12 +97,15 @@ class UpdateBikesRequest extends FormRequest
             $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
         }
 
-        BikeCustomField::query()
-            ->where('is_mandatory', 1)
-            ->get(['id'])
-            ->each(function ($field) use (&$rules) {
-                $rules['custom_field_values.' . $field->id] = 'required';
+        $mandatoryCustomQuery = BikeCustomField::query()->where('is_mandatory', 1);
+        if (Schema::hasColumn('bike_custom_fields', 'is_visible')) {
+            $mandatoryCustomQuery->where(function ($q) {
+                $q->where('is_visible', true)->orWhereNull('is_visible');
             });
+        }
+        $mandatoryCustomQuery->get(['id'])->each(function ($field) use (&$rules) {
+            $rules['custom_field_values.' . $field->id] = 'required';
+        });
 
         // Bike-specific: cyclist vehicle type disables some required fields
         $vehicleTypeId = $this->input('vehicle_type');

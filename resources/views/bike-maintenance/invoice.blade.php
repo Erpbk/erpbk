@@ -16,27 +16,26 @@
             width: 850px;
             margin: auto;
             padding: 10px;
-            border: 1px solid #000;
         }
 
-        table {
+        .invoice-box table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 8px;
         }
 
-        th, td {
+        .invoice-box th, .invoice-box td {
             border: 1px solid #000;
             padding: 4px 6px;
             font-size: 12px;
         }
 
-        th {
+        .invoice-box th {
             background: #d9e1f2;
             font-weight: bold;
         }
 
-        td.num {
+        .invoice-box td.num {
             text-align: right;
         }
 
@@ -45,25 +44,25 @@
             padding: 3px 6px;
         }
 
-        .primary-header {
+        .invoice-box .primary-header {
             background: #211c1d;
             color: white;
             font-weight: bold;
         }
 
-        .secondary-header {
+        .invoice-box .secondary-header {
             background: #004aad;
             color: white;
             font-weight: bold;
         }
 
-        .accent-total {
+        .invoice-box .accent-total {
             background: #5271ff;
             color: white;
             font-weight: bold;
         }
 
-        .light-header {
+        .invoice-box .light-header {
             background: #e6f1ff;
             color: #004aad;
             font-weight: bold;
@@ -81,20 +80,8 @@
             padding: 8px;
         }
 
-        .print-btn {
-            background: #004aad;
-            color: #fff;
-            border: none;
-            padding: 8px 12px;
-            font-size: 12px;
-            cursor: pointer;
-            border-radius: 3px;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .print-btn:hover {
-            background: #2A62FF;
+        .invoice-box .footer {
+            display: none;
         }
 
         @media print {
@@ -116,19 +103,46 @@
                 border: none !important;
                 box-sizing: border-box !important;
             }
+
+            .invoice-box .footer {
+                display: block;
+            }
+        }
+
+        /* ----- PRINT BUTTONS & CONTROLS (supplier style) ----- */
+        .print-btn {
+            background: #004aad;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 6px;
+            text-decoration: none;
+            display: inline-block;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+        .print-btn:hover {
+            background: #2A62FF;
         }
         
         .controls {
-            position: fixed;
+            position: sticky;
             top: 10px;
-            right: 10px;
-            z-index: 9999;
+            z-index: 100;
             display: flex;
-            gap: 10px;
+            gap: 12px;
             background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            padding: 10px 20px;
+            border-radius: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            width: 95%;
+            justify-self: center;
+            margin-left: auto;
+            margin-right: auto;
+            justify-content: flex-end;
         }
         
         .maintenance-details {
@@ -188,31 +202,29 @@
 </head>
 <body>
     <div class="controls no-print">
-        <button type="button" class="print-btn" onclick="window.print()">Print</button>
-        <a href="{{ route('bikeMaintenance.index') }}" class="print-btn">Back to List</a>
+        <button type="button" class="print-btn" onclick="printModalContent()">Print</button>
     </div>
 
     <div class="invoice-box">
         <!-- Header Table -->
         @php
-        $settings = DB::table('settings')->pluck('value', 'name')->toArray();
+        $settings = company_table('settings')->pluck('value', 'name')->toArray();
         @endphp
         <table width="100%" style="font-family: sans-serif;">
             <tr>
                 <td width="33.33%" style=" border: none !important;">
-                    @if(!empty($companyLogoUrl))
-                    <img src="{{ $companyLogoUrl }}" width="150" />
-                    @else
-                    <h3>{{ $settings['company_name'] ?? 'Company Name' }}</h3>
+                    @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
+                        <img src="{{ Storage::url($settings['company_logo']) }}" width="150" alt="logo" />
                     @endif
                 </td>
-                <td width="33.33%" style="text-align: center;  border: none !important;">
-                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px;">{{ $settings['company_name'] ?? 'Company Name' }}</h4>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{ $settings['company_address'] ?? 'Company Address' }}</p>
-                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TRN {{ $settings['vat_number'] ?? 'TRN Number' }}</p>
+                <td width="33.33%" style="text-align: center; align-content: center; border: none !important;">
+                    <h4 style="margin-bottom: 10px;margin-top: 5px;font-size: 14px; font-weight: bold;">{{ ucwords($settings['company_name']) ?? 'Company Name' }}</h4>
+                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">{{ ucwords($settings['company_address']) ?? 'Company Address' }}</p>
+                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TEL: {{ $settings['company_phone'] ?? 'Company Contact' }}</p>
+                    <p style="margin-bottom: 5px;font-size: 14px;margin-top: 5px;">TRN: {{ $settings['vat_number'] ?? 'TRN Number' }}</p>
                 </td>
-                <td width="33.33%" style="text-align: center;  border: none !important;">
-                    <h3 style="margin: 0; font-weight: bold;">Maintenance Bill</h3>
+                <td width="33.33%" style="text-align: center; align-content: center; border: none !important;">
+                    <h3 style="margin: 0; font-weight: 600; color: #004aad; font-size: 20px;">Maintenance Bill</h3>
                 </td>
             </tr>
         </table>
@@ -227,6 +239,7 @@
                 <div style="display: grid; grid-template-columns: 100px 1fr; gap: 8px; align-items: center;">
                     <div style="font-weight: 600; color: #555;">Bike:</div>
                     <div>{{ $maintenance->bike->emirates }}-{{ $maintenance->bike->plate }}</div>
+                    @if($maintenance->rider_id)
                     <div style="font-weight: 600; color: #555;">Leasing Company:</div>
                     <div>{{ $maintenance->bike->LeasingCompany->name ?? '' }}</div>
                     <div style="font-weight: 600; color: #555;">Rider:</div>
@@ -237,6 +250,14 @@
                     <div>{{ $maintenance->bike->rider ? $maintenance->bike->rider->company_contact : '' }}</div>
                     <div style="font-weight: 600; color: #555;">Garage:</div>
                     <div>{{ $maintenance->garage ? $maintenance->garage->name : '' }}</div>
+                    @else
+                    <div style="font-weight: 600; color: #555;">User:</div>
+                    <div>{{ $maintenance->rentalCompany->name ?? '' }}</div>
+                    <div style="font-weight: 600; color: #555;">User Contact:</div>
+                    <div>{{ $maintenance->bike->rider ? $maintenance->rentalCompany->company_contact : '' }}</div>
+                    <div style="font-weight: 600; color: #555;">Address:</div>
+                    <div>{{ $maintenance->garage ? $maintenance->rentalCompany->address : '' }}</div>
+                    @endif
                 </div>
             </div>
             
@@ -310,8 +331,8 @@
             </div>
             @if($maintenance->overdue_km > 0)
                 <div class="detail-item">
-                    <span class="detail-label">Overdue Cost Paid By:</span>
-                    <span class="detail-value">{{ $maintenance->overdue_paidby ?? 'Not Charged' }}</span>
+                    <span class="detail-label">Overdue KM:</span>
+                    <span class="detail-value">{{ $maintenance->overdue_km  }}</span>
                 </div>
             @else
                 <div class="detail-item">
@@ -322,92 +343,79 @@
                 <span class="detail-value">{{ number_format($maintenance_km + $maintenance->current_km, 2) }} KM</span>
             </div>
         </div>
-        @php
-            $overdue_cost = $maintenance->overdue_km??0*$maintenance->overdue_cost_per_km??0;
-            $overdue = ($maintenance->overdue_paidby == 'Rider');
-        @endphp
 
         <!-- Maintenance Items Table -->
         @if($maintenance->maintenanceItems->count() > 0)
-        <table>
-            <tr>
-                <th class="secondary-header">Item</th>
-                <th class="secondary-header">Description</th>
-                <th class="secondary-header">Quantity</th>
-                <th class="secondary-header">Rate ({{ \App\Helpers\Currency::code() }})</th>
-                <th class="secondary-header">Discount</th>
-                <th class="secondary-header">VAT(%)</th>
-                <th class="secondary-header">Total ({{ \App\Helpers\Currency::code() }})</th>
-            </tr>
-            @php
-                $riderItems = $maintenance->maintenanceItems->where('charge_to','Rider');
-                $companyItems = $maintenance->maintenanceItems->where('charge_to','Company');
-            @endphp
-            <tr>
-                <td colspan="7" style="text-align: center; font-weight: bold;">Rider Items</td>
-            </tr>
-            <tr>
-                <td>Overdue cost {{ $overdue? '' : '(Not Charged)' }}</td>
-                <td>Rider late for maintenance</td>
-                <td style="text-align: right;">{{ number_format($maintenance->overdue_km, 2) }} KM</td>
-                <td class="num">{{ number_format($maintenance->overdue_cost_per_km, 2) }}</td>
-                <td class="num">0</td>
-                <td class="num">0</td>
-                <td class="num">{{ number_format($overdue_cost, 2) }}</td>
-            </tr>
-            @if($riderItems->count() > 0)
-                @foreach($riderItems as $item)
+            <table>
                 <tr>
-                    <td>{{ $item->item_name }}</td>
-                    <td>{{ $item->item->description ?? 'Maintenance Item' }}</td>
-                    <td class="num">{{ number_format($item->quantity, 2) }}</td>
-                    <td class="num">{{ number_format($item->rate, 2) }}</td>
-                    <td class="num">{{ number_format($item->discount, 2) }}</td>
-                    <td class="num">{{ number_format($item->vat, 2) }}</td>
-                    <td class="num">{{ number_format($item->total_amount, 2) }}</td>
+                    <th class="secondary-header">Item</th>
+                    <th class="secondary-header">Description</th>
+                    <th class="secondary-header">Quantity</th>
+                    <th class="secondary-header">Rate ({{ \App\Helpers\Currency::code() }})</th>
+                    <th class="secondary-header">Discount</th>
+                    <th class="secondary-header">VAT(%)</th>
+                    <th class="secondary-header">Total ({{ \App\Helpers\Currency::code() }})</th>
                 </tr>
-                @endforeach
-            @endif
-            <tr>
-                <td colspan="6" style="text-align: right; padding: 8px;"><strong>SUBTOTAL</strong></td>
-                <td class="num" style="padding: 8px; font-size: 14px;">
-                    <strong>{{ number_format($riderItems->sum('total_amount') + ($overdue? $overdue_cost : 0), 2) }}</strong>
-                </td>
-            </tr>
-            @if($companyItems->count() > 0)
-                <tr>
-                    <td colspan="7" style="text-align: center; font-weight: bold;">Company Items</td>
-                </tr>
-                @foreach($companyItems as $item)
-                <tr>
-                    <td>{{ $item->item_name }}</td>
-                    <td>{{ $item->item->description ?? 'Maintenance Item' }}</td>
-                    <td class="num">{{ number_format($item->quantity, 2) }}</td>
-                    <td class="num">{{ number_format($item->rate, 2) }}</td>
-                    <td class="num">{{ number_format($item->discount, 2) }}</td>
-                    <td class="num">{{ number_format($item->vat, 2) }}</td>
-                    <td class="num">{{ number_format($item->total_amount, 2) }}</td>
-                </tr>
-                @endforeach
-                <tr>
-                    <td colspan="6" style="text-align: right; padding: 8px;"><strong>SUBTOTAL</strong></td>
-                    <td class="num" style="padding: 8px; font-size: 14px;">
-                        <strong>{{ number_format($companyItems->sum('total_amount'), 2) }}</strong>
-                    </td>
-                </tr>
-            @endif
-        </table>
+                @php
+                    $riderItems = $maintenance->maintenanceItems->where('charge_to','User');
+                    $companyItems = $maintenance->maintenanceItems->where('charge_to','Company');
+                @endphp
+                @if($riderItems->count() > 0)
+                    <tr>
+                        <td colspan="7" style="text-align: center; font-weight: bold;">User Items</td>
+                    </tr>
+                    @foreach($riderItems as $item)
+                    <tr>
+                        <td>{{ $item->item_name }}</td>
+                        <td>{{ $item->item->description ?? 'Maintenance Item' }}</td>
+                        <td class="num">{{ number_format($item->quantity, 2) }}</td>
+                        <td class="num">{{ number_format($item->rate, 2) }}</td>
+                        <td class="num">{{ number_format($item->discount, 2) }}</td>
+                        <td class="num">{{ number_format($item->vat, 2) }}</td>
+                        <td class="num">{{ $item->total_amount }}</td>
+                    </tr>
+                    @endforeach
+                    <tr>
+                        <td colspan="6" style="text-align: right; padding: 8px;"><strong>SUBTOTAL</strong></td>
+                        <td class="num" style="padding: 8px; font-size: 14px;">
+                            <strong>{{ number_format($riderItems->sum('total_amount'), 2) }}</strong>
+                        </td>
+                    </tr>
+                @endif
+                @if($companyItems->count() > 0)
+                    <tr>
+                        <td colspan="7" style="text-align: center; font-weight: bold;">Company Items</td>
+                    </tr>
+                    @foreach($companyItems as $item)
+                    <tr>
+                        <td>{{ $item->item_name }}</td>
+                        <td>{{ $item->item->description ?? 'Maintenance Item' }}</td>
+                        <td class="num">{{ number_format($item->quantity, 2) }}</td>
+                        <td class="num">{{ number_format($item->rate, 2) }}</td>
+                        <td class="num">{{ number_format($item->discount, 2) }}</td>
+                        <td class="num">{{ number_format($item->vat, 2) }}</td>
+                        <td class="num">{{ $item->total_amount }}</td>
+                    </tr>
+                    @endforeach
+                    <tr>
+                        <td colspan="6" style="text-align: right; padding: 8px;"><strong>SUBTOTAL</strong></td>
+                        <td class="num" style="padding: 8px; font-size: 14px;">
+                            <strong>{{ number_format($companyItems->sum('total_amount'), 2) }}</strong>
+                        </td>
+                    </tr>
+                @endif
+            </table>
         @else
-        <div style="text-align: center; padding: 20px; background: #f9f9f9; border: 1px solid #ddd;">
-            <p style="margin: 0;">No maintenance items recorded</p>
-        </div>
+            <div style="text-align: center; padding: 20px; background: #f9f9f9; border: 1px solid #ddd;">
+                <p style="margin: 0;">No maintenance items recorded</p>
+            </div>
         @endif
 
         <!-- Grand Total -->
         <div style="margin-top: 20px; text-align: right;">
             <div style="display: inline-block; padding: 15px; background: #004aad; color: white; border-radius: 5px;">
                 <div style="font-size: 16px; margin-bottom: 5px; text-align: center;">Grand Total</div>
-                <div style="font-size: 24px; font-weight: bold;">{{ \App\Helpers\Currency::format($maintenance->total_cost + ($overdue ? $overdue_cost:0), 2) }}</div>
+                <div style="font-size: 24px; font-weight: bold;">{{ \App\Helpers\Currency::format($maintenance->total_cost, 2) }}</div>
             </div>
         </div>
 
@@ -427,7 +435,7 @@
         </div>
         @endif
 
-        <!-- Signature Section -->
+        {{-- <!-- Signature Section -->
         <div style="margin-top: 30px; padding-top: 15px;">
             <table style="width: 100%; border: none;">
                 <tr>
@@ -440,10 +448,9 @@
                     </td>
                 </tr>
             </table>
-        </div>
-
-        <div style="margin-top: 20px; text-align: center; font-size: 11px; color: #666;">
-            <p>Thank you for your business!</p>
+        </div> --}}
+        <div class="" style="height: 20px;"></div>
+        <div class="footer" style="position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 11px; color: #5b6e8c; border-top: 1px solid #e2e8f0; padding-top: 16px; padding-bottom: 0px; background: white; width: 100%; z-index: 1000;">
             <p>For any queries, please contact: {{ $settings['company_phone'] ?? 'Company Phone' }} | {{ $settings['company_email'] ?? 'Company Email' }}</p>
         </div>
     </div>

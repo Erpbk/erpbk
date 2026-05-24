@@ -14,7 +14,7 @@
                 <div class="form-group">
                     <label for="unassignedRiders">Select Riders to Assign (Click to assign immediately)</label>
                     <select multiple class="form-control from-select select2" id="unassignedRiders" name="rider_ids[]" style="width: 100%;">
-                        @foreach (DB::table('riders')->where('recuriter' , null)->get() as $r)
+                        @foreach (company_table('riders')->where('recuriter' , null)->get() as $r)
                         <option value="{{ $r->id }}">{{ $r->rider_id }}-{{ $r->name }}</option>
                         @endforeach
                     </select>

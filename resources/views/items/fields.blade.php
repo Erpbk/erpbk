@@ -29,21 +29,33 @@
                 {!! Form::label('margin', 'Margin %:') !!}
                 {!! Form::number('margin', null, ['class' => 'form-control margin-input', 'step'=>'any', 'id' => 'margin_input', 'readonly' => true]) !!}
             </div>
-
             <!-- Vat Field -->
             <div class="form-group col-sm-2">
                 {!! Form::label('vat', 'VAT(%):') !!}
                 {!! Form::number('vat', null, ['class' => 'form-control','step'=>'any']) !!}
             </div>
-
+            <div class="col-sm-6"></div>
             <!-- Status Field -->
-            <div class="form-group col-sm-5 mt-3">
+            <div class="form-group col-sm-2 mt-3">
                 <label>Status</label>
                 <div class="status-toggle-container">
                     <input type="hidden" name="status" value="2"/>
                     <label class="toggle-switch">
                         <input type="checkbox" name="status" id="status" value="1" 
                             @isset($items) @if($items->status == 1) checked @endif @else checked @endisset/>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Maintain Inventory Field -->
+            <div class="form-group col-sm-3 mt-3">
+                <label>Maintain Inventory</label>
+                <div class="status-toggle-container">
+                    <input type="hidden" name="is_maintained" value="{{ false }}"/>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="is_maintained" id="" value="1" 
+                            @isset($items) @if($items->is_maintained == 1) checked @endif @endisset/>
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
@@ -133,28 +145,6 @@ $(document).ready(function () {
     
     // Initial calculation in edit mode
     calculateMargin();
-    
-    // Update status label
-    function updateStatusLabel() {
-        const $checkbox = $('#status');
-        const $label = $('#statusLabel');
-        
-        if ($checkbox.is(':checked')) {
-            $label.text('Active');
-            $label.removeClass('inactive').addClass('active');
-        } else {
-            $label.text('Inactive');
-            $label.removeClass('active').addClass('inactive');
-        }
-    }
-    
-    // Initial update
-    updateStatusLabel();
-    
-    // Bind change event
-    $('#status').on('change', function() {
-        updateStatusLabel();
-    });
     
     // Array to store selected owners
     let selectedOwners = [];
@@ -506,24 +496,6 @@ $(document).ready(function () {
             
             .toggle-switch input:focus + .toggle-slider {
                 box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
-            }
-            
-            .status-label {
-                font-size: 14px;
-                font-weight: 500;
-                padding: 4px 12px;
-                border-radius: 20px;
-                transition: all 0.3s ease;
-            }
-            
-            .status-label.active {
-                background-color: #d4edda;
-                color: #155724;
-            }
-            
-            .status-label.inactive {
-                background-color: #f8d7da;
-                color: #721c24;
             }
         `)
         .appendTo('head');

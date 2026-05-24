@@ -18,7 +18,7 @@
         @forelse($data as $invoice)
             <tr class="text-center">
                 <td>{{ $invoice->id }}</td>
-                <td>{{ $invoice->invoice_number ?? 'SIMI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT) }}</td>
+                <td><a href="javascript:void(0);" data-action="{{ route('simInvoices.show', $invoice->id) }}" class="show-modal-right">{{ $invoice->invoice_number ?? 'SIMI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT) }}</a></td>
                 <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
                 <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
                 <td>{{ $invoice->vendor->name ?? '-' }}</td>
@@ -39,11 +39,6 @@
                             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
-                            @can('sim_invoice_view')
-                                <a href="{{ route('simInvoices.show', $invoice->id) }}" class='dropdown-item waves-effect' target="_blank">
-                                    <i class="fa fa-eye mx-1"></i> View
-                                </a>
-                            @endcan
                             @can('sim_invoice_edit')
                                 <a href="javascript:void(0);" data-action="{{ route('simInvoices.edit', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Invoice">
                                     <i class="fa fa-edit mx-1"></i> Edit

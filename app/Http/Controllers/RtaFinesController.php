@@ -10,6 +10,8 @@ use App\Http\Requests\UpdateRtaFinesRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Bikes;
 use App\Models\Riders;
+use App\Models\Banks;
+use App\Models\BikeRentCompany;
 use App\Models\RtaFines;
 use App\Models\Accounts;
 use App\Models\Vouchers;
@@ -20,8 +22,10 @@ use App\Repositories\RtaFinesRepository;
 use App\Services\TransactionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
+use App\Helpers\HeadAccount;
 use Flash;
 use DB;
 use App\Imports\RTAFineImport;
@@ -30,7 +34,7 @@ use App\Helpers\HeadAccount;
 
 class RtaFinesController extends AppBaseController
 {
-    use GlobalPagination, TracksCascadingDeletions;
+    use AppliesModuleTopBarFilters, GlobalPagination, TracksCascadingDeletions;
     /** @var RtaFinesRepository $rtaFinesRepository*/
     private $rtaFinesRepository;
 
@@ -83,15 +87,15 @@ class RtaFinesController extends AppBaseController
             ->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')
             ->orderBy('id', 'asc')
             ->first();
-
         $selectedAccountId = $request->input('rta_account_id')
             ?? session('rta_selected_account_id')
             ?? $defaultAccount?->id;
-
+        \Log::info('selectedAccountId: ' . $selectedAccountId);
         $query = RtaFines::query()
             ->with('branch')
-            ->orderBy('id', 'asc')
-            ->where('status', $status);
+            ->orderBy('trip_date', 'desc');
+
+        $query->where('status', $status);
 
         if ($selectedAccountId) {
             $query->where('rta_account_id', $selectedAccountId);
@@ -121,10 +125,13 @@ class RtaFinesController extends AppBaseController
         if ($request->filled('bike_id')) {
             $query->where('bike_id', $request->bike_id);
         }
+
+        $topBarModuleKey = $status === 'paid' ? 'rta_fines_paid' : 'rta_fines_unpaid';
+        $this->applyModuleTopBarFilters($query, $request, $topBarModuleKey);
+
         // Paginated data
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
-
         // All matching (filtered) data to calculate totals
         $filteredData = $query->get();
 
@@ -165,7 +172,7 @@ class RtaFinesController extends AppBaseController
                 ]
             ]);
         }
-        return view('rta_fines.index', [
+        return view('rta_fines.index', array_merge([
             'data' => $data,
             'account' => $account,
             'ticketsRouteName' => $ticketsRouteName,
@@ -181,155 +188,159 @@ class RtaFinesController extends AppBaseController
             'serviceCharges' => $serviceCharges,
             'adminFee' => $adminFee,
             'total_Amount' => $total_Amount,
-        ]);
+        ], $this->moduleTopBarListingData($request, $topBarModuleKey)));
     }
 
     public function payfine(Request $request)
     {
         DB::beginTransaction();
-
+        $path = null;
+        $voucher = null;
         try {
 
             $fine = RtaFines::findOrFail($request->id);
-            $fine->pay_account = $request->account;
-
+            $creditAccount = Accounts::find($request->pay_account);
+            if (!$creditAccount)
+                throw new \Exception('Credit Account Not Found');
             if ($fine->status == 'paid') {
-                $fine->status = 'unpaid';
+                throw new \Exception('Fine is Already Paid.');
             } else {
+                $fine->pay_account = $request->pay_account;
                 $fine->status = 'paid';
-
                 // Determine payment type flag
-                $payment_type_flag = match ($request->payment_type) {
+                $payment_type_flag = match ($creditAccount->account_type) {
                     'Liability' => 1,
                     'Asset' => 0,
                     default => null,
                 };
 
                 // File Upload
-                $photo = $request->file('attach_file');
-                $docFile = $photo->store('fines/files', 'public');
-
-                if (!VoucherType::isCodeAllowedForModule($request->voucher_type ?? '', 'rta_fines')) {
-                    Flash::error('The selected voucher type is not assigned to the RTA Fines module. Please assign it in Voucher Settings.');
-                    return redirect()->back()->withInput();
+                if ($request->file('attachment')) {
+                    $photo = $request->file('attachment');
+                    $path = $photo->store('fines', 'public');
+                    $fine->attachment = $path;
                 }
-
-                // Narration
-                $remarks = $request->voucher_type === 'RFV' ? 'RTA Fine Voucher' : 'Journal Voucher';
-
                 $trans_code = Account::trans_code();
                 $TransactionService = new TransactionService();
 
-                $billingMonth = $fine->billing_month ?? date('Y-m-01');
+                $billingMonth = $fine->billing_month;
                 $transDate = $fine->trans_date;
+                $credit = 0;
+                $profit = 0;
+                if ($creditAccount->account_type == 'Liability')
+                    $credit = $fine->total_amount;
+                else {
+                    $credit = $fine->total_amount - $fine->admin_fee - $fine->vat;
+                    $profit = $fine->admin_fee;
+                }
+                // Debit RTA Account
+                $TransactionService->recordTransaction([
+                    'account_id'     => HeadAccount::RTA_FINE,
+                    'reference_id'   => $fine->id,
+                    'reference_type' => 'RTA',
+                    'trans_code'     => $trans_code,
+                    'trans_date'     => $transDate,
+                    'narration'      => '(Payment) ' . $fine->detail ?? 'RTA Fine Payment',
+                    'debit'          => $fine->total_amount - $fine->vat,
+                    'billing_month'  => $billingMonth,
+                    'branch_id'      => $fine->branch_id
+                ]);
 
-                // Predefined Accounts (pull from config or DB)
-                $admin_fee_account_id = config('accounts.admin_fee_account_id', 302);
-                $service_charge_account_id = config('accounts.service_charge_account_id', 303);
-                // 1. Fine Amount
-                if ($fine->amount > 0) {
-                    // Debit RTA Account
+                if ($fine->vat > 0 && $creditAccount->account_type == 'Liability') {
                     $TransactionService->recordTransaction([
-                        'account_id'     => HeadAccount::RTA_FINE,
+                        'account_id'     => HeadAccount::VAT_PURCHASE_ACCOUNT,
                         'reference_id'   => $fine->id,
                         'reference_type' => 'RTA',
                         'trans_code'     => $trans_code,
-                        'trans_date'     => $transDate,
-                        'narration'      => $fine->detail ?? 'RTA Fine Payment',
-                        'debit'          => $fine->amount + $fine->service_charges + $fine->vat,
+                        'trans_date'     => $fine->trans_date,
+                        'narration'      => 'Service Charges VAT. ',
+                        'debit'          => $fine->vat,
                         'billing_month'  => $billingMonth,
-                        'branch_id'      => $fine->branch_id
+                        'branch_id'      => $fine->branch_id,
                     ]);
                 }
 
 
+                // Credit Selected Payment Account
+                $TransactionService->recordTransaction([
+                    'account_id'     => $creditAccount->id,
+                    'reference_id'   => $fine->id,
+                    'reference_type' => 'RTA',
+                    'trans_code'     => $trans_code,
+                    'trans_date'     => $transDate,
+                    'narration'      => '(Payment) ' . $fine->detail ?? 'RTA Fine Payment',
+                    'credit'         => $credit,
+                    'branch_id'      => $fine->branch_id,
+                    'billing_month'  => $billingMonth,
+                ]);
 
-                if ($fine->amount > 0) {
-
-                    // Credit Selected Payment Account
+                if ($profit > 0) {
+                    $adminAcc = Accounts::where('id', HeadAccount::RTA_ADMIN_CHARGES)->exists();
+                    if (!$adminAcc)
+                        throw new \Exception('Admin Charges (RTA Fines) Account not found');
                     $TransactionService->recordTransaction([
-                        'account_id'     => $request->account,
+                        'account_id'     => HeadAccount::RTA_ADMIN_CHARGES,
                         'reference_id'   => $fine->id,
                         'reference_type' => 'RTA',
                         'trans_code'     => $trans_code,
                         'trans_date'     => $transDate,
                         'narration'      => $fine->detail ?? 'RTA Fine Payment',
-                        'credit'         => $fine->amount + $fine->service_charges + $fine->vat,
+                        'credit'         => $profit,
                         'branch_id'      => $fine->branch_id,
                         'billing_month'  => $billingMonth,
                     ]);
                 }
 
                 // 4. Voucher
-                Vouchers::create([
-                    'rider_id'      => $request->rider_id,
+                $voucher = Vouchers::create([
+                    'rider_id'      => $fine->rider_id,
                     'trans_date'    => $transDate,
                     'trans_code'    => $trans_code,
-                    'trip_date'     => $request->trip_date,
+                    'trip_date'     => $fine->trip_date,
+                    'reference_number' => $fine->reference_number ?? '',
                     'billing_month' => $billingMonth,
                     'payment_type'  => $payment_type_flag,
-                    'voucher_type'  => $request->voucher_type,
-                    'remarks'       => $remarks,
+                    'voucher_type'  => 'RFV',
+                    'remarks'       => 'RTA Fine Payment Voucher',
                     'amount'        => $fine->total_amount,
-                    'Created_By'    => $request->Created_By,
-                    'attach_file'   => $docFile,
-                    'pay_account'   => $request->account,
+                    'Created_By'    => auth()->id(),
+                    'attach_file'   => $path,
+                    'payment_from'  => HeadAccount::RTA_FINE,
+                    'payment_to'    => $creditAccount->id,
                     'ref_id'        => $fine->id,
                     'branch_id'     => $fine->branch_id,
                     'custom_field_values' => $request->input('voucher_custom_fields', []),
                 ]);
-
-                // 5. Ledger Entry (Against Payment Account)
-                $total_amount = floatval($fine->total_amount);
-                $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
-                    ->where('account_id', $request->account)
-                    ->orderBy('billing_month', 'desc')
-                    ->first();
-
-                $opening_balance = $lastLedger ? $lastLedger->closing_balance : 0.00;
-                $debit_balance = $credit_balance = 0.00;
-
-                if ($payment_type_flag === 1) { // Liability
-                    $debit_balance = $total_amount;
-                    $closing_balance = $opening_balance + $total_amount;
-                } elseif ($payment_type_flag === 0) { // Asset
-                    $credit_balance = $total_amount;
-                    $closing_balance = $opening_balance - $total_amount;
-                } else {
-                    $closing_balance = $opening_balance;
-                }
-
-                \App\Support\CompanyQuery::insert('ledger_entries', [
-                    'account_id'      => $request->account,
-                    'billing_month'   => $billingMonth,
-                    'opening_balance' => $opening_balance,
-                    'debit_balance'   => $debit_balance,
-                    'credit_balance'  => $credit_balance,
-                    'closing_balance' => $closing_balance,
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
             }
-
+            $fine->paid_voucher_id = $voucher->id;
             $fine->save();
             DB::commit();
-
-            Flash::success('Fine Paid Successfully with Transaction and Ledger Entries.');
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Fine Paid Successfully', 'reload' => true], 200);
+            }
+            Flash::success('Fine Paid Successfully');
+            return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($path)
+                \Storage::delete($path);
+            \Log::error('error:', [$e->getMessage(), $e->getTrace()]);
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 500);
+            }
             Flash::error('Error: ' . $e->getMessage());
         }
-
-        return redirect(route('rtaFines.tickets'));
     }
-
-
-
-    public function viewvoucher($company_slug, $id)
+    public function payForm($company_slug, $id)
     {
-        $data = RtaFines::where('id', $id)->first();
-        $accounts = Accounts::where('id', $data->rta_account_id)->first();
-        return view('rta_fines.viewvoucher', compact('data', 'accounts'));
+        $fine = RtaFines::with(['rider', 'rentalCompany', 'voucher', 'bike.leasingCompany'])->where('id', $id)->first();
+        $debitAccount = Accounts::where('id', $fine->rta_account_id)->first();
+        $ids = Banks::active()->pluck('account_id');
+        $leasingId = $fine->bike->leasingCompany?->account_id ?? null;
+        if ($leasingId)
+            $ids[] = $leasingId;
+        $creditAccounts = Accounts::wherein('id', $ids)->get();
+        return view('rta_fines.viewvoucher', compact('fine', 'debitAccount', 'creditAccounts'));
     }
 
     /**
@@ -337,17 +348,15 @@ class RtaFinesController extends AppBaseController
      */
     public function create()
     {
-        $parentId = Accounts::where('name', 'Current Liabilities')->where('account_type', 'Liability')->first()->id;
-        $selectedAccountId = request('rta_account_id')
-            ?? session('rta_selected_account_id')
-            ?? Accounts::query()->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')->orderBy('id', 'asc')->value('id');
-        $data = Accounts::where('id', $selectedAccountId)->first();
-        $rtaAccounts = Accounts::query()
-            ->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')
-            ->orderBy('name', 'asc')
-            ->get();
-        $rtaFineAccount = Accounts::where('id', \App\Helpers\HeadAccount::RTA_FINE)->first();
-        return view('rta_fines.create', compact('data', 'rtaAccounts', 'rtaFineAccount'));
+        $rtaFineAccount = Accounts::where('id', HeadAccount::RTA_FINE)->first();
+        if (!$rtaFineAccount) {
+            return response()->json(['message' => 'Current Liabilities Account => RTA Fines, not found'], 500);
+        }
+        $bikes = Bikes::with(['leasingCompany', 'rider'])->get();
+        $riders = Riders::with(['account'])->get();
+        $companies = BikeRentCompany::with(['account'])->where('customer_type', 'bike_rental')->get();
+        $rtaFines = null;
+        return view('rta_fines.create', compact('bikes', 'riders', 'rtaFineAccount', 'companies', 'rtaFines'));
     }
     /**
      * Store a newly created RtaFines in storage.
@@ -359,172 +368,151 @@ class RtaFinesController extends AppBaseController
         if ($exists) {
             return response()->json(['errors' => ['error' => 'This Ticket Number already exists.']], 422);
         }
-
+        $path = null;
         DB::beginTransaction();
 
         try {
-            $admin_accounts = HeadAccount::RTA_ADMIN_CHARGES;
-            $service_accounts = HeadAccount::RTA_SERVICE_CHARGES;
-            $vat_accounts = HeadAccount::VAT_PURCHASE_ACCOUNT;
+            $vat_account = HeadAccount::VAT_ON_SALES;
             $input = $request->all();
             $bike = Bikes::findOrFail($input['bike_id']);
             $trans_code = Account::trans_code();
 
             // Upload file
-            $path = $request->file('attachment')->store('fines/files', 'public');
+            $path = $request->file('attachment_path')->store('fines', 'public');
 
             // Set values
             $input['billing_month']   = $input['billing_month'] . "-01";
-            $input['rider_id']        = $input['debit_account'];
-            $input['attachment']      = $request->file('attachment')->getClientOriginalName();
             $input['attachment_path'] = $path;
             $input['plate_no']        = $bike->plate;
             $input['trans_date']      = Carbon::today();
             $input['trans_code']      = $trans_code;
-            // amount column: admin_fee + service_charges + amount (fine amount)
-            $input['amount']          = ($request->amount ?? 0);
-            // total_amount column: service_charges + admin_fee + amount + vat
-            $input['total_amount']    = ($request->service_charges ?? 0) + ($request->admin_fee ?? 0) + ($request->amount ?? 0) + ($request->vat ?? 0);
             $input['status']          = 'unpaid';
-            $input['reference_number']        = $input['reference_number'];
             $input['branch_id']       = $bike->branch_id;
-            $input['rta_account_id']   = HeadAccount::RTA_FINE;
+
+            if (!empty($input['rider_id']) && !empty($input['rental_company_id'])) {
+                throw new \Exception('Either Select a Rider or Rental Company. Cannot Charge Both');
+            }
+
+            if (empty($input['rider_id']) && empty($input['rental_company_id'])) {
+                throw new \Exception('Either Select a Rider or Rental Company.');
+            }
+
             // Create RTA Fine
             $rtaFines = RtaFines::create($input);
+
 
             $TransactionService = new TransactionService();
             $billingMonth = $rtaFines->billing_month;
 
-            $rider_account = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $rtaFines->rider_id)->first();
-            // --- 1. Main Fine (Rider Debit - only amount, not including VAT) ---
+            $rider_account = $rtaFines->rider_id ? $rtaFines->rider->account_id : ($rtaFines->rental_company_id ? $rtaFines->rentalCompany->account_id : null);
+            $rta_account = HeadAccount::RTA_FINE;
+            if (!$rider_account)
+                throw new \Exception('Debit Account Not Found');
+
+            // --- 1. Main Fine (Rider Debit) ---
             $TransactionService->recordTransaction([
-                'account_id'     => $rider_account->id,
+                'account_id'     => $rider_account,
                 'reference_id'   => $rtaFines->id,
                 'reference_type' => 'RTA',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
-                'narration'      => $rtaFines->detail ?? 'RTA Fine',
-                'debit'          => $rtaFines->amount + $rtaFines->admin_fee + $rtaFines->service_charges, // Only amount (admin + service + fine), not including VAT
+                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
+                'debit'          => $rtaFines->total_amount,
                 'billing_month'  => $billingMonth,
                 'branch_id'      => $bike->branch_id,
             ]);
 
+            $TransactionService->recordTransaction([
+                'account_id'     => HeadAccount::RTA_FINE,
+                'reference_id'   => $rtaFines->id,
+                'reference_type' => 'RTA',
+                'trans_code'     => $trans_code,
+                'trans_date'     => $rtaFines->trans_date,
+                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
+                'credit'         => $rtaFines->total_amount - $rtaFines->vat,
+                'branch_id'      => $bike->branch_id,
+                'billing_month'  => $billingMonth,
+            ]);
 
-
-
-            // --- 3. Admin Charges ---
-            if ($request->admin_fee > 0) {
+            if ($rtaFines->vat > 0) {
                 $TransactionService->recordTransaction([
-                    'account_id'     => $admin_accounts,
+                    'account_id'     => $vat_account,
                     'reference_id'   => $rtaFines->id,
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => 'RTA Admin Charges',
-                    'credit'          => $request->admin_fee,
-                    'branch_id'      => $bike->branch_id,
-                    'billing_month'  => $billingMonth,
-                ]);
-            }
-
-            if ($request->vat > 0) {
-                $TransactionService->recordTransaction([
-                    'account_id'     => $vat_accounts,
-                    'reference_id'   => $rtaFines->id,
-                    'reference_type' => 'RTA',
-                    'trans_code'     => $trans_code,
-                    'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => 'VAT on RTA Fine Payment',
-                    'debit'         => $request->vat,
+                    'narration'      => 'Service Charges Vat. ',
+                    'credit'         => $rtaFines->vat,
                     'billing_month'  => $billingMonth,
                     'branch_id'      => $bike->branch_id,
-                ]);
-            }
-            if ($request->amount > 0) {
-                $TransactionService->recordTransaction([
-                    'account_id'     => HeadAccount::RTA_FINE,
-                    'reference_id'   => $rtaFines->id,
-                    'reference_type' => 'RTA',
-                    'trans_code'     => $trans_code,
-                    'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => $rtaFines->detail ?? 'RTA Fine Received',
-                    'credit'         => $rtaFines->amount + $rtaFines->service_charges + $request->vat, // Total amount including VAT
-                    'branch_id'      => $bike->branch_id,
-                    'billing_month'  => $billingMonth,
                 ]);
             }
             // --- Voucher ---
-            Vouchers::create([
-                'rider_id'      => $rtaFines->rider_id,
+            $voucher = Vouchers::create([
+                'rider_id'      => $rtaFines->rider_id ?? null,
                 'trans_date'    => $rtaFines->trans_date,
                 'trans_code'    => $rtaFines->trans_code,
                 'trip_date'     => $rtaFines->trip_date,
                 'billing_month' => $billingMonth,
                 'payment_type'  => 1,
                 'voucher_type'  => 'RFV',
-                'reference_number' => $rtaFines->reference_number,
+                'reference_number' => $rtaFines->reference_number ?? '',
                 'remarks'       => 'RTA Fine Voucher',
                 'amount'        => $rtaFines->total_amount,
                 'Created_By'    => auth()->id(),
                 'attach_file'   => $path,
-                'pay_account'   => $rider_account->id,
+                'payment_from'   => $rider_account,
+                'payment_to'    => $rta_account,
                 'ref_id'        => $rtaFines->id,
                 'branch_id'     => $bike->branch_id,
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
             ]);
-
-            // --- Ledger Entry (Rider - only amount, not including VAT) ---
-            $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
-                ->where('account_id', $rider_account->id)
-                ->orderBy('billing_month', 'desc')
-                ->first();
-
-            $opening_balance = $lastLedger ? $lastLedger->closing_balance : 0.00;
-            $debit_amount = $rtaFines->amount; // Only amount (admin + service + fine), not including VAT
-            $closing_balance = $opening_balance + $debit_amount;
-
-            \App\Support\CompanyQuery::insert('ledger_entries', [
-                'account_id'      => $rider_account->id,
-                'billing_month'   => $billingMonth,
-                'opening_balance' => $opening_balance,
-                'debit_balance'   => $debit_amount,
-                'credit_balance'  => 0.00,
-                'closing_balance' => $closing_balance,
-                'created_at'      => now(),
-                'updated_at'      => now(),
-            ]);
+            $rtaFines->update(['voucher_id' => $voucher->id]);
 
             DB::commit();
+            if ($request->ajax()) {
+                return response()->json(['message' => 'RTA Fine added successfully', 'reload' => true], 200);
+            }
             Flash::success('RTA Fine added successfully with all charges and ledger.');
-
-            return redirect(route('rtaFines.tickets'));
+            return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
             report($e);
+            if ($path) {
+                \Storage::delete($path);
+            }
             Flash::error('Error: ' . $e->getMessage());
-            return redirect()->back()->withInput();
+            return redirect()->back();
         }
     }
 
 
     public function fileUpload(Request $request, $company_slug, $id)
     {
-        $fines = RtaFines::find($id);
-
-        if ($request->hasFile('attachment_path')) {
-            $photo = $request->file('attachment_path');
-
-            // Store file in storage/app/public/fines/files
-            $docFile = $photo->store('fines/files', 'public');
-
-            // Save original name and stored path
-            $fines->attachment = $photo->getClientOriginalName();
-            $fines->attachment_path = $docFile;
-
-            $fines->save();
+        $fine = RtaFines::find($id);
+        if (!$fine) {
+            return response()->json(['message' => 'Fine Not Found'], 500);
         }
-
-        return view('rta_fines.attach_file', compact('id', 'fines'));
+        if ($request->isMethod('POST')) {
+            if ($request->hasFile('attachment_path')) {
+                $old = $fine->attachment_path;
+                $photo = $request->file('attachment_path');
+                $path = $photo->store('fines', 'public');
+                $fine->attachment_path = $path;
+                \Storage::delete($old);
+            }
+            if ($request->hasFile('attachment')) {
+                $old = $fine->attachment;
+                $photo = $request->file('attachment');
+                $path = $photo->store('fines', 'public');
+                $fine->attachment = $path;
+                \Storage::delete($old);
+            }
+            $fine->save();
+            return response()->json(['message' => 'File Uploaded Successfully', 'reload' => true], 200);
+        } else {
+            return view('rta_fines.attach_file', compact('id', 'fine'));
+        }
     }
 
     /**
@@ -532,37 +520,38 @@ class RtaFinesController extends AppBaseController
      */
     public function show($company_slug, $id)
     {
-        $rtaFines = $this->rtaFinesRepository->find($id);
+        $rtaFine = $this->rtaFinesRepository->find($id);
 
-        if (empty($rtaFines)) {
-            Flash::error('Rta Fines not found');
+        if (empty($rtaFine)) {
+            Flash::error('Rta Fine not found');
 
-            return redirect(route('rtaFines.index'));
+            return redirect()->back();
         }
 
-        return view('rta_fines.show')->with('rtaFines', $rtaFines);
+        return view('rta_fines.show', compact('rtaFine'));
     }
 
     /**
      * Show the form for editing the specified RtaFines.
      */
-    public function edit($company_slug, $id)
+    public function edit(Request $request, $company_slug, $id)
     {
 
         $rtaFines = $this->rtaFinesRepository->find($id);
-        $data = Accounts::where('id', $rtaFines->rta_account_id)->first();
-        $rtaAccounts = Accounts::query()
-            ->where('parent_id', 1235)
-            ->orderBy('name', 'asc')
-            ->get();
+        $bikes = Bikes::with(['leasingCompany', 'rider'])->get();
+        $riders = Riders::with(['account'])->get();
+        $companies = BikeRentCompany::with(['account'])->where('customer_type', 'bike_rental')->get();
         $rtaFineAccount = Accounts::where('id', \App\Helpers\HeadAccount::RTA_FINE)->first();
         if (empty($rtaFines)) {
-            Flash::error('Rta Fines not found');
+            if ($request->ajax()) {
+                return response()->json(['message' => 'RTA Fine Not Found'], 500);
+            }
+            Flash::error('Rta Fine not found');
 
-            return redirect(route('rtaFines.index'));
+            return redirect()->back();
         }
 
-        return view('rta_fines.edit', compact('data', 'rtaFines', 'rtaAccounts', 'rtaFineAccount'));
+        return view('rta_fines.edit', compact('bikes', 'rtaFines', 'riders', 'rtaFineAccount', 'companies'));
     }
 
     /**
@@ -579,343 +568,124 @@ class RtaFinesController extends AppBaseController
         if ($exists) {
             return response()->json(['errors' => ['error' => 'This Ticket No is already used in another fine.']], 422);
         }
-
+        $id = $request->id;
+        $rtaFines = RtaFines::findOrFail($id);
+        $vat_account = HeadAccount::VAT_ON_SALES;
+        $rta_account = HeadAccount::RTA_FINE;
+        $path = $rtaFines->attachment_path;
+        $newPath = null;
         DB::beginTransaction();
 
         try {
-            $id = $request->id;
-            $admin_accounts   = HeadAccount::RTA_ADMIN_CHARGES;
-            $service_accounts = HeadAccount::RTA_SERVICE_CHARGES;
-
             $input = $request->all();
             $bike  = Bikes::findOrFail($input['bike_id']);
-            $rta_account = \App\Support\CompanyQuery::table('rta_fines')->where('id', $request->id)->first();
-            $rtaFines = RtaFines::findOrFail($id);
             $rider = \App\Support\CompanyQuery::table('riders')->where('id', $rtaFines->rider_id)->first();
 
             // Upload new file if provided
             if ($request->hasFile('attachment')) {
-                $path = $request->file('attachment')->store('fines/files', 'public');
-                $input['attachment'] = $request->file('attachment')->getClientOriginalName();
-                $input['attachment_path'] = $path;
-            } else {
-                $path = $rtaFines->attachment_path;
+                $newPath = $request->file('attachment')->store('fines', 'public');
+                $input['attachment_path'] = $newPath;
             }
 
             // Update fields
-            $input['billing_month']   = Carbon::createFromFormat('Y-m', $input['billing_month'])->startOfMonth()->format('Y-m-d');
-            $input['rider_id']        = $input['debit_account'];
+            $input['billing_month']   = $input['billing_month'] . '-01';
             $input['plate_no']        = $bike->plate;
             $input['trans_date']      = Carbon::today()->format('Y-m-d');
-            $input['total_amount']    = ($request->amount ?? 0) + ($request->service_charges ?? 0) + ($request->admin_fee ?? 0) + ($request->vat ?? 0);
-            $input['rta_account_id']  = $request->rta_account_id;
             $input['branch_id']       = $bike->branch_id;
 
             $rtaFines->update($input);
             $trans_code    = $rtaFines->trans_code;
             $billingMonth  = $rtaFines->billing_month;
             /*
-        |--------------------------------------------------------------------------
-        | Transactions (update only)
-        |--------------------------------------------------------------------------
-        */
-            $rider_account = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $rtaFines->rider_id)->first();
-            $this->upsertTransaction(
-                [
-                    'account_id'     => $rider_account->id,
-                    'reference_id'   => $rtaFines->id,
-                    'reference_type' => 'RTA',
-                    'trans_code'     => $trans_code,
-                    'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => $rtaFines->detail ?? 'RTA Fine',
-                    'debit'          => $rtaFines->total_amount,
-                    'credit'         => 0,
-                    'billing_month'  => $billingMonth,
-                    'branch_id'      => $rtaFines->branch_id,
-                ],
-                $rtaFines->rider_id
-            );
+            |--------------------------------------------------------------------------
+            | Transactions (update only)
+            |--------------------------------------------------------------------------
+            */
+            $rider_account = $rtaFines->rider_id ? $rtaFines->rider->account_id : ($rtaFines->rental_company_id ? $rtaFines->rentalCompany->account_id : null);
+            if (!$rider_account)
+                throw new \Exception('Debit Account Not Found');
 
-            if ($request->admin_fee > 0) {
-                $this->upsertTransaction2([
-                    'account_id'     => $admin_accounts,
+            Transactions::where('trans_code', $trans_code)->delete();
+            $TransactionService = new TransactionService();
+            // --- 1. Main Fine (Rider Debit) ---
+            $TransactionService->recordTransaction([
+                'account_id'     => $rider_account,
+                'reference_id'   => $rtaFines->id,
+                'reference_type' => 'RTA',
+                'trans_code'     => $trans_code,
+                'trans_date'     => $rtaFines->trans_date,
+                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
+                'debit'          => $rtaFines->total_amount,
+                'billing_month'  => $billingMonth,
+                'branch_id'      => $bike->branch_id,
+            ]);
+
+            $TransactionService->recordTransaction([
+                'account_id'     => HeadAccount::RTA_FINE,
+                'reference_id'   => $rtaFines->id,
+                'reference_type' => 'RTA',
+                'trans_code'     => $trans_code,
+                'trans_date'     => $rtaFines->trans_date,
+                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
+                'credit'         => $rtaFines->total_amount - $rtaFines->vat,
+                'branch_id'      => $bike->branch_id,
+                'billing_month'  => $billingMonth,
+            ]);
+
+            if ($rtaFines->vat > 0) {
+                $TransactionService->recordTransaction([
+                    'account_id'     => $vat_account,
                     'reference_id'   => $rtaFines->id,
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => 'RTA Admin Charges',
-                    'debit'          => 0,
-                    'credit'         => $request->admin_fee,
-                    'branch_id'      => $rtaFines->branch_id,
+                    'narration'      => 'Service Charges Vat. ',
+                    'credit'         => $rtaFines->vat,
                     'billing_month'  => $billingMonth,
+                    'branch_id'      => $bike->branch_id,
                 ]);
             }
-            if ($request->vat > 0) {
-                $this->upsertTransaction4([
-                    'account_id'     => HeadAccount::VAT_PURCHASE_ACCOUNT,
-                    'reference_id'   => $rtaFines->id,
-                    'reference_type' => 'RTA',
-                    'trans_code'     => $trans_code,
-                    'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => 'VAT on RTA Fine Payment',
-                    'debit'         => $request->vat,
-                    'billing_month'  => $billingMonth,
-                    'branch_id'      => $rtaFines->branch_id,
-                ]);
-            }
-
-            $this->upsertTransaction3(
-                [
-                    'account_id'     => HeadAccount::RTA_FINE,
-                    'reference_id'   => $request->id,
-                    'reference_type' => 'RTA',
-                    'trans_code'     => $trans_code,
-                    'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => $request->detail ?? 'RTA Fine Received',
-                    'debit'          => 0,
-                    'credit'         => $rtaFines->amount + $rtaFines->service_charges + $request->vat,
-                    'branch_id'      => $rtaFines->branch_id,
-                    'billing_month'  => $billingMonth,
-                ],
-                HeadAccount::RTA_FINE
-            );
-
             /*
-        |--------------------------------------------------------------------------
-        | Voucher (update instead of insert)
-        | Update all vouchers related to this fine (both unpaid RFV and paid RFV/JV)
-        |--------------------------------------------------------------------------
-        */
-            // Update unpaid voucher (RFV type created during fine creation)
-            // This voucher has the same trans_code as the fine
-            $unpaidVoucher = Vouchers::where('ref_id', $rtaFines->id)
-                ->where('voucher_type', 'RFV')
-                ->where('trans_code', $trans_code)
-                ->first();
+            |--------------------------------------------------------------------------
+            | Voucher (update instead of insert)
+            | Update all vouchers related to this fine (both unpaid RFV and paid RFV/JV)
+            |--------------------------------------------------------------------------
+            */
+            // Update voucher (RFV type created during fine creation)
 
-            if ($unpaidVoucher) {
-                $unpaidVoucher->update([
-                    'rider_id'      => $rtaFines->rider_id,
-                    'trans_date'    => $rtaFines->trans_date,
-                    'trans_code'    => $trans_code,
-                    'trip_date'     => $request->trip_date,
-                    'billing_month' => $billingMonth,
-                    'payment_type'  => 1,
-                    'reference_number' => $rtaFines->reference_number,
-                    'remarks'       => 'RTA Fine Voucher',
-                    'amount'        => $rtaFines->total_amount,
-                    'attach_file'   => $path,
-                    'pay_account'   => $rider_account->id,
-                    'branch_id'      => $rtaFines->branch_id,
-                    'Updated_By'    => auth()->id(),
-                ]);
-            }
-
-            // Update paid voucher (RFV or JV type created during payment)
-            // Paid voucher has a different trans_code (generated during payment)
-            $paidVouchers = Vouchers::where('ref_id', $rtaFines->id)
-                ->where('trans_code', '!=', $trans_code)
-                ->get();
-
-            // Update all paid vouchers if they exist
-            foreach ($paidVouchers as $paidVoucher) {
-                $paidVoucher->update([
-                    'rider_id'      => $rtaFines->rider_id,
-                    'trans_date'    => $rtaFines->trans_date,
-                    'trip_date'     => $request->trip_date,
-                    'billing_month' => $billingMonth,
-                    'reference_number' => $rtaFines->reference_number,
-                    'amount'        => $rtaFines->total_amount,
-                    'branch_id'      => $rtaFines->branch_id,
-                    'attach_file'   => $path,
-                    'Updated_By'    => auth()->id(),
-                    // Preserve payment-specific fields: pay_account, payment_type, voucher_type, trans_code
-                ]);
-
-                // Update transactions for this paid voucher
-                $paidTransCode = $paidVoucher->trans_code;
-                $paidPaymentAccount = $paidVoucher->pay_account;
-
-                // Get service accounts (same as in payfine method)
-                $paidServiceAccounts = HeadAccount::RTA_SERVICE_CHARGES;
-
-                // Get all transactions for this paid voucher
-                $paidTransactions = \App\Support\CompanyQuery::table('transactions')
-                    ->where('trans_code', $paidTransCode)
-                    ->where('reference_id', $rtaFines->id)
-                    ->where('reference_type', 'RTA')
-                    ->get();
-
-                // Update each transaction based on its account type
-                foreach ($paidTransactions as $transaction) {
-                    $updateData = [
-                        'trans_date'    => $rtaFines->trans_date,
-                        'billing_month'  => $billingMonth,
-                        'branch_id'      => $rtaFines->branch_id,
-                        'updated_at'     => now(),
-                    ];
-
-                    // Check if this is the service charges transaction
-                    $serviceChargesAccountId = $paidServiceAccounts ? $paidServiceAccounts->id : null;
-                    $isServiceCharges = $serviceChargesAccountId && $transaction->account_id == $serviceChargesAccountId && $transaction->debit > 0;
-
-                    // Check if this is the RTA account transaction (debit, not service charges, not payment account)
-                    $isRtaAccount = $transaction->debit > 0 &&
-                        !$isServiceCharges &&
-                        $transaction->account_id != $paidPaymentAccount;
-
-                    // Check if this is the payment account transaction (credit)
-                    $isPaymentAccount = $transaction->account_id == $paidPaymentAccount && $transaction->credit > 0;
-
-                    if ($isRtaAccount) {
-                        // Update RTA account transaction
-                        $updateData['account_id'] = HeadAccount::RTA_FINE;
-                        $updateData['narration'] = $rtaFines->detail ?? 'RTA Fine Payment';
-                        $updateData['debit'] = $rtaFines->amount;
-                        $updateData['credit'] = 0;
-                    } elseif ($isServiceCharges && $rtaFines->service_charges > 0) {
-                        // Update service charges transaction
-                        $updateData['narration'] = $paidServiceAccounts->name . 'RTA Fine';
-                        $updateData['debit'] = $rtaFines->service_charges;
-                        $updateData['credit'] = 0;
-                    } elseif ($isPaymentAccount && $rtaFines->amount > 0) {
-                        // Update payment account transaction
-                        $updateData['narration'] = $rtaFines->detail ?? 'RTA Fine Payment';
-                        $updateData['debit'] = 0;
-                        $updateData['credit'] = $rtaFines->amount + $rtaFines->service_charges;
-                    } else {
-                        // Skip transactions that don't match our expected patterns
-                        continue;
-                    }
-
-                    \App\Support\CompanyQuery::table('transactions')
-                        ->where('id', $transaction->id)
-                        ->update($updateData);
-                }
-            }
-
-            /*
-        |--------------------------------------------------------------------------
-        | Ledger Update
-        |--------------------------------------------------------------------------
-        */
-            \App\Support\CompanyQuery::table('ledger_entries')
-                ->where('account_id', $rider_account->id)
-                ->where('billing_month', $billingMonth)
-                ->delete();
-
-            $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
-                ->where('account_id', $rider_account->id)
-                ->where('billing_month', '<', $billingMonth)
-                ->orderBy('billing_month', 'desc')
-                ->first();
-
-            $opening_balance = $lastLedger ? $lastLedger->closing_balance : 0.00;
-            $debit_amount    = $rtaFines->total_amount;
-            $closing_balance = $opening_balance + $debit_amount;
-
-            \App\Support\CompanyQuery::insert('ledger_entries', [
-                'account_id'      => $rider_account->id,
-                'billing_month'   => $billingMonth,
-                'opening_balance' => $opening_balance,
-                'debit_balance'   => $debit_amount,
-                'credit_balance'  => 0.00,
-                'closing_balance' => $closing_balance,
-                'created_at'      => now(),
-                'updated_at'      => now(),
+            $rtaFines->voucher()->update([
+                'rider_id'      => $rtaFines->rider_id,
+                'trans_date'    => $rtaFines->trans_date,
+                'trans_code'    => $trans_code,
+                'trip_date'     => $rtaFines->trip_date,
+                'billing_month' => $billingMonth,
+                'payment_type'  => 1,
+                'reference_number' => $rtaFines->reference_number,
+                'remarks'       => 'RTA Fine Voucher',
+                'amount'        => $rtaFines->total_amount,
+                'attach_file'   => $newPath ?? $path,
+                'paymen_from'   => $rider_account,
+                'payment_to'   => $rta_account,
+                'branch_id'      => $rtaFines->branch_id,
+                'Updated_By'    => auth()->id(),
             ]);
 
             DB::commit();
+            \Storage::delete($path);
+            if ($request->ajax()) {
+                return response()->json(['message' => 'RTA Fine updated successfully.', 'reload' => true], 200);
+            }
             Flash::success('RTA Fine updated successfully.');
 
-            return redirect(route('rtaFines.tickets'));
+            return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($newPath) {
+                \Storage::delete($newPath);
+            }
             report($e);
             Flash::error('Error: ' . $e->getMessage());
             return redirect()->back()->withInput();
-        }
-    }
-
-    /**
-     * Rider based transaction update (NO insert)
-     */
-    private function upsertTransaction(array $data, $rider_id = null)
-    {
-        $trans_account = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $rider_id)->first();
-
-        if (!$trans_account) {
-            throw new \Exception("No account found for rider_id: {$rider_id}");
-        }
-
-        // Find existing transaction by reference + type + code (NOT account_id)
-        $existing = \App\Support\CompanyQuery::table('transactions')
-            ->where('reference_type', $data['reference_type'])
-            ->where('reference_id', $data['reference_id'])
-            ->where('trans_code', $data['trans_code'])
-            ->first();
-
-        if ($existing) {
-            // Always update with new account_id (rider change bhi handle ho jayega)
-            \App\Support\CompanyQuery::table('transactions')
-                ->where('id', $existing->id)
-                ->update(array_merge($data, [
-                    'account_id' => $trans_account->id,   // 👈 new rider ka account
-                    'updated_at' => now(),
-                ]));
-        }
-    }
-
-
-    /**
-     * Non-rider transaction update (Admin/Service/RTA) - NO insert
-     */
-    private function upsertTransaction2(array $data)
-    {
-        $existing = \App\Support\CompanyQuery::table('transactions')
-            ->where('reference_type', $data['reference_type'])
-            ->where('reference_id', $data['reference_id'])
-            ->where('account_id', $data['account_id'])
-            ->first();
-        if ($existing) {
-            \App\Support\CompanyQuery::table('transactions')
-                ->where('id', $existing->id)
-                ->update(array_merge($data, [
-                    'updated_at' => now(),
-                ]));
-        }
-    }
-    private function upsertTransaction3(array $data, $rta_account_id = HeadAccount::RTA_FINE)
-    {
-        // Find existing transaction by reference + type + code (NOT account_id)
-        $existing = \App\Support\CompanyQuery::table('transactions')
-            ->where('reference_type', $data['reference_type'])
-            ->where('reference_id', $data['reference_id'])
-            ->where('account_id', $rta_account_id)
-            ->first();
-        if ($existing) {
-            // Update with new account_id (RTA account change)
-            \App\Support\CompanyQuery::table('transactions')
-                ->where('id', $existing->id)
-                ->update(array_merge($data, [
-                    'updated_at' => now(),
-                ]));
-        }
-    }
-    private function upsertTransaction4(array $data)
-    {
-        $existing = \App\Support\CompanyQuery::table('transactions')
-            ->where('reference_type', $data['reference_type'])
-            ->where('reference_id', $data['reference_id'])
-            ->where('account_id', HeadAccount::VAT_PURCHASE_ACCOUNT)
-            ->first();
-        if ($existing) {
-            \App\Support\CompanyQuery::table('transactions')
-                ->where('id', $existing->id)
-                ->update(array_merge($data, [
-                    'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
-                    'updated_at' => now(),
-                ]));
         }
     }
 
@@ -925,205 +695,225 @@ class RtaFinesController extends AppBaseController
      *
      * @throws \Exception
      */
-    public function destroy($company_slug, $id)
+    public function destroy(Request $request, $company_slug, $id)
     {
         $rtaFines = $this->rtaFinesRepository->find($id);
 
         if (empty($rtaFines)) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Fine Not Found'], 500);
+            }
             Flash::error('Rta Fines not found');
             return redirect()->back();
         }
-
-        // Prevent deletion of paid tickets
-        if ($rtaFines->status === 'paid') {
-            Flash::error('Cannot delete paid tickets. Only unpaid tickets can be deleted.');
-            return redirect()->back();
-        }
-
         DB::beginTransaction();
-        try {
-            $billingMonth = $rtaFines->billing_month;
-            $riderAccountId = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $rtaFines->rider_id)->value('id');
-            $ticketIdentifier = $rtaFines->ticket_no ?? "Ticket #{$id}";
-
-            // Get related transactions before deletion for cascade tracking
-            $relatedTransactions = Transactions::where('reference_id', $rtaFines->id)
-                ->where('reference_type', 'RTA')
-                ->where('trans_code', $rtaFines->trans_code)
-                ->get();
-
-            // Get related vouchers before deletion for cascade tracking
-            $relatedVouchers = Vouchers::where('ref_id', $rtaFines->id)
-                ->where('voucher_type', 'RFV')
-                ->where('trans_code', $rtaFines->trans_code)
-                ->get();
-
-            // Soft delete related transactions and track cascade
-            foreach ($relatedTransactions as $transaction) {
-                $transaction->delete(); // Soft delete
-
-                // Track cascade deletion
-                try {
-                    $cascadeRecord = $this->trackCascadeDeletion(
-                        RtaFines::class,
-                        $rtaFines->id,
-                        $ticketIdentifier,
-                        Transactions::class,
-                        $transaction->id,
-                        "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code})",
-                        'hasMany',
-                        'transactions',
-                        'soft',
-                        'Cascade deletion from RTA Fine ticket deletion'
-                    );
-                    \Log::info("Cascade deletion tracked for transaction {$transaction->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
-                } catch (\Exception $e) {
-                    \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
-                    \Log::error("Stack trace: " . $e->getTraceAsString());
-                }
-            }
-
-            // Soft delete related vouchers and track cascade
-            foreach ($relatedVouchers as $voucher) {
-                $voucher->delete(); // Soft delete
-
-                // Track cascade deletion
-                try {
-                    $cascadeRecord = $this->trackCascadeDeletion(
-                        RtaFines::class,
-                        $rtaFines->id,
-                        $ticketIdentifier,
-                        Vouchers::class,
-                        $voucher->id,
-                        "Voucher #{$voucher->id} (Type: {$voucher->voucher_type})",
-                        'hasMany',
-                        'vouchers',
-                        'soft',
-                        'Cascade deletion from RTA Fine ticket deletion'
-                    );
-                    \Log::info("Cascade deletion tracked for voucher {$voucher->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
-                } catch (\Exception $e) {
-                    \Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage());
-                    \Log::error("Stack trace: " . $e->getTraceAsString());
-                }
-            }
-
-            // Recalculate ledger entries after deletion
-            if ($riderAccountId) {
-                $this->recalculateLedgerAfterDeletion($riderAccountId, $billingMonth);
-            }
-
-            // Soft delete the RTA fine record
-            $rtaFines->delete();
-
-            // Track the primary RTA Fine deletion itself
+        if ($rtaFines->status == 'paid') {
             try {
-                $primaryCascadeRecord = \App\Models\DeletionCascade::create([
-                    'primary_model' => RtaFines::class,
-                    'primary_id' => $rtaFines->id,
-                    'primary_name' => $ticketIdentifier,
-                    'related_model' => RtaFines::class,
-                    'related_id' => $rtaFines->id,
-                    'related_name' => $ticketIdentifier,
-                    'relationship_type' => 'self',
-                    'relationship_name' => 'rta_fine',
-                    'deletion_type' => 'soft',
-                    'deleted_by' => auth()->id(),
-                    'deletion_reason' => 'RTA Fine ticket deleted',
-                    'metadata' => [
-                        'ip_address' => request()->ip(),
-                        'user_agent' => request()->userAgent(),
-                        'timestamp' => now()->toIso8601String(),
-                        'status' => $rtaFines->status,
-                        'amount' => $rtaFines->amount,
-                        'total_amount' => $rtaFines->total_amount,
-                    ],
+                $rtaFines->load('paidVoucher');
+                $rtaFines->paidVoucher->transactions()->delete();
+                $rtaFines->paidVoucher()->delete();
+                $path = $rtaFines->attachment;
+                $rtaFines->update([
+                    'status' => 'unpaid',
+                    'paid_voucher_id' => null,
+                    'attachment' => null,
+                    'pay_account' => null,
                 ]);
-                \Log::info("Primary RTA Fine deletion tracked, cascade record ID: " . ($primaryCascadeRecord->id ?? 'N/A'));
+                DB::commit();
+                \Log::info('fine', $rtaFines->toArray());
+                if ($path) {
+                    \Storage::delete($path);
+                }
+                if ($request->ajax()) {
+                    return response()->json(['message' => 'Fine Payment Deleted Successfully.', 'reload' => true], 200);
+                }
+                Flash::success('Fine Payment Deleted Successfully');
+                return redirect()->back();
             } catch (\Exception $e) {
-                \Log::error("Failed to track RTA Fine deletion: " . $e->getMessage());
-                \Log::error("Stack trace: " . $e->getTraceAsString());
+                DB::rollBack();
+                return response()->json(['message' => $e->getMessage()], 500);
             }
+        } else {
+            try {
+                $rtaFines->load(['voucher.transactions']);
+                $billingMonth = $rtaFines->billing_month;
+                $ticketIdentifier = $rtaFines->ticket_no;
+                $path = $rtaFines->attachment_path;
 
-            DB::commit();
-            Flash::success('RTA Fine deleted successfully with all related records.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error("Error deleting RTA Fine ID: {$id} - " . $e->getMessage());
-            Flash::error('Error deleting RTA Fine: ' . $e->getMessage());
+                // Get related transactions before deletion for cascade tracking
+                $relatedTransactions = $rtaFines->voucher?->transactions;
+
+                // Get related vouchers before deletion for cascade tracking
+                $relatedVoucher = $rtaFines->voucher;
+
+                // Soft delete related transactions and track cascade
+                if ($relatedTransactions) {
+                    foreach ($relatedTransactions as $transaction) {
+                        $transaction->delete(); // Soft delete
+
+                        // Track cascade deletion
+                        try {
+                            $cascadeRecord = $this->trackCascadeDeletion(
+                                RtaFines::class,
+                                $rtaFines->id,
+                                $ticketIdentifier,
+                                Transactions::class,
+                                $transaction->id,
+                                "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code})",
+                                'hasMany',
+                                'transactions',
+                                'soft',
+                                'Cascade deletion from RTA Fine ticket deletion'
+                            );
+                            \Log::info("Cascade deletion tracked for transaction {$transaction->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
+                        } catch (\Exception $e) {
+                            \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+                            \Log::error("Stack trace: " . $e->getTraceAsString());
+                        }
+                    }
+                }
+
+                // Soft delete related voucher and track cascade
+                if ($relatedVoucher) {
+                    $relatedVoucher->delete(); // Soft delete
+
+                    // Track cascade deletion
+                    try {
+                        $cascadeRecord = $this->trackCascadeDeletion(
+                            RtaFines::class,
+                            $rtaFines->id,
+                            $ticketIdentifier,
+                            Vouchers::class,
+                            $relatedVoucher->id,
+                            "Voucher #{$relatedVoucher->id} (Type: {$relatedVoucher->voucher_type})",
+                            'hasMany',
+                            'vouchers',
+                            'soft',
+                            'Cascade deletion from RTA Fine ticket deletion'
+                        );
+                        \Log::info("Cascade deletion tracked for voucher {$relatedVoucher->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to track cascade deletion for voucher {$relatedVoucher->id}: " . $e->getMessage());
+                        \Log::error("Stack trace: " . $e->getTraceAsString());
+                    }
+                }
+
+                // Soft delete the RTA fine record
+                $rtaFines->delete();
+
+                // Track the primary RTA Fine deletion itself
+                try {
+                    $primaryCascadeRecord = \App\Models\DeletionCascade::create([
+                        'primary_model' => RtaFines::class,
+                        'primary_id' => $rtaFines->id,
+                        'primary_name' => $ticketIdentifier,
+                        'related_model' => RtaFines::class,
+                        'related_id' => $rtaFines->id,
+                        'related_name' => $ticketIdentifier,
+                        'relationship_type' => 'self',
+                        'relationship_name' => 'rta_fine',
+                        'deletion_type' => 'soft',
+                        'deleted_by' => auth()->id(),
+                        'deletion_reason' => 'RTA Fine ticket deleted',
+                        'metadata' => [
+                            'ip_address' => request()->ip(),
+                            'user_agent' => request()->userAgent(),
+                            'timestamp' => now()->toIso8601String(),
+                            'status' => $rtaFines->status,
+                            'amount' => $rtaFines->amount,
+                            'total_amount' => $rtaFines->total_amount,
+                        ],
+                    ]);
+                    \Log::info("Primary RTA Fine deletion tracked, cascade record ID: " . ($primaryCascadeRecord->id ?? 'N/A'));
+                } catch (\Exception $e) {
+                    \Log::error("Failed to track RTA Fine deletion: " . $e->getMessage());
+                    \Log::error("Stack trace: " . $e->getTraceAsString());
+                }
+
+                DB::commit();
+                if ($path)
+                    \Storage::delete($path);
+                if ($request->ajax()) {
+                    return response()->json(['message' => 'Fine Deleted Successfully', 'reload' => true], 200);
+                }
+                Flash::success('RTA Fine deleted successfully with all related records.');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                \Log::error("Error deleting RTA Fine ID: {$id} - " . $e->getMessage());
+                if ($request->ajax()) {
+                    return response()->json(['message' => 'Error occured while deleting fine. ' . $e->getMessage()], 500);
+                }
+                Flash::error('Error deleting RTA Fine: ' . $e->getMessage());
+            }
         }
 
         return redirect()->back();
-    }
-
-    /**
-     * Recalculate ledger entries after deletion
-     * This ensures ledger integrity without deleting all entries
-     */
-    private function recalculateLedgerAfterDeletion($accountId, $billingMonth)
-    {
-        // Delete only the ledger entry for this specific billing month
-        \App\Support\CompanyQuery::table('ledger_entries')
-            ->where('account_id', $accountId)
-            ->where('billing_month', $billingMonth)
-            ->delete();
-
-        // Get the last ledger entry before this billing month
-        $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
-            ->where('account_id', $accountId)
-            ->where('billing_month', '<', $billingMonth)
-            ->orderBy('billing_month', 'desc')
-            ->first();
-
-        $openingBalance = $lastLedger ? $lastLedger->closing_balance : 0.00;
-
-        // Recalculate totals for this month after deletion
-        $monthTransactions = Transactions::where('account_id', $accountId)
-            ->where('billing_month', $billingMonth)
-            ->get();
-
-        $debitTotal = $monthTransactions->sum('debit');
-        $creditTotal = $monthTransactions->sum('credit');
-        $closingBalance = $openingBalance + $debitTotal - $creditTotal;
-
-        // Only insert a new ledger entry if there are still transactions for this month
-        if ($monthTransactions->count() > 0) {
-            \App\Support\CompanyQuery::insert('ledger_entries', [
-                'account_id'      => $accountId,
-                'billing_month'   => $billingMonth,
-                'opening_balance' => $openingBalance,
-                'debit_balance'   => $debitTotal,
-                'credit_balance'  => $creditTotal,
-                'closing_balance' => $closingBalance,
-                'created_at'      => now(),
-                'updated_at'      => now(),
-            ]);
-        }
-
-        \Log::info("Recalculated ledger for account {$accountId} and billing month {$billingMonth}");
     }
 
     public function getrider($company_slug, $id)
     {
         $bike = Bikes::find($id);
         if (!$bike) {
-            echo '<option value="">There is no rider against this bike</option>';
-            return;
+            return response()->json([
+                'success' => false,
+                'message' => 'Bike not found',
+            ]);
         }
+        $tripDate = request()->input('trip_date') ?? date('1970-01-01');
+        $history = $bike->history()
+            ->where('note_date', '<=', $tripDate)
+            ->where(function ($query) use ($tripDate) {
+                $query->where('return_date', '>=', $tripDate)
+                    ->orWhereNull('return_date');
+            })
+            ->first();
         $currentRiderId = $bike->rider_id;
-        $riders = \App\Support\CompanyQuery::table('riders')->get();
+        $currentCompanyId = $bike->rental_company_id;
+
+        // Get rider IDs from history
+        $riderIds = $bike->history()->whereNotNull('rider_id')->pluck('rider_id')->toArray();
+        // Get company IDs from history
+        $companyIds = $bike->history()->whereNotNull('rental_company_id')->pluck('rental_company_id')->toArray();
+
+        // Fetch riders and companies
+        $riders = \App\Support\CompanyQuery::table('riders')->whereIn('id', $riderIds)->get();
+        $companies = \App\Support\CompanyQuery::table('bike_rent_companies')
+            ->where('customer_type', 'bike_rental')
+            ->whereIn('id', $companyIds)
+            ->get();
+
+        // Build riders dropdown HTML
+        $ridersHtml = '';
         if ($riders->isEmpty()) {
-            echo '<option value="">There is no rider</option>';
+            $ridersHtml = false;
         } else {
-            echo '<option value="">Select Rider</option>';
+            $ridersHtml = '<option value="">Select Rider</option>';
             foreach ($riders as $r) {
-                echo '<option value="' . $r->id . '"'
-                    . ($r->id == $currentRiderId ? ' selected' : '')
-                    . '>'
-                    . $r->rider_id . ' - ' . $r->name
-                    . '</option>';
+                $ridersHtml .= '<option value="' . $r->id . '"'
+                    . ($r->id == ($history?->rider_id ?? $currentRiderId ?? 0) ? ' selected' : '')
+                    . '>' . $r->rider_id . ' - ' . $r->name . '</option>';
             }
         }
+
+        // Build companies dropdown HTML
+        $companiesHtml = '';
+        if ($companies->isEmpty()) {
+            $companiesHtml = false;
+        } else {
+            $companiesHtml = '<option value="">Select Company</option>';
+            foreach ($companies as $c) {
+                $companiesHtml .= '<option value="' . $c->id . '"'
+                    . ($c->id == ($history?->rental_company_id ?? $currentCompanyId ?? 0) ? ' selected' : '')
+                    . '>' . $c->name . '</option>';
+            }
+        }
+
+        // Return JSON response with both dropdowns
+        return response()->json([
+            'success' => true,
+            'riders' => $ridersHtml,
+            'companies' => $companiesHtml
+        ]);
     }
 
     public function importForm()

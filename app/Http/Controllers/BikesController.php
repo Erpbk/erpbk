@@ -8,12 +8,18 @@ use App\DataTables\BikesHistoryDataTable;
 use App\Http\Requests\CreateBikesRequest;
 use App\Http\Requests\UpdateBikesRequest;
 use App\Http\Controllers\AppBaseController;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Models\BikeHistory;
 use App\Models\Bikes;
+use App\Models\BikeTopCategory;
+use App\Models\UserTableSettings;
 use App\Models\BikeFieldCategoryAssignment;
 use App\Models\Riders;
 use App\Models\VehicleModels;
+use App\Models\Customers;
 use App\Repositories\BikesRepository;
+use App\Services\BikeHistoryLogger;
+use App\Services\RiderHistoryLogger;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
@@ -30,13 +36,25 @@ use Maatwebsite\Excel\Concerns\FromCollection;
 
 class BikesController extends AppBaseController
 {
-  use GlobalPagination, TracksCascadingDeletions;
+  use AppliesModuleTopBarFilters, GlobalPagination, TracksCascadingDeletions;
   /** @var BikesRepository $bikesRepository*/
   private $bikesRepository;
 
   public function __construct(BikesRepository $bikesRepo)
   {
     $this->bikesRepository = $bikesRepo;
+  }
+
+  protected function mergeBikeAssignCustomFields(Bikes $bike, Request $request): void
+  {
+    $incoming = $request->input('custom_field_values');
+    if (!is_array($incoming) || $incoming === []) {
+      return;
+    }
+
+    $existing = is_array($bike->custom_field_values) ? $bike->custom_field_values : [];
+    $bike->custom_field_values = array_merge($existing, $incoming);
+    $bike->save();
   }
 
   /**
@@ -115,11 +133,17 @@ class BikesController extends AppBaseController
       $query->select('bikes.*');
     }
 
+    $this->applyModuleTopBarFilters($query, $request, 'bike_list');
+    $bikeStatusKeys = \App\Support\TopBarNumericStatus::normalizeStatusKeys($request->input('bike_top_wh'));
+    if ($bikeStatusKeys !== []) {
+      \App\Support\TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'bikes.status', $bikeStatusKeys);
+    }
+
     $statsQuery = clone $query;
     $stats = [
       'total' => $statsQuery->count(),
       'active' => $statsQuery->clone()->where('bikes.status', 1)->count(),
-      'inactive' => $statsQuery->clone()->where('bikes.status', 2)->count(),
+      'inactive' => $statsQuery->clone()->whereIn('bikes.status', \App\Support\TopBarNumericStatus::INACTIVE_VALUES)->count(),
       'onroad' => $statsQuery->clone()->where('bikes.warehouse', 'Active')->count(),
       'offroad' => $statsQuery->clone()->whereIn('bikes.warehouse', ['Return', 'Vacation', 'Express Garage'])->count(),
       'absconded' => $statsQuery->clone()->where('bikes.warehouse', 'Absconded')->count(),
@@ -141,11 +165,33 @@ class BikesController extends AppBaseController
     // Get table columns configuration
     $tableColumns = $this->getTableColumns();
 
-    return view('bikes.index', [
+    $topBarData = $this->moduleTopBarListingData($request, 'bike_list');
+    if (Schema::hasTable('bike_top_categories') && Schema::hasColumn('bikes', 'bike_top_option_id')) {
+      $userBikeSettings = UserTableSettings::getSettings(auth()->id(), 'bikes_table');
+      $allowedIds = null;
+      if ($userBikeSettings && is_array($userBikeSettings->additional_settings)) {
+        $allowedIds = $userBikeSettings->additional_settings['bike_top_visible_option_ids'] ?? null;
+      }
+
+      if (is_array($allowedIds) && count($allowedIds) > 0) {
+        $allowedSet = array_flip(array_map('intval', $allowedIds));
+        $topBarData['topBarSliderCategories']->each(function ($cat) use ($allowedSet) {
+          $cat->setRelation(
+            'options',
+            $cat->options->filter(fn ($o) => isset($allowedSet[(int) $o->id]))->values()
+          );
+        });
+        $topBarData['topBarSliderCategories'] = $topBarData['topBarSliderCategories']
+            ->filter(fn ($c) => $c->options->isNotEmpty())
+            ->values();
+      }
+    }
+
+    return view('bikes.index', array_merge([
       'data' => $data,
       'stats' => $stats,
       'tableColumns' => $tableColumns,
-    ]);
+    ], $topBarData));
   }
 
   /**
@@ -157,7 +203,7 @@ class BikesController extends AppBaseController
     $filteredColumns = Schema::getColumnListing('bikes');
 
     // Columns to exclude
-    $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'contract_number'];
+    $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'contract_number', 'leased_return_by', 'leased_return_date', 'leased_return_company_id'];
 
     // Final filtered columns
     $dbColumns = array_diff($filteredColumns, $exclude);
@@ -185,6 +231,7 @@ class BikesController extends AppBaseController
       'warehouse',
       'status',
       'expiry_date',
+      'leased_return_status',
       'created_by',
       'updated_by',
     ];
@@ -197,6 +244,13 @@ class BikesController extends AppBaseController
 
     // Add preferred DB columns first
     foreach ($preferredOrder as $key) {
+      if ($key === 'leased_return_status') {
+        if (Schema::hasColumn('bikes', 'leased_return_by')) {
+          $columns[] = ['data' => 'leased_return_status', 'title' => 'Leasing return'];
+          $added['leased_return_status'] = true;
+        }
+        continue;
+      }
       if ($key === 'branch_id') {
         $columns[] = ['data' => 'branch_id', 'title' => 'Branch'];
         $added['branch_id'] = true;
@@ -373,7 +427,7 @@ class BikesController extends AppBaseController
 
     $input = $this->normalizeBikeInputForDatabase($input, true);
 
-    $branch_emirates = DB::table('branches')->where('id', $input['branch_id'])->first();
+    $branch_emirates = \App\Support\CompanyQuery::table('branches')->where('id', $input['branch_id'])->first();
     $input['emirates'] = $branch_emirates->city;
     $bikes = $this->bikesRepository->create($input);
     $bikes->created_by = Auth::user()->id;
@@ -389,7 +443,7 @@ class BikesController extends AppBaseController
   public function show($company_slug, $id)
   {
     $bikes = $this->bikesRepository->find($id);
-    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
+    $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
 
     if (empty($bikes)) {
       Flash::error('Bikes not found');
@@ -412,7 +466,7 @@ class BikesController extends AppBaseController
   public function edit($company_slug, $id)
   {
     $bikes = $this->bikesRepository->find($id);
-    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
+    $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
     if (empty($bikes)) {
       Flash::error('Bikes not found');
       return redirect(route('bikes.index'));
@@ -430,6 +484,8 @@ class BikesController extends AppBaseController
     if (empty($bikes)) {
       return response()->json(['errors' => ['error' => 'Bike not found!']], 422);
     }
+
+    $oldBikeCustomerId = $bikes->customer_id;
 
     $input = $this->normalizeBikeInputForDatabase($request->all(), false);
     $bikes = $this->bikesRepository->update($input, $id);
@@ -461,6 +517,20 @@ class BikesController extends AppBaseController
           'designation' => $designation,
           'emirate_hub' => $emirate_hub,
         ]);
+        if ((string) $oldBikeCustomerId !== (string) $customer_id) {
+          RiderHistoryLogger::projectChange(
+            (int) $rider->id,
+            $oldBikeCustomerId !== null && $oldBikeCustomerId !== '' ? (string) $oldBikeCustomerId : null,
+            (string) $customer_id,
+            $oldBikeCustomerId ? optional(Customers::find($oldBikeCustomerId))->name : null,
+            optional(Customers::find($customer_id))->name,
+            now()->toDateString(),
+            'bike_update',
+            RiderHistoryLogger::resolveBranchId($rider, $bikes),
+            $rider,
+            $bikes
+          );
+        }
       }
     }
     return response()->json(['message' => 'Bike updated successfully.', 'redirect' => route('bikes.show', $bikes->id)]);
@@ -481,6 +551,25 @@ class BikesController extends AppBaseController
       // Update: do not overwrite omitted fields; only normalize when key exists.
       if (($isCreate && (!$hasKey || $current === null)) || (!$isCreate && $hasKey && $current === null)) {
         $input[$column] = $this->fallbackValueForSqlType($meta['type']);
+      }
+    }
+
+    foreach (['leased_return_by', 'leased_return_date'] as $dateCol) {
+      if (!array_key_exists($dateCol, $input)) {
+        continue;
+      }
+      $v = $input[$dateCol];
+      if ($v === '' || $v === null) {
+        $input[$dateCol] = null;
+      }
+    }
+
+    if (array_key_exists('leased_return_company_id', $input)) {
+      $v = $input['leased_return_company_id'];
+      if ($v === '' || $v === null) {
+        $input['leased_return_company_id'] = null;
+      } elseif (is_numeric($v)) {
+        $input['leased_return_company_id'] = (int) $v;
       }
     }
 
@@ -660,6 +749,8 @@ class BikesController extends AppBaseController
 
         $bike = Bikes::findOrFail($request->bike_id);
         $rider = $bike->rider;
+        $riderBefore = $rider ? RiderHistoryLogger::riderSnapshot($rider) : null;
+        $historyBranchId = RiderHistoryLogger::resolveBranchId($rider, $bike);
         $company = $bike->rentalCompany;
         $designation = $request->designation;
         $message = "*Bike* 🏍️\n";
@@ -671,23 +762,41 @@ class BikesController extends AppBaseController
         } else {
           $message .= "*Rental Company:* {$company->name}\n";
         }
-        if ($request->warehouse == 'Absconded')
+        if ($request->warehouse == 'Absconded') {
           $message .= "*Absconding Date:* {$request->return_date}\n";
-        else
+        } elseif ($request->warehouse == 'Theft') {
+          $message .= "*Theft Date:* {$request->return_date}\n";
+        } else {
           $message .= "*Return Date:* {$request->return_date}\n";
+        }
         $message .= "*Time:* " . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
         if ($rider) {
           $message .= "*Project:* {$bike->customer->name}\n";
         }
         $message .= "*Emirates:* {$bike->emirates}\n";
-        $message .= "*Note:*" . $request->notes ?? '' . "\n";
+        $riderHistoryNote = RiderHistoryLogger::assignModalRiderHistoryNote($request);
 
         // Status handling
         if ($request->warehouse == 'Absconded') {
           Riders::where('id', $bike->rider_id)
             ->update(['status' => 5]);
           $bike->update(['warehouse' => 'Absconded']);
-          $this->updateBikeHistory2($bike, 'Absconded', $bike->rider_id, $message);
+          $this->updateBikeHistory2($bike, 'Absconded', $bike->rider_id, $message, 'Absconded');
+          if ($rider && $riderBefore) {
+            RiderHistoryLogger::bikeAssignStatusChange(
+              (int) $rider->id,
+              $riderHistoryNote,
+              $riderBefore,
+              array_merge($riderBefore, ['status' => 5]),
+              $request->return_date,
+              'bike_assign_return',
+              $historyBranchId,
+              ['warehouse_action' => 'Absconded', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+              'Absconded',
+              $rider,
+              $bike
+            );
+          }
         } elseif ($request->warehouse == 'Vacation') {
           Riders::where('id', $bike->rider_id)
             ->update([
@@ -695,8 +804,24 @@ class BikesController extends AppBaseController
               'designation' => null,
               'customer_id' => null,
             ]);
-          $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
+          $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Vacation');
           $bike->update(['rider_id' => null, 'warehouse' => 'Return', 'customer_id' => null]);
+          if ($rider && $riderBefore) {
+            RiderHistoryLogger::bikeAssignStatusChange(
+              (int) $rider->id,
+              'Bike return: Vacation',
+              $riderHistoryNote,
+              $riderBefore,
+              array_merge($riderBefore, ['status' => 4, 'designation' => null, 'customer_id' => null]),
+              $request->return_date,
+              'bike_assign_return',
+              $historyBranchId,
+              ['warehouse_action' => 'Vacation', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+              'Vacation',
+              $rider,
+              $bike
+            );
+          }
         } elseif ($request->warehouse == 'Return') {
           if ($rider) {
             $rider->update([
@@ -704,14 +829,96 @@ class BikesController extends AppBaseController
               'designation' => null,
               'customer_id' => null,
             ]);
-            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date);
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Return');
+            if ($riderBefore) {
+              RiderHistoryLogger::bikeAssignStatusChange(
+                (int) $rider->id,
+                'Bike return: Return',
+                $riderHistoryNote,
+                $riderBefore,
+                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                $request->return_date,
+                'bike_assign_return',
+                $historyBranchId,
+                ['warehouse_action' => 'Return', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+                'Return',
+                $rider,
+                $bike
+              );
+            }
           } else {
-            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date);
+            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Return');
           }
           $bike->update([
             'rider_id'  => null,
             'rental_company_id' => null,
             'warehouse' => 'Return',
+            'customer_id' => null,
+          ]);
+        } elseif ($request->warehouse == 'Theft') {
+          if ($rider) {
+            $rider->update([
+              'status'      => 3,
+              'designation' => null,
+              'customer_id' => null,
+            ]);
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Theft');
+            if ($riderBefore) {
+              RiderHistoryLogger::bikeAssignStatusChange(
+                (int) $rider->id,
+                'Bike return: Theft',
+                $riderHistoryNote,
+                $riderBefore,
+                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                $request->return_date,
+                'bike_assign_return',
+                $historyBranchId,
+                ['warehouse_action' => 'Theft', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+                'Theft',
+                $rider,
+                $bike
+              );
+            }
+          } else {
+            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Theft');
+          }
+          $bike->update([
+            'rider_id'  => null,
+            'rental_company_id' => null,
+            'warehouse' => 'Theft',
+            'customer_id' => null,
+          ]);
+        } elseif ($request->warehouse == 'Total Loss') {
+          if ($rider) {
+            $rider->update([
+              'status'      => 3,
+              'designation' => null,
+              'customer_id' => null,
+            ]);
+            $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Total Loss');
+            if ($riderBefore) {
+              RiderHistoryLogger::bikeAssignStatusChange(
+                (int) $rider->id,
+                'Bike return: Total Loss',
+                $riderHistoryNote,
+                $riderBefore,
+                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                $request->return_date,
+                'bike_assign_return',
+                $historyBranchId,
+                ['warehouse_action' => 'Total Loss', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+                'Total Loss',
+                $rider,
+                $bike
+              );
+            }
+          } else {
+            $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Total Loss');
+          }
+          $bike->update([
+            'rider_id'  => null,
+            'rental_company_id' => null,
+            'warehouse' => 'Total Loss',
             'customer_id' => null,
           ]);
         } else {
@@ -722,6 +929,7 @@ class BikesController extends AppBaseController
           ], 400);
         }
 
+        $this->mergeBikeAssignCustomFields($bike->fresh(), $request);
         DB::commit();
         return response()->json(['message' => 'Rider assignment updated successfully.']);
       } catch (\Exception $e) {
@@ -733,13 +941,15 @@ class BikesController extends AppBaseController
       }
     }
 
-    return view('bikes.assignBike_change', compact('id'));
+    $assignFields = \App\Models\BikeCustomField::assignModalFields('change');
+
+    return view('bikes.assignBike_change', compact('id', 'assignFields'));
   }
 
-  private function updateBikeHistory($bike, $status, $rider_id, $notes, $return_date)
+  private function updateBikeHistory($bike, $status, $rider_id, $notes, $return_date, ?string $historyStatus = null)
   {
-
     $userid = Auth::user()->id;
+    $rider = Riders::find($rider_id);
 
     $lastHistory = BikeHistory::where('bike_id', $bike->id)
       ->where('rider_id', $rider_id)
@@ -747,21 +957,24 @@ class BikesController extends AppBaseController
       ->latest('note_date')
       ->first();
 
-    if ($bike->warehouse == 'Absconded') {
-      $notes = $lastHistory->notes . "\n" . $notes;
+    if ($bike->warehouse == 'Absconded' && $lastHistory) {
+      $notes = $notes;
     }
 
-    $lastHistory->update([
+    $resolvedStatus = $historyStatus ?? BikeHistoryLogger::historyStatusFromWarehouse($status);
+    $update = [
       'warehouse'   => $status,
       'return_date' => $return_date,
       'notes'       => $notes,
-      'updated_by' => $userid
-    ]);
+      'updated_by' => $userid,
+    ];
+    $update = BikeHistoryLogger::mergeStructuredUpdate($update, $bike, $rider, $resolvedStatus);
+    $lastHistory->update($update);
   }
 
-  private function updateBikeHistory2($bike, $status, $rider_id, $notes)
+  private function updateBikeHistory2($bike, $status, $rider_id, $notes, ?string $historyStatus = null)
   {
-    $userid = Auth::user()->id;
+    $rider = Riders::find($rider_id);
 
     $lastHistory = BikeHistory::where('bike_id', $bike->id)
       ->where('rider_id', $rider_id)
@@ -769,15 +982,17 @@ class BikesController extends AppBaseController
       ->latest('note_date')
       ->first();
 
-    $lastHistory->update([
+    $resolvedStatus = $historyStatus ?? BikeHistoryLogger::historyStatusFromWarehouse($status);
+    $update = [
       'warehouse'   => $status,
       'notes'       => $notes,
-    ]);
+    ];
+    $update = BikeHistoryLogger::mergeStructuredUpdate($update, $bike, $rider, $resolvedStatus);
+    $lastHistory->update($update);
   }
 
-  private function updateBikeHistoryforCompany($bike, $status, $company_id, $notes, $return_date)
+  private function updateBikeHistoryforCompany($bike, $status, $company_id, $notes, $return_date, ?string $historyStatus = null)
   {
-
     $userid = Auth::user()->id;
 
     $lastHistory = BikeHistory::where('bike_id', $bike->id)
@@ -786,16 +1001,19 @@ class BikesController extends AppBaseController
       ->latest('note_date')
       ->first();
 
-    if ($bike->warehouse == 'Absconded') {
-      $notes = $lastHistory->notes . "\n" . $notes;
+    if ($bike->warehouse == 'Absconded' && $lastHistory) {
+      $notes = $notes;
     }
 
-    $lastHistory->update([
+    $resolvedStatus = $historyStatus ?? BikeHistoryLogger::historyStatusFromWarehouse($status);
+    $update = [
       'warehouse'   => $status,
       'return_date' => $return_date,
       'notes'       => $notes,
-      'updated_by' => $userid
-    ]);
+      'updated_by' => $userid,
+    ];
+    $update = BikeHistoryLogger::mergeStructuredUpdate($update, $bike, null, $resolvedStatus);
+    $lastHistory->update($update);
   }
   // assign bike to rider or company
   public function assign_rider(Request $request, $company_slug, $id)
@@ -828,10 +1046,11 @@ class BikesController extends AppBaseController
               $fail('Cannot assign rider to an inactive bike.');
               return;
             }
-            // Check if rider has any bike that's not "Returned" or "Vacation"
+            // Block if rider already has another bike actively assigned (same rider, Active warehouse).
             $assignedBike = \App\Support\CompanyQuery::table('bikes')
               ->where('rider_id', $value)
-              ->whereNotIn('warehouse', 'Active')
+              ->where('id', '!=', (int) $request->bike_id)
+              ->where('warehouse', 'Active')
               ->first();
 
             if ($assignedBike) {
@@ -884,7 +1103,7 @@ class BikesController extends AppBaseController
 
       $this->validate($request, $rules, $message);
 
-      $data = $request->all();
+      $data = $request->except(['note']);
       DB::beginTransaction();
       try {
         $bike = Bikes::findOrFail($request->bike_id);
@@ -896,8 +1115,10 @@ class BikesController extends AppBaseController
         $historyMessage .= "*Bike No:* {$bike->plate}\n";
 
         if ($assignType === 'rider') {
-          $rider = \App\Support\CompanyQuery::table('riders')->where('id', $request->rider_id)->first();
+          $rider = Riders::findOrFail($request->rider_id);
           $designation = $request->designation;
+          $riderBeforeAssign = RiderHistoryLogger::riderSnapshot($rider);
+          $prevRiderCustomerId = $rider->customer_id;
           $historyMessage .= "*ID:* {$rider->rider_id}\n";
           $historyMessage .= "*Name:* {$rider->name}\n";
         } else {
@@ -912,7 +1133,7 @@ class BikesController extends AppBaseController
           $historyMessage .= "*Project:* {$project->name}\n";
         }
         $historyMessage .= "*Emirates:* {$bike->emirates}\n";
-        $historyMessage .= "*Note:*" . ($request->notes ?? '') . "\n";
+        $riderHistoryNote = RiderHistoryLogger::assignModalRiderHistoryNote($request);
 
         if ($assignType === 'rider') {
           if ($rider->rider_status_option === 'Vacation') {
@@ -923,6 +1144,43 @@ class BikesController extends AppBaseController
           $rider->customer_id = $customer_id;
           $rider->emirate_hub = $bike->emirates;
           $rider->save();
+
+          if ((string) $prevRiderCustomerId !== (string) $customer_id) {
+            RiderHistoryLogger::projectChange(
+              (int) $rider->id,
+              $prevRiderCustomerId !== null && $prevRiderCustomerId !== '' ? (string) $prevRiderCustomerId : null,
+              (string) $customer_id,
+              $prevRiderCustomerId ? optional(Customers::find($prevRiderCustomerId))->name : null,
+              optional(Customers::find($customer_id))->name,
+              $request->note_date,
+              'bike_assign',
+              RiderHistoryLogger::resolveBranchId($rider, $bike),
+              $rider,
+              $bike
+            );
+          }
+
+          $warehouseLabel = $request->warehouse ?? $bike->warehouse ?? 'Active';
+          $assignBranchId = RiderHistoryLogger::resolveBranchId($rider, $bike);
+          RiderHistoryLogger::bikeAssignStatusChange(
+            (int) $rider->id,
+            'Bike assigned: Joining',
+            $riderHistoryNote,
+            $riderBeforeAssign,
+            RiderHistoryLogger::riderSnapshot($rider->fresh()),
+            $request->note_date,
+            'bike_assign',
+            $assignBranchId,
+            [
+              'warehouse_action' => $warehouseLabel,
+              'bike_id' => $bike->id,
+              'bike_plate' => $bike->plate,
+              'assign_type' => 'rider',
+            ],
+            'Joining',
+            $rider,
+            $bike
+          );
 
           $bike->update([
             'rider_id' => $request->rider_id,
@@ -943,7 +1201,18 @@ class BikesController extends AppBaseController
         $data['created_by'] = Auth::id();
         $data['notes'] = $historyMessage;
         $data['customer_id'] = $customer_id ?? null;
+        $assignHistoryStatus = ($assignType === 'rider') ? 'Joining' : null;
+        $data = array_merge(
+          $data,
+          BikeHistoryLogger::structuredBikeHistoryFields(
+            $bike,
+            ($assignType === 'rider' && isset($rider)) ? $rider : null,
+            $assignHistoryStatus,
+            $customer_id
+          )
+        );
         $bikeHistory = BikeHistory::create($data);
+        $this->mergeBikeAssignCustomFields($bike->fresh(), $request);
         DB::commit();
         return response()->json(['message' => 'Bike assignment updated successfully.']);
       } catch (QueryException $e) {
@@ -955,7 +1224,70 @@ class BikesController extends AppBaseController
       }
     }
 
-    return view('bikes.assignBike_active', compact('id'));
+    $bike = Bikes::find($id);
+    $assignFields = \App\Models\BikeCustomField::assignModalFields('active');
+    $assignBranchScopedOptions = [
+        'rider_id' => Riders::dropdownForBikeAssign($bike?->branch_id ? (int) $bike->branch_id : null),
+    ];
+
+    return view('bikes.assignBike_active', compact('id', 'assignFields', 'bike', 'assignBranchScopedOptions'));
+  }
+
+  /**
+   * Modal: edit leasing return fields (requires bikes.company / leasing company set).
+   */
+  public function leasingReturn(Request $request, $company_slug, $id)
+  {
+    $bike = Bikes::findOrFail($id);
+    if (empty($bike->company)) {
+      abort(404);
+    }
+    if (!Schema::hasColumn('bikes', 'leased_return_by')) {
+      abort(404);
+    }
+    if (Schema::hasColumn('bikes', 'leased_return_date') && !empty($bike->leased_return_date)) {
+      abort(404);
+    }
+
+    if ($request->isMethod('post')) {
+      if (!auth()->user()->can('bike_edit')) {
+        abort(403, 'Unauthorized');
+      }
+      if (Schema::hasColumn('bikes', 'leased_return_date') && !empty($bike->leased_return_date)) {
+        return response()->json(['errors' => ['error' => 'This vehicle is already marked as returned to the leasing company.']], 422);
+      }
+
+      $rules = [
+        'leased_return_date' => 'nullable|date',
+      ];
+      if (Schema::hasColumn('bikes', 'leased_return_company_id')) {
+        $rules['leased_return_company_id'] = 'nullable|integer|exists:leasing_companies,id';
+      }
+      $request->validate($rules);
+
+      $leasedReturnDate = $request->input('leased_return_date');
+      if ($leasedReturnDate === '' || $leasedReturnDate === null) {
+        $leasedReturnDate = null;
+      }
+
+      $update = [
+        'leased_return_date' => $leasedReturnDate,
+      ];
+      if (Schema::hasColumn('bikes', 'leased_return_company_id')) {
+        $cid = $request->input('leased_return_company_id');
+        $update['leased_return_company_id'] = ($cid === '' || $cid === null) ? null : (int) $cid;
+      }
+
+      $bike->updated_by = Auth::id();
+      $bike->fill($update);
+      $bike->save();
+
+      return response()->json(['message' => 'Leasing return details saved.', 'reload' => true]);
+    }
+
+    $bike->load(['leasedReturnCompany', 'LeasingCompany']);
+
+    return view('bikes.leasing_return_modal', compact('bike', 'id'));
   }
 
 
@@ -1327,7 +1659,7 @@ class BikesController extends AppBaseController
   public function files($company_slug, $bike_id)
   {
     $bikes = Bikes::find($bike_id);
-    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
+    $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
 
     $expectedFiles = [
       'mulkiya' => 'Mulkiya',
@@ -1357,7 +1689,7 @@ class BikesController extends AppBaseController
   public function maintenance($company_slug, $id)
   {
     $bikes = Bikes::findOrFail($id);
-    $bikes->load(['rider', 'leasingCompany', 'customer', 'branch']);
+    $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
     $maintenances = $bikes->maintenanceRecords()->orderBy('maintenance_date', 'desc')->get();
     return view('bikes.maintenance', compact('bikes', 'maintenances'));
   }

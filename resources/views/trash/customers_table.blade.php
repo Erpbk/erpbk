@@ -14,7 +14,7 @@
         @foreach($trashedRecords as $item)
         @php
         $r = $item['record'];
-        $account = DB::table('accounts')->where('id', $r->account_id)->first();
+        $account = company_table('accounts')->where('id', $r->account_id)->first();
         $account_id = $account->id ?? null;
         $balance = \App\Models\Transactions::where('account_id', $account_id)
         ->select(
@@ -116,29 +116,3 @@
     </p>
 </div>
 @endif
-
-<script>
-    $(document).ready(function() {
-        var attempts = 0;
-        var maxAttempts = 10;
-
-        function tryInitialize() {
-            attempts++;
-
-            if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-                var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-                var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
-                    try {
-                        return new bootstrap.Dropdown(dropdownToggleEl);
-                    } catch (e) {
-                        return null;
-                    }
-                }).filter(Boolean);
-            } else if (attempts < maxAttempts) {
-                setTimeout(tryInitialize, 100);
-            }
-        }
-
-        setTimeout(tryInitialize, 100);
-    });
-</script>

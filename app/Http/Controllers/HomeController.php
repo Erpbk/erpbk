@@ -15,6 +15,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use App\Traits\GlobalPagination;
+use App\Support\DashboardCardRegistry;
+use App\Support\DocumentExpiryDashboard;
 
 class HomeController extends Controller
 {
@@ -35,26 +37,11 @@ class HomeController extends Controller
    */
   public function index()
   {
-    $pieData = [
-      'labels' => ["Vendors", "Customers", "Riders", "Bikes", "Sims"],
-      'data' => [
-        \App\Models\Vendors::count(),
-        \App\Models\Customers::count(),
-        \App\Models\Riders::count(),
-        \App\Models\Bikes::count(),
-        \App\Models\Sims::count()
-      ],
-      'colors' => ["#706c7e", "#5c98e5", "#0760d3", "#211c1d", "#94baec"]
-    ];
+    $user = auth()->user();
+    $dashboardCards = DashboardCardRegistry::cardsForUser($user);
+    $documentExpiryAlerts = DocumentExpiryDashboard::forUser($user);
 
-    // LINE CHART: x from 0 to 10, y = sin(x)
-    $lineData = ['x' => [], 'y' => []];
-    for ($x = 0; $x <= 10; $x += 0.5) {
-      $lineData['x'][] = $x;
-      $lineData['y'][] = sin($x);
-    }
-
-    return view('content.dashboard', compact('pieData', 'lineData'));
+    return view('content.dashboard', compact('dashboardCards', 'documentExpiryAlerts'));
   }
 
   public function settings(Request $request)
@@ -73,12 +60,19 @@ class HomeController extends Controller
     if ($isSettingsPanel && $currentCompany instanceof Company && $request->isMethod('post')) {
       $validated = $request->validate([
         'company_name' => 'required|string|max:255',
-        'company_email' => 'nullable|email|max:255',
+        'company_email' => [
+          'nullable',
+          'email',
+          'max:255',
+          new \App\Rules\AvailableCompanyContactEmail($currentCompany->id),
+        ],
         'company_phone' => 'nullable|string|max:50',
         'company_address' => 'nullable|string|max:1000',
         'company_country' => 'nullable|string|max:255',
         'company_city' => 'nullable|string|max:255',
         'company_logo' => 'nullable|image|mimes:jpg,jpeg,png,webp',
+        'company_primary_color' => 'nullable|string|max:20',
+        'company_secondary_color' => 'nullable|string|max:20',
         'settings.currency_code' => 'nullable|string|max:10',
         'settings.currency_symbol' => 'nullable|string|max:10',
         'settings.vat_number' => 'nullable|string|max:50',
@@ -86,11 +80,33 @@ class HomeController extends Controller
       ]);
 
       $currentCompany->name = $validated['company_name'];
-      $currentCompany->email = $validated['company_email'] ?? null;
+
+      $newEmail = isset($validated['company_email'])
+        ? strtolower(trim((string) $validated['company_email']))
+        : null;
+      $currentEmail = strtolower(trim((string) ($currentCompany->email ?? '')));
+
+      if ($newEmail !== $currentEmail) {
+        $verifiedEmail = session('company_email_change_verified');
+        if (!$verifiedEmail || strtolower((string) $verifiedEmail) !== $newEmail) {
+          return back()
+            ->withErrors(['company_email' => __('Please verify your new email address using the code we send you.')])
+            ->withInput();
+        }
+        session()->forget(['company_email_change_verified', 'company_email_change_pending']);
+      }
+
+      $currentCompany->email = $newEmail ?: null;
       $currentCompany->phone = $validated['company_phone'] ?? null;
       $currentCompany->address = $validated['company_address'] ?? null;
       $currentCompany->country = $validated['company_country'] ?? null;
       $currentCompany->city = $validated['company_city'] ?? null;
+      if ($request->filled('company_primary_color')) {
+        $currentCompany->primary_color = $request->input('company_primary_color');
+      }
+      if ($request->filled('company_secondary_color')) {
+        $currentCompany->secondary_color = $request->input('company_secondary_color');
+      }
 
       if ($request->hasFile('company_logo')) {
         $path = $request->file('company_logo')->store('company-logos', 'public');
@@ -101,10 +117,52 @@ class HomeController extends Controller
       }
 
       $currentCompany->save();
+      $settings = [
+        'company_logo'    => $currentCompany->logo,
+        'company_name'    => $currentCompany->name,
+        'company_address' => $currentCompany->address,
+        'company_phone'   => $currentCompany->phone,
+        'company_email'   => $currentCompany->email,
+        'company_city'    => $currentCompany->city,
+        'company_country' => $currentCompany->country,
+      ];
+
+      foreach ($settings as $name => $value) {
+        Settings::updateOrCreate(
+          [
+            'name' => $name,
+            'company_id' => $currentCompany->id,
+          ],
+          [
+            'name' => $name,
+            'value' => $value,
+            'company_id' => $currentCompany->id,
+          ]
+        );
+      }
+
       AdminCompany::syncFromCentralCompany($currentCompany);
 
+      if ($newEmail !== $currentEmail && $newEmail && $currentEmail !== '') {
+        User::withoutGlobalScope('company')
+          ->where('company_id', $currentCompany->id)
+          ->whereRaw('LOWER(TRIM(email)) = ?', [$currentEmail])
+          ->where('id', '!=', auth()->id())
+          ->update(['email' => $newEmail]);
+
+        if (auth()->check()) {
+          $authUser = auth()->user();
+          if (
+            (int) $authUser->company_id === (int) $currentCompany->id
+            && strtolower(trim((string) $authUser->email)) === $currentEmail
+          ) {
+            $authUser->email = $newEmail;
+            $authUser->save();
+          }
+        }
+      }
       foreach ((array) $request->post('settings', []) as $key => $value) {
-        Settings::updateOrCreate(['name' => $key], ['name' => $key, 'value' => $value]);
+        Settings::updateOrCreate(['name' => $key, 'company_id' => $currentCompany->id], ['name' => $key, 'value' => $value, 'company_id' => $currentCompany->id]);
       }
 
       return back()->with('success', __('Company details updated successfully.'));
@@ -114,7 +172,7 @@ class HomeController extends Controller
 
       foreach ($request->post('settings') as $key => $value) {
         //echo $key.'-'.$value;
-        Settings::updateOrCreate(['name' => $key], ['name' => $key, 'value' => $value]);
+        Settings::updateOrCreate(['name' => $key, 'company_id' => $currentCompany->id], ['name' => $key, 'value' => $value, 'company_id' => $currentCompany->id]);
         session()->flash('success', 'Settings updated successfully.');
       }
     }

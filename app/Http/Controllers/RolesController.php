@@ -62,7 +62,15 @@ class RolesController extends AppBaseController
    */
   public function create()
   {
-    return view('roles.create');
+    $modulesQuery = Permission::query();
+    if (Schema::hasColumn('permissions', 'parent_id')) {
+      $modulesQuery->where(function ($q) {
+        $q->whereNull('parent_id')->orWhere('parent_id', 0);
+      });
+    }
+    $modules = $modulesQuery->get();
+
+    return view('roles.create', compact('modules'));
   }
 
   /**
@@ -302,8 +310,7 @@ class RolesController extends AppBaseController
       ->all();
 
     DB::transaction(function () use ($table, $pivotRole, $pivotPermission, $role, $ids, $hasCompanyId, $companyId): void {
-      // Primary key is (permission_id, role_id) in standard Spatie schema. Do not scope delete by
-      // company_id — legacy rows may have NULL/other company_id and would block re-insert.
+      // Role is company-scoped; delete all pivot rows for this role id (including orphan NULL company_id rows).
       DB::table($table)->where($pivotRole, (int) $role->id)->delete();
 
       if (empty($ids)) {
@@ -322,7 +329,7 @@ class RolesController extends AppBaseController
         return $row;
       }, $ids);
 
-      DB::table($table)->insert($rows);
+      \App\Support\CompanyQuery::insert($table, $rows);
     });
 
     app(PermissionRegistrar::class)->forgetCachedPermissions();

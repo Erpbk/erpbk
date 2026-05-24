@@ -35,12 +35,21 @@ class RtaFines extends BaseModel
     'status',
     'reference_number',
     'vat',
+    'rental_company_id',
+    'fine_vat',
+    'service_vat',
+    'admin_vat',
+    'voucher_id',
+    'paid_voucher_id',
+    'black_points',
+    'is_impound',
   ];
 
   protected $casts = [
-    /*  'trans_date' => 'date',
-     'trip_date' => 'date',
-     'billing_month' => 'date', */
+    'trans_date' => 'date',
+    'trip_date' => 'date',
+    'trip_time' => 'datetime',
+    'billing_month' => 'date',
     'ticket_no' => 'string',
     'plate_no' => 'string',
     'detail' => 'string',
@@ -65,11 +74,11 @@ class RtaFines extends BaseModel
     'ticket_no' => 'nullable|string|max:50',
     'bike_id' => 'required',
     'rta_account_id' => 'required',
-    'attachment' => 'required',
-    'attachment_path' => 'nullable',
+    'attachment' => 'nullable',
+    'attachment_path' => 'required',
     'plate_no' => 'nullable|string|max:50',
     'detail' => 'nullable|string|max:500',
-    'amount' => 'required|numeric',
+    'amount' => 'required|numeric|min:1',
     'service_charges' => 'nullable|numeric',
     'vat'=> 'nullable|numeric',
     'admin_fee' => 'nullable|numeric',
@@ -100,5 +109,20 @@ class RtaFines extends BaseModel
   public function branch()
   {
     return $this->belongsTo(Branch::class, 'branch_id', 'id');
+  }
+
+  public function rentalCompany()
+  {
+    return $this->belongsTo(BikeRentCompany::class, 'rental_company_id');
+  }
+
+  public function voucher()
+  {
+    return $this->belongsTo(Vouchers::class, 'voucher_id');
+  }
+
+  public function paidVoucher()
+  {
+    return $this->belongsTo(Vouchers::class, 'paid_voucher_id');
   }
 }

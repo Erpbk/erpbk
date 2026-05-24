@@ -30,12 +30,18 @@ class TenantModulePermissionsSync
                 ['name' => $parentName, 'guard_name' => $guard],
                 ['parent_id' => null]
             );
+            if ($parent->parent_id !== null) {
+                $parent->update(['parent_id' => null]);
+            }
 
             foreach (['view', 'create', 'edit', 'delete'] as $action) {
                 $child = Permission::query()->firstOrCreate(
                     ['name' => $slug . '_' . $action, 'guard_name' => $guard],
                     ['parent_id' => $parent->id]
                 );
+                if ((int) $child->parent_id !== (int) $parent->id) {
+                    $child->update(['parent_id' => $parent->id]);
+                }
                 if ($assignToAdminRoles) {
                     self::giveToAdminRoles($child);
                 }
@@ -46,6 +52,39 @@ class TenantModulePermissionsSync
                     ['name' => $extraName, 'guard_name' => $guard],
                     ['parent_id' => $parent->id]
                 );
+                if ((int) $child->parent_id !== (int) $parent->id) {
+                    $child->update(['parent_id' => $parent->id]);
+                }
+                if ($assignToAdminRoles) {
+                    self::giveToAdminRoles($child);
+                }
+            }
+        }
+
+        foreach (config('tenant_module_permissions.additional_permissions', []) as $group) {
+            $parentName = $group['parent'] ?? null;
+            if (!is_string($parentName) || $parentName === '') {
+                continue;
+            }
+
+            $parent = Permission::query()->firstOrCreate(
+                ['name' => $parentName, 'guard_name' => $guard],
+                ['parent_id' => null]
+            );
+
+            foreach ($group['permissions'] ?? [] as $permName) {
+                $permName = trim((string) $permName);
+                if ($permName === '') {
+                    continue;
+                }
+
+                $child = Permission::query()->firstOrCreate(
+                    ['name' => $permName, 'guard_name' => $guard],
+                    ['parent_id' => $parent->id]
+                );
+                if ((int) $child->parent_id !== (int) $parent->id) {
+                    $child->update(['parent_id' => $parent->id]);
+                }
                 if ($assignToAdminRoles) {
                     self::giveToAdminRoles($child);
                 }

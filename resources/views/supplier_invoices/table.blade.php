@@ -23,7 +23,7 @@
          @else
          <td>{{$r->inv_date->format('d M Y')}}</td>
          @endif
-         <td>{{$r->inv_id}}</td>
+         <td><a href="javascript:void(0);" class="show-modal-right" data-action="{{ route('supplierInvoices.show', $r->id) }}@if(str_contains(url()->current(), 'order'))?order={{ true }} @endif">{{$r->inv_id}}</a></td>
          @if(!str_contains(url()->current(), 'order')) <td>{{ $r->billing_month?->format('M Y') ?? '-' }}</td>
          @else <td>{{ $r->createdNy?->name ?? '-' }}</td>
          @endif

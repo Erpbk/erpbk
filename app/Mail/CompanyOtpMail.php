@@ -14,13 +14,18 @@ class CompanyOtpMail extends Mailable
 
     public function __construct(
         public string $otp,
-        public string $companyName
+        public string $companyName,
+        public string $purpose = 'registration'
     ) {}
 
     public function envelope(): Envelope
     {
+        $subject = $this->purpose === 'email_change'
+            ? __('Your verification code to change company email')
+            : __('Your verification code for company registration');
+
         return new Envelope(
-            subject: __('Your verification code for company registration'),
+            subject: $subject,
             from: config('mail.from.address'),
             replyTo: config('mail.from.address'),
         );

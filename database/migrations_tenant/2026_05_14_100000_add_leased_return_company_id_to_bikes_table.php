@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (!Schema::hasTable('bikes')) {
+            return;
+        }
+        Schema::table('bikes', function (Blueprint $table) {
+            if (!Schema::hasColumn('bikes', 'leased_return_company_id')) {
+                $table->unsignedInteger('leased_return_company_id')->nullable();
+            }
+        });
+    }
+
+    public function down(): void
+    {
+        if (!Schema::hasTable('bikes')) {
+            return;
+        }
+        Schema::table('bikes', function (Blueprint $table) {
+            if (Schema::hasColumn('bikes', 'leased_return_company_id')) {
+                $table->dropColumn('leased_return_company_id');
+            }
+        });
+    }
+};

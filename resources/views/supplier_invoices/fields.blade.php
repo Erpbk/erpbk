@@ -1,6 +1,6 @@
 @php
-$items = \App\Models\Items::dropdown('garage');
-$items = $items->merge(\App\Models\Items::dropdown('supplier'));
+$items = \App\Models\Items::dropdown('supplier');
+$items = $items->merge(\App\Models\Items::dropdown('garage'));
 $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'internal')->get();
 @endphp
 
@@ -9,7 +9,7 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
 
     <div class="col-md-3 form-group">
         <label>Supplier</label>
-        <select class="form-select" id="supplier" name="supplier_id" required>
+        <select class="form-select select2" id="" name="supplier_id" required>
             <option value="">Select Supplier</option>
             @foreach($suppliers as $supplier)
             <option value="{{ $supplier->id }}"
@@ -37,7 +37,7 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
     </div>
     <div class="col-md-2 form-group">
         <label>Garage</label>
-        <select class="form-select" id="garage_id" name="garage_id" required>
+        <select class="form-select select2" id="" name="garage_id" required>
             <option value="">Select Garage</option>
             @foreach($garages as $garage)
             <option value="{{ $garage->id }}"
@@ -130,7 +130,7 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
             @else
             <div class="row mb-2 item-row">
                 <div class="col-md-3 form-group">
-                    <select name="item_ids[]" class="form-select item" required>
+                    <select name="item_ids[]" class="form-select item select2" required>
                         <option value="">Select Item</option>
                         @foreach($items as $item)
                         <option value="{{ $item->id }}"
@@ -195,12 +195,7 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
 </div>
 <script>
     $(document).ready(function() {
-        $('#supplier').select2({
-            dropdownParent: $('#modalTopbody'),
-            placeholder: "Select Supplier",
-            allowClear: true
-        });
-        $('.item').select2({
+        $('.select2').select2({
             dropdownParent: $('#modalTopbody'),
             allowClear: true
         });

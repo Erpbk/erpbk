@@ -5,6 +5,9 @@ $isAdminRoute = request()->routeIs('admin.*');
 $adminUser = auth('admin')->user();
 $isAdminSession = $isAdminRoute && (bool) $adminUser;
 $companySlug = request()->route('company_slug') ?? session('company_slug');
+$logoutAction = $isAdminSession
+    ? route('admin.logout')
+    : ($companySlug ? route('company.logout', ['company_slug' => $companySlug]) : route('logout'));
 $homeLink = $isAdminSession
 ? route('admin.dashboard')
 : ($companySlug ? route('home', ['company_slug' => $companySlug]) : url('/'));
@@ -166,14 +169,14 @@ $homeLink = $isAdminSession
           </li>
           @if ($isAdminSession || Auth::check())
           <li>
-            <a class="dropdown-item" href="{{ $isAdminSession ? route('admin.logout') : route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-              <i class='ti ti-logout me-2'></i>
-              <span class="align-middle">Logout</span>
-            </a>
+            <form method="POST" action="{{ $logoutAction }}" class="d-inline w-100">
+              @csrf
+              <button type="submit" class="dropdown-item border-0 bg-transparent w-100 text-start">
+                <i class='ti ti-logout me-2'></i>
+                <span class="align-middle">Logout</span>
+              </button>
+            </form>
           </li>
-          <form method="POST" id="logout-form" action="{{ $isAdminSession ? route('admin.logout') : route('logout') }}">
-            @csrf
-          </form>
           @else
           <li>
             <a class="dropdown-item" href="{{ \App\Support\CompanyAuthRedirect::url(request()) }}">

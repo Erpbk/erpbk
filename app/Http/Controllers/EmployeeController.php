@@ -3,142 +3,75 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
-use App\Models\ModuleCustomField;
-use App\Models\ModuleDocumentType;
-use App\Models\ModuleFieldCategoryAssignment;
-use App\Models\ModuleSettingCategory;
+use App\Models\EmployeeHistory;
+use App\Models\EmployeeCategory;
+use App\Models\EmployeeCustomField;
+use App\Models\EmployeeDocumentType;
+use App\Models\EmployeeFieldCategoryAssignment;
+use App\Models\EmployeeTopCategory;
+use App\Models\Attendance;
+use App\Models\SimHistory;
 use App\Models\Transactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use App\Models\Accounts;
+use App\Models\Payment;
 use App\DataTables\LedgerDataTable;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Database\UniqueConstraintViolationException;
+use App\Support\CompanyScope;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
+use App\Services\EmployeeHistoryLogger;
+use App\Traits\GlobalPagination;
 use Laracasts\Flash\Flash;
 
 class EmployeeController extends Controller
 {
-    private const EMPLOYEE_MODULE_KEY = 'employees';
-    private const EMPLOYEE_HIDDEN_FIELD_KEYS = [
-        'personal_email',
-        'personal_contact',
-        'emergency_contact',
-        'status',
-        'profile_image',
-        'account_id',
-    ];
-
-    private function employeeHiddenFieldLookup(): array
+    use AppliesModuleTopBarFilters, GlobalPagination;
+    private function employeeFieldsByCategory(bool $includeCustomFields = true): array
     {
-        return array_flip(self::EMPLOYEE_HIDDEN_FIELD_KEYS);
+        return EmployeeCustomField::fieldsByCategoryForForm($includeCustomFields);
     }
 
-    private function employeeFieldsByCategory(): array
-    {
-        $moduleKey = self::EMPLOYEE_MODULE_KEY;
-        $categories = ModuleSettingCategory::query()
-            ->where('module_key', $moduleKey)
-            ->orderBy('display_order')
-            ->orderBy('id')
-            ->get();
-        $categoryIds = $categories->pluck('id')->all();
-        $employeeColumns = array_flip(Schema::getColumnListing('employees'));
-        $hiddenLookup = $this->employeeHiddenFieldLookup();
-        $assignmentQuery = ModuleFieldCategoryAssignment::query()
-            ->where('module_key', $moduleKey)
-            ->orderBy('display_order')
-            ->orderBy('id');
-        if (!empty($categoryIds)) {
-            $assignmentQuery->whereIn('category_id', $categoryIds);
-        } else {
-            $assignmentQuery->whereRaw('1 = 0');
-        }
-        $fixedAssignments = $assignmentQuery->get()->filter(function ($assignment) {
-            return (bool) ($assignment->is_visible ?? true);
-        });
-        $customQuery = ModuleCustomField::query()
-            ->where('module_key', $moduleKey)
-            ->orderBy('display_order')
-            ->orderBy('id');
-        if (!empty($categoryIds)) {
-            $customQuery->whereIn('category_id', $categoryIds);
-        } else {
-            $customQuery->whereRaw('1 = 0');
-        }
-        $customFields = $customQuery->get();
-
-        $normalized = [];
-        foreach ($categories as $category) {
-            $items = [];
-            foreach ($fixedAssignments->where('category_id', $category->id) as $assignment) {
-                if (!isset($employeeColumns[$assignment->field_key]) || isset($hiddenLookup[$assignment->field_key])) {
-                    continue;
-                }
-                $spec = ['type' => 'text'];
-                if ($assignment->field_key === 'branch_id') {
-                    $spec['type'] = 'select';
-                }
-                if (!empty($assignment->input_type)) {
-                    $spec['type'] = $assignment->input_type === 'dropdown' ? 'select' : $assignment->input_type;
-                }
-                if (is_array($assignment->input_config) && array_key_exists('options', $assignment->input_config)) {
-                    $spec['options'] = $assignment->input_config['options'];
-                }
-                $spec['required'] = (bool) ($assignment->is_required ?? false);
-
-                $items[] = (object) [
-                    'kind' => 'fixed',
-                    'field_key' => $assignment->field_key,
-                    'label' => !empty($assignment->display_label) ? $assignment->display_label : (!empty($assignment->field_label) ? $assignment->field_label : ucwords(str_replace('_', ' ', $assignment->field_key))),
-                    'spec' => $spec,
-                ];
-            }
-            foreach ($customFields->where('category_id', $category->id) as $field) {
-                $items[] = (object) [
-                    'kind' => 'custom',
-                    'field' => $field,
-                ];
-            }
-
-            if (!empty($items)) {
-                $normalized[] = (object) [
-                    'category' => $category,
-                    'fields' => $items,
-                ];
-            }
-        }
-
-        return $normalized;
-    }
-
+    /**
+     * Required custom + fixed fields from employee settings (same pattern as riders dynamicFieldRules).
+     */
     private function employeeDynamicFieldRules(): array
     {
         $rules = [];
-        $moduleKey = self::EMPLOYEE_MODULE_KEY;
         $employeeColumns = array_flip(Schema::getColumnListing('employees'));
+        $assignmentTable = (new EmployeeFieldCategoryAssignment())->getTable();
+        $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
+        $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
 
-        ModuleFieldCategoryAssignment::query()
-            ->where('module_key', $moduleKey)
-            ->where('is_required', true)
-            ->where(function ($q) {
-                $q->where('is_visible', true)->orWhereNull('is_visible');
-            })
-            ->get(['field_key'])
-            ->each(function ($assignment) use (&$rules, $employeeColumns) {
+        if ($hasRequiredColumn) {
+            $query = EmployeeFieldCategoryAssignment::query()->where('is_required', 1);
+            if ($hasVisibleColumn) {
+                $query->where(function ($q) {
+                    $q->where('is_visible', 1)->orWhereNull('is_visible');
+                });
+            }
+            $query->get(['field_key'])->each(function ($assignment) use (&$rules, $employeeColumns) {
                 $fieldKey = (string) $assignment->field_key;
-                if (isset($employeeColumns[$fieldKey])) {
-                    if (!isset($this->employeeHiddenFieldLookup()[$fieldKey])) {
-                        $rules[$fieldKey] = 'required';
-                    }
+                if (!isset($employeeColumns[$fieldKey])) {
+                    return;
                 }
+                $rules[$fieldKey] = 'required';
             });
+        }
 
-        ModuleCustomField::query()
-            ->where('module_key', $moduleKey)
+        EmployeeCustomField::query()
+            ->where('is_mandatory', 1)
             ->whereNotNull('category_id')
-            ->where('is_mandatory', true)
+            ->where(function ($q) {
+                $q->where('is_visible', 1)->orWhereNull('is_visible');
+            })
             ->get(['id'])
             ->each(function ($field) use (&$rules) {
                 $rules['custom_field_values.' . $field->id] = 'required';
@@ -147,16 +80,250 @@ class EmployeeController extends Controller
         return $rules;
     }
 
-    private function applyEmployeeDynamicInput(array &$validated, Request $request): void
+    /**
+     * Build employee create/update validation from Employee Settings assignments (same as riders).
+     */
+    private function employeeValidationRules(?int $ignoreEmployeeId = null): array
     {
-        $hiddenLookup = $this->employeeHiddenFieldLookup();
-        foreach (ModuleFieldCategoryAssignment::query()->where('module_key', self::EMPLOYEE_MODULE_KEY)->get(['field_key']) as $assignment) {
-            $fieldKey = (string) $assignment->field_key;
-            if ($fieldKey !== '' && !isset($hiddenLookup[$fieldKey]) && $request->has($fieldKey)) {
-                $validated[$fieldKey] = $request->input($fieldKey);
+        $rules = Employee::$rules;
+        $employeeColumns = array_flip(Schema::getColumnListing('employees'));
+        $assignmentTable = (new EmployeeFieldCategoryAssignment())->getTable();
+        $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
+        $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
+
+        $normalizePresenceRule = function ($rule, bool $required) {
+            if (is_array($rule)) {
+                $tokens = array_values(array_filter($rule, function ($item) {
+                    return !is_string($item) || ($item !== 'required' && $item !== 'nullable');
+                }));
+                array_unshift($tokens, $required ? 'required' : 'nullable');
+
+                return $tokens;
+            }
+
+            $tokens = array_values(array_filter(explode('|', (string) $rule), function ($item) {
+                return $item !== '' && $item !== 'required' && $item !== 'nullable';
+            }));
+            array_unshift($tokens, $required ? 'required' : 'nullable');
+
+            return implode('|', $tokens);
+        };
+
+        $assignmentColumns = ['field_key'];
+        if ($hasRequiredColumn) {
+            $assignmentColumns[] = 'is_required';
+        }
+        if ($hasVisibleColumn) {
+            $assignmentColumns[] = 'is_visible';
+        }
+
+        $assignments = EmployeeFieldCategoryAssignment::query()
+            ->get($assignmentColumns)
+            ->keyBy('field_key');
+        $fixedKeys = EmployeeCustomField::allFixedFieldKeys();
+
+        foreach ($fixedKeys as $fieldKey) {
+            if (!isset($employeeColumns[$fieldKey])) {
+                continue;
+            }
+            $assignment = $assignments->get($fieldKey);
+            $isVisible = !$hasVisibleColumn || !$assignment || $assignment->is_visible === null
+                ? true
+                : (bool) $assignment->is_visible;
+            $isRequired = ($assignment && $hasRequiredColumn) ? (bool) $assignment->is_required : false;
+            $baseRule = $rules[$fieldKey] ?? 'nullable';
+            $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
+        }
+
+        $rules['account'] = 'nullable|in:new,existing';
+        $rules['account_id'] = 'nullable|required_if:account,existing|exists:accounts,id';
+
+        foreach ($this->employeeUniqueFieldKeys() as $uniqueKey) {
+            if (!isset($employeeColumns[$uniqueKey])) {
+                continue;
+            }
+            $baseRule = $rules[$uniqueKey] ?? 'nullable|string|max:191';
+            $tokens = is_array($baseRule) ? $baseRule : explode('|', (string) $baseRule);
+            $tokens = array_values(array_filter($tokens, function ($token) {
+                return !(is_string($token) && str_starts_with($token, 'unique:'));
+            }));
+            $uniqueRule = $this->employeeUniqueFieldRule($uniqueKey, $ignoreEmployeeId);
+            if ($uniqueRule !== null) {
+                $tokens[] = $uniqueRule;
+            }
+            $rules[$uniqueKey] = $tokens;
+        }
+
+        return array_merge($rules, $this->employeeDynamicFieldRules());
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function employeeUniqueFieldKeys(): array
+    {
+        return ['employee_id', 'company_email', 'personal_email', 'passport', 'emirate_id'];
+    }
+
+    private function employeeUniqueFieldRule(string $column, ?int $ignoreEmployeeId = null): ?\Illuminate\Validation\Rules\Unique
+    {
+        if (! Schema::hasColumn('employees', $column)) {
+            return null;
+        }
+
+        return CompanyScope::unique('employees', $column, $ignoreEmployeeId);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function employeeUniqueValueRules(string $column, ?int $ignoreEmployeeId = null): array
+    {
+        $rules = ['nullable', 'string', 'max:191'];
+        if (str_contains($column, 'email')) {
+            $rules[] = 'email';
+        }
+        $uniqueRule = $this->employeeUniqueFieldRule($column, $ignoreEmployeeId);
+        if ($uniqueRule !== null) {
+            $rules[] = $uniqueRule;
+        }
+
+        return $rules;
+    }
+
+    private function employeeUniqueViolationResponse(UniqueConstraintViolationException $e, Request $request)
+    {
+        $field = null;
+        foreach ($this->employeeUniqueFieldKeys() as $column) {
+            if (str_contains($e->getMessage(), $column)) {
+                $field = $column;
+                break;
             }
         }
-        $validated['custom_field_values'] = $request->input('custom_field_values', []);
+
+        $label = $field ? str_replace('_', ' ', $field) : 'value';
+        $message = "This {$label} is already used by another employee.";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => $field ? [$field => [$message]] : [],
+            ], 422);
+        }
+
+        return redirect()->back()->withInput()->withErrors(
+            $field ? [$field => $message] : ['error' => $message]
+        );
+    }
+
+    private function nextEmployeeId(): string
+    {
+        return 'EMP-' . ((Employee::latest('id')->value('id') ?? 0) + 1001);
+    }
+
+    private function normalizeEmployeeEmailsInRequest(Request $request): void
+    {
+        foreach (['company_email', 'personal_email'] as $emailKey) {
+            if ($request->filled($emailKey)) {
+                $request->merge([$emailKey => strtolower(trim((string) $request->input($emailKey)))]);
+            }
+        }
+    }
+
+    /**
+     * On update, convert empty strings to null so validation and persistence can clear fields.
+     */
+    private function normalizeEmployeeRequestForUpdate(Request $request): void
+    {
+        $fillable = (new Employee())->getFillable();
+
+        foreach ($fillable as $key) {
+            if ($request->has($key) && $request->input($key) === '') {
+                $request->merge([$key => null]);
+            }
+        }
+
+        $this->normalizeEmployeeEmailsInRequest($request);
+
+        if ($request->has('custom_field_values') && is_array($request->input('custom_field_values'))) {
+            $normalized = [];
+            foreach ($request->input('custom_field_values') as $id => $value) {
+                $normalized[$id] = ($value === '' || $value === null) ? null : $value;
+            }
+            $request->merge(['custom_field_values' => $normalized]);
+        }
+    }
+
+    /**
+     * Merge submitted custom field values; empty values clear existing keys on update.
+     */
+    private function mergeEmployeeCustomFieldValues(array $existing, array $incoming, bool $isUpdate): array
+    {
+        if (!$isUpdate) {
+            return $incoming;
+        }
+
+        $merged = $existing;
+        foreach ($incoming as $id => $value) {
+            if ($value === null || $value === '') {
+                unset($merged[$id], $merged[(string) $id]);
+            } else {
+                $merged[$id] = $value;
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Collect mass-assignable employee attributes from the request.
+     */
+    private function employeeAttributesFromRequest(Request $request, ?Employee $employee = null): array
+    {
+        $isUpdate = $employee !== null;
+        $fillable = (new Employee())->getFillable();
+        $input = array_intersect_key($request->all(), array_flip($fillable));
+
+        foreach ($input as $key => $value) {
+            if ($value === '' || $value === null) {
+                if ($isUpdate) {
+                    $input[$key] = null;
+                } else {
+                    unset($input[$key]);
+                }
+            }
+        }
+
+        if ($request->has('custom_field_values')) {
+            $incoming = $request->input('custom_field_values', []);
+            if (!is_array($incoming)) {
+                $incoming = [];
+            }
+            if ($isUpdate) {
+                $existing = is_array($employee->custom_field_values) ? $employee->custom_field_values : [];
+                $input['custom_field_values'] = $this->mergeEmployeeCustomFieldValues($existing, $incoming, true);
+            } else {
+                $input['custom_field_values'] = $incoming;
+            }
+        }
+
+        $input = \App\Support\SimAssigneeContactSync::stripManagedContactFromRequestData(
+            $input,
+            $employee,
+            'employee'
+        );
+
+        if (!$isUpdate) {
+            if (empty($input['employee_id'])) {
+                $input['employee_id'] = $this->nextEmployeeId();
+            }
+            if (empty($input['status'])) {
+                $input['status'] = 'active';
+            }
+        }
+
+        return $input;
     }
 
     private function employeeTableLabels(): array
@@ -174,13 +341,12 @@ class EmployeeController extends Controller
             'actions' => 'Actions',
         ];
 
-        ModuleFieldCategoryAssignment::query()
-            ->where('module_key', self::EMPLOYEE_MODULE_KEY)
-            ->whereIn('field_key', ['employee_id', 'name', 'company_contact', 'branch_id', 'department_id', 'designation', 'doj', 'status'])
-            ->get(['field_key', 'display_label', 'field_label'])
+        EmployeeFieldCategoryAssignment::query()
+            ->whereIn('field_key', array_keys($labels))
+            ->get(['field_key', 'display_label'])
             ->each(function ($assignment) use (&$labels) {
                 $fieldKey = (string) $assignment->field_key;
-                $label = trim((string) ($assignment->display_label ?: $assignment->field_label ?: ''));
+                $label = trim((string) ($assignment->display_label ?? ''));
                 if ($label !== '' && isset($labels[$fieldKey])) {
                     $labels[$fieldKey] = $label;
                 }
@@ -190,14 +356,146 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Column list for employees index table and column control panel.
+     */
+    private function buildEmployeesIndexTableColumns(): array
+    {
+        $employeeColumns = Schema::getColumnListing('employees');
+        $employeeColumnsSet = array_flip($employeeColumns);
+        $exclude = array_values(array_unique(array_merge(
+            ['id', 'created_at', 'updated_at', 'deleted_at', 'custom_field_values', 'notes'],
+            EmployeeCustomField::removedEmployeeColumns(),
+        )));
+        $excludedSet = array_flip($exclude);
+
+        $assignedFixedColumns = EmployeeFieldCategoryAssignment::query()
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get(['field_key', 'display_label'])
+            ->filter(function ($assignment) use ($employeeColumnsSet, $excludedSet) {
+                $key = (string) $assignment->field_key;
+                return isset($employeeColumnsSet[$key]) && !isset($excludedSet[$key]);
+            })
+            ->values();
+
+        $dbColumns = $assignedFixedColumns->pluck('field_key')->all();
+        if (Schema::hasColumn('employees', 'status') && !in_array('status', $dbColumns, true)) {
+            $dbColumns[] = 'status';
+        }
+
+        $assignedCustomFields = EmployeeCustomField::query()
+            ->whereNotNull('category_id')
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get(['id', 'label']);
+
+        $labelMap = $assignedFixedColumns->mapWithKeys(function ($assignment) {
+            $label = trim((string) ($assignment->display_label ?? ''));
+            return [$assignment->field_key => $label !== '' ? $label : EmployeeCustomField::humanizeFieldKey($assignment->field_key)];
+        })->all();
+
+        $preferredOrder = [
+            'name',
+            'company_contact',
+            'branch_id',
+            'department_id',
+            'designation',
+            'doj',
+            'status',
+        ];
+
+        $columns = [];
+        $added = [];
+        $makeTitle = function ($key) use ($labelMap) {
+            return $labelMap[$key] ?? EmployeeCustomField::humanizeFieldKey($key);
+        };
+
+        foreach ($preferredOrder as $key) {
+            if (in_array($key, $dbColumns, true)) {
+                $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
+                $added[$key] = true;
+            }
+        }
+
+        foreach ($dbColumns as $key) {
+            if (empty($added[$key])) {
+                $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
+                $added[$key] = true;
+            }
+        }
+
+        foreach ($assignedCustomFields as $cf) {
+            $columns[] = [
+                'data' => 'custom_field_values.' . $cf->id,
+                'title' => trim((string) $cf->label) !== '' ? $cf->label : ('Custom Field #' . $cf->id),
+            ];
+        }
+
+        $columns[] = ['data' => 'documents_expiry', 'title' => $labelMap['documents_expiry'] ?? 'Documents Expiry'];
+
+        return array_merge($columns, [
+            ['data' => 'action', 'title' => 'Actions'],
+            ['data' => 'search', 'title' => 'Search'],
+            ['data' => 'control', 'title' => 'Control'],
+        ]);
+    }
+
+    private function applyEmployeeIndexFilters($query, Request $request): void
+    {
+        if ($request->filled('employee_id')) {
+            $query->where('employee_id', 'like', '%' . $request->input('employee_id') . '%');
+        }
+        if ($request->filled('name')) {
+            $query->where('name', 'like', '%' . $request->input('name') . '%');
+        }
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->input('branch_id'));
+        }
+        if ($request->filled('department_id')) {
+            $query->where('department_id', $request->input('department_id'));
+        }
+
+        if ($request->filled('quick_search')) {
+            $search = $request->input('quick_search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('employee_id', 'like', '%' . $search . '%')
+                    ->orWhere('company_email', 'like', '%' . $search . '%')
+                    ->orWhere('company_contact', 'like', '%' . $search . '%');
+            });
+        }
+
+        $statusFilters = $request->input('employee_status', []);
+        if (!empty($statusFilters)) {
+            $statusFilters = is_array($statusFilters) ? $statusFilters : [$statusFilters];
+            $query->whereIn('status', $statusFilters);
+        }
+
+        $this->applyModuleTopBarFilters($query, $request, 'employees');
+
+        $topColumn = trim((string) $request->input('employee_top_column', ''));
+        $topValue = $request->input('employee_top_value');
+        if ($topColumn !== '' && $topValue !== null && $topValue !== '' && Schema::hasColumn('employees', $topColumn)) {
+            $query->where($topColumn, $topValue);
+        }
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $employees = Employee::all()->sortBy('name')->load('branch', 'department', 'nationality');
-        $employeeTableLabels = $this->employeeTableLabels();
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
-        return view('employees.index', compact('employees', 'employeeTableLabels'));
+        $query = Employee::query()->with('branch', 'department', 'nationality');
+        $this->applyEmployeeIndexFilters($query, $request);
+        $query->orderBy('name');
+        $data = $this->applyPagination($query, $paginationParams);
+
+        return view('employees.index', array_merge([
+            'data' => $data,
+            'tableColumns' => $this->buildEmployeesIndexTableColumns(),
+        ], $this->moduleTopBarListingData($request, 'employees')));
     }
 
     /**
@@ -209,61 +507,45 @@ class EmployeeController extends Controller
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
         $accounts = \App\Models\Accounts::where('ref_name', 'Rider')->get();
-        $empId = 'EMP-' . ((Employee::latest()->first()->id ?? 0) + 1001);
-        $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $empId = $this->nextEmployeeId();
+        $employeeCategories = EmployeeCategory::orderBy('display_order')->orderBy('id')->get();
         $fieldsByCategory = $this->employeeFieldsByCategory();
-        return view('employees.create', compact('nationalities', 'branches', 'departments', 'accounts', 'empId', 'riderCategories', 'fieldsByCategory'));
+        return view('employees.create', compact('nationalities', 'branches', 'departments', 'accounts', 'empId', 'employeeCategories', 'fieldsByCategory'));
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Ensure core create fields exist before validation (employee_id may be hidden in settings).
      */
+    private function prepareEmployeeStoreRequest(Request $request): void
+    {
+        if (!$request->filled('employee_id')) {
+            $request->merge(['employee_id' => $this->nextEmployeeId()]);
+        }
+        if (!$request->filled('status')) {
+            $request->merge(['status' => 'active']);
+        }
+        if (!$request->filled('account')) {
+            $request->merge(['account' => 'new']);
+        }
+        $this->normalizeEmployeeEmailsInRequest($request);
+    }
+
     public function store(Request $request)
     {
-        // Validate the request
-        $validated = $request->validate(array_merge([
-            'employee_id' => 'required|string',
-            'name' => 'required|string|max:255',
-            'company_email' => 'required|email|unique:employees,company_email',
-            'company_contact' => 'nullable|string|max:20',
-            'nationality_id' => 'required|exists:countries,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'designation' => 'nullable|string|max:255',
-            'salary' => 'nullable|numeric|min:0',
-            'branch_id' => 'required|exists:branches,id',
-            'emirate_id' => 'nullable|string|unique:employees,emirate_id',
-            'emirate_expiry' => 'nullable|date',
-            'passport' => 'nullable|string|unique:employees,passport',
-            'passport_expiry' => 'nullable|date',
-            'doj' => 'required|date',
-            'dob' => 'required|date|before:today',
-            'visa_sponsor' => 'nullable|string|max:255',
-            'visa_occupation' => 'nullable|string|max:255',
-            'visa_expiry' => 'nullable|date',
-            'status' => 'required|in:active,inactive,on_leave',
-            'address' => 'nullable|string',
-            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'notes' => 'nullable|string',
-            'account' => 'required|in:new,existing',
-            'account_id' => 'nullable|required_if:account,existing|exists:accounts,id',
-        ], $this->employeeDynamicFieldRules()));
+        $this->prepareEmployeeStoreRequest($request);
+        $request->validate($this->employeeValidationRules());
 
         try {
             DB::beginTransaction();
 
-            // Handle profile image upload
+            $input = $this->employeeAttributesFromRequest($request);
+            $input['created_by'] = auth()->id();
+
             if ($request->hasFile('profile_image')) {
-                $path = $request->file('profile_image')->store('employees/profile', 'public');
-                $validated['profile_image'] = $path;
+                $input['profile_image'] = $request->file('profile_image')->store('employees/profile', 'public');
             }
 
-            // Set created_by
-            $validated['created_by'] = auth()->id();
-
-            $this->applyEmployeeDynamicInput($validated, $request);
-
-            // Create employee
-            $employee = Employee::create($validated);
+            $employee = Employee::create($input);
 
 
 
@@ -306,14 +588,14 @@ class EmployeeController extends Controller
                 ], 200);
             }
 
-            Flash::success('Rider created successfully.');
+            Flash::success('Employee created successfully.');
             return redirect(route('employees.index'));
         } catch (\Exception $e) {
             DB::rollBack();
 
             // Delete uploaded image if exists
-            if (isset($validated['profile_image'])) {
-                Storage::disk('public')->delete($validated['profile_image']);
+            if (isset($input['profile_image'])) {
+                Storage::disk('public')->delete($input['profile_image']);
             }
 
             // Log the error
@@ -322,7 +604,7 @@ class EmployeeController extends Controller
             if (request()->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to create employee. Please try again. Error:' . $e->getMessage(),
+                    'message' => 'Failed to create employee. Please try again. Error: ' . $e->getMessage(),
                 ], 500);
             }
             // Redirect back with error
@@ -350,37 +632,8 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
-        $companyId = optional(auth()->user())->company_id;
 
-        $documentTypes = ModuleDocumentType::query()
-            ->where('module_key', self::EMPLOYEE_MODULE_KEY)
-            ->where('is_active', true)
-            ->where(function ($query) use ($companyId) {
-                $query->whereNull('company_id');
-                if (!empty($companyId)) {
-                    $query->orWhere('company_id', $companyId);
-                }
-            })
-            ->orderBy('display_order')
-            ->orderBy('id')
-            ->get();
-
-        $expectedFiles = ['single' => [], 'dual' => []];
-        foreach ($documentTypes as $documentType) {
-            $key = strtolower(trim((string) $documentType->key));
-            if ($key === '') {
-                continue;
-            }
-
-            if ($documentType->type === 'dual') {
-                $expectedFiles['dual'][$key] = [
-                    'front' => trim((string) ($documentType->front_label ?: (ucwords(str_replace('_', ' ', $key)) . ' Front'))),
-                    'back' => trim((string) ($documentType->back_label ?: (ucwords(str_replace('_', ' ', $key)) . ' Back'))),
-                ];
-            } else {
-                $expectedFiles['single'][$key] = trim((string) ($documentType->label ?: ucwords(str_replace('_', ' ', $key))));
-            }
-        }
+        $expectedFiles = EmployeeDocumentType::expectedFilesStructure();
 
         $files = \App\Support\CompanyQuery::table('files')
             ->where('type', 'employee')
@@ -449,8 +702,52 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
+        $result = $employee->toArray();
 
-        return view('employees.attendance', compact('employee', 'nationalities', 'branches', 'departments'));
+        $month = request('month', date('Y-m'));
+        $monthStart = \Carbon\Carbon::parse($month . '-01');
+        $year = (int) $monthStart->format('Y');
+        $monthNum = (int) $monthStart->format('m');
+
+        $attendances = collect();
+        $summary = [
+            'total' => 0,
+            'present' => 0,
+            'absent' => 0,
+            'late' => 0,
+            'half_day' => 0,
+            'on_leave' => 0,
+            'holiday' => 0,
+        ];
+
+        if (Schema::hasTable('attendance')) {
+            $attendances = Attendance::where('ref_type', 'employee')
+                ->where('ref_id', $id)
+                ->whereYear('date', $year)
+                ->whereMonth('date', $monthNum)
+                ->orderByDesc('date')
+                ->orderByDesc('id')
+                ->get();
+
+            $summary['total'] = $attendances->count();
+            foreach ($attendances as $row) {
+                $key = str_replace(' ', '_', strtolower((string) $row->status));
+                if (array_key_exists($key, $summary)) {
+                    $summary[$key]++;
+                }
+            }
+        }
+
+        return view('employees.attendance', compact(
+            'employee',
+            'nationalities',
+            'branches',
+            'departments',
+            'result',
+            'attendances',
+            'month',
+            'summary'
+        ));
     }
 
     public function leaves($comapny_slug, $id)
@@ -463,14 +760,130 @@ class EmployeeController extends Controller
         return view('employees.leaves', compact('employee', 'nationalities', 'branches', 'departments'));
     }
 
-    public function timeline($comapny_slug, $id)
+    public function history($comapny_slug, $id)
     {
         $employee = Employee::findOrFail($id);
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
 
-        return view('employees.timeline', compact('employee', 'nationalities', 'branches', 'departments'));
+        $statusHistories = null;
+        $statusHistoryCount = 0;
+        $simHistories = null;
+        $simHistoryCount = 0;
+        $activeTab = in_array(request('tab'), ['status', 'sim'], true) ? request('tab') : 'status';
+
+        if (Schema::hasTable('employee_histories')) {
+            $statusHistories = EmployeeHistory::with(['branch', 'creator'])
+                ->where('employee_id', $id)
+                ->whereNotIn('event_type', ['sim_assign', 'sim_return'])
+                ->orderByDesc('effective_date')
+                ->orderByDesc('id')
+                ->paginate(50, ['*'], 'status_page');
+            $statusHistoryCount = EmployeeHistory::where('employee_id', $id)
+                ->whereNotIn('event_type', ['sim_assign', 'sim_return'])
+                ->count();
+        }
+
+        if (Schema::hasTable('sim_histories') && Schema::hasColumn('sim_histories', 'employee_id')) {
+            $simHistories = SimHistory::with('sim')
+                ->where('employee_id', $id)
+                ->orderByDesc('note_date')
+                ->orderByDesc('id')
+                ->paginate(50, ['*'], 'sim_page');
+            $simHistoryCount = SimHistory::where('employee_id', $id)->count();
+        }
+
+        return view('employees.history', compact(
+            'employee',
+            'nationalities',
+            'branches',
+            'departments',
+            'statusHistories',
+            'statusHistoryCount',
+            'simHistories',
+            'simHistoryCount',
+            'activeTab'
+        ));
+    }
+
+    public function payment(Request $request)
+    {
+        $accountIds = Employee::whereNotNull('account_id')->pluck('account_id')->toArray();
+
+        if (empty($accountIds)) {
+            Flash::error('No Employees found');
+            return redirect()->back();
+        }
+
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+        $query = Payment::query()->latest('date_of_payment');
+        $query->whereIn('payee_account_id', $accountIds);
+
+        $data = $this->applyPagination($query, $paginationParams);
+        return view('employees.payments', compact('data'));
+    }
+
+    public function sendEmail($company_slug, $id, Request $request)
+    {
+        $employee = Employee::findOrFail($id);
+
+        if ($request->isMethod('post')) {
+            $user = Auth::user();
+            $emailService = app(\App\Services\Email\UserEmailService::class);
+            $smtpPrep = $emailService->prepareCompanySmtp($user);
+            if (!$smtpPrep['ready']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $smtpPrep['message'],
+                ], $smtpPrep['status'] ?? 422);
+            }
+            $fromEmail = $smtpPrep['from_email'];
+            $fromName = $smtpPrep['from_name'];
+
+            $toEmail = $request->input('email_to');
+            if (!is_string($toEmail) || trim($toEmail) === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Employee email address is missing.',
+                ], 422);
+            }
+            $toEmail = trim($toEmail);
+
+            $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
+                ? trim($request->input('email_subject'))
+                : '(Employee email)';
+
+            $brandingService = app(\App\Services\Email\CompanyEmailBrandingService::class);
+            $data = $brandingService->mergeIntoMailData([
+                'html' => $request->input('email_message'),
+            ]);
+
+            $ccEmails = $emailService->getCcRecipientEmails($user);
+
+            Mail::send('emails.general', $data, function ($message) use ($toEmail, $subject, $fromEmail, $fromName, $ccEmails) {
+                $message->to([$toEmail]);
+                if (!empty($ccEmails)) {
+                    $message->cc($ccEmails);
+                } else {
+                    $adminCc = env('ADMIN_CC_EMAIL');
+                    if (!empty($adminCc)) {
+                        $message->cc($adminCc);
+                    }
+                }
+                $message->from($fromEmail, $fromName);
+                $message->replyTo($fromEmail, $fromName);
+                $message->subject($subject);
+                $message->priority(3);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email sent successfully.',
+            ]);
+        }
+
+        return view('employees.send_email', compact('employee'));
     }
 
     public function voucher($comapny_slug, $id)
@@ -487,9 +900,10 @@ class EmployeeController extends Controller
         $nationalities = \App\Models\Countries::all();
         $branches = \App\Models\Branch::active()->get();
         $departments = \App\Models\Departments::all();
-        $riderCategories = \App\Models\RiderCategory::orderBy('display_order')->orderBy('id')->get();
+        $employeeCategories = EmployeeCategory::orderBy('display_order')->orderBy('id')->get();
         $fieldsByCategory = $this->employeeFieldsByCategory();
-        return view('employees.edit', compact('employee', 'nationalities', 'branches', 'departments', 'riderCategories', 'fieldsByCategory'));
+        $result = $employee->toArray();
+        return view('employees.edit', compact('employee', 'nationalities', 'branches', 'departments', 'employeeCategories', 'fieldsByCategory', 'result'));
     }
 
     /**
@@ -497,54 +911,39 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, $comapny_slug, Employee $employee)
     {
-        $validated = $request->validate(array_merge([
-            'employee_id' => 'required|string',
-            'name' => 'required|string|max:255',
-            'company_email' => 'required|email|unique:employees,company_email,' . $employee->id,
-            'company_contact' => 'nullable|string|max:20',
-            'nationality_id' => 'required|exists:countries,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'designation' => 'nullable|string|max:255',
-            'salary' => 'nullable|numeric|min:0',
-            'branch_id' => 'required|exists:branches,id',
-            'emirate_id' => 'nullable|string|unique:employees,emirate_id',
-            'emirate_expiry' => 'nullable|date',
-            'passport' => 'nullable|string|unique:employees,passport',
-            'passport_expiry' => 'nullable|date',
-            'doj' => 'required|date',
-            'dob' => 'required|date|before:today',
-            'visa_sponsor' => 'nullable|string|max:255',
-            'visa_occupation' => 'nullable|string|max:255',
-            'visa_expiry' => 'nullable|date',
-            'status' => 'required|in:active,inactive,on_leave',
-            'address' => 'nullable|string',
-            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'notes' => 'nullable|string',
-        ], $this->employeeDynamicFieldRules()));
+        $this->normalizeEmployeeRequestForUpdate($request);
+        $request->validate($this->employeeValidationRules((int) $employee->id));
 
-        $this->applyEmployeeDynamicInput($validated, $request);
+        $input = $this->employeeAttributesFromRequest($request, $employee);
 
-        // Handle file upload
         if ($request->hasFile('profile_image')) {
-            // Delete old image
             if ($employee->profile_image) {
                 Storage::disk('public')->delete($employee->profile_image);
             }
 
-            $imagePath = $request->file('profile_image')->store('employees/profile', 'public');
-            $validated['profile_image'] = $imagePath;
+            $input['profile_image'] = $request->file('profile_image')->store('employees/profile', 'public');
         }
-        $validated['updated_by'] = auth()->id();
-        $employee->update($validated);
-        if (request()->ajax()) {
+
+        $input['updated_by'] = auth()->id();
+
+        try {
+            $employee->update($input);
+        } catch (UniqueConstraintViolationException $e) {
+            return $this->employeeUniqueViolationResponse($e, $request);
+        }
+
+        $employee->refresh();
+
+        if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Employee updated successfully!',
-                'redirect' => route('employees.index')
+                'redirect' => route('employees.show', $employee->id),
+                'employee' => $this->employeeProfileSidebarPayload($employee),
             ], 200);
         }
         Flash::success('Employee updated successfully.');
-        return redirect()->route('employees.index');
+        return redirect()->route('employees.show', $employee->id);
     }
 
     /**
@@ -598,7 +997,7 @@ class EmployeeController extends Controller
         }
 
         // Get validation rules
-        $rules = $this->getSectionRules($section);
+        $rules = $this->getSectionRules($section, (int) $employee->id);
 
         // Create validator
         $validator = Validator::make($request->all(), $rules);
@@ -611,29 +1010,49 @@ class EmployeeController extends Controller
             ]);
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        if ($section == 'photo' && !$request->hasFile('profile_image')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please select a profile image to upload.',
             ], 422);
         }
 
         if ($section == 'photo' && $request->hasFile('profile_image')) {
-            // Handle file upload
+
             if ($employee->profile_image) {
                 Storage::disk('public')->delete($employee->profile_image);
             }
 
-            $imagePath = $request->file('profile_image')->store('employees/profile', 'public');
+            $imagePath = $request->file('profile_image')
+                ->store('employees/profile', 'public');
+
             $employee->profile_image = $imagePath;
             $employee->save();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Profile photo updated successfully',
                 'data' => $employee,
-                'image_url' => Storage::url($imagePath)
+                'image_url' => $employee->profile_image_url
             ]);
         }
 
         // Update employee
-        $employee->update($request->all());
+        $sectionData = \App\Support\SimAssigneeContactSync::stripManagedContactFromRequestData(
+            $request->all(),
+            $employee,
+            'employee'
+        );
+        try {
+            $employee->update($sectionData);
+        } catch (UniqueConstraintViolationException $e) {
+            return $this->employeeUniqueViolationResponse($e, $request);
+        }
         $employee->refresh();
 
         return response()->json([
@@ -643,7 +1062,7 @@ class EmployeeController extends Controller
         ]);
     }
 
-    private function getSectionRules($section)
+    private function getSectionRules($section, ?int $ignoreEmployeeId = null)
     {
         switch ($section) {
             case 'personal':
@@ -661,7 +1080,7 @@ class EmployeeController extends Controller
                     'branch_id' => 'required|exists:branches,id',
                     'doj' => 'required|date',
                     'salary' => 'nullable|numeric|min:0',
-                    'company_email' => 'nullable|email|max:255',
+                    'company_email' => $this->employeeUniqueValueRules('company_email', $ignoreEmployeeId),
                     'company_contact' => 'nullable|string|max:20'
                 ];
 
@@ -673,7 +1092,15 @@ class EmployeeController extends Controller
                     'visa_occupation' => 'nullable|string|max:255',
                     'emirate_expiry' => 'nullable|date',
                     'passport_expiry' => 'nullable|date',
-                    'visa_expiry' => 'nullable|date'
+                    'visa_expiry' => 'nullable|date',
+                    'license_no' => 'nullable|string|max:191',
+                    'license_expiry' => 'nullable|date',
+                    'road_permit' => 'nullable|string|max:255',
+                    'road_permit_expiry' => 'nullable|date',
+                    'person_code' => 'nullable|string|max:50',
+                    'labor_card_number' => 'nullable|string|max:100',
+                    'labor_card_expiry' => 'nullable|date',
+                    'wps' => 'nullable|string|max:100',
                 ];
 
             case 'notes':
@@ -696,27 +1123,38 @@ class EmployeeController extends Controller
      */
     public function updateStatus(Request $request)
     {
-        // Validate request
         $validator = Validator::make($request->all(), [
             'employee_id' => 'required|exists:employees,id',
-            'status' => 'required|in:active,inactive,on_leave'
+            'status' => 'required|in:active,inactive,on_leave',
+            'effective_date' => ['required', 'date', 'before_or_equal:' . now()->toDateString()],
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
+                'message' => $validator->errors()->first(),
             ], 422);
         }
 
         try {
             $employee = Employee::findOrFail($request->employee_id);
-            $employee->status = $request->status;
+            $previousStatus = (string) ($employee->status ?? '');
+            $newStatus = (string) $request->status;
+            $effectiveDate = $request->input('effective_date', now()->toDateString());
+
+            $employee->status = $newStatus;
             $employee->save();
+
+            EmployeeHistoryLogger::statusChange($employee, $previousStatus ?: null, $newStatus, $effectiveDate);
+
+            $employee->refresh();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Employee status updated successfully',
+                'status' => $newStatus,
+                'employee' => $this->employeeProfileSidebarPayload($employee),
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to update employee status', [
@@ -729,5 +1167,145 @@ class EmployeeController extends Controller
                 'message' => 'Failed to update employee status: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Update a single employee column from profile sidebar cards.
+     */
+    public function updateProfileField(Request $request)
+    {
+        $rules = [
+            'employee_id' => 'required|exists:employees,id',
+            'column' => 'required|string|max:80',
+            'value' => 'nullable|string|max:255',
+            'category_name' => 'nullable|string|max:255',
+        ];
+        if ($request->filled('value')) {
+            $rules['effective_date'] = ['required', 'date', 'before_or_equal:' . now()->toDateString()];
+        } else {
+            $rules['effective_date'] = ['nullable', 'date', 'before_or_equal:' . now()->toDateString()];
+        }
+        $validated = $request->validate($rules);
+
+        $column = $validated['column'];
+        if (\App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($column)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contact is updated automatically when a SIM is assigned or returned.',
+            ], 422);
+        }
+
+        if (!Schema::hasColumn('employees', $column)) {
+            return response()->json(['success' => false, 'message' => 'Invalid column.'], 422);
+        }
+
+        $allowedColumns = EmployeeTopCategory::whereNotNull('employee_column')
+            ->pluck('employee_column')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!in_array($column, $allowedColumns, true)) {
+            return response()->json(['success' => false, 'message' => 'Column is not allowed.'], 422);
+        }
+
+        try {
+            $employee = Employee::findOrFail($validated['employee_id']);
+            $previousValue = $employee->{$column};
+            $newValue = $validated['value'] ?? null;
+            if (in_array($column, ['company_email', 'personal_email'], true) && $newValue !== null && $newValue !== '') {
+                $newValue = strtolower(trim((string) $newValue));
+            }
+            $effectiveDate = $validated['effective_date'] ?? now()->toDateString();
+            $categoryName = $validated['category_name'] ?? null;
+
+            if (!$categoryName) {
+                $categoryName = EmployeeTopCategory::where('employee_column', $column)->value('name');
+            }
+
+            if (in_array($column, $this->employeeUniqueFieldKeys(), true)) {
+                Validator::make(
+                    ['value' => $newValue],
+                    ['value' => $this->employeeUniqueValueRules($column, (int) $employee->id)]
+                )->validate();
+            }
+
+            $employee->{$column} = $newValue;
+            $employee->save();
+
+            EmployeeHistoryLogger::profileFieldChange(
+                $employee,
+                $column,
+                $previousValue,
+                $newValue,
+                $categoryName,
+                $effectiveDate
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Employee updated successfully.',
+                'column' => $column,
+                'value' => $employee->{$column},
+                'employee' => $this->employeeProfileSidebarPayload($employee->fresh()),
+            ]);
+        } catch (UniqueConstraintViolationException $e) {
+            return $this->employeeUniqueViolationResponse($e, $request);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to update employee profile field', [
+                'employee_id' => $validated['employee_id'],
+                'column' => $column,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update employee: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Sidebar display payload returned after profile card AJAX updates.
+     */
+    private function employeeProfileSidebarPayload(Employee $employee): array
+    {
+        $employee->loadMissing(['department', 'branch', 'nationality']);
+
+        $age = 'not-set';
+        if ($employee->dob) {
+            $age = (string) \Carbon\Carbon::parse($employee->dob)->age;
+        }
+
+        $whatsappHtml = 'N/A';
+        if ($employee->company_contact) {
+            $phone = preg_replace('/[^0-9]/', '', $employee->company_contact);
+            $whatsappNumber = '+971' . ltrim($phone, '0');
+            $whatsappHtml = '<a href="https://wa.me/' . e($whatsappNumber) . '" target="_blank" class="text-success">'
+                . e($employee->company_contact) . '</a>';
+        }
+
+        return [
+            'name' => $employee->name,
+            'designation' => $employee->designation,
+            'status' => $employee->status,
+            'company_email' => $employee->company_email,
+            'company_contact' => $employee->company_contact,
+            'company_contact_html' => $whatsappHtml,
+            'nationality' => $employee->nationality?->name,
+            'age' => $age,
+            'doj' => $employee->doj ? \App\Helpers\General::DateFormat($employee->doj) : 'not-set',
+            'salary' => number_format((float) ($employee->salary ?? 0), 2) . ' ' . \App\Helpers\Currency::code(),
+            'emirate_id' => $employee->emirate_id,
+            'department' => $employee->department?->name,
+            'branch' => $employee->branch?->name,
+        ];
     }
 }

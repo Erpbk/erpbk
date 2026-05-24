@@ -467,7 +467,7 @@
                         <label for="company">Company</label>
                             <select class="form-control " id="company" name="company">
                             @php
-                            $companies  = DB::table('sims')
+                            $companies  = company_table('sims')
                                 ->whereNotNull('company')
                                 ->select('company')
                                 ->distinct()

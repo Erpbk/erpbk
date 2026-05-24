@@ -13,6 +13,7 @@ class BikeHistory extends BaseModel
 
   public $fillable = [
     'bike_id',
+    'branch_id',
     'rider_id',
     'rental_company_id',
     'notes',
@@ -22,7 +23,10 @@ class BikeHistory extends BaseModel
     'updated_by',
     'warehouse',
     'contract',
-    'customer_id'
+    'customer_id',
+    'fleet_supervisor',
+    'bike_number',
+    'history_status',
   ];
 
   protected $casts = [
@@ -61,5 +65,10 @@ class BikeHistory extends BaseModel
   public function rentalCompany()
   {
     return $this->belongsTo(BikeRentCompany::class, 'rental_company_id', 'id');
+  }
+
+  public function branch()
+  {
+    return $this->belongsTo(Branch::class, 'branch_id', 'id');
   }
 }

@@ -2,11 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Bike\BikeDefaultCategoryService;
 use App\Models\BikeCategory;
 use App\Models\BikeCustomField;
 use App\Models\BikeDocumentType;
+use App\Models\BikeAssignFieldAssignment;
 use App\Models\BikeFieldCategoryAssignment;
+use App\Models\BikeTopCategory;
+use App\Models\BikeTopOption;
+use App\Models\Bikes;
+use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
 use App\Models\Settings;
+use App\Models\UserTableSettings;
 use App\Support\ModuleFieldSource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +22,8 @@ use Illuminate\Validation\Rule;
 
 class BikeSettingsController extends Controller
 {
+    use SavesModuleDisplayLabel;
+
     /**
      * Fixed bike fields hidden from Bike Settings and Bike form.
      */
@@ -27,6 +36,13 @@ class BikeSettingsController extends Controller
         'customer_id',
         'emirates',
         'rider_id',
+        'custom_field_values',
+        'warehouse',
+        'rental_company_id',
+        'leased_return_company_id',
+        'leased_return_by',
+        'leased_return_date',
+        'bike_top_option_id',
     ];
 
     public function __construct()
@@ -34,7 +50,7 @@ class BikeSettingsController extends Controller
         $this->middleware('auth');
     }
 
-    protected function bikeSettingsIndexRedirect(?int $activeCategoryId = null)
+    protected function bikeSettingsIndexRedirect(?int $activeCategoryId = null, ?string $settingsTab = null)
     {
         $companySlug = request()->route('company_slug') ?? session('company_slug');
         $url = route('settings-panel.module-settings.index', [
@@ -42,8 +58,15 @@ class BikeSettingsController extends Controller
             'module' => 'bike_list',
         ]);
 
+        $params = [];
         if ($activeCategoryId !== null) {
-            $url .= (str_contains($url, '?') ? '&' : '?') . 'active_category_id=' . (int) $activeCategoryId;
+            $params['active_category_id'] = (int) $activeCategoryId;
+        }
+        if ($settingsTab !== null && $settingsTab !== '') {
+            $params['tab'] = $settingsTab;
+        }
+        if ($params !== []) {
+            $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($params);
         }
 
         return redirect()->to($url);
@@ -62,125 +85,34 @@ class BikeSettingsController extends Controller
 
     protected function bikeCategoryQuery()
     {
-        $query = BikeCategory::query();
+        return BikeCategory::query();
+    }
 
-        if ($this->bikeCategoryCompanyScoped()) {
-            $companyId = $this->bikeCategoryCompanyId();
-            if ($companyId !== null) {
-                $query->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)->orWhereNull('company_id');
-                });
-            }
-        }
+    protected function ensureDefaultBikeCategorySetup(): BikeCategory
+    {
+        $service = app(BikeDefaultCategoryService::class);
+        $defaultCategory = $service->ensure();
+        $service->syncFixedFieldAssignments($service->discoverAssignableFieldKeys());
+        $service->assignUnassignedCustomFields();
 
-        return $query;
+        return $defaultCategory;
     }
 
     /**
-     * Ensure every real bikes-table column has an assignment row and cannot be "optional" or hidden via settings.
+     * @deprecated Use ensureDefaultBikeCategorySetup() / BikeDefaultCategoryService::bootstrap()
      */
     protected function syncBikeSchemaAssignmentsFromDb(): void
     {
-        if (!Schema::hasTable('bikes') || !Schema::hasTable('bike_field_category_assignments') || !Schema::hasTable('bike_categories')) {
-            return;
-        }
-
-        $systemColumns = [
-            'id',
-            'created_at',
-            'updated_at',
-            'deleted_at',
-            'custom_field_values',
-            'created_by',
-            'updated_by',
-            'deleted_by',
-        ];
-
-        $bikeColumns = Schema::getColumnListing('bikes');
-        $fieldKeys = array_values(array_filter($bikeColumns, function ($col) use ($systemColumns) {
-            return !in_array($col, $systemColumns, true);
-        }));
-
-        $slugToCategoryId = DB::table('bike_categories')->pluck('id', 'slug')->all();
-        $otherId = (int) ($slugToCategoryId['other'] ?? 0);
-        if ($otherId <= 0) {
-            return;
-        }
-
-        $mapping = [
-            'bike_info' => [
-                'plate',
-                'bike_code',
-                'chassis_number',
-                'engine',
-                'vehicle_type',
-                'model',
-                'model_type',
-                'color',
-                'emirates',
-                'branch_id',
-                'company',
-                'rider_id',
-                'warehouse',
-                'traffic_file_number',
-                'registration_date',
-                'expiry_date',
-                'notes',
-                'status',
-                'customer_id',
-            ],
-            'insurance_info' => [
-                'insurance_expiry',
-                'insurance_co',
-                'policy_no',
-            ],
-            'documents_info' => [
-                'contract_number',
-            ],
-        ];
-
-        $resolvedCategoryForField = [];
-        foreach ($fieldKeys as $key) {
-            $resolvedCategoryForField[$key] = $otherId;
-            foreach ($mapping as $slug => $keys) {
-                if (in_array($key, $keys, true)) {
-                    $catId = (int) ($slugToCategoryId[$slug] ?? $otherId);
-                    $resolvedCategoryForField[$key] = $catId > 0 ? $catId : $otherId;
-                    break;
-                }
-            }
-        }
-
-        $fieldKeys = array_values(array_filter($fieldKeys, function ($fieldKey) {
-            return !in_array($fieldKey, $this->hiddenFixedFieldKeys, true);
-        }));
-        sort($fieldKeys);
-        foreach ($fieldKeys as $fieldKey) {
-            $categoryId = (int) ($resolvedCategoryForField[$fieldKey] ?? $otherId);
-            $assignment = BikeFieldCategoryAssignment::where('field_key', $fieldKey)->first();
-            if ($assignment) {
-                continue;
-            }
-
-            $nextOrder = ((int) BikeFieldCategoryAssignment::where('category_id', $categoryId)->max('display_order')) + 1;
-            BikeFieldCategoryAssignment::create([
-                'field_key' => $fieldKey,
-                'category_id' => $categoryId,
-                'display_order' => $nextOrder,
-                'display_label' => null,
-                'input_type' => null,
-                'input_config' => null,
-                'is_visible' => true,
-                'is_required' => true,
-            ]);
-        }
+        $this->ensureDefaultBikeCategorySetup();
     }
 
     public function index()
     {
-        $this->syncBikeSchemaAssignmentsFromDb();
+        $this->ensureDefaultBikeCategorySetup();
+        BikeCustomField::syncBikeAssignFieldAssignments();
 
         $categories = $this->bikeCategoryQuery()
+            ->orderByRaw('CASE WHEN slug = ? THEN 0 ELSE 1 END', [BikeDefaultCategoryService::DEFAULT_SLUG])
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -196,7 +128,10 @@ class BikeSettingsController extends Controller
 
         $fixedAssignmentsByCategory = $fixedAssignments->groupBy('category_id');
 
+        $assignOnlyCustomFieldIds = BikeCustomField::assignOnlyCustomFieldIds();
+
         $customFields = BikeCustomField::with('category')
+            ->when($assignOnlyCustomFieldIds !== [], fn($q) => $q->whereNotIn('id', $assignOnlyCustomFieldIds))
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -204,6 +139,7 @@ class BikeSettingsController extends Controller
         $customFieldsByCategory = $customFields->groupBy('category_id');
 
         $unassignedCustomFields = BikeCustomField::whereNull('category_id')
+            ->when($assignOnlyCustomFieldIds !== [], fn($q) => $q->whereNotIn('id', $assignOnlyCustomFieldIds))
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -211,6 +147,37 @@ class BikeSettingsController extends Controller
         $dataTypes = BikeCustomField::dataTypes();
         $moduleLabel = Settings::getMenuLabel('bike_settings');
         $documentTypes = BikeDocumentType::orderedForAdmin()->get();
+
+        $bikeTopCategories = collect();
+        $bikeTopSelectableColumns = [];
+        $bikeTopUserVisibleOptionIds = null;
+        $bikeTopAllOptionIds = [];
+        if (Schema::hasTable('bike_top_categories')) {
+            $bikeTopCategories = BikeTopCategory::with('options')
+                ->orderBy('display_order')
+                ->orderBy('id')
+                ->get();
+            $bikeTopSelectableColumns = $this->bikeTopSelectableColumns();
+            if (Schema::hasTable('bike_top_options')) {
+                $bikeTopAllOptionIds = BikeTopOption::query()
+                    ->pluck('id')
+                    ->map(fn($id) => (int) $id)
+                    ->values()
+                    ->all();
+            }
+            $userBikeTable = UserTableSettings::getSettings(auth()->id(), 'bikes_table');
+            if ($userBikeTable && is_array($userBikeTable->additional_settings)) {
+                $bikeTopUserVisibleOptionIds = $userBikeTable->additional_settings['bike_top_visible_option_ids'] ?? null;
+            }
+        }
+
+        $assignFieldAssignments = collect();
+        if (Schema::hasTable('bike_assign_field_assignments')) {
+            $assignFieldAssignments = BikeAssignFieldAssignment::with('customField')
+                ->orderBy('display_order')
+                ->orderBy('id')
+                ->get();
+        }
 
         return view('settings.bike_settings.index', compact(
             'categories',
@@ -222,6 +189,11 @@ class BikeSettingsController extends Controller
             'dataTypes',
             'moduleLabel',
             'documentTypes',
+            'bikeTopCategories',
+            'bikeTopSelectableColumns',
+            'bikeTopUserVisibleOptionIds',
+            'bikeTopAllOptionIds',
+            'assignFieldAssignments',
         ) + [
             'moduleKey' => 'bike_list',
             'moduleSchemaFieldKeys' => ModuleFieldSource::schemaFieldKeysForModule('bike_list'),
@@ -230,15 +202,7 @@ class BikeSettingsController extends Controller
 
     public function storeModuleLabel(Request $request)
     {
-        $request->validate(['module_label' => 'required|string|max:100']);
-        $value = trim((string) $request->input('module_label'));
-
-        Settings::updateOrCreate(
-            ['name' => 'menu_label_bike_settings'],
-            ['value' => $value]
-        );
-
-        Settings::clearMenuLabelsCache();
+        $this->saveModuleDisplayLabel($request, 'bike_list');
 
         return $this->bikeSettingsIndexRedirect()->with('success', 'Module name updated.');
     }
@@ -265,7 +229,7 @@ class BikeSettingsController extends Controller
     public function updateCategory(Request $request, string $company_slug, int $id)
     {
         $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
-        if ((bool) $category->is_system) {
+        if ((bool) $category->is_system && ! app(BikeDefaultCategoryService::class)->isDefaultCategory($category)) {
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'System categories cannot be edited.'], 422);
             }
@@ -296,6 +260,16 @@ class BikeSettingsController extends Controller
     public function destroyCategory(Request $request, string $company_slug, int $id)
     {
         $category = $this->bikeCategoryQuery()->where('id', $id)->firstOrFail();
+
+        if (app(BikeDefaultCategoryService::class)->isDefaultCategory($category)) {
+            $message = __('The default category cannot be deleted.');
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
+            return redirect()->back()->with('error', $message);
+        }
+
         if ((bool) $category->is_system) {
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'System categories cannot be deleted.'], 422);
@@ -628,11 +602,9 @@ class BikeSettingsController extends Controller
             'config_options' => ['nullable', 'string'],
         ]);
 
-        $categoryId = $validated['category_id'] ?? null;
+        $categoryId = $validated['category_id'] ?? (int) app(BikeDefaultCategoryService::class)->ensure()->id;
 
-        $displayOrder = $categoryId
-            ? ((int) BikeCustomField::where('category_id', $categoryId)->max('display_order')) + 1
-            : ((int) BikeCustomField::whereNull('category_id')->max('display_order')) + 1;
+        $displayOrder = ((int) BikeCustomField::where('category_id', $categoryId)->max('display_order')) + 1;
 
         $config = null;
         if (!empty($validated['config_options']) && $validated['data_type'] === 'dropdown') {
@@ -648,6 +620,7 @@ class BikeSettingsController extends Controller
             'input_format' => $validated['input_format'] ?? null,
             'data_type' => $validated['data_type'],
             'is_mandatory' => filter_var((string) ($validated['is_mandatory'] ?? false), FILTER_VALIDATE_BOOLEAN),
+            'is_visible' => true,
             'config' => $config,
             'category_id' => $categoryId,
             'display_order' => $displayOrder,
@@ -695,6 +668,27 @@ class BikeSettingsController extends Controller
 
         return $this->bikeSettingsIndexRedirect($field->category_id !== null ? (int) $field->category_id : 0)
             ->with('success', 'Custom field updated.');
+    }
+
+    public function updateCustomFieldFlags(Request $request, string $company_slug, int $id)
+    {
+        $validated = $request->validate([
+            'is_mandatory' => 'required|boolean',
+            'is_visible' => 'required|boolean',
+        ]);
+
+        $field = BikeCustomField::where('id', $id)->firstOrFail();
+        $field->is_mandatory = filter_var($validated['is_mandatory'], FILTER_VALIDATE_BOOLEAN);
+        $field->is_visible = filter_var($validated['is_visible'], FILTER_VALIDATE_BOOLEAN);
+        $field->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Custom field settings updated.',
+            'id' => (int) $field->id,
+            'is_mandatory' => (bool) $field->is_mandatory,
+            'is_visible' => (bool) $field->is_visible,
+        ]);
     }
 
     public function destroyField(string $company_slug, int $id)
@@ -781,5 +775,567 @@ class BikeSettingsController extends Controller
         $field->delete();
 
         return $this->bikeSettingsIndexRedirect()->with('success', 'Document type deleted.');
+    }
+
+    /**
+     * Columns on `bikes` that can back a Vehicle Top category (distinct values become pick options).
+     *
+     * @return array<string, string>
+     */
+    protected function bikeTopSelectableColumns(): array
+    {
+        if (!Schema::hasTable('bikes')) {
+            return [];
+        }
+
+        $systemColumns = [
+            'id',
+            'created_at',
+            'updated_at',
+            'deleted_at',
+            'custom_field_values',
+            'created_by',
+            'updated_by',
+            'deleted_by',
+            'bike_top_option_id',
+        ];
+
+        $bikeColumns = Schema::getColumnListing('bikes');
+        $options = [];
+        foreach ($bikeColumns as $fieldKey) {
+            if (in_array($fieldKey, $systemColumns, true)) {
+                continue;
+            }
+            if (in_array($fieldKey, $this->hiddenFixedFieldKeys, true)) {
+                continue;
+            }
+            $options[$fieldKey] = BikeCustomField::humanizeFieldKey($fieldKey);
+        }
+
+        asort($options);
+
+        return $options;
+    }
+
+    public function bikeTopAccordionBody()
+    {
+        $bikeTopCategories = BikeTopCategory::with('options')
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        return view('settings.partials.top_bar.accordion', [
+            'topBarCategories' => $bikeTopCategories,
+            'topBarEmptyMessage' => 'No Vehicle Top categories yet. Add your first category to begin.',
+        ]);
+    }
+
+    public function storeBikeTopCategory(Request $request)
+    {
+        $allowedColumns = array_keys($this->bikeTopSelectableColumns());
+        $validated = $request->validate([
+            'bike_column' => ['required', 'string', Rule::in($allowedColumns)],
+        ]);
+
+        $bikeColumn = $validated['bike_column'];
+        $existsQuery = BikeTopCategory::where('bike_column', $bikeColumn);
+        if ($existsQuery->exists()) {
+            return response()->json(['success' => false, 'message' => 'This vehicle column is already configured as a category.'], 422);
+        }
+
+        $category = BikeTopCategory::create([
+            'name' => BikeCustomField::humanizeFieldKey($bikeColumn),
+            'bike_column' => $bikeColumn,
+            'display_order' => ((int) BikeTopCategory::max('display_order')) + 1,
+            'is_active' => true,
+            'show_in_top_bar' => true,
+            'show_in_view_cards' => false,
+        ]);
+
+        $seeded = app(\App\Services\Module\ModuleTopBarSettingsService::class)
+            ->seedOptionsFromFieldSettings('bike_list', $category);
+
+        return response()->json([
+            'success' => true,
+            'message' => $seeded > 0
+                ? 'Vehicle Top category added with ' . $seeded . ' option(s) from field settings.'
+                : 'Vehicle Top category added.',
+        ]);
+    }
+
+    public function updateBikeTopCategoryVisibility(Request $request, string $company_slug, int $id)
+    {
+        $category = BikeTopCategory::findOrFail($id);
+        $validated = $request->validate([
+            'show_in_top_bar' => 'nullable|boolean',
+            'show_in_view_cards' => 'nullable|boolean',
+        ]);
+
+        $category->show_in_top_bar = array_key_exists('show_in_top_bar', $validated)
+            ? (bool) $validated['show_in_top_bar']
+            : $request->boolean('show_in_top_bar');
+        $category->show_in_view_cards = array_key_exists('show_in_view_cards', $validated)
+            ? (bool) $validated['show_in_view_cards']
+            : $request->boolean('show_in_view_cards');
+        $category->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Display options updated.',
+            'show_in_top_bar' => (bool) $category->show_in_top_bar,
+            'show_in_view_cards' => (bool) $category->show_in_view_cards,
+        ]);
+    }
+
+    public function updateBikeTopCategory(Request $request, string $company_slug, int $id)
+    {
+        $category = BikeTopCategory::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $category->name = trim($validated['name']);
+        $category->save();
+
+        return response()->json(['success' => true, 'message' => 'Vehicle Top category updated.']);
+    }
+
+    public function destroyBikeTopCategory(string $company_slug, int $id)
+    {
+        BikeTopCategory::findOrFail($id)->delete();
+
+        return response()->json(['success' => true, 'message' => 'Vehicle Top category deleted.']);
+    }
+
+    public function storeBikeTopOption(Request $request)
+    {
+        $validated = $request->validate([
+            'category_id' => 'required|integer|exists:bike_top_categories,id',
+            'name' => 'nullable|string|max:255',
+            'selected_values' => 'nullable|array',
+            'selected_values.*' => 'nullable|string|max:255',
+        ]);
+
+        $categoryId = (int) $validated['category_id'];
+        $items = collect($validated['selected_values'] ?? [])
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
+            ->unique()
+            ->values();
+
+        if ($items->isEmpty()) {
+            $single = trim((string) ($validated['name'] ?? ''));
+            if ($single !== '') {
+                $items = collect([$single]);
+            }
+        }
+
+        if ($items->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Please select at least one value.'], 422);
+        }
+
+        $nextOrder = ((int) BikeTopOption::where('category_id', $categoryId)->max('display_order')) + 1;
+        $createdCount = 0;
+        foreach ($items as $item) {
+            $exists = BikeTopOption::where('category_id', $categoryId)->where('name', $item)->exists();
+            if ($exists) {
+                continue;
+            }
+            BikeTopOption::create([
+                'category_id' => $categoryId,
+                'name' => $item,
+                'display_order' => $nextOrder++,
+                'is_active' => true,
+            ]);
+            $createdCount++;
+        }
+
+        if ($createdCount === 0) {
+            return response()->json(['success' => false, 'message' => 'Selected values already exist as options.'], 422);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Vehicle Top option added.']);
+    }
+
+    public function bikeTopCategoryFieldValues(string $company_slug, int $id)
+    {
+        $category = BikeTopCategory::findOrFail($id);
+        $column = (string) ($category->bike_column ?? '');
+        if ($column === '' || !Schema::hasColumn('bikes', $column)) {
+            return response()->json(['success' => false, 'message' => 'Category source column is invalid.', 'values' => []], 422);
+        }
+
+        $formChoices = BikeCustomField::fixedFieldSelectChoices($column);
+
+        $configuredValues = collect();
+        $assignment = BikeFieldCategoryAssignment::where('field_key', $column)->first();
+        if ($formChoices === [] && $assignment && is_array($assignment->input_config) && array_key_exists('options', $assignment->input_config)) {
+            $rawOptions = $assignment->input_config['options'];
+            if (is_array($rawOptions)) {
+                $configuredValues = collect($rawOptions);
+            } else {
+                $configuredValues = collect(preg_split("/\r\n|\n|\r/", (string) $rawOptions));
+            }
+            $configuredValues = $configuredValues
+                ->map(fn($v) => trim((string) $v))
+                ->filter(fn($v) => $v !== '')
+                ->unique()
+                ->values();
+        }
+
+        $tableValues = Bikes::query()
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->distinct()
+            ->orderBy($column)
+            ->pluck($column)
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
+            ->unique()
+            ->values();
+
+        if ($formChoices !== []) {
+            $choices = collect($formChoices);
+            $valueSet = $choices->pluck('value')->map(fn($v) => (string) $v)->all();
+            $valueSet = array_flip($valueSet);
+            foreach ($tableValues as $v) {
+                $sv = trim((string) $v);
+                if ($sv === '' || isset($valueSet[$sv])) {
+                    continue;
+                }
+                $choices->push(['value' => $sv, 'label' => $sv]);
+                $valueSet[$sv] = true;
+            }
+            $values = $choices->pluck('value')->values()->all();
+
+            return response()->json([
+                'success' => true,
+                'column' => $column,
+                'values' => $values,
+                'choices' => $choices->values()->all(),
+            ]);
+        }
+
+        $values = $configuredValues
+            ->concat($tableValues)
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
+            ->unique()
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'column' => $column,
+            'values' => $values->all(),
+            'choices' => null,
+        ]);
+    }
+
+    public function updateBikeTopOption(Request $request, string $company_slug, int $id)
+    {
+        $option = BikeTopOption::findOrFail($id);
+        $oldName = trim((string) $option->name);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $newName = trim($validated['name']);
+        $option->name = $newName;
+        $option->save();
+
+        $category = $option->category;
+        $column = $category ? trim((string) ($category->bike_column ?? '')) : '';
+        if (
+            $oldName !== '' && $newName !== '' && strcasecmp($oldName, $newName) !== 0
+            && $column !== '' && Schema::hasColumn('bikes', $column)
+        ) {
+            Bikes::where($column, $oldName)->update([$column => $newName]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Vehicle Top option updated.']);
+    }
+
+    public function destroyBikeTopOption(string $company_slug, int $id)
+    {
+        $option = BikeTopOption::findOrFail($id);
+        $oldName = trim((string) $option->name);
+        $category = $option->category;
+        $column = $category ? trim((string) ($category->bike_column ?? '')) : '';
+
+        Bikes::where('bike_top_option_id', $option->id)->update(['bike_top_option_id' => null]);
+
+        $option->delete();
+
+        if ($oldName !== '' && $column !== '' && Schema::hasColumn('bikes', $column)) {
+            Bikes::where($column, $oldName)->update([$column => null]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Vehicle Top option deleted.']);
+    }
+
+    public function saveBikeTopUserPreferences(Request $request)
+    {
+        if (!Schema::hasTable('bike_top_options')) {
+            return response()->json(['success' => false, 'message' => 'Vehicle Top is not available.'], 422);
+        }
+
+        $validated = $request->validate([
+            'visible_option_ids' => 'nullable|array',
+            'visible_option_ids.*' => 'integer|exists:bike_top_options,id',
+        ]);
+
+        $ids = collect($validated['visible_option_ids'] ?? [])
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $existing = UserTableSettings::getSettings(auth()->id(), 'bikes_table');
+        $additional = is_array($existing?->additional_settings) ? $existing->additional_settings : [];
+
+        if ($ids === []) {
+            unset($additional['bike_top_visible_option_ids']);
+        } else {
+            $additional['bike_top_visible_option_ids'] = $ids;
+        }
+
+        UserTableSettings::saveSettings(
+            auth()->id(),
+            'bikes_table',
+            $existing?->visible_columns,
+            $existing?->column_order,
+            $additional
+        );
+
+        return response()->json(['success' => true, 'message' => 'Your vehicle top bar preferences were saved.']);
+    }
+
+    public function updateAssignFieldAssignment(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:bike_assign_field_assignments,id'],
+            'display_label' => ['nullable', 'string', 'max:255'],
+            'is_visible' => ['nullable', 'boolean'],
+            'is_required' => ['nullable', 'boolean'],
+            'show_on_active' => ['nullable', 'boolean'],
+            'show_on_change' => ['nullable', 'boolean'],
+        ]);
+
+        $assignment = BikeAssignFieldAssignment::findOrFail($validated['id']);
+
+        if (array_key_exists('display_label', $validated)) {
+            $label = trim((string) ($validated['display_label'] ?? ''));
+            $assignment->display_label = $label === '' ? null : $label;
+        }
+        if (array_key_exists('is_visible', $validated)) {
+            $assignment->is_visible = filter_var((string) $validated['is_visible'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (array_key_exists('is_required', $validated)) {
+            $assignment->is_required = filter_var((string) $validated['is_required'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (array_key_exists('show_on_active', $validated)) {
+            $assignment->show_on_active = filter_var((string) $validated['show_on_active'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (array_key_exists('show_on_change', $validated)) {
+            $assignment->show_on_change = filter_var((string) $validated['show_on_change'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        $assignment->save();
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Assign field updated.',
+            ]);
+        }
+
+        return $this->bikeSettingsIndexRedirect(null, 'assign-fields')
+            ->with('success', 'Assign field updated.');
+    }
+
+    public function reorderAssignFieldAssignments(Request $request)
+    {
+        $validated = $request->validate([
+            'ordered_ids' => ['required', 'array'],
+            'ordered_ids.*' => ['integer', 'exists:bike_assign_field_assignments,id'],
+        ]);
+
+        foreach ($validated['ordered_ids'] as $pos => $id) {
+            BikeAssignFieldAssignment::where('id', $id)->update(['display_order' => (int) $pos]);
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Assign fields reordered.']);
+        }
+
+        return $this->bikeSettingsIndexRedirect(null, 'assign-fields')
+            ->with('success', 'Assign fields reordered.');
+    }
+
+    public function storeAssignField(Request $request)
+    {
+        $allowedTypes = array_keys(BikeCustomField::dataTypes());
+
+        $validated = $request->validate([
+            'label' => 'required|string|max:255',
+            'help_text' => 'nullable|string|max:1000',
+            'data_type' => ['required', 'string', Rule::in($allowedTypes)],
+            'is_mandatory' => ['nullable', 'boolean'],
+            'default_value' => ['nullable', 'string', 'max:500'],
+            'input_format' => ['nullable', 'string', 'max:100'],
+            'config_options' => ['nullable', 'string'],
+            'show_on_active' => ['nullable', 'boolean'],
+            'show_on_change' => ['nullable', 'boolean'],
+        ]);
+
+        $config = null;
+        if (!empty($validated['config_options']) && $validated['data_type'] === 'dropdown') {
+            $config = ['options' => $validated['config_options']];
+        }
+
+        $displayOrder = ((int) BikeAssignFieldAssignment::max('display_order')) + 1;
+
+        $customField = BikeCustomField::create([
+            'label' => $validated['label'],
+            'help_text' => $validated['help_text'] ?? null,
+            'data_privacy' => null,
+            'prevent_duplicate_values' => false,
+            'default_value' => $validated['default_value'] ?? null,
+            'input_format' => $validated['input_format'] ?? null,
+            'data_type' => $validated['data_type'],
+            'is_mandatory' => filter_var((string) ($validated['is_mandatory'] ?? false), FILTER_VALIDATE_BOOLEAN),
+            'config' => $config,
+            'category_id' => null,
+            'display_order' => $displayOrder,
+        ]);
+
+        BikeAssignFieldAssignment::create([
+            'field_key' => null,
+            'custom_field_id' => $customField->id,
+            'kind' => 'custom',
+            'display_label' => $customField->label,
+            'input_type' => $validated['data_type'],
+            'display_order' => $displayOrder,
+            'is_visible' => true,
+            'is_required' => $customField->is_mandatory,
+            'show_on_active' => filter_var((string) ($validated['show_on_active'] ?? true), FILTER_VALIDATE_BOOLEAN),
+            'show_on_change' => filter_var((string) ($validated['show_on_change'] ?? false), FILTER_VALIDATE_BOOLEAN),
+        ]);
+
+        return $this->bikeSettingsIndexRedirect(null, 'assign-fields')
+            ->with('success', 'Assign custom field added.');
+    }
+
+    public function updateAssignField(Request $request, string $company_slug, int $id)
+    {
+        $assignment = BikeAssignFieldAssignment::with('customField')->findOrFail($id);
+        $isCustom = $assignment->kind === 'custom' && $assignment->custom_field_id;
+
+        if ($isCustom) {
+            $allowedTypes = array_keys(BikeCustomField::dataTypes());
+            $validated = $request->validate([
+                'label' => 'required|string|max:255',
+                'help_text' => 'nullable|string|max:1000',
+                'data_type' => ['required', 'string', Rule::in($allowedTypes)],
+                'is_mandatory' => ['nullable', 'boolean'],
+                'default_value' => ['nullable', 'string', 'max:500'],
+                'input_format' => ['nullable', 'string', 'max:100'],
+                'config_options' => ['nullable', 'string'],
+                'is_visible' => ['nullable', 'boolean'],
+                'is_required' => ['nullable', 'boolean'],
+                'show_on_active' => ['nullable', 'boolean'],
+                'show_on_change' => ['nullable', 'boolean'],
+            ]);
+
+            $field = BikeCustomField::where('id', $assignment->custom_field_id)->firstOrFail();
+            $config = $field->config;
+            if ($validated['data_type'] === 'dropdown' && !empty($validated['config_options'])) {
+                $config = ['options' => $validated['config_options']];
+            } elseif ($validated['data_type'] !== 'dropdown') {
+                $config = $field->config;
+            }
+
+            $field->label = $validated['label'];
+            $field->help_text = $validated['help_text'] ?? null;
+            $field->data_type = $validated['data_type'];
+            $field->is_mandatory = filter_var((string) ($validated['is_mandatory'] ?? false), FILTER_VALIDATE_BOOLEAN);
+            $field->default_value = $validated['default_value'] ?? null;
+            $field->input_format = $validated['input_format'] ?? null;
+            $field->config = $config;
+            $field->save();
+
+            $assignment->display_label = $field->label;
+            $assignment->input_type = $validated['data_type'];
+            $assignment->is_visible = filter_var((string) ($validated['is_visible'] ?? true), FILTER_VALIDATE_BOOLEAN);
+            $assignment->is_required = filter_var((string) ($validated['is_required'] ?? $field->is_mandatory), FILTER_VALIDATE_BOOLEAN);
+            $assignment->show_on_active = filter_var((string) ($validated['show_on_active'] ?? true), FILTER_VALIDATE_BOOLEAN);
+            $assignment->show_on_change = filter_var((string) ($validated['show_on_change'] ?? false), FILTER_VALIDATE_BOOLEAN);
+            $assignment->save();
+        } else {
+            $validated = $request->validate([
+                'display_label' => 'nullable|string|max:255',
+                'is_visible' => ['nullable', 'boolean'],
+                'is_required' => ['nullable', 'boolean'],
+                'show_on_active' => ['nullable', 'boolean'],
+                'show_on_change' => ['nullable', 'boolean'],
+                'input_type' => ['nullable', 'string', 'max:50'],
+                'input_config_options' => ['nullable', 'string'],
+            ]);
+
+            $label = trim((string) ($validated['display_label'] ?? ''));
+            $assignment->display_label = $label === '' ? null : $label;
+            $assignment->is_visible = filter_var((string) ($validated['is_visible'] ?? false), FILTER_VALIDATE_BOOLEAN);
+            $assignment->is_required = filter_var((string) ($validated['is_required'] ?? false), FILTER_VALIDATE_BOOLEAN);
+            $assignment->show_on_active = filter_var((string) ($validated['show_on_active'] ?? false), FILTER_VALIDATE_BOOLEAN);
+            $assignment->show_on_change = filter_var((string) ($validated['show_on_change'] ?? false), FILTER_VALIDATE_BOOLEAN);
+
+            $inputType = $validated['input_type'] !== null ? trim((string) $validated['input_type']) : null;
+            $assignment->input_type = ($inputType === '' ? null : $inputType);
+
+            $catalog = collect(BikeCustomField::defaultAssignFieldCatalog())
+                ->firstWhere('field_key', $assignment->field_key);
+            $catalogConfig = is_array($catalog['input_config'] ?? null) ? $catalog['input_config'] : [];
+            $mergedConfig = array_merge(
+                $catalogConfig,
+                is_array($assignment->input_config) ? $assignment->input_config : []
+            );
+
+            if (!empty($validated['input_config_options'])) {
+                $mergedConfig['options'] = $validated['input_config_options'];
+            } elseif (array_key_exists('input_config_options', $validated)) {
+                unset($mergedConfig['options']);
+            }
+
+            $assignment->input_config = $mergedConfig === [] ? null : $mergedConfig;
+
+            $assignment->save();
+        }
+
+        return $this->bikeSettingsIndexRedirect(null, 'assign-fields')
+            ->with('success', 'Assign field updated.');
+    }
+
+    public function destroyAssignField(string $company_slug, int $id)
+    {
+        $assignment = BikeAssignFieldAssignment::findOrFail($id);
+
+        if ($assignment->kind !== 'custom' || !$assignment->custom_field_id) {
+            if (request()->wantsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Built-in assign fields cannot be deleted.',
+                ], 422);
+            }
+
+            return $this->bikeSettingsIndexRedirect(null, 'assign-fields')
+                ->with('error', 'Built-in assign fields cannot be deleted.');
+        }
+
+        $customFieldId = (int) $assignment->custom_field_id;
+        $assignment->delete();
+        BikeCustomField::where('id', $customFieldId)->delete();
+
+        return $this->bikeSettingsIndexRedirect(null, 'assign-fields')
+            ->with('success', 'Assign custom field removed.');
     }
 }

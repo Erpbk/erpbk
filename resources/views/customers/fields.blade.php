@@ -45,14 +45,9 @@
 <div class="form-group col-sm-6">
     {!! Form::label('branch_id', 'Company Branch:',['class'=>'required fw-bold']) !!}
     @php
-    $branchOptions = \App\Models\Branch::query()
-    ->whereIn('id', app('user_branches'))
-    ->selectRaw("id, CONCAT(name, ' (', COALESCE(code, '-'), ')') as label")
-    ->pluck('label', 'id')
-    ->prepend('select', '')
-    ->toArray();
+    $branchOptions = auth()->user()->branchDropdown(true);
     @endphp
-    {!! Form::select('branch_id', $branchOptions, null, ['class' => 'form-select select2']) !!}
+    {!! Form::select('branch_id', $branchOptions , null, ['class' => 'form-select select2']) !!}
 </div>
 <div class="mt-4 col-sm-12 alert alert-warning">Select <b>'All'</b> option in Branch list if this account will be used by all or multiple company branches</div>
 

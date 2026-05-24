@@ -8,6 +8,7 @@ use App\Http\Requests\CreateSupplierInvoicesRequest;
 use App\Http\Requests\UpdateSupplierInvoicesRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Imports\ImportSupplierInvoice;
+use App\Models\InventoryPurchase;
 use App\Models\SupplierInvoicesItem;
 use App\Models\Accounts;
 use App\Models\Items;
@@ -226,16 +227,33 @@ class SupplierInvoicesController extends AppBaseController
             Flash::error('Supplier Invoice not found');
             return redirect(route('supplierInvoices.index'));
         }
-
+        $payment = \App\Models\Payment::where('payee_account_id', $supplierInvoice->supplier->account_id)
+            ->where('reference','like', '%'.$supplierInvoice->inv_id.'%')
+            ->exists();
+        \Log::info('payment:'. $payment);
+        if($payment) {
+            return response()->json([
+                'message' => 'Cannot Delete Invoice. Payment has already been Made',
+            ],500);
+        }
+        $inventory = InventoryPurchase::where('inv_id', $supplierInvoice->id)->get();
+        $items = $supplierInvoice->items;
+        if($inventory && ($inventory->sum('remaining_quantity') < $items->sum('qty'))) {
+            return response()->json([
+                'message' => 'Cannot delete Invoice. Inventory from this Purchase has already been used',
+            ],500);
+        }
         DB::beginTransaction();
         try {
-            if ($supplierInvoice->attachment && Storage::disk('public')->exists($supplierInvoice->attachment)) {
-                Storage::disk('public')->delete($supplierInvoice->attachment);
-            }
+            $attachment = $supplierInvoice->attachment;
+            InventoryPurchase::where('inv_id', $supplierInvoice->id)->delete();
             Transactions::where(['reference_id' =>  $supplierInvoice->id, 'reference_type' => 'SUP'])->delete();
             $supplierInvoice->items()->delete();
             $supplierInvoice->delete();
-
+            
+            if ($attachment && Storage::disk('public')->exists($attachment)) {
+                Storage::disk('public')->delete($attachment);
+            }
             DB::commit();
             if($request->ajax()){
                 return response()->json(['message' => 'Record deleted successfully.'],200);
@@ -326,9 +344,10 @@ class SupplierInvoicesController extends AppBaseController
     public function sendEmail($company_slug, $id, Request $request)
     {
         if ($request->isMethod('post')) {
-            $data = [
-                'html' => $request->email_message
-            ];
+            $brandingService = app(\App\Services\Email\CompanyEmailBrandingService::class);
+            $data = $brandingService->mergeIntoMailData([
+                'html' => $request->email_message,
+            ]);
 
             $res = SupplierInvoices::with(['supplierInv_item'])->where('id', $id)->get();
             $pdf = \PDF::loadView('invoices.supplier_invoices.show', ['res' => $res]);

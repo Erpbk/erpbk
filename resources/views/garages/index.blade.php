@@ -2,7 +2,7 @@
 
 @section('title','garages')
 @section('content')
-    <section class="content-header">
+        <section class="content-header">
         <div class="container-fluid">
             <div class="row mb-2">
                 <div class="col-sm-6">
@@ -33,7 +33,7 @@
                                             <label for="contact_person">Filter by Contact Person</label>
                                             <select class="form-control " id="contact_person" name="contact_person">
                                                 @php
-                                                $leasingcompanies = DB::table('garages')
+                                                $leasingcompanies = company_table('garages')
                                                     ->whereNotNull('contact_person')
                                                     ->where('contact_person', '!=', '')
                                                     ->pluck('contact_person')

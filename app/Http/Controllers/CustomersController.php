@@ -18,14 +18,16 @@ use App\Models\Payment;
 use App\Models\Receipt;
 use App\Repositories\CustomersRepository;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
 use Flash;
+use App\Support\TopBarNumericStatus;
 
 class CustomersController extends AppBaseController
 {
-  use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
+  use AppliesModuleTopBarFilters, GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
   /** @var CustomersRepository $customersRepository*/
   private $customersRepository;
 
@@ -47,10 +49,14 @@ class CustomersController extends AppBaseController
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Customers::query()
       ->orderBy('id', 'asc');
+    $this->applyModuleTopBarFilters($query, $request, 'customers');
     if ($request->has('company_name') && !empty($request->company_name)) {
       $query->where('company_name', $request->company_name);
     }
-    if ($request->has('status') && !empty($request->status)) {
+    $listStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('list_status'));
+    if ($listStatusKeys !== []) {
+      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'customers.status', $listStatusKeys);
+    } elseif ($request->has('status') && !empty($request->status)) {
       $query->where('status', $request->status);
     }
     // Apply pagination using the trait
@@ -65,9 +71,9 @@ class CustomersController extends AppBaseController
         'paginationLinks' => $paginationLinks,
       ]);
     }
-    return view('customers.index', [
+    return view('customers.index', array_merge([
       'data' => $data,
-    ]);
+    ], $this->moduleTopBarListingData($request, 'customers')));
   }
 
 
@@ -87,11 +93,21 @@ class CustomersController extends AppBaseController
     $input = $request->all();
     $exist = Customers::where('name', $input['name'])->where('branch_id', $input['branch_id'])->first();
     if ($exist) {
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Customer already exists.',
+        ], 400);
+      }
       Flash::error('Customer already exists.');
-      return redirect(route('customers.index'));
+      return redirect()->back();
     }
     $parentAccount = Accounts::where('name', 'Customer')->where('account_type', 'Asset')->first();
     if (!$parentAccount) {
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Parent account "Customer" not found.',
+        ], 500);
+      }
       Flash::error('Parent account "Customer" not found.');
       return redirect(route('customers.index'));
     }

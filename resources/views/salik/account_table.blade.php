@@ -15,7 +15,7 @@
         <tr class="text-center">
             <td> <a href="{{ route('salik.tickets' , $r->id) }}">{{$r->name}}</a><br> </td>
             @php
-            $balance = DB::table('saliks')->where('salik_account_id' , $r->id)->sum('total_amount')
+            $balance = company_table('saliks')->where('salik_account_id' , $r->id)->sum('total_amount')
             @endphp
             <td>@if($balance == '') - @else {{ \App\Helpers\Currency::symbol() }} {{ $balance ?? '-' }} @endif</td>
             <td>@if($r->admin_charges == '') - @else {{ \App\Helpers\Currency::symbol() }} {{ $r->admin_charges }}@endif</td>

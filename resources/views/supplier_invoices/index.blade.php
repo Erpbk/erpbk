@@ -134,7 +134,29 @@
             confirmButtonText: 'Yes, delete it!'
         }).then((result) => {
             if (result.isConfirmed) {
-                window.location.href = url;
+                $.ajax({
+                    url: url,
+                    type: 'GET',
+                    data: {
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        Swal.fire(
+                            'Deleted!',
+                            'Invoice has been deleted.',
+                            'success'
+                        ).then(() => {
+                            location.reload();
+                        });
+                    },
+                    error: function(xhr) {
+                        Swal.fire(
+                            'Error!',
+                            'Failed to delete Invoice. ' + (xhr.responseJSON?.message || xhr.statusText || 'Unknown error'),
+                            'error'
+                        );
+                    }
+                });
             }
         })
     }

@@ -15,7 +15,13 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
 @endphp
 <div class="form-group col-sm-4">
   @if ($item->kind === 'fixed')
-  @php $spec = $item->spec; $req = !empty($spec['required']); @endphp
+  @php
+  $spec = $item->spec;
+  $req = !empty($spec['required']);
+  $isReadonly = !empty($spec['readonly'])
+      || \App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($item->field_key ?? null);
+  $readonlyAttrs = $isReadonly ? ['readonly' => 'readonly'] : [];
+  @endphp
   @if (($spec['type'] ?? 'text') === 'select')
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
   @php
@@ -44,7 +50,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   $opts = \App\Models\Vendors::dropdown();
   } elseif (($spec['dropdown'] ?? '') === 'recruiters') {
   $opts = ['' => 'Select Recruiter'];
-  foreach (DB::table('recruiters')->where('status', 1)->get() as $r) {
+  foreach (company_table('recruiters')->where('status', 1)->get() as $r) {
   $opts[$r->id] = $r->name;
   }
   } elseif (($spec['dropdown'] ?? '') === 'accounts') {
@@ -71,7 +77,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   @endif
   @elseif (($spec['type'] ?? '') === 'textarea')
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
-  {!! Form::textarea($item->field_key, $value, ['class' => 'form-control', 'rows' => $spec['rows'] ?? 3] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::textarea($item->field_key, $value, ['class' => 'form-control', 'rows' => $spec['rows'] ?? 3] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
   @elseif (($spec['type'] ?? '') === 'checkbox')
   <div class="form-check mt-4">
     <input type="hidden" name="{{ $item->field_key }}" value="{{ in_array($item->field_key, ['vat'], true) ? '2' : '0' }}" />
@@ -81,32 +87,37 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   @else
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
   @if ($item->field_key === 'rider_id')
-  {!! Form::text($item->field_key, $value, ['class' => 'form-control', 'id' => 'rider_id_field'] + array_filter(['required' => $req, 'maxlength' => $spec['maxlength'] ?? null, 'placeholder' => $spec['placeholder'] ?? null])) !!}
+  {!! Form::text($item->field_key, $value, ['class' => 'form-control', 'id' => 'rider_id_field'] + array_filter(['required' => $req, 'maxlength' => $spec['maxlength'] ?? null, 'placeholder' => $spec['placeholder'] ?? null]) + $readonlyAttrs) !!}
   <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
   @else
-  {!! Form::input($spec['type'] ?? 'text', $item->field_key, $value, ['class' => 'form-control'] + array_filter(['required' => $req, 'maxlength' => $spec['maxlength'] ?? null, 'placeholder' => $spec['placeholder'] ?? null])) !!}
+  {!! Form::input($spec['type'] ?? 'text', $item->field_key, $value, ['class' => 'form-control'] + array_filter(['required' => $req, 'maxlength' => $spec['maxlength'] ?? null, 'placeholder' => $spec['placeholder'] ?? null]) + $readonlyAttrs) !!}
   @endif
   @endif
   @error($item->field_key)<span class="text-danger">{{ $message }}</span>@enderror
   @else
-  @php $f = $item->field; $req = $f->is_mandatory ?? false; @endphp
+  @php
+  $f = $item->field;
+  $req = $f->is_mandatory ?? false;
+  $isReadonly = \App\Support\SimAssigneeContactSync::isManagedCustomFieldId((int) $f->id, 'rider_custom_fields');
+  $readonlyAttrs = $isReadonly ? ['readonly' => 'readonly'] : [];
+  @endphp
   {!! Form::label($name, $f->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
   @if ($f->help_text)
   <p class="form-text small text-muted mb-1">{{ $f->help_text }}</p>
   @endif
   @switch($f->data_type)
   @case('textarea')
-  {!! Form::textarea($name, $value, ['class' => 'form-control', 'rows' => $f->config['rows'] ?? 4] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::textarea($name, $value, ['class' => 'form-control', 'rows' => $f->config['rows'] ?? 4] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
   @break
   @case('number')
   @case('decimal')
-  {!! Form::input($f->data_type, $name, $value, ['class' => 'form-control', 'step' => $f->data_type === 'decimal' ? '0.01' : '1'] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::input($f->data_type, $name, $value, ['class' => 'form-control', 'step' => $f->data_type === 'decimal' ? '0.01' : '1'] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
   @break
   @case('date')
-  {!! Form::date($name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d')) : null, ['class' => 'form-control'] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::date($name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d')) : null, ['class' => 'form-control'] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
   @break
   @case('datetime')
-  {!! Form::input('datetime-local', $name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d\TH:i')) : null, ['class' => 'form-control'] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::input('datetime-local', $name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d\TH:i')) : null, ['class' => 'form-control'] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
   @break
   @case('dropdown')
   @php
@@ -127,7 +138,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   </div>
   @break
   @default
-  {!! Form::input($f->data_type === 'email' ? 'email' : ($f->data_type === 'url' ? 'url' : 'text'), $name, $value, ['class' => 'form-control'] + ($req ? ['required' => true] : []) + (!empty($f->config['placeholder']) ? ['placeholder' => $f->config['placeholder']] : [])) !!}
+  {!! Form::input($f->data_type === 'email' ? 'email' : ($f->data_type === 'url' ? 'url' : 'text'), $name, $value, ['class' => 'form-control'] + ($req ? ['required' => true] : []) + (!empty($f->config['placeholder']) ? ['placeholder' => $f->config['placeholder']] : []) + $readonlyAttrs) !!}
   @endswitch
   @error($name)<span class="text-danger">{{ $message }}</span>@enderror
   @endif

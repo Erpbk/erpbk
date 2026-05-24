@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Helpers\Common;
+use App\Support\ModuleFieldSource;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class BikeCustomField extends BaseModel
@@ -18,6 +21,7 @@ class BikeCustomField extends BaseModel
         'input_format',
         'data_type',
         'is_mandatory',
+        'is_visible',
         'config',
         'category_id',
         'display_order',
@@ -28,6 +32,7 @@ class BikeCustomField extends BaseModel
         'config' => 'array',
         'prevent_duplicate_values' => 'boolean',
         'is_mandatory' => 'boolean',
+        'is_visible' => 'boolean',
     ];
 
     /**
@@ -111,6 +116,11 @@ class BikeCustomField extends BaseModel
         return $this->belongsTo(BikeCategory::class, 'category_id', 'id');
     }
 
+    public static function bootstrapFieldCategories(): void
+    {
+        app(\App\Services\Bike\BikeDefaultCategoryService::class)->bootstrap();
+    }
+
     /**
      * Columns that are not allowed for assigning via Bike Fields settings.
      */
@@ -134,24 +144,174 @@ class BikeCustomField extends BaseModel
             'customer_id',
             'emirates',
             'rider_id',
+            'warehouse',
+            'rental_company_id',
+            'leased_return_company_id',
+            'leased_return_by',
+            'leased_return_date',
+            'bike_top_option_id',
         ];
     }
 
     public static function humanizeFieldKey(string $key): string
     {
-        return ucwords(str_replace(['_', '-'], ' ', $key));
+        return ModuleFieldSource::humanizeFieldKey($key);
     }
 
     /**
-     * Input spec per fixed bike field (defaults for the bike form renderer).
-     * Unknown keys gracefully fall back to a basic text input.
+     * Merge bike_field_category_assignment overrides into the default fixed-field spec
+     * (same rules as resources/views/bikes/_form_field.blade.php).
      */
+    public static function resolvedFixedFieldSpec(string $fieldKey): array
+    {
+        $specs = self::fixedFieldInputSpecs();
+        $spec = ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null);
+
+        $assignment = BikeFieldCategoryAssignment::where('field_key', $fieldKey)->first();
+        if ($assignment) {
+            if (!empty($assignment->input_type)) {
+                $spec['type'] = $assignment->input_type === 'dropdown' ? 'select' : $assignment->input_type;
+            }
+            if (is_array($assignment->input_config) && array_key_exists('options', $assignment->input_config)) {
+                $spec['options'] = $assignment->input_config['options'];
+            }
+            if (is_array($assignment->input_config) && array_key_exists('dropdown', $assignment->input_config)) {
+                $spec['dropdown'] = $spec['dropdown'] ?? $assignment->input_config['dropdown'];
+            }
+        }
+
+        return $spec;
+    }
+
+    /**
+     * Select options for a fixed bikes column when it renders as a select on the bike form:
+     * explicit newline options, or related-table / Common::Dropdowns sources (same as _form_field.blade.php).
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public static function fixedFieldSelectChoices(string $fieldKey): array
+    {
+        $spec = self::resolvedFixedFieldSpec($fieldKey);
+        if (($spec['type'] ?? 'text') !== 'select') {
+            return [];
+        }
+
+        $rawOptions = $spec['options'] ?? null;
+        $parsedOptions = [];
+        if ($rawOptions !== null && $rawOptions !== '') {
+            $lines = is_array($rawOptions) ? $rawOptions : preg_split('/\r\n|\r|\n/', (string) $rawOptions);
+            foreach ($lines as $line) {
+                $line = trim((string) $line);
+                if ($line !== '') {
+                    $parsedOptions[] = $line;
+                }
+            }
+        }
+
+        if ($parsedOptions !== []) {
+            $choices = [];
+            foreach ($parsedOptions as $opt) {
+                $choices[] = ['value' => $opt, 'label' => $opt];
+            }
+
+            return $choices;
+        }
+
+        $dropdownKey = $spec['dropdown'] ?? null;
+        $opts = [];
+
+        switch ($dropdownKey) {
+            case 'vehicle_models':
+                $opts = \App\Support\CompanyQuery::table('vehicle_models')->where('status', 1)->pluck('name', 'id')->toArray();
+                $opts = ['' => 'Select Model'] + $opts;
+                break;
+            case 'branch':
+                $opts = Branch::dropdown();
+                break;
+            case 'leasing_companies':
+                $opts = LeasingCompanies::dropdown();
+                break;
+            case 'customers':
+                $opts = Customers::pluck('name', 'id')->prepend('Select', '')->toArray();
+                break;
+            case 'riders':
+                $opts = Riders::dropdown();
+                break;
+            case 'warehouse':
+                $opts = [
+                    '' => 'Select Warehouse',
+                    'Active' => 'Active',
+                    'Return' => 'Return',
+                    'Vacation' => 'Vacation',
+                    'Express Garage' => 'Express Garage',
+                    'Absconded' => 'Absconded',
+                ];
+                break;
+            default:
+                $opts = !empty($dropdownKey) ? Common::Dropdowns($dropdownKey) : [];
+                if (empty($opts) && !empty($dropdownKey)) {
+                    $opts = ['' => 'Select'] + (array) Common::Dropdowns($dropdownKey);
+                }
+                if (empty($opts)) {
+                    $opts = ['' => 'Select'];
+                }
+                break;
+        }
+
+        $choices = [];
+        foreach ($opts as $value => $label) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $labelStr = trim((string) $label);
+            if ($labelStr === '') {
+                continue;
+            }
+            $lower = mb_strtolower($labelStr);
+            if (in_array($lower, ['select', 'select model', 'all'], true)) {
+                continue;
+            }
+            $choices[] = ['value' => (string) $value, 'label' => $labelStr];
+        }
+
+        return $choices;
+    }
+
+    /**
+     * Human-readable label for a stored bikes column value (e.g. FK id → company name).
+     * Uses the same select sources as fixedFieldSelectChoices(); falls back to the raw stored value.
+     */
+    public static function displayLabelForFixedFieldValue(?string $fieldKey, string $storedValue): string
+    {
+        $trimmed = trim($storedValue);
+        if ($trimmed === '' || $fieldKey === null || $fieldKey === '') {
+            return $storedValue;
+        }
+
+        static $valueToLabelByField = [];
+        if (!array_key_exists($fieldKey, $valueToLabelByField)) {
+            $map = [];
+            foreach (self::fixedFieldSelectChoices($fieldKey) as $row) {
+                $map[(string) ($row['value'] ?? '')] = (string) ($row['label'] ?? $row['value'] ?? '');
+            }
+            $valueToLabelByField[$fieldKey] = $map;
+        }
+
+        $map = $valueToLabelByField[$fieldKey];
+        if ($map === []) {
+            return $storedValue;
+        }
+
+        return $map[$trimmed] ?? $storedValue;
+    }
+
     public static function fixedFieldInputSpecs(): array
     {
         return [
             'vehicle_type' => ['type' => 'select', 'dropdown' => 'vehicle_models'],
             'branch_id' => ['type' => 'select', 'dropdown' => 'branch'],
             'company' => ['type' => 'select', 'dropdown' => 'leasing_companies'],
+            'bike_owner' => ['type' => 'select', 'dropdown' => 'bike-owner'],
             'rider_id' => ['type' => 'select', 'dropdown' => 'riders'],
             'customer_id' => ['type' => 'select', 'dropdown' => 'customers'],
             'warehouse' => ['type' => 'select', 'dropdown' => 'warehouse'],
@@ -187,6 +347,7 @@ class BikeCustomField extends BaseModel
                 'emirates',
                 'branch_id',
                 'company',
+                'bike_owner',
                 'rider_id',
                 'warehouse',
                 'traffic_file_number',
@@ -257,8 +418,18 @@ class BikeCustomField extends BaseModel
 
         $specs = self::fixedFieldInputSpecs();
 
-        $customFieldsAll = self::query()
+        $assignOnlyIds = self::assignOnlyCustomFieldIds();
+        $customFieldsQuery = self::query()
             ->whereIn('category_id', $categoryIds)
+            ->when($assignOnlyIds !== [], fn($q) => $q->whereNotIn('id', $assignOnlyIds));
+
+        if (Schema::hasColumn('bike_custom_fields', 'is_visible')) {
+            $customFieldsQuery->where(function ($q) {
+                $q->where('is_visible', true)->orWhereNull('is_visible');
+            });
+        }
+
+        $customFieldsAll = $customFieldsQuery
             ->orderBy('display_order')
             ->orderBy('id')
             ->get()
@@ -281,7 +452,7 @@ class BikeCustomField extends BaseModel
                         ? trim((string) $a->display_label)
                         : self::humanizeFieldKey($fieldKey);
 
-                    $spec = $specs[$fieldKey] ?? ['type' => 'text'];
+                    $spec = ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null);
 
                     // Settings can override fixed input type + config.
                     if (!empty($a->input_type)) {
@@ -313,7 +484,7 @@ class BikeCustomField extends BaseModel
                         'kind' => 'fixed',
                         'field_key' => $fieldKey,
                         'label' => self::humanizeFieldKey($fieldKey),
-                        'spec' => $specs[$fieldKey] ?? ['type' => 'text'],
+                        'spec' => ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null),
                     ];
                 }
             }
@@ -339,5 +510,94 @@ class BikeCustomField extends BaseModel
 
         return $result;
     }
-}
 
+    /**
+     * Built-in assign-modal fields (not all are bikes table columns).
+     */
+    public static function defaultAssignFieldCatalog(): array
+    {
+        return [
+            ['field_key' => 'warehouse', 'kind' => 'virtual', 'display_label' => 'Status', 'input_type' => 'text', 'display_order' => 0, 'show_on_active' => true, 'show_on_change' => true, 'is_required' => true],
+            ['field_key' => 'assign_type', 'kind' => 'virtual', 'display_label' => 'Assign To', 'input_type' => 'select', 'display_order' => 1, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => true, 'input_config' => ['assign_options' => ['rider' => 'Rider', 'company' => 'Company']]],
+            ['field_key' => 'rider_id', 'kind' => 'virtual', 'display_label' => 'Rider', 'input_type' => 'select', 'display_order' => 2, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rider']],
+            ['field_key' => 'rental_company_id', 'kind' => 'virtual', 'display_label' => 'Company', 'input_type' => 'select', 'display_order' => 3, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'company']],
+            ['field_key' => 'designation', 'kind' => 'virtual', 'display_label' => 'Designation', 'input_type' => 'text', 'display_order' => 4, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rider', 'readonly' => true]],
+            ['field_key' => 'customer_id', 'kind' => 'virtual', 'display_label' => 'Project', 'input_type' => 'select', 'display_order' => 5, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rider']],
+            ['field_key' => 'note_date', 'kind' => 'virtual', 'display_label' => 'Date', 'input_type' => 'date', 'display_order' => 6, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => true],
+            ['field_key' => 'return_date', 'kind' => 'virtual', 'display_label' => 'Date', 'input_type' => 'date', 'display_order' => 7, 'show_on_active' => false, 'show_on_change' => true, 'is_required' => true],
+            ['field_key' => 'visa_sponsor', 'kind' => 'virtual', 'display_label' => 'Visa Sponsor', 'input_type' => 'text', 'display_order' => 8, 'show_on_active' => false, 'show_on_change' => true, 'is_required' => false, 'input_config' => ['readonly' => true]],
+            ['field_key' => 'notes', 'kind' => 'virtual', 'display_label' => 'Notes', 'input_type' => 'textarea', 'display_order' => 9, 'show_on_active' => true, 'show_on_change' => true, 'is_required' => false],
+        ];
+    }
+
+    /**
+     * Custom field IDs reserved for assign modals (not Bike add/edit form or Bike Fields settings).
+     *
+     * @return list<int>
+     */
+    public static function assignOnlyCustomFieldIds(): array
+    {
+        if (!Schema::hasTable('bike_assign_field_assignments')) {
+            return [];
+        }
+
+        return BikeAssignFieldAssignment::query()
+            ->whereNotNull('custom_field_id')
+            ->pluck('custom_field_id')
+            ->map(fn($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    public static function syncBikeAssignFieldAssignments(): void
+    {
+        if (!Schema::hasTable('bike_assign_field_assignments')) {
+            return;
+        }
+
+        foreach (self::defaultAssignFieldCatalog() as $def) {
+            $key = $def['field_key'];
+
+            BikeAssignFieldAssignment::query()->firstOrCreate(
+                ['field_key' => $key],
+                [
+                    'kind' => $def['kind'],
+                    'display_label' => $def['display_label'],
+                    'input_type' => $def['input_type'] ?? null,
+                    'input_config' => $def['input_config'] ?? null,
+                    'display_order' => $def['display_order'] ?? 0,
+                    'is_visible' => true,
+                    'is_required' => $def['is_required'] ?? false,
+                    'show_on_active' => $def['show_on_active'] ?? false,
+                    'show_on_change' => $def['show_on_change'] ?? false,
+                ]
+            );
+        }
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, BikeAssignFieldAssignment>
+     */
+    public static function assignModalFields(string $context): \Illuminate\Support\Collection
+    {
+        if (!Schema::hasTable('bike_assign_field_assignments')) {
+            return collect();
+        }
+
+        self::syncBikeAssignFieldAssignments();
+
+        $query = BikeAssignFieldAssignment::query()
+            ->with('customField')
+            ->where('is_visible', true)
+            ->orderBy('display_order')
+            ->orderBy('id');
+
+        if ($context === 'change') {
+            $query->where('show_on_change', true);
+        } else {
+            $query->where('show_on_active', true);
+        }
+
+        return $query->get();
+    }
+}

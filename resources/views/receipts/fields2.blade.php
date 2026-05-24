@@ -55,31 +55,45 @@
         
         @if(isset($leasingCompany))
             <div class="form-group col-md-3">
-                {!! Form::label('leasing_company', 'Sender Account:') !!}
-                {!! Form::hidden('payer_account_id', $leasingCompany->account_id)!!}
-                {!! Form::text('leasing-company-name', $leasingCompany->name ?? $receipt->leasingCompany->name ?? '-', ['class' => 'form-control bg-light', 'readonly' => true]) !!}
+                {!! Form::label('leasing_company', 'Sending Account:') !!}
+                {!! Form::hidden('payer_account_id', $leasingCompany->account_id ?? $receipt->payer_account_id ?? '')!!}
+                {!! Form::text('leasing-company-name', $leasingCompany->name ?? '-', ['class' => 'form-control bg-light', 'readonly' => true]) !!}
             </div>
         @else
+            @php
+                $selectedPayerId = old('payer_account_id', isset($receipt) ? $receipt->payer_account_id : '');
+                if (isset($payerAccounts)) {
+                    $payersForSelect = $payerAccounts;
+                } elseif (!empty($customerIds)) {
+                    $payersForSelect = \App\Models\Accounts::whereIn('id', $customerIds)->where('status', 1)->orderBy('name')->get();
+                    if ($selectedPayerId && !$payersForSelect->contains('id', (int) $selectedPayerId)) {
+                        $currentPayer = \App\Models\Accounts::withoutGlobalScope('branch')->find($selectedPayerId);
+                        if ($currentPayer) {
+                            $payersForSelect = $payersForSelect->prepend($currentPayer);
+                        }
+                    }
+                } else {
+                    $payersForSelect = \App\Models\Accounts::where('status', 1)->orderBy('name')->get();
+                    if ($selectedPayerId && !$payersForSelect->contains('id', (int) $selectedPayerId)) {
+                        $currentPayer = \App\Models\Accounts::withoutGlobalScope('branch')->find($selectedPayerId);
+                        if ($currentPayer) {
+                            $payersForSelect = $payersForSelect->prepend($currentPayer);
+                        }
+                    }
+                }
+            @endphp
             <div class="form-group col-md-3">
                 {!! Form::label('payer_account_id', 'Sending Account:') !!}
-                <select name="payer_account_id" class="form-control select2" required>
+                <select name="payer_account_id" id="payer_account_id" class="form-control select2" required>
                     <option value="">-- Select --</option>
-                    @if(isset($customerIds))
-                        @foreach(\App\Models\Accounts::whereIn('id',$customerIds)->get() as $payer)
-                            <option data-customerId="{{ $payer->ref_id }}"
-                                    data-customerName="{{ $payer->name }}"
-                                    value="{{ $payer->id }}"
-                                    {{ old('payer_account_id', isset($receipt) ? $receipt->payer_account_id : '') == $payer->id ? 'selected' : '' }} {{ $payer->ref_id == $customerId ? 'selected' : '' }}>
-                                {{ $payer->account_code }} - {{ $payer->name }}
-                            </option>
-                        @endforeach
-                    @else
-                        @foreach(\App\Models\Accounts::where('status', 1)->get() as $payer)
-                            <option value="{{ $payer->id }}" {{ old('payer_account_id', isset($receipt) ? $receipt->payer_account_id : '') == $payer->id ? 'selected' : '' }}>
-                                {{ $payer->account_code }} - {{ $payer->name }}
-                            </option>
-                        @endforeach
-                    @endif
+                    @foreach($payersForSelect as $payer)
+                        <option data-customerId="{{ $payer->ref_id }}"
+                                data-customerName="{{ $payer->name }}"
+                                value="{{ $payer->id }}"
+                                {{ (string) $selectedPayerId === (string) $payer->id ? 'selected' : '' }}>
+                            {{ $payer->account_code }} - {{ $payer->name }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
         @endif

@@ -21,7 +21,7 @@
       @forelse($data as $invoice)
       <tr class="text-center">
          <td>{{ $invoice->id }}</td>
-         <td>{{ $invoice->invoice_number ?? 'LCI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT) }}</td>
+         <td><a href="javascript:void(0);" data-action="{{ route('leasingCompanyInvoices.show', $invoice->id) }}" class="show-modal-right">{{ $invoice->invoice_number ?? 'LCI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT) }}</a></td>
          <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
          <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
          <td>{{ $invoice->leasingCompany->name ?? '-' }}</td>

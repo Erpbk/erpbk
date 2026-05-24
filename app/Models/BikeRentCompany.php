@@ -18,6 +18,7 @@ class BikeRentCompany extends BaseModel
         'branch_id',
         'name',
         'company_contact',
+        'customer_type',
         'email',
         'address',
         'status',

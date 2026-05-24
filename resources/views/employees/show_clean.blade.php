@@ -1,6 +1,6 @@
 @extends('employees.view')
 
-@section('page-content')
+@section('page_content')
 @if(isset($fieldsByCategory) && count($fieldsByCategory) > 0)
     @include('employees.show_fields_by_category')
 @else

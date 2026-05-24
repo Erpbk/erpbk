@@ -64,12 +64,20 @@ class ModuleFieldSource
             'riders_list' => 'riders',
             'employees' => 'employees',
             'customers' => 'customers',
+            'customer_invoices' => 'customer_invoices',
             'vendors' => 'vendors',
+            'leads' => 'leads',
             'recruiters' => 'recruiters',
+            'inventory' => 'inventory',
+            'attendance' => 'attendance',
+            'attendance_records' => 'attendance',
+            'documents' => 'files',
             'sims' => 'sims',
             'fuel_cards' => 'fuel_cards',
             'rta_fines' => 'rta_fines',
-            'rta_saliks' => 'salik_transactions',
+            'rta_fines_unpaid' => 'rta_fines',
+            'rta_fines_paid' => 'rta_fines',
+            'rta_saliks' => 'saliks',
             'garages' => 'garages',
             'suppliers' => 'suppliers',
             'leasing_companies' => 'leasing_companies',
@@ -79,6 +87,7 @@ class ModuleFieldSource
             'garage_items' => 'garage_items',
             'vouchers' => 'vouchers',
             'accounts' => 'accounts',
+            'bike_registration' => 'bike_registrations',
         ];
     }
 
@@ -133,5 +142,48 @@ class ModuleFieldSource
     public static function isSchemaFieldKey(string $module, string $fieldKey): bool
     {
         return in_array($fieldKey, self::schemaFieldKeysForModule($module), true);
+    }
+
+    /**
+     * Default assignment label when syncing DB columns into module_field_category_assignments.
+     */
+    public static function defaultAssignmentFieldLabel(string $column): string
+    {
+        return match ($column) {
+            'branch_id' => 'Branch',
+            'total_orders' => 'Total Orders',
+            'working_hours' => 'Working Hours',
+            'cancelled_orders' => 'Cancelled Orders',
+            'rejected_orders' => 'Rejected Orders',
+            default => ucwords(str_replace('_', ' ', $column)),
+        };
+    }
+
+    /**
+     * Label for fixed field keys in module settings / forms (handles hyphens in keys).
+     */
+    public static function humanizeFieldKey(string $key): string
+    {
+        return match ($key) {
+            'branch_id' => 'Branch',
+            default => ucwords(str_replace(['_', '-'], ' ', $key)),
+        };
+    }
+
+    /**
+     * Merge module-specific fixed-field specs with sensible defaults (e.g. branch_id → branch dropdown).
+     * Keys in {@see $explicit} overwrite defaults.
+     *
+     * @param  array<string, mixed>|null  $explicit
+     * @return array<string, mixed>
+     */
+    public static function mergeFixedFieldSpec(string $fieldKey, ?array $explicit): array
+    {
+        $base = match ($fieldKey) {
+            'branch_id' => ['type' => 'select', 'dropdown' => 'branch'],
+            default => ['type' => 'text'],
+        };
+
+        return array_merge($base, $explicit ?? []);
     }
 }

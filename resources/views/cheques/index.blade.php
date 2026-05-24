@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title','Cheques')
 @push('third_party_stylesheets')
+<link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
 <style>
     .table-responsive {
         max-height: calc(100vh - 210px);
@@ -11,7 +12,7 @@
         @include('flash::message')
         <div class="clearfix"></div>
         @can('cheques_view')
-        <div class="card">
+                <div class="card">
             <div class="card-header d-flex justify-content-between">
                 <div class="card-search">
                     <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
@@ -31,3 +32,4 @@
             </div>
         @endcannot
 @endsection
+

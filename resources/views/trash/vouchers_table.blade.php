@@ -147,66 +147,28 @@
 </div>
 @endif
 
+@push('page-scripts')
 <script>
-    // Initialize Bootstrap dropdowns when this content is loaded
-    (function() {
-        console.log('Voucher trash table content loaded, initializing dropdowns');
-
-        // Wait for Bootstrap to be available
-        var attempts = 0;
-        var maxAttempts = 10;
-
-        function tryInitialize() {
-            attempts++;
-
-            if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-                // Initialize Bootstrap 5 dropdowns for this content
-                var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-                var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
-                    try {
-                        return new bootstrap.Dropdown(dropdownToggleEl);
-                    } catch (e) {
-                        console.warn('Failed to initialize dropdown in table:', e);
-                        return null;
-                    }
-                }).filter(Boolean);
-
-                console.log('Dropdowns initialized in voucher trash table:', dropdownList.length);
-            } else if (attempts < maxAttempts) {
-                console.log('Bootstrap not ready in table, retrying...', attempts);
-                setTimeout(tryInitialize, 100);
-            } else {
-                console.warn('Bootstrap dropdown initialization failed in table after', maxAttempts, 'attempts');
-            }
+(function() {
+    function setupPerPageSelect() {
+        const perPageSelect = document.getElementById('perPageSelect');
+        if (!perPageSelect || perPageSelect.dataset.listenerAttached) {
+            return;
         }
+        perPageSelect.dataset.listenerAttached = 'true';
+        perPageSelect.addEventListener('change', function() {
+            const url = new URL(window.location.href);
+            url.searchParams.set('per_page', this.value);
+            url.searchParams.set('page', '1');
+            window.location.href = url.toString();
+        });
+    }
 
-        // Use DOMContentLoaded or run immediately if DOM is already loaded
-        function init() {
-            setTimeout(tryInitialize, 100);
-
-            // Handle "Show entries" dropdown change
-            const perPageSelect = document.getElementById('perPageSelect');
-            if (perPageSelect) {
-                perPageSelect.addEventListener('change', function() {
-                    const perPage = this.value;
-                    const url = new URL(window.location.href);
-
-                    // Update or add per_page parameter
-                    url.searchParams.set('per_page', perPage);
-
-                    // Reset to page 1 when changing per_page
-                    url.searchParams.set('page', '1');
-
-                    // Redirect to new URL
-                    window.location.href = url.toString();
-                });
-            }
-        }
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
-    })();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupPerPageSelect);
+    } else {
+        setupPerPageSelect();
+    }
+})();
 </script>
+@endpush

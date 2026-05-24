@@ -9,7 +9,7 @@
          $k = $c['data'] ?? ($c['key'] ?? null);
          return $k !== 'search'
          && $k !== 'control'
-         && !in_array($k, ['branch_id', 'company_id', 'account_id'], true);
+         && !in_array($k, ['company_id', 'account_id'], true);
          }));
          @endphp
          @foreach($dataColumns as $col)
@@ -44,48 +44,40 @@
          </td>
          @break
          @case('customer_id')
-         <td>{{ DB::table('customers')->where('id' , $r->customer_id)->first()->name ?? '-'}}</td>
+         <td>{{ company_table('customers')->where('id' , $r->customer_id)->first()->name ?? '-'}}</td>
          @break
          @case('branch_id')
          <td>{{ $r->branch ? $r->branch->name . ' (' . $r->branch->code . ')' : '-' }}</td>
          @break
          @case('recruiter_id')
-         <td>{{ DB::table('recruiters')->where('id' , $r->recruiter_id)->first()->name ?? '-'}}</td>
+         <td>{{ company_table('recruiters')->where('id' , $r->recruiter_id)->first()->name ?? '-'}}</td>
          @break
          @case('nationality')
-         <td>{{ $r->nationality ? (DB::table('countries')->where('id', $r->nationality)->value('name') ?? '-') : '-' }}</td>
+         <td>{{ $r->nationality ? (company_table('countries')->where('id', $r->nationality)->value('name') ?? '-') : '-' }}</td>
          @break
          @case('account_id')
          @php
-         $account = $r->account_id ? DB::table('accounts')->where('id', $r->account_id)->first() : null;
+         $account = $r->account_id ? company_table('accounts')->where('id', $r->account_id)->first() : null;
          @endphp
          <td>{{ $account ? ($account->account_code ?? $account->name ?? $r->account_id) : '-' }}</td>
          @break
          @case('bike')
-         @php $bike = DB::table('bikes')->where('rider_id', $r->id)->first(); @endphp
+         @php $bike = company_table('bikes')->where('rider_id', $r->id)->first(); @endphp
          <td>{{ $bike ? $bike->plate : '-' }}</td>
          @break
          @case('status')
-         @php
-         $statusText = trim((string)($r->rider_status ?? ''));
-         if ($statusText === '') {
-         $hasActiveBike = DB::table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
-         $statusText = $hasActiveBike ? 'Active' : 'Inactive';
-         }
-         $normalized = strtolower($statusText);
-         $badgeClass = in_array($normalized, ['active', 'follow up', 'pro', 'walker', 'learning license'], true)
-         ? 'bg-label-success'
-         : 'bg-label-danger';
-         @endphp
-         <td>
-            <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+         <td class="text-center">
+            @include('riders._status_badges', [
+            'employmentStatus' => data_get($r, 'status'),
+            'optionText' => data_get($r, 'rider_status', ''),
+            ])
          </td>
          @break
          @case('attendance')
          @php
-         $rider = DB::Table('riders')->find($r->id);
-         $timeline = DB::Table('job_status')->select('id')->where('RID', $r->id)->whereDate('created_at', today())->first();
-         $emails = DB::Table('rider_emails')->select('id')->where('rider_id', $r->id)->whereDate('created_at', today())->first();
+         $rider = company_table('riders')->find($r->id);
+         $timeline = company_table('job_status')->select('id')->where('RID', $r->id)->whereDate('created_at', today())->first();
+         $emails = company_table('rider_emails')->select('id')->where('rider_id', $r->id)->whereDate('created_at', today())->first();
          @endphp
          <td>
             @if($timeline)
@@ -99,13 +91,13 @@
          @break
          @case('orders_sum')
          @php
-         $rider_sum = DB::table('rider_activities')->where('d_rider_id', $r->rider_id)->whereMonth('date', now()->month)->whereYear('date', now()->year)->sum('delivered_orders');
+         $rider_sum = company_table('rider_activities')->where('d_rider_id', $r->rider_id)->whereMonth('date', now()->month)->whereYear('date', now()->year)->sum('delivered_orders');
          @endphp
          <td>{{ $rider_sum ? $rider_sum : '-' }}</td>
          @break
          @case('days')
          @php
-         $days = DB::table('rider_activities')->where('d_rider_id', $r->rider_id)->where('delivery_rating', 'Yes')->whereMonth('date', now()->month)->whereYear('date', now()->year)->count('date');
+         $days = company_table('rider_activities')->where('d_rider_id', $r->rider_id)->where('delivery_rating', 'Yes')->whereMonth('date', now()->month)->whereYear('date', now()->year)->count('date');
          @endphp
          <td>{{ $days ? $days : '-' }}</td>
          @break
@@ -120,15 +112,15 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  <a href="javascript:void();" data-action="{{route('rider_contract_upload', $r->id)}}" data-size="md" data-title="{{ $r->name }} ({{ $r->rider_id }}) Contract" class="dropdown-item waves-effect show-modal"><i class="fas fa-file my-1"></i> Contract</a>
-                  <a href="javascript:void();" data-action="{{route('rider.sendemail', $r->id)}}" data-size="md" data-title="{{ $r->name }} ({{ $r->rider_id }})" class="dropdown-item waves-effect show-modal"><i class="fas fa-envelope my-1"></i> Send Email</a>
+                  <a href="javascript:void();" data-action="{{ route('rider_contract_upload', ['company_slug' => request()->route('company_slug'), 'id' => $r->id]) }}" data-size="md" data-title="{{ $r->name }} ({{ $r->rider_id }}) Contract" class="dropdown-item waves-effect show-modal"><i class="fas fa-file my-1"></i> Contract</a>
+                  <a href="javascript:void();" data-action="{{ route('rider.sendemail', ['company_slug' => request()->route('company_slug'), 'id' => $r->id]) }}" data-size="md" data-title="{{ $r->name }} ({{ $r->rider_id }})" class="dropdown-item waves-effect show-modal"><i class="fas fa-envelope my-1"></i> Send Email</a>
                   @can('rider_edit')
-                  <a href="{{ route('riders.edit', $r->id) }}" class='dropdown-item waves-effect'>
+                  <a href="{{ route('riders.edit', ['company_slug' => request()->route('company_slug'), 'rider' => $r->id]) }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit my-1"></i> Edit
                   </a>
                   @endcan
                   @can('rider_delete')
-                  <a href="javascript:void(0);" onclick="confirmDelete('{{ route('rider.delete', $r->id) }}')" class='dropdown-item waves-effect'>
+                  <a href="javascript:void(0);" onclick="confirmDelete('{{ route('rider.delete', ['company_slug' => request()->route('company_slug'), 'id' => $r->id]) }}')" class='dropdown-item waves-effect'>
                      <i class="fa fa-trash my-1"></i> Delete
                   </a>
                   @endcan

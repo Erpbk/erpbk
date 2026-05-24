@@ -41,7 +41,14 @@
             <td> 
                 @if($maintenance->rider)
                 <a href="{{ route('riders.show', $maintenance->rider_id) }}" target="_blank">
-                    {{ $maintenance->rider? $maintenance->rider->rider_id .'-'. $maintenance->rider->name : '-' }}
+                    {{  $maintenance->rider->rider_id .'-'. $maintenance->rider->name  }}
+                </a>
+                @elseif($maintenance->rentalCompany)
+                <a @if($maintenance->rentalCompany->customer_type == 'bike_rental')
+                     href="{{ route('bikeRentCompanies.files', $maintenance->rental_company_id) }}"
+                   @else href="{{ route('garage_customer.files', $maintenance->rental_company_id) }}"
+                   @endif target="_blank">
+                    {{ $maintenance->rentalCompany->name }}
                 </a>
                 @else
                 <span class="text-muted">No Rider</span>
@@ -76,8 +83,9 @@
                 <strong>{{ \App\Helpers\Currency::format($maintenance->total_cost ?? 0, 2) }}</strong>
             </td>
             <td style="white-space: nowrap">
-                <a href="{{ route('bike-maintenance.invoice', $maintenance) }}"
-                    class='' target="_blank">
+                <a href="javascript:void(0);"
+                    data-action="{{ route('bike-maintenance.invoice', $maintenance) }}"
+                    class='show-modal-right'>
                     MA-{{ $maintenance->id }}
                 </a><br>
                 <a target="_blank"
@@ -105,7 +113,7 @@
                             href="javascript:void(0);"
                             data-size="xl"
                             data-title="Edit Maintenance Record"
-                            data-action="{{ route('bikeMaintenance.edit', $maintenance) }}">
+                            data-action="{{ route('bikeMaintenance.edit', $maintenance) }}?type={{ $maintenance->rentalComapny?->customer_type ?? null }}">
                             <i class="fa fa-edit my-1"></i>Edit Record
                         </a>
                         @endcan

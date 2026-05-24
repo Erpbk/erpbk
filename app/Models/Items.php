@@ -27,7 +27,12 @@ class Items extends BaseModel
     'owner',
     'supplier_id',
     'status',
-    'attachment'
+    'attachment',
+    'inventory_purchase_id',
+    'cost',
+    'total_cost',
+    'profit',
+    'is_maintained'
   ];
 
   protected $casts = [
@@ -37,6 +42,7 @@ class Items extends BaseModel
     'cost' => 'decimal:2',
     'vat' => 'decimal:2',
     'owner' => 'array',
+    'is_maintained' => 'boolean'
   ];
 
   public static array $rules = [
@@ -91,5 +97,20 @@ class Items extends BaseModel
   public function deletedBy()
   {
     return $this->belongsTo(\App\Models\User::class, 'deleted_by', 'id');
+  }
+
+  public function purchaseHistory()
+  {
+    return InventoryPurchase::where('item_id', $this->id)->orderBy('purchase_date','desc')->get();
+  }
+
+  public function getAvailableAttribute()
+  {
+    return InventoryPurchase::where('item_id', $this->id)->sum('remaining_quantity') ?? 0;
+  }
+
+  public function getAvailableInventory()
+  {
+    return InventoryPurchase::where('item_id', $this->id)->where('remaining_quantity','>',0)->get();
   }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AccountCustomField;
 use App\Models\Settings;
+use App\Services\Module\ModuleLabelService;
 use Illuminate\Http\Request;
 
 class AccountFieldSettingsController extends Controller
@@ -32,10 +33,8 @@ class AccountFieldSettingsController extends Controller
     public function storeModuleLabel(Request $request)
     {
         $request->validate(['module_label' => 'required|string|max:100']);
-        $value = trim($request->input('module_label'));
-        Settings::updateOrCreate(['name' => 'menu_label_account_fields'], ['value' => $value]);
-        Settings::updateOrCreate(['name' => 'menu_label_accounts'], ['value' => $value]);
-        Settings::clearMenuLabelsCache();
+        app(ModuleLabelService::class)->saveLabel('account_fields', trim((string) $request->input('module_label')));
+
         return redirect()->route('settings-panel.account-fields.index')->with('success', 'Module name updated.');
     }
 

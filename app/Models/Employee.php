@@ -21,7 +21,10 @@ class Employee extends BaseModel
         'employee_id',
         'name',
         'company_email',
+        'personal_email',
+        'personal_contact',
         'company_contact',
+        'emergency_contact',
         'nationality_id',
         'department_id',
         'designation',
@@ -38,6 +41,14 @@ class Employee extends BaseModel
         'visa_sponsor',
         'visa_occupation',
         'visa_expiry',
+        'license_no',
+        'license_expiry',
+        'road_permit',
+        'road_permit_expiry',
+        'person_code',
+        'labor_card_number',
+        'labor_card_expiry',
+        'wps',
         'account_id',
         'profile_image',
         'notes',
@@ -55,10 +66,50 @@ class Employee extends BaseModel
         'doj' => 'date',
         'dob' => 'date',
         'visa_expiry' => 'date',
+        'license_expiry' => 'date',
+        'road_permit_expiry' => 'date',
+        'labor_card_expiry' => 'date',
         'emirate_expiry' => 'date',
         'passport_expiry' => 'date',
         'salary' => 'decimal:2',
         'custom_field_values' => 'array',
+    ];
+
+    /** Base validation rules; required/optional per field comes from Employee Settings assignments. */
+    public static array $rules = [
+        'employee_id' => 'nullable|string|max:191',
+        'name' => 'nullable|string|max:255',
+        'company_email' => 'nullable|email|max:191|unique:employees,company_email',
+        'personal_email' => 'nullable|email|max:191|unique:employees,personal_email',
+        'company_contact' => 'nullable|string|max:20',
+        'personal_contact' => 'nullable|string|max:20',
+        'emergency_contact' => 'nullable|string|max:20',
+        'nationality_id' => 'nullable|exists:countries,id',
+        'department_id' => 'nullable|exists:departments,id',
+        'designation' => 'nullable|string|max:255',
+        'salary' => 'nullable|numeric|min:0',
+        'branch_id' => 'nullable|exists:branches,id',
+        'emirate_id' => 'nullable|string|max:191|unique:employees,emirate_id',
+        'emirate_expiry' => 'nullable|date',
+        'passport' => 'nullable|string|max:191|unique:employees,passport',
+        'passport_expiry' => 'nullable|date',
+        'doj' => 'nullable|date',
+        'dob' => 'nullable|date|before:today',
+        'visa_sponsor' => 'nullable|string|max:255',
+        'visa_occupation' => 'nullable|string|max:255',
+        'visa_expiry' => 'nullable|date',
+        'license_no' => 'nullable|string|max:191',
+        'license_expiry' => 'nullable|date',
+        'road_permit' => 'nullable|string|max:255',
+        'road_permit_expiry' => 'nullable|date',
+        'person_code' => 'nullable|string|max:50',
+        'labor_card_number' => 'nullable|string|max:100',
+        'labor_card_expiry' => 'nullable|date',
+        'wps' => 'nullable|string|max:100',
+        'status' => 'nullable|in:active,inactive,on_leave',
+        'address' => 'nullable|string',
+        'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        'notes' => 'nullable|string',
     ];
 
     /**
@@ -104,8 +155,66 @@ class Employee extends BaseModel
 
     public static function dropdown()
     {
-        return self::select('id', DB::raw("CONCAT(employee_id, '-', name) as full_name"))
+        return self::dropdownForBranch(null);
+    }
+
+    /**
+     * Employees for SIM assignment (same branch as the SIM, active only).
+     */
+    public static function dropdownForBranch(?int $branchId): array
+    {
+        $query = self::query()->where('status', 'active');
+
+        if ($branchId !== null && $branchId > 0) {
+            $query->where(function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId)->orWhereNull('branch_id');
+            });
+        }
+
+        return $query
+            ->select('id', DB::raw("CONCAT(employee_id, '-', name) as full_name"))
+            ->orderBy('name')
             ->pluck('full_name', 'id')
-            ->prepend('Select', '');
+            ->prepend('Select', '')
+            ->all();
+    }
+
+    /**
+     * All employees for SIM assignment (any status, all branches).
+     *
+     * @return array<int|string, string>
+     */
+    public static function dropdownForSimAssign(): array
+    {
+        return self::query()
+            ->select('id', DB::raw("CONCAT(employee_id, '-', name, CASE WHEN status = 'active' THEN '' ELSE CONCAT(' (', status, ')') END) as full_name"))
+            ->orderBy('name')
+            ->pluck('full_name', 'id')
+            ->prepend('Select', '')
+            ->all();
+    }
+
+    public function simHistories()
+    {
+        return $this->hasMany(SimHistory::class, 'employee_id', 'id');
+    }
+
+    public function histories()
+    {
+        return $this->hasMany(EmployeeHistory::class, 'employee_id', 'id')
+            ->orderByDesc('effective_date')
+            ->orderByDesc('id');
+    }
+
+    public function getProfileImageUrlAttribute(): ?string
+    {
+        if (empty($this->profile_image)) {
+            return null;
+        }
+
+        $path = ltrim(str_replace('\\', '/', $this->profile_image), '/');
+
+        // Use the current request host (not only APP_URL) so images work on Laravel Cloud domains.
+        return url('/storage/' . $path);
     }
 }

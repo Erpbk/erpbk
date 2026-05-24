@@ -61,6 +61,7 @@ class BanksController extends AppBaseController
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Banks::query()
+      ->with('branch')
       ->orderBy('id', 'asc');
     if ($request->has('name') && !empty($request->name)) {
       $query->where('name', 'like', '%' . $request->name . '%');
@@ -123,7 +124,13 @@ class BanksController extends AppBaseController
       $parentId = Accounts::where('name', 'Current Assets')->where('account_type', 'Asset')->first()->id;
       $parentAccount = Accounts::where('name', 'Cash & Bank')->where('account_type', 'Asset')->where('parent_id', $parentId)->first();
       if (!$parentAccount) {
+        if($request->ajax()) {
+          return response()->json([
+            'message' => 'Parent account "Cash & Bank" not found.',
+          ], 500);
+        }
         Flash::error('Parent account "Cash & Bank" not found.');
+        return redirect()->back();
       }
       $account = new Accounts();
       $account->account_code = 'BK' . str_pad($banks->id, 4, "0", STR_PAD_LEFT);
@@ -202,12 +209,25 @@ class BanksController extends AppBaseController
     $banks = $this->banksRepository->find($id);
 
     if (empty($banks)) {
+      if ($request->ajax()) {
+        return response()->json(['message' => 'Bank not found!'], 404);
+      }
       Flash::error('Bank not found!');
+      return redirect()->back();
     }
 
     $banks = $this->banksRepository->update($request->all(), $id);
-    $banks->account->status = $banks->status;
-    $banks->save();
+    if ($banks->account) {
+      $banks->account->status = $banks->status;
+      $banks->account->save();
+    }
+
+    if ($request->ajax()) {
+      return response()->json([
+        'message' => 'Bank updated successfully.',
+        'reload' => true,
+      ], 200);
+    }
 
     Flash::success('Bank updated successfully.');
     return redirect()->back();

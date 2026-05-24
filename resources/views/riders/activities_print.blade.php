@@ -373,7 +373,7 @@
                 <td>{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</td>
                 <td>{{ $r->d_rider_id }}</td>
                 @php
-                $rider = DB::Table('riders')->where('id', $r->rider_id)->first();
+                $rider = company_table('riders')->where('id', $r->rider_id)->first();
                 @endphp
                 <td>{{ $rider->name ?? 'N/A' }}</td>
                 <td>{{ $rider->designation ?? 'N/A' }}</td>

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title','Supplier Invoices')
+@section('title','Monthly Fuel Invoices')
 @push('third_party_stylesheets')
 <style>
     .table-responsive {

@@ -6,7 +6,6 @@ use App\Models\ModuleFieldCategoryAssignment;
 use App\Models\ModuleSettingCategory;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 /**
  * Cash & Banks (module_key cash_banks): form column order, labels, and category grouping.
@@ -45,16 +44,8 @@ class BankFormLayout
             return collect();
         }
 
-        $companyId = optional(auth()->user())->company_id;
-
         return ModuleSettingCategory::query()
             ->where('module_key', self::MODULE_KEY)
-            ->where(function ($query) use ($companyId) {
-                $query->whereNull('company_id');
-                if ($companyId) {
-                    $query->orWhere('company_id', $companyId);
-                }
-            })
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -66,7 +57,7 @@ class BankFormLayout
     public static function labelForFieldKey(string $fieldKey): string
     {
         if (!Schema::hasTable('module_field_category_assignments')) {
-            return Str::title(str_replace('_', ' ', $fieldKey));
+            return ModuleFieldSource::defaultAssignmentFieldLabel($fieldKey);
         }
 
         $row = ModuleFieldCategoryAssignment::query()
@@ -81,7 +72,7 @@ class BankFormLayout
             }
         }
 
-        return Str::title(str_replace('_', ' ', $fieldKey));
+        return ModuleFieldSource::defaultAssignmentFieldLabel($fieldKey);
     }
 
     /**

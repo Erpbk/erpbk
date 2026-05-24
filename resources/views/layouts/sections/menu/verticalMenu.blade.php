@@ -1,7 +1,18 @@
 @php
 $configData = Helper::appClasses();
 $tenantCompany = view()->shared('currentCompany');
-$tenantLogo = (!empty($tenantCompany?->logo)) ? asset('storage/' . $tenantCompany->logo) : asset('assets/img/logo.png');
+if (!$tenantCompany instanceof \App\Models\Company) {
+  $companyId = \App\Support\CompanyContext::id();
+  if ($companyId) {
+    $tenantCompany = \App\Models\Company::query()->find($companyId);
+  }
+}
+$tenantLogo = $companyLogoUrl ?? null;
+if (!$tenantLogo && $tenantCompany) {
+  $tenantLogo = app(\App\Services\Email\CompanyEmailBrandingService::class)
+    ->resolve($tenantCompany->id)['logo_url'] ?? null;
+}
+$tenantName = $companyDisplayName ?? ($tenantCompany?->name ?? config('app.name'));
 $adminUser = auth('admin')->user();
 $companySlug = request()->route('company_slug') ?? session('company_slug');
 $homeLink = $adminUser
@@ -16,9 +27,13 @@ $homeLink = $adminUser
   <div class="app-brand demo">
     <a href="{{ $homeLink }}" class="app-brand-link">
       <span class="app-brand-logo ">
-        <img src="{{ $tenantLogo }}" width="50" style="object-fit:contain;" />
+        @if($tenantLogo)
+          <img src="{{ $tenantLogo }}" width="50" height="50" alt="{{ $tenantName }}" style="object-fit:contain;" />
+        @else
+          @include('_partials.macros', ['height' => 22])
+        @endif
       </span>
-      <span class="app-brand-text demo menu-text fw-bold fs-5">{{ $tenantCompany?->name ?? config('app.name') }}</span>
+      <span class="app-brand-text demo menu-text fw-bold fs-5">{{ $tenantName }}</span>
     </a>
 
     <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">

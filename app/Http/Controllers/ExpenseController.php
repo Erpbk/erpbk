@@ -185,12 +185,11 @@ class ExpenseController extends AppBaseController
         if (!auth()->user()->can('expenses_view')) {
             abort(403, 'Unauthorized action.');
         }
-        $expenseIds = $this->getExpenseAccountIds();
-        $parents = Accounts::whereIn('id', $expenseIds)->get(['id', 'name', 'parent_id'])->groupBy('parent_id');
+        $parent = Accounts::find(HeadAccount::OTHER_EXPENSES);
         $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
         $accounts = null;
 
-        return view('expenses.create', compact('parents', 'customFields', 'accounts'));
+        return view('expenses.create', compact('parent', 'customFields', 'accounts'));
     }
 
     /**
@@ -222,21 +221,16 @@ class ExpenseController extends AppBaseController
         if (!auth()->user()->can('expenses_view')) {
             abort(403, 'Unauthorized action.');
         }
-        $expenseIds = $this->getExpenseAccountIds();
-        if (!in_array((int) $id, $expenseIds, true)) {
-            Flash::error('Expense account not found.');
-            return redirect(route('expenses.index'));
-        }
         $accounts = $this->accountsRepository->find($id);
-        if (empty($accounts)) {
-            Flash::error('Account not found.');
-            return redirect(route('expenses.index'));
+        if (empty($accounts) || !$accounts->account_type == 'Expense') {
+            Flash::error('Expense Account not found.');
+            return redirect()->back();
         }
         /** Only expense accounts for parent dropdown */
-        $parents = Accounts::whereIn('id', $expenseIds)->get(['id', 'name', 'parent_id'])->groupBy('parent_id');
+        $parent = Accounts::find(HeadAccount::OTHER_EXPENSES);
         $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
 
-        return view('expenses.edit', compact('accounts', 'parents', 'customFields'));
+        return view('expenses.edit', compact('accounts', 'parent', 'customFields'));
     }
 
     /**
@@ -485,7 +479,7 @@ class ExpenseController extends AppBaseController
                     Transactions::create([
                         'trans_code' => $transCode,
                         'trans_date' => $request->input('trans_date'),
-                        'account_id' => HeadAccount::TAX_ACCOUNT,
+                        'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
                         'debit' => $vatAmount,
                         'credit' => 0,
                         'narration' => 'VAT: ' . $debitNarration,

@@ -26,12 +26,12 @@
          <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
          <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
          @php
-         $rider = DB::Table('riders')->where('id', $r->rider_id)->first();
+         $rider = company_table('riders')->where('id', $r->rider_id)->first();
          @endphp
          <td>{{ $rider ? ($rider->rider_id . '-' . $rider->name) : '-' }}</td>
          <td>{{ $r->descriptions ?? '-' }}</td>
          <td>
-            {{ $rider ? (DB::table('customers')->where('id', $rider->customer_id)->first()->name ?? '-') : '-' }}
+            {{ $rider ? (company_table('customers')->where('id', $rider->customer_id)->first()->name ?? '-') : '-' }}
          </td>
          <td>{{ \App\Helpers\Currency::format($r->subtotal, 2) }}</td>
          <td>{{ $r->vat ?? '-' }}</td>
@@ -124,30 +124,3 @@
    </p>
 </div>
 @endif
-
-<script>
-   $(document).ready(function() {
-      var attempts = 0;
-      var maxAttempts = 10;
-
-      function tryInitialize() {
-         attempts++;
-
-         if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-            var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-            var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
-               try {
-                  return new bootstrap.Dropdown(dropdownToggleEl);
-               } catch (e) {
-                  return null;
-               }
-            }).filter(Boolean);
-         } else if (attempts < maxAttempts) {
-            setTimeout(tryInitialize, 100);
-         }
-      }
-
-      setTimeout(tryInitialize, 100);
-   });
-</script>
-

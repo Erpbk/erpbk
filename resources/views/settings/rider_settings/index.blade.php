@@ -51,36 +51,6 @@
     padding: 0.5rem 0.75rem;
   }
 
-  .rider-top-visibility-controls {
-    background: #f8f9fb;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    padding: 0.35rem 0.6rem;
-  }
-
-  .rider-top-visibility-controls .form-check {
-    min-height: auto;
-    margin-bottom: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .rider-top-visibility-controls .form-check-input {
-    width: 2rem;
-    height: 1.1rem;
-    margin: 0;
-    cursor: pointer;
-  }
-
-  .rider-top-visibility-controls .form-check-label {
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: #5f6b7a;
-    margin-top: 0;
-    cursor: pointer;
-  }
-
   /* Keep Select2 dropdown above Bootstrap modal/backdrop. */
   .select2-container--open {
     z-index: 2000 !important;
@@ -219,30 +189,10 @@
           <div class="tab-pane fade" id="tab-rider-status" role="tabpanel">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
               <p class="text-muted small mb-0">Manage rider statuses in one place. Changes here stay synced with rider records (`rider_status`).</p>
+              <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRiderStatusModal">
+                <i class="ti ti-plus me-1"></i> Add Status
+              </button>
             </div>
-            <form action="{{ route('settings-panel.rider-settings.store-rider-status') }}" method="POST" class="row g-2 align-items-end mb-3">
-              @csrf
-              <div class="col-md-5">
-                <label class="form-label">Status Name <span class="text-danger">*</span></label>
-                <input type="text" name="name" class="form-control" placeholder="e.g. Absconder" required maxlength="255">
-              </div>
-              <div class="col-md-2">
-                <div class="form-check form-switch mt-4">
-                  <input class="form-check-input" type="checkbox" name="show_in_top_bar" id="newRiderStatusTopBar" value="1" checked>
-                  <label class="form-check-label" for="newRiderStatusTopBar">Top Bar</label>
-                </div>
-              </div>
-              <div class="col-md-2">
-                <div class="form-check form-switch mt-4">
-                  <input class="form-check-input" type="checkbox" name="show_in_view_cards" id="newRiderStatusViewCard" value="1" checked>
-                  <label class="form-check-label" for="newRiderStatusViewCard">View Card</label>
-                </div>
-              </div>
-              <div class="col-md-3 text-md-end">
-                <button type="submit" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Add Status</button>
-              </div>
-            </form>
-
             <div class="table-responsive">
               <table class="table table-hover rider-settings-table mb-0">
                 <thead class="table-light">
@@ -251,52 +201,11 @@
                     <th>Status</th>
                     <th class="text-center">Top Bar</th>
                     <th class="text-center">View Card</th>
-                    <th class="text-end" style="width: 280px;">Actions</th>
+                    <th class="text-end" style="width: 120px;">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  @forelse(($riderStatusOptions ?? collect()) as $idx => $statusOption)
-                  <tr>
-                    <td class="align-middle">{{ $idx + 1 }}</td>
-                    <td class="align-middle">
-                      <form action="{{ route('settings-panel.rider-settings.update-rider-status', ['id' => $statusOption->id]) }}" method="POST" class="row g-2 align-items-center">
-                        @csrf
-                        @method('PUT')
-                        <div class="col-12 col-lg-7">
-                          <input type="text" name="name" class="form-control form-control-sm" value="{{ $statusOption->name }}" maxlength="255" required>
-                        </div>
-                        <div class="col-6 col-lg-2 text-center">
-                          <input type="hidden" name="show_in_top_bar" value="0">
-                          <div class="form-check form-switch d-inline-block">
-                            <input class="form-check-input" type="checkbox" name="show_in_top_bar" value="1" {{ ($statusOption->show_in_top_bar ?? true) ? 'checked' : '' }}>
-                          </div>
-                        </div>
-                        <div class="col-6 col-lg-2 text-center">
-                          <input type="hidden" name="show_in_view_cards" value="0">
-                          <div class="form-check form-switch d-inline-block">
-                            <input class="form-check-input" type="checkbox" name="show_in_view_cards" value="1" {{ ($statusOption->show_in_view_cards ?? true) ? 'checked' : '' }}>
-                          </div>
-                        </div>
-                        <div class="col-12 col-lg-1 text-end">
-                          <button type="submit" class="btn btn-sm btn-outline-primary"><i class="ti ti-device-floppy"></i></button>
-                        </div>
-                      </form>
-                    </td>
-                    <td class="align-middle text-center">{{ ($statusOption->show_in_top_bar ?? true) ? 'Yes' : 'No' }}</td>
-                    <td class="align-middle text-center">{{ ($statusOption->show_in_view_cards ?? true) ? 'Yes' : 'No' }}</td>
-                    <td class="align-middle text-end">
-                      <form action="{{ route('settings-panel.rider-settings.destroy-rider-status', ['id' => $statusOption->id]) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this status? It will be removed from riders too.');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="ti ti-trash"></i></button>
-                      </form>
-                    </td>
-                  </tr>
-                  @empty
-                  <tr>
-                    <td colspan="5" class="text-center text-muted py-3">No rider statuses configured yet.</td>
-                  </tr>
-                  @endforelse
+                <tbody id="riderStatusTbody">
+                  @include('settings.rider_settings._rider_status_rows', ['riderStatusOptions' => $riderStatusOptions ?? collect()])
                 </tbody>
               </table>
             </div>
@@ -661,9 +570,9 @@
             </div>
             <div class="mb-3">
               <label class="form-label">Category</label>
-              <input type="text" class="form-control" value="Unassigned (set from Rider Fields tab after creation)" disabled>
-              <input type="hidden" name="category_id" value="">
-              <p class="form-text mb-0">New custom fields are created as unassigned and can be moved category-wise from the Rider Fields tab.</p>
+              <input type="text" class="form-control" value="{{ $defaultCategory->label ?? 'General' }}" disabled>
+              <input type="hidden" name="category_id" value="{{ $defaultCategory->id ?? '' }}">
+              <p class="form-text mb-0">New custom fields are placed in the default category. You can reassign them from the Rider Fields tab.</p>
             </div>
             <div class="mb-3">
               <label class="form-label d-flex align-items-center gap-1">
@@ -786,6 +695,47 @@
   </div>
 </div>
 
+{{-- Add Rider Status modal --}}
+<div class="modal fade" id="addRiderStatusModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title">Add Rider Status</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{{ route('settings-panel.rider-settings.store-rider-status') }}" method="POST">
+        @csrf
+        <div class="modal-body pt-0">
+          <div class="mb-3">
+            <label class="form-label" for="newRiderStatusName">Status Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="newRiderStatusName" class="form-control" placeholder="e.g. Absconder" required maxlength="255">
+          </div>
+          <div class="mb-3">
+            <input type="hidden" name="show_in_top_bar" value="0">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="show_in_top_bar" id="newRiderStatusTopBar" value="1" checked>
+              <label class="form-check-label" for="newRiderStatusTopBar">Show in Top Bar</label>
+            </div>
+          </div>
+          <div class="mb-0">
+            <input type="hidden" name="show_in_view_cards" value="0">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="show_in_view_cards" id="newRiderStatusViewCard" value="1" checked>
+              <label class="form-check-label" for="newRiderStatusViewCard">Show in View Card</label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Add Status</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+@include('settings.rider_settings._edit_rider_status_modal')
+
 {{-- Edit Rider Category modal --}}
 <div class="modal fade" id="editRiderCategoryModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -871,135 +821,17 @@
   </div>
 </div>
 
-{{-- Add Rider Top Category modal --}}
-<div class="modal fade" id="addRiderTopCategoryModal" tabindex="-1" data-bs-backdrop="static">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title">Add Rider Top Category</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form id="formAddRiderTopCategory">
-        @csrf
-        <div class="modal-body pt-0">
-          <div class="mb-3">
-            <label class="form-label">Rider Dropdown Column <span class="text-danger">*</span></label>
-            <select name="rider_column" id="addRiderTopCategoryColumn" class="form-select select2" data-placeholder="Select dropdown column" required>
-              <option value="">Select dropdown column</option>
-              @foreach(($riderTopSelectableColumns ?? []) as $columnKey => $columnLabel)
-              <option value="{{ $columnKey }}">{{ $columnLabel }} ({{ $columnKey }})</option>
-              @endforeach
-            </select>
-            <div class="form-text">Only rider dropdown columns are available here; foreign-key and externally linked columns are excluded.</div>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="addRiderTopCategorySubmitBtn">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-{{-- Add Rider Top Option modal --}}
-<div class="modal fade" id="addRiderTopOptionModal" tabindex="-1" data-bs-backdrop="static">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title">Add Rider Top Option</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form id="formAddRiderTopOption">
-        @csrf
-        <input type="hidden" name="category_id" id="addRiderTopOptionCategoryId">
-        <div class="modal-body pt-0">
-          <div class="mb-2 text-muted small">
-            Category: <strong id="addRiderTopOptionCategoryName">-</strong>
-          </div>
-          <div class="mb-2 text-muted small">
-            Source Column: <strong id="addRiderTopOptionColumnName">-</strong>
-          </div>
-          <div class="mb-3">
-            <label class="form-label d-block">Selection Mode</label>
-            <div class="d-flex gap-3">
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="selection_mode" id="riderTopOptionModeSingle" value="single" checked>
-                <label class="form-check-label" for="riderTopOptionModeSingle">Single Select</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="selection_mode" id="riderTopOptionModeMultiple" value="multiple">
-                <label class="form-check-label" for="riderTopOptionModeMultiple">Multiple Select</label>
-              </div>
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Add Option Value(s) <span class="text-danger">*</span></label>
-            <div id="addRiderTopOptionRows" class="d-flex flex-column gap-2"></div>
-            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addRiderTopOptionRowBtn">Add Option</button>
-            <div class="form-text">Values are loaded from the selected category column in the rider table. You can add one or more items.</div>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="addRiderTopOptionSubmitBtn">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-{{-- Edit Rider Top Category modal --}}
-<div class="modal fade" id="editRiderTopCategoryModal" tabindex="-1" data-bs-backdrop="static">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title">Edit Rider Top Category</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form id="formEditRiderTopCategory">
-        @csrf
-        <input type="hidden" name="id" id="editRiderTopCategoryId">
-        <div class="modal-body pt-0">
-          <div class="mb-3">
-            <label class="form-label">Category Name <span class="text-danger">*</span></label>
-            <input type="text" name="name" id="editRiderTopCategoryName" class="form-control" maxlength="255" required>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="editRiderTopCategorySubmitBtn">Update</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-{{-- Edit Rider Top Option modal --}}
-<div class="modal fade" id="editRiderTopOptionModal" tabindex="-1" data-bs-backdrop="static">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title">Edit Rider Top Option</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form id="formEditRiderTopOption">
-        @csrf
-        <input type="hidden" name="id" id="editRiderTopOptionId">
-        <div class="modal-body pt-0">
-          <div class="mb-3">
-            <label class="form-label">Option Name <span class="text-danger">*</span></label>
-            <input type="text" name="name" id="editRiderTopOptionName" class="form-control" maxlength="255" required>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="editRiderTopOptionSubmitBtn">Update</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
+@php
+  use App\Support\ModuleTopBarRoutes;
+  $topBarRoutes = ModuleTopBarRoutes::resolve('riders');
+@endphp
+@include('settings.partials.top_bar.modals', [
+  'topBarTabLabel' => 'Rider Top',
+  'topBarColumnField' => 'rider_column',
+  'topBarColumnLabel' => 'Rider Dropdown Column',
+  'topBarSelectableColumns' => $riderTopSelectableColumns ?? [],
+])
+@include('settings.partials.top_bar.scripts', ['topBarRoutes' => $topBarRoutes])
 
 {{-- Add Rider Document Type modal --}}
 <div class="modal fade" id="addRiderDocumentTypeModal" tabindex="-1" data-bs-backdrop="static">
@@ -1484,708 +1316,6 @@
         });
     };
 
-    window.refreshRiderTopAccordion = function() {
-      fetch("{{ route('settings-panel.rider-settings.rider-top-accordion-body') }}", {
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-        .then(function(resp) {
-          return resp.text();
-        })
-        .then(function(html) {
-          var container = document.getElementById('riderTopAccordionContainer');
-          if (container) container.innerHTML = html;
-        });
-    };
-
-    var baseUrl = "{{ url('') }}";
-    var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content') || document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value;
-
-    // Select2 inside Rider Top modal (with correct dropdown parent).
-    function initTopCategoryColumnSelect2() {
-      if (!(window.jQuery && jQuery.fn && jQuery.fn.select2)) return;
-      var $topCategoryColumn = jQuery('#addRiderTopCategoryColumn');
-      var $modal = jQuery('#addRiderTopCategoryModal');
-      if (!$topCategoryColumn.length || !$modal.length) return;
-
-      // Re-init to avoid older global select2 init keeping dropdown in <body>.
-      if ($topCategoryColumn.hasClass('select2-hidden-accessible')) {
-        $topCategoryColumn.select2('destroy');
-      }
-      $topCategoryColumn.select2({
-        width: '100%',
-        dropdownParent: $modal,
-        placeholder: $topCategoryColumn.data('placeholder') || 'Select dropdown column',
-        allowClear: true
-      });
-    }
-    initTopCategoryColumnSelect2();
-    if (window.jQuery) {
-      jQuery('#addRiderTopCategoryModal').on('shown.bs.modal', function() {
-        initTopCategoryColumnSelect2();
-      });
-    }
-
-    var riderTopAvailableValues = [];
-
-    function createRiderTopOptionRow(initialValue) {
-      var rowsWrap = document.getElementById('addRiderTopOptionRows');
-      if (!rowsWrap) return;
-      var row = document.createElement('div');
-      row.className = 'd-flex align-items-center gap-2';
-
-      var input = document.createElement('select');
-      input.className = 'form-select rider-top-option-row-input';
-      input.appendChild(new Option('Select value', ''));
-      riderTopAvailableValues.forEach(function(v) {
-        input.appendChild(new Option(v, v));
-      });
-      if (initialValue) {
-        input.value = initialValue;
-      }
-
-      var removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'btn btn-sm btn-outline-danger';
-      removeBtn.textContent = 'Remove';
-      removeBtn.addEventListener('click', function() {
-        row.remove();
-      });
-
-      row.appendChild(input);
-      row.appendChild(removeBtn);
-      rowsWrap.appendChild(row);
-    }
-
-    function setRiderTopSelectionMode(mode) {
-      var addBtn = document.getElementById('addRiderTopOptionRowBtn');
-      var rowsWrap = document.getElementById('addRiderTopOptionRows');
-      if (!rowsWrap) return;
-      var rows = rowsWrap.querySelectorAll('.rider-top-option-row-input');
-      var isMultiple = mode === 'multiple';
-      if (addBtn) addBtn.disabled = !isMultiple;
-      if (!isMultiple && rows.length > 1) {
-        for (var i = 1; i < rows.length; i++) {
-          var rowEl = rows[i].closest('.d-flex');
-          if (rowEl) rowEl.remove();
-        }
-      }
-    }
-
-    function setRiderTopOptionSuggestions(values) {
-      riderTopAvailableValues = Array.isArray(values) ? values : [];
-      var rowsWrap = document.getElementById('addRiderTopOptionRows');
-      if (!rowsWrap) return;
-      rowsWrap.querySelectorAll('.rider-top-option-row-input').forEach(function(selectEl) {
-        var currentValue = selectEl.value || '';
-        selectEl.innerHTML = '';
-        selectEl.appendChild(new Option('Select value', ''));
-        riderTopAvailableValues.forEach(function(v) {
-          selectEl.appendChild(new Option(v, v));
-        });
-        if (currentValue && riderTopAvailableValues.indexOf(currentValue) !== -1) {
-          selectEl.value = currentValue;
-        }
-      });
-    }
-
-    var formAddCat = document.getElementById('formAddRiderCategory');
-    if (formAddCat) {
-      formAddCat.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var form = this;
-        var btn = document.getElementById('addRiderCategorySubmitBtn');
-        var fd = new FormData(form);
-        if (btn) btn.disabled = true;
-        fetch(form.action || "{{ route('settings-panel.rider-settings.store-category') }}", {
-            method: 'POST',
-            body: fd,
-            headers: {
-              'X-CSRF-TOKEN': csrf,
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          })
-          .then(function(r) {
-            if (!r.ok) {
-              return r.json().then(function(d) {
-                return {
-                  _httpError: true,
-                  status: r.status,
-                  data: d
-                };
-              }).catch(function() {
-                return {
-                  _httpError: true,
-                  status: r.status
-                };
-              });
-            }
-            return r.json();
-          })
-          .then(function(data) {
-            if (btn) btn.disabled = false;
-            if (data._httpError) {
-              var msg = (data.data && data.data.message) || 'Server error ('.concat(data.status, ').');
-              if (typeof Swal !== 'undefined') Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: msg
-              });
-              return;
-            }
-            if (data.success) {
-              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                var modal = bootstrap.Modal.getInstance(document.getElementById('addRiderCategoryModal'));
-                if (modal) modal.hide();
-              }
-              form.reset();
-              if (typeof window.refreshRiderCategoriesTable === 'function') window.refreshRiderCategoriesTable();
-              if (typeof Swal !== 'undefined') Swal.fire({
-                icon: 'success',
-                title: 'Saved',
-                text: data.message || 'Category added.'
-              });
-            } else {
-              if (typeof Swal !== 'undefined') Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: data.message || 'Could not save.'
-              });
-            }
-          })
-          .catch(function(err) {
-            if (btn) btn.disabled = false;
-            if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: 'Could not save. Check your connection or try again.'
-            });
-          });
-      });
-    }
-
-    var formAddRiderTopCategory = document.getElementById('formAddRiderTopCategory');
-    if (formAddRiderTopCategory) {
-      formAddRiderTopCategory.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var form = this;
-        var btn = document.getElementById('addRiderTopCategorySubmitBtn');
-        if (btn) btn.disabled = true;
-        fetch("{{ route('settings-panel.rider-settings.store-rider-top-category') }}", {
-            method: 'POST',
-            body: new FormData(form),
-            headers: {
-              'X-CSRF-TOKEN': csrf,
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          })
-          .then(function(r) {
-            return r.json();
-          })
-          .then(function(data) {
-            if (btn) btn.disabled = false;
-            if (data.success) {
-              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                var modal = bootstrap.Modal.getInstance(document.getElementById('addRiderTopCategoryModal'));
-                if (modal) modal.hide();
-              }
-              form.reset();
-              window.refreshRiderTopAccordion();
-              if (typeof Swal !== 'undefined') Swal.fire({
-                icon: 'success',
-                title: 'Saved',
-                text: data.message || 'Category added.'
-              });
-            } else if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: data.message || 'Could not save.'
-            });
-          })
-          .catch(function() {
-            if (btn) btn.disabled = false;
-            if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: 'Could not save.'
-            });
-          });
-      });
-    }
-
-    document.addEventListener('click', function(e) {
-      var addOptionBtn = e.target.closest('.btn-add-rider-top-option');
-      if (!addOptionBtn) return;
-      var categoryIdInput = document.getElementById('addRiderTopOptionCategoryId');
-      var categoryNameEl = document.getElementById('addRiderTopOptionCategoryName');
-      var columnNameEl = document.getElementById('addRiderTopOptionColumnName');
-      var rowsWrap = document.getElementById('addRiderTopOptionRows');
-      var singleModeInput = document.getElementById('riderTopOptionModeSingle');
-      if (categoryIdInput) categoryIdInput.value = addOptionBtn.getAttribute('data-category-id') || '';
-      if (categoryNameEl) categoryNameEl.textContent = addOptionBtn.getAttribute('data-category-name') || '-';
-      if (columnNameEl) columnNameEl.textContent = '-';
-      if (singleModeInput) singleModeInput.checked = true;
-      if (rowsWrap) {
-        rowsWrap.innerHTML = '';
-        createRiderTopOptionRow('');
-      }
-      setRiderTopSelectionMode('single');
-
-      var categoryId = addOptionBtn.getAttribute('data-category-id') || '';
-      if (!categoryId) return;
-      const fieldValuesUrlTemplate = "{{ route('settings-panel.rider-settings.rider-top-category-field-values', ['id' => '__CID__']) }}";
-      const fieldValuesUrl = fieldValuesUrlTemplate.replace('__CID__', categoryId);
-      fetch(fieldValuesUrl, {
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-          }
-        })
-        .then(function(r) {
-          return r.json();
-        })
-        .then(function(data) {
-          if (!data.success) {
-            setRiderTopOptionSuggestions([]);
-            if (columnNameEl) columnNameEl.textContent = '-';
-            return;
-          }
-          if (columnNameEl) columnNameEl.textContent = data.column || '-';
-          var values = Array.isArray(data.values) ? data.values : [];
-          setRiderTopOptionSuggestions(values);
-          if (values.length && rowsWrap) {
-            var firstInput = rowsWrap.querySelector('.rider-top-option-row-input');
-            if (firstInput && !firstInput.value) {
-              firstInput.value = values[0];
-            }
-          }
-        })
-        .catch(function() {
-          setRiderTopOptionSuggestions([]);
-          if (columnNameEl) columnNameEl.textContent = '-';
-        });
-    });
-
-    var addRiderTopOptionRowBtn = document.getElementById('addRiderTopOptionRowBtn');
-    if (addRiderTopOptionRowBtn) {
-      addRiderTopOptionRowBtn.addEventListener('click', function() {
-        createRiderTopOptionRow('');
-      });
-    }
-
-    document.addEventListener('change', function(e) {
-      var modeInput = e.target.closest('input[name="selection_mode"]');
-      if (!modeInput) return;
-      setRiderTopSelectionMode(modeInput.value || 'single');
-    });
-
-    document.addEventListener('click', function(e) {
-      if (
-        e.target.closest('.rider-top-visibility-controls') ||
-        e.target.closest('.btn-edit-rider-top-category') ||
-        e.target.closest('.btn-delete-rider-top-category') ||
-        e.target.closest('.btn-edit-rider-top-option') ||
-        e.target.closest('.btn-delete-rider-top-option')
-      ) {
-        e.stopPropagation();
-      }
-    });
-
-    document.addEventListener('click', function(e) {
-      var editCategoryBtn = e.target.closest('.btn-edit-rider-top-category');
-      if (!editCategoryBtn) return;
-      var idInput = document.getElementById('editRiderTopCategoryId');
-      var nameInput = document.getElementById('editRiderTopCategoryName');
-      if (idInput) idInput.value = editCategoryBtn.getAttribute('data-category-id') || '';
-      if (nameInput) nameInput.value = editCategoryBtn.getAttribute('data-category-name') || '';
-      if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-        var modal = new bootstrap.Modal(document.getElementById('editRiderTopCategoryModal'));
-        modal.show();
-      }
-    });
-
-    document.addEventListener('click', function(e) {
-      var editOptionBtn = e.target.closest('.btn-edit-rider-top-option');
-      if (!editOptionBtn) return;
-      var idInput = document.getElementById('editRiderTopOptionId');
-      var nameInput = document.getElementById('editRiderTopOptionName');
-      if (idInput) idInput.value = editOptionBtn.getAttribute('data-option-id') || '';
-      if (nameInput) nameInput.value = editOptionBtn.getAttribute('data-option-name') || '';
-      if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-        var modal = new bootstrap.Modal(document.getElementById('editRiderTopOptionModal'));
-        modal.show();
-      }
-    });
-
-    document.addEventListener('click', function(e) {
-      var deleteCategoryBtn = e.target.closest('.btn-delete-rider-top-category');
-      if (!deleteCategoryBtn) return;
-      var categoryId = deleteCategoryBtn.getAttribute('data-category-id');
-      var categoryName = deleteCategoryBtn.getAttribute('data-category-name') || 'this category';
-      if (!categoryId) return;
-
-      var doDelete = function() {
-        var fd = new FormData();
-        fd.append('_method', 'DELETE');
-        const deleteUrlTemplate = "{{ route('settings-panel.rider-settings.destroy-rider-top-category', ['id' => '__CID__']) }}";
-        const deleteUrl = deleteUrlTemplate.replace('__CID__', categoryId);
-        fetch(deleteUrl, {
-            method: 'POST',
-            body: fd,
-            headers: {
-              'X-CSRF-TOKEN': csrf,
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          })
-          .then(function(r) {
-            return r.json();
-          })
-          .then(function(data) {
-            if (data.success) {
-              window.refreshRiderTopAccordion();
-              if (typeof Swal !== 'undefined') Swal.fire({
-                icon: 'success',
-                title: 'Deleted',
-                text: data.message || 'Category deleted.'
-              });
-            } else if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: data.message || 'Could not delete category.'
-            });
-          })
-          .catch(function() {
-            if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: 'Could not delete category.'
-            });
-          });
-      };
-
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Delete category?',
-          text: 'This will also remove all options under "' + categoryName + '".',
-          showCancelButton: true,
-          confirmButtonText: 'Delete',
-          cancelButtonText: 'Cancel'
-        }).then(function(result) {
-          if (result.isConfirmed) doDelete();
-        });
-      } else if (confirm('Delete category "' + categoryName + '"?')) {
-        doDelete();
-      }
-    });
-
-    document.addEventListener('click', function(e) {
-      var deleteOptionBtn = e.target.closest('.btn-delete-rider-top-option');
-      if (!deleteOptionBtn) return;
-      var optionId = deleteOptionBtn.getAttribute('data-option-id');
-      var optionName = deleteOptionBtn.getAttribute('data-option-name') || 'this option';
-      if (!optionId) return;
-
-      var doDelete = function() {
-        var fd = new FormData();
-        fd.append('_method', 'DELETE');
-        const deleteUrlTemplate = "{{ route('settings-panel.rider-settings.destroy-rider-top-option', ['id' => '__OID__']) }}";
-        const deleteUrl = deleteUrlTemplate.replace('__OID__', optionId);
-        fetch(deleteUrl, {
-            method: 'POST',
-            body: fd,
-            headers: {
-              'X-CSRF-TOKEN': csrf,
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          })
-          .then(function(r) {
-            return r.json();
-          })
-          .then(function(data) {
-            if (data.success) {
-              window.refreshRiderTopAccordion();
-              if (typeof Swal !== 'undefined') Swal.fire({
-                icon: 'success',
-                title: 'Deleted',
-                text: data.message || 'Option deleted.'
-              });
-            } else if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: data.message || 'Could not delete option.'
-            });
-          })
-          .catch(function() {
-            if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: 'Could not delete option.'
-            });
-          });
-      };
-
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Delete option?',
-          text: 'Delete "' + optionName + '"?',
-          showCancelButton: true,
-          confirmButtonText: 'Delete',
-          cancelButtonText: 'Cancel'
-        }).then(function(result) {
-          if (result.isConfirmed) doDelete();
-        });
-      } else if (confirm('Delete option "' + optionName + '"?')) {
-        doDelete();
-      }
-    });
-
-    document.addEventListener('change', function(e) {
-      var toggle = e.target.closest('.rider-top-visibility-toggle');
-      if (!toggle) return;
-
-      var controls = toggle.closest('.rider-top-visibility-controls');
-      var categoryId = controls ? controls.getAttribute('data-category-id') : null;
-      if (!categoryId) return;
-
-      var topBarToggle = controls.querySelector('.rider-top-visibility-toggle[data-field="show_in_top_bar"]');
-      var viewCardsToggle = controls.querySelector('.rider-top-visibility-toggle[data-field="show_in_view_cards"]');
-      var topBarValue = topBarToggle ? (topBarToggle.checked ? 1 : 0) : 0;
-      var viewCardsValue = viewCardsToggle ? (viewCardsToggle.checked ? 1 : 0) : 0;
-
-      var fd = new FormData();
-      fd.append('show_in_top_bar', String(topBarValue));
-      fd.append('show_in_view_cards', String(viewCardsValue));
-
-      const updateVisibilityUrlTemplate = "{{ route('settings-panel.rider-settings.update-rider-top-category-visibility', ['id' => '__CID__']) }}";
-      const updateVisibilityUrl = updateVisibilityUrlTemplate.replace('__CID__', categoryId);
-      fetch(updateVisibilityUrl, {
-          method: 'POST',
-          body: fd,
-          headers: {
-            'X-CSRF-TOKEN': csrf,
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-        .then(function(r) {
-          return r.json();
-        })
-        .then(function(data) {
-          if (!data.success && typeof Swal !== 'undefined') {
-            Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: data.message || 'Could not update display options.'
-            });
-          }
-        })
-        .catch(function() {
-          if (typeof Swal !== 'undefined') Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Could not update display options.'
-          });
-        });
-    });
-
-    var formAddRiderTopOption = document.getElementById('formAddRiderTopOption');
-    if (formAddRiderTopOption) {
-      formAddRiderTopOption.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var form = this;
-        var btn = document.getElementById('addRiderTopOptionSubmitBtn');
-        var rowsWrap = document.getElementById('addRiderTopOptionRows');
-        var modeInput = document.querySelector('input[name="selection_mode"]:checked');
-        var mode = modeInput ? modeInput.value : 'single';
-        if (btn) btn.disabled = true;
-        var payload = new FormData(form);
-        payload.delete('selected_values[]');
-        var items = [];
-        if (rowsWrap) {
-          items = Array.prototype.slice.call(rowsWrap.querySelectorAll('.rider-top-option-row-input'))
-            .map(function(el) {
-              return (el.value || '').trim();
-            })
-            .filter(function(v) {
-              return v.length > 0;
-            });
-        }
-        if (mode === 'single' && items.length > 1) {
-          items = [items[0]];
-        }
-        items.forEach(function(v) {
-          payload.append('selected_values[]', v);
-        });
-        if (items.length === 0) {
-          if (btn) btn.disabled = false;
-          if (typeof Swal !== 'undefined') Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Please add at least one option value.'
-          });
-          return;
-        }
-        fetch("{{ route('settings-panel.rider-settings.store-rider-top-option') }}", {
-            method: 'POST',
-            body: payload,
-            headers: {
-              'X-CSRF-TOKEN': csrf,
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          })
-          .then(function(r) {
-            return r.json();
-          })
-          .then(function(data) {
-            if (btn) btn.disabled = false;
-            if (data.success) {
-              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                var modal = bootstrap.Modal.getInstance(document.getElementById('addRiderTopOptionModal'));
-                if (modal) modal.hide();
-              }
-              form.reset();
-              window.refreshRiderTopAccordion();
-              if (typeof Swal !== 'undefined') Swal.fire({
-                icon: 'success',
-                title: 'Saved',
-                text: data.message || 'Option added.'
-              });
-            } else if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: data.message || 'Could not save.'
-            });
-          })
-          .catch(function() {
-            if (btn) btn.disabled = false;
-            if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: 'Could not save.'
-            });
-          });
-      });
-    }
-
-    var formEditRiderTopCategory = document.getElementById('formEditRiderTopCategory');
-    if (formEditRiderTopCategory) {
-      formEditRiderTopCategory.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var form = this;
-        var id = document.getElementById('editRiderTopCategoryId') && document.getElementById('editRiderTopCategoryId').value;
-        var btn = document.getElementById('editRiderTopCategorySubmitBtn');
-        if (!id) return;
-        if (btn) btn.disabled = true;
-
-        var fd = new FormData(form);
-        fd.append('_method', 'PUT');
-        const updateUrlTemplate = "{{ route('settings-panel.rider-settings.update-rider-top-category', ['id' => '__CID__']) }}";
-        const updateUrl = updateUrlTemplate.replace('__CID__', id);
-        fetch(updateUrl, {
-            method: 'POST',
-            body: fd,
-            headers: {
-              'X-CSRF-TOKEN': csrf,
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          })
-          .then(function(r) {
-            return r.json();
-          })
-          .then(function(data) {
-            if (btn) btn.disabled = false;
-            if (data.success) {
-              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                var modal = bootstrap.Modal.getInstance(document.getElementById('editRiderTopCategoryModal'));
-                if (modal) modal.hide();
-              }
-              window.refreshRiderTopAccordion();
-              if (typeof Swal !== 'undefined') Swal.fire({
-                icon: 'success',
-                title: 'Updated',
-                text: data.message || 'Category updated.'
-              });
-            } else if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: data.message || 'Could not update category.'
-            });
-          })
-          .catch(function() {
-            if (btn) btn.disabled = false;
-            if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: 'Could not update category.'
-            });
-          });
-      });
-    }
-
-    var formEditRiderTopOption = document.getElementById('formEditRiderTopOption');
-    if (formEditRiderTopOption) {
-      formEditRiderTopOption.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var form = this;
-        var id = document.getElementById('editRiderTopOptionId') && document.getElementById('editRiderTopOptionId').value;
-        var btn = document.getElementById('editRiderTopOptionSubmitBtn');
-        if (!id) return;
-        if (btn) btn.disabled = true;
-
-        var fd = new FormData(form);
-        fd.append('_method', 'PUT');
-        const updateUrlTemplate = "{{ route('settings-panel.rider-settings.update-rider-top-option', ['id' => '__OID__']) }}";
-        const updateUrl = updateUrlTemplate.replace('__OID__', id);
-        fetch(updateUrl, {
-            method: 'POST',
-            body: fd,
-            headers: {
-              'X-CSRF-TOKEN': csrf,
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          })
-          .then(function(r) {
-            return r.json();
-          })
-          .then(function(data) {
-            if (btn) btn.disabled = false;
-            if (data.success) {
-              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                var modal = bootstrap.Modal.getInstance(document.getElementById('editRiderTopOptionModal'));
-                if (modal) modal.hide();
-              }
-              window.refreshRiderTopAccordion();
-              if (typeof Swal !== 'undefined') Swal.fire({
-                icon: 'success',
-                title: 'Updated',
-                text: data.message || 'Option updated.'
-              });
-            } else if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: data.message || 'Could not update option.'
-            });
-          })
-          .catch(function() {
-            if (btn) btn.disabled = false;
-            if (typeof Swal !== 'undefined') Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: 'Could not update option.'
-            });
-          });
-      });
-    }
 
     document.getElementById('formEditRiderCategory').addEventListener('submit', function(e) {
       e.preventDefault();
@@ -2805,7 +1935,7 @@
       }
     })();
 
-    // New custom fields always start as unassigned.
+    // New custom fields default to the General category (server-side); users may reassign later.
 
     // Add custom field form: submit via AJAX and refresh the category tbody
     var formAddRiderField = document.getElementById('formAddRiderField');
@@ -3425,6 +2555,152 @@
         });
     });
 
+    function getRiderStatusCsrf() {
+      return (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) ||
+        (document.querySelector('#formEditRiderStatus input[name="_token"]') && document.querySelector('#formEditRiderStatus input[name="_token"]').value);
+    }
+
+    function applyRiderStatusRowData(row, data) {
+      if (!row || !data) return;
+      row.setAttribute('data-status-name', data.name || '');
+      var nameEl = row.querySelector('.rider-status-name');
+      if (nameEl) nameEl.textContent = data.name || '';
+      var editBtn = row.querySelector('.btn-edit-rider-status');
+      if (editBtn) {
+        editBtn.setAttribute('data-name', data.name || '');
+        editBtn.setAttribute('data-show-in-top-bar', data.show_in_top_bar ? '1' : '0');
+        editBtn.setAttribute('data-show-in-view-cards', data.show_in_view_cards ? '1' : '0');
+      }
+      var topToggle = row.querySelector('.rider-status-top-bar-toggle');
+      var viewToggle = row.querySelector('.rider-status-view-card-toggle');
+      if (topToggle) topToggle.checked = !!data.show_in_top_bar;
+      if (viewToggle) viewToggle.checked = !!data.show_in_view_cards;
+    }
+
+    function saveRiderStatusRow(row, updateUrl) {
+      var csrf = getRiderStatusCsrf();
+      if (!row || !updateUrl || !csrf) return Promise.reject();
+
+      var topToggle = row.querySelector('.rider-status-top-bar-toggle');
+      var viewToggle = row.querySelector('.rider-status-view-card-toggle');
+      var body = new URLSearchParams();
+      body.append('_token', csrf);
+      body.append('_method', 'PUT');
+      body.append('name', row.getAttribute('data-status-name') || '');
+      body.append('show_in_top_bar', topToggle && topToggle.checked ? '1' : '0');
+      body.append('show_in_view_cards', viewToggle && viewToggle.checked ? '1' : '0');
+
+      return fetch(updateUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: body.toString()
+        })
+        .then(function(r) {
+          return r.json().then(function(data) {
+            return r.ok ? data : Promise.reject(data);
+          });
+        })
+        .then(function(data) {
+          if (data && data.success) {
+            applyRiderStatusRowData(row, data);
+          }
+          return data;
+        });
+    }
+
+    document.addEventListener('change', function(e) {
+      var toggle = e.target.closest('.rider-status-top-bar-toggle, .rider-status-view-card-toggle');
+      if (!toggle) return;
+      var row = toggle.closest('tr[data-id]');
+      var updateUrl = toggle.getAttribute('data-update-url');
+      if (!row || !updateUrl) return;
+
+      saveRiderStatusRow(row, updateUrl).catch(function(err) {
+        toggle.checked = !toggle.checked;
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: (err && err.message) ? err.message : 'Could not update status.'
+          });
+        }
+      });
+    });
+
+    document.addEventListener('click', function(e) {
+      var editBtn = e.target.closest('.btn-edit-rider-status');
+      if (!editBtn) return;
+      document.getElementById('editRiderStatusId').value = editBtn.getAttribute('data-id') || '';
+      document.getElementById('editRiderStatusName').value = editBtn.getAttribute('data-name') || '';
+      document.getElementById('editRiderStatusTopBar').checked = editBtn.getAttribute('data-show-in-top-bar') === '1';
+      document.getElementById('editRiderStatusViewCard').checked = editBtn.getAttribute('data-show-in-view-cards') === '1';
+    });
+
+    var formEditRiderStatus = document.getElementById('formEditRiderStatus');
+    if (formEditRiderStatus) {
+      formEditRiderStatus.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        var id = document.getElementById('editRiderStatusId').value;
+        var csrf = getRiderStatusCsrf();
+        if (!id || !csrf) return;
+
+        var fd = new FormData(form);
+        fd.set('_method', 'PUT');
+        fd.set('show_in_top_bar', document.getElementById('editRiderStatusTopBar').checked ? '1' : '0');
+        fd.set('show_in_view_cards', document.getElementById('editRiderStatusViewCard').checked ? '1' : '0');
+
+        var updateStatusUrlTemplate = "{{ route('settings-panel.rider-settings.update-rider-status', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+        fetch(updateStatusUrlTemplate.replace('__ID__', String(id)), {
+            method: 'POST',
+            body: fd,
+            headers: {
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(function(r) {
+            return r.json().then(function(data) {
+              return r.ok ? data : Promise.reject(data);
+            });
+          })
+          .then(function(data) {
+            if (data && data.success) {
+              var row = document.querySelector('#riderStatusTbody tr[data-id="' + id + '"]');
+              if (row) applyRiderStatusRowData(row, data);
+              if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var m = bootstrap.Modal.getInstance(document.getElementById('editRiderStatusModal'));
+                if (m) m.hide();
+              }
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Updated',
+                  text: data.message || 'Rider status updated.',
+                  timer: 2000,
+                  showConfirmButton: false
+                });
+              }
+            }
+          })
+          .catch(function(err) {
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: (err && err.message) ? err.message : 'Could not update status.'
+              });
+            }
+          });
+      });
+    }
+
     document.getElementById('tab-rider-fields-btn') && document.getElementById('tab-rider-fields-btn').addEventListener('shown.bs.tab', function() {
       setTimeout(initRiderFieldSortables, 50);
       setTimeout(initRiderCustomFieldsSortables, 80);
@@ -3443,3 +2719,4 @@
 </script>
 
 @endsection
+

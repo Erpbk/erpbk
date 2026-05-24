@@ -34,7 +34,7 @@
   },
   "require-dev": {
     "fakerphp/faker": "^1.21",
-    "laravel/pint": "^1.10",
+    "laravel/pint": "^1.29",
     "laravel/sail": "^1.25",
     "mockery/mockery": "^1.5",
     "nunomaduro/collision": "^7.0",
@@ -46,7 +46,10 @@
       "App\\": "app/",
       "Database\\Factories\\": "database/factories/",
       "Database\\Seeders\\": "database/seeders/"
-    }
+    },
+    "files": [
+      "app/functions.php"
+    ]
   },
   "autoload-dev": {
     "psr-4": {
@@ -63,7 +66,11 @@
       "@php artisan package:discover --ansi"
     ],
     "post-update-cmd": [
-      "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+      "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
+      "@php artisan storage:link --force"
+    ],
+    "post-install-cmd": [
+      "@php artisan storage:link --force"
     ],
     "post-root-package-install": [
       "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""

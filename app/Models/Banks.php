@@ -77,9 +77,19 @@ class Banks extends BaseModel
     return $this->belongsTo(Branch::class, 'branch_id', 'id');
   }
 
-  public function getBranchNameAttribute()
+  public function getBranchNameAttribute(): string
   {
-    $branch = $this->branch_id ? $this->branch->name . ' ( ' . $this->branch->code . ' )' : 'All';
-    return $branch;
+    if (!$this->branch_id) {
+      return 'All';
+    }
+
+    // `branch` is also a string column on banks — use the relationship, not the attribute.
+    $branchModel = $this->getRelationValue('branch');
+
+    if (!$branchModel) {
+      return 'All';
+    }
+
+    return $branchModel->name . ' ( ' . $branchModel->code . ' )';
   }
 }

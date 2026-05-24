@@ -26,7 +26,7 @@
          $voucherNumber = null;
 
          if ($r->status) {
-         $voucher = DB::table('vouchers')
+         $voucher = company_table('vouchers')
          ->where('ref_id', $r->id)
          ->where('voucher_type', 'RFV')
          ->orderByDesc('id')
@@ -34,11 +34,11 @@
          $voucherNumber = $voucher ? $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) : null;
          }
          
-         $rider_account = DB::table('riders')->where('id', $r->rider_id)->first();
+         $rider_account = company_table('riders')->where('id', $r->rider_id)->first();
          if ($rider_account) {
          $rider = $rider_account;
          } else {
-         $rider = DB::table('accounts')->where('ref_name', 'Rider')->where('id', $r->rider_id)->first();
+         $rider = company_table('accounts')->where('ref_name', 'Rider')->where('id', $r->rider_id)->first();
          }
       @endphp
       <tr class="text-center">
@@ -152,30 +152,3 @@
    </p>
 </div>
 @endif
-
-<script>
-   $(document).ready(function() {
-      var attempts = 0;
-      var maxAttempts = 10;
-
-      function tryInitialize() {
-         attempts++;
-
-         if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-            var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-            var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
-               try {
-                  return new bootstrap.Dropdown(dropdownToggleEl);
-               } catch (e) {
-                  return null;
-               }
-            }).filter(Boolean);
-         } else if (attempts < maxAttempts) {
-            setTimeout(tryInitialize, 100);
-         }
-      }
-
-      setTimeout(tryInitialize, 100);
-   });
-</script>
-

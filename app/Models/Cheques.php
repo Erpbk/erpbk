@@ -33,6 +33,7 @@ class Cheques extends BaseModel
         'type',
         'is_security',
         'voucher_id',
+        'cheque_top_option_id',
         'issued_by',
         'created_by',
         'updated_by',
@@ -84,6 +85,11 @@ class Cheques extends BaseModel
     public function branch()
     {
         return $this->belongsTo(Branch::class, 'branch_id' , 'id');
+    }
+
+    public function chequeTopOption()
+    {
+        return $this->belongsTo(ChequeTopOption::class, 'cheque_top_option_id');
     }
     public function Created_by(){
         return $this->belongsTo(User::class, 'created_by');

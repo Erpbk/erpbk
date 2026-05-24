@@ -2,11 +2,12 @@
 @section('title','Visa Expenses')
 @section('page_content')
 @php
-  $accountId = $account->id;
-  $totalUnpaid = DB::table('visa_expenses')->where('payment_status', 'unpaid')->where('expense_account_id', $accountId)->sum('amount');
-  $totalPaid = DB::table('visa_expenses')->where('payment_status', 'paid')->where('expense_account_id', $accountId)->sum('amount');
-  $unpaidCount = DB::table('visa_expenses')->where('expense_account_id', $accountId)->where('payment_status', 'unpaid')->count();
-  $paidCount = DB::table('visa_expenses')->where('expense_account_id', $accountId)->where('payment_status', 'paid')->count();
+$accountId = $account->rider_id;
+$totalUnpaid = company_table('visa_expenses')->where('payment_status', 'unpaid')->where('rider_id', $accountId)->sum('amount');
+$totalPaid = company_table('visa_expenses')->where('payment_status', 'paid')->where('rider_id', $accountId)->sum('amount');
+$unpaidCount = company_table('visa_expenses')->where('rider_id', $accountId)->where('payment_status', 'unpaid')->count();
+$paidCount = company_table('visa_expenses')->where('rider_id', $accountId)->where('payment_status', 'paid')->count();
+
 @endphp
 
 <div class="content">
@@ -23,24 +24,73 @@
     </div>
     <div class="totals-cards pt-3">
       <div class="total-card total-red">
-          <div class="label">Total Unpaid Amount</div>
-          <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalUnpaid, 2) }}</div>
+        <div class="label">Total Unpaid Amount</div>
+        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalUnpaid, 2) }}</div>
       </div>
       <div class="total-card total-green">
-          <div class="label">Total Paid Amount</div>
-          <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalPaid, 2) }}</div>
+        <div class="label">Total Paid Amount</div>
+        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalPaid, 2) }}</div>
       </div>
       <div class="total-card total-red">
-          <div class="label">Unpaid Expenses</div>
-          <div class="value">{{ $unpaidCount }}</div>
+        <div class="label">Unpaid Expenses</div>
+        <div class="value">{{ $unpaidCount }}</div>
       </div>
       <div class="total-card total-green">
-          <div class="label">Paid Expenses</div>
-          <div class="value">{{ $paidCount }}</div>
+        <div class="label">Paid Expenses</div>
+        <div class="value">{{ $paidCount }}</div>
       </div>
     </div>
     <div class="card-body table-responsive px-2 py-0" id="table-data">
       @include('visa_expenses.table', ['data' => $data])
+    </div>
+  </div>
+</div>
+
+{{-- Visa Installment Plan --}}
+<div class="content">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between">
+      <div class="col-sm-6">
+        <h3>Visa Installments</h3>
+      </div>
+      <div class="col-sm-6">
+        @can('visaloan_create')
+        <a class="btn btn-sm btn-success action-btn show-modal"
+          href="javascript:void(0);" data-action="{{ route('VisaExpense.createInstallmentPlanForm', $account->id) }}" data-size="lg" data-title="Create Installment Entry">
+          <i class="fa fa-plus"></i> Installment Plan
+        </a>
+        @endcan
+        @if(isset($installmentData) && $installmentData->count() > 0)
+        <a href="javascript:void(0);"
+          class="btn btn-sm btn-info action-btn mx-2 show-modal"
+          data-action="{{ route('VisaExpense.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
+          data-size="xl"
+          data-title="Installment plan invoice — {{ $account->name ?? 'Rider' }}">
+          <i class="fa fa-file-invoice"></i> Invoice
+        </a>
+        @endif
+      </div>
+    </div>
+    <div class="totals-cards pt-3">
+      <div class="total-card total-red">
+        <div class="label">Total Unpaid Amount</div>
+        <div class="value">{{ company_table('visa_installment_plans')->where('status' , 'pending')->where('rider_id', $account->rider_id)->sum('amount') }}</div>
+      </div>
+      <div class="total-card total-green">
+        <div class="label">Total Paid Amount</div>
+        <div class="value">{{ company_table('visa_installment_plans')->where('status' , 'paid')->where('rider_id', $account->rider_id)->sum('amount') }}</div>
+      </div>
+      <div class="total-card total-red">
+        <div class="label">Unpaid Installments</div>
+        <div class="value">{{ company_table('visa_installment_plans')->where('rider_id' , $account->rider_id)->where('status' , 'pending')->count() }}</div>
+      </div>
+      <div class="total-card total-green">
+        <div class="label">Paid Installments</div>
+        <div class="value">{{ company_table('visa_installment_plans')->where('rider_id' , $account->rider_id)->where('status' , 'paid')->count() }}</div>
+      </div>
+    </div>
+    <div class="card-body table-responsive px-2 py-0">
+      @include('visa_expenses.installmentPlanTable', ['data' => $installmentData, 'account' => $account])
     </div>
   </div>
 </div>
@@ -127,7 +177,8 @@
 </script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    const table = document.querySelector('#dataTableBuilder');
+    const table = document.querySelector('#visaExpensesDataTable');
+    if (!table) return;
     const headers = table.querySelectorAll('th.sorting');
     const tbody = table.querySelector('tbody');
 
@@ -184,28 +235,44 @@
     formData.append('billing_month', billingMonth);
 
     fetch(updateUrl, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-      }
-    })
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      if (data.success && typeof Swal !== 'undefined') {
-        Swal.fire({ icon: 'success', title: 'Saved', text: data.message || 'Updated successfully', timer: 1200, showConfirmButton: false });
-        return;
-      }
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not update row.' });
-      }
-    })
-    .catch(function() {
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({ icon: 'error', title: 'Error', text: 'Could not update row.' });
-      }
-    });
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(function(res) {
+        return res.json();
+      })
+      .then(function(data) {
+        if (data.success && typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'success',
+            title: 'Saved',
+            text: data.message || 'Updated successfully',
+            timer: 1200,
+            showConfirmButton: false
+          });
+          return;
+        }
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: data.message || 'Could not update row.'
+          });
+        }
+      })
+      .catch(function() {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Could not update row.'
+          });
+        }
+      });
   });
 </script>
 

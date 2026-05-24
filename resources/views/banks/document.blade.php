@@ -37,7 +37,7 @@
                                 <!-- Upload Button -->
                                 <a class="btn btn-primary show-modal action-btn"
                                     href="javascript:void(0);"
-                                    data-action="{{ route('files.create',['type_id'=>request()->segment(3),'type'=>'bank']) }}"
+                                    data-action="{{ route('files.create',['type_id'=>$banks->id,'type'=>'bank']) }}"
                                     data-size="sm"
                                     data-title="Upload File">
                                     <i class="ti ti-upload me-1"></i>Upload File
@@ -185,8 +185,8 @@
                                 <a class="btn btn-sm btn-primary show-modal action-btn"
                                     href="javascript:void(0);"
                                     data-action="{{ route('files.create', [
-                                                'type_id' => request()->segment(3),
-                                                'type' => 'rider',
+                                                'type_id' => $banks->id,
+                                                'type' => 'bank',
                                                 'suggested_name' => $fileName
                                             ]) }}"
                                     data-size="md"

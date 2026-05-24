@@ -31,10 +31,50 @@ use App\Models\Vouchers;
 use App\Models\Transactions;
 use App\Services\ActivityLogger;
 use App\Models\LeasingCompanyInvoice;
+use App\Support\CompanyContext;
+use Illuminate\Database\Eloquent\Builder;
 
 class TrashController extends Controller
 {
     use TracksCascadingDeletions;
+
+    /**
+     * Soft-deleted records for the recycle bin: only rows owned by the current company.
+     * Uses strict company_id (excludes shared fixed accounts and NULL company_id orphans).
+     */
+    private function trashedQuery(string $modelClass): Builder
+    {
+        $query = $modelClass::query()->onlyTrashed();
+
+        if (! CompanyContext::shouldApplyScope()) {
+            return $query;
+        }
+
+        $companyId = CompanyContext::id();
+        if ($companyId === null) {
+            return $query->whereRaw('0 = 1');
+        }
+
+        $instance = new $modelClass();
+        $table = $instance->getTable();
+        $connection = $instance->getConnectionName() ?: config('database.default');
+
+        if (! Schema::hasColumn($table, 'company_id')) {
+            return $query;
+        }
+
+        $companyColumn = $instance->qualifyColumn('company_id');
+
+        return $query
+            ->withoutGlobalScope('company')
+            ->where($companyColumn, $companyId)
+            ->whereNotNull($companyColumn);
+    }
+
+    private function findTrashedRecord(string $modelClass, $id)
+    {
+        return $this->trashedQuery($modelClass)->find($id);
+    }
     /**
      * List of models that support soft deletes
      */
@@ -206,7 +246,7 @@ class TrashController extends Controller
 
             // Use Eloquent model with onlyTrashed() to get soft-deleted records
             try {
-                $query = $model::onlyTrashed();
+                $query = $this->trashedQuery($model);
 
                 // Apply search if provided
                 if ($searchQuery) {
@@ -327,7 +367,7 @@ class TrashController extends Controller
     /**
      * Restore a deleted record
      */
-    public function restore(Request $request, $module, $id)
+    public function restore(Request $request, $company_slug, $module, $id)
     {
         if (!isset($this->softDeleteModels[$module])) {
             Flash::error('Invalid module specified.');
@@ -346,7 +386,7 @@ class TrashController extends Controller
         $model = $config['model'];
 
         // Use Eloquent to find the trashed record
-        $record = $model::onlyTrashed()->find($id);
+        $record = $this->findTrashedRecord($model, $id);
 
         if (!$record) {
             Flash::error('Record not found in trash.');
@@ -375,7 +415,7 @@ class TrashController extends Controller
                 if (class_exists($relatedModelClass)) {
                     try {
                         // Use Eloquent to restore the related record
-                        $relatedRecord = $relatedModelClass::onlyTrashed()->find($cascade->related_id);
+                        $relatedRecord = $this->findTrashedRecord($relatedModelClass, $cascade->related_id);
 
                         if ($relatedRecord) {
                             $relatedRecord->restore();
@@ -435,7 +475,7 @@ class TrashController extends Controller
     /**
      * Permanently delete a record
      */
-    public function forceDestroy(Request $request, $module, $id)
+    public function forceDestroy(Request $request, $company_slug, $module, $id)
     {
         if (!isset($this->softDeleteModels[$module])) {
             Flash::error('Invalid module specified.');
@@ -454,7 +494,7 @@ class TrashController extends Controller
         $model = $config['model'];
 
         // Use Eloquent to find the trashed record
-        $record = $model::onlyTrashed()->find($id);
+        $record = $this->findTrashedRecord($model, $id);
 
         if (!$record) {
             Flash::error('Record not found in trash.');
@@ -547,7 +587,7 @@ class TrashController extends Controller
                 if (class_exists($relatedModelClass)) {
                     try {
                         // Use Eloquent to permanently delete the related record
-                        $relatedRecord = $relatedModelClass::onlyTrashed()->find($cascade->related_id);
+                        $relatedRecord = $this->findTrashedRecord($relatedModelClass, $cascade->related_id);
 
                         if ($relatedRecord) {
                             $relatedRecord->forceDelete();
@@ -622,11 +662,11 @@ class TrashController extends Controller
     /**
      * Show a deleted record in modal (for vouchers and other modules)
      */
-    public function show(Request $request, $module, $id)
+    public function show(Request $request, $company_slug, $module, $id)
     {
         if (!isset($this->softDeleteModels[$module])) {
             if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['error' => 'Invalid module specified.'], 404);
+                return response()->json(['error' => 'Invalid module specified.'.$module], 404);
             }
             Flash::error('Invalid module specified.');
             return redirect()->route('settings-panel.trash.index');
@@ -641,7 +681,7 @@ class TrashController extends Controller
         }
 
         // Find the trashed record
-        $record = $model::onlyTrashed()->find($id);
+        $record = $this->findTrashedRecord($model, $id);
 
         if (!$record) {
             if ($request->ajax() || $request->wantsJson()) {
@@ -718,8 +758,8 @@ class TrashController extends Controller
             $model = $config['model'];
 
             try {
-                // Use Eloquent to count soft-deleted records
-                $count = $model::onlyTrashed()->count();
+                // Use Eloquent to count soft-deleted records for current company
+                $count = $this->trashedQuery($model)->count();
 
                 if ($count > 0) {
                     $stats[] = [

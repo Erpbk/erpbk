@@ -445,6 +445,11 @@ class AccountsController extends AppBaseController
     }
 
     $account->is_fixed = !$account->is_fixed;
+    if ($account->is_fixed) {
+      $account->company_id = null;
+    } else {
+      $account->company_id = $this->resolveChartCompanyId();
+    }
     $account->save();
 
     return response()->json([
@@ -502,7 +507,7 @@ class AccountsController extends AppBaseController
       return $account;
     }
 
-    // Same row may be hidden from scoped find (e.g. legacy company_id NULL, branch edge cases).
+    // Unscoped lookup to verify ownership; only fixed accounts (company_id NULL) are shared across tenants.
     $account = Accounts::withoutGlobalScopes(['company', 'branch'])->find($id);
     if (!$account) {
       return null;
@@ -514,7 +519,7 @@ class AccountsController extends AppBaseController
 
     $companyId = $this->resolveChartCompanyId();
     if ($companyId === null) {
-      return $account;
+      return null;
     }
 
     $connection = $account->getConnectionName() ?: config('database.default');
@@ -522,9 +527,8 @@ class AccountsController extends AppBaseController
       return $account;
     }
 
-    // Allow shared/legacy rows; block only explicit cross-company records.
     if ($account->company_id === null || $account->company_id === '') {
-      return $account;
+      return (bool) $account->is_fixed ? $account : null;
     }
 
     return (int) $account->company_id === (int) $companyId ? $account : null;

@@ -217,79 +217,137 @@ $('#rightSideModal').on('click', '.modal-content', function(e) {
     e.stopPropagation();
 });
 
-// Function to print modal content
-function printModalContent() {
-    // Get the modal content
-    var modalContent = $('#rightSideModalBody').html();
-    
-    // Create a new print window
+// Print invoice/content from right-side modal or standalone invoice pages (global for onclick handlers).
+window.printModalContent = function printModalContent() {
+    var title = (document.title || 'Print').replace(/</g, '');
+    var bodyHtml = '';
+    var embeddedStyles = '';
+
+    if (window.jQuery && $('#rightSideModalBody').length && $('#rightSideModalBody').find('.invoice-box').length) {
+        bodyHtml = $('#rightSideModalBody').html();
+        var modalTitle = ($('#rightSideModalTitle').text() || '').trim();
+        if (modalTitle) {
+            title = modalTitle.replace(/</g, '');
+        }
+    } else {
+        var invoiceBox = document.querySelector('.invoice-box');
+        if (!invoiceBox) {
+            window.print();
+            return;
+        }
+        document.querySelectorAll('style').forEach(function (node) {
+            embeddedStyles += node.outerHTML;
+        });
+        bodyHtml = embeddedStyles + invoiceBox.outerHTML;
+    }
+
+    if (!bodyHtml || !String(bodyHtml).trim()) {
+        window.print();
+        return;
+    }
+
     var printWindow = window.open('', '_blank');
-    
-    // Write content to the new window
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>${$('#rightSideModalTitle').text()}</title>
-            <meta charset="utf-8">
-            <style>
-                body {
-                    font-family: Calibri, Arial, sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                    color: #000;
-                }
-                .no-print {
-                    display: none;
-                }
-                .invoice-box {
-                    max-width: 100%;
-                    margin: 0 auto;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-bottom: 10px;
-                }
-                th, td {
-                    border: 1px solid #000;
-                    padding: 8px;
-                    text-align: left;
-                }
-                th {
-                    background: #004aad;
-                    color: white;
-                }
-                .text-center {
-                    text-align: center;
-                }
-                @media print {
-                    body {
-                        margin: 0;
-                        padding: 0;
-                    }
-                    .no-print {
-                      display: none !important;
-                  }
-                }
-            </style>
-        </head>
-        <body>
-            ${modalContent}
-        </body>
-        </html>
-    `);
-    
-    // Close the document to finish writing
+    if (!printWindow) {
+        window.print();
+        return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
+            title +
+            '</title><style>' +
+            'body{font-family:Calibri,Arial,sans-serif;margin:0;padding:20px;color:#000;}' +
+            '.no-print{display:none!important;}' +
+            '.invoice-box{max-width:100%;margin:0 auto;}' +
+            'table{width:100%;border-collapse:collapse;margin-bottom:10px;}' +
+            'th,td{border:1px solid #000;padding:8px;text-align:left;}' +
+            'th{background:#004aad;color:#fff;}' +
+            '.text-center{text-align:center;}' +
+            '@media print{body{margin:0;padding:0;}.no-print{display:none!important;}}' +
+            '</style></head><body>' +
+            bodyHtml +
+            '</body></html>'
+    );
     printWindow.document.close();
-    
-    // Wait for content to load then print
-    printWindow.onload = function() {
-        printWindow.print();
-        printWindow.onafterprint = function() {
+
+    setTimeout(function () {
+        try {
+            printWindow.focus();
+            printWindow.print();
+        } catch (e) {}
+        printWindow.onafterprint = function () {
             printWindow.close();
         };
-    };
+    }, 400);
+};
+
+$('body').on('click', '.js-print-modal-content', function (e) {
+    e.preventDefault();
+    window.printModalContent();
+});
+
+/**
+ * Print only the Visa installment invoice fragment (modal #modalTopbody or standalone .visa-installment-invo-wrap).
+ * Avoids printing the full ERP layout when the invoice is opened in modalTop.
+ */
+function printVisaInstallmentInvoice() {
+    var title = 'Installment Invoice';
+    var bodyHtml = '';
+
+    if (window.jQuery && $('#modalTopbody').length && $('#modalTopbody').find('.visa-installment-invo-wrap').length) {
+        bodyHtml = $('#modalTopbody').html();
+        var t = ($('#modalTopTitle').text() || '').trim();
+        if (t) title = t;
+    } else {
+        var wrap = document.querySelector('.visa-installment-invo-wrap');
+        if (!wrap) {
+            window.print();
+            return;
+        }
+        var styles = '';
+        if (document.head) {
+            var styleNodes = document.head.querySelectorAll('style');
+            for (var i = 0; i < styleNodes.length; i++) {
+                styles += styleNodes[i].outerHTML;
+            }
+        }
+        bodyHtml = styles + wrap.outerHTML;
+        if (document.title) title = document.title;
+    }
+
+    if (!bodyHtml || !bodyHtml.trim()) {
+        window.print();
+        return;
+    }
+
+    title = String(title).replace(/</g, '');
+
+    var printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        window.print();
+        return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
+            title +
+            '</title></head><body>' +
+            bodyHtml +
+            '</body></html>'
+    );
+    printWindow.document.close();
+
+    setTimeout(function () {
+        try {
+            printWindow.focus();
+            printWindow.print();
+        } catch (e) {}
+        printWindow.onafterprint = function () {
+            printWindow.close();
+        };
+    }, 400);
 }
 
 // Backward-compatible modal toggler used by .show-modal handlers.
@@ -328,6 +386,9 @@ $('body').on('click', '.show-modal', function () {
   $('#modalTopTitle').text(title);
   $('#modalTopbody').load(action, function () {
     unblock();
+    if (window.Helpers && typeof window.Helpers.initPasswordToggle === 'function') {
+      window.Helpers.initPasswordToggle();
+    }
   });
 
   if (table) {
@@ -367,7 +428,7 @@ $('body').on('click', '.show-voucher-panel', function (e) {
       $('#voucherListSidebarBackdrop').addClass('visible').attr('aria-hidden', 'false');
       $('body').addClass('voucher-panels-open');
       listBody.html('<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><p class="mb-0 mt-2 small">Loading…</p></div>');
-      var listUrl = customListUrl || (($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar');
+      var listUrl = customListUrl || $('#vouchers_list_sidebar_url').val() || (($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar');
       listBody.load(listUrl);
     }
     if (collapseSidebar) {
@@ -433,6 +494,11 @@ function reloadDataTable() {
 }
 
 $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
+  // Employee create/edit use dedicated handlers (#employee-store-form / #employee-edit-form)
+  if ($(this).is('#employee-store-form, #employee-edit-form')) {
+    return;
+  }
+
   e.preventDefault();
   block();
 
@@ -574,6 +640,22 @@ $(document).on('submit', '#formajax2', function (e) {
     cache: false,
     processData: false,
     success: function (data) {
+      if (data && typeof data === 'object' && data.success !== undefined) {
+        if (data.image_url) {
+          const $img = $('#output');
+          if ($img.length) {
+            $img.attr('src', data.image_url);
+          }
+        }
+        unblock();
+        if (data.message) {
+          toastr.success(data.message);
+        } else {
+          toastr.success('Action performed successfully.');
+        }
+        return;
+      }
+
       if ($('#reload_modal').length != 0) {
         $('#modalTopbody').load($('#reload_modal').val(), function () {
           unblock();
@@ -584,7 +666,7 @@ $(document).on('submit', '#formajax2', function (e) {
       }
 
       unblock();
-      if (data.message) {
+      if (data && data.message) {
         toastr.success(data.message);
       } else {
         toastr.success('Action performed successfully.');
@@ -804,7 +886,6 @@ $(document).ready(function () {
   // Add new row by cloning the first row
   $(document).on('click', '#add-new-row', function (event) {
     event.preventDefault();
-
     // Clone the first row
     const newRow = $('#rows-container .row:first').clone();
 
@@ -818,11 +899,11 @@ $(document).ready(function () {
       .removeClass('select2-hidden-accessible')
       .next('.select2')
       .remove();
-
+    const chargeTo = newRow.find('input[name="charge_to[]"]').val();
     // Clear input, textarea, and select values in the cloned row
     newRow.find('input, textarea').val(''); // Clear inputs and textareas
     newRow.find('select').val(null).trigger('change'); // Reset the select value and trigger change
-
+    newRow.find('input[name="charge_to[]"]').val(chargeTo);
     // Reset amount field to default value and remove data attribute
     newRow.find('.amount').attr('data-numeric-value', '0');
 
@@ -965,8 +1046,14 @@ function bodyunblock() {
   $('#bodyloader').unblock();
 }
 
-$(document).on('click', '#edit-icon', function () {
-  $('#photo-upload-form').fadeToggle('fast');
+$(document).on('click', '#edit-icon', function (e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const $root = $(this).closest('.user-avatar-section');
+  const $panel = $root.length ? $root.find('#photo-upload-form') : $('#photo-upload-form');
+  if ($panel.length) {
+    $panel.fadeToggle('fast');
+  }
 });
 
 

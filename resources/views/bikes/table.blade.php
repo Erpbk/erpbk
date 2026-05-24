@@ -57,6 +57,39 @@
       /* Firefox */
    }
 
+   .road-status-badge {
+      display: inline-block;
+      padding: 4px 16px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-align: center;
+      min-width: 120px;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+   }
+
+   .road-onroad {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      border: 1px solid #218838;
+   }
+
+   .road-offroad {
+      background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+      border: 1px solid #c82333;
+   }
+
+   .road-onroadRed {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+      /* Both red tones */
+      border: 2px solid #b02a37;
+      /* Darker red border */
+      color: #ffffff;
+   }
+
+
    @keyframes pulse {
       0% {
          transform: scale(1);
@@ -107,14 +140,14 @@
          @break
          @case('rider_id')
          @php
-         $rider = DB::table('riders')->where('id', $r->rider_id)->first();
+         $rider = company_table('riders')->where('id', $r->rider_id)->first();
 
          @endphp
          <td tabindex="0">{{ $rider->rider_id ?? '-' }}</td>
          @break
          @case('rider_name')
          @php
-         $rider = DB::table('riders')->where('id', $r->rider_id)->first();
+         $rider = company_table('riders')->where('id', $r->rider_id)->first();
          @endphp
          <td tabindex="0">
             @if ($rider)
@@ -129,38 +162,69 @@
          @break
          @case('company')
          @php
-         $company = DB::Table('leasing_companies')->where('id' , $r->company)->first();
+         $company = company_table('leasing_companies')->where('id' , $r->company)->first();
          @endphp
          <td tabindex="0">{{ $company ? $company->name : '-' }}</td>
          @break
          @case('customer_id')
-         <td tabindex="0">{{ DB::table('customers')->where('id' , $r->customer_id)->first()->name ?? '-' }}</td>
+         <td tabindex="0">{{ company_table('customers')->where('id' , $r->customer_id)->first()->name ?? '-' }}</td>
          @break
          @case('branch_id')
          <td tabindex="0">{{ $r->branch ? $r->branch->name .' ( '. $r->branch->code .' )' : '-' }}</td>
          @break
          @case('warehouse')
+
          <td tabindex="0">
             @php
-            $badgeClass = match($r->warehouse ?? 'Inactive') {
-            'Active' => 'bg-label-success',
-            'Return' => 'bg-label-warning',
-            'Vacation' => 'bg-label-info',
-            'Absconded' => 'bg-label-danger',
-            'Inactive' => 'bg-label-danger',
+            $wRaw = $r->warehouse ?? '';
+            $wKey = strtolower(trim((string) $wRaw));
+            $badgeClass = match ($wKey) {
+            'active' => 'bg-label-success',
+            'return' => 'bg-label-warning',
+            'vacation' => 'bg-label-info',
+            'express garage' => 'bg-label-info',
+            'absconded' => 'bg-label-danger',
             default => 'bg-secondary',
             };
+            $wDisplay = $wRaw !== '' && $wRaw !== null ? $wRaw : '—';
             @endphp
-            <span class="badge {{ $badgeClass }}">{{ $r->warehouse }}</span>
+            <span class="badge {{ $badgeClass }}">{{ $wDisplay }}</span>
          </td>
          @break
          @case('status')
          <td tabindex="0">
             @php
-            $statusText = $r->status == 1 ? 'Active' : 'Inactive';
-            $badgeClass = $r->status == 1 ? 'bg-label-success' : 'bg-label-danger';
+            $warehouse = $r->warehouse ?? '';
+            $warehouseClass = 'warehouse-default';
+
+            if (strtolower($warehouse) == 'active') {
+            $warehouseClass = 'Active';
+            } elseif (strtolower($warehouse) == 'return') {
+            $warehouseClass = 'Return';
+            } elseif (strtolower($warehouse) == 'absconded') {
+            $warehouseClass = 'Absconded';
+            } elseif (strtolower($warehouse) == 'vacation') {
+            $warehouseClass = 'Vacation';
+            }
+
+            $warehouse = strtolower(trim($r->warehouse ?? ''));
+            $roadStatus = 'N/A';
+            $roadStatusClass = '';
+
+            if ($warehouse === 'active') {
+            $roadStatus = 'On Road';
+            $roadStatusClass = 'road-onroad';
+            } elseif ($warehouse === 'return' || $warehouse === 'vacation' || $warehouse === 'express garage') {
+            $roadStatus = 'Off Road';
+            $roadStatusClass = 'road-offroad';
+            }else{
+            $roadStatus = 'On Road';
+            $roadStatusClass = 'road-onroadRed';
+            }
             @endphp
-            <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+            <span class="road-status-badge {{ $roadStatusClass }}">
+               {{ $roadStatus }}
+            </span>
          </td>
          @break
          @case('created_by')
@@ -228,6 +292,14 @@
             @endif
             </td>
             @break
+         @case('leased_return_status')
+         @php
+            $lr = $r->leasedReturnDisplay();
+         @endphp
+         <td tabindex="0">
+            <span class="badge {{ $lr['badge'] }}">{{ $lr['label'] }}</span>
+         </td>
+         @break
             @default
             <td tabindex="0">{{ data_get($r, $key, '-') }}</td>
             @endswitch

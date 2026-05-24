@@ -17,36 +17,58 @@ $statusText = $customer->status == 1 ? 'Active' : 'Inactive';
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(Route::is('bikeRentCompanies.files')) active @endif d-flex align-items-center justify-content-center py-3"
-          href="{{ route('bikeRentCompanies.files', $customer->id) }}">
+        <a class="nav-link @if(Route::is('bikeRentCompanies.files') || Route::is('garage_customer.files')) active @endif d-flex align-items-center justify-content-center py-3"
+         @if($customer->customer_type == 'bike_rental') 
+          href="{{ route('bikeRentCompanies.files', $customer->id) }}"
+         @else
+          href="{{ route('garage_customer.files', $customer->id) }}"@endif>
           <i class="fas fa-file-upload fa-lg me-2"></i>
           <span class="fw-semibold">Documents</span>
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(Route::is('bikeRentCompanies.bikes')) active @endif d-flex align-items-center justify-content-center py-3"
-          href="{{ route('bikeRentCompanies.bikes', $customer->id) }}">
+        <a class="nav-link @if(Route::is('bikeRentCompanies.bikes') || Route::is('garage_customer.bikes')) active @endif d-flex align-items-center justify-content-center py-3"
+          @if($customer->customer_type == 'bike_rental') 
+          href="{{ route('bikeRentCompanies.bikes', $customer->id) }}"
+         @else
+          href="{{ route('garage_customer.bikes', $customer->id) }}"@endif>
           <i class="fas fa-bicycle fa-lg me-2"></i>
           <span class="fw-semibold">Vehicles</span>
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(Route::is('bikeRentCompanies.receipts')) active @endif d-flex align-items-center justify-content-center py-3"
-          href="{{ route('bikeRentCompanies.receipts', $customer->id) }}">
+        <a class="nav-link @if(Route::is('bikeRentCompanies.receipts') || Route::is('garage_customer.receipts')) active @endif d-flex align-items-center justify-content-center py-3"
+          @if($customer->customer_type == 'bike_rental') 
+          href="{{ route('bikeRentCompanies.receipts', $customer->id) }}"
+         @else
+          href="{{ route('garage_customer.receipts', $customer->id) }}"@endif>
           <i class="fa fa-receipt fa-lg me-2"></i>
           <span class="fw-semibold">Receipts</span>
         </a>
       </li>
+      @if($customer->customer_type == 'bike_rental')
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(Route::is(('bikeRentCompanies.invoices'))) active @endif d-flex align-items-center justify-content-center py-3"
+        <a class="nav-link @if(Route::is('bikeRentCompanies.invoices')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('bikeRentCompanies.invoices', $customer->id) }}">
           <i class="tf-icons ti ti-notes me-2"></i>
           <span class="fw-semibold">Invoices</span>
         </a>
       </li>
+      @else
       <li class="nav-item" role="presentation">
-        <a class="nav-link @if(Route::is('bikeRentCompanies.ledger')) active @endif d-flex align-items-center justify-content-center py-3"
-          href="{{ route('bikeRentCompanies.ledger', $customer->id) }}">
+        <a class="nav-link @if(Route::is('garage_customer.maintenances')) active @endif d-flex align-items-center justify-content-center py-3"
+          href="{{ route('garage_customer.maintenances', $customer->id) }}">
+          <i class="tf-icons ti ti-notes me-2"></i>
+          <span class="fw-semibold">Maintenances</span>
+        </a>
+      </li>
+      @endif
+      <li class="nav-item" role="presentation">
+        <a class="nav-link @if(Route::is('bikeRentCompanies.ledger') || Route::is('garage_customer.ledger')) active @endif d-flex align-items-center justify-content-center py-3"
+          @if($customer->customer_type == 'bike_rental') 
+          href="{{ route('bikeRentCompanies.ledger', $customer->id) }}"
+         @else
+          href="{{ route('garage_customer.ledger', $customer->id) }}"@endif>
           <i class="fas fa-book fa-lg me-2"></i>
           <span class="fw-semibold">Ledger</span>
         </a>

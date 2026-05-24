@@ -1,5 +1,10 @@
 
 
+@php
+    $superAdminEditOnly = isset($user) && !empty($isSuperAdmin);
+@endphp
+
+@if(!$superAdminEditOnly)
 <!-- Frist Name Field -->
 <div class="form-group col-sm-4">
     {!! Form::label('first_name', 'Frist Name:', ['class' => 'required']) !!}
@@ -110,40 +115,34 @@
     {!! Form::label('email', 'Email:') !!}
     {!! Form::email('email', null, ['class' => 'form-control', 'required', 'maxlength' => 255, 'maxlength' => 255]) !!}
 </div>
-{{-- @endisset --}}
+@else
+<div class="form-group col-sm-12">
+    <p class="text-muted mb-0">Only the password can be changed for Super Admin users.</p>
+</div>
+@endif
 
 <!-- password Field -->
-<div class="form-group col-sm-4">
-    {!! Form::label('password', 'Password:', ['class' => 'required']) !!}
-
-<div class="input-group" id="show_hide_password">
-    {!! Form::password('password', ['class' => 'form-control',  'maxlength' => 255, 'maxlength' => 255]) !!}
-    <div class="input-group-text">
-        <a href="#" role="button" class="text-dark"><i class="ti ti-eye-off" aria-hidden="true"></i></a>
-    </div>
-</div>
-</div>
-
-<div class="form-group col-sm-4">
-    {!! Form::label('password_confirmation', 'Confirm Password:', ['class' => 'required']) !!}
-    <div class="input-group" id="show_hide_confirm_password">
-        {!! Form::password('password_confirmation', ['class' => 'form-control',  'maxlength' => 255, 'maxlength' => 255]) !!}
-        <div class="input-group-text">
-            <a href="#" role="button" class="text-dark"><i class="ti ti-eye-off" aria-hidden="true"></i></a>
-        </div>
+<div class="form-group col-sm-4 form-password-toggle">
+    {!! Form::label('password', 'Password:', ['class' => isset($user) ? '' : 'required']) !!}
+    <div class="input-group input-group-merge">
+        {!! Form::password('password', ['class' => 'form-control', 'maxlength' => 255]) !!}
+        <span class="input-group-text cursor-pointer"><i class="ti ti-eye-off"></i></span>
     </div>
 </div>
 
-    @isset($user)
-    <em class="text-warning mt-2">NOTE: If you dont want to change password leave it blank.</em>
-    @endisset
+<div class="form-group col-sm-4 form-password-toggle">
+    {!! Form::label('password_confirmation', 'Confirm Password:', ['class' => isset($user) ? '' : 'required']) !!}
+    <div class="input-group input-group-merge">
+        {!! Form::password('password_confirmation', ['class' => 'form-control', 'maxlength' => 255]) !!}
+        <span class="input-group-text cursor-pointer"><i class="ti ti-eye-off"></i></span>
+    </div>
+</div>
 
-{{-- <!-- Bio Field -->
-<div class="form-group col-sm-12">
-    {!! Form::label('bio', 'Bio:') !!}
-    {!! Form::textarea('bio', null, ['class' => 'form-control', 'rows' => 4]) !!}
-</div> --}}
+@isset($user)
+<em class="text-warning mt-2">NOTE: If you dont want to change password leave it blank.</em>
+@endisset
 
+@if(!$superAdminEditOnly)
 @isset($roles)
 <!-- Status Field -->
 <div class="form-group col-sm-6 mt-3">
@@ -154,6 +153,7 @@
   </div>
 </div>
 @endisset
+@endif
 
 <script>
 $(document).ready(function() {

@@ -66,7 +66,7 @@
 
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">
-                        <i class="fas fa-users me-1"></i>User Type
+                        <i class="fas fa-users me-1"></i>Rider or Employees
                     </label>
                     <select name="user_type" class="form-select summarySelect" onchange="loadUsers(this.value)">
                         <option value="employee" {{ $userType == 'employee' ? 'selected' : '' }}>Employees Only</option>
@@ -76,7 +76,7 @@
                 <!-- User Selection -->
                 <div class="col-md-3">
                     <label for="ref_id" class="form-label fw-semibold required">
-                        <i class="fas fa-user me-1"></i>Select User
+                        <i class="fas fa-user me-1"></i>Select Rider or Employees
                     </label>
                     <select class="form-select summarySelect" onchange="this.form.submit()"
                         id="user_id" name="user_id" required>

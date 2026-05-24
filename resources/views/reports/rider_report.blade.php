@@ -397,9 +397,9 @@
         ['data' => 'bike', 'title' => 'Bike'],
         ['data' => 'wps', 'title' => 'WPS'],
         ['data' => 'status', 'title' => 'Status'],
-        ['data' => 'balance_forward', 'title' => 'Balance Forward'],
+        ['data' => 'previous_balance', 'title' => 'Previous Balance'],
         ['data' => 'amount', 'title' => 'Amount'],
-        ['data' => 'balance', 'title' => 'Balance'],
+        ['data' => 'current_balance', 'title' => 'Current Balance'],
         ['data' => 'sub_total', 'title' => 'Sub Total'],
         ['data' => 'total', 'title' => 'Total'],
         ];
@@ -457,9 +457,9 @@
                                 <th title="Bike">Bike</th>
                                 <th title="WPS">WPS</th>
                                 <th title="Status">Status</th>
-                                <th title="Balance Forward" style="text-align: right;">Balance Forward</th>
+                                <th title="Previous Balance" style="text-align: right;">Previous Balance</th>
                                 <th title="Amount" style="text-align: right;">Amount</th>
-                                <th title="Balance" style="text-align: right;">Balance</th>
+                                <th title="Current Balance" style="text-align: right;">Current Balance</th>
                                 <th title="Sub Total" style="text-align: right;">Sub Total</th>
                                 <th title="Total" style="text-align: right;">Total</th>
                             </tr>
@@ -489,7 +489,7 @@
                     <label for="designation">Filter by Designation</label>
                     <select class="form-control" id="designation" name="designation">
                         @php
-                        $emiratedesignation = DB::table('riders')->whereNotNull('designation')->where('designation', '!=', '')->select('designation')->distinct()->pluck('designation');
+                        $emiratedesignation = company_table('riders')->whereNotNull('designation')->where('designation', '!=', '')->select('designation')->distinct()->pluck('designation');
                         @endphp
                         <option value="" selected>Select</option>
                         @foreach($emiratedesignation as $des)

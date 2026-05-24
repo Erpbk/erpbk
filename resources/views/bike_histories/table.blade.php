@@ -28,17 +28,17 @@
    <tbody>
       @foreach($bikeHistory as $r)
       <tr class="text-center">
-         <td>{{ DB::table('bikes')->where('id' , $r->bike_id)->first()->plate }}</td>
+         <td>{{ company_table('bikes')->where('id' , $r->bike_id)->first()->plate }}</td>
          <td>
             @if($r->rider_id)
-            <a href="{{ route('riders.show', $r->rider_id) }}" target="_blank">{{ DB::Table('riders')->where('id' , $r->rider_id)->first()->name }}</a>
+            <a href="{{ route('riders.show', $r->rider_id) }}" target="_blank">{{ company_table('riders')->where('id' , $r->rider_id)->first()->name }}</a>
             @else
             -
             @endif
          </td>
          <td>
             @php
-            $contract = DB::table('bike_histories')->where('id', $r->id)->first();
+            $contract = company_table('bike_histories')->where('id', $r->id)->first();
             @endphp
             @isset($contract)
             <a href="{{route('bike.contract', $contract->id)}}" data-toggle="tooltip" class="file" data-modalID="modal-new" target="_blank">{{ \Carbon\Carbon::parse($r->note_date)->format('d M Y') ?? '-' }}</a>

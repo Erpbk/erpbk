@@ -681,11 +681,16 @@ class RiderInvoicesController extends AppBaseController
 
     if ($request->isMethod('post')) {
       $user = Auth::user();
-      $fromName = is_string($user?->name) ? trim($user?->name) : '';
-      $fromEmailCandidate = is_string($user?->email) && trim($user?->email) !== '' ? trim($user?->email) : (is_string($user?->username) ? trim($user?->username) : '');
-      $fromEmail = (is_string($fromEmailCandidate) && filter_var($fromEmailCandidate, FILTER_VALIDATE_EMAIL))
-        ? $fromEmailCandidate
-        : (config('mail.from.address') ?: env('MAIL_FROM_ADDRESS') ?: 'hello@example.com');
+      $emailService = app(\App\Services\Email\UserEmailService::class);
+      $smtpPrep = $emailService->prepareCompanySmtp($user);
+      if (!$smtpPrep['ready']) {
+        return response()->json([
+          'success' => false,
+          'message' => $smtpPrep['message'],
+        ], $smtpPrep['status'] ?? 422);
+      }
+      $fromEmail = $smtpPrep['from_email'];
+      $fromName = $smtpPrep['from_name'];
 
       $toEmail = $request->input('email_to');
       if (!is_string($toEmail) || trim($toEmail) === '') {
@@ -700,31 +705,16 @@ class RiderInvoicesController extends AppBaseController
         ? trim($request->input('email_subject'))
         : '(Rider invoice email)';
 
-      $data = [
+      $brandingService = app(\App\Services\Email\CompanyEmailBrandingService::class);
+      $data = $brandingService->mergeIntoMailData([
         'html' => $request->input('email_message'),
-      ];
-
-      $emailService = app(\App\Services\Email\UserEmailService::class);
-      // If the user configured an SMTP app password, switch Laravel transport for this request.
-      $emailService->configureSmtpForUser($user, $fromEmail);
-      $ccEmails = $emailService->getCcRecipientEmails($user);
+      ]);
 
       $res = RiderInvoices::with(['riderInv_item'])->where('id', $id)->get();
       $pdf = \PDF::loadView('invoices.rider_invoices.show', ['res' => $res]);
 
-      Mail::send('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $ccEmails) {
+      $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject) {
         $message->to([$toEmail]);
-        //$message->replyTo([$request->email]);
-
-        if (!empty($ccEmails)) {
-          $message->cc($ccEmails);
-        } else {
-          $adminCc = env('ADMIN_CC_EMAIL');
-          if (!empty($adminCc)) {
-            $message->cc($adminCc);
-          }
-        }
-
         $message->from($fromEmail, $fromName);
         $message->replyTo($fromEmail, $fromName);
         $message->subject($subject);

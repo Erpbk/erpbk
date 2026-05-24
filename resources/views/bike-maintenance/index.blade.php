@@ -13,6 +13,50 @@
 
 
 @section('content')
+<section class="content-header ">
+    @include('flash::message')
+    <div>
+        <div class="row mb-2">
+            <div class="col-sm-12 col-lg-12">
+                <div class="action-buttons d-flex justify-content-end" >
+                <div class="action-dropdown-container">
+                    <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                        <i class="ti ti-plus"></i>
+                        <span>Add New</span>
+                        <i class="ti ti-chevron-down"></i>
+                    </button>
+                    <div class="action-dropdown-menu" id="addBikeDropdown">
+                        @can('bike_maintenance_create')
+                        <a class="action-dropdown-item show-modal"
+                            href="javascript:void(0);"
+                            data-size="xl"
+                            data-title="Add Maintenance Record"
+                            data-action="{{ route('bikeMaintenance.create') }}">
+                            <i class="ti ti-plus"></i>
+                            <div>
+                                <div class="action-dropdown-item-text">Add</div>
+                                <div class="action-dropdown-item-desc">Add New Maintenance Record</div>
+                            </div>
+                        </a>
+                        <a class="action-dropdown-item show-modal"
+                            href="javascript:void(0);"
+                            data-size="xl"
+                            data-title="Add Maintenance Record"
+                            data-action="{{ route('bikeMaintenance.create') }}?type={{ 'garage' }}">
+                            <i class="ti ti-plus"></i>
+                            <div>
+                                <div class="action-dropdown-item-text">Add (For Garage Customer)</div>
+                                <div class="action-dropdown-item-desc">Add New Maintenance Record</div>
+                            </div>
+                        </a>
+                        @endcan
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+</section>
     @include('flash::message')
     <div class="clearfix"></div>
     
@@ -21,13 +65,7 @@
             <h4 class="mb-0">
                 <i class="fa fa-bicycle me-2"></i>Bike Maintenance Records
             </h4>
-            <a class="btn btn-primary action-btn show-modal"
-                href="javascript:void(0);"
-                data-size="xl"
-                data-title="Add Maintenance Record"
-                data-action="{{ route('bikeMaintenance.create') }}">
-                Add Maintenance Record
-            </a>
+            
         </div>
         
         <!-- Stats Cards -->

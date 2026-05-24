@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Account;
+use App\Helpers\HeadAccount;
 use App\Helpers\Common;
 use App\Http\Requests\StoreVisaExpenseRequest;
 use App\Http\Requests\UpdateVisaExpenseRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Bikes;
+use App\Models\Branch;
 use App\Models\Riders;
 use App\Models\visa_expenses;
 use App\Models\Accounts;
@@ -18,14 +20,18 @@ use App\Models\visa_installment_plan;
 use App\Models\Transactions;
 use App\Models\VisaStatus;
 use App\Models\ExpenseAccount;
+use App\Models\Settings;
 use App\Repositories\VisaExpensesRepository;
 use App\Services\TransactionService;
 use App\Support\CompanyAuthRedirect;
+use App\Support\CompanyContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
+use App\Support\CompanyQuery;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Schema;
 use Flash;
 use DB;
 
@@ -86,23 +92,99 @@ class VisaexpenseController extends AppBaseController
             });
         }
 
+        $visaStatusFilterModel = null;
+        if ($request->filled('visa_status_id')) {
+            $visaStatusFilterModel = VisaStatus::find($request->visa_status_id);
+        }
+
+        $sliderBaseQuery = clone $query;
+
+        $visaTopEnabledRaw = (string) (Settings::query()
+            ->where('name', 'visa_expense_top_enabled')
+            ->value('value') ?? '1');
+        $visaTopEnabled = in_array(strtolower(trim($visaTopEnabledRaw)), ['1', 'true', 'yes', 'on'], true);
+
+        $selectedVisaTopIdsRaw = (string) (Settings::query()
+            ->where('name', 'visa_expense_top_status_ids')
+            ->value('value') ?? '');
+        $selectedVisaTopIds = collect(json_decode($selectedVisaTopIdsRaw, true))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $visaStatuses = collect();
+        if ($visaTopEnabled && !empty($selectedVisaTopIds)) {
+            $visaStatusesQuery = VisaStatus::query()
+                ->where('is_active', 1)
+                ->whereIn('id', $selectedVisaTopIds)
+                ->orderBy('display_order')
+                ->orderBy('id');
+            $visaStatuses = $visaStatusesQuery->get();
+            $statusOrderMap = array_flip($selectedVisaTopIds);
+            $visaStatuses = $visaStatuses
+                ->sortBy(fn ($status) => $statusOrderMap[(int) $status->id] ?? PHP_INT_MAX)
+                ->values();
+        }
+
+        $visaStatusSliderCounts = [];
+        foreach ($visaStatuses as $vsRow) {
+            $visaStatusSliderCounts[$vsRow->id] = [
+                'paid' => (clone $sliderBaseQuery)->tap(function ($q) use ($vsRow) {
+                    $this->applyExpenseAccountMatchesVisaExpense($q, function ($sub) use ($vsRow) {
+                        $sub->where('ve.visa_status', $vsRow->name)->where('ve.payment_status', 'paid');
+                    });
+                })->count(),
+                'unpaid' => (clone $sliderBaseQuery)->tap(function ($q) use ($vsRow) {
+                    $this->applyExpenseAccountMatchesVisaExpense($q, function ($sub) use ($vsRow) {
+                        $sub->where('ve.visa_status', $vsRow->name)->where('ve.payment_status', 'unpaid');
+                    });
+                })->count(),
+            ];
+        }
+
         if ($request->filled('payment_status')) {
             $status = $request->payment_status;
-            if ($status === 'paid') {
-                $query->whereHas('visaExpenses')
-                    ->whereDoesntHave('visaExpenses', function ($q) {
-                        $q->where('payment_status', 'unpaid');
-                    });
-            } elseif ($status === 'unpaid') {
-                $query->whereHas('visaExpenses', function ($q) {
-                    $q->where('payment_status', 'unpaid');
+            if ($visaStatusFilterModel && in_array($status, ['paid', 'unpaid'], true)) {
+                $this->applyExpenseAccountMatchesVisaExpense($query, function ($sub) use ($visaStatusFilterModel, $status) {
+                    $sub->where('ve.visa_status', $visaStatusFilterModel->name)
+                        ->where('ve.payment_status', $status);
                 });
+            } elseif (!$visaStatusFilterModel) {
+                if ($status === 'paid') {
+                    $this->applyExpenseAccountMatchesVisaExpense($query, function ($sub) {
+                        $sub->whereRaw('1 = 1');
+                    });
+                    $query->whereNotExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('visa_expenses as ve')
+                            ->whereNull('ve.deleted_at')
+                            ->where('ve.payment_status', 'unpaid')
+                            ->where(function ($link) {
+                                $link->whereColumn('ve.expense_account_id', 'expense_accounts.id')
+                                    ->orWhere(function ($l2) {
+                                        $l2->where('ve.expense_account_id', HeadAccount::VISA_EXPENSE_ACCOUNT)
+                                            ->whereColumn('ve.rider_id', 'expense_accounts.rider_id');
+                                    });
+                            });
+                        $this->applyVisaExpenseCompanyScopeForVeAlias($sub);
+                    });
+                } elseif ($status === 'unpaid') {
+                    $this->applyExpenseAccountMatchesVisaExpense($query, function ($sub) {
+                        $sub->where('ve.payment_status', 'unpaid');
+                    });
+                }
             }
+        } elseif ($visaStatusFilterModel) {
+            $this->applyExpenseAccountMatchesVisaExpense($query, function ($sub) use ($visaStatusFilterModel) {
+                $sub->where('ve.visa_status', $visaStatusFilterModel->name);
+            });
         }
 
         $statsQuery = clone $query;
         $data = $this->applyPagination($query, $paginationParams);
-        $riders = Riders::where('status', 1)->orderBy('name')->get();
+        $riders = Riders::orderBy('name')->get();
         $expenseAccountIds = $statsQuery->pluck('id')->toArray();
         $visaAccounts = visa_expenses::whereIn('expense_account_id', $expenseAccountIds)->get();
         $stats = [
@@ -111,9 +193,14 @@ class VisaexpenseController extends AppBaseController
             'unpaid_amount' => $visaAccounts->where('payment_status', 'unpaid')->sum('amount'),
         ];
 
+        $nextUnpaidVisaByAccountId = $this->mapNextUnpaidVisaExpensesForPage($data);
+        $urgentVisaExpiryByAccountId = $this->mapUrgentVisaExpiryForPage($data);
+
         if ($request->ajax()) {
             $tableData = view('visa_expenses.account_table', [
                 'data' => $data,
+                'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId,
+                'urgentVisaExpiryByAccountId' => $urgentVisaExpiryByAccountId,
             ])->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
@@ -129,9 +216,181 @@ class VisaexpenseController extends AppBaseController
             'riders' => $riders,
             'stats' => $stats,
             'riderIds' => $expenseAccountIds,
+            'visaStatuses' => $visaStatuses,
+            'visaStatusSliderCounts' => $visaStatusSliderCounts,
+            'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId,
+            'urgentVisaExpiryByAccountId' => $urgentVisaExpiryByAccountId,
         ]);
     }
-    public function accountcreate(Request $request)
+
+    /**
+     * Earliest unpaid visa expense per expense account on this results page (one query).
+     *
+     * @param  \Illuminate\Contracts\Pagination\Paginator|\Illuminate\Support\Collection|array  $paginatorOrCollection
+     * @return array<int, \App\Models\visa_expenses>
+     */
+    private function mapNextUnpaidVisaExpensesForPage($paginatorOrCollection): array
+    {
+        $items = $paginatorOrCollection instanceof \Illuminate\Contracts\Pagination\Paginator
+            ? collect($paginatorOrCollection->items())
+            : collect($paginatorOrCollection);
+
+        if ($items->isEmpty()) {
+            return [];
+        }
+
+        $ids = $items->pluck('id')->map(static fn($id) => (int) $id)->all();
+        $riderToEaId = [];
+        foreach ($items as $accountRow) {
+            if ($accountRow->rider_id !== null) {
+                $riderToEaId[(int) $accountRow->rider_id] = (int) $accountRow->id;
+            }
+        }
+
+        $headId = (int) HeadAccount::VISA_EXPENSE_ACCOUNT;
+
+        $unpaidRows = visa_expenses::query()
+            ->where('payment_status', 'unpaid')
+            ->where(function ($q) use ($ids, $riderToEaId, $headId) {
+                $q->whereIn('expense_account_id', $ids)
+                    ->orWhere(function ($q2) use ($riderToEaId, $headId) {
+                        $q2->where('expense_account_id', $headId)
+                            ->whereIn('rider_id', array_keys($riderToEaId));
+                    });
+            })
+            ->orderByRaw('CASE WHEN date IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('date', 'asc')
+            ->orderBy('billing_month', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $nextByEaId = [];
+        foreach ($unpaidRows as $ve) {
+            $eaId = null;
+            $veEa = (int) $ve->expense_account_id;
+            if (in_array($veEa, $ids, true)) {
+                $eaId = $veEa;
+            } elseif ($veEa === $headId && $ve->rider_id !== null) {
+                $rid = (int) $ve->rider_id;
+                if (isset($riderToEaId[$rid])) {
+                    $eaId = $riderToEaId[$rid];
+                }
+            }
+            if ($eaId === null || isset($nextByEaId[$eaId])) {
+                continue;
+            }
+            $nextByEaId[$eaId] = $ve;
+        }
+
+        return $nextByEaId;
+    }
+
+    /**
+     * Earliest visa expense with expiry_date on or before today + $withinDays (inclusive), per expense account on this page.
+     * Same account linkage as {@see mapNextUnpaidVisaExpensesForPage()}.
+     *
+     * @param  \Illuminate\Contracts\Pagination\Paginator|\Illuminate\Support\Collection|array  $paginatorOrCollection
+     * @return array<int, \App\Models\visa_expenses>
+     */
+    private function mapUrgentVisaExpiryForPage($paginatorOrCollection, int $withinDays = 10): array
+    {
+        if (!Schema::hasColumn((new visa_expenses)->getTable(), 'expiry_date')) {
+            return [];
+        }
+
+        $items = $paginatorOrCollection instanceof \Illuminate\Contracts\Pagination\Paginator
+            ? collect($paginatorOrCollection->items())
+            : collect($paginatorOrCollection);
+
+        if ($items->isEmpty()) {
+            return [];
+        }
+
+        $ids = $items->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $riderToEaId = [];
+        foreach ($items as $accountRow) {
+            if ($accountRow->rider_id !== null) {
+                $riderToEaId[(int) $accountRow->rider_id] = (int) $accountRow->id;
+            }
+        }
+
+        $headId = (int) HeadAccount::VISA_EXPENSE_ACCOUNT;
+        $threshold = now()->addDays($withinDays)->startOfDay();
+
+        $rows = visa_expenses::query()
+            ->whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<=', $threshold)
+            ->where(function ($q) use ($ids, $riderToEaId, $headId) {
+                $q->whereIn('expense_account_id', $ids)
+                    ->orWhere(function ($q2) use ($riderToEaId, $headId) {
+                        $q2->where('expense_account_id', $headId)
+                            ->whereIn('rider_id', array_keys($riderToEaId));
+                    });
+            })
+            ->orderBy('expiry_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $byEaId = [];
+        foreach ($rows as $ve) {
+            $eaId = null;
+            $veEa = (int) $ve->expense_account_id;
+            if (in_array($veEa, $ids, true)) {
+                $eaId = $veEa;
+            } elseif ($veEa === $headId && $ve->rider_id !== null) {
+                $rid = (int) $ve->rider_id;
+                if (isset($riderToEaId[$rid])) {
+                    $eaId = $riderToEaId[$rid];
+                }
+            }
+            if ($eaId === null || isset($byEaId[$eaId])) {
+                continue;
+            }
+            $byEaId[$eaId] = $ve;
+        }
+
+        return $byEaId;
+    }
+
+    /**
+     * Correlate visa_expenses to expense_accounts the same way as generatentries:
+     * direct expense_account_id = expense_accounts.id, or legacy head-account id + rider match.
+     */
+    private function applyExpenseAccountMatchesVisaExpense($expenseAccountQuery, callable $constraintsOnVeSubquery): void
+    {
+        $headId = HeadAccount::VISA_EXPENSE_ACCOUNT;
+        $expenseAccountQuery->whereExists(function ($sub) use ($constraintsOnVeSubquery, $headId) {
+            $sub->select(DB::raw(1))
+                ->from('visa_expenses as ve')
+                ->whereNull('ve.deleted_at')
+                ->where(function ($link) use ($headId) {
+                    $link->whereColumn('ve.expense_account_id', 'expense_accounts.id')
+                        ->orWhere(function ($l2) use ($headId) {
+                            $l2->where('ve.expense_account_id', $headId)
+                                ->whereColumn('ve.rider_id', 'expense_accounts.rider_id');
+                        });
+                });
+            $constraintsOnVeSubquery($sub);
+            $this->applyVisaExpenseCompanyScopeForVeAlias($sub);
+        });
+    }
+
+    private function applyVisaExpenseCompanyScopeForVeAlias($subquery): void
+    {
+        if (!Schema::hasColumn((new visa_expenses)->getTable(), 'company_id')) {
+            return;
+        }
+        if (!CompanyContext::shouldApplyScope()) {
+            return;
+        }
+        $cid = CompanyContext::id();
+        if ($cid === null) {
+            return;
+        }
+        $subquery->where('ve.company_id', $cid);
+    }
+
+    public function accountcreate(Request $request, $company_slug)
     {
         $request->validate([
             'rider_id' => 'required|exists:riders,id',
@@ -148,6 +407,7 @@ class VisaexpenseController extends AppBaseController
             $expenseAccount = ExpenseAccount::create([
                 'name' => $rider->name,
                 'rider_id' => $rider->id,
+                'branch_id' => $rider->branch_id,
                 'account_id' => $rider->account_id,
                 'company_id' => auth()->user()->company_id ?? null,
             ]);
@@ -156,23 +416,22 @@ class VisaexpenseController extends AppBaseController
                 ->where('is_active', 1)
                 ->orderBy('display_order')
                 ->get();
-
             foreach ($activeStatuses as $status) {
                 visa_expenses::create([
+                    'branch_id' => $rider->branch_id,
                     'trans_date' => Carbon::today()->format('Y-m-d'),
                     'trans_code' => Account::trans_code(),
                     'date' => Carbon::today()->format('Y-m-d'),
-                    'rider_id' => $expenseAccount->id, // legacy compatibility
-                    'expense_account_id' => $expenseAccount->id,
+                    'rider_id' => $expenseAccount->rider_id, // legacy compatibility
+                    'expense_account_id' => HeadAccount::VISA_EXPENSE_ACCOUNT,
                     'visa_status' => $status->name,
                     'detail' => $status->description ?? ('Auto-generated from active visa status: ' . $status->name),
-                    'reference_number' => 'VS-' . $expenseAccount->id . '-' . $status->id,
+                    'reference_number' => 'VS-' . $expenseAccount->rider_id . '-' . $status->id,
                     'billing_month' => Carbon::today()->startOfMonth()->format('Y-m-d'),
                     'amount' => (float) ($status->default_fee ?? 0),
                     'payment_status' => 'unpaid',
                 ]);
             }
-
             DB::commit();
             Flash::success('Visa expense account created and active status entries generated.');
         } catch (\Throwable $e) {
@@ -264,15 +523,17 @@ class VisaexpenseController extends AppBaseController
         if (!auth()->user()->hasPermissionTo('visaexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
-
-        // Installment flow is temporarily hidden for visa expense accounts.
-        // Use global pagination trait
+        $account = ExpenseAccount::with('rider')->where('id', $id)->first();
+        // Auto-mark installments as paid if their date has arrived.
+        $riderId = $account->rider_id;
+        $this->checkAndAutoMarkInstallments($riderId);
+        // Use global pagination traits
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = visa_expenses::query()
             ->with('vouchers')
             ->orderBy('id', 'asc')
-            ->where(function ($q) use ($id) {
-                $q->where('expense_account_id', $id)->orWhere('rider_id', $id);
+            ->where(function ($q) use ($riderId) {
+                $q->where('expense_account_id', HeadAccount::VISA_EXPENSE_ACCOUNT)->orWhere('rider_id', $riderId);
             });
         if ($request->has('trans_date') && !empty($request->trans_date)) {
             $fromDate = \Carbon\Carbon::createFromFormat('Y-m-d', $request->trans_date);
@@ -293,14 +554,12 @@ class VisaexpenseController extends AppBaseController
         }
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
-
         $installmentQuery = visa_installment_plan::query()
-            ->with('vouchers')
-            ->whereRaw('1 = 0')
+            ->with(['vouchers', 'installmentTransactions'])
+            ->where('rider_id', $riderId)
             ->orderBy('date', 'asc');
         $installmentData = $this->applyPagination($installmentQuery, $paginationParams);
 
-        $account = ExpenseAccount::with('rider')->where('id', $id)->first();
         if ($request->ajax()) {
             $tableData = view('visa_expenses.table', [
                 'data' => $data,
@@ -313,7 +572,7 @@ class VisaexpenseController extends AppBaseController
             ]);
         }
         $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
-        $riders = null;
+        $riders = Riders::findOrFail($riderId);
         \Log::info('visa expense entries', ['rider_id' => $id, 'rider' => $riders]);
         return view('visa_expenses.index', [
             'data' => $data,
@@ -327,7 +586,7 @@ class VisaexpenseController extends AppBaseController
     /**
      * Show the form for creating a new resource.
      */
-    public function create($id)
+    public function create($company_slug, $id)
     {
         $data = ExpenseAccount::where('id', $id)->first();
         $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
@@ -384,11 +643,12 @@ class VisaexpenseController extends AppBaseController
     }
     public function viewvoucher($company_slug, $id)
     {
+
         $data = visa_expenses::where('id', $id)->first();
-        $accounts = ExpenseAccount::where('id', $data->expense_account_id ?? $data->rider_id)->first();
+        $accounts = ExpenseAccount::where('rider_id', $data->rider_id)->first();
         return view('visa_expenses.viewvoucher', compact('data', 'accounts'));
     }
-    public function installmentPlan(Request $request, $id)
+    public function installmentPlan(Request $request, $company_slug, $id)
     {
         // Debug session information
         \Log::info('InstallmentPlan Access Debug', [
@@ -409,20 +669,22 @@ class VisaexpenseController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('visaloan_view')) {
+        if (!auth()->user()->hasPermissionTo('visaexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
 
+        $account = $this->resolveExpenseAccountContext((int) $id);
+
         // Auto-mark installments as paid if their date has arrived
-        $this->checkAndAutoMarkInstallments($id);
+        $this->checkAndAutoMarkInstallments($account->rider_id);
 
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
         $query = visa_installment_plan::query()
-            ->with('vouchers')
-            ->where('rider_id', $id)
+            ->with(['vouchers', 'installmentTransactions'])
             ->orderBy('date', 'asc');
+        $this->applyInstallmentRiderScope($query, $account);
 
         // Apply filters
         if ($request->has('status') && !empty($request->status)) {
@@ -434,8 +696,8 @@ class VisaexpenseController extends AppBaseController
         }
 
         // Apply pagination using the trait
+
         $data = $this->applyPagination($query, $paginationParams);
-        $account = Accounts::where('id', $id)->first();
 
         if ($request->ajax()) {
             $tableData = view('visa_expenses.installmentPlanTable', [
@@ -452,63 +714,84 @@ class VisaexpenseController extends AppBaseController
         return view('visa_expenses.installmentPlan', compact('data', 'account'));
     }
 
-    public function createInstallmentPlanForm($riderId)
+    public function createInstallmentPlanForm(Request $request, $company_slug, $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('visaloan_create')) {
+        if (!auth()->user()->hasPermissionTo('visaexpense_create')) {
             abort(403, 'Unauthorized action.');
         }
 
+        $account = $this->resolveExpenseAccountContext((int) $riderId);
+
         // Auto-mark installments silently in the background
-        $this->checkAndAutoMarkInstallments($riderId);
-
-
-        $account = Accounts::findOrFail($riderId);
-
-
-
+        $this->checkAndAutoMarkInstallments($account->rider_id);
 
         // Check if there's already an installment plan for this rider in the current month
         $currentMonth = Carbon::now()->format('Y-m');
-        $existingCurrentMonthPlan = visa_installment_plan::where('rider_id', $riderId)
+        $existingCurrentMonthPlan = visa_installment_plan::query()
             ->where('billing_month', $currentMonth)
+            ->where(function ($q) use ($account) {
+                $this->applyInstallmentRiderScope($q, $account);
+            })
             ->exists();
 
         if ($existingCurrentMonthPlan) {
             Flash::warning('An installment plan already exists for this rider in ' . Carbon::now()->format('F Y') . '. You can still create a new plan, but please select a different starting month.');
         }
-        return view('visa_expenses.createInstallmentPlan', compact('account', 'existingCurrentMonthPlan'));
+
+        $account->loadMissing('rider.branch');
+        $rider = $account->rider ?? Riders::find($account->rider_id);
+        if (!$rider) {
+            abort(404, 'Rider not found for this visa expense account.');
+        }
+
+        $branch = $rider->branch;
+        $branchId = $branch?->id ?? $rider->branch_id;
+        $branches = null;
+        if (!$branchId) {
+            $branches = Branch::query()->orderBy('name')->get(['id', 'name', 'code']);
+        }
+
+        return view('visa_expenses.createInstallmentPlan', compact(
+            'account',
+            'rider',
+            'branch',
+            'branchId',
+            'branches',
+            'existingCurrentMonthPlan'
+        ));
     }
 
-    public function createInstallmentPlan(Request $request)
+    public function createInstallmentPlan(Request $request, $company_slug)
     {
         if (!auth()->user()->hasPermissionTo('visaexpense_create')) {
             abort(403, 'Unauthorized action.');
         }
 
         $validated = $request->validate([
-            'rider_id' => 'required|exists:accounts,id',
+            'rider_id' => 'required|integer',
             'total_amount' => 'required|numeric|min:1',
             'billing_month' => 'required|string',
             'number_of_installments' => 'required|integer|min:1|max:12',
             'installment_amounts' => 'required|array|min:1',
             'installment_amounts.*' => 'required|numeric|min:0',
-            'reference_number' => 'required|string|max:255'
+            'reference_number' => 'required|string|max:255',
+            'branch_id' => 'required|integer',
         ]);
 
         try {
             DB::beginTransaction();
 
-            // Get the rider account (visa expense account)
-            $riderAccount = Accounts::findOrFail($validated['rider_id']);
-            $branch_id = Riders::where('id', $riderAccount->ref_id)->get('branch_id');
-
-
-
+            // Resolve rider account context (expense_accounts.id, riders.id, or legacy accounts.id).
+            $expenseAccount = $this->resolveExpenseAccountContext((int) $validated['rider_id']);
+            $riderAccount = (int) $expenseAccount->rider_id;
 
             // Check if there's already an installment plan for this rider in the current month
             $currentMonth = Carbon::parse($validated['billing_month'] . '-01')->format('Y-m');
-            $existingCurrentMonthPlan = visa_installment_plan::where('rider_id', $validated['rider_id'])
+            $existingCurrentMonthPlan = visa_installment_plan::query()
                 ->where('billing_month', $currentMonth)
+                ->where(function ($q) use ($expenseAccount) {
+                    $this->applyInstallmentRiderScope($q, $expenseAccount);
+                })
                 ->exists();
 
             if ($existingCurrentMonthPlan) {
@@ -516,12 +799,22 @@ class VisaexpenseController extends AppBaseController
                 return redirect()->back();
             }
 
-            // Validate that installment amounts sum to total amount
-            $installmentAmounts = $validated['installment_amounts'];
-            $sumOfInstallments = array_sum($installmentAmounts);
-            $totalAmount = $validated['total_amount'];
+            // Validate that installment amounts sum to total amount.
+            // Allow tiny rounding drift (e.g. 833.33 x 6 = 4999.98 for 5000.00 total),
+            // then auto-adjust the last installment to keep exact total consistency.
+            $installmentAmounts = array_map(static fn($amount) => round((float) $amount, 2), $validated['installment_amounts']);
+            $sumOfInstallments = round(array_sum($installmentAmounts), 2);
+            $totalAmount = round((float) $validated['total_amount'], 2);
+            $difference = round($totalAmount - $sumOfInstallments, 2);
 
-            if (abs($sumOfInstallments - $totalAmount) > 0.01) {
+            if (abs($difference) <= 0.05 && count($installmentAmounts) > 0) {
+                $lastIndex = count($installmentAmounts) - 1;
+                $installmentAmounts[$lastIndex] = round($installmentAmounts[$lastIndex] + $difference, 2);
+                $sumOfInstallments = round(array_sum($installmentAmounts), 2);
+                $difference = round($totalAmount - $sumOfInstallments, 2);
+            }
+
+            if (abs($difference) > 0.01) {
                 Flash::error('The sum of individual installment amounts (' . number_format($sumOfInstallments, 2) . ') does not match the total amount (' . number_format($totalAmount, 2) . ').');
                 return redirect()->back()->withInput();
             }
@@ -533,22 +826,23 @@ class VisaexpenseController extends AppBaseController
             }
 
             // Find the liability account using ref_id from rider account
-            $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
+            $liabilityAccount = Accounts::where('ref_id', $riderAccount)
                 ->where('account_type', 'Liability')
                 ->where('parent_id', 1)
                 ->first();
+
             if (!$liabilityAccount) {
                 Flash::error('Liability account not found for this rider. Please create the liability account first.');
                 return redirect()->back();
             }
-            $rider = Riders::findOrFail($riderAccount->ref_id);
+            $rider = Riders::findOrFail($riderAccount);
 
-            if (!VoucherType::isCodeAllowedForModule('VL', 'visa_expense')) {
-                Flash::error('Visa Loan voucher type (VL) is not assigned to the Visa Expense module. Please assign it in Voucher Settings.');
-                return redirect()->back()->withInput();
-            }
 
-            $existingInstallmentCount  = visa_installment_plan::where('rider_id', $validated['rider_id'])->count();
+            $existingInstallmentCount = visa_installment_plan::query()
+                ->where(function ($q) use ($expenseAccount) {
+                    $this->applyInstallmentRiderScope($q, $expenseAccount);
+                })
+                ->count();
 
             // Create multiple installment entries for consecutive months
             for ($i = 0; $i < $validated['number_of_installments']; $i++) {
@@ -562,14 +856,15 @@ class VisaexpenseController extends AppBaseController
 
                 // Get the individual installment amount
                 $installmentAmount = $installmentAmounts[$i];
-
                 // Create installment entry
                 $installment = visa_installment_plan::create([
-                    'rider_id' => $validated['rider_id'],
+                    'rider_id' => $riderAccount,
+                    'branch_id' => $validated['branch_id'],
                     'billing_month' => $billingMonthFormatted,
                     'amount' => $installmentAmount,
                     'total_amount' => $totalAmount, // Store the total amount for reference
                     'reference_number' => $validated['reference_number'],
+                    'narration' => $rider->rider_id . ' - ' . $rider->name . '<b> - installment ' . ($i + 1 + $existingInstallmentCount) . '</b>',
                     'status' => visa_installment_plan::STATUS_PENDING,
                     'date' => $installmentDate,
                     'created_by' => auth()->user()->id,
@@ -582,23 +877,21 @@ class VisaexpenseController extends AppBaseController
 
                 // Create separate voucher for each installment
                 $voucher = Vouchers::create([
-                    'rider_id' => $rider->id, // Original rider ref_id
                     'trans_date' => $trans_date,
                     'trans_code' => $trans_code,
                     'billing_month' => $billingMonth,
                     'payment_type' => 1, // Liability payment
                     'voucher_type' => 'VL', // Visa Loan
-                    'remarks' => 'Loan Voucher - Installment ' . ($i + 1 + $existingInstallmentCount) . ' of '
-                        . ($validated['number_of_installments'] + $existingInstallmentCount)
-                        . ' (Amount: ' . number_format($installmentAmount, 2) . ')',
+                    'remarks' => 'Loan Voucher - <b>Installment ' . ($i + 1 + $existingInstallmentCount) . ' of '
+                        . ($validated['number_of_installments'] + $existingInstallmentCount) . '</b>'
+                        . ' (Amount: <b>' . number_format($installmentAmount, 2) . '</b>)',
                     'amount' => $installmentAmount,
                     'reference_number' => $validated['reference_number'],
                     'Created_By' => auth()->user()->id,
                     'ref_id' => $installment->id,
                     'custom_field_values' => [],
-                    'branch_id' => $branch_id,
+                    'branch_id' => $validated['branch_id'],
                 ]);
-
                 // Debit the liability account for each installment
                 $TransactionService->recordTransaction([
                     'account_id' => $liabilityAccount->id,
@@ -606,29 +899,29 @@ class VisaexpenseController extends AppBaseController
                     'reference_type' => 'VL',
                     'trans_code' => $trans_code,
                     'trans_date' => $trans_date,
-                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment ' . ($i + 1 + $existingInstallmentCount),
+                    'narration' => $rider->rider_id . ' - ' . $rider->name . '<b> - installment ' . ($i + 1 + $existingInstallmentCount) . '</b>',
                     'debit' => $installmentAmount,
-                    'branch_id' => $branch_id,
+                    'branch_id' => $validated['branch_id'],
                     'billing_month' => $billingMonth,
                     'created_by' => auth()->user()->id,
                 ]);
 
                 // Credit the rider account (visa expense account) for each installment
                 $TransactionService->recordTransaction([
-                    'account_id' => $riderAccount->id,
+                    'account_id' => HeadAccount::VISA_EXPENSE_ACCOUNT,
                     'reference_id' => $installment->id,
                     'reference_type' => 'VL',
                     'trans_code' => $trans_code,
                     'trans_date' => $trans_date,
-                    'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment ' . ($i + 1 + $existingInstallmentCount),
+                    'narration' => $rider->rider_id . ' - ' . $rider->name . '<b> - installment ' . ($i + 1 + $existingInstallmentCount) . '</b>',
                     'credit' => $installmentAmount,
-                    'branch_id' => $branch_id,
+                    'branch_id' => $validated['branch_id'],
                     'billing_month' => $billingMonth,
                     'created_by' => auth()->user()->id,
                 ]);
 
                 // Create ledger entry for liability account for each installment
-                $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
+                $lastLedger = CompanyQuery::table('ledger_entries')
                     ->where('account_id', $liabilityAccount->id)
                     ->orderBy('billing_month', 'desc')
                     ->first();
@@ -638,7 +931,7 @@ class VisaexpenseController extends AppBaseController
                 $credit_balance = 0.00;
                 $closing_balance = $opening_balance + $installmentAmount; // Liability increases with debit
 
-                \App\Support\CompanyQuery::insert('ledger_entries', [
+                CompanyQuery::insert('ledger_entries', [
                     'account_id' => $liabilityAccount->id,
                     'billing_month' => $billingMonth,
                     'opening_balance' => $opening_balance,
@@ -647,6 +940,7 @@ class VisaexpenseController extends AppBaseController
                     'closing_balance' => $closing_balance,
                     'created_at' => now(),
                     'updated_at' => now(),
+                    'branch_id' => $validated['branch_id'],
                 ]);
             }
 
@@ -654,7 +948,7 @@ class VisaexpenseController extends AppBaseController
 
             $installmentDetails = '';
             foreach ($installmentAmounts as $index => $amount) {
-                $installmentDetails .= 'Installment ' . ($index + 1 + $existingInstallmentCount) . ': ' . number_format($amount, 2) . ', ';
+                $installmentDetails .= '<b>Installment ' . ($index + 1 + $existingInstallmentCount) . '</b>: <b>' . number_format($amount, 2) . '</b>, ';
             }
             $installmentDetails = rtrim($installmentDetails, ', ');
 
@@ -669,7 +963,7 @@ class VisaexpenseController extends AppBaseController
 
     public function payInstallment(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('visaloan_edit')) {
+        if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -717,7 +1011,7 @@ class VisaexpenseController extends AppBaseController
 
         $validated = $request->validate([
             'installment_id' => 'required|exists:visa_installment_plans,id',
-            'field' => 'required|in:date,billing_month,amount',
+            'field' => 'required|in:date,billing_month,amount,narration',
             'value' => 'required',
             'update_subsequent' => 'nullable|in:true,false,1,0',
             'mark_as_paid' => 'nullable|boolean'
@@ -733,14 +1027,11 @@ class VisaexpenseController extends AppBaseController
             $installment = visa_installment_plan::findOrFail($validated['installment_id']);
             $isPaid = $installment->status === visa_installment_plan::STATUS_PAID;
 
-            // Get the rider account for transactions
-            $riderAccount = Accounts::findOrFail($installment->rider_id);
+            ['riderAccount' => $riderAccount, 'rider' => $rider] = $this->resolveInstallmentRiderContext($installment);
             $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
                 ->where('account_type', 'Liability')
                 ->where('parent_id', 1)
                 ->first();
-
-            $rider = Riders::findOrFail($riderAccount->ref_id);
 
             // Update the installment field
             $oldValue = $installment->{$validated['field']};
@@ -793,14 +1084,18 @@ class VisaexpenseController extends AppBaseController
                 if ($validated['update_subsequent'] && !$isPaid) {
                     $this->recalculateInstallmentAmounts($installment, $validated['value'], $rider);
                 }
+            } elseif ($validated['field'] === 'narration') {
+                $installment->narration = trim((string) $validated['value']);
+                $installment->updated_by = auth()->user()->id;
+                $installment->save();
             }
 
-            // Update voucher
+            // Update voucher (no narration column on vouchers — narration lives on transactions)
             $voucher = Vouchers::where('ref_id', $installment->id)
                 ->where('voucher_type', 'VL')
                 ->first();
 
-            if ($voucher) {
+            if ($voucher && in_array($validated['field'], ['billing_month', 'amount', 'date'], true)) {
                 if ($validated['field'] === 'billing_month') {
                     $voucher->billing_month = $billingMonth;
                 } elseif ($validated['field'] === 'amount') {
@@ -820,7 +1115,7 @@ class VisaexpenseController extends AppBaseController
             foreach ($transactions as $transaction) {
                 if ($validated['field'] === 'billing_month') {
                     $transaction->billing_month = $billingMonth;
-                    $transaction->narration = $rider->rider_id . ' - ' . $rider->name . ' - deducting ' . '<b>' . ' installment ' . '</b>' . ' - ' . $validated['value'];
+                    // Do not change narration here — only explicit "narration" edits update GL text.
                 } elseif ($validated['field'] === 'amount') {
                     if ($transaction->credit > 0) {
                         $transaction->credit = $validated['value'];
@@ -829,6 +1124,8 @@ class VisaexpenseController extends AppBaseController
                     }
                 } elseif ($validated['field'] === 'date') {
                     $transaction->trans_date = $validated['value'];
+                } elseif ($validated['field'] === 'narration') {
+                    $transaction->narration = trim((string) $validated['value']);
                 }
                 $transaction->updated_at = now();
                 $transaction->save();
@@ -930,14 +1227,11 @@ class VisaexpenseController extends AppBaseController
 
                 $firstRiderId = $firstRiderId ?: $installment->rider_id;
 
-                // Accounts context
-                $riderAccount = Accounts::findOrFail($installment->rider_id);
+                ['riderAccount' => $riderAccount, 'rider' => $rider] = $this->resolveInstallmentRiderContext($installment);
                 $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
                     ->where('account_type', 'Liability')
                     ->where('parent_id', 1)
                     ->first();
-
-                $rider = Riders::findOrFail($riderAccount->ref_id);
 
                 // Existing values
                 $oldAmount = (float) $installment->amount;
@@ -1160,7 +1454,7 @@ class VisaexpenseController extends AppBaseController
                         ->delete();
 
                     // Delete related ledger entries for the liability account for that billing month
-                    $riderAccount = Accounts::findOrFail($inst->rider_id);
+                    ['riderAccount' => $riderAccount] = $this->resolveInstallmentRiderContext($inst);
                     $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
                         ->where('account_type', 'Liability')
                         ->where('parent_id', 1)
@@ -1223,12 +1517,11 @@ class VisaexpenseController extends AppBaseController
                 }
 
                 $firstRiderId = $firstRiderId ?: $contextInstallment->rider_id;
-                $riderAccount = Accounts::findOrFail($contextInstallment->rider_id);
+                ['riderAccount' => $riderAccount, 'rider' => $rider] = $this->resolveInstallmentRiderContext($contextInstallment);
                 $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
                     ->where('account_type', 'Liability')
                     ->where('parent_id', 1)
                     ->first();
-                $rider = Riders::findOrFail($riderAccount->ref_id);
                 $existingTotalAmount = (float) (visa_installment_plan::where('rider_id', $contextInstallment->rider_id)->value('total_amount') ?? 0);
 
                 foreach ($additions as $addition) {
@@ -1248,6 +1541,7 @@ class VisaexpenseController extends AppBaseController
                         'amount' => $amount,
                         'total_amount' => $existingTotalAmount,
                         'reference_number' => $contextInstallment->reference_number ?? null,
+                        'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment - ' . $bm,
                         'status' => visa_installment_plan::STATUS_PENDING,
                         'date' => $date,
                         'created_by' => auth()->user()->id,
@@ -1560,7 +1854,7 @@ class VisaexpenseController extends AppBaseController
                 ->delete();
 
             // Delete related ledger entries
-            $riderAccount = Accounts::findOrFail($installment->rider_id);
+            ['riderAccount' => $riderAccount] = $this->resolveInstallmentRiderContext($installment);
             $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
                 ->where('account_type', 'Liability')
                 ->where('parent_id', 1)
@@ -1619,29 +1913,69 @@ class VisaexpenseController extends AppBaseController
         }
     }
 
-    public function generateInstallmentInvoice($riderId)
+    public function generateInstallmentInvoice($company_slug, $riderId)
     {
         if (!auth()->user()->hasPermissionTo('visaexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
 
         try {
-            // Get the rider account
-            $account = Accounts::findOrFail($riderId);
-            $rider = Riders::findOrFail($account->ref_id);
+            $account = null;
+            $rider = null;
+            $installments = collect();
 
-            // Get all installments for this rider, ordered by billing month
-            $installments = visa_installment_plan::where('rider_id', $riderId)
-                ->orderBy('billing_month', 'asc')
-                ->get();
+            $expenseAccount = ExpenseAccount::with('rider')->find($riderId);
+            if ($expenseAccount) {
+                $account = $expenseAccount;
+                $rider = $expenseAccount->rider ?? Riders::findOrFail($expenseAccount->rider_id);
+                $installments = visa_installment_plan::where('rider_id', $expenseAccount->id)
+                    ->orderBy('billing_month', 'asc')
+                    ->get();
+                if ($installments->isEmpty()) {
+                    $installments = visa_installment_plan::where('rider_id', $expenseAccount->rider_id)
+                        ->orderBy('billing_month', 'asc')
+                        ->get();
+                }
+            }
+
+            if ($installments->isEmpty() && ($ledgerAccount = Accounts::find($riderId))) {
+                $account = $ledgerAccount;
+                $rider = Riders::findOrFail($ledgerAccount->ref_id);
+                $installments = visa_installment_plan::where('rider_id', $riderId)
+                    ->orderBy('billing_month', 'asc')
+                    ->get();
+            }
 
             if ($installments->isEmpty()) {
-                Flash::error('No installment plans found for this rider.');
+                $rider = Riders::findOrFail($riderId);
+                $installments = visa_installment_plan::where('rider_id', $riderId)
+                    ->orderBy('billing_month', 'asc')
+                    ->get();
+            }
+
+            if ($installments->isEmpty()) {
+                $msg = 'No installment plans found for this rider.';
+                if (request()->ajax()) {
+                    return response('<div class="alert alert-warning m-3 mb-0">' . e($msg) . '</div>', 200);
+                }
+                Flash::error($msg);
                 return redirect()->back();
+            }
+
+            $rider->loadMissing(['vendor', 'sim']);
+
+            if (request()->ajax()) {
+                return view('visa_expenses.installmentInvoice_ajax', compact('rider', 'installments', 'account'));
             }
 
             return view('visa_expenses.installmentInvoice', compact('rider', 'installments', 'account'));
         } catch (\Exception $e) {
+            if (request()->ajax()) {
+                return response(
+                    '<div class="alert alert-danger m-3 mb-0">' . e('Error generating invoice: ' . $e->getMessage()) . '</div>',
+                    200
+                );
+            }
             Flash::error('Error generating invoice: ' . $e->getMessage());
             return redirect()->back();
         }
@@ -1652,18 +1986,19 @@ class VisaexpenseController extends AppBaseController
         DB::beginTransaction();
 
         try {
+            $expenseAccount = ExpenseAccount::where('rider_id', $request->rider_id)->first();
+            $expense = visa_expenses::findOrFail($request->id);
+            $expense->pay_account = $request->account;
 
-            $fine = visa_expenses::findOrFail($request->id);
-            $fine->pay_account = $request->account;
-
-            if ($fine->payment_status == 'paid') {
-                $fine->payment_status = 'unpaid';
+            if ($expense->payment_status == 'paid') {
+                $expense->payment_status = 'unpaid';
+                $expense->expiry_date = null;
             } else {
-                $fine->payment_status = 'paid';
-                if (!VoucherType::isCodeAllowedForModule($request->voucher_type ?? '', 'visa_expense')) {
-                    Flash::error('The selected voucher type is not assigned to the Visa Expense module. Please assign it in Voucher Settings.');
-                    return redirect()->back()->withInput();
-                }
+                $request->validate([
+                    'expiry_date' => 'required|date',
+                ]);
+                $expense->payment_status = 'paid';
+                $expense->expiry_date = $request->expiry_date;
                 $payment_type_flag = match ($request->payment_type) {
                     'Liability' => 1,
                     'Asset' => 0,
@@ -1676,38 +2011,40 @@ class VisaexpenseController extends AppBaseController
                 $trans_code = Account::trans_code();
                 $TransactionService = new TransactionService();
 
-                $billingMonth = $fine->billing_month ?? date('Y-m-01');
-                $transDate = $fine->trans_date;
+                $billingMonth = $expense->billing_month ?? date('Y-m-01');
+                $transDate = $expense->trans_date;
 
                 // 1. Fine Amount
-                if ($fine->amount > 0) {
+                if ($expense->amount > 0) {
                     // Debit RTA Account
                     $TransactionService->recordTransaction([
-                        'account_id'     => $fine->rider_id,
-                        'reference_id'   => $fine->id,
+                        'account_id'     => HeadAccount::VISA_EXPENSE_ACCOUNT,
+                        'reference_id'   => $expense->id,
                         'reference_type' => 'LV',
                         'trans_code'     => $trans_code,
                         'trans_date'     => $transDate,
-                        'narration'      => $fine->detail ?? 'Viss Expense Payment',
-                        'debit'          => $fine->amount,
+                        'narration'      => $expense->detail ?? 'Viss Expense Payment',
+                        'debit'          => $expense->amount,
                         'billing_month'  => $billingMonth,
+                        'branch_id'       => $expense->branch_id,
                     ]);
                 }
-                if ($fine->amount > 0) {
+                if ($expense->amount > 0) {
                     // Credit Selected Payment Account
                     $TransactionService->recordTransaction([
                         'account_id'     => $request->account,
-                        'reference_id'   => $fine->id,
+                        'reference_id'   => $expense->id,
                         'reference_type' => 'LV',
                         'trans_code'     => $trans_code,
                         'trans_date'     => $transDate,
-                        'narration'      => $fine->detail ?? 'Visa Expense Payment',
-                        'credit'         => $fine->amount,
+                        'narration'      => $expense->detail ?? 'Visa Expense Payment',
+                        'credit'         => $expense->amount,
                         'billing_month'  => $billingMonth,
+                        'branch_id'       => $expense->branch_id,
                     ]);
                 }
                 Vouchers::create([
-                    'rider_id'      => $request->rider_id,
+                    'branch_id'       => $expense->branch_id,
                     'trans_date'    => $transDate,
                     'trans_code'    => $trans_code,
                     'trip_date'     => $request->trip_date,
@@ -1715,18 +2052,18 @@ class VisaexpenseController extends AppBaseController
                     'payment_type'  => $payment_type_flag,
                     'voucher_type'  => $request->voucher_type,
                     'remarks'       => $remarks,
-                    'amount'        => $fine->amount,
-                    'reference_number' => $fine->reference_number ?? null,
+                    'amount'        => $expense->amount,
+                    'reference_number' => $expense->reference_number ?? null,
                     'Created_By'    => $request->Created_By,
                     'attach_file'   => $docFile,
                     'pay_account'   => $request->account,
-                    'ref_id'        => $fine->id,
+                    'ref_id'        => $expense->id,
                     'custom_field_values' => $request->input('voucher_custom_fields', []),
                 ]);
 
                 // 5. Ledger Entry (Against Payment Account)
-                $total_amount = floatval($fine->amount);
-                $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
+                $total_amount = floatval($expense->amount);
+                $lastLedger = CompanyQuery::table('ledger_entries')
                     ->where('account_id', $request->account)
                     ->orderBy('billing_month', 'desc')
                     ->first();
@@ -1744,18 +2081,20 @@ class VisaexpenseController extends AppBaseController
                     $closing_balance = $opening_balance;
                 }
 
-                \App\Support\CompanyQuery::insert('ledger_entries', [
+                CompanyQuery::table('ledger_entries')->insert([
                     'account_id'      => $request->account,
                     'billing_month'   => $billingMonth,
                     'opening_balance' => $opening_balance,
                     'debit_balance'   => $debit_balance,
                     'credit_balance'  => $credit_balance,
                     'closing_balance' => $closing_balance,
+                    'branch_id'       => $expense->branch_id,
                     'created_at'      => now(),
                     'updated_at'      => now(),
                 ]);
             }
-            $fine->save();
+
+            $expense->save();
             DB::commit();
             Flash::success('Visa Expense Paid Successfully with Transaction and Ledger Entries.');
         } catch (\Exception $e) {
@@ -1763,12 +2102,12 @@ class VisaexpenseController extends AppBaseController
             Flash::error('Error: ' . $e->getMessage());
         }
 
-        return redirect(route('VisaExpense.generatentries', $fine->rider_id));
+        return redirect(route('VisaExpense.generatentries', $expenseAccount->id));
     }
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(string $company_slug, string $id)
     {
         //
     }
@@ -1776,7 +2115,7 @@ class VisaexpenseController extends AppBaseController
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(string $company_slug, string $id)
     {
         $visaExpenses = visa_expenses::find($id);
         $data = ExpenseAccount::where('id', $visaExpenses->expense_account_id ?? $visaExpenses->rider_id)->first();
@@ -1879,11 +2218,183 @@ class VisaexpenseController extends AppBaseController
         ]);
     }
 
+    /**
+     * Modal form: change LV voucher credit (payment) account only; debit stays visa expense head.
+     */
+    public function editVoucherCreditForm(Request $request, $company_slug, $visaExpense)
+    {
+        if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $expense = visa_expenses::with('vouchers')->findOrFail($visaExpense);
+
+        if ($expense->payment_status !== 'paid') {
+            return response(
+                '<div class="alert alert-warning m-2 mb-0">Only paid expenses have a payment voucher to edit.</div>',
+                200
+            );
+        }
+
+        $voucher = $expense->vouchers->first();
+        if (!$voucher) {
+            $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'LV')->first();
+        }
+        if (!$voucher) {
+            return response(
+                '<div class="alert alert-warning m-2 mb-0">No LV voucher found for this expense.</div>',
+                200
+            );
+        }
+
+        $creditTx = Transactions::where('trans_code', $voucher->trans_code)
+            ->where('credit', '>', 0)
+            ->orderBy('id')
+            ->first();
+
+        if (!$creditTx) {
+            return response(
+                '<div class="alert alert-danger m-2 mb-0">Could not find credit side transaction for this voucher.</div>',
+                200
+            );
+        }
+
+        $debitAccountName = Accounts::where('id', HeadAccount::VISA_EXPENSE_ACCOUNT)->value('name') ?? 'Visa expense';
+        $currentCreditName = Accounts::where('id', $creditTx->account_id)->value('name') ?? ('#' . $creditTx->account_id);
+
+        $paymentAccounts = $this->visaExpensePaymentAccountOptions();
+        $currentId = (int) $creditTx->account_id;
+        if ($paymentAccounts->isEmpty()) {
+            $paymentAccounts = Accounts::bankAndCashDropdown()
+                ->filter(static fn($label, $id) => $id !== '' && $id !== null);
+        }
+        if (!$paymentAccounts->has($currentId)) {
+            $nm = Accounts::where('id', $currentId)->value('name');
+            if ($nm) {
+                $paymentAccounts->put($currentId, $nm . ' (current)');
+            }
+        }
+
+        $voucher->loadMissing(['transactions.account']);
+
+        return view('visa_expenses.edit_voucher_credit', [
+            'expense' => $expense,
+            'voucher' => $voucher,
+            'creditTransaction' => $creditTx,
+            'debitAccountName' => $debitAccountName,
+            'currentCreditName' => $currentCreditName,
+            'paymentAccounts' => $paymentAccounts,
+            'editDeleteFlags' => VoucherType::getEditDeleteFlagsByModule('vouchers'),
+        ]);
+    }
+
+    /**
+     * Apply new credit account on voucher transactions + ledger rollup for old/new accounts.
+     */
+    public function updateVoucherCredit(Request $request, $company_slug)
+    {
+        if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'visa_expense_id' => 'required|exists:visa_expenses,id',
+            'credit_account_id' => 'required|exists:accounts,id',
+        ]);
+
+        $expense = visa_expenses::findOrFail($validated['visa_expense_id']);
+
+        if ($expense->payment_status !== 'paid') {
+            Flash::error('Only paid visa expenses can update the payment account.');
+            return redirect()->back();
+        }
+
+        $newAccountId = (int) $validated['credit_account_id'];
+        if ($newAccountId === (int) HeadAccount::VISA_EXPENSE_ACCOUNT) {
+            Flash::error('Cannot use the visa expense account as the payment (credit) side.');
+            return redirect()->back();
+        }
+
+        $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'LV')->first();
+        if (!$voucher) {
+            Flash::error('No voucher found for this expense.');
+            return redirect()->back();
+        }
+
+        $creditTx = Transactions::where('trans_code', $voucher->trans_code)
+            ->where('credit', '>', 0)
+            ->orderBy('id')
+            ->first();
+
+        if (!$creditTx) {
+            Flash::error('Credit transaction not found.');
+            return redirect()->back();
+        }
+
+        $oldAccountId = (int) $creditTx->account_id;
+        if ($oldAccountId === $newAccountId) {
+            Flash::info('Payment account unchanged.');
+            return redirect()->back();
+        }
+
+        $billingMonth = $creditTx->billing_month ?? $expense->billing_month;
+
+        try {
+            DB::beginTransaction();
+
+            $creditTx->account_id = $newAccountId;
+            $creditTx->updated_at = now();
+            $creditTx->save();
+
+            $expense->pay_account = (string) $newAccountId;
+            $expense->save();
+
+            if (Schema::hasColumn('vouchers', 'pay_account')) {
+                \App\Support\CompanyQuery::table('vouchers')->where('id', $voucher->id)->update([
+                    'pay_account' => $newAccountId,
+                    'Updated_By' => auth()->id(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $this->recalculateLedgerAfterDeletion($oldAccountId, $billingMonth);
+            $this->recalculateLedgerAfterDeletion($newAccountId, $billingMonth);
+
+            DB::commit();
+            Flash::success('Payment (credit) account updated.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            report($e);
+            Flash::error('Could not update payment account: ' . $e->getMessage());
+        }
+
+        return redirect()->back();
+    }
+
+    /**
+     * Cash/bank style accounts used when marking visa expense paid (same pool as pay flow).
+     *
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    private function visaExpensePaymentAccountOptions()
+    {
+        $bank = Accounts::where('name', 'cash & bank')->first();
+        if (!$bank) {
+            return collect();
+        }
+
+        return Accounts::query()
+            ->where('status', 1)
+            ->where('parent_id', $bank->id)
+            ->orderBy('id')
+            ->pluck('name', 'id');
+    }
+
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy($company_slug, string $id)
     {
         $visaExpenses = visa_expenses::find($id);
 
@@ -2112,6 +2623,112 @@ class VisaexpenseController extends AppBaseController
     }
 
     /**
+     * Resolve visa expense context to an ExpenseAccount from expense_accounts.id, riders.id, or legacy accounts.id.
+     */
+    private function resolveExpenseAccountContext(int $id): ExpenseAccount
+    {
+        $expense = ExpenseAccount::with('rider')->find($id);
+        if ($expense) {
+            return $expense;
+        }
+
+        $expense = ExpenseAccount::with('rider')->where('rider_id', $id)->first();
+        if ($expense) {
+            return $expense;
+        }
+
+        $expense = ExpenseAccount::with('rider')->where('account_id', $id)->first();
+        if ($expense) {
+            return $expense;
+        }
+
+        $legacyAccount = Accounts::find($id);
+        if ($legacyAccount && $legacyAccount->ref_id) {
+            $expense = ExpenseAccount::with('rider')->where('rider_id', $legacyAccount->ref_id)->first();
+            if ($expense) {
+                return $expense;
+            }
+        }
+
+        abort(404, 'Visa expense account not found.');
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function installmentPlanRiderIdKeys(ExpenseAccount $account): array
+    {
+        return array_values(array_unique(array_filter([
+            (int) $account->rider_id,
+            (int) $account->id,
+            $account->account_id ? (int) $account->account_id : null,
+        ])));
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<visa_installment_plan>  $query
+     */
+    private function applyInstallmentRiderScope($query, ExpenseAccount $account)
+    {
+        $keys = $this->installmentPlanRiderIdKeys($account);
+        if ($keys === []) {
+            $query->whereRaw('0 = 1');
+
+            return $query;
+        }
+
+        return $query->whereIn('rider_id', $keys);
+    }
+
+    /**
+     * visa_installment_plans.rider_id is used inconsistently: expense_accounts.id, riders.id, or accounts.id.
+     *
+     * @return array{riderAccount: Accounts, rider: Riders}
+     */
+    private function resolveInstallmentRiderContext(visa_installment_plan $installment): array
+    {
+        $key = (int) $installment->rider_id;
+
+        if ($expense = ExpenseAccount::find($key)) {
+            $rider = $expense->rider ?? Riders::findOrFail($expense->rider_id);
+            $riderAccount = Accounts::where('ref_id', $rider->id)->first();
+            if (!$riderAccount && $expense->account_id) {
+                $riderAccount = Accounts::find($expense->account_id);
+            }
+            if (!$riderAccount) {
+                throw new \RuntimeException(
+                    'Could not find a ledger account for this rider (expense account #' . $key . ').'
+                );
+            }
+
+            return ['riderAccount' => $riderAccount, 'rider' => $rider];
+        }
+
+        if ($rider = Riders::find($key)) {
+            $riderAccount = Accounts::where('ref_id', $rider->id)->first();
+            if (!$riderAccount) {
+                throw new \RuntimeException(
+                    'Could not find accounts row with ref_id = rider #' . $key . ' for visa installment resolution.'
+                );
+            }
+
+            return ['riderAccount' => $riderAccount, 'rider' => $rider];
+        }
+
+        $riderAccount = Accounts::find($key);
+        if (!$riderAccount || !$riderAccount->ref_id) {
+            throw new \RuntimeException(
+                'Installment rider_id ' . $key . ' could not be resolved to a rider ledger account.'
+            );
+        }
+
+        return [
+            'riderAccount' => $riderAccount,
+            'rider' => Riders::findOrFail($riderAccount->ref_id),
+        ];
+    }
+
+    /**
      * Update subsequent installments based on the current installment change
      */
     private function updateSubsequentInstallments($currentInstallment, $field, $newValue, $rider)
@@ -2162,7 +2779,6 @@ class VisaexpenseController extends AppBaseController
                 foreach ($transactions as $transaction) {
                     $transaction->billing_month = $billingMonthWithDay;
                     $transaction->trans_date = $newInstallmentDate;
-                    $transaction->narration = $rider->rider_id . ' - ' . $rider->name . ' - deducting installment - ' . $newBillingMonth;
                     $transaction->updated_at = now();
                     $transaction->save();
                 }
@@ -2261,7 +2877,7 @@ class VisaexpenseController extends AppBaseController
             }
 
             // Update related ledger entry
-            $riderAccount = Accounts::findOrFail($installment->rider_id);
+            ['riderAccount' => $riderAccount] = $this->resolveInstallmentRiderContext($installment);
             $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
                 ->where('account_type', 'Liability')
                 ->where('parent_id', 1)
@@ -2388,7 +3004,7 @@ class VisaexpenseController extends AppBaseController
      */
     public function recalculateInstallments(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('visaloan_edit')) {
+        if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

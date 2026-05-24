@@ -1,4 +1,4 @@
-﻿@extends('banks.viewindex')
+@extends('banks.viewindex')
 @section('page_content')
 
 <!-- Filter Sidebar -->
@@ -36,7 +36,7 @@
                     <label for="account_type">Filter by Account Type</label>
                     <select class="form-control " id="account_type" name="account_type">
                         @php
-                        $accounttype = DB::table('banks')
+                        $accounttype = company_table('banks')
                         ->whereNotNull('account_type')
                         ->select('account_type')
                         ->distinct()
@@ -52,7 +52,7 @@
                     <label for="branch">Filter by Bank Branch</label>
                     <select class="form-control " id="branch" name="branch">
                         @php
-                        $branch = DB::table('banks')
+                        $branch = company_table('banks')
                         ->whereNotNull('branch')
                         ->where('branch', '!=', '')
                         ->select('branch')

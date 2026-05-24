@@ -9,7 +9,7 @@
             <option value="" selected>Select</option>
             @foreach($customers as $customer)
             <option value="{{ $customer->id }}" {{ isset($invoice) ? $invoice->customer_id == $customer->id ? 'selected' : '' : '' }} {{ isset($customer_id) ? $customer_id == $customer->id ? 'selected' : '' : '' }}>
-                {{ $customer->name }} ({{ DB::table('branches')->where('id', $customer->branch_id)->value('code') }})
+                {{ $customer->name }} ({{ company_table('branches')->where('id', $customer->branch_id)->value('code') }})
             </option>
             @endforeach
         </select>

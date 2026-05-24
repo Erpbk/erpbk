@@ -1,37 +1,54 @@
 <form action="{{ route('attendance.update', $attendance->id) }}" method="POST" id="attendanceEditForm">
     @csrf
     @method('PUT')
-    @php
-    $selectedType = strtolower(trim(old('ref_type', $attendance->ref_type ?? 'employee')));
-    $selectedStatus = strtolower(trim(str_replace('-', ' ', old('status', $attendance->status ?? ''))));
-    $selectedRefId = old('ref_id', $attendance->ref_id);
-    $checkInValue = old('check_in', $attendance->check_in ? \Carbon\Carbon::parse($attendance->check_in)->format('H:i:s') : '');
-    $checkOutValue = old('check_out', $attendance->check_out ? \Carbon\Carbon::parse($attendance->check_out)->format('H:i:s') : '');
-    @endphp
 
     <!-- User Type Selection -->
     <div class="row mb-4">
         <div class="col-md-6">
-            <label for="ref_type" class="form-label fw-bold">
-                User Type <span class="text-danger">*</span>
+            <label for="ref_type" class="form-label fw-bold"> @if(old('ref_type') == 'employee')
+                Employee <span class="text-danger">*</span>
+                @elseif(old('ref_type') == 'rider')
+                Rider <span class="text-danger">*</span>
+                @else
+                Rider or Employees <span class="text-danger">*</span>
+                @endif
             </label>
+            @php
+            $selectedType = old('ref_type', $attendance->ref_type ?? 'employee');
+            $selectedRefId = old('ref_id', $attendance->ref_id);
+            $refIdLabel = match ($selectedType) {
+            'employee' => 'Select Employee',
+            'rider' => 'Select Rider',
+            default => 'Select Employee or Rider',
+            };
+            $refIdPlaceholder = match ($selectedType) {
+            'employee' => '-- Select Employee --',
+            'rider' => '-- Select Rider --',
+            default => '-- Select employee or rider first --',
+            };
+            $selectedStatus = str_replace('-', ' ', strtolower(trim(old('status', $attendance->status ?? ''))));
+            $checkInValue = old('check_in');
+            if ($checkInValue === null) {
+            $checkInValue = $attendance->check_in ? \Carbon\Carbon::parse($attendance->check_in)->format('H:i:s') : '';
+            }
+            $checkOutValue = old('check_out');
+            if ($checkOutValue === null) {
+            $checkOutValue = $attendance->check_out ? \Carbon\Carbon::parse($attendance->check_out)->format('H:i:s') : '';
+            }
+            @endphp
             <div class="btn-group w-100" role="group">
-                @if ($attendance->ref_type === 'employee')
                 <input type="radio" class="btn-check" name="ref_type" id="type_employee"
                     value="employee" {{ $selectedType === 'employee' ? 'checked' : '' }}
                     autocomplete="off" required>
                 <label class="btn btn-outline-primary" for="type_employee">
                     <i class="fas fa-user-tie me-2"></i>Employee
                 </label>
-                @endif
-                @if ($attendance->ref_type === 'rider')
                 <input type="radio" class="btn-check" name="ref_type" id="type_rider"
                     value="rider" {{ $selectedType === 'rider' ? 'checked' : '' }}
                     autocomplete="off" required>
                 <label class="btn btn-outline-primary" for="type_rider">
                     <i class="fas fa-motorcycle me-2"></i>Rider
                 </label>
-                @endif
             </div>
             @error('ref_type')
             <div class="text-danger small mt-1">{{ $message }}</div>
@@ -40,14 +57,14 @@
 
         <!-- User Selection -->
         <div class="col-md-6">
-            <label for="ref_id" class="form-label fw-bold required">
-                Select User
+            <label for="ref_id" id="ref_id_label" class="form-label fw-bold required">
+                {{ $refIdLabel }}
             </label>
             <select class="form-select @error('ref_id') is-invalid @enderror select2"
                 id="form_ref_id" name="ref_id" required>
-                <option value="">-- Select user type first --</option>
-                @if(old('ref_id') && old('ref_id') != $attendance->ref_id)
-                <option value="{{ old('ref_id') }}" selected>Selected User (ID: {{ old('ref_id') }})</option>
+                <option value="">{{ $refIdPlaceholder }}</option>
+                @if($selectedRefId && $selectedRefId != $attendance->ref_id)
+                <option value="{{ $selectedRefId }}" selected>Selected User (ID: {{ $selectedRefId }})</option>
                 @elseif($attendance->ref_type && $attendance->user)
                 <option value="{{ $selectedRefId }}" selected>{{ $attendance->user->name }}</option>
                 @endif
@@ -161,6 +178,14 @@
         <div class="invalid-feedback">{{ $message }}</div>
         @enderror
     </div>
+
+    @include('attendance.partials.rider_activity_fields', [
+        'refType' => $selectedType,
+        'total_orders' => old('total_orders', $attendance->total_orders),
+        'working_hours' => old('working_hours', $attendance->working_hours),
+        'cancelled_orders' => old('cancelled_orders', $attendance->cancelled_orders),
+        'rejected_orders' => old('rejected_orders', $attendance->rejected_orders),
+    ])
 
     <!-- Form Actions -->
     <div class="d-flex justify-content-end gap-2">
@@ -306,7 +331,9 @@
         // Load users when user type is selected
         $('input[name="ref_type"]').change(function() {
             var refType = $(this).val();
+            updateRefIdLabel(refType);
             loadUsers(refType);
+            toggleRiderActivitySection(refType);
         });
 
         // Initialize Select2
@@ -317,10 +344,12 @@
         });
 
         // Load initial users based on existing/old ref_type
-        var initialRefType = "{{ strtolower(trim(old('ref_type', $attendance->ref_type ?? 'employee'))) }}";
+        var initialRefType = "{{ old('ref_type', $attendance->ref_type ?? 'employee') }}";
         var initialRefId = "{{ old('ref_id', $attendance->ref_id) }}";
         $('input[name="ref_type"][value="' + initialRefType + '"]').prop('checked', true);
+        updateRefIdLabel(initialRefType);
         loadUsers(initialRefType, initialRefId);
+        toggleRiderActivitySection(initialRefType);
 
         // Check-in/Check-out time validation
         $('#check_in, #check_out').change(function() {
@@ -390,26 +419,56 @@
         });
     });
 
+    function toggleRiderActivitySection(refType) {
+        var section = $('#rider_activity_section');
+        if (!section.length) {
+            return;
+        }
+        if (refType === 'rider') {
+            section.show();
+        } else {
+            section.hide();
+            section.find('input').val('');
+        }
+    }
+
+    function updateRefIdLabel(refType) {
+        var label = 'Select Employee or Rider';
+        var placeholder = '-- Select employee or rider first --';
+
+        if (refType === 'employee') {
+            label = 'Select Employee';
+            placeholder = '-- Select Employee --';
+        } else if (refType === 'rider') {
+            label = 'Select Rider';
+            placeholder = '-- Select Rider --';
+        }
+
+        $('#ref_id_label').text(label);
+    }
+
     // Function to load users based on type
     function loadUsers(refType, selectedUserId = null) {
         var select = $('#form_ref_id');
         select.html('<option value="">Loading users...</option>').prop('disabled', true);
 
         if (refType) {
+            var placeholder = refType === 'employee' ?
+                '-- Select Employee --' :
+                (refType === 'rider' ? '-- Select Rider --' : '-- Select employee or rider first --');
             $.ajax({
                 url: '{{ route("attendance.users", "refType") }}'.replace("refType", refType),
                 type: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    select.html('<option value="">-- Select User --</option>');
+                    select.html('<option value="">' + placeholder + '</option>');
                     $.each(data, function(index, user) {
-                        var selected = (selectedUserId && String(user.id) === String(selectedUserId)) ? 'selected' : '';
+                        var selected = (selectedUserId && user.id == selectedUserId) ? 'selected' : '';
                         select.append('<option value="' + user.id + '" ' + selected + '>' + user.name + '</option>');
                     });
                     select.prop('disabled', false);
-                    if (selectedUserId) {
-                        select.val(String(selectedUserId));
-                    }
+
+                    // Trigger change to ensure any dependent logic runs
                     select.trigger('change');
                 },
                 error: function() {
@@ -418,7 +477,7 @@
                 }
             });
         } else {
-            select.html('<option value="">-- Select user type first --</option>').prop('disabled', true);
+            select.html('<option value="">-- Select employee or rider first --</option>').prop('disabled', true);
         }
     }
 

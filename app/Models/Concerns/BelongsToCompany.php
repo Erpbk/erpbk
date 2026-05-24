@@ -27,21 +27,31 @@ trait BelongsToCompany
             }
 
             $companyId = $model->resolveScopedCompanyId();
-            if ($companyId !== null) {
-                $model->applyCompanyScopeConstraint($builder, $companyId);
-            }
-        });
+            if ($companyId === null) {
+                $builder->whereRaw('0 = 1');
 
-        static::creating(function (Model $model): void {
-            /** @var Model&self $model */
-            if (!$model->shouldApplyCompanyScope()) {
                 return;
             }
 
-            if (empty($model->getAttribute('company_id'))) {
-                $companyId = $model->resolveScopedCompanyId();
-                if ($companyId !== null) {
-                    $model->setAttribute('company_id', $companyId);
+            $model->applyCompanyScopeConstraint($builder, $companyId);
+        });
+
+        static::saving(function (Model $model): void {
+            /** @var Model&self $model */
+            if (!$model->shouldApplyCompanyScope() || !$model->hasCompanyColumn()) {
+                return;
+            }
+
+            $companyId = $model->getAttribute('company_id');
+            if ($companyId === null || $companyId === '') {
+                $scopedCompanyId = $model->resolveScopedCompanyId();
+                if ($scopedCompanyId !== null) {
+                    $model->setAttribute('company_id', $scopedCompanyId);
+                    return;
+                }
+
+                if ($model->exists && $model->getOriginal('company_id') !== null) {
+                    $model->setAttribute('company_id', $model->getOriginal('company_id'));
                 }
             }
         });
@@ -73,28 +83,11 @@ trait BelongsToCompany
     }
 
     /**
-     * Override in models that should see global rows (company_id NULL) + tenant rows.
-     */
-    protected function includesGlobalCompanyRows(): bool
-    {
-        return false;
-    }
-
-    /**
-     * Apply tenant/company constraint to the builder.
-     * Models can override this for advanced behavior.
+     * Apply tenant/company constraint. Rows with company_id NULL are orphan data and are never visible.
      */
     protected function applyCompanyScopeConstraint(Builder $builder, int $companyId): void
     {
-        if ($this->includesGlobalCompanyRows()) {
-            $builder->where(function (Builder $query) use ($builder, $companyId): void {
-                $query
-                    ->where($builder->getModel()->qualifyColumn('company_id'), $companyId)
-                    ->orWhereNull($builder->getModel()->qualifyColumn('company_id'));
-            });
-            return;
-        }
-
-        $builder->where($builder->getModel()->qualifyColumn('company_id'), $companyId);
+        $column = $builder->getModel()->qualifyColumn('company_id');
+        $builder->where($column, $companyId)->whereNotNull($column);
     }
 }

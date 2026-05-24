@@ -16,6 +16,7 @@
   </thead>
   <tbody>
     @php
+  $__companySlug = \App\Support\CompanyRouteContext::slug();
   $editDeleteFlags = $editDeleteFlags ?? [];
 @endphp
 @if(isset($data) && $data->count() > 0)
@@ -25,7 +26,7 @@
         @php
         $voucherId = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
         @endphp
-        <a href="javascript:void(0);" class="text-primary show-voucher-panel" data-action="{{ route('vouchers.show', $voucher->id) }}" data-title="{{ \App\Helpers\General::VoucherType($voucher->voucher_type) ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1">{{ $voucherId }}</a>
+        <a href="javascript:void(0);" class="text-primary show-voucher-panel" data-action="{{ route('vouchers.show', ['company_slug' => $__companySlug, 'voucher' => $voucher->id]) }}" data-title="{{ \App\Helpers\General::VoucherType($voucher->voucher_type) ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', ['company_slug' => $__companySlug]) }}">{{ $voucherId }}</a>
       </td>
       <td>{{ \App\Helpers\Common::DateFormat($voucher->trans_date) }}</td>
       <td>{{ $voucher->trans_code }}</td>
@@ -74,7 +75,7 @@
               @endif
             @endcan
             @can('voucher_view')
-            <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', $voucher->id) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1">
+            <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', ['company_slug' => $__companySlug, 'voucher' => $voucher->id]) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', ['company_slug' => $__companySlug]) }}">
                 <i class="fa fa-eye my-1"></i> View
               </a></li>
             @endcan

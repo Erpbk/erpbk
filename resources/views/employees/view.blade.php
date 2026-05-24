@@ -226,25 +226,57 @@
       font-size: 18px;
     }
   }
+
+  .info-container .user_list {
+    align-items: flex-start;
+  }
+
+  .info-container .user_list .icons {
+    flex-shrink: 0;
+  }
+
+  .info-container .user_list_content {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .info-container .user_list_content b {
+    display: block;
+    float: none;
+    margin-top: 2px;
+  }
 </style>
 
 @php
+$employee = $employee ?? null;
+if ($employee && !isset($result)) {
+$result = $employee->toArray();
+}
 // Ledger-linked account for balance display (create form has no employee yet)
 $account = null;
 if (!request()->routeIs('employees.create') && isset($employee) && !empty($employee->account_id)) {
 $account = App\Models\Accounts::find($employee->account_id);
 }
+$employeeTopViewCategories = collect();
+if (isset($employee)) {
+$employeeTopViewCategories = \App\Models\EmployeeTopCategory::with(['options' => function ($q) {
+$q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+}])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
+}
+$currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : 'active';
 @endphp
 
 <div class="row" style="">
-  <div class="col-xl-3 col-md-3 col-lg-5 order-1 order-md-0">
+  <div class="col-xl-2 col-md-2 col-lg-5 order-1 order-md-0">
     <!-- User Card -->
     <div class="card mb-6" style="border-radius: 25px 25px 0px 0px;">
-      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px;height: 291px;position: relative;background-image: url({{ asset('assets/img/user_back.jpg') }});background-size: cover;">
+      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px;height: 220px;position: relative;background-image: url({{ asset('assets/img/user_back.jpg') }});background-size: cover;">
         <div class="profile-img">
           @php
           if(isset($employee)) {
-          $profile = DB::table('files')
+          $profile = company_table('files')
           ->where('type', 'employee')
           ->where('type_id', $employee->id)
           ->where(function($query) {
@@ -258,7 +290,7 @@ $account = App\Models\Accounts::find($employee->account_id);
           ->first();
 
           if($employee->profile_image)
-          $image_name = asset('storage/' . $employee->profile_image);
+          $image_name = $employee->profile_image_url;
           elseif (isset($profile))
           $image_name = asset('storage2/'. $profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
           else
@@ -277,34 +309,41 @@ $account = App\Models\Accounts::find($employee->account_id);
               <div class="d-flex align-items-baseline">
                 <div class="user-info" style="width: 100%;">
                   <div class="mt-2" style="width: 100%;display: flex;gap: 10px; margin-bottom: 10px;">
-                    <span class="badge bg-label-primary">{{ $employee->designation ?? 'Not Set' }}</span>
-                    <span class="badge  @if(isset($employee)) @if($employee->status == 'active') bg-label-success @elseif($employee->status == 'inactive') bg-label-danger @else bg-label-info @endif @endif">
-                      {{ ucfirst($employee->status ?? 'Not Set') }}
+                    <span class="badge bg-label-primary" id="employee-designation-badge">{{ $employee?->designation ?? 'Not Set' }}</span>
+                    <span class="badge @if($employee) @if($employee->status == 'active') bg-label-success @elseif($employee->status == 'inactive') bg-label-danger @else bg-label-info @endif @else bg-label-secondary @endif" id="employee-status-value-badge">
+                      {{ $employee ? ucfirst($employee->status) : 'New' }}
                     </span>
                   </div>
-                  <span>{{ $employee->employee_id ?? 'not-set' }}</span>
+                  <span>{{ $employee?->employee_id ?? ($empId ?? 'not-set') }}</span>
                   <h6>
-                    <b>
-                      {{ $employee->name ?? 'not-set' }}
+                    <b id="employee-profile-name">
+                      {{ $employee?->name ?? 'New Employee' }}
                     </b>
                   </h6>
                 </div>
-                <div class="text-end" style="width: 14%;" id="photo-icon">
-                  <i class="ti ti-edit ti-sm"
-                    style="border: 2px solid #9593997a !important; border-radius: 24px; padding: 8px; cursor: pointer;">
-                  </i>
+                @if($employee)
+                <div class="text-end" style="width: 14%;">
+                  <button type="button"
+                    class="btn btn-sm btn-icon border-0 p-0"
+                    id="employee-photo-edit-btn"
+                    title="Change photo"
+                    aria-label="Change photo"
+                    style="border: 2px solid #9593997a !important; border-radius: 24px; padding: 8px; cursor: pointer; background: transparent;">
+                    <i class="ti ti-edit ti-sm"></i>
+                  </button>
                 </div>
+                @endif
               </div>
             </div>
-            @if(isset($employee))
-            <div id="photo-upload-form" class="mt-4" style="display: none;">
-              <form action="{{ route('employees.updateSection', $employee->id) }}" method="POST" enctype="multipart/form-data" id="formAjax2">
+            @if($employee)
+            <div id="employee-photo-upload-form" class="mt-4" style="display: none;">
+              <form action="{{ route('employees.updateSection', $employee->id) }}" method="POST" enctype="multipart/form-data" id="employee-photo-form">
                 @csrf
                 <div class="button-wrapper">
-                  <label for="upload" class="btn btn-default me-2 mb-3 mt-3" tabindex="0">
+                  <label for="employee-profile-image-upload" class="btn btn-default me-2 mb-3 mt-3" tabindex="0">
                     <span class="d-none d-sm-block">Change Photo</span>
                     <i class="ti ti-upload d-block d-sm-none"></i>
-                    <input type="file" id="upload" name="profile_image" class="account-file-input" hidden accept="image/png, image/jpeg" onchange="loadFile(event)" />
+                    <input type="file" id="employee-profile-image-upload" name="profile_image" class="account-file-input" hidden accept="image/png, image/jpeg" />
                   </label>
                   <input type="hidden" name="section" value="photo">
                   <button type="submit" class="btn btn-primary">Upload</button>
@@ -318,9 +357,11 @@ $account = App\Models\Accounts::find($employee->account_id);
           <h3>Basic Information</h3>
           <ul class="list-unstyled mb-6">
             <script>
-              var loadFile = function(event) {
+              window.loadEmployeeProfileImagePreview = function(event) {
                 var image = document.getElementById("output");
-                image.src = URL.createObjectURL(event.target.files[0]);
+                if (image && event.target.files && event.target.files[0]) {
+                  image.src = URL.createObjectURL(event.target.files[0]);
+                }
               };
             </script>
 
@@ -331,7 +372,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Company Email:</span><br>
-                  <b class="float-right">{{ $employee->company_email ?? 'not-set' }}</b>
+                  <b class="float-right" data-employee-field="company_email">{{ $employee?->company_email ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -340,8 +381,8 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content mt-2">
                   <span>WhatsApp:</span><br>
-                  <b class="float-right">
-                    @if(isset($employee->company_contact))
+                  <b class="float-right" data-employee-field="company_contact_html">
+                    @if($employee?->company_contact)
                     @php
                     $phone = preg_replace('/[^0-9]/', '', $employee->company_contact);
                     $whatsappNumber = '+971' . ltrim($phone, '0');
@@ -363,7 +404,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Nationality:</span><br>
-                  <b class="float-right">{{ $employee->nationality->name ?? 'not-set' }}</b>
+                  <b class="float-right" data-employee-field="nationality">{{ $employee?->nationality?->name ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -372,8 +413,8 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Age:</span><br>
-                  <b class="float-right">
-                    @if(isset($employee->dob))
+                  <b class="float-right" data-employee-field="age">
+                    @if($employee?->dob)
                     {{ \Carbon\Carbon::parse($employee->dob)->age }}
                     @else
                     not-set
@@ -387,8 +428,8 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Date Of Joining:</span><br>
-                  <b class="float-right">
-                    @if(isset($employee->doj))
+                  <b class="float-right" data-employee-field="doj">
+                    @if($employee?->doj)
                     {{ \Carbon\Carbon::parse($employee->doj)->format('d M Y') }}
                     @else
                     not-set
@@ -417,7 +458,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Salary:</span><br>
-                  <b class="float-right">{{ number_format($employee->salary ?? 0, 2) }} {{ \App\Helpers\Currency::code() }}</b>
+                  <b class="float-right" data-employee-field="salary">{{ number_format($employee?->salary ?? 0, 2) }} {{ \App\Helpers\Currency::code() }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -426,7 +467,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Emirates ID:</span><br>
-                  <b class="float-right">{{ $employee->emirate_id ?? 'not-set' }}</b>
+                  <b class="float-right" data-employee-field="emirate_id">{{ $employee?->emirate_id ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -435,7 +476,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Department:</span><br>
-                  <b class="float-right">{{ $employee->department->name ?? $employee->department_id ?? 'not-set' }}</b>
+                  <b class="float-right" data-employee-field="department">{{ $employee?->department?->name ?? $employee?->department_id ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -444,11 +485,15 @@ $account = App\Models\Accounts::find($employee->account_id);
                 </div>
                 <div class="user_list_content">
                   <span>Branch:</span><br>
-                  <b class="float-right">{{ $employee->branch->name ?? 'not-set' }}</b>
+                  <b class="float-right" data-employee-field="branch">{{ $employee?->branch?->name ?? 'not-set' }}</b>
                 </div>
               </li>
             </ul>
           </ul>
+
+          @if($employee)
+          @include('employees._status_cards', ['employee' => $employee, 'employeeTopViewCategories' => $employeeTopViewCategories])
+          @endif
 
         </div>
       </div>
@@ -472,7 +517,7 @@ $account = App\Models\Accounts::find($employee->account_id);
                 @if(isset($employee))
                 @can('employee_document')
                 <li class="nav-item nav-priority-2">
-                  <a class="nav-link @if(request()->segment(2) == 'files') active @endif"
+                  <a class="nav-link @if(request()->segment(5) == 'files') active @endif"
                     href="{{ route('employee.files', $employee->id) }}">
                     <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
                   </a>
@@ -490,7 +535,7 @@ $account = App\Models\Accounts::find($employee->account_id);
 
                 @can('employee_salary')
                 <li class="nav-item nav-priority-4">
-                  <a class="nav-link @if(request()->segment(2) == 'salary') active @endif"
+                  <a class="nav-link @if(request()->segment(5) == 'salary') active @endif"
                     href="{{ route('employee.salary', $employee->id) }}">
                     <i class="ti ti-cash-banknote ti-sm me-1"></i>Salary
                   </a>
@@ -499,30 +544,21 @@ $account = App\Models\Accounts::find($employee->account_id);
 
                 @can('employee_attendance')
                 <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(request()->segment(2) == 'attendance') active @endif"
+                  <a class="nav-link @if(request()->segment(5) == 'attendance') active @endif"
                     href="{{ route('employee.attendance', $employee->id) }}">
-                    <i class="ti ti-calendar-check ti-sm me-1_5"></i>Attendance
+                    <i class="ti ti-activity-heartbeat ti-sm me-1_5"></i>Activities
                   </a>
                 </li>
                 @endcan
 
-                @can('employee_leave')
-                <li class="nav-item nav-priority-6">
-                  <a class="nav-link @if(request()->segment(2) == 'leaves') active @endif"
-                    href="{{ route('employee.leaves', $employee->id) }}">
-                    <i class="ti ti-calendar-off ti-sm me-1_5"></i>Leaves
-                  </a>
-                </li>
-                @endcan
 
-                @can('employee_timeline')
+
                 <li class="nav-item nav-priority-7">
-                  <a class="nav-link @if(request()->segment(2) == 'timeline') active @endif"
-                    href="{{ route('employee.timeline', $employee->id) }}">
-                    <i class="ti ti-timeline ti-sm me-1_5"></i>Timeline
+                  <a class="nav-link @if(request()->routeIs('employee.history')) active @endif"
+                    href="{{ route('employee.history', $employee->id) }}">
+                    <i class="ti ti-history ti-sm me-1_5"></i>Employee history
                   </a>
                 </li>
-                @endcan
 
                 <!-- Action items -->
                 @canany(['employee_voucher_create'])
@@ -555,13 +591,14 @@ $account = App\Models\Accounts::find($employee->account_id);
       </div>
     </div>
 
-    <div style="margin-top: 20px; position: relative;">
+    <div class="card mb-5" id="cardBody" style="margin-top: 20px; position: relative;">
+      @yield('page_content')
       @yield('page-content')
     </div>
   </div>
 </div>
 
-{{-- @include('employees.action-buttons') --}}
+@include('employees.action-buttons')
 @endsection
 
 @section('page-script')
@@ -754,6 +791,380 @@ $account = App\Models\Accounts::find($employee->account_id);
 
     // Initialize responsive navigation
     const responsiveNav = new ResponsiveNavigation();
+
+    function refreshEmployeeSidebar(emp) {
+      if (!emp) return;
+      const nameEl = document.getElementById('employee-profile-name');
+      if (nameEl && emp.name) nameEl.textContent = emp.name;
+      if (emp.designation !== undefined) {
+        const designationBadge = document.getElementById('employee-designation-badge');
+        if (designationBadge) designationBadge.textContent = emp.designation || 'Not Set';
+      }
+      if (emp.status && typeof window.syncEmployeeStatusCards === 'function') {
+        window.syncEmployeeStatusCards(emp.status);
+      }
+      document.querySelectorAll('[data-employee-field]').forEach((el) => {
+        const key = el.getAttribute('data-employee-field');
+        if (!key || emp[key] === undefined || emp[key] === null) return;
+        if (key === 'company_contact_html') {
+          el.innerHTML = emp[key] || 'N/A';
+          return;
+        }
+        el.textContent = emp[key] === '' ? 'not-set' : emp[key];
+      });
+    }
+    window.refreshEmployeeSidebar = refreshEmployeeSidebar;
+
+    function employeePhotoNotify(message, type) {
+      if (typeof showNotification === 'function') {
+        showNotification(message, type);
+      } else if (window.toastr) {
+        toastr[type === 'success' ? 'success' : 'error'](message);
+      } else {
+        alert(message);
+      }
+    }
+
+    const employeePhotoEditBtn = document.getElementById('employee-photo-edit-btn');
+    const employeePhotoUploadPanel = document.getElementById('employee-photo-upload-form');
+    if (employeePhotoEditBtn && employeePhotoUploadPanel) {
+      employeePhotoEditBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const isHidden = employeePhotoUploadPanel.style.display === 'none' ||
+          window.getComputedStyle(employeePhotoUploadPanel).display === 'none';
+        employeePhotoUploadPanel.style.display = isHidden ? 'block' : 'none';
+      });
+    }
+
+    const employeeProfileImageInput = document.getElementById('employee-profile-image-upload');
+    if (employeeProfileImageInput) {
+      employeeProfileImageInput.addEventListener('change', function(e) {
+        if (typeof window.loadEmployeeProfileImagePreview === 'function') {
+          window.loadEmployeeProfileImagePreview(e);
+        }
+      });
+    }
+
+    const employeePhotoForm = document.getElementById('employee-photo-form');
+    if (employeePhotoForm) {
+      employeePhotoForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const fileInput = this.querySelector('input[name="profile_image"]');
+        if (!fileInput || !fileInput.files || !fileInput.files.length) {
+          employeePhotoNotify('Please choose a photo before uploading.', 'error');
+          return;
+        }
+
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+
+        fetch(this.action, {
+            method: 'POST',
+            headers: {
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: formData,
+          })
+          .then((r) => r.json().then((data) => ({
+            ok: r.ok,
+            data
+          })))
+          .then(({
+            ok,
+            data
+          }) => {
+            if (ok && data.success) {
+              if (data.image_url) {
+                const img = document.getElementById('output');
+                if (img) img.src = data.image_url;
+              }
+              employeePhotoNotify(data.message || 'Photo updated', 'success');
+              if (employeePhotoUploadPanel) employeePhotoUploadPanel.style.display = 'none';
+              if (fileInput) fileInput.value = '';
+            } else {
+              let msg = data.message || 'Failed to upload photo';
+              if (data.errors) {
+                const flat = Object.values(data.errors).flat();
+                if (flat.length) msg = flat.join(' ');
+              }
+              employeePhotoNotify(msg, 'error');
+            }
+          })
+          .catch(() => employeePhotoNotify('Failed to upload photo', 'error'))
+          .finally(() => {
+            if (submitBtn) submitBtn.disabled = false;
+          });
+      });
+    }
+
+    const employeeStatusCards = document.getElementById('employee-status-cards');
+    if (employeeStatusCards) {
+      const employeeId = employeeStatusCards.getAttribute('data-employee-id');
+      const updateStatusUrl = "{{ route('employee.update-status') }}";
+      const updateFieldUrl = "{{ route('employee.update-profile-field') }}";
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      const employeeTopOptionDateModalEl = document.getElementById('employeeTopOptionDateModal');
+      const employeeTopOptionModal = employeeTopOptionDateModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal ?
+        new bootstrap.Modal(employeeTopOptionDateModalEl) :
+        null;
+      let pendingEmployeeChange = null;
+
+      function employeeTopOptionTodayYmd() {
+        const t = new Date();
+        return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+      }
+
+      function openEmployeeDateModal(label) {
+        const nameEl = document.getElementById('employeeTopOptionModalStatusName');
+        if (nameEl) nameEl.textContent = label || 'Change';
+        const dateInput = document.getElementById('employeeTopOptionEffectiveDate');
+        const today = employeeTopOptionTodayYmd();
+        if (dateInput) {
+          dateInput.max = today;
+          dateInput.value = today;
+        }
+        if (employeeTopOptionModal) {
+          employeeTopOptionModal.show();
+        } else {
+          showNotification('Date dialog is unavailable', 'error');
+          pendingEmployeeChange = null;
+        }
+      }
+
+      window.syncEmployeeStatusCards = function syncEmployeeStatusCards(activeStatus) {
+        const map = {
+          active: 'employee-status-active-card',
+          on_leave: 'employee-status-leave-card',
+          inactive: 'employee-status-inactive-card',
+        };
+        Object.keys(map).forEach((key) => {
+          const card = document.getElementById(map[key]);
+          const radio = card ? card.querySelector('input[name="employee_status_toggle"]') : null;
+          if (!card) return;
+          const isActive = activeStatus === key;
+          card.classList.toggle('active-success', key === 'active' && isActive);
+          card.classList.toggle('active-info', key === 'on_leave' && isActive);
+          card.classList.toggle('active-danger', key === 'inactive' && isActive);
+          if (radio) radio.checked = isActive;
+        });
+        const badge = document.getElementById('employee-status-value-badge');
+        if (badge) {
+          const label = (activeStatus || 'active').replace('_', ' ');
+          badge.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+          badge.className = 'badge ' + (
+            activeStatus === 'active' ? 'bg-label-success' :
+            activeStatus === 'inactive' ? 'bg-label-danger' : 'bg-label-info'
+          );
+        }
+      }
+
+      function syncEmployeeTopOptionCards(column) {
+        employeeStatusCards.querySelectorAll('.employee-top-option-card[data-column="' + column + '"]').forEach((c) => {
+          const cb = c.querySelector('.employee-top-option-checkbox');
+          c.classList.toggle('active-success', !!(cb && cb.checked));
+        });
+      }
+
+      function getActiveEmployeeStatus() {
+        const checked = employeeStatusCards.querySelector('input[name="employee_status_toggle"]:checked');
+        return checked ? checked.value : 'active';
+      }
+
+      function submitEmployeeStatusChange(status, effectiveDate) {
+        const card = document.getElementById(
+          status === 'active' ? 'employee-status-active-card' :
+          status === 'on_leave' ? 'employee-status-leave-card' : 'employee-status-inactive-card'
+        );
+        if (card) card.classList.add('loading');
+
+        return fetch(updateStatusUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify({
+              employee_id: employeeId,
+              status: status,
+              effective_date: effectiveDate,
+            }),
+          })
+          .then((r) => r.json().then((data) => ({
+            ok: r.ok,
+            data
+          })))
+          .then(({
+            ok,
+            data
+          }) => {
+            if (ok && data.success) {
+              syncEmployeeStatusCards(status);
+              refreshEmployeeSidebar(data.employee);
+              showNotification(data.message || 'Status updated', 'success');
+              return true;
+            }
+            const msg = data.message || (data.errors ? Object.values(data.errors).flat().join(' ') : 'Failed to update status');
+            showNotification(msg, 'error');
+            syncEmployeeStatusCards(getActiveEmployeeStatus());
+            return false;
+          })
+          .catch(() => {
+            showNotification('Failed to update status', 'error');
+            syncEmployeeStatusCards(getActiveEmployeeStatus());
+            return false;
+          })
+          .finally(() => {
+            if (card) card.classList.remove('loading');
+          });
+      }
+
+      function submitEmployeeFieldChange(checkbox, value, effectiveDate) {
+        const column = checkbox.getAttribute('data-column');
+        const card = checkbox.closest('.status-card');
+        const categoryName = card ? card.getAttribute('data-category') : null;
+        if (!column) return Promise.resolve(false);
+        if (card) card.classList.add('loading');
+
+        const payload = {
+          employee_id: employeeId,
+          column: column,
+          value: value,
+          category_name: categoryName,
+        };
+        if (value) payload.effective_date = effectiveDate;
+
+        return fetch(updateFieldUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify(payload),
+          })
+          .then((r) => r.json().then((data) => ({
+            ok: r.ok,
+            data
+          })))
+          .then(({
+            ok,
+            data
+          }) => {
+            if (ok && data.success) {
+              if (value) {
+                employeeStatusCards.querySelectorAll('.employee-top-option-card[data-column="' + column + '"]').forEach((c) => {
+                  const cb = c.querySelector('.employee-top-option-checkbox');
+                  if (cb && cb !== checkbox) cb.checked = false;
+                });
+                checkbox.checked = true;
+              } else {
+                checkbox.checked = false;
+              }
+              syncEmployeeTopOptionCards(column);
+              refreshEmployeeSidebar(data.employee);
+              showNotification(data.message || 'Updated', 'success');
+              return true;
+            }
+            const msg = data.message || (data.errors ? Object.values(data.errors).flat().join(' ') : 'Failed to update');
+            showNotification(msg, 'error');
+            return false;
+          })
+          .catch(() => {
+            showNotification('Failed to update', 'error');
+            return false;
+          })
+          .finally(() => {
+            if (card) card.classList.remove('loading');
+          });
+      }
+
+      employeeStatusCards.addEventListener('click', function(e) {
+        const toggleArea = e.target.closest('.status-toggle');
+        if (!toggleArea || !employeeStatusCards.contains(toggleArea)) return;
+
+        const radio = toggleArea.querySelector('input[name="employee_status_toggle"]');
+        if (radio) {
+          if (radio.checked) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const titleEl = radio.closest('.status-card')?.querySelector('.status-title');
+          pendingEmployeeChange = {
+            type: 'status',
+            status: radio.value,
+          };
+          openEmployeeDateModal(titleEl ? titleEl.textContent.trim() : 'Status');
+          return;
+        }
+
+        const checkbox = toggleArea.querySelector('.employee-top-option-checkbox');
+        if (checkbox) {
+          if (checkbox.checked) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const card = checkbox.closest('.status-card');
+          const titleEl = card ? card.querySelector('.status-title') : null;
+          pendingEmployeeChange = {
+            type: 'field',
+            checkbox: checkbox,
+            value: checkbox.getAttribute('data-value'),
+          };
+          openEmployeeDateModal(titleEl ? titleEl.textContent.trim() : 'Option');
+        }
+      }, true);
+
+      if (employeeTopOptionDateModalEl) {
+        employeeTopOptionDateModalEl.addEventListener('hidden.bs.modal', function() {
+          pendingEmployeeChange = null;
+        });
+      }
+
+      document.getElementById('employeeTopOptionDateSave')?.addEventListener('click', function() {
+        const pending = pendingEmployeeChange;
+        if (!pending) return;
+        const dateInput = document.getElementById('employeeTopOptionEffectiveDate');
+        const effectiveDate = dateInput ? dateInput.value : '';
+        const today = employeeTopOptionTodayYmd();
+        if (!effectiveDate) {
+          showNotification('Please select an effective date', 'error');
+          return;
+        }
+        if (effectiveDate > today) {
+          showNotification('Future dates are not allowed', 'error');
+          return;
+        }
+
+        if (pending.type === 'status') {
+          submitEmployeeStatusChange(pending.status, effectiveDate).then((ok) => {
+            if (ok && employeeTopOptionModal) employeeTopOptionModal.hide();
+          });
+          return;
+        }
+
+        if (pending.type === 'field' && pending.checkbox) {
+          submitEmployeeFieldChange(pending.checkbox, pending.value, effectiveDate).then((ok) => {
+            if (ok && employeeTopOptionModal) employeeTopOptionModal.hide();
+          });
+        }
+      });
+
+      employeeStatusCards.addEventListener('change', function(e) {
+        const target = e.target;
+        if (!employeeId || !csrfToken) return;
+
+        if (target.classList.contains('employee-top-option-checkbox') && !target.checked) {
+          submitEmployeeFieldChange(target, null, null).then((ok) => {
+            if (!ok) target.checked = true;
+          });
+        }
+      });
+    }
 
     // Function to show notifications
     function showNotification(message, type) {

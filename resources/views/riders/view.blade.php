@@ -274,20 +274,20 @@ if(isset($riders)){
 $result = $riders->toArray();
 }
 if(isset($result)){
-$account = App\Models\Accounts::where('ref_id', $result['id'])->where('account_type', 'expense')->first();
+$account = App\Models\ExpenseAccount::where('rider_id', $result['id'])->first();
 }
 $companySlug = request()->route('company_slug');
 
 @endphp
 <div class="row" style="">
-  <div class="col-xl-3 col-md-3 col-lg-5 order-1 order-md-0">
+  <div class="col-xl-2 col-md-3 col-lg-5 order-1 order-md-0">
     <!-- User Card -->
     <div class="card mb-6" style="border-radius: 25px 25px 0px 0px;">
       <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px; height: 291px; position: relative; background-image: url({{ asset('assets/img/user_back.jpg') }}); background-size: cover;">
         @isset($result)
         <div class="profile-img">
           @php
-          $profile = DB::table('files')
+          $profile = company_table('files')
           ->where('type', 'rider')
           ->where('type_id', $result['id'])
           ->where(function($query) {
@@ -427,7 +427,7 @@ $companySlug = request()->route('company_slug');
                   <i class="ti ti-flag ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Nationality:</span><br> <b class="float-right">@isset($result){{DB::Table('countries')->where('id' , $result['nationality'])->first()->name ??'not-set'}}@endisset</b>
+                  <span>Nationality:</span><br> <b class="float-right">@isset($result){{company_table('countries')->where('id' , $result['nationality'])->first()->name ??'not-set'}}@endisset</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -523,6 +523,26 @@ $companySlug = request()->route('company_slug');
             @endforeach
             @endforeach
           </div>
+
+          <div class="modal fade" id="riderTopOptionDateModal" tabindex="-1" aria-labelledby="riderTopOptionDateModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="riderTopOptionDateModalLabel">Confirm status</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <p class="mb-3">Choose the effective date for <strong id="riderTopOptionModalStatusName">—</strong>. Dates after today are not allowed.</p>
+                  <label for="riderTopOptionEffectiveDate" class="form-label">Effective date <span class="text-danger">*</span></label>
+                  <input type="date" class="form-control" id="riderTopOptionEffectiveDate" required autocomplete="off">
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-primary" id="riderTopOptionDateSave">Save</button>
+                </div>
+              </div>
+            </div>
+          </div>
           @endisset
         </div>
       </div>
@@ -551,6 +571,12 @@ $companySlug = request()->route('company_slug');
                     <i class="ti ti-timeline ti-sm me-1_5"></i>Timeline
                   </a>
                 </li>
+                <li class="nav-item nav-priority-2">
+                  <a class="nav-link @if(Route::is('rider.history')) active @endif"
+                    href="{{route('rider.history',$result['id'])}}">
+                    <i class="ti ti-history ti-sm me-1_5"></i>Rider history
+                  </a>
+                </li>
                 @endcan
 
                 @can('rider_document')
@@ -572,13 +598,18 @@ $companySlug = request()->route('company_slug');
                 @endcan
 
                 @can('visaexpense_view')
-                @if(!empty($account))
+                @if(!empty($riders))
+                @php
+                $account = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
+                @endphp
+                @if($account)
                 <li class="nav-item nav-priority-5">
                   <a class="nav-link @if(Route::is('VisaExpense.generatentries')) active @endif"
-                    href="{{ route('VisaExpense.generatentries', optional($account)->id) }}">
+                    href="{{ route('VisaExpense.generatentries', $account->id) }}">
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Visa Expense
                   </a>
                 </li>
+                @endif
                 @endif
                 @endcan
 
@@ -967,68 +998,157 @@ $companySlug = request()->route('company_slug');
     }
 
     const statusCardsContainer = document.getElementById('rider-status-cards');
+    const riderTopOptionDateModalEl = document.getElementById('riderTopOptionDateModal');
+    const riderTopOptionModal = riderTopOptionDateModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal ?
+      new bootstrap.Modal(riderTopOptionDateModalEl) :
+      null;
+    let pendingRiderTopOptionCheckbox = null;
+
+    function riderTopOptionTodayYmd() {
+      const t = new Date();
+      const y = t.getFullYear();
+      const m = String(t.getMonth() + 1).padStart(2, '0');
+      const d = String(t.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + d;
+    }
+
+    function submitRiderTopOptionRequest(checkbox, requestOptionId, effectiveDate) {
+      const riderId = checkbox.getAttribute('data-rider-id');
+      const optionId = parseInt(checkbox.getAttribute('data-option-id') || '0', 10);
+      const card = checkbox.closest('.status-card');
+      if (!riderId || !card) {
+        showNotification('Rider ID not found', 'error');
+        return Promise.resolve();
+      }
+      const subtitle = card.querySelector('.status-subtitle');
+      card.classList.add('loading');
+      if (subtitle) subtitle.textContent = 'Updating...';
+
+      const setOptionUrlTemplate = "{{ route('riders.setRiderTopOption', ['id' => '__RID__']) }}";
+      const setOptionUrl = setOptionUrlTemplate.replace('__RID__', riderId);
+      const body = {
+        option_id: requestOptionId
+      };
+      if (requestOptionId != null && effectiveDate) {
+        body.effective_date = effectiveDate;
+      }
+
+      return fetch(setOptionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+          },
+          body: JSON.stringify(body)
+        })
+        .then(async (response) => {
+          const data = await response.json().catch(() => ({}));
+          if (response.ok && data.success) {
+            const selectedId = parseInt(data.option_id || 0, 10);
+            const selectedLabel = data.option_label || null;
+            syncStatusCards(selectedId, selectedLabel);
+            showNotification(data.message, 'success');
+            return true;
+          }
+          let msg = data.message || 'Unknown error';
+          if (data.errors) {
+            const flat = Object.values(data.errors).flat();
+            if (flat.length) msg = flat.join(' ');
+          }
+          showNotification('Error: ' + msg, 'error');
+          return false;
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+          showNotification('An error occurred while updating status', 'error');
+          return false;
+        })
+        .finally(() => {
+          card.classList.remove('loading');
+        });
+    }
+
+    function rollbackRiderTopOptionCheckbox(checkbox) {
+      const activeCard = statusCardsContainer.querySelector('.status-card.active');
+      const rollbackId = activeCard ? parseInt(activeCard.getAttribute('data-option-id') || '0', 10) : 0;
+      const rollbackTitleEl = activeCard ? activeCard.querySelector('.status-title') : null;
+      const rollbackLabel = rollbackTitleEl ? rollbackTitleEl.textContent : null;
+      syncStatusCards(rollbackId, rollbackLabel);
+    }
+
     if (statusCardsContainer) {
+      statusCardsContainer.addEventListener('click', function(e) {
+        const toggleArea = e.target.closest('.status-toggle');
+        if (!toggleArea || !statusCardsContainer.contains(toggleArea)) return;
+        const checkbox = toggleArea.querySelector('.rider-top-option-checkbox');
+        if (!checkbox) return;
+        if (checkbox.checked) return;
+        e.preventDefault();
+        e.stopPropagation();
+        pendingRiderTopOptionCheckbox = checkbox;
+        const card = checkbox.closest('.status-card');
+        const titleEl = card ? card.querySelector('.status-title') : null;
+        const nameEl = document.getElementById('riderTopOptionModalStatusName');
+        if (nameEl) nameEl.textContent = (titleEl && titleEl.textContent) ? titleEl.textContent.trim() : 'Status';
+        const dateInput = document.getElementById('riderTopOptionEffectiveDate');
+        const today = riderTopOptionTodayYmd();
+        if (dateInput) {
+          dateInput.max = today;
+          dateInput.value = today;
+        }
+        riderTopOptionModal ? riderTopOptionModal.show() : (function() {
+          showNotification('Date dialog is unavailable', 'error');
+          pendingRiderTopOptionCheckbox = null;
+        })();
+      }, true);
+
+      if (riderTopOptionDateModalEl) {
+        riderTopOptionDateModalEl.addEventListener('hidden.bs.modal', function() {
+          pendingRiderTopOptionCheckbox = null;
+        });
+      }
+
+      document.getElementById('riderTopOptionDateSave')?.addEventListener('click', function() {
+        const checkbox = pendingRiderTopOptionCheckbox;
+        if (!checkbox) return;
+        const dateInput = document.getElementById('riderTopOptionEffectiveDate');
+        const effectiveDate = dateInput ? dateInput.value : '';
+        const today = riderTopOptionTodayYmd();
+        if (!effectiveDate) {
+          showNotification('Please select an effective date', 'error');
+          return;
+        }
+        if (effectiveDate > today) {
+          showNotification('Future dates are not allowed', 'error');
+          return;
+        }
+        const optionId = parseInt(checkbox.getAttribute('data-option-id') || '0', 10);
+        submitRiderTopOptionRequest(checkbox, optionId, effectiveDate).then((ok) => {
+          if (ok) {
+            riderTopOptionModal ? riderTopOptionModal.hide() : null;
+          }
+        });
+      });
+
       statusCardsContainer.addEventListener('change', function(e) {
         const checkbox = e.target;
         if (!checkbox.classList.contains('rider-top-option-checkbox')) return;
-        const riderId = checkbox.getAttribute('data-rider-id');
-        const optionId = parseInt(checkbox.getAttribute('data-option-id') || '0', 10);
-        const card = checkbox.closest('.status-card');
+        if (checkbox.checked) return;
 
-        if (!riderId) {
+        const riderId = checkbox.getAttribute('data-rider-id');
+        const card = checkbox.closest('.status-card');
+        if (!riderId || !card) {
           showNotification('Rider ID not found', 'error');
           return;
         }
 
-        const isChecked = checkbox.checked;
-        const requestOptionId = isChecked ? optionId : null;
-        const subtitle = card.querySelector('.status-subtitle');
-
-        card.classList.add('loading');
-        if (subtitle) subtitle.textContent = 'Updating...';
-
-        const setOptionUrlTemplate = "{{ route('riders.setRiderTopOption', ['id' => '__RID__']) }}";
-        const setOptionUrl = setOptionUrlTemplate.replace('__RID__', riderId);
-        fetch(setOptionUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({
-              option_id: requestOptionId
-            })
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              const selectedId = parseInt(data.option_id || 0, 10);
-              const selectedLabel = data.option_label || null;
-              syncStatusCards(selectedId, selectedLabel);
-              showNotification(data.message, 'success');
-            } else {
-              showNotification('Error: ' + (data.message || 'Unknown error'), 'error');
-              checkbox.checked = !isChecked;
-              const activeCard = statusCardsContainer.querySelector('.status-card.active');
-              const rollbackId = activeCard ? parseInt(activeCard.getAttribute('data-option-id') || '0', 10) : 0;
-              const rollbackTitleEl = activeCard ? activeCard.querySelector('.status-title') : null;
-              const rollbackLabel = rollbackTitleEl ? rollbackTitleEl.textContent : null;
-              syncStatusCards(rollbackId, rollbackLabel);
-            }
-          })
-          .catch(error => {
-            console.error('Error:', error);
-            showNotification('An error occurred while updating status', 'error');
-            checkbox.checked = !isChecked;
-            const activeCard = statusCardsContainer.querySelector('.status-card.active');
-            const rollbackId = activeCard ? parseInt(activeCard.getAttribute('data-option-id') || '0', 10) : 0;
-            const rollbackTitleEl = activeCard ? activeCard.querySelector('.status-title') : null;
-            const rollbackLabel = rollbackTitleEl ? rollbackTitleEl.textContent : null;
-            syncStatusCards(rollbackId, rollbackLabel);
-          })
-          .finally(() => {
-            card.classList.remove('loading');
-          });
+        submitRiderTopOptionRequest(checkbox, null, null).then((ok) => {
+          if (!ok) {
+            checkbox.checked = true;
+            rollbackRiderTopOptionCheckbox(checkbox);
+          }
+        });
       });
     }
 

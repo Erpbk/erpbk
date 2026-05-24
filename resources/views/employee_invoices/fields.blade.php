@@ -11,7 +11,7 @@
         <label>Employee</label>
         {!! Form::select('employee_id', $employees, null, ['class' => 'form-select form-select-sm select2', 'id' => 'employee_id']) !!}
     </div>
-    <div class="col-md-2 form-group">
+    {{-- <div class="col-md-2 form-group">
         <label>Project</label>
         {!! Form::text('zone', null, ['class' => 'form-control', 'placeholder' => 'Project']) !!}
     </div>
@@ -38,7 +38,7 @@
     <div class="col-md-2 form-group">
         <label>Off</label>
         {!! Form::text('off', null, ['class' => 'form-control', 'placeholder' => 'Off']) !!}
-    </div>
+    </div> --}}
     <div class="form-group col-md-2">
         <label>Billing Month</label>
         <input type="month" name="billing_month" class="form-control"

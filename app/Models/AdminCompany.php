@@ -24,6 +24,11 @@ class AdminCompany extends BaseModel
 
     protected $keyType = 'int';
 
+    protected function shouldApplyCompanyScope(): bool
+    {
+        return false;
+    }
+
     protected $fillable = [
         'id',
         'name',
@@ -59,38 +64,49 @@ class AdminCompany extends BaseModel
      */
     public static function syncFromCentralCompany(Company $company): void
     {
-        static::withTrashed()
-            ->where('email', $company->email)
-            ->where('id', '!=', $company->id)
-            ->get()
-            ->each->forceDelete();
+        $payload = [
+            'name' => $company->name,
+            'email' => $company->email,
+            'country' => $company->country,
+            'phone' => $company->phone,
+            'status' => $company->status,
+            'database_name' => $company->database_name,
+            'city' => $company->city,
+            'address' => $company->address,
+            'is_taxpayer' => $company->is_taxpayer,
+            'ntn_number' => $company->ntn_number,
+            'tax_registration_date' => $company->tax_registration_date,
+            'logo' => $company->logo,
+            'primary_color' => $company->primary_color,
+            'secondary_color' => $company->secondary_color,
+            'modules_settings' => $company->modules_settings,
+            'approved_at' => $company->approved_at,
+            'approved_by' => $company->approved_by,
+            'rejection_reason' => $company->rejection_reason,
+        ];
 
-        $adminCompany = static::withTrashed()->updateOrCreate(
-            ['id' => $company->id],
-            [
-                'name' => $company->name,
-                'email' => $company->email,
-                'country' => $company->country,
-                'phone' => $company->phone,
-                'status' => $company->status,
-                'database_name' => $company->database_name,
-                'city' => $company->city,
-                'address' => $company->address,
-                'is_taxpayer' => $company->is_taxpayer,
-                'ntn_number' => $company->ntn_number,
-                'tax_registration_date' => $company->tax_registration_date,
-                'logo' => $company->logo,
-                'primary_color' => $company->primary_color,
-                'secondary_color' => $company->secondary_color,
-                'modules_settings' => $company->modules_settings,
-                'approved_at' => $company->approved_at,
-                'approved_by' => $company->approved_by,
-                'rejection_reason' => $company->rejection_reason,
-            ]
-        );
-
-        if ($adminCompany->trashed()) {
-            $adminCompany->restore();
+        if (! empty($company->email)) {
+            static::withTrashed()
+                ->where('email', $company->email)
+                ->where('id', '!=', $company->id)
+                ->get()
+                ->each
+                ->forceDelete();
         }
+
+        // updateOrCreate() is unreliable with $incrementing = false; it can INSERT duplicate PKs.
+        $adminCompany = static::withTrashed()->find($company->id);
+
+        if ($adminCompany) {
+            if ($adminCompany->trashed()) {
+                $adminCompany->restore();
+            }
+            $adminCompany->fill($payload);
+            $adminCompany->save();
+
+            return;
+        }
+
+        static::query()->create(array_merge(['id' => $company->id], $payload));
     }
 }

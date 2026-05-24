@@ -141,15 +141,17 @@ class ItemsController extends AppBaseController
    */
   public function show($company_slug, $id)
   {
-    $items = $this->itemsRepository->find($id);
+    $item = $this->itemsRepository->find($id);
 
-    if (empty($items)) {
+    if (empty($item)) {
       Flash::error('Items not found');
 
-      return redirect(route('items.index'));
+      return redirect()->back();
     }
 
-    return view('items.show')->with('items', $items);
+    $history = $item->purchaseHistory();
+
+    return view('items.show', compact('history'));
   }
 
   /**

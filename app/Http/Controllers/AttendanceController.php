@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Riders;
+use App\Services\Attendance\RiderAttendanceActivitySync;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -92,6 +93,12 @@ class AttendanceController extends Controller
         if ($request->status === 'present' || $request->status === 'late' || $request->status === 'half day') {
             $rules['check_in'] = 'required';
         }
+        if ($request->ref_type === 'rider') {
+            $rules['total_orders'] = 'nullable|integer|min:0';
+            $rules['working_hours'] = 'nullable|numeric|min:0';
+            $rules['rejected_orders'] = 'nullable|integer|min:0';
+            $rules['cancelled_orders'] = 'nullable|integer|min:0';
+        }
         $validated = $request->validate($rules);
         // Validate that the reference ID exists in the appropriate table
         if ($validated['ref_type'] === 'employee') {
@@ -116,7 +123,20 @@ class AttendanceController extends Controller
             return response()->json(['success' => false, 'message' => 'Attendance record already exists for this user on this date.']);
         }
 
-        Attendance::create($validated);
+        $validated['branch_id'] = $this->resolveBranchIdForAttendance(
+            $validated['ref_type'],
+            (int) $validated['ref_id']
+        );
+
+        $attendance = Attendance::create($validated);
+
+        if ($validated['ref_type'] === 'rider') {
+            RiderAttendanceActivitySync::syncActivityFromAttendance(
+                (int) $validated['ref_id'],
+                $validated['date'],
+                RiderAttendanceActivitySync::metricDataFromRequest($validated)
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -148,6 +168,7 @@ class AttendanceController extends Controller
         } else {
             $riders = Riders::all();
         }
+
         return view('attendance.edit', compact('attendance', 'refType', 'employees', 'riders'));
     }
 
@@ -168,6 +189,12 @@ class AttendanceController extends Controller
             $rules['check_in'] = 'required';
         } else {
             $rules['check_in'] = 'nullable';
+        }
+        if ($request->ref_type === 'rider') {
+            $rules['total_orders'] = 'nullable|integer|min:0';
+            $rules['working_hours'] = 'nullable|numeric|min:0';
+            $rules['rejected_orders'] = 'nullable|integer|min:0';
+            $rules['cancelled_orders'] = 'nullable|integer|min:0';
         }
         $validated = $request->validate($rules);
 
@@ -198,7 +225,20 @@ class AttendanceController extends Controller
             ]);
         }
 
+        $validated['branch_id'] = $this->resolveBranchIdForAttendance(
+            $validated['ref_type'],
+            (int) $validated['ref_id']
+        );
+
         $attendance->update($validated);
+
+        if ($validated['ref_type'] === 'rider') {
+            RiderAttendanceActivitySync::syncActivityFromAttendance(
+                (int) $validated['ref_id'],
+                $validated['date'],
+                RiderAttendanceActivitySync::metricDataFromRequest($validated)
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -250,7 +290,11 @@ class AttendanceController extends Controller
                 'attendances.*.status' => 'required|in:present,absent,late,half day, on leave, holiday',
                 'attendances.*.check_in' => 'nullable',
                 'attendances.*.check_out' => 'nullable',
-                'attendances.*.notes' => 'nullable|string|max:500'
+                'attendances.*.notes' => 'nullable|string|max:500',
+                'attendances.*.total_orders' => 'nullable|integer|min:0',
+                'attendances.*.working_hours' => 'nullable|numeric|min:0',
+                'attendances.*.rejected_orders' => 'nullable|integer|min:0',
+                'attendances.*.cancelled_orders' => 'nullable|integer|min:0',
             ]);
 
             $successCount = 0;
@@ -280,6 +324,20 @@ class AttendanceController extends Controller
                     $data['check_out'] = $attendanceData['check_out'];
                 }
 
+                if ($attendanceData['ref_type'] === 'rider') {
+                    $metricData = RiderAttendanceActivitySync::metricDataFromRequest($attendanceData);
+                    foreach (RiderAttendanceActivitySync::RIDER_METRIC_KEYS as $metricKey) {
+                        if (array_key_exists($metricKey, $metricData)) {
+                            $data[$metricKey] = $metricData[$metricKey];
+                        }
+                    }
+                }
+
+                $data['branch_id'] = $this->resolveBranchIdForAttendance(
+                    $attendanceData['ref_type'],
+                    (int) $attendanceData['ref_id']
+                );
+
                 // Check if exists
                 $existing = Attendance::where([
                     'ref_id' => $attendanceData['ref_id'],
@@ -296,6 +354,14 @@ class AttendanceController extends Controller
                     ],
                     $data
                 );
+
+                if ($attendanceData['ref_type'] === 'rider') {
+                    RiderAttendanceActivitySync::syncActivityFromAttendance(
+                        (int) $attendanceData['ref_id'],
+                        $validated['date'],
+                        RiderAttendanceActivitySync::metricDataFromRequest($attendanceData)
+                    );
+                }
 
                 $successCount++;
 
@@ -376,7 +442,7 @@ class AttendanceController extends Controller
                 fputcsv($handle, ['No records found for the selected criteria.']);
             } else {
 
-                fputcsv($handle, ['Type', 'ID', 'Name', 'Date', 'Check In', 'Check Out', 'Status', 'Notes', 'Created At']);
+                fputcsv($handle, ['Type', 'ID', 'Name', 'Date', 'Check In', 'Check Out', 'Status', 'Total Orders', 'Working Hours', 'Cancelled Orders', 'Rejected Orders', 'Notes', 'Created At']);
 
                 foreach ($attendances as $attendance) {
 
@@ -396,6 +462,10 @@ class AttendanceController extends Controller
                         $attendance->check_in ? \Carbon\Carbon::parse($attendance->check_in)->format('h:i:s A') : '-',
                         $attendance->check_out ? \Carbon\Carbon::parse($attendance->check_out)->format('h:i:s A') : '-',
                         ucfirst($attendance->status),
+                        $attendance->ref_type === 'rider' ? ($attendance->total_orders ?? '-') : '-',
+                        $attendance->ref_type === 'rider' ? ($attendance->working_hours ?? '-') : '-',
+                        $attendance->ref_type === 'rider' ? ($attendance->cancelled_orders ?? '-') : '-',
+                        $attendance->ref_type === 'rider' ? ($attendance->rejected_orders ?? '-') : '-',
                         $attendance->notes,
                         $attendance->created_at->format('Y-m-d H:i:s')
                     ]);
@@ -604,12 +674,6 @@ class AttendanceController extends Controller
                         $item->type_badge_class = 'bg-primary';
                         return $item;
                     });
-                // Debug - see what's loaded
-                \Log::info('All users - first user branch:', [
-                    'has_branch' => isset($users->first()->branch),
-                    'branch_data' => $users->first()->branch ? $users->first()->branch->toArray() : null,
-                    'branch_relation_loaded' => $users->first()->relationLoaded('branch')
-                ]);
             } else {
                 $users = Employee::with('branch')->where('id', $userId)
                     ->get()
@@ -772,5 +836,22 @@ class AttendanceController extends Controller
 
             fclose($handle);
         }, $filename);
+    }
+
+    private function resolveBranchIdForAttendance(string $refType, int $refId): ?int
+    {
+        if ($refType === 'rider') {
+            $branchId = Riders::where('id', $refId)->value('branch_id');
+
+            return $branchId !== null ? (int) $branchId : null;
+        }
+
+        if ($refType === 'employee') {
+            $branchId = Employee::where('id', $refId)->value('branch_id');
+
+            return $branchId !== null ? (int) $branchId : null;
+        }
+
+        return null;
     }
 }

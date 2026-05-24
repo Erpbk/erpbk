@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Bikes;
+use App\Helpers\Common;
 use App\Models\BikeRentCompany;
+use App\Models\Bikes;
 use App\Models\LeasingCompanyBillingInvoice;
 use App\Repositories\LeasingCompanyBillingInvoicesRepository;
+use App\Support\CompanyQuery;
 use App\Traits\GlobalPagination;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -16,9 +19,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
 {
     use GlobalPagination;
 
-    public function __construct(private LeasingCompanyBillingInvoicesRepository $billingInvoicesRepository)
-    {
-    }
+    public function __construct(private LeasingCompanyBillingInvoicesRepository $billingInvoicesRepository) {}
 
     public function index(Request $request)
     {
@@ -27,15 +28,15 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
             ->orderBy('billing_month', 'desc')
             ->orderBy('id', 'desc');
         $query->whereHas('customer'); // branch scope via BikeRentCompany
-        if ($request->has('customer_id') && !empty($request->customer_id)) {
+        if ($request->has('customer_id') && ! empty($request->customer_id)) {
             $query->where('customer_id', $request->customer_id);
         }
-        if ($request->has('billing_month') && !empty($request->billing_month)) {
-            $billingMonth = \Carbon\Carbon::parse($request->billing_month);
+        if ($request->has('billing_month') && ! empty($request->billing_month)) {
+            $billingMonth = Carbon::parse($request->billing_month);
             $query->whereYear('billing_month', $billingMonth->year)
                 ->whereMonth('billing_month', $billingMonth->month);
         }
-        if ($request->has('status') && !empty($request->status)) {
+        if ($request->has('status') && ! empty($request->status)) {
             $query->where('status', $request->status);
         }
 
@@ -45,6 +46,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         if ($request->ajax()) {
             $tableData = view('leasing_company_billing_invoices.table', ['data' => $data])->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
+
             return response()->json([
                 'tableData' => $tableData,
                 'paginationLinks' => $paginationLinks,
@@ -63,19 +65,21 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         $bikeRentCustomer = null;
         if ($customerId) {
             $bikeRentCustomer = BikeRentCompany::find($customerId);
-            if (!$bikeRentCustomer) {
+            if (! $bikeRentCustomer) {
                 session()->flash('error', 'Customer not found');
+
                 return redirect(route('leasingCompanyBillingInvoices.index'));
             }
         }
 
         $bikeRentCustomers = BikeRentCompany::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
         $bikes = Bikes::orderBy('plate')->get()->mapWithKeys(function ($b) {
-            $label = $b->plate . ' - ' . ($b->model ?? '');
+            $label = $b->plate.' - '.($b->model ?? '');
             $isInactive = (int) $b->status !== 1 || in_array($b->warehouse ?? '', ['Return', 'Vacation', 'Express Garage', 'Absconded'], true);
             if ($isInactive) {
                 $label .= ' (Inactive/Returned)';
             }
+
             return [$b->id => $label];
         })->prepend('Select', '')->toArray();
 
@@ -93,11 +97,12 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                 return response()->view('leasing_company_billing_invoices.modal_error', compact('message'), 200);
             }
             session()->flash('error', $message);
+
             return redirect(route('leasingCompanyBillingInvoices.index'));
         }
 
         $sourceInvoice->load('items');
-        $nextMonth = \Carbon\Carbon::parse($sourceInvoice->billing_month)->addMonth();
+        $nextMonth = Carbon::parse($sourceInvoice->billing_month)->addMonth();
         $nextMonthString = $nextMonth->format('Y-m');
 
         $existingInvoice = LeasingCompanyBillingInvoice::where('customer_id', $sourceInvoice->customer_id)
@@ -106,11 +111,12 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
             ->first();
 
         if ($existingInvoice) {
-            $message = 'A billing invoice for this customer already exists for ' . $nextMonthString . '.';
+            $message = 'A billing invoice for this customer already exists for '.$nextMonthString.'.';
             if (request()->ajax()) {
                 return response()->view('leasing_company_billing_invoices.modal_error', compact('message'), 200);
             }
             session()->flash('error', $message);
+
             return redirect(route('leasingCompanyBillingInvoices.index'));
         }
 
@@ -122,7 +128,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         $cloneBikeIds = [];
         foreach ($sourceInvoice->items as $item) {
             $bike = Bikes::withTrashed()->find($item->bike_id);
-            if (!$bike) {
+            if (! $bike) {
                 continue;
             }
             $cloneBikeIds[] = $bike->id;
@@ -131,7 +137,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                 'bike_id' => $item->bike_id,
                 'days' => min((int) ($item->days ?? 30), 30) ?: 30,
                 'rental_amount' => (float) $item->rental_amount,
-                'tax_rate' => (float) ($item->tax_rate ?? \App\Helpers\Common::getSetting('vat_percentage') ?? 5),
+                'tax_rate' => (float) ($item->tax_rate ?? Common::getSetting('vat_percentage') ?? 5),
                 'total_amount' => (float) $item->total_amount,
                 'is_inactive' => $isInactive,
             ];
@@ -140,7 +146,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         $allBikes = Bikes::orderBy('plate')->get();
         $bikes = [];
         foreach ($allBikes as $b) {
-            $label = $b->plate . ' - ' . ($b->model ?? '');
+            $label = $b->plate.' - '.($b->model ?? '');
             $isInactive = (int) $b->status !== 1 || in_array($b->warehouse, ['Return', 'Vacation', 'Express Garage', 'Absconded'], true);
             if ($isInactive) {
                 $label .= ' (Inactive/Returned)';
@@ -152,7 +158,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         $nextBillingMonth = $nextMonthString;
         $cloneFromInvoice = (object) [
             'inv_date' => now()->format('Y-m-d'),
-            'billing_month' => $nextMonthString . '-01',
+            'billing_month' => $nextMonthString.'-01',
             'customer_id' => $sourceInvoice->customer_id,
             'reference_number' => '',
             'descriptions' => $sourceInvoice->descriptions ?? '',
@@ -175,7 +181,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         try {
             $customerId = $id ?? $request->customer_id;
             $bikeRentCustomer = BikeRentCompany::find($customerId);
-            if (!$bikeRentCustomer) {
+            if (! $bikeRentCustomer) {
                 return response()->json(['errors' => ['error' => 'Customer not found!']], 422);
             }
 
@@ -185,17 +191,18 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                     continue;
                 }
                 $bike = Bikes::withTrashed()->find($bikeId);
-                if (!$bike) {
-                    $invalidBikes[] = 'Bike ID ' . $bikeId . ' at position ' . ($key + 1) . ' does not exist.';
+                if (! $bike) {
+                    $invalidBikes[] = 'Bike ID '.$bikeId.' at position '.($key + 1).' does not exist.';
                 }
             }
 
-            if (!empty($invalidBikes)) {
+            if (! empty($invalidBikes)) {
                 $msg = implode(' ', $invalidBikes);
                 if ($request->ajax()) {
                     return response()->json(['errors' => ['error' => $msg]], 422);
                 }
                 session()->flash('error', $msg);
+
                 return redirect()->back()->withInput();
             }
 
@@ -227,7 +234,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                 $filteredBikeIds[] = $bikeId;
                 $filteredRentalAmounts[] = $request->rental_amount[$key] ?? 0;
                 $filteredDays[] = $request->days[$key] ?? null;
-                $filteredTaxRates[] = $request->tax_rate[$key] ?? \App\Helpers\Common::getSetting('vat_percentage') ?? 5;
+                $filteredTaxRates[] = $request->tax_rate[$key] ?? Common::getSetting('vat_percentage') ?? 5;
             }
 
             if (empty($filteredBikeIds)) {
@@ -236,14 +243,8 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                     return response()->json(['errors' => ['error' => $msg]], 422);
                 }
                 session()->flash('error', $msg);
-                return redirect()->back()->withInput();
-            }
 
-            $attachmentPath = null;
-            if ($request->hasFile('attachment')) {
-                $file = $request->file('attachment');
-                $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
-                $attachmentPath = $file->storeAs('leasing_billing_invoices', $fileName, 'public');
+                return redirect()->back()->withInput();
             }
 
             $mergeData = [
@@ -253,9 +254,6 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                 'days' => $filteredDays,
                 'tax_rate' => $filteredTaxRates,
             ];
-            if ($attachmentPath) {
-                $mergeData['attachment'] = $attachmentPath;
-            }
             $request->merge($mergeData);
 
             $invoice = $this->billingInvoicesRepository->record($request);
@@ -268,12 +266,14 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
             }
 
             session()->flash('success', 'Billing invoice created successfully.');
+
             return redirect(route('leasingCompanyBillingInvoices.show', $invoice->id));
         } catch (\Exception $e) {
             if ($request->ajax()) {
                 return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
             }
             session()->flash('error', $e->getMessage());
+
             return redirect()->back()->withInput();
         }
     }
@@ -283,9 +283,11 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         $invoice = $this->billingInvoicesRepository->find($id);
         if (empty($invoice)) {
             session()->flash('error', 'Billing invoice not found');
+
             return redirect(route('leasingCompanyBillingInvoices.index'));
         }
         $invoice->load('customer');
+
         return view('leasing_company_billing_invoices.show')->with('invoice', $invoice);
     }
 
@@ -294,17 +296,19 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         $invoice = $this->billingInvoicesRepository->find($id);
         if (empty($invoice)) {
             session()->flash('error', 'Billing invoice not found');
+
             return redirect(route('leasingCompanyBillingInvoices.index'));
         }
 
         $invoice->load('items');
         $bikeRentCustomers = BikeRentCompany::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
         $bikes = Bikes::orderBy('plate')->get()->mapWithKeys(function ($b) {
-            $label = $b->plate . ' - ' . ($b->model ?? '');
+            $label = $b->plate.' - '.($b->model ?? '');
             $isInactive = (int) $b->status !== 1 || in_array($b->warehouse ?? '', ['Return', 'Vacation', 'Express Garage', 'Absconded'], true);
             if ($isInactive) {
                 $label .= ' (Inactive/Returned)';
             }
+
             return [$b->id => $label];
         })->prepend('Select', '')->toArray();
         $rentalAmountByCompany = [];
@@ -318,6 +322,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
             $invoice = $this->billingInvoicesRepository->find($id);
             if (empty($invoice)) {
                 session()->flash('error', 'Billing invoice not found');
+
                 return redirect(route('leasingCompanyBillingInvoices.index'));
             }
 
@@ -339,7 +344,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
 
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
-                $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+                $fileName = time().'_'.str_replace(' ', '_', $file->getClientOriginalName());
                 $attachmentPath = $file->storeAs('leasing_billing_invoices', $fileName, 'public');
                 $request->merge(['attachment' => $attachmentPath]);
 
@@ -357,40 +362,44 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                     'redirect' => route('leasingCompanyBillingInvoices.show', $invoice->id),
                 ]);
             }
+
             return redirect(route('leasingCompanyBillingInvoices.show', $invoice->id));
         } catch (\Exception $e) {
             if ($request->ajax()) {
                 return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
             }
             session()->flash('error', $e->getMessage());
+
             return redirect()->back()->withInput();
         }
     }
 
     public function destroy($company_slug, $id)
     {
-        if (!Gate::allows('leasing_company_invoice_delete')) {
+        if (! Gate::allows('leasing_company_invoice_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
         $invoice = $this->billingInvoicesRepository->find($id);
         if (empty($invoice)) {
             session()->flash('error', 'Billing invoice not found');
+
             return redirect(route('leasingCompanyBillingInvoices.index'));
         }
 
         if ($invoice->status == 1) {
             session()->flash('error', 'Cannot delete paid billing invoice. Only unpaid invoices can be deleted.');
+
             return redirect(route('leasingCompanyBillingInvoices.index'));
         }
 
         try {
-            \App\Support\CompanyQuery::table('transactions')
+            CompanyQuery::table('transactions')
                 ->where('reference_type', 'LeasingCompanyBillingInvoice')
                 ->where('reference_id', $id)
                 ->delete();
 
-            \App\Support\CompanyQuery::table('leasing_company_billing_invoice_items')
+            CompanyQuery::table('leasing_company_billing_invoice_items')
                 ->where('inv_id', $id)
                 ->delete();
 
@@ -401,7 +410,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
             $invoice->delete();
             session()->flash('success', 'Billing invoice deleted successfully.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Error deleting billing invoice: ' . $e->getMessage());
+            session()->flash('error', 'Error deleting billing invoice: '.$e->getMessage());
         }
 
         return redirect(route('leasingCompanyBillingInvoices.index'));
@@ -415,7 +424,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                 return response()->json(['errors' => ['error' => 'Source billing invoice not found!']], 422);
             }
 
-            $nextMonth = \Carbon\Carbon::parse($sourceInvoice->billing_month)->addMonth();
+            $nextMonth = Carbon::parse($sourceInvoice->billing_month)->addMonth();
             $nextMonthString = $nextMonth->format('Y-m');
 
             $existingInvoice = LeasingCompanyBillingInvoice::where('customer_id', $sourceInvoice->customer_id)
@@ -424,20 +433,20 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                 ->first();
 
             if ($existingInvoice) {
-                return response()->json(['errors' => ['error' => 'A billing invoice for this customer already exists for ' . $nextMonthString . '.']], 422);
+                return response()->json(['errors' => ['error' => 'A billing invoice for this customer already exists for '.$nextMonthString.'.']], 422);
             }
 
             DB::beginTransaction();
 
             $newInvoiceData = $sourceInvoice->toArray();
             unset($newInvoiceData['id'], $newInvoiceData['invoice_number'], $newInvoiceData['created_at'], $newInvoiceData['updated_at'], $newInvoiceData['deleted_at']);
-            $newInvoiceData['billing_month'] = $nextMonthString . '-01';
+            $newInvoiceData['billing_month'] = $nextMonthString.'-01';
             $newInvoiceData['inv_date'] = now()->format('Y-m-d');
             $newInvoiceData['status'] = 0;
 
             $newInvoice = LeasingCompanyBillingInvoice::create($newInvoiceData);
             if (empty($newInvoice->invoice_number)) {
-                $newInvoice->invoice_number = 'LBI-' . $newInvoice->id;
+                $newInvoice->invoice_number = 'LBI-'.$newInvoice->id;
                 $newInvoice->save();
             }
 
@@ -447,11 +456,11 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                     $newItemData = $item->toArray();
                     unset($newItemData['id'], $newItemData['created_at'], $newItemData['updated_at']);
                     $newItemData['inv_id'] = $newInvoice->id;
-                    \App\Support\CompanyQuery::insert('leasing_company_billing_invoice_items', $newItemData);
+                    CompanyQuery::insert('leasing_company_billing_invoice_items', $newItemData);
                 }
             }
 
-            $items = \App\Support\CompanyQuery::table('leasing_company_billing_invoice_items')->where('inv_id', $newInvoice->id)->get();
+            $items = CompanyQuery::table('leasing_company_billing_invoice_items')->where('inv_id', $newInvoice->id)->get();
             $newInvoice->subtotal = $items->sum('rental_amount');
             $newInvoice->vat = $items->sum('tax_amount');
             $newInvoice->total_amount = $items->sum('total_amount');
@@ -462,21 +471,22 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
 
             if ($request->ajax()) {
                 return response()->json([
-                    'message' => 'Billing invoice cloned successfully for ' . $nextMonthString . '.',
+                    'message' => 'Billing invoice cloned successfully for '.$nextMonthString.'.',
                     'redirect' => route('leasingCompanyBillingInvoices.show', $newInvoice->id),
                 ]);
             }
 
-            session()->flash('success', 'Billing invoice cloned successfully for ' . $nextMonthString . '.');
+            session()->flash('success', 'Billing invoice cloned successfully for '.$nextMonthString.'.');
+
             return redirect(route('leasingCompanyBillingInvoices.show', $newInvoice->id));
         } catch (\Exception $e) {
             DB::rollBack();
             if ($request->ajax()) {
                 return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
             }
-            session()->flash('error', 'Error cloning billing invoice: ' . $e->getMessage());
+            session()->flash('error', 'Error cloning billing invoice: '.$e->getMessage());
+
             return redirect()->back();
         }
     }
 }
-

@@ -19,9 +19,13 @@ class CompanyQuery
             ? DB::connection($connection)->table($table)
             : DB::table($table);
 
-        $companyId = self::resolveCompanyId();
-        if ($companyId === null || !self::shouldApplyScope()) {
+        if (! self::shouldApplyScope()) {
             return $query;
+        }
+
+        $companyId = self::resolveCompanyId();
+        if ($companyId === null) {
+            return $query->whereRaw('0 = 1');
         }
 
         $connectionName = $connection ?: (DB::getDefaultConnection() ?: config('database.default'));
@@ -29,7 +33,13 @@ class CompanyQuery
             return $query;
         }
 
-        return $query->where(self::qualifiedCompanyColumn($table), $companyId);
+        if (AccountsCompanyScope::appliesToTable($table, $connectionName)) {
+            return AccountsCompanyScope::apply($query, $companyId, $table);
+        }
+
+        $companyColumn = self::qualifiedCompanyColumn($table);
+
+        return $query->where($companyColumn, $companyId)->whereNotNull($companyColumn);
     }
 
     public static function insert(string $table, array $values, ?string $connection = null): bool
@@ -92,13 +102,18 @@ class CompanyQuery
         if (!self::isListOfRows($values)) {
             if (empty($values['company_id'])) {
                 $values['company_id'] = $companyId;
+            } elseif ($values['company_id'] === null) {
+                $values['company_id'] = $companyId;
             }
 
             return $values;
         }
 
         foreach ($values as &$row) {
-            if (is_array($row) && empty($row['company_id'])) {
+            if (! is_array($row)) {
+                continue;
+            }
+            if (empty($row['company_id']) || $row['company_id'] === null) {
                 $row['company_id'] = $companyId;
             }
         }

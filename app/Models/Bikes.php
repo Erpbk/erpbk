@@ -23,6 +23,7 @@ class Bikes extends BaseModel
     'model_type',
     'engine',
     'company',
+    'bike_owner',
     'rider_id',
     'rental_company_id',
     'notes',
@@ -38,12 +39,16 @@ class Bikes extends BaseModel
     'status',
     'insurance_co',
     'customer_id',
+    'bike_top_option_id',
     'contract_number',
     'policy_no',
     'current_km',
     'previous_km',
     'maintenance_km',
     'custom_field_values',
+    'leased_return_by',
+    'leased_return_date',
+    'leased_return_company_id',
   ];
 
   protected $casts = [
@@ -66,8 +71,13 @@ class Bikes extends BaseModel
     'insurance_co' => 'string',
     'policy_no' => 'string',
     'customer_id' => 'string',
+    'bike_top_option_id' => 'integer',
     'deleted_at' => 'datetime',
-    'custom_field_values' => 'array'
+    'custom_field_values' => 'array',
+    'leased_return_by' => 'date',
+    'leased_return_date' => 'date',
+    'leased_return_company_id' => 'integer',
+    'bike_owner' => 'string',
   ];
 
   protected $dates = ['deleted_at'];
@@ -92,12 +102,16 @@ class Bikes extends BaseModel
     'traffic_file_number' => 'nullable|string|max:100',
     'emirates' => 'nullable|string|max:100',
     'bike_code' => 'nullable|string|max:100',
+    'rental_company_id' => 'nullable',
     'registration_date' => 'nullable',
     'expiry_date' => 'nullable',
     'insurance_expiry' => 'nullable',
     'insurance_co' => 'nullable|string|max:255',
     'policy_no' => 'nullable|string|max:100',
-    'customer_id' => 'nullable|string|max:100'
+    'customer_id' => 'nullable|string|max:100',
+    'leased_return_by' => 'nullable|date',
+    'leased_return_date' => 'nullable|date',
+    'leased_return_company_id' => 'nullable|integer|exists:leasing_companies,id',
   ];
   public static function dropdown()
   {
@@ -127,7 +141,13 @@ class Bikes extends BaseModel
     return $this->belongsTo(LeasingCompanies::class, 'company');
   }
 
-  public function rentalCompany(){
+  public function leasedReturnCompany()
+  {
+    return $this->belongsTo(LeasingCompanies::class, 'leased_return_company_id');
+  }
+
+  public function rentalCompany()
+  {
     return $this->belongsTo(BikeRentCompany::class, 'rental_company_id', 'id');
   }
 
@@ -139,6 +159,33 @@ class Bikes extends BaseModel
   public function branch()
   {
     return $this->belongsTo(Branch::class, 'branch_id', 'id');
+  }
+
+  /**
+   * Leasing return: "return by" = target date, "return date" = completed return.
+   *
+   * @return array{label: string, badge: string}
+   */
+  public function leasedReturnDisplay(): array
+  {
+    if ($this->leased_return_date) {
+      return ['label' => 'Returned', 'badge' => 'bg-label-success'];
+    }
+    if (!$this->leased_return_by) {
+      return ['label' => 'Not set', 'badge' => 'bg-secondary'];
+    }
+
+    $due = \Carbon\Carbon::parse($this->leased_return_by)->startOfDay();
+    $today = now()->startOfDay();
+
+    if ($due->lt($today)) {
+      return ['label' => 'Overdue', 'badge' => 'bg-label-danger'];
+    }
+    if ($due->lte($today->copy()->addDays(7))) {
+      return ['label' => 'Due soon', 'badge' => 'bg-label-warning'];
+    }
+
+    return ['label' => 'Scheduled', 'badge' => 'bg-label-info'];
   }
 
   public function maintenanceStatus(): string

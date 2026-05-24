@@ -6,8 +6,7 @@
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Image</th>
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>
          <th title="Customer" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Customer: activate to sort column ascending">Owner</th>
-         <th title="Supplier" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Supplier: activate to sort column ascending">Supplier</th>
-         <th title="Price" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Price: activate to sort column ascending">Cost</th>
+         <th title="Price" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Price: activate to sort column ascending">Available</th>
          <th title="Price" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Price: activate to sort column ascending">Price</th>
          <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
          <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
@@ -19,7 +18,7 @@
          <td>
             @if($r->attachment)
                <div class="image-container">
-                     <img src="{{ Storage::url($r->attachment) }}" 
+                     <img src="{{ asset('storage/'.$r->attachment) }}" 
                         alt="{{ $r->name }}" 
                         style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; transition: transform 0.3s;"
                         onmouseover="this.style.transform='scale(1.5)'"
@@ -31,7 +30,7 @@
                <span class="text-muted">No image</span>
             @endif
          </td>
-         <td>{{ $r->name }}</td>
+         <td><a href="javascript:void(0);" data-action="{{ route('items.show', $r->id) }}" class="show-modal-right">{{ $r->name }}</a></td>
          <td>
             @if($r->owners)
                @foreach ($r->owners as $owner)
@@ -41,8 +40,7 @@
                {{ 'Unknown' }}
             @endif
          </td>
-         <td>{{ $r->supplier?->name ?? '-' }}</td>
-         <td>{{$r->cost }}</td>
+         <td>{{$r->available }}</td>
          <td>{{$r->price }}</td>
          <td>
             @if($r->status == 1)

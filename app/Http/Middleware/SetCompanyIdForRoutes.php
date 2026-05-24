@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\CompanyRouteContext;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
@@ -14,8 +15,8 @@ class SetCompanyIdForRoutes
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $companySlug = $request->route('company_slug') ?? session('company_slug');
-        if ($companySlug !== null) {
+        $companySlug = CompanyRouteContext::slug($request);
+        if ($companySlug !== null && $companySlug !== '') {
             URL::defaults(['company_slug' => $companySlug]);
         }
         return $next($request);

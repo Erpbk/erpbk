@@ -1,4 +1,85 @@
-@push('third_party_stylesheets')
+@push('page-styles')
+<style>
+   /* Soft emphasis — gentle border/shadow breathing, no harsh opacity flicker */
+   @keyframes visa-next-unpaid-soft {
+
+      0%,
+      100% {
+         border-color: rgba(234, 88, 90, 0.35);
+         box-shadow: 0 0 0 0 rgba(234, 88, 90, 0);
+      }
+
+      50% {
+         border-color: rgba(234, 88, 90, 0.55);
+         box-shadow: 0 1px 8px rgba(234, 88, 90, 0.12);
+      }
+   }
+
+   .visa-next-unpaid-cell {
+      background: linear-gradient(90deg, rgba(234, 88, 90, 0.04), rgba(253, 186, 116, 0.05));
+   }
+
+   .visa-next-unpaid-blink {
+      padding: 0.25rem 0.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(234, 88, 90, 0.35);
+      background: rgba(255, 253, 252, 0.95);
+      animation: visa-next-unpaid-soft 2.8s ease-in-out infinite;
+      transition: border-color 0.3s ease;
+   }
+
+   .visa-next-unpaid-blink:hover {
+      border-color: rgba(234, 88, 90, 0.5);
+      animation-play-state: paused;
+   }
+
+   @media (prefers-reduced-motion: reduce) {
+      .visa-next-unpaid-blink {
+         animation: none;
+         border-color: rgba(234, 88, 90, 0.4);
+      }
+   }
+
+   /* Paid-document expiry within 10 days (or overdue) — amber alert, soft pulse */
+   @keyframes visa-expiry-alert-soft {
+
+      0%,
+      100% {
+         border-color: rgba(217, 119, 6, 0.4);
+         box-shadow: 0 0 0 0 rgba(217, 119, 6, 0);
+      }
+
+      50% {
+         border-color: rgba(217, 119, 6, 0.65);
+         box-shadow: 0 1px 8px rgba(217, 119, 6, 0.14);
+      }
+   }
+
+   .visa-expiry-alert-cell {
+      background: linear-gradient(90deg, rgba(254, 243, 199, 0.35), rgba(253, 230, 138, 0.2));
+   }
+
+   .visa-expiry-alert-blink {
+      padding: 0.25rem 0.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(217, 119, 6, 0.4);
+      background: rgba(255, 251, 235, 0.95);
+      animation: visa-expiry-alert-soft 2.6s ease-in-out infinite;
+      transition: border-color 0.3s ease;
+   }
+
+   .visa-expiry-alert-blink:hover {
+      border-color: rgba(217, 119, 6, 0.55);
+      animation-play-state: paused;
+   }
+
+   @media (prefers-reduced-motion: reduce) {
+      .visa-expiry-alert-blink {
+         animation: none;
+         border-color: rgba(217, 119, 6, 0.5);
+      }
+   }
+</style>
 @endpush
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
@@ -6,6 +87,8 @@
          <th>Rider ID</th>
          <th style="width: 220px;">Account Name</th>
          <th>Rider Status</th>
+         <th>Next Unpaid Document</th>
+         <th>Expiry Document</th>s
          <th>Person Code</th>
          <th>Labour Card #</th>
          <th>Policy Number</th>
@@ -16,17 +99,61 @@
    <tbody>
       @foreach($data as $r)
       @php
-      $hasActiveBike = DB::table('bikes')
+      $hasActiveBike = company_table('bikes')
       ->where('rider_id', $r->rider_id)
       ->where('warehouse', 'Active')
       ->exists();
       $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
       $balance = \App\Models\visa_expenses::where('expense_account_id', $r->id)->sum('amount');
+      $nextUnpaid = ($nextUnpaidVisaByAccountId ?? [])[$r->id] ?? null;
+      $nextWhen = '';
+      if ($nextUnpaid) {
+      try {
+      if (!empty($nextUnpaid->date)) {
+      $nextWhen = \Carbon\Carbon::parse($nextUnpaid->date)->format('d M Y');
+      } elseif (!empty($nextUnpaid->billing_month)) {
+      $nextWhen = \Carbon\Carbon::parse($nextUnpaid->billing_month)->format('M Y');
+      }
+      } catch (\Throwable $e) {
+      $nextWhen = '';
+      }
+      }
+      $urgentExpiry = ($urgentVisaExpiryByAccountId ?? [])[$r->id] ?? null;
+      $urgentExpiryWhen = '';
+      if ($urgentExpiry && !empty($urgentExpiry->expiry_date)) {
+      try {
+      $urgentExpiryWhen = \Carbon\Carbon::parse($urgentExpiry->expiry_date)->format('d M Y');
+      } catch (\Throwable $e) {
+      $urgentExpiryWhen = '';
+      }
+      }
       @endphp
       <tr class="text-center">
          <td>{{ $r->rider->rider_id ?? '-' }}</td>
          <td class="text-start"><a href="{{ route('VisaExpense.generatentries' , $r->id) }}">{{ $r->name }}</a></td>
          <td><span class="badge {{ $badgeClass }}">{{ $hasActiveBike ? 'Active' : 'Inactive' }}</span></td>
+         <td class="align-middle @if($nextUnpaid) visa-next-unpaid-cell @endif">
+            @if($nextUnpaid)
+            <a href="{{ route('VisaExpense.generatentries', $r->id) }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-center">
+               <span class="fw-semibold d-block text-body text-center">{{ $nextUnpaid->visa_status ?? '—' }}</span>
+               @if($nextWhen !== '')
+               <span class="text-muted small text-center">{{ \App\Helpers\Currency::symbol() }}{{ number_format((float) ($nextUnpaid->amount ?? 0), 2) }}</span>
+               @endif
+            </a>
+            @else
+            <span class="text-muted">—</span>
+            @endif
+         </td>
+         <td class="align-middle @if($urgentExpiry && $urgentExpiryWhen !== '') visa-expiry-alert-cell @endif">
+            @if($urgentExpiry && $urgentExpiryWhen !== '')
+            <a href="{{ route('VisaExpense.generatentries', $r->id) }}" class="text-decoration-none text-body visa-expiry-alert-blink d-inline-block text-center" title="Visa document expiry within 10 days or overdue">
+               <span class="fw-semibold d-block text-body text-center">{{ $urgentExpiry->visa_status ?? '—' }}</span>
+               <span class="text-muted small d-block text-center">{{ $urgentExpiryWhen }}</span>
+            </a>
+            @else
+            <span class="text-muted">—</span>
+            @endif
+         </td>
          <td>{{ $r->rider->person_code ?? '-' }}</td>
          <td>{{ $r->rider->labor_card_number ?? '-' }}</td>
          <td>{{ $r->rider->policy_no ?? '-' }}</td>
@@ -67,7 +194,7 @@
                            <label for="rider-{{ $r->id }}">Select Rider</label>
                            <select class="form-control rider-select" id="rider-{{ $r->id }}" name="rider_id">
                               <option value="" selected>Select</option>
-                              @foreach(DB::table('riders')->where('status' , 1)->get() as $ri)
+                              @foreach(company_table('riders')->where('status' , 1)->get() as $ri)
                               <option value="{{ $ri->id }}" @if($ri->id == $r->rider_id) selected @endif>{{ $ri->rider_id }} - {{ $ri->name }}</option>
                               @endforeach
                            </select>

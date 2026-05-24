@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\HeadAccount;
 use App\Models\Accounts;
 use App\Models\Settings;
+use App\Services\Module\ModuleLabelService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -91,8 +92,18 @@ class VatSettingsController extends Controller
         $nameKeys = self::quarterNameKeys();
         $rows = Settings::whereIn('name', array_merge($keys, $nameKeys))->pluck('value', 'name');
         $monthNames = [
-            1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April', 5 => 'May', 6 => 'June',
-            7 => 'July', 8 => 'August', 9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December',
+            1 => 'January',
+            2 => 'February',
+            3 => 'March',
+            4 => 'April',
+            5 => 'May',
+            6 => 'June',
+            7 => 'July',
+            8 => 'August',
+            9 => 'September',
+            10 => 'October',
+            11 => 'November',
+            12 => 'December',
         ];
         $out = [];
         foreach ($keys as $i => $key) {
@@ -162,8 +173,18 @@ class VatSettingsController extends Controller
         $quarterStarts = $this->getQuarterStarts();
         $quarterNames = $this->getQuarterNames();
         $monthNames = [
-            1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April', 5 => 'May', 6 => 'June',
-            7 => 'July', 8 => 'August', 9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December',
+            1 => 'January',
+            2 => 'February',
+            3 => 'March',
+            4 => 'April',
+            5 => 'May',
+            6 => 'June',
+            7 => 'July',
+            8 => 'August',
+            9 => 'September',
+            10 => 'October',
+            11 => 'November',
+            12 => 'December',
         ];
         return view('settings.vat_settings.index', compact('vat', 'moduleLabel', 'quarterStarts', 'quarterNames', 'monthNames'));
     }
@@ -174,9 +195,8 @@ class VatSettingsController extends Controller
     public function storeModuleLabel(Request $request)
     {
         $request->validate(['module_label' => 'required|string|max:100']);
-        $value = trim($request->input('module_label'));
-        Settings::updateOrCreate(['name' => 'menu_label_vat_settings'], ['value' => $value]);
-        Settings::clearMenuLabelsCache();
+        app(ModuleLabelService::class)->saveLabel('vat_settings', trim((string) $request->input('module_label')));
+
         return redirect()->route('settings-panel.vat-settings.index')->with('success', 'Module name updated.');
     }
 

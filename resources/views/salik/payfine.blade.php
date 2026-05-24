@@ -6,7 +6,7 @@
             <label class="account_id">Select Account:</label>
             <select class="form select select2" id="account_id" name="account" required>
                 <option value=""></option>
-                @foreach(DB::table('accounts')->where('status', 1)->orderBy('id', 'desc')->get() as $b)
+                @foreach(company_table('accounts')->where('status', 1)->orderBy('id', 'desc')->get() as $b)
                 <option value="{{ $b->id }}">
                     {{ $b->name }}
                 </option>

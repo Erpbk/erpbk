@@ -1,23 +1,41 @@
 <form action="{{ route('VisaExpense.createInstallmentPlan') }}" method="POST" id="installmentPlanForm">
     @csrf
     <input type="hidden" name="rider_id" value="{{ $account->id }}">
-
+    @if(!empty($branchId))
+    <input type="hidden" name="branch_id" value="{{ $branchId }}">
+    @endif
     <div class="modal-body">
         <div class="row">
             <div class="col-md-12 mb-3">
                 <div class="card bg-light">
                     <div class="card-body">
-                        <h6 class="card-title">Rider Information</h6>
-                        <p><strong>Name:</strong> {{ $account->name }}</p>
+                        <div class="row">
 
-                        @php
-                        $currentMonth = \Carbon\Carbon::now()->format('Y-m');
-                        $existingCurrentMonthPlan = \App\Models\visa_installment_plan::where('rider_id', $account->id)
-                        ->where('billing_month', $currentMonth)
-                        ->exists();
-                        @endphp
+                            <div class="col-md-6">
+                                <h6>Rider Information</h6>
+                                <p><strong>Name:</strong> {{ $account->name ?? $rider->name ?? '—' }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Rider Branch</h6>
+                                @if($branch)
+                                <p><strong>Branch Name:</strong> {{ $branch->name }} - {{ $branch->code }}</p>
+                                @elseif(!empty($branches) && $branches->isNotEmpty())
+                                <div class="form-group mb-0">
+                                    <label for="branch_id" class="form-label">Branch <span class="text-danger">*</span></label>
+                                    <select name="branch_id" id="branch_id" class="form-select" required>
+                                        <option value="">Select branch</option>
+                                        @foreach($branches as $branchOption)
+                                        <option value="{{ $branchOption->id }}">{{ $branchOption->name }}@if($branchOption->code) - {{ $branchOption->code }}@endif</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                @else
+                                <p class="text-muted mb-0">No branch is assigned to this rider. Add a branch on the rider profile first.</p>
+                                @endif
+                            </div>
+                        </div>
 
-                        @if($existingCurrentMonthPlan)
+                        @if(!empty($existingCurrentMonthPlan))
                         <div class="alert alert-warning mt-2">
                             <i class="fa fa-exclamation-triangle me-2"></i>
                             <strong>Warning:</strong> An installment plan already exists for this rider in {{ \Carbon\Carbon::now()->format('F Y') }}.
@@ -362,11 +380,16 @@
                 @endif
             }
 
-            // Validate that all installments sum to total amount
+            // Validate that all installments sum to total amount.
+            // Allow tiny rounding drift and auto-fix it on the last installment.
             const currentTotal = installmentAmounts.reduce((sum, amount) => sum + amount, 0);
             const remainingBalance = totalAmountValue - currentTotal;
+            const roundedDifference = Math.round(remainingBalance * 100) / 100;
 
-            if (Math.abs(remainingBalance) > 0.01) {
+            if (Math.abs(roundedDifference) <= 0.05 && installmentAmounts.length > 0) {
+                const lastIndex = installmentAmounts.length - 1;
+                installmentAmounts[lastIndex] = Math.round((installmentAmounts[lastIndex] + roundedDifference) * 100) / 100;
+            } else if (Math.abs(roundedDifference) > 0.05) {
                 e.preventDefault();
                 alert('The sum of all installments must equal the total amount. Please adjust the installment amounts.');
                 return false;

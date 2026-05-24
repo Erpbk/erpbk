@@ -79,6 +79,29 @@ class VisaStatusController extends Controller
     }
 
     /**
+     * Display a single visa status.
+     * Kept for resource-route compatibility so accidental GETs to /visa-statuses/{id}
+     * do not crash with "show does not exist".
+     */
+    public function show($company_slug, $id)
+    {
+        if (!auth()->check()) {
+            return redirect()->route($this->visaStatusesIndexRoute());
+        }
+
+        if (!auth()->user()->hasPermissionTo('visaexpense_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // If user can edit, send them to edit page; otherwise back to index.
+        if (auth()->user()->hasPermissionTo('visaexpense_edit')) {
+            return redirect()->route($this->visaStatusesRouteBase() . '.edit', ['visa_status' => $id]);
+        }
+
+        return redirect()->route($this->visaStatusesIndexRoute());
+    }
+
+    /**
      * Store a newly created visa status in storage.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -213,7 +236,7 @@ class VisaStatusController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function destroy($company_slug, $id)
+    public function destroy(Request $request, $company_slug, $id)
     {
         // Check permissions
         if (!auth()->user()->hasPermissionTo('visaexpense_delete')) {
@@ -227,14 +250,33 @@ class VisaStatusController extends Controller
             $isUsed = \App\Support\CompanyQuery::table('visa_expenses')->where('visa_status', $visaStatus->name)->exists();
 
             if ($isUsed) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Cannot delete this visa status as it is being used in visa expenses.',
+                    ], 422);
+                }
                 Flash::error('Cannot delete this visa status as it is being used in visa expenses.');
                 return redirect()->back();
             }
 
             $visaStatus->delete();
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Visa Status deleted successfully.',
+                    'id' => (int) $id,
+                ]);
+            }
             Flash::success('Visa Status deleted successfully.');
-            return $this->redirectAfterAction(request());
+            return $this->redirectAfterAction($request);
         } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error: ' . $e->getMessage(),
+                ], 500);
+            }
             Flash::error('Error: ' . $e->getMessage());
             return redirect()->back();
         }
@@ -292,6 +334,12 @@ class VisaStatusController extends Controller
     {
         $name = request()->route()?->getName() ?? '';
         return str_starts_with($name, 'settings-panel.') ? 'settings-panel.visa-statuses.index' : 'visa-statuses.index';
+    }
+
+    private function visaStatusesRouteBase(): string
+    {
+        $name = request()->route()?->getName() ?? '';
+        return str_starts_with($name, 'settings-panel.') ? 'settings-panel.visa-statuses' : 'visa-statuses';
     }
 
     private function redirectAfterAction(Request $request): RedirectResponse

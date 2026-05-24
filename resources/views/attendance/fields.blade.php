@@ -1,8 +1,26 @@
 <!-- User Type Selection -->
+@php
+$selectedRefType = old('ref_type', '');
+$refIdLabel = match ($selectedRefType) {
+'employee' => 'Select Employee',
+'rider' => 'Select Rider',
+default => 'Select Employee or Rider',
+};
+$refIdPlaceholder = match ($selectedRefType) {
+'employee' => '-- Select Employee --',
+'rider' => '-- Select Rider --',
+default => '-- Select employee or rider first --',
+};
+@endphp
 <div class="row mb-4">
     <div class="col-md-6">
-        <label for="ref_type" class="form-label fw-bold">
-            User Type <span class="text-danger">*</span>
+        <label for="ref_type" class="form-label fw-bold"> @if(old('ref_type') == 'employee')
+            Employee <span class="text-danger">*</span>
+            @elseif(old('ref_type') == 'rider')
+            Rider <span class="text-danger">*</span>
+            @else
+            Rider or Employees <span class="text-danger">*</span>
+            @endif
         </label>
         <div class="btn-group w-100" role="group">
             <input type="radio" class="btn-check" name="ref_type" id="type_employee"
@@ -26,12 +44,12 @@
 
     <!-- User Selection -->
     <div class="col-md-6">
-        <label for="ref_id" class="form-label fw-bold required">
-            Select User
+        <label for="ref_id" id="ref_id_label" class="form-label fw-bold required">
+            {{ $refIdLabel }}
         </label>
         <select class="form-select @error('ref_id') is-invalid @enderror select2"
             id="form_ref_id" name="ref_id" required>
-            <option value="">-- Select user type first --</option>
+            <option value="">{{ $refIdPlaceholder }}</option>
         </select>
         @error('ref_id')
         <div class="invalid-feedback">{{ $message }}</div>
@@ -129,3 +147,34 @@
         placeholder="Enter any additional notes or remarks...">{{ old('notes') }}
     </textarea>
 </div>
+
+<script>
+    function updateRefIdLabel(refType) {
+        var label = 'Select Employee or Rider';
+        var placeholder = '-- Select employee or rider first --';
+
+        if (refType === 'employee') {
+            label = 'Select Employee';
+            placeholder = '-- Select Employee --';
+        } else if (refType === 'rider') {
+            label = 'Select Rider';
+            placeholder = '-- Select Rider --';
+        }
+
+        $('#ref_id_label').text(label);
+
+        var select = $('#form_ref_id');
+        if (select.find('option:first').length) {
+            select.find('option:first').text(placeholder);
+        }
+    }
+
+    $(document).ready(function() {
+        var initialRefType = $('input[name="ref_type"]:checked').val() || '';
+        updateRefIdLabel(initialRefType);
+
+        $('input[name="ref_type"]').on('change', function() {
+            updateRefIdLabel($(this).val());
+        });
+    });
+</script>

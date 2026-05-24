@@ -3,7 +3,7 @@
   $totalD = 0;
   $totalC = 0;
   $i = 0;
-  $settings = \DB::table('settings')->pluck('value', 'name')->toArray();
+  $settings = company_table('settings')->pluck('value', 'name')->toArray();
 @endphp
 <div class="voucher-modal-content">
   {{-- Action bar: Published ribbon, Edit, PDF/Print, etc. --}}

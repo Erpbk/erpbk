@@ -5,18 +5,31 @@
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
-<section class="content-header">
-    <div class="container">
+<section class="content-header ">
+    @include('flash::message')
+    <div>
         <div class="row mb-2">
-            <div class="col-sm-6">
+            <div class="col-sm-12 col-lg-12">
+                <div class="action-buttons d-flex justify-content-end" >
+                <div class="action-dropdown-container">
+                    <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                        <i class="ti ti-plus"></i>
+                        <span>Add New</span>
+                        <i class="ti ti-chevron-down"></i>
+                    </button>
+                    <div class="action-dropdown-menu" id="addBikeDropdown">
+                        @can('bikes_create')
+                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('bikeRentCompanies.create') }}?type={{ $type }}" data-title="Add customer" data-size="lg">
+                            <i class="ti ti-plus"></i>
+                            <div>
+                                <div class="action-dropdown-item-text">New</div>
+                                <div class="action-dropdown-item-desc">Add New Customer</div>
+                            </div>
+                        </a>
+                        @endcan
+                    </div>
+                </div>
             </div>
-            <div class="col-sm-6">
-                @can('bike_create')
-                <a class="btn btn-primary float-right show-modal action-btn"
-                    href="javascript:void(0);" data-action="{{ route('bikeRentCompanies.create') }}" data-title="Add customer" data-size="lg">
-                    Add New
-                </a>
-                @endcan
             </div>
         </div>
     </div>

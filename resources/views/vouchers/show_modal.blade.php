@@ -4,11 +4,12 @@ $voucher_number = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', S
 $totalD = 0;
 $totalC = 0;
 $i = 0;
-$fin_detail = $voucher->voucher_type === 'RFV' ? \DB::table('rta_fines')->where('id', $voucher->ref_id)->first() : null;
-$settings = \DB::table('settings')->pluck('value', 'name')->toArray();
+$fin_detail = $voucher->voucher_type === 'RFV' ? company_table('rta_fines')->where('id', $voucher->ref_id)->first() : null;
+$settings = company_table('settings')->pluck('value', 'name')->toArray();
 @endphp
 <div class="voucher-modal-content">
-  {{-- Action bar: Published ribbon, Edit, PDF/Print, etc. --}}
+  {{-- Action bar: Published ribbon, Edit, PDF/Print, etc. (hidden when embedded e.g. visa expense payment-account edit) --}}
+  @if(empty($visaCreditEditEmbed))
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
     <div class="d-flex align-items-center gap-2">
       <span class="badge bg-label-success">Published</span>
@@ -39,6 +40,7 @@ $settings = \DB::table('settings')->pluck('value', 'name')->toArray();
       <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-arrow-right  me-1"></i> Email</a>
     </div>
   </div>
+  @endif
 
   {{-- Company info (compact) --}}
   <div class="mb-3">
@@ -71,7 +73,7 @@ $settings = \DB::table('settings')->pluck('value', 'name')->toArray();
   @if($voucher->remarks)
   <div class="mb-3">
     <label class="form-label small text-uppercase text-muted mb-1">Notes</label>
-    <p class="mb-0">{{ $voucher->remarks }}</p>
+    <p class="mb-0">{!! $voucher->remarks !!}</p>
   </div>
   @endif
 
@@ -95,9 +97,9 @@ $settings = \DB::table('settings')->pluck('value', 'name')->toArray();
           <td>{{ $item->account ? $item->account->account_code . ' - ' . $item->account->name : '—' }}</td>
           <td>
             @if($voucher->voucher_type === 'RFV' && $fin_detail)
-            {{ $item->narration }} <strong>Ticket No:</strong>{{ $fin_detail->ticket_no ?? '' }}, <strong>Bike No:</strong>{{ $fin_detail->plate_no ?? '' }}@if($fin_detail && $fin_detail->trip_date) {{ \Carbon\Carbon::parse($fin_detail->trip_date)->format('d M Y') }} @else N/A @endif
+            {!! $item->narration !!} <strong>Ticket No:</strong>{{ $fin_detail->ticket_no ?? '' }}, <strong>Bike No:</strong>{{ $fin_detail->plate_no ?? '' }}@if($fin_detail && $fin_detail->trip_date) {{ \Carbon\Carbon::parse($fin_detail->trip_date)->format('d M Y') }} @else N/A @endif
             @else
-            {{ $item->narration ?? '—' }}
+            {!! $item->narration ?? '—' !!}
             @endif
           </td>
           <td class="text-end">{{ \App\Helpers\Account::show_bal_format($item->debit ?? 0) }}</td>

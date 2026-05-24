@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
@@ -13,14 +12,36 @@ class Accounts extends BaseModel
 {
   use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
 
-  protected static function booted(): void
+  protected static function boot()
   {
-    static::saving(function (self $account): void {
-      // Parent/root accounts are shared globally for all companies.
-      if (empty($account->parent_id) || (int) $account->parent_id === 0) {
+    parent::boot();
+
+    static::saving(function (Accounts $account): void {
+      if (!$account->shouldApplyCompanyScope() || !$account->hasCompanyColumn()) {
+        return;
+      }
+
+      if ($account->is_fixed) {
         $account->company_id = null;
+
+        return;
+      }
+
+      if ($account->company_id === null || $account->company_id === '') {
+        $scopedCompanyId = $account->resolveScopedCompanyId();
+        if ($scopedCompanyId !== null) {
+          $account->company_id = $scopedCompanyId;
+        }
       }
     });
+  }
+
+  /**
+   * Fixed shared accounts (company_id NULL) plus this company's own accounts.
+   */
+  protected function applyCompanyScopeConstraint(Builder $builder, int $companyId): void
+  {
+    \App\Support\AccountsCompanyScope::apply($builder, $companyId, $this->getTable());
   }
 
   public $table = 'accounts';
@@ -63,42 +84,6 @@ class Accounts extends BaseModel
     'opening_balance' => 'nullable|numeric'
 
   ];
-
-  /**
-   * Chart of Accounts must show shared main heads (company_id NULL) for every tenant,
-   * along with tenant-owned accounts.
-   */
-  protected function includesGlobalCompanyRows(): bool
-  {
-    return true;
-  }
-
-  /**
-   * Main parent heads are shared; all non-parent accounts are company-isolated.
-   */
-  protected function applyCompanyScopeConstraint(Builder $builder, int $companyId): void
-  {
-    $qualifiedCompany = $this->qualifyColumn('company_id');
-    $qualifiedParent = $this->qualifyColumn('parent_id');
-    $qualifiedFixed = $this->qualifyColumn('is_fixed');
-
-    $builder->where(function (Builder $query) use ($qualifiedCompany, $qualifiedParent, $qualifiedFixed, $companyId): void {
-      $query
-        // Shared main heads for all companies
-        ->where(function (Builder $rootQuery) use ($qualifiedParent): void {
-          $rootQuery->whereNull($qualifiedParent)->orWhere($qualifiedParent, 0);
-        })
-        // OR tenant-owned non-root accounts only
-        ->orWhere(function (Builder $tenantQuery) use ($qualifiedParent, $qualifiedCompany, $companyId): void {
-          $tenantQuery
-            ->where($qualifiedParent, '!=', 0)
-            ->whereNotNull($qualifiedParent)
-            ->where($qualifiedCompany, $companyId);
-        })
-        // OR globally fixed accounts from admin panel
-        ->orWhere($qualifiedFixed, true);
-    });
-  }
 
   public function branch()
   {

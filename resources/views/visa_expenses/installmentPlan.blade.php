@@ -1,6 +1,7 @@
 @extends('riders.view')
 @section('title','Visa installment plan')
 @section('page_content')
+
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
@@ -16,8 +17,11 @@
                 </a>
                 @endcan
                 @if($data->count() > 0)
-                <a href="{{ route('VisaExpense.generateInstallmentInvoice', $account->id) }}"
-                    class="btn btn-info action-btn mx-2 " target="_blank">
+                <a href="javascript:void(0);"
+                    class="btn btn-info action-btn mx-2 show-modal"
+                    data-action="{{ route('VisaExpense.generateInstallmentInvoice', ['riderId' => $account->id ?? request()->route('id')]) }}"
+                    data-size="xl"
+                    data-title="Installment plan invoice">
                     <i class="fa fa-file-invoice me-2"></i>Invoice
                 </a>
                 @endif
@@ -31,7 +35,7 @@
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-danger me-4 p-2"><i class="menu-icon tf-icons ti ti-cash"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ DB::table('visa_installment_plans')->where('status' , 'pending')->where('rider_id', $account->id)->sum('amount') }}</h5>
+                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('status' , 'pending')->where('rider_id', $account->id)->sum('amount') }}</h5>
                                             <small>Total Unpaid Amount</small>
                                         </div>
                                     </div>
@@ -40,7 +44,7 @@
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-info me-4 p-2"><i class="menu-icon tf-icons ti ti-cash"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ DB::table('visa_installment_plans')->where('status' , 'paid')->where('rider_id', $account->id)->sum('amount') }}</h5>
+                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('status' , 'paid')->where('rider_id', $account->id)->sum('amount') }}</h5>
                                             <small>Total Paid Amount</small>
                                         </div>
                                     </div>
@@ -49,7 +53,7 @@
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-success me-4 p-2"><i class="menu-icon tf-icons ti ti-receipt"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ DB::Table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'paid')->get()->count() }}</h5>
+                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'paid')->get()->count() }}</h5>
                                             <small>Paid Expense</small>
                                         </div>
                                     </div>
@@ -58,7 +62,7 @@
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-danger me-4 p-2"><i class="menu-icon tf-icons ti ti-receipt"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ DB::Table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'pending')->get()->count() }}</h5>
+                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'pending')->get()->count() }}</h5>
                                             <small>Unpaid Expenses</small>
                                         </div>
                                     </div>

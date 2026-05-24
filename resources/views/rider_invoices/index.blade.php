@@ -44,12 +44,12 @@
                                             <label for="rider_id">Filter by Rider</label>
                                             <select class="form-control " id="rider_id" name="rider_id">
                                                 @php
-                                                $riderid = DB::table('rider_invoices')
+                                                $riderid = company_table('rider_invoices')
                                                 ->whereNotNull('rider_id')
                                                 ->where('rider_id', '!=', '')
                                                 ->pluck('rider_id')
                                                 ->unique();
-                                                $riders = DB::table('riders')
+                                                $riders = company_table('riders')
                                                 ->whereIn('id', $riderid)
                                                 ->select('rider_id', 'name', 'id')
                                                 ->get();
@@ -68,13 +68,13 @@
                                             <label for="vendor_id">Filter by Vendors</label>
                                             <select class="form-control " id="vendor_id" name="vendor_id">
                                                 @php
-                                                $vendorid = DB::table('rider_invoices')
+                                                $vendorid = company_table('rider_invoices')
                                                 ->whereNotNull('vendor_id')
                                                 ->where('vendor_id', '!=', '')
                                                 ->pluck('vendor_id')
                                                 ->unique();
 
-                                                $vendors = DB::table('vendors')
+                                                $vendors = company_table('vendors')
                                                 ->whereIn('id', $vendorid)
                                                 ->select('id', 'name')
                                                 ->get();
@@ -89,7 +89,7 @@
                                             <label for="zone">Filter by Zone</label>
                                             <select class="form-control " id="zone" name="zone">
                                                 @php
-                                                $zones = DB::table('rider_invoices')
+                                                $zones = company_table('rider_invoices')
                                                 ->whereNotNull('zone')
                                                 ->where('zone', '!=', '')
                                                 ->pluck('zone')
@@ -105,7 +105,7 @@
                                             <label for="performance">Filter by Performance</label>
                                             <select class="form-control " id="performance" name="performance">
                                                 @php
-                                                $performances = DB::table('rider_invoices')
+                                                $performances = company_table('rider_invoices')
                                                 ->whereNotNull('performance')
                                                 ->where('performance', '!=', '')
                                                 ->pluck('performance')

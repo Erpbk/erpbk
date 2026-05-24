@@ -75,7 +75,7 @@
                         <div class="action-dropdown-container">
                             <button class="action-dropdown-btn" id="addRiderDropdownBtn">
                                 <i class="ti ti-plus"></i>
-                                <span>Add Rider</span>
+                                <span>Riders Actions</span>
                                 <i class="ti ti-chevron-down"></i>
                             </button>
                             <div class="action-dropdown-menu" id="addRiderDropdown">
@@ -129,62 +129,7 @@
                 </div>
             </div>
         </div>
-        <div class="fleet-supervisor-section">
-            <div class="fleet-supervisor-accordion expanded" id="fleetSupervisorAccordion">
-                <div class="fleet-supervisor-slider-container">
-                    <div class="slider-controls">
-                        <button class="slider-btn prev-btn" id="prevBtn" type="button">
-                            <i class="ti ti-chevron-left"></i>
-                        </button>
-                        <div class="slider-indicators" id="sliderIndicators"></div>
-                        <button class="slider-btn next-btn" id="nextBtn" type="button">
-                            <i class="ti ti-chevron-right"></i>
-                        </button>
-                    </div>
-                    <div class="fleet-supervisor-cards slider-track" id="sliderTrack">
-                        @php
-                        $riderTopCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
-                        $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
-                        }])->where('show_in_top_bar', 1)->orderBy('display_order')->orderBy('id')->get();
-                        $slideIndex = 0;
-                        $hasRiderTopOptionColumn = \Illuminate\Support\Facades\Schema::hasColumn('riders', 'rider_top_option_id');
-                        @endphp
 
-                        @foreach($riderTopCategories as $category)
-                        @foreach($category->options as $option)
-                        <div class="fleet-supervisor-card @if((int)request('rider_top_option_id') === (int)$option->id) active filtered @endif" data-slide="{{ $slideIndex++ }}" onclick="filterByRiderTopOption('{{ $option->id }}')">
-                            <h3 class="fleet-supervisor-name">{{ $option->name }}</h3>
-                            <div class="small text-muted mb-1">{{ $category->name }}</div>
-                            <div class="fleet-supervisor-stats">
-                                <div class="fleet-stat active @if((int)request('rider_top_option_id') === (int)$option->id && in_array('active', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'active')">
-                                    <i class="fleet-stat-icon ti ti-user-check"></i>
-                                    <span class="fleet-stat-label">Active</span>
-                                    <span class="fleet-stat-value">{{ $hasRiderTopOptionColumn ? \App\Models\Riders::where('rider_top_option_id', $option->id)->where('status', 1)->whereHas('bikes', function($q) { $q->where('warehouse', 'Active'); })->count() : 0 }}</span>
-                                </div>
-                                <div class="fleet-stat inactive @if((int)request('rider_top_option_id') === (int)$option->id && in_array('inactive', request('rider_status', []))) active-selected @endif" onclick="event.stopPropagation(); filterByRiderTopOptionStatus('{{ $option->id }}', 'inactive')">
-                                    <i class="fleet-stat-icon ti ti-user-x"></i>
-                                    <span class="fleet-stat-label">Inactive</span>
-                                    <span class="fleet-stat-value">{{ $hasRiderTopOptionColumn ? \App\Models\Riders::where('rider_top_option_id', $option->id)->where(function($q) { $q->where('status', 3)->orWhereDoesntHave('bikes', function($bikeQuery) { $bikeQuery->where('warehouse', 'Active'); }); })->count() : 0 }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        @endforeach
-                        @endforeach
-
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Fleet Supervisor Continuous Ticker Script -->
-        <script>
-            setTimeout(function() {
-                if (typeof initFleetSupervisorSlider === 'function') {
-                    initFleetSupervisorSlider();
-                }
-            }, 150);
-        </script>
-        <!-- Filter Tabs Section -->
 
         <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
             <div class="filter-header">
@@ -206,13 +151,13 @@
                             <label for="customer_id">Filter by Customer</label>
                             <select class="form-control " id="customer_id" name="customer_id">
                                 @php
-                                $customerIds = DB::table('riders')
+                                $customerIds = company_table('riders')
                                 ->whereNotNull('customer_id')
                                 ->where('customer_id', '!=', '')
                                 ->pluck('customer_id')
                                 ->unique();
 
-                                $customers = DB::table('customers')
+                                $customers = company_table('customers')
                                 ->whereIn('id', $customerIds)
                                 ->select('id', 'name')
                                 ->get();
@@ -227,7 +172,7 @@
                             <label for="attandence">Filter by Attandence</label>
                             <select class="form-control " id="attendance" name="attendance">
                                 @php
-                                $attandence = DB::table('riders')
+                                $attandence = company_table('riders')
                                 ->whereNotNull('attendance')
                                 ->where('attendance', '!=', '')
                                 ->select('attendance')
@@ -258,95 +203,9 @@
         <!-- Filter Overlay -->
         <div id="filterOverlay" class="filter-overlay"></div>
 </section>
-{{-- Include Column Control Panel --}}
-@php
-use Illuminate\Support\Facades\Schema;
-// Build column-control list from Rider Settings assignments only.
-$riderColumns = Schema::getColumnListing('riders');
-$riderColumnsSet = array_flip($riderColumns);
-
-// Columns to always exclude from manual column control.
-$exclude = ['id', 'email', 'created_at', 'updated_at', 'branch_id', 'company_id', 'account_id'];
-$excludedSet = array_flip($exclude);
-
-// Assigned fixed fields (from Rider Settings -> Rider Fields).
-$assignedFixedColumns = \App\Models\RiderFieldCategoryAssignment::query()
-->orderBy('display_order')
-->orderBy('id')
-->pluck('field_key')
-->filter(function ($key) use ($riderColumnsSet, $excludedSet) {
-return isset($riderColumnsSet[$key]) && !isset($excludedSet[$key]);
-})
-->values()
-->all();
-
-// Assigned custom fields (category-wise moved from settings).
-$assignedCustomFields = \App\Models\RiderCustomField::query()
-->whereNotNull('category_id')
-->orderBy('display_order')
-->orderBy('id')
-->get(['id', 'label']);
-
-// Merge only assigned DB-backed fields (unique, ordered).
-$dbColumns = array_values(array_unique($assignedFixedColumns));
-$preferredOrder = [
-'rider_id',
-'name',
-'fleet_supervisor',
-'customer_id',
-'attendance',
-'status',
-];
-
-$columns = [];
-$added = [];
-$makeTitle = function ($key) {
-$customTitles = [
-'doj' => 'Date of Joining',
-'recruiter_id' => 'Recruiter',
-];
-return $customTitles[$key] ?? ucwords(str_replace('_', ' ', $key));
-};
-
-// Add preferred DB columns first
-foreach ($preferredOrder as $key) {
-if (in_array($key, $dbColumns)) {
-$columns[] = ['data' => $key, 'title' => $makeTitle($key)];
-$added[$key] = true;
-}
-}
-
-// Add remaining DB columns
-foreach ($dbColumns as $key) {
-if (empty($added[$key])) {
-$columns[] = ['data' => $key, 'title' => $makeTitle($key)];
-}
-}
-
-// Add assigned custom fields (stored in riders.custom_field_values JSON).
-foreach ($assignedCustomFields as $cf) {
-$columns[] = [
-'data' => 'custom_field_values.' . $cf->id,
-'title' => trim((string) $cf->label) !== '' ? $cf->label : ('Custom Field #' . $cf->id),
-];
-}
-
-// 3) Append special/computed columns used in UI
-$columns = array_merge($columns, [
-['data' => 'bike', 'title' => 'Bike'],
-['data' => 'orders_sum', 'title' => 'Orders'],
-['data' => 'days', 'title' => 'Days'],
-['data' => 'balance', 'title' => 'Balance'],
-['data' => 'action', 'title' => 'Actions'],
-// Keep last two fixed utility columns for search and control icons
-['data' => 'search', 'title' => 'Search'],
-['data' => 'control', 'title' => 'Control'],
-]);
-
-$tableColumns = $columns;
-@endphp
+{{-- Column list from RidersController::buildRidersIndexTableColumns() ($tableColumns) --}}
 @include('components.column-control-panel', [
-'tableColumns' => $tableColumns,
+'tableColumns' => $tableColumns ?? [],
 'exportRoute' => route('rider.exportCustomizableRiders'),
 'tableIdentifier' => 'riders_table'
 ])
@@ -361,7 +220,7 @@ $tableColumns = $columns;
         </div>
         <div class="card-body table-responsive px-2 py-0">
             <div class="riders-table-container">
-                @include('riders.table', ['data' => $data, 'tableColumns' => $tableColumns])
+                @include('riders.table', ['data' => $data, 'tableColumns' => $tableColumns ?? []])
             </div>
             <div class="filter-loading-overlay" style="display: none;">
                 <div class="filter-loading-content">
@@ -555,54 +414,6 @@ $tableColumns = $columns;
 
         // Fleet supervisor and balance filter cards now use direct links - no JavaScript needed
     });
-
-    // Rider top option filtering function - shows both active and inactive
-    function filterByRiderTopOption(optionId) {
-        const url = new URL(window.location);
-
-        // Clear existing filters
-        url.searchParams.delete('rider_top_option_id');
-        url.searchParams.delete('rider_status');
-        url.searchParams.delete('rider_status[]');
-
-        // Set rider top option filter
-        url.searchParams.set('rider_top_option_id', optionId);
-
-        // Set both active and inactive status
-        url.searchParams.append('rider_status[]', 'active');
-        url.searchParams.append('rider_status[]', 'inactive');
-
-        // Redirect to filtered URL
-        window.location.href = url.toString();
-    }
-
-    // Rider top option status filtering function - toggle specific status
-    function filterByRiderTopOptionStatus(optionId, status) {
-        const url = new URL(window.location);
-        const currentOptionId = url.searchParams.get('rider_top_option_id');
-        const currentStatuses = url.searchParams.getAll('rider_status[]');
-
-        // If clicking the same rider top option and same status, toggle it off
-        if (currentOptionId === String(optionId) && currentStatuses.includes(status)) {
-            // Remove this specific status
-            const newStatuses = currentStatuses.filter(s => s !== status);
-            url.searchParams.delete('rider_status[]');
-            newStatuses.forEach(s => url.searchParams.append('rider_status[]', s));
-
-            // If no statuses left, remove rider top option filter entirely
-            if (newStatuses.length === 0) {
-                url.searchParams.delete('rider_top_option_id');
-            }
-        } else {
-            // Set rider top option and specific status
-            url.searchParams.set('rider_top_option_id', optionId);
-            url.searchParams.delete('rider_status[]');
-            url.searchParams.set('rider_status[]', status);
-        }
-
-        // Redirect to filtered URL
-        window.location.href = url.toString();
-    }
 </script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {

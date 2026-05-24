@@ -29,92 +29,21 @@
                 ]) !!}
             </div>
 
-            {{-- Previous KM --}}
+            {{-- Garage --}}
             <div class="form-group col-md-3">
-                {!! Form::label('previous_km', 'Previous Reading') !!}
-                <div class="input-group">
-                    <span class="input-group-text">KM</span>
-                    {!! Form::number('previous_km', $bike->previous_km ?? null, [
-                        'class' => 'form-control', 
-                        'step' => 'any', 
-                        'readonly' => true,
-                        'min' => '0',
-                        'id' => 'previous_km',
-                    ]) !!}
-                </div>
+                {!! Form::label('garage', 'Garage:') !!}
+                <select name="garage_id" class="form-control select2" required>
+                    <option value="">Select</option>
+                    @foreach (App\Models\Garages::where('status',1)->get() as $garage)
+                        <option value="{{ $garage->id }}">{{ $garage->name }}</option>
+                    @endforeach
+                </select>
             </div>
 
-            {{-- Current KM --}}
+            {{-- Billing Month --}}
             <div class="form-group col-md-3">
-                {!! Form::label('current_km', 'Current Reading') !!}
-                <div class="input-group">
-                    <span class="input-group-text">KM</span>
-                    {!! Form::number('current_km', null, [
-                        'class' => 'form-control', 
-                        'step' => 'any', 
-                        'min' => '0',
-                        'required' => true,
-                        'id' => 'current_km',
-                    ]) !!}
-                </div>
-            </div>
-
-            {{-- Maintenance KM (interval for maintenance) --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('maintenance_km', 'Maintenance Interval') !!}
-                <div class="input-group">
-                    <span class="input-group-text">KM</span>
-                    {!! Form::number('maintenance_km', $bike->maintenance_km ?? null, [
-                        'class' => 'form-control', 
-                        'step' => 'any', 
-                        'required' => true,
-                        'min' => '0',
-                        'id' => 'maintenance_km',
-                    ]) !!}
-                </div>
-            </div>
-
-            {{-- Overdue KM (calculated field) --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('overdue_km', 'Overdue Reading') !!}
-                <div class="input-group">
-                    <span class="input-group-text">KM</span>
-                    {!! Form::number('overdue_km', null, [
-                        'class' => 'form-control', 
-                        'step' => 'any',
-                        'readonly' => true,
-                        'id' => 'overdue_km'
-                    ]) !!}
-                </div>
-            </div>
-
-            {{-- Overdue Cost Per KM --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('overdue_cost_per_km', 'Cost Per Overdue KM') !!}
-                <div class="input-group">
-                    <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
-                    {!! Form::number('overdue_cost_per_km', 1, [
-                        'class' => 'form-control', 
-                        'step' => '0.01', 
-                        'required' => true,
-                        'id' => 'cost_per_km',
-                        'placeholder' => '0.00'
-                    ]) !!}
-                </div>
-            </div>
-
-            {{-- Total Overdue Cost (calculated field) --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('overdue_cost', 'Overdue Cost') !!}
-                <div class="input-group">
-                    <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
-                    {!! Form::number('overdue_cost', null, [
-                        'class' => 'form-control', 
-                        'step' => '0.01',
-                        'readonly' => true,
-                        'id' => 'overdue_cost'
-                    ]) !!}
-                </div>
+                {!! Form::label('billing_month', 'Billing Month',) !!}
+                {!! Form::month('billing_month', now(), ['class' => 'form-control', 'required' => true]) !!}
             </div>
 
             {{-- Overdue Paid By --}}
@@ -130,17 +59,6 @@
                 </div>
             </div>
 
-            {{-- Garage --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('garage', 'Garage:') !!}
-                <select name="garage_id" class="form-control select2" required>
-                    <option value="">Select</option>
-                    @foreach (App\Models\Garages::where('status',1)->get() as $garage)
-                        <option value="{{ $garage->id }}">{{ $garage->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-
             {{-- Description --}}
             <div class="form-group col-md-6">
                 {!! Form::label('description', 'Notes') !!}
@@ -150,12 +68,96 @@
                     'placeholder' => 'Notes about maintenance performed...'
                 ]) !!}
             </div>
-            <div class="col-md-3"></div>
+        </div>
+        <div class="row my-5">
+            
 
-            {{-- Billing Month --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('billing_month', 'Billing Month',) !!}
-                {!! Form::month('billing_month', now(), ['class' => 'form-control', 'required' => true]) !!}
+            {{-- Previous KM --}}
+            <div class="form-group col-md-2">
+                {!! Form::label('previous_km', 'Previous Reading') !!}
+                <div class="input-group">
+                    <span class="input-group-text">KM</span>
+                    {!! Form::number('previous_km', $bike->previous_km ?? null, [
+                        'class' => 'form-control', 
+                        'step' => 'any', 
+                        'readonly' => true,
+                        'min' => '0',
+                        'id' => 'previous_km',
+                    ]) !!}
+                </div>
+            </div>
+
+            {{-- Current KM --}}
+            <div class="form-group col-md-2">
+                {!! Form::label('current_km', 'Current Reading') !!}
+                <div class="input-group">
+                    <span class="input-group-text">KM</span>
+                    {!! Form::number('current_km', null, [
+                        'class' => 'form-control', 
+                        'step' => 'any', 
+                        'min' => '0',
+                        'required' => true,
+                        'id' => 'current_km',
+                    ]) !!}
+                </div>
+            </div>
+
+            {{-- Maintenance KM (interval for maintenance) --}}
+            <div class="form-group col-md-2">
+                {!! Form::label('maintenance_km', 'Maintenance Interval') !!}
+                <div class="input-group">
+                    <span class="input-group-text">KM</span>
+                    {!! Form::number('maintenance_km', $bike->maintenance_km ?? null, [
+                        'class' => 'form-control', 
+                        'step' => 'any', 
+                        'required' => true,
+                        'min' => '0',
+                        'id' => 'maintenance_km',
+                    ]) !!}
+                </div>
+            </div>
+
+            {{-- Overdue KM (calculated field) --}}
+            <div class="form-group col-md-2">
+                {!! Form::label('overdue_km', 'Overdue Reading') !!}
+                <div class="input-group">
+                    <span class="input-group-text">KM</span>
+                    {!! Form::number('overdue_km', null, [
+                        'class' => 'form-control', 
+                        'step' => 'any',
+                        'readonly' => true,
+                        'id' => 'overdue_km'
+                    ]) !!}
+                </div>
+            </div>
+
+            {{-- Overdue Cost Per KM --}}
+            <div class="form-group col-md-2">
+                {!! Form::label('overdue_cost_per_km', 'Cost Per Overdue KM') !!}
+                <div class="input-group">
+                    <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
+                    {!! Form::number('overdue_cost_per_km', 1, [
+                        'class' => 'form-control', 
+                        'step' => '0.01', 
+                        'required' => true,
+                        'id' => 'cost_per_km',
+                        'placeholder' => '0.00'
+                    ]) !!}
+                </div>
+            </div>
+
+            {{-- Total Overdue Cost (calculated field) --}}
+            <div class="form-group col-md-2">
+                {!! Form::label('overdue_cost', 'Overdue Cost') !!}
+                <div class="input-group">
+                    <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
+                    {!! Form::number('overdue_cost', null, [
+                        'class' => 'form-control', 
+                        'step' => '0.01',
+                        'readonly' => true,
+                        'id' => 'overdue_cost'
+                    ]) !!}
+                </div>
             </div>
         </div>
     </div>

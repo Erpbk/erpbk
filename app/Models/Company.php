@@ -15,6 +15,14 @@ class Company extends BaseModel
 
     protected $table = 'companies';
 
+    /**
+     * The companies table is not tenant-scoped (no company_id column).
+     */
+    protected function shouldApplyCompanyScope(): bool
+    {
+        return false;
+    }
+
     protected $fillable = [
         'name',
         'slug',

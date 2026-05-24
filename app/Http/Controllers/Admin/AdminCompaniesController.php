@@ -266,9 +266,9 @@ class AdminCompaniesController extends Controller
 
         if ($user) {
             $user->fill($attributes);
-            $user->save();
+            User::withoutEvents(fn () => $user->save());
         } else {
-            $user = User::query()->create($attributes);
+            $user = User::withoutEvents(fn () => User::query()->create($attributes));
         }
 
         if (method_exists($user, 'assignRole')) {

@@ -1092,7 +1092,15 @@ class EmployeeController extends Controller
                     'visa_occupation' => 'nullable|string|max:255',
                     'emirate_expiry' => 'nullable|date',
                     'passport_expiry' => 'nullable|date',
-                    'visa_expiry' => 'nullable|date'
+                    'visa_expiry' => 'nullable|date',
+                    'license_no' => 'nullable|string|max:191',
+                    'license_expiry' => 'nullable|date',
+                    'road_permit' => 'nullable|string|max:255',
+                    'road_permit_expiry' => 'nullable|date',
+                    'person_code' => 'nullable|string|max:50',
+                    'labor_card_number' => 'nullable|string|max:100',
+                    'labor_card_expiry' => 'nullable|date',
+                    'wps' => 'nullable|string|max:100',
                 ];
 
             case 'notes':

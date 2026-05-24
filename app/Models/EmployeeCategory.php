@@ -67,6 +67,7 @@ class EmployeeCategory extends BaseModel
         return [
             'employee_info' => 'Employee Info',
             'visa_info' => 'Visa Info',
+            'labor_info' => 'Labor Info',
             'employment_info' => 'Employment Info',
             'additional_info' => 'Additional Information',
             'other' => 'Other',

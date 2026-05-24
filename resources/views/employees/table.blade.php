@@ -80,6 +80,9 @@
             $emirateExpiry = $employee->emirate_expiry;
             $passportExpiry = $employee->passport_expiry;
             $visaExpiry = $employee->visa_expiry;
+            $licenseExpiry = $employee->license_expiry;
+            $roadPermitExpiry = $employee->road_permit_expiry;
+            $laborCardExpiry = $employee->labor_card_expiry;
             @endphp
             @if($emirateExpiry)
             @if($emirateExpiry->isPast())
@@ -101,14 +104,41 @@
             @endif
             @if($visaExpiry)
             @if($visaExpiry->isPast())
-            <span class="badge bg-label-danger">Visa Expired</span>
+            <span class="badge bg-label-danger mb-1 d-block">Visa Expired</span>
             @elseif($visaExpiry->diffInDays($today) <= 30)
-            <span class="badge bg-label-warning">Visa: {{ $visaExpiry->diffInDays($today) }} days</span>
+            <span class="badge bg-label-warning mb-1 d-block">Visa: {{ $visaExpiry->diffInDays($today) }} days</span>
             @else
-            <span class="badge bg-label-success">Visa: {{ $visaExpiry->diffInDays($today) }} days</span>
+            <span class="badge bg-label-success mb-1 d-block">Visa: {{ $visaExpiry->diffInDays($today) }} days</span>
             @endif
             @endif
-            @if(!$emirateExpiry && !$passportExpiry && !$visaExpiry)
+            @if($licenseExpiry)
+            @if($licenseExpiry->isPast())
+            <span class="badge bg-label-danger mb-1 d-block">License Expired</span>
+            @elseif($licenseExpiry->diffInDays($today) <= 30)
+            <span class="badge bg-label-warning mb-1 d-block">License: {{ $licenseExpiry->diffInDays($today) }} days</span>
+            @else
+            <span class="badge bg-label-success mb-1 d-block">License: {{ $licenseExpiry->diffInDays($today) }} days</span>
+            @endif
+            @endif
+            @if($roadPermitExpiry)
+            @if($roadPermitExpiry->isPast())
+            <span class="badge bg-label-danger mb-1 d-block">Road Permit Expired</span>
+            @elseif($roadPermitExpiry->diffInDays($today) <= 30)
+            <span class="badge bg-label-warning mb-1 d-block">Road Permit: {{ $roadPermitExpiry->diffInDays($today) }} days</span>
+            @else
+            <span class="badge bg-label-success mb-1 d-block">Road Permit: {{ $roadPermitExpiry->diffInDays($today) }} days</span>
+            @endif
+            @endif
+            @if($laborCardExpiry)
+            @if($laborCardExpiry->isPast())
+            <span class="badge bg-label-danger">Labor Card Expired</span>
+            @elseif($laborCardExpiry->diffInDays($today) <= 30)
+            <span class="badge bg-label-warning">Labor Card: {{ $laborCardExpiry->diffInDays($today) }} days</span>
+            @else
+            <span class="badge bg-label-success">Labor Card: {{ $laborCardExpiry->diffInDays($today) }} days</span>
+            @endif
+            @endif
+            @if(!$emirateExpiry && !$passportExpiry && !$visaExpiry && !$licenseExpiry && !$roadPermitExpiry && !$laborCardExpiry)
             <span class="badge bg-label-secondary">No Documents</span>
             @endif
          </td>

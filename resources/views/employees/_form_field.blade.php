@@ -57,6 +57,9 @@ if (($item->kind ?? '') === 'fixed') {
                             $opts[$opt] = ucwords(str_replace('_', ' ', $opt));
                         }
                     }
+                } elseif (!empty($spec['dropdown'])) {
+                    $dropdownOpts = \App\Helpers\Common::Dropdowns($spec['dropdown']);
+                    $opts = $dropdownOpts !== [] ? ['' => 'Select'] + $dropdownOpts : ['' => 'Select'];
                 }
             @endphp
             {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select'] + ($req ? ['required' => true] : [])) !!}

@@ -67,7 +67,7 @@ return [
             'primary_label_key' => 'fuel_cards',
         ],
         'rta_fines' => [
-            'label' => 'RTA Fines',
+            'label' => 'RTA Fine',
             'primary_label_key' => 'rta_fines',
         ],
         'rta_saliks' => [

@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
 use App\Helpers\HeadAccount;
 use App\Models\Accounts;
 use App\Models\Settings;
-use App\Services\Module\ModuleLabelService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class VatSettingsController extends Controller
 {
+    use SavesModuleDisplayLabel;
     public function __construct()
     {
         $this->middleware('auth');
@@ -194,10 +195,11 @@ class VatSettingsController extends Controller
      */
     public function storeModuleLabel(Request $request)
     {
-        $request->validate(['module_label' => 'required|string|max:100']);
-        app(ModuleLabelService::class)->saveLabel('vat_settings', trim((string) $request->input('module_label')));
+        $this->saveModuleDisplayLabel($request, 'vat');
 
-        return redirect()->route('settings-panel.vat-settings.index')->with('success', 'Module name updated.');
+        return redirect()->route('settings-panel.vat-settings.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Menu labels updated.');
     }
 
     /**

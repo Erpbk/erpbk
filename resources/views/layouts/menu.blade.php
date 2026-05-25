@@ -402,20 +402,20 @@ $homeLink = $isAdminLogin
 <li class="menu-item {{ Route::is('rtaFines*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
     <i class="menu-icon tf-icons ti ti-file-alert"></i>
-    <div>{{ $menuLabels['rta_fines'] ?? 'RTA Fines' }}</div>
+    <div>{{ $menuLabels['rta_fines'] ?? 'RTA Fine' }}</div>
   </a>
   <ul class="menu-sub">
     @can('rtafine_view')
     <li class="menu-item {{ Route::is('rtaFines.tickets') ? 'active' : '' }}">
       <a href="{{ route('rtaFines.tickets') }}" class="menu-link">
-        <div>{{ $menuLabels['rta_fines_tickets'] ?? 'Fine Tickets' }}</div>
+        <div>{{ $menuLabels['rta_fines_unpaid'] ?? 'Unpaid' }}</div>
       </a>
     </li>
     @endcan
     @can('rtafine_paid_view')
     <li class="menu-item {{ Route::is('rtaFines.paid') ? 'active' : '' }}">
       <a href="{{ route('rtaFines.paid') }}" class="menu-link">
-        <div>{{ $menuLabels['rta_fines_paid'] ?? 'Paid Fines' }}</div>
+        <div>{{ $menuLabels['rta_fines_paid'] ?? 'Paid' }}</div>
       </a>
     </li>
     @endcan

@@ -403,19 +403,32 @@ class BikeSettingsController extends Controller
             'order.*' => ['required', 'string', 'max:80'],
         ]);
         $order = array_values(array_map('strval', $validated['order']));
-        $existing = BikeFieldCategoryAssignment::query()
+
+        $visibleExisting = BikeFieldCategoryAssignment::query()
             ->pluck('field_key')
             ->map(fn($v) => (string) $v)
+            ->reject(fn($fieldKey) => in_array($fieldKey, $this->hiddenFixedFieldKeys, true))
             ->sort()
             ->values()
             ->all();
+
         $sortedOrder = $order;
         sort($sortedOrder);
-        if ($sortedOrder !== $existing || count($order) !== count($existing)) {
+        if ($sortedOrder !== $visibleExisting || count($order) !== count($visibleExisting)) {
             return response()->json(['success' => false, 'message' => 'Invalid field order.'], 422);
         }
 
-        foreach ($order as $pos => $fieldKey) {
+        $hiddenKeysOrdered = BikeFieldCategoryAssignment::query()
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get()
+            ->pluck('field_key')
+            ->map(fn($v) => (string) $v)
+            ->filter(fn($fieldKey) => in_array($fieldKey, $this->hiddenFixedFieldKeys, true))
+            ->values()
+            ->all();
+
+        foreach (array_merge($order, $hiddenKeysOrdered) as $pos => $fieldKey) {
             BikeFieldCategoryAssignment::query()
                 ->where('field_key', $fieldKey)
                 ->update(['display_order' => $pos]);
@@ -509,19 +522,34 @@ class BikeSettingsController extends Controller
             'order.*' => ['required', 'integer', 'exists:bike_custom_fields,id'],
         ]);
         $order = array_values(array_map('intval', $validated['order']));
-        $existing = BikeCustomField::query()
+        $assignOnlyIds = BikeCustomField::assignOnlyCustomFieldIds();
+
+        $visibleExisting = BikeCustomField::query()
+            ->when($assignOnlyIds !== [], fn($q) => $q->whereNotIn('id', $assignOnlyIds))
             ->pluck('id')
             ->map(fn($v) => (int) $v)
             ->sort()
             ->values()
             ->all();
+
         $sortedOrder = $order;
         sort($sortedOrder);
-        if ($sortedOrder !== $existing || count($order) !== count($existing)) {
+        if ($sortedOrder !== $visibleExisting || count($order) !== count($visibleExisting)) {
             return response()->json(['success' => false, 'message' => 'Invalid order.'], 422);
         }
 
-        foreach ($order as $pos => $id) {
+        $assignOnlyOrdered = $assignOnlyIds === []
+            ? []
+            : BikeCustomField::query()
+                ->whereIn('id', $assignOnlyIds)
+                ->orderBy('display_order')
+                ->orderBy('id')
+                ->pluck('id')
+                ->map(fn($v) => (int) $v)
+                ->values()
+                ->all();
+
+        foreach (array_merge($order, $assignOnlyOrdered) as $pos => $id) {
             BikeCustomField::query()->where('id', $id)->update(['display_order' => $pos]);
         }
 

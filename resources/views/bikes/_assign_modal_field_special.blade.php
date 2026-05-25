@@ -32,10 +32,14 @@ $lockedWarehouse = $bikeModel && in_array((string) $bikeModel->warehouse, ['Absc
     @endif
 </div>
 @elseif($fieldKey === 'assign_type')
-<div class="{{ $colClass }} form-group" id="{{ $wrapperId }}" data-assign-field="assign_type">
-    <label>{{ $label }}@if($required)<span class="text-danger">*</span>@endif</label>
-    {!! Form::select('assign_type', $selectOpts, '', ['class' => 'form-select select2', 'id' => 'assign_type', 'required' => $required]) !!}
-</div>
+    @if($allowTypeSelection ?? false)
+    <div class="{{ $colClass }} form-group" id="{{ $wrapperId }}" data-assign-field="assign_type">
+        <label>{{ $label }}@if($required)<span class="text-danger">*</span>@endif</label>
+        {!! Form::select('assign_type', $selectOpts, '', ['class' => 'form-select select2', 'id' => 'assign_type', 'required' => $required]) !!}
+    </div>
+    @else
+    <input type="hidden" name="assign_type" value="rider" onload="toggleAssignmentFields()" id="assign_type">
+    @endif
 @elseif($fieldKey === 'rider_id')
 <div class="{{ $colClass }} form-group hidden-field assign-group-rider" id="rider_select" data-assign-field="rider_id">
     <label>{{ $label }}@if($required)<span class="text-danger">*</span>@endif</label>

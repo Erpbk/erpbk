@@ -239,8 +239,10 @@ class ModuleSettingsController extends Controller
         }
 
         $defaultLabels = config('menu_labels.defaults', []);
-        $defaultLabel = $defaultLabels[$routeModule] ?? $defaultLabels[$module] ?? ucwords(str_replace('_', ' ', $routeModule));
-        $moduleLabel = Settings::getMenuLabel($routeModule) ?: Settings::getMenuLabel($module);
+        $dropdownContext = \App\Support\MenuDropdownRegistry::contextForModuleKey($routeModule);
+        $menuLabelKey = $dropdownContext['parent_key'] ?? $routeModule;
+        $defaultLabel = $defaultLabels[$menuLabelKey] ?? $defaultLabels[$routeModule] ?? $defaultLabels[$module] ?? ucwords(str_replace('_', ' ', $routeModule));
+        $moduleLabel = Settings::getMenuLabel($menuLabelKey) ?: Settings::getMenuLabel($routeModule) ?: Settings::getMenuLabel($module);
         $pageTitle = $moduleLabel . ' – Settings';
         $companyId = \App\Support\CompanyContext::id();
         $moduleSourceTable = $this->syncModuleFixedAssignmentsFromDb($module);
@@ -712,7 +714,7 @@ class ModuleSettingsController extends Controller
 
         if ($dropdownContext) {
             $labelService = app(ModuleLabelService::class);
-            $labelService->saveLabel($labelKey, trim((string) $request->input('module_label')));
+            $labelService->saveLabel($labelKey, trim((string) $request->input('module_label')), false);
             $submenu = $request->input('submenu_labels', []);
             if (is_array($submenu)) {
                 foreach ($dropdownContext['children'] as $child) {
@@ -722,7 +724,7 @@ class ModuleSettingsController extends Controller
                     }
                     $value = trim((string) ($submenu[$key] ?? ''));
                     if ($value !== '') {
-                        $labelService->saveLabel($key, $value);
+                        $labelService->saveLabel($key, $value, false);
                     }
                 }
             }

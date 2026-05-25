@@ -23,10 +23,12 @@ $menuDropdownContext = $moduleMenuKey !== ''
   <div class="row g-3">
     @foreach($menuDropdownContext['children'] as $child)
     <div class="col-md-6">
-      <label class="form-label">Dropdown item: {{ $child['default'] }}</label>
+      <label class="form-label fw-semibold">Submenu label</label>
       <input type="text" name="submenu_labels[{{ $child['key'] }}]" class="form-control"
         value="{{ old('submenu_labels.'.$child['key'], $child['label']) }}"
-        placeholder="{{ $child['default'] }}" maxlength="100">
+        placeholder="{{ $child['default'] }}" maxlength="100"
+        data-menu-label-key="{{ $child['key'] }}">
+      <div class="form-text">Key: <code>{{ $child['key'] }}</code> — default: “{{ $child['default'] }}”</div>
     </div>
     @endforeach
   </div>

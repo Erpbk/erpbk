@@ -32,7 +32,11 @@ trait SavesModuleDisplayLabel
             return;
         }
 
-        $labelService->saveLabel($context['parent_key'], trim((string) $request->input('module_label')));
+        $labelService->saveLabel(
+            $context['parent_key'],
+            trim((string) $request->input('module_label')),
+            false
+        );
 
         $defaults = config('menu_labels.defaults', []);
         $submenu = $request->input('submenu_labels', []);
@@ -47,7 +51,7 @@ trait SavesModuleDisplayLabel
             }
             $value = trim((string) ($submenu[$key] ?? ''));
             if ($value !== '') {
-                $labelService->saveLabel($key, $value);
+                $labelService->saveLabel($key, $value, false);
             }
         }
     }

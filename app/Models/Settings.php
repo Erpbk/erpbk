@@ -48,20 +48,41 @@ class Settings extends BaseModel
         return Cache::remember($cacheKey, 300, function () {
             $defaults = config('menu_labels.defaults', []);
 
-            // In the tenant app, menu labels are per-company only (see Company::modules_settings).
+            $labels = self::mergeGlobalLabelOverrides($defaults);
+
+            // Per-company overrides (modules_settings.label_overrides) win over global settings rows.
             if (CompanyContext::shouldApplyScope() && CompanyContext::id() !== null) {
-                return self::mergeCompanyLabelOverrides($defaults);
+                return self::mergeCompanyLabelOverrides($labels);
             }
 
-            $stored = self::where('name', 'like', 'menu_label_%')
-                ->pluck('value', 'name');
-            $globalOverrides = [];
-            foreach ($stored as $name => $value) {
-                $globalOverrides[str_replace('menu_label_', '', $name)] = $value;
-            }
-
-            return array_merge($defaults, $globalOverrides);
+            return $labels;
         });
+    }
+
+    /**
+     * Legacy/global menu_label_* rows from the settings table.
+     *
+     * @param  array<string, string>  $labels
+     * @return array<string, string>
+     */
+    public static function mergeGlobalLabelOverrides(array $labels): array
+    {
+        $stored = self::where('name', 'like', 'menu_label_%')
+            ->pluck('value', 'name');
+        if ($stored->isEmpty()) {
+            return $labels;
+        }
+
+        $globalOverrides = [];
+        foreach ($stored as $name => $value) {
+            $key = str_replace('menu_label_', '', (string) $name);
+            $value = trim((string) $value);
+            if ($key !== '' && $value !== '') {
+                $globalOverrides[$key] = $value;
+            }
+        }
+
+        return array_merge($labels, $globalOverrides);
     }
 
     /**

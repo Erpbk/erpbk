@@ -14,18 +14,24 @@ class SettingsPanelMenuRegistry
         return config('settings_panel_menu.items', []);
     }
 
-    public static function label(string $labelKey, array $menuLabels, ?string $override = null): string
+    /**
+     * @param  string|null  $fallback  Used only when the key has no saved/custom menu label.
+     */
+    public static function label(string $labelKey, array $menuLabels, ?string $fallback = null): string
     {
-        if ($override !== null && $override !== '') {
-            return $override;
-        }
-
         if ($labelKey === 'riders' || $labelKey === 'riders_list') {
             return $menuLabels['riders'] ?? config('menu_labels.defaults.riders', 'Riders');
         }
 
-        return $menuLabels[$labelKey]
-            ?? config('menu_labels.defaults.' . $labelKey, ucwords(str_replace('_', ' ', $labelKey)));
+        if (isset($menuLabels[$labelKey]) && trim((string) $menuLabels[$labelKey]) !== '') {
+            return $menuLabels[$labelKey];
+        }
+
+        if ($fallback !== null && trim($fallback) !== '') {
+            return $fallback;
+        }
+
+        return config('menu_labels.defaults.' . $labelKey, ucwords(str_replace('_', ' ', $labelKey)));
     }
 
     public static function settingsUrl(string $settingsModuleKey, ?string $companySlug = null, array $query = []): ?string

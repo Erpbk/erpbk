@@ -14,7 +14,7 @@ class ModuleLabelService
      *
      * @param  list<string>  $keys
      */
-    public function saveLabels(array $keys, string $label): void
+    public function saveLabels(array $keys, string $label, bool $withAliases = true): void
     {
         $label = trim($label);
         if ($label === '') {
@@ -23,7 +23,9 @@ class ModuleLabelService
 
         $allKeys = [];
         foreach ($keys as $key) {
-            foreach (ErpModuleRegistry::menuLabelAliases($key) as $aliasKey) {
+            $key = ErpModuleRegistry::normalizeKey($key);
+            $related = $withAliases ? ErpModuleRegistry::menuLabelAliases($key) : [$key];
+            foreach ($related as $aliasKey) {
                 $allKeys[] = $aliasKey;
             }
         }
@@ -54,9 +56,12 @@ class ModuleLabelService
         Settings::clearMenuLabelsCache();
     }
 
-    public function saveLabel(string $key, string $label): void
+    /**
+     * @param  bool  $withAliases  When false, only the given key is stored (dropdown parent/child labels).
+     */
+    public function saveLabel(string $key, string $label, bool $withAliases = true): void
     {
-        $this->saveLabels([$key], $label);
+        $this->saveLabels([$key], $label, $withAliases);
     }
 
     protected function shouldSaveCompanyScoped(): bool
@@ -82,14 +87,14 @@ class ModuleLabelService
         }
 
         $settings = is_array($company->modules_settings) ? $company->modules_settings : [];
-        $overrides = $settings['label_overrides'] ?? [];
+        $overrides = is_array($settings['label_overrides'] ?? null) ? $settings['label_overrides'] : [];
 
         foreach ($keys as $key) {
             $overrides[$key] = $label;
         }
 
         $settings['label_overrides'] = $overrides;
-        $company->modules_settings = $settings;
+        $company->forceFill(['modules_settings' => $settings]);
         $company->save();
     }
 }

@@ -41,7 +41,6 @@ return [
         'vat_settings' => ['vat'],
         'garages' => ['garage_list'],
         'garage_list' => ['garages'],
-        'rta_fines' => ['rta_fines_unpaid', 'rta_fines_paid'],
         'rta_fines_unpaid' => ['rta_fines_tickets'],
         'rta_fines_tickets' => ['rta_fines_unpaid'],
         'cash_banks' => ['cheques', 'payments', 'receipts'],

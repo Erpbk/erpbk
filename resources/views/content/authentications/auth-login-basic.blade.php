@@ -45,7 +45,7 @@ $customizerHidden = 'customizer-hide';
           <p class="mb-4">Please sign-in to your account and start the adventure</p>
 
          
-          <form id="formAuthentication" class="mb-3" action="{{ session('company_slug') ? route('company.login', ['company_slug' => session('company_slug')]) : '#' }}" method="post">
+          <form id="formAuthentication" class="mb-3" action="{{ route('company.login.submit') }}" method="post">
            
               @csrf
             <div class="mb-3">

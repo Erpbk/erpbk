@@ -1,71 +1,53 @@
-@php $pageConfigs = ['myLayout' => 'blank']; @endphp
-@extends('layouts.blankLayout')
+@php $authPage = 'login'; @endphp
+@extends('layouts.authSplit')
 
-@section('title', __('Login') . ' - ' . ($company->name ?? ''))
+@section('title', __('Login'))
 
-@section('page-style')
-<link rel="stylesheet" href="{{ asset('assets/vendor/css/pages/page-auth.css') }}">
-<style>
-  .company-brand { max-height: 60px; max-width: 200px; object-fit: contain; }
-  .company-primary { color: {{ $company->primary_color ?? '#696cff' }}; }
-</style>
-@endsection
+@section('auth-form')
+<h4 class="mb-1">{{ __('Welcome back') }}</h4>
+<p class="text-muted mb-4">{{ __('Sign in with your email and password') }}</p>
 
-@section('content')
-<div class="container-xxl">
-  <div class="authentication-wrapper authentication-basic container-p-y">
-    <div class="authentication-inner py-4">
-      <div class="card">
-        <div class="card-body">
-          <div class="app-brand justify-content-center mb-4 mt-2">
-            <a href="{{ route('company.login-form', ['company_slug' => $companySlug]) }}" class="app-brand-link gap-2 d-flex flex-column align-items-center">
-              @if($company->logo)
-                <img src="{{ asset('storage/' . $company->logo) }}" alt="{{ $company->name }}" class="company-brand">
-              @else
-                <span class="app-brand-text demo text-body fw-bold company-primary">{{ $company->name }}</span>
-              @endif
-            </a>
-          </div>
-          <h4 class="mb-1 pt-2">{{ __('Welcome to :name', ['name' => $company->name]) }}</h4>
-          <p class="mb-4">{{ __('Sign in to your account') }}</p>
+@if($errors->any())
+  <div class="alert alert-danger">
+    @foreach($errors->all() as $e)
+      <div>{{ $e }}</div>
+    @endforeach
+  </div>
+@endif
 
-          @if($errors->any())
-            <div class="alert alert-danger">
-              @foreach($errors->all() as $e) {{ $e }} @endforeach
-            </div>
-          @endif
-
-          <form action="{{ route('company.login', ['company_slug' => $companySlug]) }}" method="post" class="mb-3">
-            @csrf
-            <div class="mb-3">
-              <label for="email" class="form-label">{{ __('Email or Username') }}</label>
-              <input type="text" class="form-control" id="email" name="email" value="{{ old('email') }}" autofocus>
-            </div>
-            <div class="mb-3 form-password-toggle">
-              <label class="form-label" for="password">{{ __('Password') }}</label>
-              <div class="input-group input-group-merge">
-                <input type="password" id="password" class="form-control" name="password" placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;">
-                <span class="input-group-text cursor-pointer"><i class="ti ti-eye-off"></i></span>
-              </div>
-            </div>
-            <div class="mb-3">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="remember" name="remember">
-                <label class="form-check-label" for="remember">{{ __('Remember Me') }}</label>
-              </div>
-            </div>
-            <button type="submit" class="btn btn-primary d-grid w-100">{{ __('Sign in') }}</button>
-          </form>
-
-          <p class="text-center mb-1">
-            <a href="{{ route('company.find-login') }}">{{ __('Different company?') }}</a>
-          </p>
-          <p class="text-center">
-            <a href="{{ url('/') }}">{{ __('Back to home') }}</a>
-          </p>
-        </div>
-      </div>
+<form action="{{ route('company.login.submit') }}" method="post" class="mb-3">
+  @csrf
+  <div class="mb-3">
+    <label for="email" class="form-label">{{ __('Email') }}</label>
+    <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email" value="{{ old('email') }}" placeholder="{{ __('you@company.com') }}" required autofocus autocomplete="email">
+    @error('email')
+      <div class="invalid-feedback">{{ $message }}</div>
+    @enderror
+  </div>
+  <div class="mb-3 form-password-toggle">
+    <div class="d-flex justify-content-between align-items-center">
+      <label class="form-label mb-0" for="password">{{ __('Password') }}</label>
+    </div>
+    <div class="input-group input-group-merge mt-1">
+      <input type="password" id="password" class="form-control @error('password') is-invalid @enderror" name="password" placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;" required autocomplete="current-password">
+      <span class="input-group-text cursor-pointer"><i class="ti ti-eye-off"></i></span>
+    </div>
+    @error('password')
+      <div class="invalid-feedback d-block">{{ $message }}</div>
+    @enderror
+  </div>
+  <div class="mb-4">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="remember" name="remember" {{ old('remember') ? 'checked' : '' }}>
+      <label class="form-check-label" for="remember">{{ __('Remember me') }}</label>
     </div>
   </div>
-</div>
+  <button type="submit" class="btn btn-primary d-grid w-100">{{ __('Sign in') }}</button>
+</form>
+
+<p class="text-center text-muted small mb-2">{{ __('Forgot your password? Contact your administrator.') }}</p>
+<p class="text-center mb-0">
+  <span class="text-muted">{{ __("Don't have an account?") }}</span>
+  <a href="{{ route('company.register') }}">{{ __('Register your company') }}</a>
+</p>
 @endsection

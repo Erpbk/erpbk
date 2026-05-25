@@ -66,6 +66,7 @@ final class CompanyIdColumnEnsurer
 
         $database = DB::connection($connection)->getDatabaseName();
         $fallbackCompanyId = $this->resolveFallbackCompanyId($connection, $database, $dryRun);
+        $validCompanyIds = $this->validCompanyIds($connection);
 
         $report = [
             'processed' => 0,
@@ -127,7 +128,7 @@ final class CompanyIdColumnEnsurer
                         $report['backfilled'][] = $table . " ({$updated})";
                     }
 
-                    $this->normalizeOrphanedCompanyIds($connection, $table, $fallbackCompanyId);
+                    $this->normalizeOrphanedCompanyIds($connection, $table, $fallbackCompanyId, $validCompanyIds);
                 }
             } catch (\Throwable $e) {
                 $this->recordError($report, $table, 'backfill', $e);
@@ -247,14 +248,28 @@ final class CompanyIdColumnEnsurer
         return substr($base, 0, 47) . '_' . substr(md5($base), 0, 16);
     }
 
-    private function normalizeOrphanedCompanyIds(string $connection, string $table, int $fallbackCompanyId): void
+    /**
+     * @return list<int>
+     */
+    private function validCompanyIds(string $connection): array
     {
-        $validCompanyIds = DB::connection($connection)
+        return DB::connection($connection)
             ->table('companies')
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
+            ->values()
             ->all();
+    }
 
+    /**
+     * @param  list<int>  $validCompanyIds
+     */
+    private function normalizeOrphanedCompanyIds(
+        string $connection,
+        string $table,
+        int $fallbackCompanyId,
+        array $validCompanyIds
+    ): void {
         if ($validCompanyIds === []) {
             return;
         }

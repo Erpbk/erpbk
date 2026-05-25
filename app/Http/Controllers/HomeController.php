@@ -9,7 +9,7 @@ use App\Models\Calculations;
 use App\Models\Company;
 use App\Models\Services;
 use App\Models\Settings;
-use App\Models\User;
+use App\Services\Company\CompanyContactEmailSync;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -141,25 +141,10 @@ class HomeController extends Controller
         );
       }
 
-      AdminCompany::syncFromCentralCompany($currentCompany);
-
-      if ($newEmail !== $currentEmail && $newEmail && $currentEmail !== '') {
-        User::withoutGlobalScope('company')
-          ->where('company_id', $currentCompany->id)
-          ->whereRaw('LOWER(TRIM(email)) = ?', [$currentEmail])
-          ->where('id', '!=', auth()->id())
-          ->update(['email' => $newEmail]);
-
-        if (auth()->check()) {
-          $authUser = auth()->user();
-          if (
-            (int) $authUser->company_id === (int) $currentCompany->id
-            && strtolower(trim((string) $authUser->email)) === $currentEmail
-          ) {
-            $authUser->email = $newEmail;
-            $authUser->save();
-          }
-        }
+      if ($newEmail !== $currentEmail) {
+        app(CompanyContactEmailSync::class)->apply($currentCompany, $currentEmail, $newEmail);
+      } else {
+        AdminCompany::syncFromCentralCompany($currentCompany);
       }
       foreach ((array) $request->post('settings', []) as $key => $value) {
         Settings::updateOrCreate(['name' => $key, 'company_id' => $currentCompany->id], ['name' => $key, 'value' => $value, 'company_id' => $currentCompany->id]);

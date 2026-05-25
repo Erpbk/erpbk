@@ -249,20 +249,30 @@ class AdminCompaniesController extends Controller
     protected function createFirstUserForCompany(Company $company): void
     {
         $passwordHash = $company->getRawOriginal('password');
-        $user = User::query()->updateOrCreate(
-            ['email' => $company->email, 'company_id' => $company->id],
-            [
-                'name' => $company->name,
-                'first_name' => $company->name,
-                'email' => $company->email,
-                'company_id' => $company->id,
-                'password' => $passwordHash,
-                'branch_ids' => [],
-                'status' => 1,
-            ]
-        );
+        $attributes = [
+            'name' => $company->name,
+            'first_name' => $company->name,
+            'email' => $company->email,
+            'company_id' => $company->id,
+            'password' => $passwordHash,
+            'branch_ids' => [],
+            'status' => 1,
+        ];
+
+        $user = User::withoutGlobalScope('company')
+            ->where('company_id', $company->id)
+            ->whereHas('roles', fn ($query) => $query->where('name', IConstants::ROLE_SUPER_ADMIN))
+            ->first();
+
+        if ($user) {
+            $user->fill($attributes);
+            User::withoutEvents(fn () => $user->save());
+        } else {
+            $user = User::withoutEvents(fn () => User::query()->create($attributes));
+        }
+
         if (method_exists($user, 'assignRole')) {
-            $user->syncRoles(['Super Admin']);
+            $user->syncRoles([IConstants::ROLE_SUPER_ADMIN]);
         }
     }
 

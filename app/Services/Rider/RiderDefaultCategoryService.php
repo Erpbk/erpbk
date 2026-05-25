@@ -24,25 +24,71 @@ final class RiderDefaultCategoryService
     {
         $category = RiderCategory::withoutGlobalScopes(['company'])
             ->where('slug', self::DEFAULT_SLUG)
-            ->whereNull('company_id')
             ->first();
 
         if ($category) {
-            if (trim((string) $category->label) === '') {
-                $category->label = $this->defaultLabel();
-                $category->save();
-            }
-
-            return $category;
+            return $this->normalizeDefaultCategory($category);
         }
 
-        return RiderCategory::withoutGlobalScopes(['company'])->create([
-            'slug' => self::DEFAULT_SLUG,
-            'label' => $this->defaultLabel(),
-            'display_order' => 0,
-            'is_system' => true,
-            'company_id' => null,
-        ]);
+        try {
+            return RiderCategory::withoutGlobalScopes(['company'])->create([
+                'slug' => self::DEFAULT_SLUG,
+                'label' => $this->defaultLabel(),
+                'display_order' => 0,
+                'is_system' => true,
+                'company_id' => null,
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (! $this->isDuplicateSlugException($e)) {
+                throw $e;
+            }
+
+            $category = RiderCategory::withoutGlobalScopes(['company'])
+                ->where('slug', self::DEFAULT_SLUG)
+                ->first();
+
+            if ($category) {
+                return $this->normalizeDefaultCategory($category);
+            }
+
+            throw $e;
+        }
+    }
+
+    private function normalizeDefaultCategory(RiderCategory $category): RiderCategory
+    {
+        $dirty = false;
+
+        if ($category->company_id !== null) {
+            $category->company_id = null;
+            $dirty = true;
+        }
+
+        if (! $category->is_system) {
+            $category->is_system = true;
+            $dirty = true;
+        }
+
+        if (trim((string) $category->label) === '') {
+            $category->label = $this->defaultLabel();
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $category->save();
+        }
+
+        return $category;
+    }
+
+    private function isDuplicateSlugException(\Illuminate\Database\QueryException $e): bool
+    {
+        $code = (string) $e->getCode();
+        $message = $e->getMessage();
+
+        return $code === '23000'
+            || str_contains($message, '1062')
+            || str_contains($message, 'rider_categories_slug_unique');
     }
 
     /**

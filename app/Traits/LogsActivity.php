@@ -14,14 +14,14 @@ trait LogsActivity
     {
         // Log when a model is created
         static::created(function (Model $model) {
-            if (auth()->check()) {
+            if (static::shouldLogActivity()) {
                 ActivityLogger::created(static::getModuleName(), $model);
             }
         });
 
         // Log when a model is updated
         static::updated(function (Model $model) {
-            if (auth()->check()) {
+            if (static::shouldLogActivity()) {
                 // Get the original attributes before the update
                 $oldData = $model->getOriginal();
 
@@ -42,7 +42,7 @@ trait LogsActivity
 
         // Keep the original deleting event for soft/regular deletes
         static::deleting(function (Model $model) {
-            if (auth()->check()) {
+            if (static::shouldLogActivity()) {
                 // // Skip if this is a force delete (handled above)
                 // $isForceDelete = false;
                 // if (in_array('Illuminate\Database\Eloquent\SoftDeletes', class_uses_recursive(static::class))) {
@@ -66,6 +66,14 @@ trait LogsActivity
     }
 
     /**
+     * Whether the current request has an authenticated actor worth logging.
+     */
+    protected static function shouldLogActivity(): bool
+    {
+        return auth()->guard('web')->check() || auth()->guard('admin')->check();
+    }
+
+    /**
      * Get the module name for this model.
      * Override this method in your model if you want a custom module name.
      */
@@ -79,7 +87,7 @@ trait LogsActivity
      */
     public function logActivity(string $action, ?array $changes = null): void
     {
-        if (auth()->check()) {
+        if (static::shouldLogActivity()) {
             ActivityLogger::custom($action, static::getModuleName(), $this, $changes);
         }
     }

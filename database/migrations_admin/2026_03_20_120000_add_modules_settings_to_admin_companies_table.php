@@ -10,6 +10,10 @@ return new class extends Migration
 
     public function up(): void
     {
+        if (Schema::hasColumn('admin_companies', 'modules_settings')) {
+            return;
+        }
+
         Schema::table('admin_companies', function (Blueprint $table) {
             $table->json('modules_settings')->nullable()->after('secondary_color');
         });

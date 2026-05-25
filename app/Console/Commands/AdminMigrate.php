@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Support\MigrateConnectionRunner;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
 
 class AdminMigrate extends Command
 {
@@ -16,13 +16,12 @@ class AdminMigrate extends Command
 
         $this->info('Running admin migrations (database/migrations_admin) ...');
 
-        $exitCode = Artisan::call('migrate', [
-            '--database' => 'mysql_admin',
-            '--path' => 'database/migrations_admin',
-            '--force' => $force,
-        ]);
-
-        $this->output->writeln(Artisan::output());
+        $exitCode = MigrateConnectionRunner::run(
+            'mysql_admin',
+            'database/migrations_admin',
+            $force,
+            $this->output
+        );
 
         if ($exitCode !== 0) {
             $this->error('Admin migrations failed.');
@@ -33,4 +32,3 @@ class AdminMigrate extends Command
         return 0;
     }
 }
-

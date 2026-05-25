@@ -146,14 +146,6 @@
             <div class="input-group-text">%</div>
           </div>
         </div>
-        <div class="col-md-4 mb-3">
-          <label class="">RTA Admin Fee</label>
-          <div class="input-group ">
-            <input type="number" step="any" name="settings[rta_admin_fee]" class="form-control" value="{{$settings['rta_admin_fee']??''}}" />
-            <div class="input-group-text">{{ \App\Helpers\Currency::symbol() }}</div>
-          </div>
-        </div>
-
       </div>
       <div class="card-footer">
         <button type="submit" class="btn btn-primary" style="float:right;">Save Settings</button>
@@ -200,8 +192,8 @@
       return;
     }
 
-    const sendOtpUrl = @json(route('settings-panel.company.email.send-otp', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]));
-    const verifyOtpUrl = @json(route('settings-panel.company.email.verify-otp', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]));
+    const sendOtpUrl = @json(route('settings-panel.company.email.send-otp', ['company_slug' => request() -> route('company_slug') ?? session('company_slug')]));
+    const verifyOtpUrl = @json(route('settings-panel.company.email.verify-otp', ['company_slug' => request() -> route('company_slug') ?? session('company_slug')]));
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const saveBtnDefaultHtml = saveBtn ? saveBtn.innerHTML : '';
 

@@ -47,10 +47,19 @@ return new class extends Migration
         }
 
         $allExpenseIds = [];
+        $visited = [];
         $toProcess = $expenseRootIds;
 
         while (!empty($toProcess)) {
-            $parentIds = $toProcess;
+            $parentIds = array_values(array_diff($toProcess, array_keys($visited)));
+            if ($parentIds === []) {
+                break;
+            }
+
+            foreach ($parentIds as $id) {
+                $visited[$id] = true;
+            }
+
             $allExpenseIds = array_merge($allExpenseIds, $parentIds);
             $toProcess = DB::table('accounts')
                 ->whereIn('parent_id', $parentIds)

@@ -41,6 +41,14 @@ class Employee extends BaseModel
         'visa_sponsor',
         'visa_occupation',
         'visa_expiry',
+        'license_no',
+        'license_expiry',
+        'road_permit',
+        'road_permit_expiry',
+        'person_code',
+        'labor_card_number',
+        'labor_card_expiry',
+        'wps',
         'account_id',
         'profile_image',
         'notes',
@@ -58,6 +66,9 @@ class Employee extends BaseModel
         'doj' => 'date',
         'dob' => 'date',
         'visa_expiry' => 'date',
+        'license_expiry' => 'date',
+        'road_permit_expiry' => 'date',
+        'labor_card_expiry' => 'date',
         'emirate_expiry' => 'date',
         'passport_expiry' => 'date',
         'salary' => 'decimal:2',
@@ -87,6 +98,14 @@ class Employee extends BaseModel
         'visa_sponsor' => 'nullable|string|max:255',
         'visa_occupation' => 'nullable|string|max:255',
         'visa_expiry' => 'nullable|date',
+        'license_no' => 'nullable|string|max:191',
+        'license_expiry' => 'nullable|date',
+        'road_permit' => 'nullable|string|max:255',
+        'road_permit_expiry' => 'nullable|date',
+        'person_code' => 'nullable|string|max:50',
+        'labor_card_number' => 'nullable|string|max:100',
+        'labor_card_expiry' => 'nullable|date',
+        'wps' => 'nullable|string|max:100',
         'status' => 'nullable|in:active,inactive,on_leave',
         'address' => 'nullable|string',
         'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -185,5 +204,17 @@ class Employee extends BaseModel
         return $this->hasMany(EmployeeHistory::class, 'employee_id', 'id')
             ->orderByDesc('effective_date')
             ->orderByDesc('id');
+    }
+
+    public function getProfileImageUrlAttribute(): ?string
+    {
+        if (empty($this->profile_image)) {
+            return null;
+        }
+
+        $path = ltrim(str_replace('\\', '/', $this->profile_image), '/');
+
+        // Use the current request host (not only APP_URL) so images work on Laravel Cloud domains.
+        return url('/storage/' . $path);
     }
 }

@@ -1,4 +1,3 @@
-{{-- <script src="{{ asset('js/modal_custom.js') }}"></script> --}}
 @php
 $items = \App\Models\Items::dropdown('supplier');
 $items = $items->merge(\App\Models\Items::dropdown('garage'));
@@ -197,6 +196,10 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
 <script>
     $(document).ready(function() {
         $('.select2').select2({
+            dropdownParent: $('#modalTopbody'),
+            allowClear: true
+        });
+        $('#garage_id').select2({
             dropdownParent: $('#modalTopbody'),
             allowClear: true
         });

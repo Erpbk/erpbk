@@ -37,8 +37,8 @@ return [
             'icon' => 'ti-user',
             'children' => [
                 ['key' => 'employees', 'settings' => 'employees'],
-                ['key' => 'attendance_records', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance'],
-                ['key' => 'attendance_summary', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance'],
+                ['key' => 'attendance_records', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance', 'settings_query' => ['ref_type' => 'employee']],
+                ['key' => 'attendance_summary', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance', 'settings_query' => ['ref_type' => 'employee']],
                 ['key' => 'employee_invoices', 'permission' => 'employeeinvoice_view', 'settings' => 'employee_invoices', 'label' => 'Employee Invoices'],
             ],
         ],
@@ -88,8 +88,8 @@ return [
             'icon' => 'ti-user-pin',
             'children' => [
                 ['key' => 'riders_list', 'settings' => 'riders'],
-                ['key' => 'attendance_records', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance'],
-                ['key' => 'attendance_summary', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance'],
+                ['key' => 'attendance_records', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance', 'settings_query' => ['ref_type' => 'rider']],
+                ['key' => 'attendance_summary', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance', 'settings_query' => ['ref_type' => 'rider']],
                 ['key' => 'invoices', 'permission' => 'riderinvoice_view', 'settings' => 'invoices'],
                 ['key' => 'activities', 'settings' => 'activities'],
                 ['key' => 'live_activities', 'settings' => 'live_activities'],

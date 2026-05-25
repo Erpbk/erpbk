@@ -15,6 +15,11 @@
             <th>Check Out</th>
             <th>Working Hours</th>
             <th>Status</th>
+            @if(!request('ref_type') || request('ref_type') === 'rider')
+            <th>Total Orders</th>
+            <th>Cancelled</th>
+            <th>Rejected</th>
+            @endif
             <th>Notes</th>
             <th>Actions</th>
         </tr>
@@ -75,12 +80,14 @@
                 @endif
             </td>
             <td>
-                @if($workingHours)
+                @if($attendance->ref_type === 'rider')
+                <span class="badge bg-light text-dark">
+                    <i class="fas fa-clock"></i> {{ $attendance->working_hours }} hrs
+                </span>
+                @else
                 <span class="badge bg-light text-dark">
                     <i class="fas fa-clock"></i> {{ $workingHours }} hrs
                 </span>
-                @else
-                <span class="text-muted">-</span>
                 @endif
             </td>
             <td>
@@ -88,6 +95,29 @@
                     {{ ucwords($attendance->status) }}
                 </span>
             </td>
+            @if(!request('ref_type') || request('ref_type') === 'rider')
+            <td>
+                @if($attendance->ref_type === 'rider')
+                {{ $attendance->total_orders ?? '-' }}
+                @else
+                <span class="text-muted">-</span>
+                @endif
+            </td>
+            <td>
+                @if($attendance->ref_type === 'rider')
+                {{ $attendance->cancelled_orders ?? '-' }}
+                @else
+                <span class="text-muted">-</span>
+                @endif
+            </td>
+            <td>
+                @if($attendance->ref_type === 'rider')
+                {{ $attendance->rejected_orders ?? '-' }}
+                @else
+                <span class="text-muted">-</span>
+                @endif
+            </td>
+            @endif
             <td>
                 @if($attendance->notes)
                 <span class="text-truncate d-inline-block" style="max-width: 100px;"

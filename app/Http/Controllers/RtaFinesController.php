@@ -30,6 +30,7 @@ use Flash;
 use DB;
 use App\Imports\RTAFineImport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Helpers\HeadAccount;
 
 class RtaFinesController extends AppBaseController
 {

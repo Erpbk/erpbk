@@ -24,6 +24,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Database\UniqueConstraintViolationException;
+use App\Support\CompanyScope;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Services\EmployeeHistoryLogger;
 use App\Traits\GlobalPagination;
@@ -136,7 +138,7 @@ class EmployeeController extends Controller
         $rules['account'] = 'nullable|in:new,existing';
         $rules['account_id'] = 'nullable|required_if:account,existing|exists:accounts,id';
 
-        foreach (['employee_id', 'company_email', 'personal_email', 'passport', 'emirate_id'] as $uniqueKey) {
+        foreach ($this->employeeUniqueFieldKeys() as $uniqueKey) {
             if (!isset($employeeColumns[$uniqueKey])) {
                 continue;
             }
@@ -145,11 +147,74 @@ class EmployeeController extends Controller
             $tokens = array_values(array_filter($tokens, function ($token) {
                 return !(is_string($token) && str_starts_with($token, 'unique:'));
             }));
-            $tokens[] = \App\Support\CompanyScope::unique('employees', $uniqueKey, $ignoreEmployeeId);
+            $uniqueRule = $this->employeeUniqueFieldRule($uniqueKey, $ignoreEmployeeId);
+            if ($uniqueRule !== null) {
+                $tokens[] = $uniqueRule;
+            }
             $rules[$uniqueKey] = $tokens;
         }
 
         return array_merge($rules, $this->employeeDynamicFieldRules());
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function employeeUniqueFieldKeys(): array
+    {
+        return ['employee_id', 'company_email', 'personal_email', 'passport', 'emirate_id'];
+    }
+
+    private function employeeUniqueFieldRule(string $column, ?int $ignoreEmployeeId = null): ?\Illuminate\Validation\Rules\Unique
+    {
+        if (! Schema::hasColumn('employees', $column)) {
+            return null;
+        }
+
+        return CompanyScope::unique('employees', $column, $ignoreEmployeeId);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function employeeUniqueValueRules(string $column, ?int $ignoreEmployeeId = null): array
+    {
+        $rules = ['nullable', 'string', 'max:191'];
+        if (str_contains($column, 'email')) {
+            $rules[] = 'email';
+        }
+        $uniqueRule = $this->employeeUniqueFieldRule($column, $ignoreEmployeeId);
+        if ($uniqueRule !== null) {
+            $rules[] = $uniqueRule;
+        }
+
+        return $rules;
+    }
+
+    private function employeeUniqueViolationResponse(UniqueConstraintViolationException $e, Request $request)
+    {
+        $field = null;
+        foreach ($this->employeeUniqueFieldKeys() as $column) {
+            if (str_contains($e->getMessage(), $column)) {
+                $field = $column;
+                break;
+            }
+        }
+
+        $label = $field ? str_replace('_', ' ', $field) : 'value';
+        $message = "This {$label} is already used by another employee.";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => $field ? [$field => [$message]] : [],
+            ], 422);
+        }
+
+        return redirect()->back()->withInput()->withErrors(
+            $field ? [$field => $message] : ['error' => $message]
+        );
     }
 
     private function nextEmployeeId(): string
@@ -157,22 +222,90 @@ class EmployeeController extends Controller
         return 'EMP-' . ((Employee::latest('id')->value('id') ?? 0) + 1001);
     }
 
+    private function normalizeEmployeeEmailsInRequest(Request $request): void
+    {
+        foreach (['company_email', 'personal_email'] as $emailKey) {
+            if ($request->filled($emailKey)) {
+                $request->merge([$emailKey => strtolower(trim((string) $request->input($emailKey)))]);
+            }
+        }
+    }
+
     /**
-     * Collect mass-assignable employee attributes from the request (same approach as riders store/update).
+     * On update, convert empty strings to null so validation and persistence can clear fields.
+     */
+    private function normalizeEmployeeRequestForUpdate(Request $request): void
+    {
+        $fillable = (new Employee())->getFillable();
+
+        foreach ($fillable as $key) {
+            if ($request->has($key) && $request->input($key) === '') {
+                $request->merge([$key => null]);
+            }
+        }
+
+        $this->normalizeEmployeeEmailsInRequest($request);
+
+        if ($request->has('custom_field_values') && is_array($request->input('custom_field_values'))) {
+            $normalized = [];
+            foreach ($request->input('custom_field_values') as $id => $value) {
+                $normalized[$id] = ($value === '' || $value === null) ? null : $value;
+            }
+            $request->merge(['custom_field_values' => $normalized]);
+        }
+    }
+
+    /**
+     * Merge submitted custom field values; empty values clear existing keys on update.
+     */
+    private function mergeEmployeeCustomFieldValues(array $existing, array $incoming, bool $isUpdate): array
+    {
+        if (!$isUpdate) {
+            return $incoming;
+        }
+
+        $merged = $existing;
+        foreach ($incoming as $id => $value) {
+            if ($value === null || $value === '') {
+                unset($merged[$id], $merged[(string) $id]);
+            } else {
+                $merged[$id] = $value;
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Collect mass-assignable employee attributes from the request.
      */
     private function employeeAttributesFromRequest(Request $request, ?Employee $employee = null): array
     {
+        $isUpdate = $employee !== null;
         $fillable = (new Employee())->getFillable();
         $input = array_intersect_key($request->all(), array_flip($fillable));
 
         foreach ($input as $key => $value) {
             if ($value === '' || $value === null) {
-                unset($input[$key]);
+                if ($isUpdate) {
+                    $input[$key] = null;
+                } else {
+                    unset($input[$key]);
+                }
             }
         }
 
         if ($request->has('custom_field_values')) {
-            $input['custom_field_values'] = $request->input('custom_field_values', []);
+            $incoming = $request->input('custom_field_values', []);
+            if (!is_array($incoming)) {
+                $incoming = [];
+            }
+            if ($isUpdate) {
+                $existing = is_array($employee->custom_field_values) ? $employee->custom_field_values : [];
+                $input['custom_field_values'] = $this->mergeEmployeeCustomFieldValues($existing, $incoming, true);
+            } else {
+                $input['custom_field_values'] = $incoming;
+            }
         }
 
         $input = \App\Support\SimAssigneeContactSync::stripManagedContactFromRequestData(
@@ -181,7 +314,7 @@ class EmployeeController extends Controller
             'employee'
         );
 
-        if ($employee === null) {
+        if (!$isUpdate) {
             if (empty($input['employee_id'])) {
                 $input['employee_id'] = $this->nextEmployeeId();
             }
@@ -394,6 +527,7 @@ class EmployeeController extends Controller
         if (!$request->filled('account')) {
             $request->merge(['account' => 'new']);
         }
+        $this->normalizeEmployeeEmailsInRequest($request);
     }
 
     public function store(Request $request)
@@ -777,6 +911,7 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, $comapny_slug, Employee $employee)
     {
+        $this->normalizeEmployeeRequestForUpdate($request);
         $request->validate($this->employeeValidationRules((int) $employee->id));
 
         $input = $this->employeeAttributesFromRequest($request, $employee);
@@ -790,16 +925,25 @@ class EmployeeController extends Controller
         }
 
         $input['updated_by'] = auth()->id();
-        $employee->update($input);
-        if (request()->ajax()) {
+
+        try {
+            $employee->update($input);
+        } catch (UniqueConstraintViolationException $e) {
+            return $this->employeeUniqueViolationResponse($e, $request);
+        }
+
+        $employee->refresh();
+
+        if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Employee updated successfully!',
-                'redirect' => route('employees.index')
+                'redirect' => route('employees.show', $employee->id),
+                'employee' => $this->employeeProfileSidebarPayload($employee),
             ], 200);
         }
         Flash::success('Employee updated successfully.');
-        return redirect()->route('employees.index');
+        return redirect()->route('employees.show', $employee->id);
     }
 
     /**
@@ -853,7 +997,7 @@ class EmployeeController extends Controller
         }
 
         // Get validation rules
-        $rules = $this->getSectionRules($section);
+        $rules = $this->getSectionRules($section, (int) $employee->id);
 
         // Create validator
         $validator = Validator::make($request->all(), $rules);
@@ -866,24 +1010,35 @@ class EmployeeController extends Controller
             ]);
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        if ($section == 'photo' && !$request->hasFile('profile_image')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please select a profile image to upload.',
             ], 422);
         }
 
         if ($section == 'photo' && $request->hasFile('profile_image')) {
-            // Handle file upload
+
             if ($employee->profile_image) {
                 Storage::disk('public')->delete($employee->profile_image);
             }
 
-            $imagePath = $request->file('profile_image')->store('employees/profile', 'public');
+            $imagePath = $request->file('profile_image')
+                ->store('employees/profile', 'public');
+
             $employee->profile_image = $imagePath;
             $employee->save();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Profile photo updated successfully',
                 'data' => $employee,
-                'image_url' => Storage::url($imagePath)
+                'image_url' => $employee->profile_image_url
             ]);
         }
 
@@ -893,7 +1048,11 @@ class EmployeeController extends Controller
             $employee,
             'employee'
         );
-        $employee->update($sectionData);
+        try {
+            $employee->update($sectionData);
+        } catch (UniqueConstraintViolationException $e) {
+            return $this->employeeUniqueViolationResponse($e, $request);
+        }
         $employee->refresh();
 
         return response()->json([
@@ -903,7 +1062,7 @@ class EmployeeController extends Controller
         ]);
     }
 
-    private function getSectionRules($section)
+    private function getSectionRules($section, ?int $ignoreEmployeeId = null)
     {
         switch ($section) {
             case 'personal':
@@ -921,7 +1080,7 @@ class EmployeeController extends Controller
                     'branch_id' => 'required|exists:branches,id',
                     'doj' => 'required|date',
                     'salary' => 'nullable|numeric|min:0',
-                    'company_email' => 'nullable|email|max:255',
+                    'company_email' => $this->employeeUniqueValueRules('company_email', $ignoreEmployeeId),
                     'company_contact' => 'nullable|string|max:20'
                 ];
 
@@ -933,7 +1092,15 @@ class EmployeeController extends Controller
                     'visa_occupation' => 'nullable|string|max:255',
                     'emirate_expiry' => 'nullable|date',
                     'passport_expiry' => 'nullable|date',
-                    'visa_expiry' => 'nullable|date'
+                    'visa_expiry' => 'nullable|date',
+                    'license_no' => 'nullable|string|max:191',
+                    'license_expiry' => 'nullable|date',
+                    'road_permit' => 'nullable|string|max:255',
+                    'road_permit_expiry' => 'nullable|date',
+                    'person_code' => 'nullable|string|max:50',
+                    'labor_card_number' => 'nullable|string|max:100',
+                    'labor_card_expiry' => 'nullable|date',
+                    'wps' => 'nullable|string|max:100',
                 ];
 
             case 'notes':
@@ -981,10 +1148,13 @@ class EmployeeController extends Controller
 
             EmployeeHistoryLogger::statusChange($employee, $previousStatus ?: null, $newStatus, $effectiveDate);
 
+            $employee->refresh();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Employee status updated successfully',
                 'status' => $newStatus,
+                'employee' => $this->employeeProfileSidebarPayload($employee),
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to update employee status', [
@@ -1044,11 +1214,21 @@ class EmployeeController extends Controller
             $employee = Employee::findOrFail($validated['employee_id']);
             $previousValue = $employee->{$column};
             $newValue = $validated['value'] ?? null;
+            if (in_array($column, ['company_email', 'personal_email'], true) && $newValue !== null && $newValue !== '') {
+                $newValue = strtolower(trim((string) $newValue));
+            }
             $effectiveDate = $validated['effective_date'] ?? now()->toDateString();
             $categoryName = $validated['category_name'] ?? null;
 
             if (!$categoryName) {
                 $categoryName = EmployeeTopCategory::where('employee_column', $column)->value('name');
+            }
+
+            if (in_array($column, $this->employeeUniqueFieldKeys(), true)) {
+                Validator::make(
+                    ['value' => $newValue],
+                    ['value' => $this->employeeUniqueValueRules($column, (int) $employee->id)]
+                )->validate();
             }
 
             $employee->{$column} = $newValue;
@@ -1068,7 +1248,16 @@ class EmployeeController extends Controller
                 'message' => 'Employee updated successfully.',
                 'column' => $column,
                 'value' => $employee->{$column},
+                'employee' => $this->employeeProfileSidebarPayload($employee->fresh()),
             ]);
+        } catch (UniqueConstraintViolationException $e) {
+            return $this->employeeUniqueViolationResponse($e, $request);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first(),
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Failed to update employee profile field', [
                 'employee_id' => $validated['employee_id'],
@@ -1081,5 +1270,42 @@ class EmployeeController extends Controller
                 'message' => 'Failed to update employee: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Sidebar display payload returned after profile card AJAX updates.
+     */
+    private function employeeProfileSidebarPayload(Employee $employee): array
+    {
+        $employee->loadMissing(['department', 'branch', 'nationality']);
+
+        $age = 'not-set';
+        if ($employee->dob) {
+            $age = (string) \Carbon\Carbon::parse($employee->dob)->age;
+        }
+
+        $whatsappHtml = 'N/A';
+        if ($employee->company_contact) {
+            $phone = preg_replace('/[^0-9]/', '', $employee->company_contact);
+            $whatsappNumber = '+971' . ltrim($phone, '0');
+            $whatsappHtml = '<a href="https://wa.me/' . e($whatsappNumber) . '" target="_blank" class="text-success">'
+                . e($employee->company_contact) . '</a>';
+        }
+
+        return [
+            'name' => $employee->name,
+            'designation' => $employee->designation,
+            'status' => $employee->status,
+            'company_email' => $employee->company_email,
+            'company_contact' => $employee->company_contact,
+            'company_contact_html' => $whatsappHtml,
+            'nationality' => $employee->nationality?->name,
+            'age' => $age,
+            'doj' => $employee->doj ? \App\Helpers\General::DateFormat($employee->doj) : 'not-set',
+            'salary' => number_format((float) ($employee->salary ?? 0), 2) . ' ' . \App\Helpers\Currency::code(),
+            'emirate_id' => $employee->emirate_id,
+            'department' => $employee->department?->name,
+            'branch' => $employee->branch?->name,
+        ];
     }
 }

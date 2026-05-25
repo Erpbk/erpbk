@@ -44,7 +44,7 @@ class ModuleFieldSettings
         return self::visibleFixedFieldKeys($moduleKey);
     }
 
-    public static function visibleFieldMap(string $moduleKey): array
+    public static function visibleFieldMap(string $moduleKey, ?string $attendanceRefType = null): array
     {
         $base = self::visibleAssignments($moduleKey)
             ->mapWithKeys(function ($row) {
@@ -55,18 +55,24 @@ class ModuleFieldSettings
 
         $schemaKeys = ModuleFieldSource::schemaFieldKeysForModule($moduleKey);
         if ($schemaKeys === []) {
-            return $base;
+            $filtered = $base;
+        } else {
+            $allowed = array_fill_keys($schemaKeys, true);
+
+            $filtered = array_filter(
+                $base,
+                static function (string $label, string $key) use ($allowed): bool {
+                    return isset($allowed[$key]);
+                },
+                ARRAY_FILTER_USE_BOTH
+            );
         }
 
-        $allowed = array_fill_keys($schemaKeys, true);
+        if ($moduleKey === AttendanceFieldScope::MODULE_KEY && $attendanceRefType !== null) {
+            return AttendanceFieldScope::filterFieldMapForRefType($filtered, $attendanceRefType);
+        }
 
-        return array_filter(
-            $base,
-            static function (string $label, string $key) use ($allowed): bool {
-                return isset($allowed[$key]);
-            },
-            ARRAY_FILTER_USE_BOTH
-        );
+        return $filtered;
     }
 
     /**

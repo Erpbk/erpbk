@@ -14,11 +14,16 @@ class Attendance extends BaseModel
     protected $fillable = [
         'ref_id',
         'ref_type',
+        'branch_id',
         'date',
         'check_in',
         'check_out',
         'status',
         'notes',
+        'total_orders',
+        'working_hours',
+        'rejected_orders',
+        'cancelled_orders',
     ];
 
     protected $casts = [

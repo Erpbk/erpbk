@@ -2,7 +2,7 @@
 
 @section('page_content')
 {!! Form::model($employee, ['route' => ['employees.update', $employee->id], 'method' => 'patch', 'id' => 'employee-edit-form', 'class' => 'form-with-fixed-footer employee-ajax-form', 'data-reload-table' => '0']) !!}
-<input type="hidden" id="redirect_url" value="{{ route('employees.index') }}" />
+<input type="hidden" id="redirect_url" value="{{ route('employees.show', $employee->id) }}" />
 <div class="card-body card-body-with-footer">
     @include('employees.fields')
 </div>
@@ -41,6 +41,7 @@
                 url: $form.attr('action'),
                 type: 'POST',
                 data: formData,
+                dataType: 'json',
                 processData: false,
                 contentType: false,
                 headers: {
@@ -49,13 +50,16 @@
                     'Accept': 'application/json',
                 },
                 success: function(response) {
-                    if (response && (response.success === true || response.message)) {
+                    if (response && response.success === true) {
                         toastr.success(response.message || 'Employee updated successfully');
+                        if (response.employee && typeof window.refreshEmployeeSidebar === 'function') {
+                            window.refreshEmployeeSidebar(response.employee);
+                        }
                         const redirect = response.redirect || $('#redirect_url').val();
                         if (redirect) {
                             setTimeout(function() {
                                 window.location.href = redirect;
-                            }, 800);
+                            }, 400);
                         }
                         return;
                     }

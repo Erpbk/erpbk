@@ -53,7 +53,24 @@ $showVisaStatusManagementTab = ($moduleKey ?? '') === 'visa_expense';
 $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'visa_expense']) . '#tab-visa-status-management';
 $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
 $defaultCategoryId = isset($defaultCategory) ? (int) $defaultCategory->id : 0;
+$showAttendanceRiderOnlyHint = !empty($showAttendanceRiderOnlyHint);
+$attendanceRefType = $attendanceRefType ?? null;
 @endphp
+
+@if($showAttendanceRiderOnlyHint)
+<div class="row">
+  <div class="col-12">
+    <div class="alert alert-info py-2 mb-3">
+      <strong>Attendance settings</strong>
+      @if($attendanceRefType === 'employee')
+      — Employee attendance fields. Order metrics (Total / Rejected / Cancelled) are configured under <strong>Riders → Attendance</strong> settings.
+      @else
+      — Rider attendance includes order fields: <strong>Total Orders</strong>, <strong>Rejected Orders</strong>, and <strong>Cancelled Orders</strong> (visible only for riders).
+      @endif
+    </div>
+  </div>
+</div>
+@endif
 
 <div class="row">
   <div class="col-12">
@@ -647,6 +664,9 @@ $defaultCategoryId = isset($defaultCategory) ? (int) $defaultCategory->id : 0;
                           @if($isSchemaLocked)
                           <span class="badge bg-label-secondary ms-1">Database</span>
                           @endif
+                          @if(($moduleKey ?? '') === 'attendance' && \App\Support\AttendanceFieldScope::isRiderOnlyField($row->field_key))
+                          <span class="badge bg-label-info ms-1">Rider only</span>
+                          @endif
                         </td>
                         <td class="align-middle">
                           <span class="badge bg-label-info">{{ $categoryLabel }}</span>
@@ -852,6 +872,9 @@ $defaultCategoryId = isset($defaultCategory) ? (int) $defaultCategory->id : 0;
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
                           @if($isSchemaLocked)
                           <span class="badge bg-label-secondary ms-1">Database</span>
+                          @endif
+                          @if(($moduleKey ?? '') === 'attendance' && \App\Support\AttendanceFieldScope::isRiderOnlyField($row->field_key))
+                          <span class="badge bg-label-info ms-1">Rider only</span>
                           @endif
                         </td>
                         <td class="align-middle text-center">

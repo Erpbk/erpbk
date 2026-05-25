@@ -290,7 +290,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
           ->first();
 
           if($employee->profile_image)
-          $image_name = asset('storage/' . $employee->profile_image);
+          $image_name = $employee->profile_image_url;
           elseif (isset($profile))
           $image_name = asset('storage2/'. $profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
           else
@@ -316,30 +316,34 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                   </div>
                   <span>{{ $employee?->employee_id ?? ($empId ?? 'not-set') }}</span>
                   <h6>
-                    <b>
+                    <b id="employee-profile-name">
                       {{ $employee?->name ?? 'New Employee' }}
                     </b>
                   </h6>
                 </div>
                 @if($employee)
                 <div class="text-end" style="width: 14%;">
-                  <i class="ti ti-edit ti-sm"
-                    id="edit-icon"
-                    style="border: 2px solid #9593997a !important; border-radius: 24px; padding: 8px; cursor: pointer;">
-                  </i>
+                  <button type="button"
+                    class="btn btn-sm btn-icon border-0 p-0"
+                    id="employee-photo-edit-btn"
+                    title="Change photo"
+                    aria-label="Change photo"
+                    style="border: 2px solid #9593997a !important; border-radius: 24px; padding: 8px; cursor: pointer; background: transparent;">
+                    <i class="ti ti-edit ti-sm"></i>
+                  </button>
                 </div>
                 @endif
               </div>
             </div>
             @if($employee)
-            <div id="photo-upload-form" class="mt-4" style="display: none;">
-              <form action="{{ route('employees.updateSection', $employee->id) }}" method="POST" enctype="multipart/form-data" id="formajax2">
+            <div id="employee-photo-upload-form" class="mt-4" style="display: none;">
+              <form action="{{ route('employees.updateSection', $employee->id) }}" method="POST" enctype="multipart/form-data" id="employee-photo-form">
                 @csrf
                 <div class="button-wrapper">
-                  <label for="upload" class="btn btn-default me-2 mb-3 mt-3" tabindex="0">
+                  <label for="employee-profile-image-upload" class="btn btn-default me-2 mb-3 mt-3" tabindex="0">
                     <span class="d-none d-sm-block">Change Photo</span>
                     <i class="ti ti-upload d-block d-sm-none"></i>
-                    <input type="file" id="upload" name="profile_image" class="account-file-input" hidden accept="image/png, image/jpeg" onchange="loadFile(event)" />
+                    <input type="file" id="employee-profile-image-upload" name="profile_image" class="account-file-input" hidden accept="image/png, image/jpeg" />
                   </label>
                   <input type="hidden" name="section" value="photo">
                   <button type="submit" class="btn btn-primary">Upload</button>
@@ -353,9 +357,11 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
           <h3>Basic Information</h3>
           <ul class="list-unstyled mb-6">
             <script>
-              var loadFile = function(event) {
+              window.loadEmployeeProfileImagePreview = function(event) {
                 var image = document.getElementById("output");
-                image.src = URL.createObjectURL(event.target.files[0]);
+                if (image && event.target.files && event.target.files[0]) {
+                  image.src = URL.createObjectURL(event.target.files[0]);
+                }
               };
             </script>
 
@@ -366,7 +372,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </div>
                 <div class="user_list_content">
                   <span>Company Email:</span><br>
-                  <b class="float-right">{{ $employee?->company_email ?? 'not-set' }}</b>
+                  <b class="float-right" data-employee-field="company_email">{{ $employee?->company_email ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -375,7 +381,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </div>
                 <div class="user_list_content mt-2">
                   <span>WhatsApp:</span><br>
-                  <b class="float-right">
+                  <b class="float-right" data-employee-field="company_contact_html">
                     @if($employee?->company_contact)
                     @php
                     $phone = preg_replace('/[^0-9]/', '', $employee->company_contact);
@@ -398,7 +404,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </div>
                 <div class="user_list_content">
                   <span>Nationality:</span><br>
-                  <b class="float-right">{{ $employee?->nationality?->name ?? 'not-set' }}</b>
+                  <b class="float-right" data-employee-field="nationality">{{ $employee?->nationality?->name ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -407,7 +413,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </div>
                 <div class="user_list_content">
                   <span>Age:</span><br>
-                  <b class="float-right">
+                  <b class="float-right" data-employee-field="age">
                     @if($employee?->dob)
                     {{ \Carbon\Carbon::parse($employee->dob)->age }}
                     @else
@@ -422,7 +428,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </div>
                 <div class="user_list_content">
                   <span>Date Of Joining:</span><br>
-                  <b class="float-right">
+                  <b class="float-right" data-employee-field="doj">
                     @if($employee?->doj)
                     {{ \Carbon\Carbon::parse($employee->doj)->format('d M Y') }}
                     @else
@@ -452,7 +458,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </div>
                 <div class="user_list_content">
                   <span>Salary:</span><br>
-                  <b class="float-right">{{ number_format($employee?->salary ?? 0, 2) }} {{ \App\Helpers\Currency::code() }}</b>
+                  <b class="float-right" data-employee-field="salary">{{ number_format($employee?->salary ?? 0, 2) }} {{ \App\Helpers\Currency::code() }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -461,7 +467,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </div>
                 <div class="user_list_content">
                   <span>Emirates ID:</span><br>
-                  <b class="float-right">{{ $employee?->emirate_id ?? 'not-set' }}</b>
+                  <b class="float-right" data-employee-field="emirate_id">{{ $employee?->emirate_id ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -470,7 +476,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </div>
                 <div class="user_list_content">
                   <span>Department:</span><br>
-                  <b class="float-right">{{ $employee?->department?->name ?? $employee?->department_id ?? 'not-set' }}</b>
+                  <b class="float-right" data-employee-field="department">{{ $employee?->department?->name ?? $employee?->department_id ?? 'not-set' }}</b>
                 </div>
               </li>
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
@@ -479,7 +485,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </div>
                 <div class="user_list_content">
                   <span>Branch:</span><br>
-                  <b class="float-right">{{ $employee?->branch?->name ?? 'not-set' }}</b>
+                  <b class="float-right" data-employee-field="branch">{{ $employee?->branch?->name ?? 'not-set' }}</b>
                 </div>
               </li>
             </ul>
@@ -511,7 +517,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 @if(isset($employee))
                 @can('employee_document')
                 <li class="nav-item nav-priority-2">
-                  <a class="nav-link @if(request()->segment(2) == 'files') active @endif"
+                  <a class="nav-link @if(request()->segment(5) == 'files') active @endif"
                     href="{{ route('employee.files', $employee->id) }}">
                     <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
                   </a>
@@ -529,7 +535,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
 
                 @can('employee_salary')
                 <li class="nav-item nav-priority-4">
-                  <a class="nav-link @if(request()->segment(2) == 'salary') active @endif"
+                  <a class="nav-link @if(request()->segment(5) == 'salary') active @endif"
                     href="{{ route('employee.salary', $employee->id) }}">
                     <i class="ti ti-cash-banknote ti-sm me-1"></i>Salary
                   </a>
@@ -538,21 +544,14 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
 
                 @can('employee_attendance')
                 <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(request()->segment(2) == 'attendance') active @endif"
+                  <a class="nav-link @if(request()->segment(5) == 'attendance') active @endif"
                     href="{{ route('employee.attendance', $employee->id) }}">
                     <i class="ti ti-activity-heartbeat ti-sm me-1_5"></i>Activities
                   </a>
                 </li>
                 @endcan
 
-                @can('employee_leave')
-                <li class="nav-item nav-priority-6">
-                  <a class="nav-link @if(request()->segment(2) == 'leaves') active @endif"
-                    href="{{ route('employee.leaves', $employee->id) }}">
-                    <i class="ti ti-calendar-off ti-sm me-1_5"></i>Leaves
-                  </a>
-                </li>
-                @endcan
+
 
                 <li class="nav-item nav-priority-7">
                   <a class="nav-link @if(request()->routeIs('employee.history')) active @endif"
@@ -793,6 +792,117 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
     // Initialize responsive navigation
     const responsiveNav = new ResponsiveNavigation();
 
+    function refreshEmployeeSidebar(emp) {
+      if (!emp) return;
+      const nameEl = document.getElementById('employee-profile-name');
+      if (nameEl && emp.name) nameEl.textContent = emp.name;
+      if (emp.designation !== undefined) {
+        const designationBadge = document.getElementById('employee-designation-badge');
+        if (designationBadge) designationBadge.textContent = emp.designation || 'Not Set';
+      }
+      if (emp.status && typeof window.syncEmployeeStatusCards === 'function') {
+        window.syncEmployeeStatusCards(emp.status);
+      }
+      document.querySelectorAll('[data-employee-field]').forEach((el) => {
+        const key = el.getAttribute('data-employee-field');
+        if (!key || emp[key] === undefined || emp[key] === null) return;
+        if (key === 'company_contact_html') {
+          el.innerHTML = emp[key] || 'N/A';
+          return;
+        }
+        el.textContent = emp[key] === '' ? 'not-set' : emp[key];
+      });
+    }
+    window.refreshEmployeeSidebar = refreshEmployeeSidebar;
+
+    function employeePhotoNotify(message, type) {
+      if (typeof showNotification === 'function') {
+        showNotification(message, type);
+      } else if (window.toastr) {
+        toastr[type === 'success' ? 'success' : 'error'](message);
+      } else {
+        alert(message);
+      }
+    }
+
+    const employeePhotoEditBtn = document.getElementById('employee-photo-edit-btn');
+    const employeePhotoUploadPanel = document.getElementById('employee-photo-upload-form');
+    if (employeePhotoEditBtn && employeePhotoUploadPanel) {
+      employeePhotoEditBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const isHidden = employeePhotoUploadPanel.style.display === 'none' ||
+          window.getComputedStyle(employeePhotoUploadPanel).display === 'none';
+        employeePhotoUploadPanel.style.display = isHidden ? 'block' : 'none';
+      });
+    }
+
+    const employeeProfileImageInput = document.getElementById('employee-profile-image-upload');
+    if (employeeProfileImageInput) {
+      employeeProfileImageInput.addEventListener('change', function(e) {
+        if (typeof window.loadEmployeeProfileImagePreview === 'function') {
+          window.loadEmployeeProfileImagePreview(e);
+        }
+      });
+    }
+
+    const employeePhotoForm = document.getElementById('employee-photo-form');
+    if (employeePhotoForm) {
+      employeePhotoForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const fileInput = this.querySelector('input[name="profile_image"]');
+        if (!fileInput || !fileInput.files || !fileInput.files.length) {
+          employeePhotoNotify('Please choose a photo before uploading.', 'error');
+          return;
+        }
+
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+
+        fetch(this.action, {
+            method: 'POST',
+            headers: {
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: formData,
+          })
+          .then((r) => r.json().then((data) => ({
+            ok: r.ok,
+            data
+          })))
+          .then(({
+            ok,
+            data
+          }) => {
+            if (ok && data.success) {
+              if (data.image_url) {
+                const img = document.getElementById('output');
+                if (img) img.src = data.image_url;
+              }
+              employeePhotoNotify(data.message || 'Photo updated', 'success');
+              if (employeePhotoUploadPanel) employeePhotoUploadPanel.style.display = 'none';
+              if (fileInput) fileInput.value = '';
+            } else {
+              let msg = data.message || 'Failed to upload photo';
+              if (data.errors) {
+                const flat = Object.values(data.errors).flat();
+                if (flat.length) msg = flat.join(' ');
+              }
+              employeePhotoNotify(msg, 'error');
+            }
+          })
+          .catch(() => employeePhotoNotify('Failed to upload photo', 'error'))
+          .finally(() => {
+            if (submitBtn) submitBtn.disabled = false;
+          });
+      });
+    }
+
     const employeeStatusCards = document.getElementById('employee-status-cards');
     if (employeeStatusCards) {
       const employeeId = employeeStatusCards.getAttribute('data-employee-id');
@@ -800,9 +910,9 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
       const updateFieldUrl = "{{ route('employee.update-profile-field') }}";
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
       const employeeTopOptionDateModalEl = document.getElementById('employeeTopOptionDateModal');
-      const employeeTopOptionModal = employeeTopOptionDateModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal
-        ? new bootstrap.Modal(employeeTopOptionDateModalEl)
-        : null;
+      const employeeTopOptionModal = employeeTopOptionDateModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal ?
+        new bootstrap.Modal(employeeTopOptionDateModalEl) :
+        null;
       let pendingEmployeeChange = null;
 
       function employeeTopOptionTodayYmd() {
@@ -827,7 +937,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
         }
       }
 
-      function syncEmployeeStatusCards(activeStatus) {
+      window.syncEmployeeStatusCards = function syncEmployeeStatusCards(activeStatus) {
         const map = {
           active: 'employee-status-active-card',
           on_leave: 'employee-status-leave-card',
@@ -896,6 +1006,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
           }) => {
             if (ok && data.success) {
               syncEmployeeStatusCards(status);
+              refreshEmployeeSidebar(data.employee);
               showNotification(data.message || 'Status updated', 'success');
               return true;
             }
@@ -957,6 +1068,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 checkbox.checked = false;
               }
               syncEmployeeTopOptionCards(column);
+              refreshEmployeeSidebar(data.employee);
               showNotification(data.message || 'Updated', 'success');
               return true;
             }

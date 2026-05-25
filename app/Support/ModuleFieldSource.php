@@ -151,6 +151,10 @@ class ModuleFieldSource
     {
         return match ($column) {
             'branch_id' => 'Branch',
+            'total_orders' => 'Total Orders',
+            'working_hours' => 'Working Hours',
+            'cancelled_orders' => 'Cancelled Orders',
+            'rejected_orders' => 'Rejected Orders',
             default => ucwords(str_replace('_', ' ', $column)),
         };
     }

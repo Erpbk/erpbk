@@ -111,6 +111,12 @@
               'moduleLabel' => $moduleLabel ?? null,
               'defaultLabel' => 'Employees',
             ])
+            @include('settings.partials._module_menu_icon_form', [
+              'settingsRoutePrefix' => 'settings-panel.employee-settings',
+              'settingsRouteParams' => ['company_slug' => request()->route('company_slug') ?? session('company_slug')],
+              'moduleMenuKey' => 'employees',
+              'defaultLabel' => 'Employees',
+            ])
           </div>
 
           {{-- Tab 2: Categories --}}

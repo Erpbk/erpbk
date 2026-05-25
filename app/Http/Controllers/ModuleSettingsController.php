@@ -13,6 +13,7 @@ use App\Models\BikeRegistrationStatus;
 use App\Models\SimAssignFieldAssignment;
 use App\Models\VisaStatus;
 use App\Services\Module\ModuleDefaultCategoryService;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Services\Module\ModuleLabelService;
 use App\Services\Module\ModuleTopBarSettingsService;
 use App\Support\ErpModuleRegistry;
@@ -27,6 +28,8 @@ use Illuminate\Validation\Rule;
 
 class ModuleSettingsController extends Controller
 {
+    use SavesModuleMenuIcons;
+
     private const VISA_EXPENSE_TOP_SETTING_KEY = 'visa_expense_top_status_ids';
     private const VISA_EXPENSE_TOP_ENABLED_KEY = 'visa_expense_top_enabled';
 
@@ -736,6 +739,19 @@ class ModuleSettingsController extends Controller
                 'module' => $routeModule,
             ])
             ->with('success', $dropdownContext ? 'Menu labels updated.' : 'Module name updated.');
+    }
+
+    public function storeModuleIcon(Request $request, string $company_slug, string $module)
+    {
+        $routeModule = $this->normalizeModuleKey($module);
+        $this->saveModuleMenuIcons($request, $routeModule);
+
+        return redirect()
+            ->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => $routeModule,
+            ])
+            ->with('success', 'Menu icons updated.');
     }
 
     public function storeCategory(Request $request, string $company_slug, string $module)

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Helpers\HeadAccount;
 use App\Models\Accounts;
 use App\Models\Settings;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\Cache;
 class VatSettingsController extends Controller
 {
     use SavesModuleDisplayLabel;
+    use SavesModuleMenuIcons;
     public function __construct()
     {
         $this->middleware('auth');
@@ -200,6 +202,15 @@ class VatSettingsController extends Controller
         return redirect()->route('settings-panel.vat-settings.index', [
             'company_slug' => $request->route('company_slug') ?? session('company_slug'),
         ])->with('success', 'Menu labels updated.');
+    }
+
+    public function storeModuleIcon(Request $request)
+    {
+        $this->saveModuleMenuIcons($request, 'vat');
+
+        return redirect()->route('settings-panel.vat-settings.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Menu icons updated.');
     }
 
     /**

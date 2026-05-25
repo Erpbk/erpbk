@@ -83,6 +83,12 @@
               'moduleLabel' => $moduleLabel ?? null,
               'defaultLabel' => 'Accounts',
             ])
+            @include('settings.partials._module_menu_icon_form', [
+              'settingsRoutePrefix' => 'settings-panel.account-fields',
+              'settingsRouteParams' => ['company_slug' => request()->route('company_slug') ?? session('company_slug')],
+              'moduleMenuKey' => 'accounts',
+              'defaultLabel' => 'Accounts',
+            ])
           </div>
 
           {{-- Tab 2: Fixed fields (read-only) --}}

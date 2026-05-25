@@ -111,6 +111,12 @@
               'moduleLabel' => $moduleLabel ?? null,
               'defaultLabel' => 'Riders',
             ])
+            @include('settings.partials._module_menu_icon_form', [
+              'settingsRoutePrefix' => 'settings-panel.rider-settings',
+              'settingsRouteParams' => ['company_slug' => request()->route('company_slug') ?? session('company_slug')],
+              'moduleMenuKey' => 'riders',
+              'defaultLabel' => 'Riders',
+            ])
           </div>
 
           {{-- Tab 2: Categories --}}

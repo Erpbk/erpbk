@@ -108,6 +108,12 @@
               'moduleLabel' => $moduleLabel ?? null,
               'defaultLabel' => 'Cheques',
             ])
+            @include('settings.partials._module_menu_icon_form', [
+              'settingsRoutePrefix' => 'settings-panel.cheques-settings',
+              'settingsRouteParams' => ['company_slug' => request()->route('company_slug') ?? session('company_slug')],
+              'moduleMenuKey' => 'cheques',
+              'defaultLabel' => 'Cheques',
+            ])
           </div>
 
           {{-- Tab 2: Categories --}}

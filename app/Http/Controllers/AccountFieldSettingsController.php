@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Models\AccountCustomField;
 use App\Models\Settings;
 use Illuminate\Http\Request;
@@ -10,6 +11,7 @@ use Illuminate\Http\Request;
 class AccountFieldSettingsController extends Controller
 {
     use SavesModuleDisplayLabel;
+    use SavesModuleMenuIcons;
     public function __construct()
     {
         $this->middleware('auth');
@@ -38,6 +40,15 @@ class AccountFieldSettingsController extends Controller
         return redirect()->route('settings-panel.account-fields.index', [
             'company_slug' => $request->route('company_slug') ?? session('company_slug'),
         ])->with('success', 'Menu labels updated.');
+    }
+
+    public function storeModuleIcon(Request $request)
+    {
+        $this->saveModuleMenuIcons($request, 'accounts');
+
+        return redirect()->route('settings-panel.account-fields.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Menu icons updated.');
     }
 
     /**

@@ -52,6 +52,12 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
               'moduleLabel' => $moduleLabel,
               'defaultLabel' => $defaultLabel,
             ])
+            @include('settings.partials._module_menu_icon_form', [
+              'settingsRoutePrefix' => 'settings-panel.module-settings',
+              'settingsRouteParams' => ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey],
+              'moduleMenuKey' => $moduleKey,
+              'defaultLabel' => $defaultLabel,
+            ])
           </div>
 
           <div class="tab-pane fade" id="tab-categories" role="tabpanel">

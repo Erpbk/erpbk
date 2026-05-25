@@ -12,6 +12,7 @@ use App\Models\BikeTopCategory;
 use App\Models\BikeTopOption;
 use App\Models\Bikes;
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Models\Settings;
 use App\Models\UserTableSettings;
 use App\Support\ModuleFieldSource;
@@ -23,6 +24,7 @@ use Illuminate\Validation\Rule;
 class BikeSettingsController extends Controller
 {
     use SavesModuleDisplayLabel;
+    use SavesModuleMenuIcons;
 
     /**
      * Fixed bike fields hidden from Bike Settings and Bike form.
@@ -205,6 +207,13 @@ class BikeSettingsController extends Controller
         $this->saveModuleDisplayLabel($request, 'bike_list');
 
         return $this->bikeSettingsIndexRedirect()->with('success', 'Module name updated.');
+    }
+
+    public function storeModuleIcon(Request $request)
+    {
+        $this->saveModuleMenuIcons($request, 'bike_list');
+
+        return $this->bikeSettingsIndexRedirect(null, null)->with('success', 'Menu icons updated.');
     }
 
     public function storeCategory(Request $request)

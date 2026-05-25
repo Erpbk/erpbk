@@ -179,6 +179,12 @@ $attendanceRefType = $attendanceRefType ?? null;
               'settingsHeading' => $settingsHeading ?? null,
               'defaultLabel' => $moduleLabel ?? $settingsHeading,
             ])
+            @include('settings.partials._module_menu_icon_form', [
+              'settingsRoutePrefix' => $settingsRoutePrefix,
+              'settingsRouteParams' => $settingsRouteParams,
+              'moduleMenuKey' => $moduleKey ?? 'bike_list',
+              'defaultLabel' => $moduleLabel ?? $settingsHeading,
+            ])
           </div>
 
           @include('settings.partials.top_bar._settings_tab_content')

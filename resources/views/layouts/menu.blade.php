@@ -13,7 +13,7 @@ $homeLink = $isAdminLogin
 @can('dashboard_view')
 <li class="menu-item {{ Route::is('home') || Route::is('/') ? 'active' : '' }}">
   <a href="{{ $companySlug ? route('home', ['company_slug' => $companySlug]) : 'javascript:void(0);' }}" class="menu-link ">
-    <i class="menu-icon tf-icons ti ti-layout-dashboard"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'dashboard'])
     <div>{{ $menuLabels['dashboard'] ?? 'Dashboard' }}</div>
     {{-- <div class="badge bg-white text-dark rounded-pill ms-auto">2</div>  --}}
   </a>
@@ -24,7 +24,7 @@ $homeLink = $isAdminLogin
 @can('bank_view')
 <li class="menu-item {{ Route::is('banks.*') ? 'open' : '' }}  {{ Route::is('bank.*') ? 'open' : '' }} {{ Route::is('cheques.*') ? 'open' : '' }} {{ Route::is('payments.*') ? 'open' : '' }} {{ Route::is('receipts.*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
-    <i class="menu-icon tf-icons ti ti-building-bank"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'cash_banks'])
     <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
   </a>
   <ul class="menu-sub">
@@ -58,32 +58,32 @@ $homeLink = $isAdminLogin
 @can('attendance_view')
 <li class="menu-item {{ Route::is('employees.*') ? 'open' : '' }} {{ (Route::is('attendance.*') && request('ref_type') === 'employee') || (Route::is('attendance.summary') && request('user_type', 'employee') === 'employee') ? 'open' : '' }} {{ Route::is('employeeInvoices.*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
-    <i class="menu-icon tf-icons ti ti-user"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'employees'])
     <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
   </a>
   <ul class="menu-sub">
     <li class="menu-item {{ Route::is('employees.*') ? 'active' : '' }}">
       <a href="{{ route('employees.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-user"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'employees'])
         <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
       </a>
     </li>
     <li class="menu-item {{ Route::is('attendance.index') && request('ref_type') === 'employee' ? 'active' : '' }}">
       <a href="{{ route('attendance.index', ['ref_type' => 'employee']) }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'attendance_records'])
         {{ $menuLabels['attendance_records'] ?? 'Attendance Records' }}
       </a>
     </li>
     <li class="menu-item {{ Route::is('attendance.summary') && request('user_type', 'employee') === 'employee' ? 'active' : '' }}">
       <a href="{{ route('attendance.summary', ['user_type' => 'employee']) }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'attendance_summary'])
         {{ $menuLabels['attendance_summary'] ?? 'Attendance Summary' }}
       </a>
     </li>
     @can('employeeinvoice_view')
     <li class="menu-item {{ Route::is('employeeInvoices.*') ? 'active' : '' }}">
       <a href="{{ route('employeeInvoices.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-file"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'invoices'])
         <div>Employee Invoices</div>
       </a>
     </li>
@@ -91,7 +91,7 @@ $homeLink = $isAdminLogin
     @can('payments_view')
     <li class="menu-item {{ Route::is('employee.payment') ? 'active' : '' }}">
       <a href="{{ route('employee.payment') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-wallet"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'payments'])
         <div>{{ $menuLabels['payments_sent'] ?? 'Payments Sent' }}</div>
       </a>
     </li>
@@ -101,7 +101,7 @@ $homeLink = $isAdminLogin
 @else
 <li class="menu-item {{ Route::is('employees.*') ? 'active' : '' }}">
   <a href="{{ route('employees.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-user"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'employees'])
     <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
   </a>
 </li>
@@ -109,7 +109,7 @@ $homeLink = $isAdminLogin
 @else
 <li class="menu-item {{ Route::is('employees.*') ? 'active' : '' }}">
   <a href="{{ route('employees.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-user"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'employees'])
     <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
   </a>
 </li>
@@ -120,7 +120,7 @@ $homeLink = $isAdminLogin
 @can('item_view')
 <li class="menu-item {{ Route::is('items.*') ? 'open' : '' }} {{ Route::is('inventory.*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
-    <i class="menu-icon tf-icons ti ti-notes"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'items'])
     <div>{{ $menuLabels['items'] ?? 'Items' }}</div>
   </a>
   <ul class="menu-sub">
@@ -131,7 +131,7 @@ $homeLink = $isAdminLogin
     </li>
     <li class="menu-item {{ Route::is('inventory*') ? 'active' : '' }}">
       <a href="{{ route('inventory.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-building"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'inventory'])
         <div>{{ $menuLabels['inventory'] ?? 'Inventory' }}</div>
       </a>
     </li>
@@ -143,7 +143,7 @@ $homeLink = $isAdminLogin
 @can('leads_view')
 <li class="menu-item {{ Route::is('riderleads.*') ? 'active' : '' }}">
   <a href="{{ route('riderleads.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-user-plus"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'leads'])
     <div>{{ $menuLabels['leads'] ?? 'Leads' }}</div>
   </a>
 </li>
@@ -153,14 +153,14 @@ $homeLink = $isAdminLogin
 @can('customer_view')
 <li class="menu-item {{ (Route::is('customer*') || Route::is('customers*') || Route::is('customer_invoice*') || Route::is('customer_invoices*')) ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
-    <i class="menu-icon tf-icons ti ti-user-star"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'customers'])
     <div>{{ $menuLabels['customers'] ?? 'Customers' }}</div>
   </a>
   <ul class="menu-sub">
     {{-- Customer List --}}
     <li class="menu-item {{ Route::is('customers.index') ? 'active' : '' }}">
       <a href="{{ route('customers.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-users"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'customer_list'])
         <div>{{ $menuLabels['customer_list'] ?? 'Customer List' }}</div>
       </a>
     </li>
@@ -168,7 +168,7 @@ $homeLink = $isAdminLogin
     {{-- Invoices --}}
     <li class="menu-item {{ Route::is('customer-invoices*') || Route::is('customer_invoices*') ? 'active' : '' }}">
       <a href="{{ route('customer_invoices.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-receipt"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'customer_invoices'])
         <div>{{ $menuLabels['customer_invoices'] ?? 'Invoices' }}</div>
       </a>
     </li>
@@ -176,7 +176,7 @@ $homeLink = $isAdminLogin
     {{-- Payments Receieved --}}
     <li class="menu-item {{ Route::is('customer.receipts') ? 'active' : '' }}">
       <a href="{{ route('customer.receipts') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-receipt"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'customer_receipts'])
         <div>{{ $menuLabels['customer_receipts'] ?? 'Payments Received' }}</div>
       </a>
     </li>
@@ -188,7 +188,7 @@ $homeLink = $isAdminLogin
 @can('vendor_view')
 <li class="menu-item {{ Route::is('vendors*') ? 'active' : '' }}">
   <a href="{{ route('vendors.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-user-star"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'vendors'])
     <div>{{ $menuLabels['vendors'] ?? 'Vendors' }}</div>
   </a>
 </li>
@@ -198,7 +198,7 @@ $homeLink = $isAdminLogin
 @can('recruiter_view')
 <li class="menu-item {{ Route::is('recruiters*') ? 'active' : '' }}">
   <a href="{{ route('recruiters.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-user-star"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'recruiters'])
     <div>{{ $menuLabels['recruiters'] ?? 'Recruiters' }}</div>
   </a>
 </li>
@@ -215,13 +215,13 @@ $homeLink = $isAdminLogin
  {{ Route::is('reports.rider_monthly_report*') ? 'open' : '' }}
  {{ (Route::is('attendance*') && request('ref_type') === 'rider') || (Route::is('attendance.summary') && request('user_type') === 'rider') ? 'open' : '' }}  ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
-    <i class="menu-icon tf-icons ti ti-user-pin"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'riders'])
     <div>{{ $menuLabels['riders'] ?? 'Riders' }}</div>
   </a>
   <ul class="menu-sub">
     <li class="menu-item {{ Route::is('riders*') ? 'active' : '' }}">
       <a href="{{ route('riders.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-user-pin"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'riders_list'])
         <div>{{ $menuLabels['riders_list'] ?? 'Riders List' }}</div>
       </a>
     </li>
@@ -229,13 +229,13 @@ $homeLink = $isAdminLogin
     @can('attendance_view')
     <li class="menu-item {{ Route::is('attendance.index') && request('ref_type') === 'rider' ? 'active' : '' }}">
       <a href="{{ route('attendance.index', ['ref_type' => 'rider']) }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'attendance_records'])
         {{ $menuLabels['attendance_records'] ?? 'Attendance Records' }}
       </a>
     </li>
     <li class="menu-item {{ Route::is('attendance.summary') && request('user_type') === 'rider' ? 'active' : '' }}">
       <a href="{{ route('attendance.summary', ['user_type' => 'rider']) }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-calendar-check"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'attendance_summary'])
         {{ $menuLabels['attendance_summary'] ?? 'Attendance Summary' }}
       </a>
     </li>
@@ -244,26 +244,26 @@ $homeLink = $isAdminLogin
     @can('riderinvoice_view')
     <li class="menu-item {{ Route::is('riderInvoices*') ? 'active' : '' }}">
       <a href="{{ route('riderInvoices.index') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-file"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'invoices'])
         <div>{{ $menuLabels['invoices'] ?? 'Invoices' }}</div>
       </a>
     </li>
     @endcan
     <li class="menu-item {{ Route::is('riderActivities*') ? 'active' : '' }}">
       <a href="{{ route('riderActivities.index') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-bike"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'activities'])
         <div>{{ $menuLabels['activities'] ?? 'Activities' }}</div>
       </a>
     </li>
     <li class="menu-item {{ Route::is('rider.liveactivities*') ? 'active' : '' }}">
       <a href="{{ route('rider.liveactivities') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-bike"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'live_activities'])
         <div>{{ $menuLabels['live_activities'] ?? 'Live Activities' }}</div>
       </a>
     </li>
     <li class="menu-item {{ Route::is('reports*') ? 'active' : '' }}">
       <a href="{{ route('reports.rider_report') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-users-group"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'rider_report'])
         {{ $menuLabels['rider_report'] ?? 'Rider Report' }}
       </a>
     </li>
@@ -275,20 +275,20 @@ $homeLink = $isAdminLogin
 @can('bike_view')
 <li class="menu-item {{ Route::is('bikes*') || Route::is('BikeRegistration*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
-    <i class="menu-icon tf-icons ti ti-motorbike"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'bikes'])
     <div>{{ $menuLabels['bikes'] ?? 'Bikes' }}</div>
   </a>
   <ul class="menu-sub">
     <li class="menu-item {{ Route::is('bikes*') ? 'active' : '' }}">
       <a href="{{ route('bikes.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-motorbike"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'bike_list'])
         <div>{{ $menuLabels['bike_list'] ?? 'Bike List' }}</div>
       </a>
     </li>
     @can('bike_registration_view')
     <li class="menu-item {{ Route::is('BikeRegistration*') ? 'active' : '' }}">
       <a href="{{ route('BikeRegistration.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-id"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'bike_registration'])
         <div>{{ $menuLabels['bike_registration'] ?? 'Bike Registration' }}</div>
       </a>
     </li>
@@ -307,20 +307,20 @@ $homeLink = $isAdminLogin
 @can('bike_view')
 <li class="menu-item {{ Route::is('bikeRentCompanies*') || Route::is('leasingCompanyBillingInvoices*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
-    <i class="menu-icon tf-icons ti ti-motorbike"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'bike_on_rent'])
     <div>{{ $menuLabels['bike_on_rent'] ?? 'Bike on rent' }}</div>
   </a>
   <ul class="menu-sub">
     <li class="menu-item {{ Route::is('bikeRentCompanies.*') && !Route::is('bikeRentCompanies.all_receipts') ? 'active' : '' }}">
       <a href="{{ route('bikeRentCompanies.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-users"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'bike_rent_customers'])
         <div>{{ $menuLabels['bike_rent_customers'] ?? 'Customers' }}</div>
       </a>
     </li>
     @can('billing_invoice_view')
     <li class="menu-item {{ Route::is('leasingCompanyBillingInvoices*') ? 'active' : '' }}">
       <a href="{{ route('leasingCompanyBillingInvoices.index') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-file-plus"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'leasing_billing_invoice'])
         <div>{{ $menuLabels['leasing_billing_invoice'] ?? 'Billing Invoice' }}</div>
       </a>
     </li>
@@ -328,7 +328,7 @@ $homeLink = $isAdminLogin
     {{-- Payments Receieved --}}
     <li class="menu-item {{ Route::is('bikeRentCompanies.all_receipts') ? 'active' : '' }}">
       <a href="{{ route('bikeRentCompanies.all_receipts') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-receipt"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'bike_rent_customer_receipts'])
         <div>{{ $menuLabels['bike_rent_customer_receipts'] ?? 'Payments Received' }}</div>
       </a>
     </li>
@@ -340,27 +340,27 @@ $homeLink = $isAdminLogin
 @can('sim_view')
 <li class="menu-item {{ Route::is('sims*') || Route::is('simInvoices*') || Route::is('simCompanies*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
-    <i class="menu-icon tf-icons ti ti-device-sim"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'sims'])
     <div>{{ $menuLabels['sims'] ?? 'Sims' }}</div>
   </a>
   <ul class="menu-sub">
     <li class="menu-item {{ Route::is('sims*') ? 'active' : '' }}">
       <a href="{{ route('sims.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-device-sim"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'sims'])
         <div>{{ $menuLabels['sims'] ?? 'Sims' }}</div>
       </a>
     </li>
     @can('sim_invoice_view')
     <li class="menu-item {{ Route::is('simInvoices*') ? 'active' : '' }}">
       <a href="{{ route('simInvoices.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-file-invoice"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'sim_invoices'])
         <div>SIM Invoices</div>
       </a>
     </li>
     @endcan
     <li class="menu-item {{ Route::is('simCompanies*') ? 'active' : '' }}">
       <a href="{{ route('simCompanies.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-building"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'sim_companies'])
         <div>{{ $menuLabels['sim_companies'] ?? 'SIM Companies' }}</div>
       </a>
     </li>
@@ -372,7 +372,7 @@ $homeLink = $isAdminLogin
 @can('fuel_view')
 <li class="menu-item {{ Route::is('fuelCards*') ? 'open' : '' }} {{ Route::is('fuel_data*') ? 'open' : '' }} {{ Route::is('fuelCompanies*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
-    <i class="menu-icon tf-icons ti ti-gas-station"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'fuel_cards'])
     <div>{{ $menuLabels['fuel_cards'] ?? 'Fuel Cards' }}</div>
   </a>
   <ul class="menu-sub">
@@ -388,7 +388,7 @@ $homeLink = $isAdminLogin
     </li>
     <li class="menu-item {{ Route::is('fuelCompanies*') ? 'active' : '' }}">
       <a href="{{ route('fuelCompanies.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-building"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'fuel_companies'])
         <div>{{ $menuLabels['fuel_companies'] ?? 'Fuel Companies' }}</div>
       </a>
     </li>
@@ -401,7 +401,7 @@ $homeLink = $isAdminLogin
 @canany(['rtafine_view', 'rtafine_paid_view'])
 <li class="menu-item {{ Route::is('rtaFines*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
-    <i class="menu-icon tf-icons ti ti-file-alert"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'rta_fines'])
     <div>{{ $menuLabels['rta_fines'] ?? 'RTA Fine' }}</div>
   </a>
   <ul class="menu-sub">
@@ -427,7 +427,7 @@ $homeLink = $isAdminLogin
 @can('salik_view')
 <li class="menu-item {{ Route::is('salik*') ? 'active' : '' }}">
   <a href="{{ route('salik.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-cash"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'rta_saliks'])
     <div>{{ $menuLabels['rta_saliks'] ?? 'RTA Saliks' }}</div>
   </a>
 </li>
@@ -437,7 +437,7 @@ $homeLink = $isAdminLogin
 @can('visaexpense_view')
 <li class="menu-item {{ Route::is('VisaExpense*') ? 'active' : '' }}">
   <a href="{{ route('VisaExpense.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-credit-card"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'visa_expense'])
     <div>{{ $menuLabels['visa_expense'] ?? 'Visa Expense' }}</div>
   </a>
 </li>
@@ -447,7 +447,7 @@ $homeLink = $isAdminLogin
 @can('expenses_view')
 <li class="menu-item {{ Route::is('expenses*') ? 'active' : '' }}">
   <a href="{{ route('expenses.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-cash"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'expenses'])
     <div>{{ $menuLabels['expenses'] ?? 'Expenses' }}</div>
   </a>
 </li>
@@ -457,7 +457,7 @@ $homeLink = $isAdminLogin
 @can('vat_view')
 <li class="menu-item {{ Route::is('vat.*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
-    <i class="menu-icon tf-icons ti ti-receipt-tax"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'vat'])
     <div>{{ $menuLabels['vat'] ?? 'VAT' }}</div>
   </a>
   <ul class="menu-sub">
@@ -465,7 +465,7 @@ $homeLink = $isAdminLogin
     @can('vat_view')
     <li class="menu-item {{ Route::is('vat.index') ? 'active' : '' }}">
       <a href="{{ route('vat.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-receipt-tax"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'vat_ledger'])
         <div>{{ $menuLabels['vat_ledger'] ?? 'VAT' }}</div>
       </a>
     </li>
@@ -473,7 +473,7 @@ $homeLink = $isAdminLogin
     @can('vat_return_view')
     <li class="menu-item {{ Route::is('vat.returns.index') ? 'active' : '' }}">
       <a href="{{ route('vat.returns.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-file-export"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'vat_return_file'])
         <div>{{ $menuLabels['vat_return_file'] ?? 'Return File' }}</div>
       </a>
     </li>
@@ -486,21 +486,21 @@ $homeLink = $isAdminLogin
 @can('leasing_view')
 <li class="menu-item {{ Route::is('leasingCompan*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
-    <i class="menu-icon tf-icons ti ti-building"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'leasing_companies'])
     <div>{{ $menuLabels['leasing_companies'] ?? 'Leasing Companies' }}</div>
   </a>
 
   <ul class="menu-sub">
     <li class="menu-item {{ Route::is('leasingCompanies.index*') ? 'active' : '' }}">
       <a href="{{ route('leasingCompanies.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-building"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'leasing_companies_list'])
         <div>{{ $menuLabels['leasing_companies_list'] ?? 'Leasing Companies List' }}</div>
       </a>
     </li>
     @can('leasing_company_invoice_view')
     <li class="menu-item {{ Route::is('leasingCompanyInvoices*') ? 'active' : '' }}">
       <a href="{{ route('leasingCompanyInvoices.index') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-file-invoice"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'leasing_invoices'])
         <div>{{ $menuLabels['leasing_invoices'] ?? 'Invoices' }}</div>
       </a>
     </li>
@@ -508,7 +508,7 @@ $homeLink = $isAdminLogin
     @can('leasing_company_invoice_view')
     <li class="menu-item {{ Route::is('leasingCompanies.payment') ? 'active' : '' }}">
       <a href="{{ route('leasingCompanies.payment') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-file-plus"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'leasing_payment'])
         <div>{{ $menuLabels['leasing_payment'] ?? 'Payments sent' }}</div>
       </a>
     </li>
@@ -521,32 +521,32 @@ $homeLink = $isAdminLogin
 @can('bike_view')
 <li class="menu-item {{ Route::is('garages*') || Route::is('garage_customer.*') || Route::is('bikeMaintenance*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
-    <i class="menu-icon tf-icons ti ti-parking"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'garages'])
     <div>{{ $menuLabels['garages'] ?? 'Garages' }}</div>
   </a>
   <ul class="menu-sub">
     <li class="menu-item {{ Route::is('garages*') ? 'active' : '' }}">
       <a href="{{ route('garages.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-parking"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'garage_list'])
         <div>{{ $menuLabels['garage_list'] ?? 'Garage List' }}</div>
       </a>
     </li>
     <li class="menu-item {{ Route::is('bikeMaintenance*') ? 'active' : '' }}">
       <a href="{{ route('bikeMaintenance.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-motorbike"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'maintenance_overview'])
         <div>{{ $menuLabels['maintenance_overview'] ?? 'Maintenance' }}</div>
       </a>
     </li>
     @if(\App\Support\CompanyModuleVisibility::enabled('garage_customers'))
     <li class="menu-item {{ Route::is('garage_customer.*') && !Route::is('garage_customer.all_receipts') ? 'active' : '' }}">
       <a href="{{ route('garage_customer.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-users"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'garage_customers'])
         <div>{{ $menuLabels['garage_customers'] ?? 'Customers' }}</div>
       </a>
     </li>
     <li class="menu-item {{ Route::is('garage_customer.all_receipts') ? 'active' : '' }}">
       <a href="{{ route('garage_customer.all_receipts') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-receipt"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'bike_rent_customer_receipts'])
         <div>{{ $menuLabels['bike_rent_customer_receipts'] ?? 'Payments Received' }}</div>
       </a>
     </li>
@@ -560,7 +560,7 @@ $homeLink = $isAdminLogin
 <li class="menu-item {{ Route::is('supplier*') ? 'open' : '' }}">
 
   <a href="javascript:void(0); " class="menu-link menu-toggle">
-    <i class="menu-icon tf-icons ti ti-truck"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'supplier'])
     <div>{{ $menuLabels['supplier'] ?? 'Supplier' }}</div>
   </a>
   <ul class="menu-sub">
@@ -598,7 +598,7 @@ $homeLink = $isAdminLogin
 @can('asset_view')
 <li class="menu-item ">
   <a href="#" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-device-sim"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'assets'])
     <div>{{ $menuLabels['assets'] ?? 'Assets' }}</div>
   </a>
 </li>
@@ -608,7 +608,7 @@ $homeLink = $isAdminLogin
 @can('company_documents_view')
 <li class="menu-item {{ Route::is('upload_files*') ? 'active' : '' }}">
   <a href="{{ route('upload_files.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-upload"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'documents'])
     <div>{{ $menuLabels['documents'] ?? 'Documents' }}</div>
   </a>
 </li>
@@ -618,7 +618,7 @@ $homeLink = $isAdminLogin
 @can('voucher_view')
 <li class="menu-item {{ Route::is('vouchers*') ? 'active' : '' }}">
   <a href="{{ route('vouchers.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-ticket"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'vouchers'])
     <div>{{ $menuLabels['vouchers'] ?? 'Vouchers' }}</div>
   </a>
 </li>
@@ -728,7 +728,7 @@ $homeLink = $isAdminLogin
 @canany(['account_view','gn_ledger'])
 <li class="menu-item {{ Route::is('accounts*') ? 'open' : '' }} ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
-    <i class="menu-icon tf-icons ti ti-graph"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => 'accounts'])
     <div>{{ $menuLabels['accounts'] ?? 'Accounts' }}</div>
   </a>
   <ul class="menu-sub">
@@ -736,7 +736,7 @@ $homeLink = $isAdminLogin
     @can('account_view')
     <li class="menu-item {{ Route::is('accounts.tree') ? 'active' : '' }}">
       <a href="{{ route('accounts.tree') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-settings"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'chart_of_accounts'])
         <div>{{ $menuLabels['chart_of_accounts'] ?? 'Chart Of Accounts' }}</div>
       </a>
     </li>
@@ -746,7 +746,7 @@ $homeLink = $isAdminLogin
 
     <li class="menu-item {{ Route::is('accounts.ledger') ? 'active' : '' }}">
       <a href="{{ route('accounts.ledger') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-settings"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => 'ledger'])
         <div>{{ $menuLabels['ledger'] ?? 'Ledger' }}</div>
       </a>
     </li>

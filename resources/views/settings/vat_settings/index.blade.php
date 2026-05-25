@@ -45,6 +45,12 @@
               'moduleLabel' => $moduleLabel ?? null,
               'defaultLabel' => 'VAT',
             ])
+            @include('settings.partials._module_menu_icon_form', [
+              'settingsRoutePrefix' => 'settings-panel.vat-settings',
+              'settingsRouteParams' => ['company_slug' => request()->route('company_slug') ?? session('company_slug')],
+              'moduleMenuKey' => 'vat',
+              'defaultLabel' => 'VAT',
+            ])
           </div>
 
           {{-- Tab 2: Configuration (VAT number, percentage, enabled) --}}

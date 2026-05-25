@@ -1064,6 +1064,11 @@
   (function() {
     'use strict';
 
+    var csrf = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) ||
+      (document.querySelector('.rider-field-assignment-form input[name="_token"]') && document.querySelector('.rider-field-assignment-form input[name="_token"]').value) ||
+      (document.querySelector('form input[name="_token"]') && document.querySelector('form input[name="_token"]').value) ||
+      '';
+
     const dataTypesMeta = JSON.parse((document.getElementById('riderDataTypesMetaJson') && document.getElementById('riderDataTypesMetaJson').value) || '{}');
 
     function buildConfigFields(container, typeKey, existingConfig) {

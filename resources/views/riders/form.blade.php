@@ -35,7 +35,7 @@
                    <div class="card-body box-profile">
                     <div class="">
                         @isset($result)
-<form action="{{url('riders/picture_upload/'.$result['id'])}}" method="POST" enctype="multipart/form-data" id="formajax2">
+<form action="{{ route('rider_picture_upload', ['company_slug' => request()->route('company_slug'), 'id' => $result['id']]) }}" method="POST" enctype="multipart/form-data" id="formajax2">
     @endisset
     @csrf
                         @php

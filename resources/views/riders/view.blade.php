@@ -357,7 +357,7 @@ $companySlug = request()->route('company_slug');
             </div>
             <div id="photo-upload-form" class="mt-4" style="display: none;">
               @isset($result)
-              <form action="{{url('riders/picture_upload/'.$result['id'])}}" method="POST" enctype="multipart/form-data" id="formajax2">
+              <form action="{{ route('rider_picture_upload', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" method="POST" enctype="multipart/form-data" id="formajax2">
                 @endisset
                 @csrf
                 @isset($result)

@@ -676,6 +676,15 @@ $homeLink = $isAdminLogin
 </li>
 @endif
 
+@if($isAdminLogin && $canAccessSuperAdminPanel)
+<li class="menu-item {{ Route::is('admin.auth-branding*') ? 'active' : '' }}">
+  <a href="{{ route('admin.auth-branding.edit') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-photo"></i>
+    <div>{{ __('Login & Register Pages') }}</div>
+  </a>
+</li>
+@endif
+
 @if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('privacy_policy_view'))
 <li class="menu-item {{ Route::is('admin.privacy-policy*') ? 'active' : '' }}">
   <a href="{{ route('admin.privacy-policy.edit') }}" class="menu-link">

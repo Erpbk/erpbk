@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Mail\CompanyOtpMail;
 use App\Mail\CompanyRegisteredAdminMail;
 use App\Models\Company;
+use App\Rules\GloballyUniqueAuthEmail;
+use App\Support\AuthBranding;
 use App\Models\CompanyOtpVerification;
 use App\Models\Countries;
 use Illuminate\Http\Request;
@@ -22,7 +24,11 @@ class CompanyRegistrationController extends Controller
     public function showRegistrationForm()
     {
         $countries = Countries::query()->orderBy('name')->pluck('name', 'id');
-        return view('company.register.step1', compact('countries'));
+
+        return view('company.register.step1', [
+            'countries' => $countries,
+            'branding' => AuthBranding::forPage('register'),
+        ]);
     }
 
     /**
@@ -32,15 +38,7 @@ class CompanyRegistrationController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => [
-                'required',
-                'email',
-                function ($attribute, $value, $fail) {
-                    if (Company::query()->where('email', $value)->exists()) {
-                        $fail(__('The email has already been taken.'));
-                    }
-                },
-            ],
+            'email' => ['required', 'email', new GloballyUniqueAuthEmail],
             'country_id' => 'required|exists:countries,id',
             'phone' => 'required|string|max:50',
             'password' => ['required', 'confirmed', Password::defaults()],

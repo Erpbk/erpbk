@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AdminCompaniesController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\AdminPermissionsController;
+use App\Http\Controllers\Admin\AdminAuthBrandingController;
 use App\Http\Controllers\Admin\AdminPolicyController;
 use App\Http\Controllers\Admin\AdminRolesController;
 use App\Http\Controllers\Admin\AdminTestimonialsController;
@@ -100,13 +101,14 @@ Route::get('company/register/details', [CompanyRegistrationController::class, 's
 Route::post('company/register/details', [CompanyRegistrationController::class, 'submitDetails'])->name('company.register.details.submit');
 Route::get('company/register/pending', [CompanyRegistrationController::class, 'pending'])->name('company.register.pending');
 
-// ---------- Company login (public): find tenant by name, then slug login ----------
+// ---------- Company login (public): email + password, company resolved from user ----------
 Route::redirect('/', '/company/login');
-Route::get('company/login', [CompanyAuthController::class, 'showFindLoginForm'])->name('company.find-login');
-Route::post('company/login', [CompanyAuthController::class, 'findLogin'])->name('company.find-login.submit');
+Route::redirect('/register', '/company/register');
+Route::get('company/login', [CompanyAuthController::class, 'showLogin'])->name('company.login');
+Route::post('company/login', [CompanyAuthController::class, 'login'])->name('company.login.submit');
 
 Route::get('app/{company_slug}/login', [CompanyAuthController::class, 'showLoginForm'])->name('company.login-form');
-Route::post('app/{company_slug}/login', [CompanyAuthController::class, 'login'])->name('company.login');
+Route::post('app/{company_slug}/login', [CompanyAuthController::class, 'login'])->name('company.login.legacy');
 
 // ---------- Admin login (separate portal) ----------
 Route::get('admin/login', [AdminLoginController::class, 'showLogin'])->name('admin.login')->middleware('guest:admin');
@@ -152,6 +154,9 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
 
     Route::get('terms-conditions', [AdminPolicyController::class, 'editTerms'])->middleware('admin.permission:terms_conditions_view')->name('terms-conditions.edit');
     Route::post('terms-conditions', [AdminPolicyController::class, 'updateTerms'])->middleware('admin.permission:terms_conditions_edit')->name('terms-conditions.update');
+
+    Route::get('auth-branding', [AdminAuthBrandingController::class, 'edit'])->name('auth-branding.edit');
+    Route::post('auth-branding', [AdminAuthBrandingController::class, 'update'])->name('auth-branding.update');
 
     // Admin roles (create/edit/delete from Users page)
     Route::get('roles/create', [AdminRolesController::class, 'create'])->middleware('admin.permission:users_edit')->name('roles.create');

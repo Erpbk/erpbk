@@ -13,6 +13,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('admin_companies')) {
+            return;
+        }
+
         Schema::create('admin_companies', function (Blueprint $table) {
             // Mirror central Company IDs so we can sync updates by ID.
             $table->unsignedBigInteger('id')->primary();
@@ -48,4 +52,3 @@ return new class extends Migration
         Schema::dropIfExists('admin_companies');
     }
 };
-

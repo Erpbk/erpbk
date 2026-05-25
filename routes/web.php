@@ -744,6 +744,11 @@ Route::get('/artisan-storage-unlink', function () {
 
 // Admin tables: only migrations in database/migrations_admin (or one file via ?path=...)
 Route::get('/run-admin-migrate', function () {
+    // Web SAPI often has memory_limit=512M; migrations need more headroom than HTTP defaults.
+    if (@ini_get('memory_limit') !== '-1') {
+        @ini_set('memory_limit', '1024M');
+    }
+
     $path = request('path');
     $options = [
         '--database' => 'mysql_admin',

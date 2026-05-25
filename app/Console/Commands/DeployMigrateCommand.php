@@ -28,6 +28,10 @@ class DeployMigrateCommand extends Command
 
   public function handle()
   {
+    if (@ini_get('memory_limit') !== '-1' && $this->memoryLimitBytes() < 1024 * 1024 * 1024) {
+      @ini_set('memory_limit', '1024M');
+    }
+
     DeployDatabaseConfig::refreshFromEnvironment();
 
     if ($this->hasExplicitTarget()) {
@@ -97,5 +101,23 @@ class DeployMigrateCommand extends Command
     }
 
     return false;
+  }
+
+  private function memoryLimitBytes(): int
+  {
+    $limit = trim((string) ini_get('memory_limit'));
+    if ($limit === '' || $limit === '-1') {
+      return PHP_INT_MAX;
+    }
+
+    $unit = strtolower(substr($limit, -1));
+    $value = (int) $limit;
+
+    return match ($unit) {
+      'g' => $value * 1024 * 1024 * 1024,
+      'm' => $value * 1024 * 1024,
+      'k' => $value * 1024,
+      default => $value,
+    };
   }
 }

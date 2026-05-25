@@ -216,15 +216,11 @@
                     {!! Form::number('item_total[]', $item->total_amount, ['class' => 'form-control amount', 'step' => 'any', 'readonly' => true]) !!}
                 </div>
                 <div class="form-group col-md-2">
-                    @if($type == 'garage')
-                    <input name="charge_to[]" class="form-control" value="User" readonly>
-                    @else
                     <select name="charge_to[]" class="form-control select2">
                         <option value="">Select</option>
                         <option value="Company" @if($item->charge_to == 'Company') selected @endif>Company</option>
                         <option value="User" @if($item->charge_to == 'User') selected @endif>User</option>
                     </select>
-                    @endif
                 </div>
                 <div class="form-group col-md-1 d-flex align-items-end">
                     <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
@@ -279,6 +275,7 @@ $(document).ready(function() {
     const overdueCost = $('#overdue_cost');
     const riderInfo = $('#rider_info');
     const riderIdHidden = $('#rider_id_hidden');
+    const isGarageCustomer = @json(($bike->rentalCompany?->customer_type) == 'garage');
     
     function calculateOverdue() {
         const prev = parseFloat(previousKm.val());
@@ -318,34 +315,17 @@ $(document).ready(function() {
     });
     setTotal();
 
-    $(document).on('change', '#bike_select', function(){
-        const selectedOption = $(this).find('option:selected');
-        const riderData = selectedOption.data('rider');
-        const riderId = selectedOption.data('rider-id');
-        const previousKmData = selectedOption.data('previous-km');
-        const maintenanceKmData = selectedOption.data('maintenance-km');
-
-        
-        // Update rider information
-        riderInfo.val(riderData);
-        riderIdHidden.val(riderId);
-        previousKm.val(previousKmData);
-        maintenanceKm.val(maintenanceKmData);
-        
-        calculateOverdue();
-        toggleRiderChargeOption();
-        $(this).select2('close');
-    });
-
-    toggleRiderChargeOption();
+    toggleRiderChargeOption(isGarageCustomer);
 });
 
-function toggleRiderChargeOption() {
+function toggleRiderChargeOption(garageCustomer = false) {
     const riderText = $('#rider_info').val().trim();
     const noRider = riderText === 'No User Assigned';
 
     $('select[name="charge_to[]"]').each(function () {
         const riderOption = $(this).find('option[value="User"]');
+        const companyOption = $(this).find('option[value="Company"]');
+
 
         if (noRider) {
             riderOption.prop('disabled', true);
@@ -356,6 +336,12 @@ function toggleRiderChargeOption() {
             }
         } else {
             riderOption.prop('disabled', false);
+        }
+        if(garageCustomer) {
+            companyOption.prop('disabled', true);
+            $(this).val('User').trigger('change');
+        }else {
+            companyOption.prop('disabled', false);
         }
     });
 }

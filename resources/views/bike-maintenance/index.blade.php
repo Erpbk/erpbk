@@ -38,17 +38,6 @@
                                 <div class="action-dropdown-item-desc">Add New Maintenance Record</div>
                             </div>
                         </a>
-                        <a class="action-dropdown-item show-modal"
-                            href="javascript:void(0);"
-                            data-size="xl"
-                            data-title="Add Maintenance Record"
-                            data-action="{{ route('bikeMaintenance.create') }}?type={{ 'garage' }}">
-                            <i class="ti ti-plus"></i>
-                            <div>
-                                <div class="action-dropdown-item-text">Add (For Garage Customer)</div>
-                                <div class="action-dropdown-item-desc">Add New Maintenance Record</div>
-                            </div>
-                        </a>
                         @endcan
                     </div>
                 </div>

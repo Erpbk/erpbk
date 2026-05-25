@@ -883,11 +883,9 @@ $(document).ready(function () {
       .removeClass('select2-hidden-accessible')
       .next('.select2')
       .remove();
-    const chargeTo = newRow.find('input[name="charge_to[]"]').val();
     // Clear input, textarea, and select values in the cloned row
     newRow.find('input, textarea').val(''); // Clear inputs and textareas
     newRow.find('select').val(null).trigger('change'); // Reset the select value and trigger change
-    newRow.find('input[name="charge_to[]"]').val(chargeTo);
     // Reset amount field to default value and remove data attribute
     newRow.find('.amount').attr('data-numeric-value', '0');
 

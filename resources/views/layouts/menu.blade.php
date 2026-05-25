@@ -531,32 +531,26 @@ $homeLink = $isAdminLogin
         <div>{{ $menuLabels['garage_list'] ?? 'Garage List' }}</div>
       </a>
     </li>
-    <li class="menu-item {{ Route::is('garage_customer.*') && !Route::is('garage_customer.all_receipts') ? 'active' : '' }}">
-      <a href="{{ route('garage_customer.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-users"></i>
-        <div>{{ $menuLabels['garage_customers'] ?? 'Customers' }}</div>
-      </a>
-    </li>
     <li class="menu-item {{ Route::is('bikeMaintenance*') ? 'active' : '' }}">
       <a href="{{ route('bikeMaintenance.index') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-motorbike"></i>
         <div>{{ $menuLabels['maintenance_overview'] ?? 'Maintenance' }}</div>
       </a>
     </li>
-    {{-- @can('billing_invoice_view')
-    <li class="menu-item {{ Route::is('leasingCompanyBillingInvoices*') ? 'active' : '' }}">
-      <a href="{{ route('leasingCompanyBillingInvoices.index') }}" class="menu-link ">
-        <i class="menu-icon tf-icons ti ti-file-plus"></i>
-        <div>{{ $menuLabels['leasing_billing_invoice'] ?? 'Billing Invoice' }}</div>
+    @if(\App\Support\CompanyModuleVisibility::enabled('garage_customers'))
+    <li class="menu-item {{ Route::is('garage_customer.*') && !Route::is('garage_customer.all_receipts') ? 'active' : '' }}">
+      <a href="{{ route('garage_customer.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-users"></i>
+        <div>{{ $menuLabels['garage_customers'] ?? 'Customers' }}</div>
       </a>
     </li>
-    @endcan --}}
     <li class="menu-item {{ Route::is('garage_customer.all_receipts') ? 'active' : '' }}">
       <a href="{{ route('garage_customer.all_receipts') }}" class="menu-link">
         <i class="menu-icon tf-icons ti ti-receipt"></i>
         <div>{{ $menuLabels['bike_rent_customer_receipts'] ?? 'Payments Received' }}</div>
       </a>
     </li>
+    @endif
   </ul>
 </li>
 @endcan

@@ -12,15 +12,15 @@ class CompanyModuleVisibility
     public static function enabled(string $moduleKey): bool
     {
         $company = view()->shared('currentCompany');
-        if (!$company instanceof Company) {
+        if (! $company instanceof Company) {
             return true;
         }
         $settings = $company->modules_settings;
-        if (!is_array($settings)) {
+        if (! is_array($settings)) {
             return true;
         }
         $disabled = $settings['disabled'] ?? [];
 
-        return !in_array($moduleKey, $disabled, true);
+        return ! in_array($moduleKey, $disabled, true);
     }
 }

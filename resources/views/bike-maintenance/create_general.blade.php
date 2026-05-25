@@ -1,4 +1,5 @@
 {!! Form::open(['route' => ['bikeMaintenance.store'], 'method' => 'post', 'id' => 'formajax', 'files' => true]) !!}
+
     @csrf
     
     <div class="card-body">
@@ -10,9 +11,10 @@
                     <option value="">Select</option>
                     @foreach($bikes as $bike)
                     <option value="{{ $bike->id }}"
-                        data-rider="{{ $bike->rider ? ($bike->rider->rider_id .'-'. $bike->rider->name) : ($bike->rentalCompany ? $bike->rentalCompany->name.' (Bike Rental Customer)' : 'No User Assigned') }}"
+                        data-rider="{{ $bike->rider ? ($bike->rider->rider_id .'-'. $bike->rider->name) : ($bike->rentalCompany ? $bike->rentalCompany->name : 'No User Assigned') }}"
                         data-rider-id="{{ $bike->rider?->id ?? null }}"
                         data-rental-company-id="{{ $bike->rentalCompany?->id ?? null }}"
+                        data-isgaragecustomer = "{{ ($bike->rentalCompany?->customer_type ) == 'garage' ? 1 : 0 }}"
                         data-previous-km="{{ $bike->previous_km }}"
                         data-maintenance-km="{{ $bike->maintenance_km }}"
                         @if($bikee && $bikee->id == $bike->id) selected @endif>
@@ -227,15 +229,15 @@
                     {!! Form::number('item_total[]', null, ['class' => 'form-control amount', 'step' => 'any']) !!}
                 </div>
                 <div class="form-group col-md-2">
-                    @if($type == 'garage')
+                    {{-- @if($type == 'garage')
                     <input name="charge_to[]" class="form-control" value="User" readonly>
-                    @else
-                    <select name="charge_to[]" class="form-control select2">
+                    @else --}}
+                    <select name="charge_to[]" class="form-control select2 charge_to">
                         <option value="">Select</option>
                         <option value="Company">Company</option>
                         <option value="User">User</option>
                     </select>
-                    @endif
+                    {{-- @endif --}}
                 </div>
                 <div class="form-group col-md-1 d-flex align-items-end">
                     <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
@@ -274,6 +276,7 @@
 {!! Form::close() !!}
 
 <script>
+
 $(document).ready(function() {
     // Initialize select2
     $('.select2').select2({
@@ -291,6 +294,7 @@ $(document).ready(function() {
     const riderInfo = $('#rider_info');
     const riderIdHidden = $('#rider_id_hidden');
     const rentalIdHidden = $('#rental_id_hidden');
+    const hasBike = @json(!empty($bikee));
     
     function calculateOverdue() {
         const prev = parseFloat(previousKm.val());
@@ -329,6 +333,14 @@ $(document).ready(function() {
         setItemTotal($(this));
     });
     setTotal();
+    
+    $('#formajax').on('submit', function () {
+
+        $('.charge_to').each(function () {
+            $(this).prop('disabled', false); // temporarily enable
+        });
+
+    });
 
     $(document).on('change', '#bike_select', function(){
         console.log('bike select change triggered');
@@ -338,7 +350,7 @@ $(document).ready(function() {
         const rentalId = selectedOption.data('rental-company-id');
         const previousKmData = selectedOption.data('previous-km');
         const maintenanceKmData = selectedOption.data('maintenance-km');
-
+        const isGarageCustomer = selectedOption.data('isgaragecustomer') == 1; // Convert to boolean
         
         // Update rider information
         riderInfo.val(riderData);
@@ -348,38 +360,44 @@ $(document).ready(function() {
         maintenanceKm.val(maintenanceKmData);
         
         calculateOverdue();
-        toggleRiderChargeOption();
+        toggleRiderChargeOption(isGarageCustomer);
         $(this).select2('close');
     });
-
-    toggleRiderChargeOption();
     
-
-    if($('#bike_select').val()){
+    toggleRiderChargeOption();
+    if($('#bike_select').val() && hasBike) {
         console.log('triggering bike select change');
         $('#bike_select').trigger('change');
 
     }
-});
 
-function toggleRiderChargeOption() {
-    const riderText = $('#rider_info').val().trim();
-    const noRider = riderText === 'No User Assigned';
+    function toggleRiderChargeOption(garageCustomer = false) {
+        const riderText = $('#rider_info').val().trim();
+        const noRider = riderText === 'No User Assigned';
+        $('select[name="charge_to[]"]').each(function () {
+            const riderOption = $(this).find('option[value="User"]');
+            const companyOption = $(this).find('option[value="Company"]');
 
-    $('select[name="charge_to[]"]').each(function () {
-        const riderOption = $(this).find('option[value="User"]');
+            if (noRider) {
+                riderOption.prop('disabled', true);
+                $(this).val('Company').trigger('change');
+            } else {
+                riderOption.prop('disabled', false);
+            }
 
-        if (noRider) {
-            riderOption.prop('disabled', true);
+            if(garageCustomer) {
+                companyOption.prop('disabled', true);
+                $(this).val('User').trigger('change');
+            }else {
+                companyOption.prop('disabled', false);
+            }
 
-            // If currently selected, reset it
-            if ($(this).val() === 'User') {
+            if(!noRider && !garageCustomer) {
                 $(this).val('').trigger('change');
             }
-        } else {
-            riderOption.prop('disabled', false);
-        }
-    });
-}
+        });
+    }
+});
+
 
 </script>

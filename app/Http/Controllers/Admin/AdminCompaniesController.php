@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Company;
 use App\Models\AdminCompany;
-use App\Models\User;
+use App\Models\Company;
 use App\Models\Countries;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Support\Str;
 
 class AdminCompaniesController extends Controller
 {
@@ -40,6 +40,7 @@ class AdminCompaniesController extends Controller
     public function create()
     {
         $countries = Countries::query()->orderBy('name')->pluck('name', 'id');
+
         return view('admin.companies.create', compact('countries'));
     }
 
@@ -172,9 +173,9 @@ class AdminCompaniesController extends Controller
 
         $centralCompany = Company::query()->find($adminCompany->id);
         $tempPassword = null;
-        if (!$centralCompany) {
+        if (! $centralCompany) {
             $tempPassword = Str::random(12);
-            $centralCompany = new Company();
+            $centralCompany = new Company;
             $centralCompany->id = $adminCompany->id;
             $centralCompany->name = $adminCompany->name;
             $centralCompany->slug = Company::generateUniqueSlug($adminCompany->name, $adminCompany->id);
@@ -236,7 +237,7 @@ class AdminCompaniesController extends Controller
 
         $successMessage = __('Company approved. Owner user created.');
         if ($tempPassword !== null) {
-            $successMessage .= ' ' . __('Temporary owner password: :password', ['password' => $tempPassword]);
+            $successMessage .= ' '.__('Temporary owner password: :password', ['password' => $tempPassword]);
         }
 
         return back()->with('success', $successMessage);

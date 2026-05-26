@@ -291,6 +291,23 @@ class RidersController extends AppBaseController
     return array_merge($rules, $this->dynamicFieldRules());
   }
 
+  /**
+   * Rider array for legacy show_fields view — includes removed DB columns with null defaults.
+   */
+  private function riderShowResultArray(Riders $rider): array
+  {
+    $result = $rider->toArray();
+
+    foreach (\App\Models\RiderCustomField::removedRiderColumns() as $key) {
+      if (!array_key_exists($key, $result)) {
+        $value = $rider->getAttribute($key);
+        $result[$key] = $value !== null ? $value : ($key === 'vat' ? 2 : null);
+      }
+    }
+
+    return $result;
+  }
+
   public function __construct(RidersRepository $ridersRepo)
   {
     $this->ridersRepository = $ridersRepo;
@@ -647,7 +664,7 @@ class RidersController extends AppBaseController
       return redirect(route('riders.index'));
     }
     // $rider_items = $rider->items;
-    $result = $rider->toArray();
+    $result = $this->riderShowResultArray($rider);
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
     $fieldsByCategory = \App\Models\RiderCustomField::fieldsByCategoryForForm();
 

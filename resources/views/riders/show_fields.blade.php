@@ -271,7 +271,7 @@
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>VAT</label>
-                <p>{{ $result['vat'] == 1 ? 'Apply on Invoice' : 'No' }}</p>
+                <p>{{ (int) ($result['vat'] ?? $rider->vat ?? 2) === 1 ? 'Apply on Invoice' : 'No' }}</p>
             </div>
         </div>
     </div>

@@ -35,12 +35,12 @@
                    <div class="card-body box-profile">
                     <div class="">
                         @isset($result)
-<form action="{{url('riders/picture_upload/'.$result['id'])}}" method="POST" enctype="multipart/form-data" id="formajax2">
+<form action="{{ route('rider_picture_upload', ['company_slug' => request()->route('company_slug'), 'id' => $result['id']]) }}" method="POST" enctype="multipart/form-data" id="formajax2">
     @endisset
     @csrf
                         @php
                         if(@$result['image_name']){
-                            $image_name = Storage::url('app/profile/'.$result['image_name']);
+                            $image_name = storage_url('app/profile/'.$result['image_name']);
                         }else{
                             $image_name = asset('public/uploads/default.jpg');
                         }

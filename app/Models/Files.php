@@ -15,6 +15,7 @@ class Files extends BaseModel
     'name',
     'type',
     'type_id',
+    'branch_id',
     'file_name',
     'expiry_date',
     'status',

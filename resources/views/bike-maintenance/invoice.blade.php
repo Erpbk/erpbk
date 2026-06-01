@@ -214,7 +214,7 @@
             <tr>
                 <td width="33.33%" style=" border: none !important;">
                     @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
-                        <img src="{{ Storage::url($settings['company_logo']) }}" width="150" alt="logo" />
+                        <img src="{{ storage_url($settings['company_logo']) }}" width="150" alt="logo" />
                     @endif
                 </td>
                 <td width="33.33%" style="text-align: center; align-content: center; border: none !important;">
@@ -422,7 +422,7 @@
         @if($maintenance->attachment)
         <div class="no-print" style="margin-top: 15px; padding: 10px; background: #e9ecef; border: 1px solid #000;">
             <strong>Attachment:</strong>
-            <a href="{{ Storage::url($maintenance->attachment) }}" target="_blank" style="margin-left: 10px;">
+            <a href="{{ storage_url($maintenance->attachment) }}" target="_blank" style="margin-left: 10px;">
                 View Attachment
             </a>
         </div>

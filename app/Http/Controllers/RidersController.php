@@ -33,6 +33,7 @@ use App\Models\Bikes;
 use App\Models\BikeHistory;
 use App\Models\RiderInvoices;
 use App\Models\RiderHistory;
+use Illuminate\Support\Facades\Storage;
 use App\Models\SimHistory;
 use App\Models\Customers;
 use App\Models\RiderActivities;
@@ -1123,12 +1124,15 @@ class RidersController extends AppBaseController
       $image_name = $request->image_name;
       $extension = $image_name->extension();
       $name = time() . '.' . $extension;
-      $image_name->storeAs('profile', $name);
+      $image_name->storeAs('profile', $name, 'public');
 
-      $rider = Riders::find($request->id);
+      $rider = Riders::find($id);
       if (isset($rider->image_name)) {
-        if (file_exists(storage_path('app/profile/' . $rider->image_name)))
+        if (Storage::disk('public')->exists('profile/' . $rider->image_name)) {
+          Storage::disk('public')->delete('profile/' . $rider->image_name);
+        } elseif (file_exists(storage_path('app/profile/' . $rider->image_name))) {
           unlink(storage_path('app/profile/' . $rider->image_name));
+        }
       }
 
       $rider->image_name = $name;

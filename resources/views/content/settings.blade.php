@@ -104,7 +104,7 @@
           @enderror
           @if(!empty($currentCompany?->logo))
           <div class="mt-2">
-            <img src="{{ Storage::url($currentCompany->logo) }}" alt="Company Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;">
+            <img src="{{ storage_url($currentCompany->logo) }}" alt="Company Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;">
           </div>
           @endif
           <small class="text-muted d-block mt-1">Used in PDFs and outbound emails for this company only.</small>

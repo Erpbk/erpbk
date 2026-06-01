@@ -308,7 +308,7 @@ $(document).ready(function () {
     @isset($items)
         @if($items->attachment)
             // If attachment is a path/URL, display it
-            let existingAttachmentPath = '{{ Storage::url($items->attachment) }}';
+            let existingAttachmentPath = '{{ storage_url($items->attachment) }}';
             if (existingAttachmentPath) {
                 // Wait a moment for DOM to be ready
                 setTimeout(function() {

@@ -352,6 +352,13 @@ class ChequesSettingsController extends Controller
         }
         $this->syncAssignmentCompanyId($assignment);
         $newCategoryId = (int) $validated['category_id'];
+        $duplicate = $this->chequeFieldAssignmentQuery()
+            ->where('field_key', $assignment->field_key)
+            ->when($assignment->exists, fn ($q) => $q->where('id', '!=', $assignment->id))
+            ->exists();
+        if ($duplicate) {
+            return response()->json(['success' => false, 'message' => 'This field is already assigned to another category.'], 422);
+        }
         $assignment->category_id = $newCategoryId;
         if (!$assignment->exists || (int) $assignment->getOriginal('category_id') !== $newCategoryId) {
             $assignment->display_order = (int) $this->chequeFieldAssignmentQuery()

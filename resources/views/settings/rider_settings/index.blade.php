@@ -1066,6 +1066,15 @@
 
     const dataTypesMeta = JSON.parse((document.getElementById('riderDataTypesMetaJson') && document.getElementById('riderDataTypesMetaJson').value) || '{}');
 
+    function getRiderSettingsCsrf() {
+      return (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) ||
+        (document.querySelector('.rider-field-assignment-form input[name="_token"]') && document.querySelector('.rider-field-assignment-form input[name="_token"]').value) ||
+        (document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value) ||
+        @json(csrf_token());
+    }
+
+    const csrf = getRiderSettingsCsrf();
+
     function buildConfigFields(container, typeKey, existingConfig) {
       container.innerHTML = '';
       const typeMeta = dataTypesMeta[typeKey] || null;

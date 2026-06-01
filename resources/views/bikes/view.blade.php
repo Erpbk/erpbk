@@ -593,6 +593,8 @@
                 $warehouseClass = 'Absconded';
                 } elseif (strtolower($warehouse) == 'vacation') {
                 $warehouseClass = 'Vacation';
+                }elseif (strtolower($warehouse) == 'inactive') {
+                $warehouseClass = 'Off Road';
                 }
                 @endphp
 
@@ -642,7 +644,7 @@
                     if ($warehouse === 'active') {
                     $roadStatus = 'On Road';
                     $roadStatusClass = 'road-onroad';
-                    } elseif ($warehouse === 'return' || $warehouse === 'vacation' || $warehouse === 'express garage') {
+                    } elseif ($warehouse === 'return' || $warehouse === 'vacation' || $warehouse === 'express garage' || $warehouse === 'inactive') {
                     $roadStatus = 'Off Road';
                     $roadStatusClass = 'road-offroad';
                     }else{

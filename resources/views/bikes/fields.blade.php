@@ -1,5 +1,4 @@
 @php
-$bikeCategories = $bikeCategories ?? \App\Models\BikeCategory::orderBy('display_order')->orderBy('id')->get();
 $fieldsByCategory = $fieldsByCategory ?? \App\Models\BikeCustomField::fieldsByCategoryForForm();
 $hiddenFieldKeys = [
 'company_id',
@@ -57,22 +56,8 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
 </div>
 @endforeach
 @else
-{{-- If there are no settings rows yet, fall back to default fixed input types --}}
-<div class="card border">
-    <div class="card-header">
-        <b>Bike Information</b>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            @foreach(\App\Models\BikeCustomField::fixedFieldsSlugMap()['bike_info'] as $fieldKey)
-            @continue(in_array($fieldKey, $hiddenFieldKeys, true))
-            @php
-            $spec = \App\Models\BikeCustomField::fixedFieldInputSpecs()[$fieldKey] ?? ['type' => 'text'];
-            @endphp
-            @include('bikes._form_field', ['item' => (object)['kind'=>'fixed','field_key'=>$fieldKey,'label'=>\App\Models\BikeCustomField::humanizeFieldKey($fieldKey),'spec'=>$spec]])
-            @endforeach
-        </div>
-    </div>
+<div class="alert alert-warning mb-0">
+    No fields assigned in Bike Settings. Configure categories and fields under Settings Panel → Bike Settings.
 </div>
 @endif
 

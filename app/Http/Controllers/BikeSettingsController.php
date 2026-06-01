@@ -328,8 +328,22 @@ class BikeSettingsController extends Controller
         }
 
         // Keep current category when empty is submitted; otherwise move to selected category.
+        // field_key is globally unique — one fixed field can belong to only one category.
         if (isset($validated['category_id']) && $validated['category_id'] !== null && $validated['category_id'] !== '') {
-            $assignment->category_id = (int) $validated['category_id'];
+            $newCategoryId = (int) $validated['category_id'];
+            $duplicate = BikeFieldCategoryAssignment::query()
+                ->where('field_key', $assignment->field_key)
+                ->where('id', '!=', $assignment->id)
+                ->exists();
+            if ($duplicate) {
+                $message = 'This field is already assigned to another category.';
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json(['success' => false, 'message' => $message], 422);
+                }
+
+                return $this->bikeSettingsIndexRedirect()->with('error', $message);
+            }
+            $assignment->category_id = $newCategoryId;
         }
 
         $displayLabel = $validated['display_label'] !== null ? trim((string) $validated['display_label']) : null;

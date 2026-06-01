@@ -22,7 +22,7 @@
 
                             <a class="btn btn-primary show-modal action-btn"
                                 href="javascript:void(0);"
-                                data-action="{{ route('files.create',['type_id'=>request()->segment(3),'type'=>'bike']) }}"
+                                data-action="{{ route('files.create',['type_id'=>request()->segment(5),'type'=>'bike']) }}"
                                 data-size="sm"
                                 data-title="Upload File">
                                 <i class="ti ti-upload me-1"></i>Upload File
@@ -41,7 +41,7 @@
                     <tr>
                         <td>{{ $counter++ }}</td>
                         <td class="text-start">
-                            <a href="{{ url('storage2/' . $file->type . '/'.$file->type_id.'/'.$file->file_name) }}" target="_blank">
+                            <a href="{{ storage_url($file->type . '/'.$file->type_id.'/'.$file->file_name) }}" target="_blank">
                                 {{ ucwords(str_replace('_', ' ', $file->name)) }}
                             </a>
                         </td>
@@ -61,7 +61,7 @@
                             <a class="btn btn-sm btn-primary show-modal action-btn"
                                 href="javascript:void(0);"
                                 data-action="{{ route('files.create', [
-                                                'type_id' => request()->segment(3),
+                                                'type_id' => request()->segment(5),
                                                 'type' => 'bike',
                                                 'suggested_name' => $fileName
                                             ]) }}"

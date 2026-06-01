@@ -1,7 +1,7 @@
 <aside class="main-sidebar sidebar-dark-primary elevation-4">
     @php
     $tenantCompany = view()->shared('currentCompany');
-    $tenantLogo = !empty($tenantCompany?->logo) ? asset('storage/' . $tenantCompany->logo) : 'https://assets.infyom.com/logo/blue_logo_150x150.png';
+    $tenantLogo = !empty($tenantCompany?->logo) ? storage_url($tenantCompany->logo) : 'https://assets.infyom.com/logo/blue_logo_150x150.png';
     $companySlug = request()->route('company_slug') ?? session('company_slug');
     $homeLink = auth('admin')->check()
         ? route('admin.dashboard')

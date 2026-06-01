@@ -6,7 +6,7 @@
          <th title="Select All" class="sorting_disabled" rowspan="1" colspan="1" width="50px">
             <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)">
          </th>
-         <th title="Id" class="sorting" rowspan="1" colspan="1">Id</th>
+         <th title="Invoice Number" class="sorting" rowspan="1" colspan="1">Invoice</th>
          <th title="Inv Date" class="sorting" rowspan="1" colspan="1">Inv Date</th>
          <th title="Billing Month" class="sorting" rowspan="1" colspan="1">Billing Month</th>
          <th title="Rider" class="sorting" rowspan="1" colspan="1">Rider</th>
@@ -25,7 +25,7 @@
          <td>
             <input type="checkbox" class="invoice-checkbox" value="{{ $r->id }}" onchange="updateDeleteButton()">
          </td>
-         <td><a href="javascript:void(0);" data-action="{{ route('riderInvoices.show', $r->id) }}" class="show-modal-right">{{ $r->id }}</a></td>
+         <td style="white-space: nowrap;"><a href="javascript:void(0);" data-action="{{ route('riderInvoices.show', $r->id) }}" class="show-modal-right">{{ $r->invoice_number }}</a></td>
          <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
          <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
          @php

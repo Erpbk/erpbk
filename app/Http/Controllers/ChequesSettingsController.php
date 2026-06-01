@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Models\ChequeCategory;
 use App\Models\ChequeCustomField;
 use App\Models\ChequeDocumentType;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Schema;
 class ChequesSettingsController extends Controller
 {
     use SavesModuleDisplayLabel;
+    use SavesModuleMenuIcons;
 
     public function __construct()
     {
@@ -596,6 +598,15 @@ class ChequesSettingsController extends Controller
         return redirect()->route('settings-panel.cheques-settings.index', [
             'company_slug' => $request->route('company_slug') ?? session('company_slug'),
         ])->with('success', 'Module name updated.');
+    }
+
+    public function storeModuleIcon(Request $request)
+    {
+        $this->saveModuleMenuIcons($request, 'cheques');
+
+        return redirect()->route('settings-panel.cheques-settings.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Menu icons updated.');
     }
 
     // ---------- cheque categories ----------

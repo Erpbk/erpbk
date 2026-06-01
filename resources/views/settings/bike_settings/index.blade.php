@@ -171,18 +171,20 @@ $attendanceRefType = $attendanceRefType ?? null;
         <div class="tab-content">
           {{-- Tab: General --}}
           <div class="tab-pane fade {{ ($showBikeFieldsMainTab || $showAssignFieldsTab) ? '' : 'show active' }}" id="tab-general" role="tabpanel">
-            <form action="{{ route($settingsRoutePrefix . '.store-module-label', $settingsRouteParams) }}" method="POST" class="row g-3 align-items-end">
-              @csrf
-              <div class="col-md-6">
-                <label class="form-label">Name in menu</label>
-                <input type="text" name="module_label" class="form-control"
-                  value="{{ old('module_label', $moduleLabel ?? $settingsHeading) }}"
-                  placeholder="{{ $settingsHeading }}" maxlength="100" required>
-              </div>
-              <div class="col-md-6 text-end">
-                <button class="btn btn-primary" type="submit">Save name</button>
-              </div>
-            </form>
+            @include('settings.partials._module_general_label_form', [
+              'settingsRoutePrefix' => $settingsRoutePrefix,
+              'settingsRouteParams' => $settingsRouteParams,
+              'moduleMenuKey' => $moduleKey ?? 'bike_list',
+              'moduleLabel' => $moduleLabel ?? null,
+              'settingsHeading' => $settingsHeading ?? null,
+              'defaultLabel' => $moduleLabel ?? $settingsHeading,
+            ])
+            @include('settings.partials._module_menu_icon_form', [
+              'settingsRoutePrefix' => $settingsRoutePrefix,
+              'settingsRouteParams' => $settingsRouteParams,
+              'moduleMenuKey' => $moduleKey ?? 'bike_list',
+              'defaultLabel' => $moduleLabel ?? $settingsHeading,
+            ])
           </div>
 
           @include('settings.partials.top_bar._settings_tab_content')

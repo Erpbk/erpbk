@@ -64,6 +64,8 @@ class FilesController extends AppBaseController
   {
 
     $input = $request->all();
+    $input['type_id'] = (int) $input['type_id'];
+    $input['type'] = trim((string) ($input['type'] ?? ''));
 
     if (isset($input['file_name'])) {
 

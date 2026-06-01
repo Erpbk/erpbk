@@ -14,18 +14,24 @@ class SettingsPanelMenuRegistry
         return config('settings_panel_menu.items', []);
     }
 
-    public static function label(string $labelKey, array $menuLabels, ?string $override = null): string
+    /**
+     * @param  string|null  $fallback  Used only when the key has no saved/custom menu label.
+     */
+    public static function label(string $labelKey, array $menuLabels, ?string $fallback = null): string
     {
-        if ($override !== null && $override !== '') {
-            return $override;
-        }
-
         if ($labelKey === 'riders' || $labelKey === 'riders_list') {
             return $menuLabels['riders'] ?? config('menu_labels.defaults.riders', 'Riders');
         }
 
-        return $menuLabels[$labelKey]
-            ?? config('menu_labels.defaults.' . $labelKey, ucwords(str_replace('_', ' ', $labelKey)));
+        if (isset($menuLabels[$labelKey]) && trim((string) $menuLabels[$labelKey]) !== '') {
+            return $menuLabels[$labelKey];
+        }
+
+        if ($fallback !== null && trim($fallback) !== '') {
+            return $fallback;
+        }
+
+        return config('menu_labels.defaults.' . $labelKey, ucwords(str_replace('_', ' ', $labelKey)));
     }
 
     public static function settingsUrl(string $settingsModuleKey, ?string $companySlug = null, array $query = []): ?string
@@ -187,74 +193,6 @@ class SettingsPanelMenuRegistry
             return $fromItem;
         }
 
-        $icons = [
-            'dashboard' => 'ti-layout-dashboard',
-            'cash_banks' => 'ti-building-bank',
-            'cheques' => 'ti-file',
-            'payments' => 'ti-cash',
-            'receipts' => 'ti-receipt',
-            'employees' => 'ti-user',
-            'employee_invoices' => 'ti-file',
-            'attendance_records' => 'ti-calendar-check',
-            'attendance_summary' => 'ti-calendar-stats',
-            'items' => 'ti-notes',
-            'items_list' => 'ti-list-details',
-            'inventory' => 'ti-package',
-            'leads' => 'ti-user-plus',
-            'customers' => 'ti-user-star',
-            'customer_list' => 'ti-users',
-            'customer_invoices' => 'ti-receipt',
-            'customer_receipts' => 'ti-receipt',
-            'vendors' => 'ti-user-star',
-            'recruiters' => 'ti-user-star',
-            'riders' => 'ti-user-pin',
-            'riders_list' => 'ti-users',
-            'invoices' => 'ti-file',
-            'activities' => 'ti-bike',
-            'live_activities' => 'ti-activity',
-            'rider_report' => 'ti-chart-bar',
-            'bikes' => 'ti-motorbike',
-            'bike_list' => 'ti-motorbike',
-            'bike_registration' => 'ti-id',
-            'bike_on_rent' => 'ti-motorbike',
-            'bike_rent_customers' => 'ti-users',
-            'leasing_billing_invoice' => 'ti-file-plus',
-            'sims' => 'ti-device-sim',
-            'sim_invoices' => 'ti-file-invoice',
-            'sim_companies' => 'ti-building',
-            'fuel_cards' => 'ti-gas-station',
-            'fuel_card_list' => 'ti-gas-station',
-            'fuel_data' => 'ti-gas-station',
-            'fuel_companies' => 'ti-building',
-            'rta_fines' => 'ti-file-alert',
-            'rta_saliks' => 'ti-cash',
-            'visa_expense' => 'ti-credit-card',
-            'expenses' => 'ti-cash',
-            'vat' => 'ti-receipt-tax',
-            'vat_ledger' => 'ti-receipt-tax',
-            'vat_return_file' => 'ti-file-export',
-            'leasing_companies' => 'ti-building',
-            'leasing_companies_list' => 'ti-building',
-            'leasing_invoices' => 'ti-file-invoice',
-            'leasing_receipt' => 'ti-file-plus',
-            'leasing_payment' => 'ti-file-plus',
-            'garages' => 'ti-parking',
-            'garage_list' => 'ti-parking',
-            'garage_customers' => 'ti-users',
-            'maintenance_overview' => 'ti-motorbike',
-            'supplier' => 'ti-truck',
-            'suppliers' => 'ti-truck',
-            'supplier_orders' => 'ti-truck',
-            'supplier_invoices' => 'ti-truck',
-            'supplier_payments' => 'ti-truck',
-            'assets' => 'ti-box',
-            'documents' => 'ti-upload',
-            'vouchers' => 'ti-ticket',
-            'accounts' => 'ti-graph',
-            'chart_of_accounts' => 'ti-settings',
-            'ledger' => 'ti-settings',
-        ];
-
-        return $icons[$key] ?? 'ti-adjustments-alt';
+        return ModuleMenuIcon::tablerClass($key);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Services\Employee\EmployeeDefaultCategoryService;
 use App\Models\EmployeeCategory;
 use App\Models\EmployeeCustomField;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Schema;
 class EmployeeSettingsController extends Controller
 {
     use SavesModuleDisplayLabel;
+    use SavesModuleMenuIcons;
 
     public function __construct()
     {
@@ -577,6 +579,15 @@ class EmployeeSettingsController extends Controller
         return redirect()->route('settings-panel.employee-settings.index', [
             'company_slug' => $request->route('company_slug') ?? session('company_slug'),
         ])->with('success', 'Module name updated.');
+    }
+
+    public function storeModuleIcon(Request $request)
+    {
+        $this->saveModuleMenuIcons($request, 'employees');
+
+        return redirect()->route('settings-panel.employee-settings.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Menu icons updated.');
     }
 
     // ---------- Employee Categories ----------

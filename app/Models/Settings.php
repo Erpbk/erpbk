@@ -48,20 +48,41 @@ class Settings extends BaseModel
         return Cache::remember($cacheKey, 300, function () {
             $defaults = config('menu_labels.defaults', []);
 
-            // In the tenant app, menu labels are per-company only (see Company::modules_settings).
+            $labels = self::mergeGlobalLabelOverrides($defaults);
+
+            // Per-company overrides (modules_settings.label_overrides) win over global settings rows.
             if (CompanyContext::shouldApplyScope() && CompanyContext::id() !== null) {
-                return self::mergeCompanyLabelOverrides($defaults);
+                return self::mergeCompanyLabelOverrides($labels);
             }
 
-            $stored = self::where('name', 'like', 'menu_label_%')
-                ->pluck('value', 'name');
-            $globalOverrides = [];
-            foreach ($stored as $name => $value) {
-                $globalOverrides[str_replace('menu_label_', '', $name)] = $value;
-            }
-
-            return array_merge($defaults, $globalOverrides);
+            return $labels;
         });
+    }
+
+    /**
+     * Legacy/global menu_label_* rows from the settings table.
+     *
+     * @param  array<string, string>  $labels
+     * @return array<string, string>
+     */
+    public static function mergeGlobalLabelOverrides(array $labels): array
+    {
+        $stored = self::where('name', 'like', 'menu_label_%')
+            ->pluck('value', 'name');
+        if ($stored->isEmpty()) {
+            return $labels;
+        }
+
+        $globalOverrides = [];
+        foreach ($stored as $name => $value) {
+            $key = str_replace('menu_label_', '', (string) $name);
+            $value = trim((string) $value);
+            if ($key !== '' && $value !== '') {
+                $globalOverrides[$key] = $value;
+            }
+        }
+
+        return array_merge($labels, $globalOverrides);
     }
 
     /**
@@ -118,5 +139,51 @@ class Settings extends BaseModel
         $companyId = CompanyContext::id();
 
         return $companyId === null ? 'erp_menu_labels:none' : 'erp_menu_labels:' . $companyId;
+    }
+
+    /**
+     * @return array{type: string, class: string, url: string|null, path: string|null}
+     */
+    public static function getMenuIcon(string $key): array
+    {
+        $icons = self::getMenuIcons();
+
+        return $icons[$key] ?? app(\App\Services\Module\ModuleIconService::class)->resolve($key);
+    }
+
+    /**
+     * @return array<string, array{type: string, class: string, url: string|null, path: string|null}>
+     */
+    public static function getMenuIcons(): array
+    {
+        $cacheKey = self::menuIconsCacheKey();
+
+        return Cache::remember($cacheKey, 300, function () {
+            $defaults = config('menu_icons.defaults', []);
+            $resolved = [];
+            $service = app(\App\Services\Module\ModuleIconService::class);
+
+            foreach (array_keys($defaults) as $key) {
+                $resolved[$key] = $service->resolve($key);
+            }
+
+            return $resolved;
+        });
+    }
+
+    public static function clearMenuIconsCache(): void
+    {
+        Cache::forget(self::menuIconsCacheKey());
+    }
+
+    protected static function menuIconsCacheKey(): string
+    {
+        if (! CompanyContext::shouldApplyScope()) {
+            return 'erp_menu_icons';
+        }
+
+        $companyId = CompanyContext::id();
+
+        return $companyId === null ? 'erp_menu_icons:none' : 'erp_menu_icons:' . $companyId;
     }
 }

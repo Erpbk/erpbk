@@ -76,17 +76,19 @@
         <div class="tab-content" id="accountFieldsTabContent">
           {{-- Tab 1: General (module name in menu) --}}
           <div class="tab-pane fade show active" id="tab-general" role="tabpanel">
-            <p class="text-muted small mb-3">This name appears in the settings panel sidebar.</p>
-            <form action="{{ route('settings-panel.account-fields.store-module-label') }}" method="POST" class="row g-3 align-items-end">
-              @csrf
-              <div class="col-md-6">
-                <label class="form-label">Name in menu</label>
-                <input type="text" name="module_label" class="form-control" value="{{ old('module_label', $moduleLabel ?? 'Account Fields') }}" placeholder="Account Fields" maxlength="100" required>
-              </div>
-              <div class="col-md-6">
-                <button type="submit" class="btn btn-primary">Save name</button>
-              </div>
-            </form>
+            @include('settings.partials._module_general_label_form', [
+              'settingsRoutePrefix' => 'settings-panel.account-fields',
+              'settingsRouteParams' => ['company_slug' => request()->route('company_slug') ?? session('company_slug')],
+              'moduleMenuKey' => 'accounts',
+              'moduleLabel' => $moduleLabel ?? null,
+              'defaultLabel' => 'Accounts',
+            ])
+            @include('settings.partials._module_menu_icon_form', [
+              'settingsRoutePrefix' => 'settings-panel.account-fields',
+              'settingsRouteParams' => ['company_slug' => request()->route('company_slug') ?? session('company_slug')],
+              'moduleMenuKey' => 'accounts',
+              'defaultLabel' => 'Accounts',
+            ])
           </div>
 
           {{-- Tab 2: Fixed fields (read-only) --}}

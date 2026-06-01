@@ -16,6 +16,12 @@ class ApplyDynamicModuleLabels
     {
         $response = $next($request);
 
+        // Settings forms render labels from the database; global strtr() here duplicates words
+        // (e.g. "Paid" → "Paid Ticket" inside value="Paid Ticket" → "Paid Ticket Ticket").
+        if ($request->is('*/settings-panel/*') || $request->routeIs('settings-panel.*')) {
+            return $response;
+        }
+
         $contentType = (string) $response->headers->get('Content-Type', '');
         if ($contentType !== '' && stripos($contentType, 'text/html') === false) {
             return $response;
@@ -38,6 +44,12 @@ class ApplyDynamicModuleLabels
             $newLabel = trim((string) ($currentLabels[$key] ?? ''));
             $defaultLabel = trim((string) $defaultLabel);
             if ($defaultLabel === '' || $newLabel === '' || $newLabel === $defaultLabel) {
+                continue;
+            }
+
+            // Avoid strtr() compounding when the custom label still contains the default
+            // (e.g. "Paid" → "Paid Ticket" would rewrite value="Paid Ticket" to "Paid Ticket Ticket").
+            if (stripos($newLabel, $defaultLabel) !== false) {
                 continue;
             }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Services\Rider\RiderDefaultCategoryService;
 use App\Models\RiderCategory;
 use App\Models\RiderCustomField;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Schema;
 class RiderSettingsController extends Controller
 {
     use SavesModuleDisplayLabel;
+    use SavesModuleMenuIcons;
 
     public function __construct()
     {
@@ -578,6 +580,15 @@ class RiderSettingsController extends Controller
         return redirect()->route('settings-panel.rider-settings.index', [
             'company_slug' => $request->route('company_slug') ?? session('company_slug'),
         ])->with('success', 'Module name updated.');
+    }
+
+    public function storeModuleIcon(Request $request)
+    {
+        $this->saveModuleMenuIcons($request, 'riders');
+
+        return redirect()->route('settings-panel.rider-settings.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Menu icons updated.');
     }
 
     // ---------- Rider Categories ----------

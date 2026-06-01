@@ -1,7 +1,7 @@
 {!! Form::open(['route' => ['files.destroy', $id], 'method' => 'delete','id'=>'formajax']) !!}
 <div class='btn-group'>
   @can('files_view')
-    <a href="{{ url('storage2/' . $type . '/'.$type_id.'/'.$file_name)}}" target="_blank" class='btn btn-default btn-sm'>
+    <a href="{{ storage_url($type . '/'.$type_id.'/'.$file_name) }}" target="_blank" class='btn btn-default btn-sm'>
         <i class="fa fa-eye"></i>
     </a>
     @endcan

@@ -18,7 +18,7 @@ $parentLabel = \App\Support\SettingsPanelMenuRegistry::label($parentKey, $spMenu
 @if(count($children) > 1)
 <li class="menu-item {{ \App\Support\SettingsPanelMenuRegistry::branchIsOpen($menuItem) ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
-    <i class="menu-icon tf-icons ti {{ $parentIcon }}"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => $parentKey])
     <div>{{ $parentLabel }}</div>
   </a>
   <ul class="menu-sub">
@@ -35,7 +35,7 @@ $parentLabel = \App\Support\SettingsPanelMenuRegistry::label($parentKey, $spMenu
     @endphp
     <li class="menu-item {{ \App\Support\SettingsPanelMenuRegistry::isActive($childSettings) ? 'active' : '' }}">
       <a href="{{ $childUrl }}" class="menu-link">
-        <i class="menu-icon tf-icons ti {{ $childIcon }}"></i>
+        @include('layouts.partials.module_menu_icon', ['key' => $childKey])
         <div>{{ $childLabel }}</div>
       </a>
     </li>
@@ -51,7 +51,7 @@ $leafUrl = \App\Support\SettingsPanelMenuRegistry::settingsUrl($childSettings, $
 @if($leafUrl !== null)
 <li class="menu-item {{ \App\Support\SettingsPanelMenuRegistry::isActive($childSettings) ? 'active' : '' }}">
   <a href="{{ $leafUrl }}" class="menu-link">
-    <i class="menu-icon tf-icons ti {{ \App\Support\SettingsPanelMenuRegistry::icon($parentKey, $menuItem['icon'] ?? null) }}"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => $parentKey])
     <div>{{ $parentLabel }}</div>
   </a>
 </li>
@@ -59,14 +59,14 @@ $leafUrl = \App\Support\SettingsPanelMenuRegistry::settingsUrl($childSettings, $
 @elseif($parentUrl !== null)
 <li class="menu-item {{ \App\Support\SettingsPanelMenuRegistry::isActive($parentSettingsKey) ? 'active' : '' }}">
   <a href="{{ $parentUrl }}" class="menu-link">
-    <i class="menu-icon tf-icons ti {{ $parentIcon }}"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => $parentKey])
     <div>{{ $parentLabel }}</div>
   </a>
 </li>
 @elseif($parentKey === 'assets')
 <li class="menu-item">
   <a href="javascript:void(0);" class="menu-link pe-none opacity-50">
-    <i class="menu-icon tf-icons ti {{ $parentIcon }}"></i>
+    @include('layouts.partials.module_menu_icon', ['key' => $parentKey])
     <div>{{ $parentLabel }}</div>
   </a>
 </li>

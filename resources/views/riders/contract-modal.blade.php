@@ -2,10 +2,10 @@
 @isset($rider)
                     <a href="{{route('rider.contract', $rider->id)}}" data-toggle="tooltip" class="file btn btn-warning  btn-xs mr-1" data-modalID="modal-new" target="_blank"><i class="fas fa-file"></i>&nbsp; View / Print Contract</a>
 @if($rider->contract)
-                        <a href="{{Storage::url('app/contract/'.$rider->contract)}}" data-toggle="tooltip" class="file btn btn-success  btn-xs mr-1" data-modalID="modal-new" target="_blank"><i class="fas fa-file"></i>&nbsp; Signed Contract</a>
+                        <a href="{{storage_url('app/contract/'.$rider->contract)}}" data-toggle="tooltip" class="file btn btn-success  btn-xs mr-1" data-modalID="modal-new" target="_blank"><i class="fas fa-file"></i>&nbsp; Signed Contract</a>
 @endif
 @endisset
-                <form action="{{url('riders/contract_upload',@$rider->id)}}" method="post" enctype="multipart/form-data">
+                <form action="{{ route('rider_contract_upload', ['company_slug' => request()->route('company_slug'), 'id' => $rider->id ?? null]) }}" method="post" enctype="multipart/form-data">
 @csrf
                     <div class="row mt-3">
                         <div class="col-md-12">

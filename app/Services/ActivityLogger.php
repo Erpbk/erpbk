@@ -3,12 +3,29 @@
 namespace App\Services;
 
 use App\Models\ActivityLog;
+use App\Models\User;
 use App\Jobs\LogActivity;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
 
 class ActivityLogger
 {
+    /**
+     * Resolve a valid users.id for activity_logs.user_id (nullable FK).
+     * Admin guard sessions and stale web sessions may reference ids that
+     * do not exist in users — those must be stored as null.
+     */
+    protected static function resolveUserId(): ?int
+    {
+        $userId = Auth::guard('web')->id();
+
+        if ($userId === null) {
+            return null;
+        }
+
+        return User::query()->whereKey($userId)->exists() ? (int) $userId : null;
+    }
+
     /**
      * Log an activity to the activity_logs table.
      *
@@ -21,7 +38,7 @@ class ActivityLogger
     public static function log(string $action, string $moduleName, $model = null, $changes = null): ActivityLog
     {
         return ActivityLog::create([
-            'user_id' => Auth::id(),
+            'user_id' => self::resolveUserId(),
             'action' => $action,
             'module_name' => $moduleName,
             'model_type' => $model ? get_class($model) : null,
@@ -119,7 +136,7 @@ class ActivityLogger
     public static function logAsync(string $action, string $moduleName, $model = null, $changes = null): void
     {
         LogActivity::dispatch(
-            Auth::id(),
+            self::resolveUserId(),
             $action,
             $moduleName,
             $model ? get_class($model) : null,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Services\Rider\RiderDefaultCategoryService;
 use App\Models\RiderCategory;
 use App\Models\RiderCustomField;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Schema;
 class RiderSettingsController extends Controller
 {
     use SavesModuleDisplayLabel;
+    use SavesModuleMenuIcons;
 
     public function __construct()
     {
@@ -347,6 +349,13 @@ class RiderSettingsController extends Controller
             $assignment->field_key = $validated['field_key'];
         }
         $newCategoryId = (int) $validated['category_id'];
+        $duplicate = RiderFieldCategoryAssignment::query()
+            ->where('field_key', $assignment->field_key)
+            ->when($assignment->exists, fn ($q) => $q->where('id', '!=', $assignment->id))
+            ->exists();
+        if ($duplicate) {
+            return response()->json(['success' => false, 'message' => 'This field is already assigned to another category.'], 422);
+        }
         $assignment->category_id = $newCategoryId;
         if (!$assignment->exists || (int) $assignment->getOriginal('category_id') !== $newCategoryId) {
             $assignment->display_order = (int) RiderFieldCategoryAssignment::where('category_id', $newCategoryId)->max('display_order') + 1;
@@ -571,6 +580,15 @@ class RiderSettingsController extends Controller
         return redirect()->route('settings-panel.rider-settings.index', [
             'company_slug' => $request->route('company_slug') ?? session('company_slug'),
         ])->with('success', 'Module name updated.');
+    }
+
+    public function storeModuleIcon(Request $request)
+    {
+        $this->saveModuleMenuIcons($request, 'riders');
+
+        return redirect()->route('settings-panel.rider-settings.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Menu icons updated.');
     }
 
     // ---------- Rider Categories ----------

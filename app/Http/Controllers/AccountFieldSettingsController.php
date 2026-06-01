@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Models\AccountCustomField;
 use App\Models\Settings;
-use App\Services\Module\ModuleLabelService;
 use Illuminate\Http\Request;
 
 class AccountFieldSettingsController extends Controller
 {
+    use SavesModuleDisplayLabel;
+    use SavesModuleMenuIcons;
     public function __construct()
     {
         $this->middleware('auth');
@@ -32,10 +35,20 @@ class AccountFieldSettingsController extends Controller
      */
     public function storeModuleLabel(Request $request)
     {
-        $request->validate(['module_label' => 'required|string|max:100']);
-        app(ModuleLabelService::class)->saveLabel('account_fields', trim((string) $request->input('module_label')));
+        $this->saveModuleDisplayLabel($request, 'accounts');
 
-        return redirect()->route('settings-panel.account-fields.index')->with('success', 'Module name updated.');
+        return redirect()->route('settings-panel.account-fields.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Menu labels updated.');
+    }
+
+    public function storeModuleIcon(Request $request)
+    {
+        $this->saveModuleMenuIcons($request, 'accounts');
+
+        return redirect()->route('settings-panel.account-fields.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Menu icons updated.');
     }
 
     /**

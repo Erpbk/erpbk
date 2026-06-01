@@ -5,13 +5,15 @@ use Illuminate\Support\Str;
 $resolvedDefaultConnection = (function (): string {
     $connection = (string) env('DB_CONNECTION', 'mysql');
 
-    // Laravel Cloud can inject human-readable labels instead of config keys.
-    // Normalize common admin labels to a valid configured connection.
-    if (Str::startsWith($connection, 'Cloud - ') && Str::endsWith($connection, ' - admin')) {
-        return 'admin';
+    // Laravel Cloud can inject human-readable labels (e.g. "Cloud - app - main")
+    // instead of config keys. The main ERP app must always default to mysql.
+    if (Str::startsWith($connection, 'Cloud - ')) {
+        return 'mysql';
     }
 
-    return $connection;
+    $allowedDefaults = ['mysql', 'mysql_central', 'sqlite', 'pgsql', 'sqlsrv'];
+
+    return in_array($connection, $allowedDefaults, true) ? $connection : 'mysql';
 })();
 
 return [

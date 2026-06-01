@@ -12,6 +12,7 @@ use App\Models\BikeTopCategory;
 use App\Models\BikeTopOption;
 use App\Models\Bikes;
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Models\Settings;
 use App\Models\UserTableSettings;
 use App\Support\ModuleFieldSource;
@@ -23,6 +24,7 @@ use Illuminate\Validation\Rule;
 class BikeSettingsController extends Controller
 {
     use SavesModuleDisplayLabel;
+    use SavesModuleMenuIcons;
 
     /**
      * Fixed bike fields hidden from Bike Settings and Bike form.
@@ -207,6 +209,13 @@ class BikeSettingsController extends Controller
         return $this->bikeSettingsIndexRedirect()->with('success', 'Module name updated.');
     }
 
+    public function storeModuleIcon(Request $request)
+    {
+        $this->saveModuleMenuIcons($request, 'bike_list');
+
+        return $this->bikeSettingsIndexRedirect(null, null)->with('success', 'Menu icons updated.');
+    }
+
     public function storeCategory(Request $request)
     {
         $validated = $request->validate([
@@ -328,8 +337,22 @@ class BikeSettingsController extends Controller
         }
 
         // Keep current category when empty is submitted; otherwise move to selected category.
+        // field_key is globally unique — one fixed field can belong to only one category.
         if (isset($validated['category_id']) && $validated['category_id'] !== null && $validated['category_id'] !== '') {
-            $assignment->category_id = (int) $validated['category_id'];
+            $newCategoryId = (int) $validated['category_id'];
+            $duplicate = BikeFieldCategoryAssignment::query()
+                ->where('field_key', $assignment->field_key)
+                ->where('id', '!=', $assignment->id)
+                ->exists();
+            if ($duplicate) {
+                $message = 'This field is already assigned to another category.';
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json(['success' => false, 'message' => $message], 422);
+                }
+
+                return $this->bikeSettingsIndexRedirect()->with('error', $message);
+            }
+            $assignment->category_id = $newCategoryId;
         }
 
         $displayLabel = $validated['display_label'] !== null ? trim((string) $validated['display_label']) : null;
@@ -403,19 +426,32 @@ class BikeSettingsController extends Controller
             'order.*' => ['required', 'string', 'max:80'],
         ]);
         $order = array_values(array_map('strval', $validated['order']));
-        $existing = BikeFieldCategoryAssignment::query()
+
+        $visibleExisting = BikeFieldCategoryAssignment::query()
             ->pluck('field_key')
             ->map(fn($v) => (string) $v)
+            ->reject(fn($fieldKey) => in_array($fieldKey, $this->hiddenFixedFieldKeys, true))
             ->sort()
             ->values()
             ->all();
+
         $sortedOrder = $order;
         sort($sortedOrder);
-        if ($sortedOrder !== $existing || count($order) !== count($existing)) {
+        if ($sortedOrder !== $visibleExisting || count($order) !== count($visibleExisting)) {
             return response()->json(['success' => false, 'message' => 'Invalid field order.'], 422);
         }
 
-        foreach ($order as $pos => $fieldKey) {
+        $hiddenKeysOrdered = BikeFieldCategoryAssignment::query()
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get()
+            ->pluck('field_key')
+            ->map(fn($v) => (string) $v)
+            ->filter(fn($fieldKey) => in_array($fieldKey, $this->hiddenFixedFieldKeys, true))
+            ->values()
+            ->all();
+
+        foreach (array_merge($order, $hiddenKeysOrdered) as $pos => $fieldKey) {
             BikeFieldCategoryAssignment::query()
                 ->where('field_key', $fieldKey)
                 ->update(['display_order' => $pos]);
@@ -509,19 +545,34 @@ class BikeSettingsController extends Controller
             'order.*' => ['required', 'integer', 'exists:bike_custom_fields,id'],
         ]);
         $order = array_values(array_map('intval', $validated['order']));
-        $existing = BikeCustomField::query()
+        $assignOnlyIds = BikeCustomField::assignOnlyCustomFieldIds();
+
+        $visibleExisting = BikeCustomField::query()
+            ->when($assignOnlyIds !== [], fn($q) => $q->whereNotIn('id', $assignOnlyIds))
             ->pluck('id')
             ->map(fn($v) => (int) $v)
             ->sort()
             ->values()
             ->all();
+
         $sortedOrder = $order;
         sort($sortedOrder);
-        if ($sortedOrder !== $existing || count($order) !== count($existing)) {
+        if ($sortedOrder !== $visibleExisting || count($order) !== count($visibleExisting)) {
             return response()->json(['success' => false, 'message' => 'Invalid order.'], 422);
         }
 
-        foreach ($order as $pos => $id) {
+        $assignOnlyOrdered = $assignOnlyIds === []
+            ? []
+            : BikeCustomField::query()
+                ->whereIn('id', $assignOnlyIds)
+                ->orderBy('display_order')
+                ->orderBy('id')
+                ->pluck('id')
+                ->map(fn($v) => (int) $v)
+                ->values()
+                ->all();
+
+        foreach (array_merge($order, $assignOnlyOrdered) as $pos => $id) {
             BikeCustomField::query()->where('id', $id)->update(['display_order' => $pos]);
         }
 

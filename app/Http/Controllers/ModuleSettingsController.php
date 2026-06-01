@@ -13,6 +13,7 @@ use App\Models\BikeRegistrationStatus;
 use App\Models\SimAssignFieldAssignment;
 use App\Models\VisaStatus;
 use App\Services\Module\ModuleDefaultCategoryService;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Services\Module\ModuleLabelService;
 use App\Services\Module\ModuleTopBarSettingsService;
 use App\Support\ErpModuleRegistry;
@@ -27,6 +28,8 @@ use Illuminate\Validation\Rule;
 
 class ModuleSettingsController extends Controller
 {
+    use SavesModuleMenuIcons;
+
     private const VISA_EXPENSE_TOP_SETTING_KEY = 'visa_expense_top_status_ids';
     private const VISA_EXPENSE_TOP_ENABLED_KEY = 'visa_expense_top_enabled';
 
@@ -236,8 +239,10 @@ class ModuleSettingsController extends Controller
         }
 
         $defaultLabels = config('menu_labels.defaults', []);
-        $defaultLabel = $defaultLabels[$routeModule] ?? $defaultLabels[$module] ?? ucwords(str_replace('_', ' ', $routeModule));
-        $moduleLabel = Settings::getMenuLabel($routeModule) ?: Settings::getMenuLabel($module);
+        $dropdownContext = \App\Support\MenuDropdownRegistry::contextForModuleKey($routeModule);
+        $menuLabelKey = $dropdownContext['parent_key'] ?? $routeModule;
+        $defaultLabel = $defaultLabels[$menuLabelKey] ?? $defaultLabels[$routeModule] ?? $defaultLabels[$module] ?? ucwords(str_replace('_', ' ', $routeModule));
+        $moduleLabel = Settings::getMenuLabel($menuLabelKey) ?: Settings::getMenuLabel($routeModule) ?: Settings::getMenuLabel($module);
         $pageTitle = $moduleLabel . ' – Settings';
         $companyId = \App\Support\CompanyContext::id();
         $moduleSourceTable = $this->syncModuleFixedAssignmentsFromDb($module);
@@ -693,23 +698,62 @@ class ModuleSettingsController extends Controller
      */
     public function storeModuleLabel(Request $request, string $company_slug, string $module)
     {
-        $module = $this->normalizeModuleKey($module);
+        $routeModule = $this->normalizeModuleKey($module);
         $allowedLabels = config('menu_labels.defaults', []);
-        if (!isset($allowedLabels[$module])) {
+        $dropdownContext = \App\Support\MenuDropdownRegistry::contextForModuleKey($routeModule);
+        $labelKey = $dropdownContext['parent_key'] ?? $routeModule;
+
+        if (! isset($allowedLabels[$labelKey]) && ! isset($allowedLabels[$routeModule])) {
             return back()->with('error', __('Invalid module key.'));
         }
-        $request->validate(['module_label' => 'required|string|max:100']);
-        app(ModuleLabelService::class)->saveLabel(
-            $module,
-            trim((string) $request->input('module_label'))
-        );
+
+        $request->validate(array_merge(
+            ['module_label' => 'required|string|max:100'],
+            $dropdownContext ? ['submenu_labels' => 'sometimes|array', 'submenu_labels.*' => 'nullable|string|max:100'] : []
+        ));
+
+        if ($dropdownContext) {
+            $labelService = app(ModuleLabelService::class);
+            $labelService->saveLabel($labelKey, trim((string) $request->input('module_label')), false);
+            $submenu = $request->input('submenu_labels', []);
+            if (is_array($submenu)) {
+                foreach ($dropdownContext['children'] as $child) {
+                    $key = $child['key'];
+                    if (! isset($allowedLabels[$key])) {
+                        continue;
+                    }
+                    $value = trim((string) ($submenu[$key] ?? ''));
+                    if ($value !== '') {
+                        $labelService->saveLabel($key, $value, false);
+                    }
+                }
+            }
+        } else {
+            app(ModuleLabelService::class)->saveLabel(
+                $routeModule,
+                trim((string) $request->input('module_label'))
+            );
+        }
 
         return redirect()
             ->route('settings-panel.module-settings.index', [
                 'company_slug' => $company_slug,
-                'module' => $module,
+                'module' => $routeModule,
             ])
-            ->with('success', 'Module name updated.');
+            ->with('success', $dropdownContext ? 'Menu labels updated.' : 'Module name updated.');
+    }
+
+    public function storeModuleIcon(Request $request, string $company_slug, string $module)
+    {
+        $routeModule = $this->normalizeModuleKey($module);
+        $this->saveModuleMenuIcons($request, $routeModule);
+
+        return redirect()
+            ->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => $routeModule,
+            ])
+            ->with('success', 'Menu icons updated.');
     }
 
     public function storeCategory(Request $request, string $company_slug, string $module)

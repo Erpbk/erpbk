@@ -15,7 +15,7 @@ use Flash;
 
 class BikeHistoryController extends AppBaseController
 {
-    use GlobalPagination;
+  use GlobalPagination;
   /** @var BikeHistoryRepository $bikeHistoryRepository*/
   private $bikeHistoryRepository;
 
@@ -36,7 +36,6 @@ class BikeHistoryController extends AppBaseController
       return redirect(route('bikes.index'));
     }
     $bikeHistory = bikeHistory::where('bike_id', $bikeId)->orderByDesc('id')->get();
-
     return view('bike_histories.index', compact('bikes', 'bikeHistory'));
   }
 

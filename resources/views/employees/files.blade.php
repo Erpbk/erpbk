@@ -47,7 +47,7 @@
                             <tr class="file-row" data-name="{{ strtolower($employeeFile->name) }}">
                                 <td class="row-counter">{{ $counter++ }}</td>
                                 <td class="text-start">
-                                    <a href="{{ url('storage2/' . $employeeFile->type . '/' . $employeeFile->type_id . '/' . $employeeFile->file_name) }}" target="_blank">
+                                    <a href="{{ storage_url($employeeFile->type . '/' . $employeeFile->type_id . '/' . $employeeFile->file_name) }}" target="_blank">
                                         {{ ucwords(str_replace('_', ' ', $employeeFile->name)) }}
                                     </a>
                                 </td>

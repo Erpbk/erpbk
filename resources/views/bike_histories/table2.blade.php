@@ -92,9 +92,7 @@
     }
 </style>
 @endpush
-@php
-    $bike = $bikeHistory->first()->bike;
-@endphp
+
 @section('page_content')
 <div class="table-responsive">
     <table id="dataTableBuilder">
@@ -112,11 +110,15 @@
             </tr>
         </thead>
         <tbody>
+
             @foreach($bikeHistory as $r)
+            @php
+            $bike = company_table('bikes')->where('id', $r->bike_id)->first();
+            @endphp
             <tr class="text-center">
                 <td>
                     <span class="bike-plate">
-                        {{ $bike?->plate ?? 'N/A' }}
+                        {{ $bike->plate ?? 'N/A' }}
                     </span>
                 </td>
                 <td>
@@ -133,7 +135,7 @@
                         {{ $r->rentalCompany->name }}
                     </a>
                     @else
-                    <span class="text-muted">dfjgje</span>
+                    <span class="text-muted">-</span>
                     @endif
                 </td>
                 <td>
@@ -154,7 +156,7 @@
                         <!-- Contract file button -->
                         @if($r->contract)
                         <div class="mt-1">
-                            <a href="{{ Storage::url('app/contract/'.$r->contract) }}"
+                            <a href="{{ storage_url('app/contract/'.$r->contract) }}"
                                 class="contract-btn btn btn-success btn-sm"
                                 data-toggle="tooltip"
                                 title="View contract"
@@ -172,52 +174,52 @@
                 </td>
                 <td>
                     @if($r->return_date)
-                        <a href="{{ route('bikes.returnContract', $r->id) }}"
-                            class="date-display"
-                            data-toggle="tooltip"
-                            title="View assignment details"
-                            target="_blank">
-                            {{ $r->return_date ? \Carbon\Carbon::parse($r->return_date)->format('d M Y') : '-' }}
-                        </a>
-                    </div>
-                    @else
-                    <span class="text-muted">-</span>
-                    @endif
-                </td>
-                <td>
-                    <span class="user-name">
-                        {{ $r->updated_by ? \App\Models\User::find($r->updated_by)->name : '-' }}
-                    </span>
-                </td>
-                <td class="text-center">
-                    @if(strtolower(trim($r->warehouse)) === 'active')
-                    <span class="badge bg-success">{{ 'On Road' ?? '-' }}</span>
-                    @elseif(strtolower(trim($r->warehouse)) === 'absconded')
-                    <span class="badge bg-danger">{{ 'Absconded' ?? '-' }}</span>
-                    @elseif(strtolower(trim($r->warehouse)) === 'return')
-                    <span class="badge bg-warning">{{ 'Off Road' ?? '-' }}</span>
-                    @elseif(strtolower(trim($r->warehouse)) === 'vacation')
-                    <span class="badge bg-warning">{{ 'Off Road' ?? '-' }}</span>
-                    @endif
-                </td>
-                <td>
-                    @if(!empty($r->notes))
-                    <span class="notes-cell wa-forward"
-                        data-notes="{{ e($r->notes) }}">
-                        <i class="fab fa-whatsapp"></i>
-                    </span>
-                    @else
-                    <span class="text-muted">-</span>
-                    @endif
-                </td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
+                    <a href="{{ route('bikes.returnContract', $r->id) }}"
+                        class="date-display"
+                        data-toggle="tooltip"
+                        title="View assignment details"
+                        target="_blank">
+                        {{ $r->return_date ? \Carbon\Carbon::parse($r->return_date)->format('d M Y') : '-' }}
+                    </a>
+</div>
+@else
+<span class="text-muted">-</span>
+@endif
+</td>
+<td>
+    <span class="user-name">
+        {{ $r->updated_by ? \App\Models\User::find($r->updated_by)->name : '-' }}
+    </span>
+</td>
+<td class="text-center">
+    @if(strtolower(trim($r->warehouse)) === 'active')
+    <span class="badge bg-success">{{ 'On Road' ?? '-' }}</span>
+    @elseif(strtolower(trim($r->warehouse)) === 'absconded')
+    <span class="badge bg-danger">{{ 'Absconded' ?? '-' }}</span>
+    @elseif(strtolower(trim($r->warehouse)) === 'return')
+    <span class="badge bg-warning">{{ 'Off Road' ?? '-' }}</span>
+    @elseif(strtolower(trim($r->warehouse)) === 'vacation')
+    <span class="badge bg-warning">{{ 'Off Road' ?? '-' }}</span>
+    @endif
+</td>
+<td>
+    @if(!empty($r->notes))
+    <span class="notes-cell wa-forward"
+        data-notes="{{ e($r->notes) }}">
+        <i class="fab fa-whatsapp"></i>
+    </span>
+    @else
+    <span class="text-muted">-</span>
+    @endif
+</td>
+</tr>
+@endforeach
+</tbody>
+</table>
 </div>
 
 @if(count($bikeHistory) === 0)
-<div class="empty-state">
+<div class="empty-state text-center">
     <h4>No history found</h4>
     <p>There are no bike assignment records to display.</p>
 </div>

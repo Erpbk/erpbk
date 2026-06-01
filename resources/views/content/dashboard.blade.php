@@ -112,10 +112,10 @@
       grabCursor: true,
       watchOverflow: true,
       resistanceRatio: 0.85,
-      speed: 700,
+      speed: 1000,
       rewind: slideCount > 1,
       autoplay: slideCount > 1 ? {
-        delay: 4000,
+        delay: 1000,
         disableOnInteraction: false,
         pauseOnMouseEnter: true,
         waitForTransition: true

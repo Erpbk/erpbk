@@ -35,7 +35,7 @@
                   Update
                </a>
             @else
-               <a @if($r->attachment) href="{{ Storage::url($r->attachment) }}" target="_blank" @else href="javascript:void(0);" @endif class="btn btn-success btn-sm">OK</a>
+               <a @if($r->attachment) href="{{ storage_url($r->attachment) }}" target="_blank" @else href="javascript:void(0);" @endif class="btn btn-success btn-sm">OK</a>
             @endif
 
          </td>

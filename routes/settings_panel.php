@@ -25,6 +25,10 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::get('/erp', [App\Http\Controllers\ErpSettingsController::class, 'index'])->name('settings-panel.erp');
     Route::post('/erp', [App\Http\Controllers\ErpSettingsController::class, 'store'])->name('settings-panel.erp.store');
 
+    Route::get('menu-icons/library/search', [App\Http\Controllers\ModuleMenuIconController::class, 'search'])->name('settings-panel.menu-icons.library-search');
+    Route::post('menu-icons/library/save', [App\Http\Controllers\ModuleMenuIconController::class, 'store'])->name('settings-panel.menu-icons.library-save');
+    Route::post('menu-icons/library/upload', [App\Http\Controllers\ModuleMenuIconController::class, 'storeImage'])->name('settings-panel.menu-icons.library-upload');
+
     // Profile + Email Settings (inside Settings Panel)
     Route::any('/profile', [\App\Http\Controllers\UserController::class, 'profile'])->name('settings-panel.profile');
     Route::get('/email-settings', [\App\Http\Controllers\UserEmailSettingsController::class, 'edit'])->name('settings-panel.email-settings.edit');
@@ -32,6 +36,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
 
     Route::get('vat-settings', [App\Http\Controllers\VatSettingsController::class, 'index'])->name('settings-panel.vat-settings.index');
     Route::post('vat-settings/module-label', [App\Http\Controllers\VatSettingsController::class, 'storeModuleLabel'])->name('settings-panel.vat-settings.store-module-label');
+    Route::post('vat-settings/module-icon', [App\Http\Controllers\VatSettingsController::class, 'storeModuleIcon'])->name('settings-panel.vat-settings.store-module-icon');
     Route::post('vat-settings/quarters', [App\Http\Controllers\VatSettingsController::class, 'storeQuarter'])->name('settings-panel.vat-settings.store-quarter');
     Route::delete('vat-settings/quarters/{slot}', [App\Http\Controllers\VatSettingsController::class, 'deleteQuarter'])->name('settings-panel.vat-settings.delete-quarter');
     Route::post('vat-settings', [App\Http\Controllers\VatSettingsController::class, 'store'])->name('settings-panel.vat-settings.store');
@@ -47,6 +52,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     // Account field settings (fixed + custom fields; only custom are editable/deletable)
     Route::get('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'index'])->name('settings-panel.account-fields.index');
     Route::post('account-fields/module-label', [App\Http\Controllers\AccountFieldSettingsController::class, 'storeModuleLabel'])->name('settings-panel.account-fields.store-module-label');
+    Route::post('account-fields/module-icon', [App\Http\Controllers\AccountFieldSettingsController::class, 'storeModuleIcon'])->name('settings-panel.account-fields.store-module-icon');
     Route::get('account-fields/table-body', [App\Http\Controllers\AccountFieldSettingsController::class, 'tableBody'])->name('settings-panel.account-fields.table-body');
     Route::get('account-fields/config-schema/{dataType}', [App\Http\Controllers\AccountFieldSettingsController::class, 'configSchema'])->name('settings-panel.account-fields.config-schema');
     Route::post('account-fields', [App\Http\Controllers\AccountFieldSettingsController::class, 'store'])->name('settings-panel.account-fields.store');
@@ -70,6 +76,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     // Rider Settings (categories + fixed rider fields + rider custom fields)
     Route::get('rider-settings', [App\Http\Controllers\RiderSettingsController::class, 'index'])->name('settings-panel.rider-settings.index');
     Route::post('rider-settings/module-label', [App\Http\Controllers\RiderSettingsController::class, 'storeModuleLabel'])->name('settings-panel.rider-settings.store-module-label');
+    Route::post('rider-settings/module-icon', [App\Http\Controllers\RiderSettingsController::class, 'storeModuleIcon'])->name('settings-panel.rider-settings.store-module-icon');
     Route::post('rider-settings/field-assignment', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.rider-settings.update-field-assignment');
     Route::post('rider-settings/field-assignment/display-label', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignmentLabel'])->name('settings-panel.rider-settings.update-field-assignment-label');
     Route::post('rider-settings/field-assignment/visibility', [App\Http\Controllers\RiderSettingsController::class, 'updateFieldAssignmentVisibility'])->name('settings-panel.rider-settings.update-field-assignment-visibility');
@@ -118,6 +125,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     // Cheques Settings (categories, module fields, documents, top bar)
     Route::get('cheques-settings', [App\Http\Controllers\ChequesSettingsController::class, 'index'])->name('settings-panel.cheques-settings.index');
     Route::post('cheques-settings/module-label', [App\Http\Controllers\ChequesSettingsController::class, 'storeModuleLabel'])->name('settings-panel.cheques-settings.store-module-label');
+    Route::post('cheques-settings/module-icon', [App\Http\Controllers\ChequesSettingsController::class, 'storeModuleIcon'])->name('settings-panel.cheques-settings.store-module-icon');
     Route::post('cheques-settings/field-assignment', [App\Http\Controllers\ChequesSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.cheques-settings.update-field-assignment');
     Route::post('cheques-settings/field-assignment/display-label', [App\Http\Controllers\ChequesSettingsController::class, 'updateFieldAssignmentLabel'])->name('settings-panel.cheques-settings.update-field-assignment-label');
     Route::post('cheques-settings/field-assignment/visibility', [App\Http\Controllers\ChequesSettingsController::class, 'updateFieldAssignmentVisibility'])->name('settings-panel.cheques-settings.update-field-assignment-visibility');
@@ -162,6 +170,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     // Employee Settings (categories, fixed employee fields + employee custom fields)
     Route::get('employee-settings', [App\Http\Controllers\EmployeeSettingsController::class, 'index'])->name('settings-panel.employee-settings.index');
     Route::post('employee-settings/module-label', [App\Http\Controllers\EmployeeSettingsController::class, 'storeModuleLabel'])->name('settings-panel.employee-settings.store-module-label');
+    Route::post('employee-settings/module-icon', [App\Http\Controllers\EmployeeSettingsController::class, 'storeModuleIcon'])->name('settings-panel.employee-settings.store-module-icon');
     Route::post('employee-settings/field-assignment', [App\Http\Controllers\EmployeeSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.employee-settings.update-field-assignment');
     Route::post('employee-settings/field-assignment/display-label', [App\Http\Controllers\EmployeeSettingsController::class, 'updateFieldAssignmentLabel'])->name('settings-panel.employee-settings.update-field-assignment-label');
     Route::post('employee-settings/field-assignment/visibility', [App\Http\Controllers\EmployeeSettingsController::class, 'updateFieldAssignmentVisibility'])->name('settings-panel.employee-settings.update-field-assignment-visibility');
@@ -209,6 +218,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     // Bike Settings: mount under module-settings/bike_list
     // (So the sidebar route `settings-panel/module-settings/bike_list` opens bike settings.)
     Route::post('module-settings/bike_list/module-label', [App\Http\Controllers\BikeSettingsController::class, 'storeModuleLabel'])->name('settings-panel.bike-settings.store-module-label');
+    Route::post('module-settings/bike_list/module-icon', [App\Http\Controllers\BikeSettingsController::class, 'storeModuleIcon'])->name('settings-panel.bike-settings.store-module-icon');
 
     Route::post('module-settings/bike_list/field-assignment', [App\Http\Controllers\BikeSettingsController::class, 'updateFieldAssignment'])->name('settings-panel.bike-settings.update-field-assignment');
     Route::post('module-settings/bike_list/field-assignments/reorder', [App\Http\Controllers\BikeSettingsController::class, 'reorderFieldAssignments'])->name('settings-panel.bike-settings.reorder-field-assignments');
@@ -292,6 +302,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::post('module-settings/dashboard/cards', [App\Http\Controllers\DashboardSettingsController::class, 'update'])->name('settings-panel.dashboard-settings.cards');
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/module-label', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleLabel'])->name('settings-panel.module-settings.store-module-label')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/module-icon', [App\Http\Controllers\ModuleSettingsController::class, 'storeModuleIcon'])->name('settings-panel.module-settings.store-module-icon')->where('module', '[A-Za-z0-9_-]+');
     // User Management, Activity Logs, Recycle Bin (moved into Settings)
 
     Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');

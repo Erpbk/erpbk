@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
+use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Services\Employee\EmployeeDefaultCategoryService;
 use App\Models\EmployeeCategory;
 use App\Models\EmployeeCustomField;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Schema;
 class EmployeeSettingsController extends Controller
 {
     use SavesModuleDisplayLabel;
+    use SavesModuleMenuIcons;
 
     public function __construct()
     {
@@ -346,6 +348,13 @@ class EmployeeSettingsController extends Controller
             $assignment->field_key = $validated['field_key'];
         }
         $newCategoryId = (int) $validated['category_id'];
+        $duplicate = EmployeeFieldCategoryAssignment::query()
+            ->where('field_key', $assignment->field_key)
+            ->when($assignment->exists, fn ($q) => $q->where('id', '!=', $assignment->id))
+            ->exists();
+        if ($duplicate) {
+            return response()->json(['success' => false, 'message' => 'This field is already assigned to another category.'], 422);
+        }
         $assignment->category_id = $newCategoryId;
         if (!$assignment->exists || (int) $assignment->getOriginal('category_id') !== $newCategoryId) {
             $assignment->display_order = (int) EmployeeFieldCategoryAssignment::where('category_id', $newCategoryId)->max('display_order') + 1;
@@ -570,6 +579,15 @@ class EmployeeSettingsController extends Controller
         return redirect()->route('settings-panel.employee-settings.index', [
             'company_slug' => $request->route('company_slug') ?? session('company_slug'),
         ])->with('success', 'Module name updated.');
+    }
+
+    public function storeModuleIcon(Request $request)
+    {
+        $this->saveModuleMenuIcons($request, 'employees');
+
+        return redirect()->route('settings-panel.employee-settings.index', [
+            'company_slug' => $request->route('company_slug') ?? session('company_slug'),
+        ])->with('success', 'Menu icons updated.');
     }
 
     // ---------- Employee Categories ----------

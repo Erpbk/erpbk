@@ -141,7 +141,7 @@ if(request('account')){
 
     <div class="company" style="margin-left: 20px;">
         @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
-            <img src="{{ Storage::url($settings['company_logo']) }}" width="150" alt="logo" />
+            <img src="{{ storage_url($settings['company_logo']) }}" width="150" alt="logo" />
         @endif
         <h1 style="color: #004aad;">{{ ucwords($settings['company_name']) }}</h1>
         <p>{{ 'Address: ' . $settings['company_address'] }}</p>

@@ -43,7 +43,7 @@
             @isset($contract)
             <a href="{{route('bike.contract', $contract->id)}}" data-toggle="tooltip" class="file" data-modalID="modal-new" target="_blank">{{ \Carbon\Carbon::parse($r->note_date)->format('d M Y') ?? '-' }}</a>
             @if($contract->contract)
-            <a href="{{Storage::url('app/contract/'.$contract->contract)}}" data-toggle="tooltip" class="file btn btn-success  btn-sm mr-1" data-modalID="modal-new" target="_blank">{{ \Carbon\Carbon::parse($r->note_date)->format('d M Y') ?? '-' }}</a>
+            <a href="{{storage_url('app/contract/'.$contract->contract)}}" data-toggle="tooltip" class="file btn btn-success  btn-sm mr-1" data-modalID="modal-new" target="_blank">{{ \Carbon\Carbon::parse($r->note_date)->format('d M Y') ?? '-' }}</a>
             @endif
             @endisset
          </td>

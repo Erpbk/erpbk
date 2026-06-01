@@ -18,12 +18,12 @@
          <td>
             @if($r->attachment)
                <div class="image-container">
-                     <img src="{{ asset('storage/'.$r->attachment) }}" 
+                     <img src="{{ storage_url($r->attachment) }}" 
                         alt="{{ $r->name }}" 
                         style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; transition: transform 0.3s;"
                         onmouseover="this.style.transform='scale(1.5)'"
                         onmouseout="this.style.transform='scale(1)'"
-                        onclick="window.open('{{ Storage::url($r->attachment) }}')"
+                        onclick="window.open('{{ storage_url($r->attachment) }}')"
                         class="shadow-sm">
                </div>
             @else

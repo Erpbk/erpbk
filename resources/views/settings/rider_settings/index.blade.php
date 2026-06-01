@@ -104,17 +104,19 @@
         <div class="tab-content" id="riderSettingsTabContent">
           {{-- Tab 1: General (module name in menu) --}}
           <div class="tab-pane fade show active" id="tab-general" role="tabpanel">
-            <p class="text-muted small mb-3">This name appears in the settings panel sidebar. Change it to match your terminology.</p>
-            <form action="{{ route('settings-panel.rider-settings.store-module-label') }}" method="POST" class="row g-3 align-items-end">
-              @csrf
-              <div class="col-md-6">
-                <label class="form-label">Name in menu</label>
-                <input type="text" name="module_label" class="form-control" value="{{ old('module_label', $moduleLabel ?? 'Rider Settings') }}" placeholder="Rider Settings" maxlength="100" required>
-              </div>
-              <div class="col-md-6">
-                <button type="submit" class="btn btn-primary">Save name</button>
-              </div>
-            </form>
+            @include('settings.partials._module_general_label_form', [
+              'settingsRoutePrefix' => 'settings-panel.rider-settings',
+              'settingsRouteParams' => ['company_slug' => request()->route('company_slug') ?? session('company_slug')],
+              'moduleMenuKey' => 'riders',
+              'moduleLabel' => $moduleLabel ?? null,
+              'defaultLabel' => 'Riders',
+            ])
+            @include('settings.partials._module_menu_icon_form', [
+              'settingsRoutePrefix' => 'settings-panel.rider-settings',
+              'settingsRouteParams' => ['company_slug' => request()->route('company_slug') ?? session('company_slug')],
+              'moduleMenuKey' => 'riders',
+              'defaultLabel' => 'Riders',
+            ])
           </div>
 
           {{-- Tab 2: Categories --}}
@@ -1064,7 +1066,21 @@
   (function() {
     'use strict';
 
+    var csrf = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) ||
+      (document.querySelector('.rider-field-assignment-form input[name="_token"]') && document.querySelector('.rider-field-assignment-form input[name="_token"]').value) ||
+      (document.querySelector('form input[name="_token"]') && document.querySelector('form input[name="_token"]').value) ||
+      '';
+
     const dataTypesMeta = JSON.parse((document.getElementById('riderDataTypesMetaJson') && document.getElementById('riderDataTypesMetaJson').value) || '{}');
+
+    function getRiderSettingsCsrf() {
+      return (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) ||
+        (document.querySelector('.rider-field-assignment-form input[name="_token"]') && document.querySelector('.rider-field-assignment-form input[name="_token"]').value) ||
+        (document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value) ||
+        @json(csrf_token());
+    }
+
+    const csrf = getRiderSettingsCsrf();
 
     function buildConfigFields(container, typeKey, existingConfig) {
       container.innerHTML = '';

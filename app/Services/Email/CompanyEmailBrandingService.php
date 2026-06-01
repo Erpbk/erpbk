@@ -210,7 +210,7 @@ class CompanyEmailBrandingService
       return null;
     }
 
-    $relative = Storage::url($logoPath);
+    $relative = storage_url($logoPath);
 
     if (!$absolute) {
       return $relative;

@@ -57,7 +57,7 @@ class BikeHistoryDataTable extends DataTable
 
     $dataTable->addColumn('contract', function (BikeHistory $row) {
       if ($row->contract) {
-        return '<a href="' . Storage::url('app/contract/' . $row->contract) . '" data-toggle="tooltip" class="file btn btn-success  btn-sm mr-1" data-modalID="modal-new" target="_blank"><i class="fas fa-file"></i>&nbsp; Signed Contract</a>';
+        return '<a href="' . storage_url('app/contract/' . $row->contract) . '" data-toggle="tooltip" class="file btn btn-success  btn-sm mr-1" data-modalID="modal-new" target="_blank"><i class="fas fa-file"></i>&nbsp; Signed Contract</a>';
       }
 
       return 'N/A';

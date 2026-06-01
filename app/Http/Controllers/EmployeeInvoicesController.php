@@ -2,19 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\AppBaseController;
 use App\Http\Requests\CreateEmployeeInvoicesRequest;
 use App\Http\Requests\UpdateEmployeeInvoicesRequest;
 use App\Models\Employee;
 use App\Models\EmployeeInvoices;
 use App\Models\Items;
+use App\Models\Payment;
 use App\Models\Transactions;
 use App\Repositories\EmployeeInvoicesRepository;
 use App\Traits\GlobalPagination;
+use Carbon\Carbon;
+use Flash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Flash;
+
 class EmployeeInvoicesController extends AppBaseController
 {
     use GlobalPagination;
@@ -32,13 +34,13 @@ class EmployeeInvoicesController extends AppBaseController
         $query = EmployeeInvoices::query()->orderBy('billing_month', 'desc');
 
         if ($request->filled('id')) {
-            $query->where('id', 'like', '%' . $request->id . '%');
+            $query->where('id', 'like', '%'.$request->id.'%');
         }
         if ($request->filled('employee_id')) {
             $query->where('employee_id', $request->employee_id);
         }
         if ($request->filled('billing_month')) {
-            $billingMonth = \Carbon\Carbon::parse($request->billing_month);
+            $billingMonth = Carbon::parse($request->billing_month);
             $query->whereYear('billing_month', $billingMonth->year)
                 ->whereMonth('billing_month', $billingMonth->month);
         }
@@ -55,7 +57,7 @@ class EmployeeInvoicesController extends AppBaseController
         $data = $this->applyPagination($query, $paginationParams);
 
         $billingMonth = $request->filled('billing_month')
-            ? \Carbon\Carbon::parse($request->billing_month)
+            ? Carbon::parse($request->billing_month)
             : now();
 
         $currentMonthTotal = EmployeeInvoices::whereYear('billing_month', $billingMonth->year)
@@ -90,17 +92,19 @@ class EmployeeInvoicesController extends AppBaseController
         try {
             $this->employeeInvoicesRepository->record($request);
             DB::commit();
-            if($request->ajax()){
+            if ($request->ajax()) {
                 return response()->json(['success' => true, 'message' => 'Employee invoice saved successfully.']);
             }
-           Flash::success('Employee invoice saved successfully.');
+            Flash::success('Employee invoice saved successfully.');
+
             return redirect()->back();
         } catch (\Exception $e) {
             DB::rollback();
-            if($request->ajax()){
+            if ($request->ajax()) {
                 return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
             }
             Flash::error($e->getMessage());
+
             return redirect()->back()->withInput();
         }
     }
@@ -110,6 +114,7 @@ class EmployeeInvoicesController extends AppBaseController
         $employeeInvoice = $this->employeeInvoicesRepository->find($id);
         if (empty($employeeInvoice)) {
             session()->flash('error', 'Employee invoice not found');
+
             return redirect(route('employeeInvoices.index'));
         }
 
@@ -121,11 +126,13 @@ class EmployeeInvoicesController extends AppBaseController
         $invoice = $this->employeeInvoicesRepository->find($id);
         if (empty($invoice)) {
             session()->flash('error', 'Employee invoice not found');
+
             return redirect(route('employeeInvoices.index'));
         }
 
         $employees = Employee::dropdown();
         $items = Items::dropdown('employee');
+
         return view('employee_invoices.edit', compact('invoice', 'employees', 'items'));
     }
 
@@ -135,14 +142,17 @@ class EmployeeInvoicesController extends AppBaseController
             $invoice = $this->employeeInvoicesRepository->find($id);
             if (empty($invoice)) {
                 session()->flash('error', 'Employee invoice not found');
+
                 return redirect(route('employeeInvoices.index'));
             }
 
             $this->employeeInvoicesRepository->record($request, $id);
             session()->flash('success', 'Employee invoice updated successfully.');
+
             return redirect(route('employeeInvoices.index'));
         } catch (\Exception $e) {
             session()->flash('error', $e->getMessage());
+
             return redirect()->back()->withInput();
         }
     }
@@ -152,12 +162,18 @@ class EmployeeInvoicesController extends AppBaseController
         $invoice = $this->employeeInvoicesRepository->find($id);
         if (empty($invoice)) {
             session()->flash('error', 'Employee invoice not found');
+
             return redirect(route('employeeInvoices.index'));
         }
 
-        if ($invoice->status == 1) {
-            session()->flash('error', 'Cannot delete paid invoice. Only unpaid invoices can be deleted.');
-            return redirect(route('employeeInvoices.index'));
+        $payment = Payment::where('payee_account_id', $invoice->employee->account_id)
+            ->where('reference', 'like', '%'.$invoice->invoice_number.'%')
+            ->exists();
+
+        if ($payment) {
+            return response()->json([
+                'message' => 'Cannot Delete Invoice. Payment has already been Made',
+            ], 500);
         }
 
         Transactions::where('reference_type', 'EmployeeInvoice')->where('reference_id', $id)->delete();
@@ -165,8 +181,10 @@ class EmployeeInvoicesController extends AppBaseController
         $invoice->save();
         $invoice->delete();
 
-        session()->flash('success', 'Employee invoice deleted successfully.');
-        return redirect(route('employeeInvoices.index'));
+        return response()->json([
+            'message' => 'Employee invoice deleted successfully.',
+            'reload' => true,
+        ]);
     }
 
     public function bulkDelete(Request $request)
@@ -179,7 +197,7 @@ class EmployeeInvoicesController extends AppBaseController
         $deleted = 0;
         foreach ($invoiceIds as $invoiceId) {
             $invoice = $this->employeeInvoicesRepository->find($invoiceId);
-            if (!$invoice || $invoice->status == 1) {
+            if (! $invoice || $invoice->status == 1) {
                 continue;
             }
             Transactions::where('reference_type', 'EmployeeInvoice')->where('reference_id', $invoiceId)->delete();
@@ -191,8 +209,7 @@ class EmployeeInvoicesController extends AppBaseController
 
         return response()->json([
             'success' => true,
-            'message' => $deleted . ' employee invoice(s) deleted successfully.',
+            'message' => $deleted.' employee invoice(s) deleted successfully.',
         ]);
     }
 }
-

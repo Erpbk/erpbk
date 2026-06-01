@@ -338,7 +338,7 @@ select {
   align-items: center;
   padding: 1rem;
   border-bottom: 1px solid #eee;
-  background: #f8f9fa;
+  background: #e0e4e8;
 }
 
 .filter-body {
@@ -374,7 +374,7 @@ th {
   position: sticky;
   top: 0;
   z-index: 10;
-  background-color: #f8f9fa;
+  background-color: #e0e4e8;
 }
 
 /* Ensure table container is scrollable */

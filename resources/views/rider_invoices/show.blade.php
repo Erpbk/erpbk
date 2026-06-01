@@ -291,14 +291,14 @@
         $vat_percentage = Common::getSetting('vat_percentage');
         $deliveryfee = company_table('items')->where('name', 'Delivery fees')->first();
         $totalOrders = 0;
-        $totalOrderValue = 0;
-        if ($deliveryfee && isset($deliveryfee->id)) {
-            $deliveryFeeItem = collect($riderInvoice->items)->firstWhere('item_id', $deliveryfee->id);
-            if ($deliveryFeeItem && $deliveryFeeItem->qty > 0) {
-                $totalOrders = $deliveryFeeItem->qty;
-                $totalOrderValue = $deliveryFeeItem->qty * $deliveryfee->price;
-            }
-        }
+        // $totalOrderValue = 0;
+        // if ($deliveryfee && isset($deliveryfee->id)) {
+        //     $deliveryFeeItem = collect($riderInvoice->items)->firstWhere('item_id', $deliveryfee->id);
+        //     if ($deliveryFeeItem && $deliveryFeeItem->qty > 0) {
+        //         $totalOrders = $deliveryFeeItem->qty;
+        //         $totalOrderValue = $deliveryFeeItem->qty * $deliveryfee->price;
+        //     }
+        // }
         // adjustments
         $billing_month = date('M-y', strtotime($riderInvoice->billing_month));
         $fines = company_table('rta_fines')->where('billing_month' , $riderInvoice->billing_month)->where('rider_id' , $riderInvoice->rider->id)->sum('total_amount');

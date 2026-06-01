@@ -449,6 +449,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('riders/penalty/{id}', [RidersController::class, 'penalty'])->name('riders.penalty');
     Route::get('riders/incentive/{id}', [RidersController::class, 'incentive'])->name('riders.incentive');
     Route::get('riders/payment/{id}', [RidersController::class, 'payment'])->name('riders.payment');
+    Route::get('rider/payments', [RidersController::class, 'payments'])->name('rider.payments');
     // Unified voucher modal (Advance Loan, COD, Penalty, Payment, Vendor Charges)
     Route::get('riders/voucher/{id}', [RidersController::class, 'voucher'])->name('riders.voucher');
     Route::post('riders/storevisaloan', [RidersController::class, 'storevisaloan'])->name('riders.storevisaloan');

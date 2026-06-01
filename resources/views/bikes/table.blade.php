@@ -112,9 +112,10 @@
       <tr role="row">
          @php
          $tableCols = $tableColumns ?? [];
-         $dataColumns = array_values(array_filter($tableCols, function($c){
+         $hiddenTableColumns = ['company_id', 'rental_company_id', 'current_km'];
+         $dataColumns = array_values(array_filter($tableCols, function ($c) use ($hiddenTableColumns) {
          $k = $c['data'] ?? ($c['key'] ?? null);
-         return $k !== 'search' && $k !== 'control';
+         return $k !== 'search' && $k !== 'control' && !in_array($k, $hiddenTableColumns, true);
          }));
          @endphp
          @foreach($dataColumns as $col)
@@ -214,7 +215,7 @@
             if ($warehouse === 'active') {
             $roadStatus = 'On Road';
             $roadStatusClass = 'road-onroad';
-            } elseif ($warehouse === 'return' || $warehouse === 'vacation' || $warehouse === 'express garage') {
+            } elseif ($warehouse === 'return' || $warehouse === 'vacation' || $warehouse === 'express garage' || $warehouse === 'inactive') {
             $roadStatus = 'Off Road';
             $roadStatusClass = 'road-offroad';
             }else{
@@ -292,14 +293,14 @@
             @endif
             </td>
             @break
-         @case('leased_return_status')
-         @php
+            @case('leased_return_status')
+            @php
             $lr = $r->leasedReturnDisplay();
-         @endphp
-         <td tabindex="0">
-            <span class="badge {{ $lr['badge'] }}">{{ $lr['label'] }}</span>
-         </td>
-         @break
+            @endphp
+            <td tabindex="0">
+               <span class="badge {{ $lr['badge'] }}">{{ $lr['label'] }}</span>
+            </td>
+            @break
             @default
             <td tabindex="0">{{ data_get($r, $key, '-') }}</td>
             @endswitch

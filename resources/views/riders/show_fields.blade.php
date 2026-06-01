@@ -3,6 +3,15 @@
 @if(isset($fieldsByCategory) && count($fieldsByCategory) > 0)
   @include('riders.show_fields_by_category')
 @else
+@php
+  $dateExpired = function ($date) {
+      if ($date === null || $date === '') {
+          return false;
+      }
+      $ts = strtotime((string) $date);
+      return $ts !== false && $ts <= strtotime(date('Y-m-d'));
+  };
+@endphp
 <div class="card border">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
@@ -16,7 +25,7 @@
         <div class="row">
             <div class="col-md-3 form-group col-3">
                 <label class="required">Rider ID </label>
-                <p>{{$result['rider_id']}}</p>
+                <p>{{ $result['rider_id'] ?? '' }}</p>
             </div>
             {{-- <!--col-->
             <div class="col-md-3 form-group col-3">
@@ -56,8 +65,8 @@
             <p>{{@$result['passport']}}</p>
         </div>
         <div class="col-md-3 form-group col-3">
-            <label @if(strtotime($result['passport_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Passport Expiry </label>
-            <p @if(strtotime($result['passport_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['passport_expiry'])}}</p>
+            <label @if($dateExpired($result['passport_expiry'] ?? null)) style="color:red;" @endif>Passport Expiry </label>
+            <p @if($dateExpired($result['passport_expiry'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['passport_expiry'] ?? null)}}</p>
         </div>
         <div class="col-md-3 form-group col-3">
             <label>Ethnicity</label>
@@ -78,7 +87,7 @@
         <div class="row">
             <div class="col-md-3 form-group col-3">
                 <label class="required">Rider ID</label>
-                <input type="text" class="form-control form-control-sm" name="rider_id" value="{{$result['rider_id']}}">
+                <input type="text" class="form-control form-control-sm" name="rider_id" value="{{ $result['rider_id'] ?? '' }}">
             </div>
             {{-- <div class="col-md-3 form-group col-3">
                     <label>Courier ID</label>
@@ -104,7 +113,7 @@
             <label>Nationality</label>
             <select class="form-control form-control-sm select2" name="nationality">
                 @foreach($countries as $id => $name)
-                <option value="{{$id}}" {{$result['nationality'] == $id ? 'selected' : ''}}>{{$name}}</option>
+                <option value="{{$id}}" {{ ($result['nationality'] ?? null) == $id ? 'selected' : '' }}>{{$name}}</option>
                 @endforeach
             </select>
         </div>
@@ -155,16 +164,16 @@
                 <p>{{@$result['license_no']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label @if(strtotime($result['license_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Licence Expiry </label>
-                <p @if(strtotime($result['license_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['license_expiry'])}}</p>
+                <label @if($dateExpired($result['license_expiry'] ?? null)) style="color:red;" @endif>Licence Expiry </label>
+                <p @if($dateExpired($result['license_expiry'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['license_expiry'] ?? null)}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Road Permit No.</label>
                 <p>{{$result['road_permit'] ?? ''}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label @if(strtotime($result['road_permit_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>ROAD PERMIT EXPIRY </label>
-                <p @if(strtotime($result['road_permit_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['road_permit_expiry'])}}</p>
+                <label @if($dateExpired($result['road_permit_expiry'] ?? null)) style="color:red;" @endif>ROAD PERMIT EXPIRY </label>
+                <p @if($dateExpired($result['road_permit_expiry'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['road_permit_expiry'] ?? null)}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Visa Status</label>
@@ -239,8 +248,8 @@
                 <p>{{@$result['emirate_id']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label @if(strtotime($result['emirate_exp']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>EID EXP Date </label>
-                <p @if(strtotime($result['emirate_exp']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['emirate_exp'])}}</p>
+                <label @if($dateExpired($result['emirate_exp'] ?? null)) style="color:red;" @endif>EID EXP Date </label>
+                <p @if($dateExpired($result['emirate_exp'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['emirate_exp'] ?? null)}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Fleet Supervisor </label>
@@ -271,7 +280,7 @@
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>VAT</label>
-                <p>{{ $result['vat'] == 1 ? 'Apply on Invoice' : 'No' }}</p>
+                <p>{{ (int) ($result['vat'] ?? 2) === 1 ? 'Apply on Invoice' : 'No' }}</p>
             </div>
         </div>
     </div>
@@ -315,7 +324,7 @@
                     <label>Vendor</label>
                     <select class="form-control form-control-sm select2" name="VID">
                         @foreach($vendors as $id => $name)
-                        <option value="{{$id}}" {{$result['VID'] == $id ? 'selected' : ''}}>{{$name}}</option>
+                        <option value="{{$id}}" {{ ($result['VID'] ?? null) == $id ? 'selected' : '' }}>{{$name}}</option>
                         @endforeach
                     </select>
                 </div>
@@ -324,7 +333,7 @@
                     <select class="form-control form-control-sm select2" name="recruiter_id">
                         <option value="">Select Recruiter</option>
                         @foreach(company_table('recruiters')->where('status', 1)->get() as $key => $value)
-                        <option value="{{$value->id}}" {{$result['recruiter_id'] == $value->id ? 'selected' : ''}}>{{$value->name}}</option>
+                        <option value="{{$value->id}}" {{ ($result['recruiter_id'] ?? null) == $value->id ? 'selected' : '' }}>{{$value->name}}</option>
                         @endforeach
                     </select>
                 </div>
@@ -380,16 +389,16 @@
                 <p>{{@$result['labor_card_number']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label @if(strtotime($result['labor_card_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Labor Card Expiry </label>
-                <p @if(strtotime($result['labor_card_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['labor_card_expiry'])}}</p>
+                <label @if($dateExpired($result['labor_card_expiry'] ?? null)) style="color:red;" @endif>Labor Card Expiry </label>
+                <p @if($dateExpired($result['labor_card_expiry'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['labor_card_expiry'] ?? null)}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Insurance</label>
                 <p>{{@$result['insurance']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label @if(strtotime($result['insurance_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>Insurance Expiry</label>
-                <p @if(strtotime($result['insurance_expiry']) <=strtotime(date('Y-m-d'))) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['insurance_expiry'])}}</p>
+                <label @if($dateExpired($result['insurance_expiry'] ?? null)) style="color:red;" @endif>Insurance Expiry</label>
+                <p @if($dateExpired($result['insurance_expiry'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['insurance_expiry'] ?? null)}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
                 <label>Policy No: </label>

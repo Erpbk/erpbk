@@ -8,7 +8,7 @@
                 $mulkiyaAuthorized = auth()->user()->can('bike_document');
                 @endphp
                 @if($mulkiyaFile)
-                <a href="{{ url('storage2/' . $mulkiyaFile->type . '/' . $mulkiyaFile->type_id . '/' . $mulkiyaFile->file_name) }}" target="_blank" class="btn btn-light btn-sm">
+                <a href="{{ storage_url($mulkiyaFile->type . '/' . $mulkiyaFile->type_id . '/' . $mulkiyaFile->file_name) }}" target="_blank" class="btn btn-light btn-sm">
                     <i class="ti ti-download"></i> Mulkiya
                 </a>
                 @elseif($mulkiyaAuthorized)

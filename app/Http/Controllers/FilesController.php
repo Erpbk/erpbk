@@ -7,14 +7,21 @@ use App\Http\Requests\CreateFilesRequest;
 use App\Http\Requests\UpdateFilesRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Repositories\FilesRepository;
+use App\Models\Banks;
+use App\Models\BikeRentCompany;
 use App\Models\Bikes;
+use App\Models\Customers;
+use App\Models\Employee;
+use App\Models\LeasingCompanies;
+use App\Models\Riders;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use App\Traits\GlobalPagination;
 use Flash;
 
 class FilesController extends AppBaseController
 {
-    use GlobalPagination;
+  use GlobalPagination;
   /** @var FilesRepository $filesRepository*/
   private $filesRepository;
 
@@ -38,7 +45,7 @@ class FilesController extends AppBaseController
       Flash::error('Bikes not found');
       return redirect(route('bikes.index'));
     }
-    return $filesDataTable->with(['type' => request('type') ?? 1, 'type_id' => request('type_id') ?? 1,])->render('files.index' , compact('bikes'));
+    return $filesDataTable->with(['type' => request('type') ?? 1, 'type_id' => request('type_id') ?? 1,])->render('files.index', compact('bikes'));
   }
 
 
@@ -55,6 +62,7 @@ class FilesController extends AppBaseController
    */
   public function store(CreateFilesRequest $request)
   {
+
     $input = $request->all();
     $input['type_id'] = (int) $input['type_id'];
     $input['type'] = trim((string) ($input['type'] ?? ''));
@@ -65,21 +73,22 @@ class FilesController extends AppBaseController
       $name = $input['type'] . '-' . $input['type_id'] . '-' . time() . '.' . $extension;
       $input['file_name']->storeAs($input['type'] . '/' . $input['type_id'] . '/', $name, 'public');
 
-      if(empty($input['suggested_name']))
+      if (empty($input['suggested_name']))
         $input['name'] = $input['file_name']->getClientOriginalName();
       else
         $input['name'] = $input['suggested_name'];
-      
+
       $input['file_name'] = $name;
       $input['file_type'] = $extension;
     }
 
-
+    $input['branch_id'] = $this->resolveBranchIdForFile(
+      (string) ($input['type'] ?? ''),
+      (int) ($input['type_id'] ?? 0)
+    );
 
     $files = $this->filesRepository->create($input);
-
     return response()->json(['message' => 'File uploaded successfully.', 'reload' => true]);
-
   }
 
   /**
@@ -144,10 +153,12 @@ class FilesController extends AppBaseController
     $files = $this->filesRepository->find($id);
     if (!empty($files)) {
       $relativeDir = $files->type . '/' . $files->type_id . '/' . $files->file_name;
-      foreach ([
-        storage_path('app/' . $relativeDir),
-        storage_path('app/public/' . $relativeDir),
-      ] as $filePath) {
+      foreach (
+        [
+          storage_path('app/' . $relativeDir),
+          storage_path('app/public/' . $relativeDir),
+        ] as $filePath
+      ) {
         if (file_exists($filePath)) {
           unlink($filePath);
         }
@@ -157,11 +168,11 @@ class FilesController extends AppBaseController
     if (empty($files)) {
 
       if (request()->ajax()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Files not found'
-            ], 404);
-        }
+        return response()->json([
+          'success' => false,
+          'message' => 'Files not found'
+        ], 404);
+      }
 
       Flash::error('Files not found');
       return redirect(route('files.index'));
@@ -170,13 +181,55 @@ class FilesController extends AppBaseController
     $this->filesRepository->delete($id);
 
     if (request()->ajax()) {
-        return response()->json([
-            'success' => true,
-            'message' => 'Files deleted successfully.'
-        ], 200);
+      return response()->json([
+        'success' => true,
+        'message' => 'Files deleted successfully.'
+      ], 200);
     }
 
     Flash::success('Files deleted successfully.');
     return redirect(route('files.index'));
+  }
+
+  private function resolveBranchIdForFile(string $type, int $typeId): ?int
+  {
+    if ($typeId <= 0) {
+      return $this->resolveUserBranchId();
+    }
+
+    $branchId = match ($type) {
+      'bike' => Bikes::whereKey($typeId)->value('branch_id'),
+      'rider' => Riders::whereKey($typeId)->value('branch_id'),
+      'customer' => Customers::whereKey($typeId)->value('branch_id'),
+      'rentCompany' => BikeRentCompany::whereKey($typeId)->value('branch_id'),
+      'employee' => Employee::whereKey($typeId)->value('branch_id'),
+      'leasing_company' => LeasingCompanies::whereKey($typeId)->value('branch_id'),
+      'bank' => Banks::whereKey($typeId)->value('branch_id'),
+      default => null,
+    };
+
+    if ($branchId !== null) {
+      return (int) $branchId;
+    }
+
+    return $this->resolveUserBranchId();
+  }
+
+  private function resolveUserBranchId(): ?int
+  {
+    $user = Auth::user();
+    if ($user?->employee_id) {
+      $branchId = Employee::whereKey($user->employee_id)->value('branch_id');
+      if ($branchId !== null) {
+        return (int) $branchId;
+      }
+    }
+
+    $userBranches = app('user_branches');
+    if (count($userBranches) === 1) {
+      return (int) $userBranches[0];
+    }
+
+    return null;
   }
 }

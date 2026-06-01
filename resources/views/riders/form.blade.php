@@ -40,7 +40,7 @@
     @csrf
                         @php
                         if(@$result['image_name']){
-                            $image_name = Storage::url('app/profile/'.$result['image_name']);
+                            $image_name = storage_url('app/profile/'.$result['image_name']);
                         }else{
                             $image_name = asset('public/uploads/default.jpg');
                         }

@@ -77,10 +77,10 @@ class BikesController extends AppBaseController
             $query->where('branch_id', $request->branch_id);
         }
         if ($request->has('bike_code') && ! empty($request->bike_code)) {
-            $query->where('bike_code', 'like', '%'.$request->bike_code.'%');
+            $query->where('bike_code', 'like', '%' . $request->bike_code . '%');
         }
         if ($request->has('plate') && ! empty($request->plate)) {
-            $query->where('plate', 'like', '%'.$request->plate.'%');
+            $query->where('plate', 'like', '%' . $request->plate . '%');
         }
         if ($request->has('rider_id') && ! empty($request->rider_id)) {
             $query->where('rider_id', $request->rider_id);
@@ -182,11 +182,11 @@ class BikesController extends AppBaseController
                 $topBarData['topBarSliderCategories']->each(function ($cat) use ($allowedSet) {
                     $cat->setRelation(
                         'options',
-                        $cat->options->filter(fn ($o) => isset($allowedSet[(int) $o->id]))->values()
+                        $cat->options->filter(fn($o) => isset($allowedSet[(int) $o->id]))->values()
                     );
                 });
                 $topBarData['topBarSliderCategories'] = $topBarData['topBarSliderCategories']
-                    ->filter(fn ($c) => $c->options->isNotEmpty())
+                    ->filter(fn($c) => $c->options->isNotEmpty())
                     ->values();
             }
         }
@@ -317,10 +317,10 @@ class BikesController extends AppBaseController
             ->orderBy('bike_code', 'desc');
 
         if ($request->has('bike_code') && ! empty($request->bike_code)) {
-            $query->where('bike_code', 'like', '%'.$request->bike_code.'%');
+            $query->where('bike_code', 'like', '%' . $request->bike_code . '%');
         }
         if ($request->has('plate') && ! empty($request->plate)) {
-            $query->where('plate', 'like', '%'.$request->plate.'%');
+            $query->where('plate', 'like', '%' . $request->plate . '%');
         }
         if ($request->has('rider_id') && ! empty($request->rider_id)) {
             $query->where('rider_id', $request->rider_id);
@@ -432,6 +432,7 @@ class BikesController extends AppBaseController
         }
 
         $input = $this->normalizeBikeInputForDatabase($input, true);
+        $input['warehouse'] = 'Inactive';
 
         $branch_emirates = CompanyQuery::table('branches')->where('id', $input['branch_id'])->first();
         $input['emirates'] = $branch_emirates->city;
@@ -702,7 +703,7 @@ class BikesController extends AppBaseController
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error deleting bike: '.$e->getMessage(), ['bike_id' => $bikes->id ?? $id]);
+            Log::error('Error deleting bike: ' . $e->getMessage(), ['bike_id' => $bikes->id ?? $id]);
 
             return $this->respondBikeDeleteError('Failed to delete bike. Please try again.');
         }
@@ -737,7 +738,7 @@ class BikesController extends AppBaseController
 
                         // If there's a last assign date, check that return date is after it
                         if ($lastAssignDate && strtotime($value) < strtotime($lastAssignDate)) {
-                            $fail('Return date cannot be before the last Assignment date ('.Carbon::parse($lastAssignDate)->format('d-m-Y').').');
+                            $fail('Return date cannot be before the last Assignment date (' . Carbon::parse($lastAssignDate)->format('d-m-Y') . ').');
 
                             return;
                         }
@@ -782,7 +783,7 @@ class BikesController extends AppBaseController
                 } else {
                     $message .= "*Return Date:* {$request->return_date}\n";
                 }
-                $message .= '*Time:* '.now()->setTimezone('Asia/Dubai')->format('h:i a')."\n";
+                $message .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
                 if ($rider) {
                     $message .= "*Project:* {$bike->customer->name}\n";
                 }
@@ -1073,7 +1074,7 @@ class BikesController extends AppBaseController
                             ->first();
 
                         if ($assignedBike) {
-                            $fail('Rider is already assigned to '.($assignedBike->plate ? 'bike #'.$assignedBike->plate : 'a vehicle').'.');
+                            $fail('Rider is already assigned to ' . ($assignedBike->plate ? 'bike #' . $assignedBike->plate : 'a vehicle') . '.');
                         }
                     },
                 ],
@@ -1097,7 +1098,7 @@ class BikesController extends AppBaseController
 
                         // If there's a last return date, check that assignment date is after it
                         if ($lastReturnDate && strtotime($value) < strtotime($lastReturnDate)) {
-                            $fail('Assignment date cannot be before the last return date ('.Carbon::parse($lastReturnDate)->format('d-m-Y').').');
+                            $fail('Assignment date cannot be before the last return date (' . Carbon::parse($lastReturnDate)->format('d-m-Y') . ').');
 
                             return;
                         }
@@ -1149,7 +1150,7 @@ class BikesController extends AppBaseController
                 }
 
                 $historyMessage .= "*Assign Date:* {$request->note_date}\n";
-                $historyMessage .= '*Time:* '.now()->setTimezone('Asia/Dubai')->format('h:i a')."\n";
+                $historyMessage .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
                 if ($assignType == 'rider') {
                     $project = CompanyQuery::table('customers')->where('id', $customer_id)->first();
                     $historyMessage .= "*Project:* {$project->name}\n";
@@ -1336,14 +1337,14 @@ class BikesController extends AppBaseController
 
             $doc = $request->contract;
             $extension = $doc->extension();
-            $name = time().'.'.$extension;
+            $name = time() . '.' . $extension;
             $doc->storeAs('contract', $name);
 
             $contract->contract = $name;
             $contract->updated_by = Auth::id();
             $contract->save();
 
-            return response()->json(['message' => $contract->rider->name.'( '.$contract->rider->rider_id.' ) Bike Plate # '.$contract->bike->plate.' Contract uploaded.']);
+            return response()->json(['message' => $contract->rider->name . '( ' . $contract->rider->rider_id . ' ) Bike Plate # ' . $contract->bike->plate . ' Contract uploaded.']);
             // return redirect(url('bikes'))->with('success', $contract->rider->name . '( ' . $contract->rider->rider_id . ' ) Bike Plate # ' . $contract->bike->plate . ' Contract uploaded.');
         }
 
@@ -1483,7 +1484,7 @@ class BikesController extends AppBaseController
 
                     return response()->json([
                         'success' => false,
-                        'message' => 'Error resetting data: '.$e->getMessage(),
+                        'message' => 'Error resetting data: ' . $e->getMessage(),
                     ], 500);
                 }
             }
@@ -1523,7 +1524,7 @@ class BikesController extends AppBaseController
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Import failed: '.$e->getMessage(),
+                'message' => 'Import failed: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -1643,9 +1644,9 @@ class BikesController extends AppBaseController
         // Set headers
         $col = 'A';
         foreach ($headers as $header) {
-            $sheet->setCellValue($col.'1', $header);
-            $sheet->getStyle($col.'1')->getFont()->setBold(true);
-            $sheet->getStyle($col.'1')->getFill()
+            $sheet->setCellValue($col . '1', $header);
+            $sheet->getStyle($col . '1')->getFont()->setBold(true);
+            $sheet->getStyle($col . '1')->getFill()
                 ->setFillType(Fill::FILL_SOLID)
                 ->getStartColor()->setARGB('FFD3D3D3');
             $col++;
@@ -1656,7 +1657,7 @@ class BikesController extends AppBaseController
         foreach ($sampleData as $data) {
             $col = 'A';
             foreach ($data as $value) {
-                $sheet->setCellValue($col.$row, $value);
+                $sheet->setCellValue($col . $row, $value);
                 $col++;
             }
             $row++;
@@ -1669,10 +1670,10 @@ class BikesController extends AppBaseController
 
         // Create writer and download
         $writer = new Xlsx($spreadsheet);
-        $filename = 'bikes_import_template_'.date('Y-m-d').'.xlsx';
+        $filename = 'bikes_import_template_' . date('Y-m-d') . '.xlsx';
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment;filename="'.$filename.'"');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
         header('Cache-Control: max-age=0');
 
         $writer->save('php://output');

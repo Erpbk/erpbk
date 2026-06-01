@@ -329,8 +329,8 @@ class BikeCustomField extends BaseModel
     }
 
     /**
-     * Fixed bike fields grouped by category (used by UI fallback / legacy display).
-     * Primarily used when there are no assignment rows yet.
+     * Legacy slug → field keys map (settings / migrations). Bike create/edit forms
+     * use bike_field_category_assignments only — not this map.
      */
     public static function fixedFieldsSlugMap(): array
     {
@@ -440,53 +440,38 @@ class BikeCustomField extends BaseModel
         foreach ($categories as $cat) {
             $fields = [];
 
-            // Fixed fields
+            // Fixed fields: only explicit category assignments (no slug-map fallback).
             $catFixedAssignments = $assignmentsVisible->where('category_id', $cat->id)->values();
-            if ($catFixedAssignments->isNotEmpty()) {
-                foreach ($catFixedAssignments as $a) {
-                    $fieldKey = (string) $a->field_key;
-                    if (!isset($allowedFixedLookup[$fieldKey])) {
-                        continue;
-                    }
-                    $label = !empty($a->display_label)
-                        ? trim((string) $a->display_label)
-                        : self::humanizeFieldKey($fieldKey);
-
-                    $spec = ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null);
-
-                    // Settings can override fixed input type + config.
-                    if (!empty($a->input_type)) {
-                        $spec['type'] = $a->input_type === 'dropdown' ? 'select' : $a->input_type;
-                    }
-
-                    $spec['required'] = (bool) ($a->is_required ?? false);
-
-                    if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
-                        $spec['options'] = $a->input_config['options'];
-                    }
-
-                    $spec['dropdown'] = $spec['dropdown'] ?? $a->input_config['dropdown'] ?? null;
-
-                    $fields[] = (object) [
-                        'kind' => 'fixed',
-                        'field_key' => $fieldKey,
-                        'label' => $label,
-                        'spec' => $spec,
-                    ];
+            foreach ($catFixedAssignments as $a) {
+                $fieldKey = (string) $a->field_key;
+                if (!isset($allowedFixedLookup[$fieldKey])) {
+                    continue;
                 }
-            } else {
-                // If there are no fixed assignments for this category, fall back to slug map.
-                foreach (self::fixedFieldsSlugMap()[$cat->slug] ?? [] as $fieldKey) {
-                    if (!in_array($fieldKey, self::allFixedFieldKeys(), true)) {
-                        continue;
-                    }
-                    $fields[] = (object) [
-                        'kind' => 'fixed',
-                        'field_key' => $fieldKey,
-                        'label' => self::humanizeFieldKey($fieldKey),
-                        'spec' => ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null),
-                    ];
+                $label = !empty($a->display_label)
+                    ? trim((string) $a->display_label)
+                    : self::humanizeFieldKey($fieldKey);
+
+                $spec = ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null);
+
+                // Settings can override fixed input type + config.
+                if (!empty($a->input_type)) {
+                    $spec['type'] = $a->input_type === 'dropdown' ? 'select' : $a->input_type;
                 }
+
+                $spec['required'] = (bool) ($a->is_required ?? false);
+
+                if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
+                    $spec['options'] = $a->input_config['options'];
+                }
+
+                $spec['dropdown'] = $spec['dropdown'] ?? $a->input_config['dropdown'] ?? null;
+
+                $fields[] = (object) [
+                    'kind' => 'fixed',
+                    'field_key' => $fieldKey,
+                    'label' => $label,
+                    'spec' => $spec,
+                ];
             }
 
             if ($includeCustomFields) {

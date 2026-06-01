@@ -2,7 +2,7 @@
 @isset($contract)
                     <a href="{{route('bike.contract', $contract->id)}}" data-toggle="tooltip" class="file btn btn-warning  btn-sm mr-1" data-modalID="modal-new" target="_blank"><i class="fas fa-file"></i>&nbsp; View / Print Contract</a>
 @if($contract->contract)
-                        <a href="{{Storage::url('app/contract/'.$contract->contract)}}" data-toggle="tooltip" class="file btn btn-success  btn-sm mr-1" data-modalID="modal-new" target="_blank"><i class="fas fa-file"></i>&nbsp; Signed Contract</a>
+                        <a href="{{storage_url('app/contract/'.$contract->contract)}}" data-toggle="tooltip" class="file btn btn-success  btn-sm mr-1" data-modalID="modal-new" target="_blank"><i class="fas fa-file"></i>&nbsp; Signed Contract</a>
 @endif
 @endisset
                 <form action="{{url('bikes/contract_upload',@$contract->id)}}" method="post" enctype="multipart/form-data" id="formajax">

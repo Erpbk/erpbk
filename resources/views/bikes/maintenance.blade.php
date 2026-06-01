@@ -74,7 +74,7 @@
 
                         <td>
                             @if($record->attachment)
-                                <a href="{{ Storage::url($record->attachment) }}"
+                                <a href="{{ storage_url($record->attachment) }}"
                                     target="_blank"
                                     class="btn btn-sm btn-outline-info">
                                     <i class="fas fa-paperclip"></i>

@@ -303,7 +303,7 @@ class ChequeCustomField extends BaseModel
     }
 
     /**
-     * Fixed rider fields grouped by category (from cheque_field_category_assignments; fallback to slug map if empty).
+     * Fixed cheque fields grouped by category (explicit assignments only).
      * Returns list of [ 'id' => categoryId, 'label' => ..., 'fields' => [...] ].
      */
     public static function fixedChequeFieldsByCategory(): array
@@ -320,14 +320,8 @@ class ChequeCustomField extends BaseModel
                     'label' => self::humanizeFieldKey($a->field_key),
                 ];
             }
-            if (count($fields) === 0) {
-                $map = self::fixedFieldsSlugMap();
-                foreach ($map[$cat->slug] ?? [] as $fieldKey) {
-                    $fields[] = [
-                        'key' => $fieldKey,
-                        'label' => self::humanizeFieldKey($fieldKey),
-                    ];
-                }
+            if ($fields === []) {
+                continue;
             }
             $result[] = [
                 'id' => $cat->id,
@@ -440,7 +434,6 @@ class ChequeCustomField extends BaseModel
         $categories = ChequeCategory::orderBy('display_order')->orderBy('id')->get();
         $categoryIds = $categories->pluck('id')->all();
         $allowedFixedLookup = array_flip(self::allFixedFieldKeys());
-        $fallbackMap = self::fixedFieldsSlugMap();
         $assignmentsAll = ChequeFieldCategoryAssignment::with('category')
             ->whereIn('category_id', $categoryIds)
             ->orderBy('display_order')
@@ -465,52 +458,37 @@ class ChequeCustomField extends BaseModel
             $fields = [];
             $categoryAssignments = $assignmentsVisible->where('category_id', $cat->id)->values();
 
-            if ($categoryAssignments->isNotEmpty()) {
-                foreach ($categoryAssignments as $a) {
-                    if (!isset($allowedFixedLookup[$a->field_key])) {
-                        continue;
-                    }
-                    $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
-                        ? trim($a->display_label)
-                        : self::humanizeFieldKey($a->field_key);
-                    $spec = ModuleFieldSource::mergeFixedFieldSpec($a->field_key, $specs[$a->field_key] ?? null);
-
-                    // Rider Settings can override a fixed field's input type + config (e.g. dropdown options).
-                    // The cheques module renderer reads from "$spec", so we merge relevant config here.
-                    if (!empty($a->input_type)) {
-                        // The renderer expects HTML-ish types: dropdown -> select, checkbox stays checkbox.
-                        $spec['type'] = $a->input_type === 'dropdown' ? 'select' : $a->input_type;
-                    }
-                    if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
-                        $spec['options'] = $a->input_config['options'];
-                    }
-                    if (array_key_exists('is_required', $a->getAttributes())) {
-                        $rawRequired = $a->getRawOriginal('is_required');
-                        if ($rawRequired !== null) {
-                            $spec['required'] = (int) $rawRequired === 1;
-                        }
-                    }
-
-                    $fields[] = (object) [
-                        'kind' => 'fixed',
-                        'field_key' => $a->field_key,
-                        'label' => $label,
-                        'spec' => $spec,
-                    ];
+            foreach ($categoryAssignments as $a) {
+                if (!isset($allowedFixedLookup[$a->field_key])) {
+                    continue;
                 }
-            } else {
-                // If no visible category assignments exist, fall back to built-in fixed fields map.
-                foreach ($fallbackMap[$cat->slug] ?? [] as $fieldKey) {
-                    if (!isset($allowedFixedLookup[$fieldKey])) {
-                        continue;
-                    }
-                    $fields[] = (object) [
-                        'kind' => 'fixed',
-                        'field_key' => $fieldKey,
-                        'label' => self::humanizeFieldKey($fieldKey),
-                        'spec' => ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $specs[$fieldKey] ?? null),
-                    ];
+                $label = $a->display_label !== null && trim((string) $a->display_label) !== ''
+                    ? trim($a->display_label)
+                    : self::humanizeFieldKey($a->field_key);
+                $spec = ModuleFieldSource::mergeFixedFieldSpec($a->field_key, $specs[$a->field_key] ?? null);
+
+                // Cheque Settings can override a fixed field's input type + config (e.g. dropdown options).
+                // The cheques module renderer reads from "$spec", so we merge relevant config here.
+                if (!empty($a->input_type)) {
+                    // The renderer expects HTML-ish types: dropdown -> select, checkbox stays checkbox.
+                    $spec['type'] = $a->input_type === 'dropdown' ? 'select' : $a->input_type;
                 }
+                if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
+                    $spec['options'] = $a->input_config['options'];
+                }
+                if (array_key_exists('is_required', $a->getAttributes())) {
+                    $rawRequired = $a->getRawOriginal('is_required');
+                    if ($rawRequired !== null) {
+                        $spec['required'] = (int) $rawRequired === 1;
+                    }
+                }
+
+                $fields[] = (object) [
+                    'kind' => 'fixed',
+                    'field_key' => $a->field_key,
+                    'label' => $label,
+                    'spec' => $spec,
+                ];
             }
 
             if ($includeCustomFields) {

@@ -300,9 +300,9 @@ $companySlug = request()->route('company_slug');
           })
           ->first();
           if(@$result['image_name'])
-          $image_name = url('storage2/profile/'.$result['image_name']);
+          $image_name = storage_url('profile/'.$result['image_name']);
           elseif (isset($profile))
-          $image_name = url('storage2/'. $profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
+          $image_name = storage_url($profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
           else
           $image_name = asset('uploads/default.png');
 
@@ -357,7 +357,7 @@ $companySlug = request()->route('company_slug');
             </div>
             <div id="photo-upload-form" class="mt-4" style="display: none;">
               @isset($result)
-              <form action="{{ route('rider_picture_upload', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" method="POST" enctype="multipart/form-data" id="formajax2">
+              <form action="{{ route('rider_picture_upload', ['company_slug' => request()->route('company_slug'), 'id' => $result['id']]) }}" method="POST" enctype="multipart/form-data" id="formajax2">
                 @endisset
                 @csrf
                 @isset($result)

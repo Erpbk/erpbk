@@ -383,7 +383,7 @@
         @isset($rtaFines)
             @if($rtaFines->attachment_path)
                 // If attachment is a path/URL, display it
-                let existingAttachmentPath = '{{ Storage::url($rtaFines->attachment_path) }}';
+                let existingAttachmentPath = '{{ storage_url($rtaFines->attachment_path) }}';
                 if (existingAttachmentPath) {
                     // Wait a moment for DOM to be ready
                     setTimeout(function() {

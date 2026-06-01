@@ -10,6 +10,7 @@ class FilesRepository extends BaseRepository
     protected $fieldSearchable = [
         'type',
         'type_id',
+        'branch_id',
         'file_name',
         'expiry_date',
         'status',

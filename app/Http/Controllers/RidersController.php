@@ -33,6 +33,7 @@ use App\Models\Bikes;
 use App\Models\BikeHistory;
 use App\Models\RiderInvoices;
 use App\Models\RiderHistory;
+use Illuminate\Support\Facades\Storage;
 use App\Models\SimHistory;
 use App\Models\Customers;
 use App\Models\RiderActivities;
@@ -289,6 +290,23 @@ class RidersController extends AppBaseController
     }
 
     return array_merge($rules, $this->dynamicFieldRules());
+  }
+
+  /**
+   * Rider array for legacy show_fields view — includes removed DB columns with null defaults.
+   */
+  private function riderShowResultArray(Riders $rider): array
+  {
+    $result = $rider->toArray();
+
+    foreach (\App\Models\RiderCustomField::removedRiderColumns() as $key) {
+      if (!array_key_exists($key, $result)) {
+        $value = $rider->getAttribute($key);
+        $result[$key] = $value !== null ? $value : ($key === 'vat' ? 2 : null);
+      }
+    }
+
+    return $result;
   }
 
   public function __construct(RidersRepository $ridersRepo)
@@ -647,7 +665,7 @@ class RidersController extends AppBaseController
       return redirect(route('riders.index'));
     }
     // $rider_items = $rider->items;
-    $result = $rider->toArray();
+    $result = $this->riderShowResultArray($rider);
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
     $fieldsByCategory = \App\Models\RiderCustomField::fieldsByCategoryForForm();
 
@@ -1106,12 +1124,15 @@ class RidersController extends AppBaseController
       $image_name = $request->image_name;
       $extension = $image_name->extension();
       $name = time() . '.' . $extension;
-      $image_name->storeAs('profile', $name);
+      $image_name->storeAs('profile', $name, 'public');
 
-      $rider = Riders::find($request->id);
+      $rider = Riders::find($id);
       if (isset($rider->image_name)) {
-        if (file_exists(storage_path('app/profile/' . $rider->image_name)))
+        if (Storage::disk('public')->exists('profile/' . $rider->image_name)) {
+          Storage::disk('public')->delete('profile/' . $rider->image_name);
+        } elseif (file_exists(storage_path('app/profile/' . $rider->image_name))) {
           unlink(storage_path('app/profile/' . $rider->image_name));
+        }
       }
 
       $rider->image_name = $name;

@@ -328,7 +328,7 @@
         <tr style="border: none;">
             <td style="width: 33%; border: none !important; vertical-align: middle;">
                 @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
-                    <img src="{{ Storage::url($settings['company_logo']) }}" width="150" alt="logo" />
+                    <img src="{{ storage_url($settings['company_logo']) }}" width="150" alt="logo" />
                 @endif
             </td>
             <td style="width: 34%; text-align: center; align-content: center; border: none !important;">

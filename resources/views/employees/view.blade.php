@@ -292,7 +292,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
           if($employee->profile_image)
           $image_name = $employee->profile_image_url;
           elseif (isset($profile))
-          $image_name = asset('storage2/'. $profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
+          $image_name = storage_url($profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
           else
           $image_name = asset('uploads/default.png');
           }else {

@@ -173,6 +173,11 @@ return [
             'trash_force_delete',
             'gn_settings',
         ]],
+
+        ['parent' => 'Agreements', 'slug' => 'agreement', 'extras' => [
+            'agreement_generate',
+            'agreement_manage_templates',
+        ]],
     ],
 
     'additional_permissions' => [],

@@ -417,6 +417,10 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('riders/history/{id}', [RidersController::class, 'history'])->name('rider.history');
     Route::get('riders/contract/{id?}', [RidersController::class, 'contract'])->name('rider.contract');
     Route::any('riders/contract_upload/{id?}', [RidersController::class, 'contract_upload'])->name('rider_contract_upload');
+    Route::get('riders/{riderId}/agreements/modal', [App\Http\Controllers\AgreementGenerationController::class, 'modal'])->name('agreements.modal');
+    Route::get('riders/{riderId}/agreements/preview', [App\Http\Controllers\AgreementGenerationController::class, 'preview'])->name('agreements.preview');
+    Route::get('riders/{riderId}/agreements/pdf', [App\Http\Controllers\AgreementGenerationController::class, 'pdf'])->name('agreements.pdf');
+    Route::post('riders/{riderId}/agreements/email', [App\Http\Controllers\AgreementGenerationController::class, 'email'])->name('agreements.email');
     Route::any('riders/picture_upload/{id?}', [RidersController::class, 'picture_upload'])->name('rider_picture_upload');
     Route::any('riders/rider-document/{id}', [RidersController::class, 'document'])->name('rider.document');
     Route::get('rider/updateRider', [RidersController::class, 'updateRider'])->name('rider.updateRider');

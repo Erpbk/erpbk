@@ -51,6 +51,14 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
+        @canany(['agreement_view', 'agreement_manage_templates', 'gn_settings'])
+        <li class="menu-item {{ Request::is('settings-panel/agreements*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.agreements.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-file-certificate"></i>
+            <div>Agreements</div>
+          </a>
+        </li>
+        @endcanany
         @can('department_view')
         <li class="menu-item {{ Request::is('settings-panel/departments*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.departments.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">

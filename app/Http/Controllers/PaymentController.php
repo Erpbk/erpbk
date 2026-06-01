@@ -152,29 +152,25 @@ class PaymentController extends Controller
         } elseif ($riderPayment) {
             $invoiceType = 'rider';
             $selectedInvoice = null;
-            if ($riderId) {
-                $rider = Riders::find($riderId);
-                if ($rider && $rider->account_id) {
-                    $accountIds = [$rider->account_id];
-                }
-            }
+            $accountIds = [];
             if (request()->input('invoice_id')) {
                 $selectedInvoice = RiderInvoices::with('rider')->find(request()->input('invoice_id'));
             }
-            if ($selectedInvoice) {
-                $invoices = RiderInvoices::with('rider')
-                    ->where('rider_id', $selectedInvoice->rider_id)
-                    ->where('status', '!=', 1)
-                    ->get();
-                if ($selectedInvoice->rider && $selectedInvoice->rider->account_id) {
-                    $accountIds[] = $selectedInvoice->rider->account_id;
-                }
-            } else {
-                $invoices = RiderInvoices::with('rider')
-                    ->where('status', '!=', 1)
-                    ->get();
+            $invoiceQuery = RiderInvoices::with('rider')
+                ->payable()
+                ->whereHas('rider', fn ($q) => $q->whereNotNull('account_id'));
+            if ($riderId) {
+                $invoiceQuery->where('rider_id', $riderId);
+            } elseif ($selectedInvoice) {
+                $invoiceQuery->where('rider_id', $selectedInvoice->rider_id);
             }
-            $accountIds = array_values(array_unique($accountIds ?? []));
+            $invoices = $invoiceQuery->orderBy('billing_month', 'desc')->get();
+            foreach ($invoices as $invoice) {
+                if ($invoice->rider && $invoice->rider->account_id) {
+                    $accountIds[] = $invoice->rider->account_id;
+                }
+            }
+            $accountIds = array_values(array_unique($accountIds));
         } else {
             $invoices = null;
         }

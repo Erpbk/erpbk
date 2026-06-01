@@ -89,6 +89,18 @@ class RiderInvoices extends BaseModel
         'notes' => 'nullable|string|max:500',
     ];
 
+    /**
+     * Invoices that can receive a payment (unpaid or partially paid).
+     * Uses explicit status values because SQL `status != 1` excludes NULL rows.
+     */
+    public function scopePayable($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('status')
+                ->orWhereIn('status', [0, 3]);
+        });
+    }
+
     public function rider()
     {
         return $this->belongsTo(Riders::class, 'rider_id');

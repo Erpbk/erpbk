@@ -28,6 +28,7 @@ use App\Models\JobStatus;
 use App\Models\Payment;
 use App\Models\RiderActivities;
 use App\Models\RiderAttendance;
+use App\Models\Riders;
 use App\Models\RtaFines;
 use App\Models\salik;
 use App\Models\visa_expenses;

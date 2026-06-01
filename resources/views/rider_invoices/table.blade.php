@@ -1,27 +1,12 @@
 @push('third_party_stylesheets')
 @endpush
-<table class="table table-striped dataTable no-footer" id="dataTableBuilder">
+<table class="table dataTable" id="dataTableBuilder">
    <thead class="text-center">
-      <tr>
-         <th colspan="12" class="text-start">
-            <div class="d-flex justify-content-between align-items-center">
-               <h5 class="mb-0">Rider Invoices</h5>
-               <div class="d-flex align-items-center">
-                  <button id="deleteSelectedBtn" class="btn btn-danger btn-sm me-2" style="display: none;" onclick="deleteSelectedInvoices()">
-                     <i class="fa fa-trash"></i> Delete Selected
-                  </button>
-                  <span id="current-month-total" class="badge bg-primary fs-6">
-                     Current Month Total: {{ number_format($currentMonthTotal, 1) }}
-                  </span>
-               </div>
-            </div>
-         </th>
-      </tr>
       <tr role="row">
          <th title="Select All" class="sorting_disabled" rowspan="1" colspan="1" width="50px">
             <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)">
          </th>
-         <th title="Id" class="sorting" rowspan="1" colspan="1">Id</th>
+         <th title="Invoice Number" class="sorting" rowspan="1" colspan="1">Invoice</th>
          <th title="Inv Date" class="sorting" rowspan="1" colspan="1">Inv Date</th>
          <th title="Billing Month" class="sorting" rowspan="1" colspan="1">Billing Month</th>
          <th title="Rider" class="sorting" rowspan="1" colspan="1">Rider</th>
@@ -31,10 +16,7 @@
          <th title="Vat" class="sorting" rowspan="1" colspan="1">Vat</th>
          <th title="Total Amount" class="sorting" rowspan="1" colspan="1">Total Amount</th>
          <th title="Total Amount" class="sorting" rowspan="1" colspan="1">Status</th>
-         <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action"><a data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a></th>
-         <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-            <a data-bs-toggle="modal" data-bs-target="#customoizecolmn" href="javascript:void(0);"> <i class="fa fa-filter"></i></a>
-         </th>
+         <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
       </tr>
    </thead>
    <tbody>
@@ -43,7 +25,7 @@
          <td>
             <input type="checkbox" class="invoice-checkbox" value="{{ $r->id }}" onchange="updateDeleteButton()">
          </td>
-         <td><a href="javascript:void(0);" data-action="{{ route('riderInvoices.show', $r->id) }}" class="show-modal-right">{{ $r->id }}</a></td>
+         <td style="white-space: nowrap;"><a href="javascript:void(0);" data-action="{{ route('riderInvoices.show', $r->id) }}" class="show-modal-right">{{ $r->invoice_number }}</a></td>
          <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
          <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
          @php
@@ -60,6 +42,8 @@
          <td>
             @if($r->status == 1)
             <span class="badge  bg-success">Paid</span>
+            @elseif($r->status == 3 || ($r->paid_amount ?? 0) > 0)
+            <span class="badge  bg-warning">Partially Paid</span>
             @else
             <span class="badge  bg-danger">Unpaid</span>
             @endif
@@ -75,10 +59,10 @@
                      <i class="fa fa-edit mx-1"></i> Update
                   </a>
                   @endcan
-                  @if($r->status == 0)
+                  @if($r->status != 1)
                   @can('riderinvoice_edit')
-                  <a href="{{ route('riderInvoices.markAsPaid', $r->id) }}" class='dropdown-item waves-effect'>
-                     <i class="fa fa-money-bill mx-1 text-success"></i> Mark as Paid
+                  <a href="javascript:void(0);" data-action="{{ route('payments.create') }}?invoice_type=rider&invoice_id={{ $r->id }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Record Rider Payment">
+                     <i class="fa fa-money-bill mx-1 text-success"></i> Record Payment
                   </a>
                   @endcan
                   @endif
@@ -90,7 +74,6 @@
                </div>
             </div>
          </td>
-         <td></td>
       </tr>
       @endforeach
    </tbody>

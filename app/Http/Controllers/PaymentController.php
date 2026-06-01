@@ -2,26 +2,33 @@
 
 namespace App\Http\Controllers;
 
-use App\Repositories\PaymentsRepository;
-use App\Models\Payment;
+use App\Helpers\Account;
+use App\Helpers\HeadAccount;
 use App\Models\Accounts;
 use App\Models\Banks;
+use App\Models\Cheques;
+use App\Models\Customers;
+use App\Models\EmployeeInvoices;
 use App\Models\LeasingCompanies;
 use App\Models\LeasingCompanyInvoice;
+use App\Models\Payment;
+use App\Models\RiderInvoices;
+use App\Models\Riders;
+use App\Models\Supplier;
 use App\Models\SupplierInvoices;
-use App\Models\EmployeeInvoices;
 use App\Models\Transactions;
 use App\Models\Vouchers;
-use App\Models\Customers;
-use App\Models\Supplier;
-use Illuminate\Http\Request;
+use App\Repositories\PaymentsRepository;
 use App\Traits\GlobalPagination;
-use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use Flash;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
     use GlobalPagination;
+
     private $paymentsRepository;
 
     public function __construct(PaymentsRepository $paymentsRepo)
@@ -36,7 +43,7 @@ class PaymentController extends Controller
         $banks = Banks::all();
         foreach ($banks as $bank) {
             $credit = Transactions::where('account_id', $bank->account_id)->sum('credit');
-            $debit  = Transactions::where('account_id', $bank->account_id)->sum('debit');
+            $debit = Transactions::where('account_id', $bank->account_id)->sum('debit');
             $balance = $debit - $credit;
             $fundIn += $debit;
             $fundOut += $credit;
@@ -52,10 +59,11 @@ class PaymentController extends Controller
         $banks = Banks::all();
         foreach ($banks as $bank) {
             $credit = Transactions::where('account_id', $bank->account_id)->sum('credit');
-            $debit  = Transactions::where('account_id', $bank->account_id)->sum('debit');
+            $debit = Transactions::where('account_id', $bank->account_id)->sum('debit');
             $fundsIn += $debit;
             $fundsOut += $credit;
         }
+
         return view('payments.index', compact('data', 'fundsIn', 'fundsOut'));
     }
 
@@ -72,6 +80,8 @@ class PaymentController extends Controller
         $invoiceType = null;
         $existingInvoices = null;
         $employeePayment = request()->input('employee_payment') || request()->input('invoice_type') == 'employee';
+        $riderPayment = request()->input('rider_payment') || request()->input('invoice_type') == 'rider';
+        $riderId = request()->input('rider_id') ?? null;
         if (request()->input('leasing_payment')) {
             $leasingIds = LeasingCompanies::pluck('id')->toArray();
             $accountIds = LeasingCompanies::pluck('account_id')->toArray();
@@ -123,11 +133,9 @@ class PaymentController extends Controller
                 $selectedInvoice = EmployeeInvoices::with('employee')->find(request()->input('invoice_id'));
             }
             if ($selectedInvoice) {
-                $existingInvoices = collect([$selectedInvoice]);
                 $invoices = EmployeeInvoices::with('employee')
                     ->where('employee_id', $selectedInvoice->employee_id)
                     ->where('status', '!=', 1)
-                    ->where('id', '!=', $selectedInvoice->id)
                     ->get();
             } else {
                 $invoices = EmployeeInvoices::with('employee')
@@ -140,36 +148,69 @@ class PaymentController extends Controller
                     $accountIds[] = $invoice->employee->account_id;
                 }
             }
-            if ($selectedInvoice && $selectedInvoice->employee && $selectedInvoice->employee->account_id) {
-                $accountIds[] = $selectedInvoice->employee->account_id;
-            }
             $accountIds = array_values(array_unique($accountIds));
+        } elseif ($riderPayment) {
+            $invoiceType = 'rider';
+            $selectedInvoice = null;
+            if ($riderId) {
+                $rider = Riders::find($riderId);
+                if ($rider && $rider->account_id) {
+                    $accountIds = [$rider->account_id];
+                }
+            }
+            if (request()->input('invoice_id')) {
+                $selectedInvoice = RiderInvoices::with('rider')->find(request()->input('invoice_id'));
+            }
+            if ($selectedInvoice) {
+                $invoices = RiderInvoices::with('rider')
+                    ->where('rider_id', $selectedInvoice->rider_id)
+                    ->where('status', '!=', 1)
+                    ->get();
+                if ($selectedInvoice->rider && $selectedInvoice->rider->account_id) {
+                    $accountIds[] = $selectedInvoice->rider->account_id;
+                }
+            } else {
+                $invoices = RiderInvoices::with('rider')
+                    ->where('status', '!=', 1)
+                    ->get();
+            }
+            $accountIds = array_values(array_unique($accountIds ?? []));
         } else {
             $invoices = null;
         }
         if ($accountId) {
             $bank = Banks::with('account')->find($accountId);
             $banks = Banks::with('account')->active()->get();
+
             return view('payments.create', compact('bank', 'banks', 'payment'));
         } elseif ($leasingCompanyId || $leasingIds) {
             $leasingCompany = LeasingCompanies::find($leasingCompanyId ?? 0);
             $banks = Banks::with('account')->active()->get();
             $invoiceType = 'leasingCompany';
+
             return view('payments.create', compact('leasingCompany', 'banks', 'payment', 'invoices', 'accountIds', 'invoiceType'));
         } elseif ($supplierId || $supplierIds) {
             $leasingCompany = Supplier::find($supplierId ?? 0);
             $banks = Banks::with('account')->active()->get();
             $invoiceType = 'supplier';
+
             return view('payments.create', compact('leasingCompany', 'banks', 'payment', 'invoices', 'accountIds', 'invoiceType'));
         } elseif ($employeePayment) {
             $banks = Banks::with('account')->active()->get();
+
+            return view('payments.create', compact('banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'existingInvoices'));
+        } elseif ($riderPayment) {
+            $banks = Banks::with('account')->active()->get();
+
             return view('payments.create', compact('banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'existingInvoices'));
         } elseif ($customerId) {
             $customer = Customers::find($customerId);
             $banks = Banks::with('account')->active()->get();
+
             return view('payments.create', compact('customer', 'banks', 'payment'));
         } else {
             $banks = Banks::with('account')->active()->get();
+
             return view('payments.create', compact('banks', 'payment'));
         }
     }
@@ -186,7 +227,6 @@ class PaymentController extends Controller
             'billing_month' => 'required|date_format:Y-m',
             'amount' => 'required|numeric|min:0.01',
             'bank_charges' => 'nullable|numeric|min:0',
-            'bank_charges_account' => 'required_if:bank_charges,>0|nullable|numeric|exists:accounts,id',
             'description' => 'required|string|max:500',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
             'invoice_ids' => 'nullable|array',
@@ -217,18 +257,19 @@ class PaymentController extends Controller
 
         // Get the paying account (bank account)
         $bank = Banks::find($request->input('bank_id'));
-        if (!$bank) {
+        if (! $bank) {
             if ($request->ajax()) {
                 return response()->json(['message' => 'Selected bank not found'], 422);
             }
             Flash::error('Selected bank not found.');
+
             return redirect()->back()->withInput();
         }
         $payingAccountId = $bank->account_id;
 
         $input = $request->all();
         $input['created_by'] = auth()->id();
-        $input['billing_month'] = $input['billing_month'] . '-01';
+        $input['billing_month'] = $input['billing_month'].'-01';
         $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
         $input['amount'] = $totalAmount;
 
@@ -268,13 +309,13 @@ class PaymentController extends Controller
                                 $invoice->update([
                                     'status' => 1, // Paid
                                     'partial_paid_amount' => $partialAmount,
-                                    'updated_by' => auth()->id()
+                                    'updated_by' => auth()->id(),
                                 ]);
                             } else {
                                 $invoice->update([
                                     'status' => 3, // Partially Paid
                                     'partial_paid_amount' => $partialAmount,
-                                    'updated_by' => auth()->id()
+                                    'updated_by' => auth()->id(),
                                 ]);
                             }
                         }
@@ -298,6 +339,19 @@ class PaymentController extends Controller
                             $invoice->save();
                         }
                     }
+                } elseif ($invoiceType == 'rider') {
+                    $invoices = RiderInvoices::whereIn('id', $invoiceIds)->get();
+
+                    foreach ($invoices as $invoice) {
+                        $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+
+                        if ($invoicePaymentAmount > 0) {
+                            $invoice->update([
+                                'status' => 1, // Paid
+                                'updated_by' => auth()->id(),
+                            ]);
+                        }
+                    }
                 } else {
                     $invoices = SupplierInvoices::whereIn('id', $invoiceIds)->get();
 
@@ -312,13 +366,13 @@ class PaymentController extends Controller
                                 $invoice->update([
                                     'status' => 'paid', // Paid
                                     'partial_paid_amount' => $partialAmount,
-                                    'updated_by' => auth()->id()
+                                    'updated_by' => auth()->id(),
                                 ]);
                             } else {
                                 $invoice->update([
                                     'status' => 'partially_paid', // Partially Paid
                                     'partial_paid_amount' => $partialAmount,
-                                    'updated_by' => auth()->id()
+                                    'updated_by' => auth()->id(),
                                 ]);
                             }
                         }
@@ -326,7 +380,7 @@ class PaymentController extends Controller
                 }
             }
 
-            $transCode = \App\Helpers\Account::trans_code();
+            $transCode = Account::trans_code();
             $date = $input['date_of_payment'];
             $billingMonth = $input['billing_month'];
             $desc = $input['description'];
@@ -361,28 +415,29 @@ class PaymentController extends Controller
 
             // 3. Handle bank charges if any
             if ($bankCharges > 0) {
+                $bankAccount = Accounts::find(HeadAccount::BANK_CHARGES);
                 // Debit the bank charges expense account
-                if ($request->input('bank_charges_account')) {
+                if ($bankAccount) {
                     Transactions::create([
                         'trans_code' => $transCode,
                         'trans_date' => $date,
                         'reference_id' => $payment->id,
                         'reference_type' => 'PV',
-                        'account_id' => $request->input('bank_charges_account'), // Expense account (debit)
+                        'account_id' => $bankAccount->id, // Expense account (debit)
                         'credit' => 0,
                         'debit' => $bankCharges,
                         'billing_month' => $billingMonth,
                         'branch_id' => $payment->branch_id,
-                        'narration' => 'Bank charges for ( ' . $payment->description . ' )',
+                        'narration' => 'Bank charges for ( '.$payment->description.' )',
                     ]);
                 } else {
                     DB::rollBack();
+
                     return response()->json([
-                        'message' => 'No Account Selected for Bank Charges',
+                        'message' => 'Bank Charges Account: '.HeadAccount::BANK_CHARGES.' not found. Please set it up before adding payments with bank charges.',
                     ], 500);
                 }
             }
-
 
             // Create voucher
             $voucherData = [
@@ -404,7 +459,7 @@ class PaymentController extends Controller
             // Handle attachment
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
-                $fileName = time() . '_' . $file->getClientOriginalName();
+                $fileName = time().'_'.$file->getClientOriginalName();
                 $file->storeAs('public/vouchers', $fileName);
                 $voucherData['attach_file'] = $fileName;
             }
@@ -421,22 +476,24 @@ class PaymentController extends Controller
 
             if ($request->ajax()) {
                 return response()->json([
-                    "message" => "Payment added successfully",
-                    'reload' => true
+                    'message' => 'Payment added successfully',
+                    'reload' => true,
                 ]);
             }
 
             Flash::success('Payment added successfully.');
+
             return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Payment creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            \Log::error('Payment creation failed: '.$e->getMessage()."\n".$e->getTraceAsString());
 
             if ($request->ajax()) {
-                return response()->json(['message' => "An error occurred: " . $e->getMessage()], 500);
+                return response()->json(['message' => 'An error occurred: '.$e->getMessage()], 500);
             }
 
-            Flash::error('Error occurred: ' . $e->getMessage());
+            Flash::error('Error occurred: '.$e->getMessage());
+
             return redirect()->back()->withInput();
         }
     }
@@ -446,8 +503,10 @@ class PaymentController extends Controller
         $payment = $this->paymentsRepository->find($id);
         if (empty($payment)) {
             Flash::error('Payment not found');
+
             return redirect(route('payments.index'));
         }
+
         return view('payments.show')->with('payment', $payment);
     }
 
@@ -459,6 +518,7 @@ class PaymentController extends Controller
                 return response()->json(['message' => 'Payment Not found'], 404);
             }
             Flash::error('Payment not found');
+
             return redirect()->back();
         }
         $invoices = null;
@@ -532,7 +592,7 @@ class PaymentController extends Controller
             $invoiceType = 'employee';
         }
         $banks = Banks::active()->get();
-        $payment->billing_month = \Carbon\Carbon::parse($payment->billing_month)->format('Y-m');
+        $payment->billing_month = Carbon::parse($payment->billing_month)->format('Y-m');
 
         return view('payments.edit', compact('payment', 'banks', 'accountIds', 'existingInvoices', 'invoices', 'invoiceType'));
     }
@@ -546,10 +606,11 @@ class PaymentController extends Controller
                 return response()->json(['message' => 'Payment Not Found'], 500);
             }
             Flash::error('Payment not found!');
+
             return redirect()->back();
         }
 
-        $request['billing_month'] = $request['billing_month'] . "-01";
+        $request['billing_month'] = $request['billing_month'].'-01';
 
         $rules = [
             'reference' => 'nullable|string|max:255',
@@ -593,11 +654,12 @@ class PaymentController extends Controller
 
         // Get the paying account (bank account)
         $bank = Banks::find($request->input('bank_id'));
-        if (!$bank) {
+        if (! $bank) {
             if ($request->ajax()) {
                 return response()->json(['message' => 'Selected bank not found'], 422);
             }
             Flash::error('Selected bank not found.');
+
             return redirect()->back()->withInput();
         }
         $payingAccountId = $bank->account_id;
@@ -685,11 +747,12 @@ class PaymentController extends Controller
             $hasNewAttachment = $request->hasFile('attachment');
 
             // If nothing changed, return early
-            if (!$paymentHasChanges && !$hasNewAttachment) {
+            if (! $paymentHasChanges && ! $hasNewAttachment) {
                 DB::commit();
+
                 return response()->json([
                     'message' => 'Nothing New Entered to Update',
-                    'reload' => true
+                    'reload' => true,
                 ], 200);
             }
 
@@ -734,7 +797,7 @@ class PaymentController extends Controller
             if ($paymentHasChanges) {
                 $payment->save();
 
-                if (!$payment->voucher) {
+                if (! $payment->voucher) {
                     throw new \Exception('Voucher not found for this payment');
                 }
 
@@ -776,7 +839,7 @@ class PaymentController extends Controller
 
                 // 3. Bank charges transaction (if any)
                 if ($bankCharges > 0) {
-                    if (!$request->input('bank_charges_account')) {
+                    if (! $request->input('bank_charges_account')) {
                         throw new \Exception('No Account Selected for Bank Charges');
                     }
 
@@ -790,7 +853,7 @@ class PaymentController extends Controller
                         'debit' => $bankCharges,
                         'billing_month' => $billingMonth,
                         'branch_id' => $payment->branch_id,
-                        'narration' => 'Bank charges for ( ' . $desc . ' )',
+                        'narration' => 'Bank charges for ( '.$desc.' )',
                     ]);
                 }
 
@@ -816,7 +879,7 @@ class PaymentController extends Controller
             // Handle attachment if provided (can be updated independently)
             if ($hasNewAttachment) {
                 $file = $request->file('attachment');
-                $fileName = time() . '_' . $file->getClientOriginalName();
+                $fileName = time().'_'.$file->getClientOriginalName();
                 $file->storeAs('public/vouchers', $fileName);
 
                 $payment->update(['attachment' => $fileName]);
@@ -830,25 +893,26 @@ class PaymentController extends Controller
 
             // Determine appropriate success message
             $message = 'Payment Updated Successfully';
-            if ($hasNewAttachment && !$paymentHasChanges) {
+            if ($hasNewAttachment && ! $paymentHasChanges) {
                 $message = 'File uploaded Successfully';
             }
 
             return response()->json([
                 'message' => $message,
-                'reload' => true
+                'reload' => true,
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Payment update failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            \Log::error('Payment update failed: '.$e->getMessage()."\n".$e->getTraceAsString());
 
             if ($request->ajax()) {
                 return response()->json([
-                    'message' => 'Error: ' . $e->getMessage()
+                    'message' => 'Error: '.$e->getMessage(),
                 ], 500);
             }
 
-            Flash::error('Error Occurred: ' . $e->getMessage());
+            Flash::error('Error Occurred: '.$e->getMessage());
+
             return redirect()->back()->withInput();
         }
     }
@@ -861,13 +925,14 @@ class PaymentController extends Controller
                 return response()->json(['message' => 'Payment Not Found!'], 500);
             }
             Flash::error('Payment not found!');
+
             return redirect()->back();
         } else {
             Transactions::where('trans_code', $payment->voucher->trans_code)->delete();
             Vouchers::where('id', $payment->voucher_id)->delete();
             if ($payment->amount_type == 'Cheque') {
                 // Also delete associated cheque record if payment was by cheque
-                $cheque = \App\Models\Cheques::where('voucher_id', $payment->voucher_id)->first();
+                $cheque = Cheques::where('voucher_id', $payment->voucher_id)->first();
                 if ($cheque) {
                     $cheque->update([
                         'status' => 'Issued',
@@ -955,6 +1020,7 @@ class PaymentController extends Controller
                 return response()->json(['message' => 'Payment Deleted successfully', 'reload' => true]);
             }
             Flash::success('Payment deleted successfully.');
+
             return redirect()->back();
         }
     }
@@ -968,11 +1034,12 @@ class PaymentController extends Controller
                 return response()->json(['message' => 'Payment Not found'], 404);
             }
             Flash::error('Payment not found');
+
             return redirect()->back();
         }
 
         $banks = Banks::active()->get();
-        $payment->billing_month = \Carbon\Carbon::parse($payment->billing_month)->format('Y-m');
+        $payment->billing_month = Carbon::parse($payment->billing_month)->format('Y-m');
         $payment->amount = $payment->amount - $payment->bank_charges;
 
         return view('payments.create', compact('payment', 'banks'));

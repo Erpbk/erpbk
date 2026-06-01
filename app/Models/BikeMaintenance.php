@@ -3,11 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
 class BikeMaintenance extends BaseModel
 {
     use HasFactory;
+
     public $table = 'bike_maintenances';
 
     public $fillable = [
@@ -32,44 +32,52 @@ class BikeMaintenance extends BaseModel
         'created_at',
         'updated_at',
         'deleted_at',
+        'branch_id',
     ];
 
-    protected $dates = [ 'delete_at'];
+    protected $dates = ['delete_at'];
 
     protected $casts = [
         'maintenance_date' => 'datetime',
-        'billing_month' =>'datetime',
+        'billing_month' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];
 
-    public function bike(){
-        return $this->belongsTo(Bikes::class,'bike_id','id');
+    public function bike()
+    {
+        return $this->belongsTo(Bikes::class, 'bike_id', 'id');
     }
 
-    public function rider(){
+    public function rider()
+    {
         return $this->belongsTo(Riders::class, 'rider_id', 'id');
     }
 
-    public function garage(){
+    public function garage()
+    {
         return $this->belongsTo(Garages::class, 'garage_id', 'id');
     }
 
-    public function maintenanceItems(){
-        return $this->hasMany(BikeMaintenanceItem::class,'bike_maintenance_id', 'id');
+    public function maintenanceItems()
+    {
+        return $this->hasMany(BikeMaintenanceItem::class, 'bike_maintenance_id', 'id');
     }
+
     public function rentalCompany()
     {
         return $this->belongsTo(BikeRentCompany::class, 'rental_company_id');
     }
 
-    public function CreatedBy(){
-        return $this->belongsTo(User::class,'created_by','id');
+    public function CreatedBy()
+    {
+        return $this->belongsTo(User::class, 'created_by', 'id');
     }
 
-    public function UpdatedBy(){
-        return $this->belongsTo(User::class,'updated_by','id');
+    public function UpdatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by', 'id');
     }
 
     public function getCostAttribute()

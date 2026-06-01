@@ -417,6 +417,10 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('riders/history/{id}', [RidersController::class, 'history'])->name('rider.history');
     Route::get('riders/contract/{id?}', [RidersController::class, 'contract'])->name('rider.contract');
     Route::any('riders/contract_upload/{id?}', [RidersController::class, 'contract_upload'])->name('rider_contract_upload');
+    Route::get('riders/{riderId}/agreements/modal', [App\Http\Controllers\AgreementGenerationController::class, 'modal'])->name('agreements.modal');
+    Route::get('riders/{riderId}/agreements/preview', [App\Http\Controllers\AgreementGenerationController::class, 'preview'])->name('agreements.preview');
+    Route::get('riders/{riderId}/agreements/pdf', [App\Http\Controllers\AgreementGenerationController::class, 'pdf'])->name('agreements.pdf');
+    Route::post('riders/{riderId}/agreements/email', [App\Http\Controllers\AgreementGenerationController::class, 'email'])->name('agreements.email');
     Route::any('riders/picture_upload/{id?}', [RidersController::class, 'picture_upload'])->name('rider_picture_upload');
     Route::any('riders/rider-document/{id}', [RidersController::class, 'document'])->name('rider.document');
     Route::get('rider/updateRider', [RidersController::class, 'updateRider'])->name('rider.updateRider');
@@ -454,6 +458,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('riders/penalty/{id}', [RidersController::class, 'penalty'])->name('riders.penalty');
     Route::get('riders/incentive/{id}', [RidersController::class, 'incentive'])->name('riders.incentive');
     Route::get('riders/payment/{id}', [RidersController::class, 'payment'])->name('riders.payment');
+    Route::get('rider/payments', [RidersController::class, 'payments'])->name('rider.payments');
     // Unified voucher modal (Advance Loan, COD, Penalty, Payment, Vendor Charges)
     Route::get('riders/voucher/{id}', [RidersController::class, 'voucher'])->name('riders.voucher');
     Route::post('riders/storevisaloan', [RidersController::class, 'storevisaloan'])->name('riders.storevisaloan');

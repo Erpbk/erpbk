@@ -4,275 +4,306 @@ namespace App\Imports;
 
 use App\Helpers\Account;
 use App\Helpers\Common;
-use App\Helpers\General;
 use App\Helpers\HeadAccount;
+use App\Models\Accounts;
 use App\Models\Items;
 use App\Models\RiderInvoiceItem;
 use App\Models\RiderInvoices;
 use App\Models\Riders;
 use App\Services\TransactionService;
-use Illuminate\Database\QueryException;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\ToModel;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
-use Carbon\Carbon;
 
 class ImportRiderInvoice implements ToCollection
 {
-  /**
-   * @param array $row
-   *
-   * @return \Illuminate\Database\Eloquent\Model|null
-   */
-  public function collection(Collection $rows)
-  {
-    // Ensure the sheet never exceeds 30 columns so item indexes stay stable
-    $maxColumns = 30;
-    $rows = $rows->map(function ($row) use ($maxColumns) {
-      $rowArray = is_array($row) ? $row : $row->toArray();
-      $trimmed = array_slice($rowArray, 0, $maxColumns);
-      return array_pad($trimmed, $maxColumns, null);
-    });
+    /**
+     * @param  array  $row
+     * @return Model|null
+     */
+    public function collection(Collection $rows)
+    {
+        $maxColumns = 30;
 
-    $itemStartIndex = 14;
-    $itemColumns = [];
-    for ($col = $itemStartIndex; $col < $maxColumns; $col++) {
-      $itemName = $rows[0][$col] ?? null;
-      if (!$itemName) {
-        continue;
-      }
-      $itemColumns[] = [
-        'name' => $itemName,
-        'index' => $col,
-      ];
-    }
-    $itemNames = array_column($itemColumns, 'name');
-    $itemIdMap = empty($itemNames)
-      ? []
-      : Items::whereIn('name', $itemNames)->pluck('id', 'name')->toArray();
-    $i = 1;
-    $importedInvoiceIds = [];
-    foreach ($rows as $row) {
-      $i++;
-      try {
-        DB::beginTransaction();
-        if ($row[1] != 'ID') {
-          if ($row[1] != '') {
-            $dateTimeObject = Date::excelToDateTimeObject($row[0]);
-            $invoice_date = Carbon::instance($dateTimeObject)->format('Y-m-d');
-            /*  if (!$invoice_date) {
-                 $invoice_date = date('Y-m-01', strtotime($row[0]));
-             } */
-            /* $Billingdate = Date::excelToDateTimeObject($row[10]);
-            $billing_month = Carbon::instance($Billingdate)->format('Y-m-01'); */
-            $billing_month = date('Y-m-01', strtotime($row[10]));
-            if ($billing_month == '1970-01-01') {
-              $Billingdate = Date::excelToDateTimeObject($row[10]);
-              $billing_month = Carbon::instance($Billingdate)->format('Y-m-01');
+        $rows = $rows->map(function ($row) use ($maxColumns) {
+            $rowArray = is_array($row) ? $row : $row->toArray();
+
+            return array_pad(array_slice($rowArray, 0, $maxColumns), $maxColumns, null);
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Item Columns
+        |--------------------------------------------------------------------------
+        */
+
+        $itemStartIndex = 14;
+        $itemColumns = [];
+
+        for ($col = $itemStartIndex; $col < $maxColumns; $col++) {
+            $itemName = trim($rows[0][$col] ?? '');
+
+            if ($itemName !== '') {
+                $itemColumns[$col] = $itemName;
             }
-            $rider = Riders::where('rider_id', $row[1])->first();
-            if (!$rider) {
-              throw ValidationException::withMessages(['file' => 'Row(' . $i . ') - Rider ID ' . $row[1] . ' do not match.']);
+        }
+
+        $itemIdMap = Items::whereIn('name', array_values($itemColumns))
+            ->where('status', 1)
+            ->select(['id', 'price', 'name'])
+            ->get()
+            ->keyBy('name');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Preload Riders
+        |--------------------------------------------------------------------------
+        */
+
+        $riderIds = $rows->pluck(1)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $riders = Riders::whereIn('rider_id', $riderIds)
+            ->get()
+            ->keyBy('rider_id');
+
+        $salaryAccountId = HeadAccount::SALARY_ACCOUNT;
+        if (! Accounts::find($salaryAccountId)) {
+            throw ValidationException::withMessages([
+                'file' => "Salary Expense Account (ID: {$salaryAccountId}) not found.",
+            ]);
+        }
+        $vatPercentage = Common::getSetting('vat_percentage');
+
+        $transactionService = new TransactionService;
+
+        foreach ($rows as $index => $row) {
+
+            if ($index === 0 || empty($row[1]) || $row[1] === 'ID') {
+                continue;
             }
-            $RID = $rider->id;
-            $VID = $rider->VID;
-            $zone = $row[5] ?? 'DXB';
-            //$VID = AssignVendorRider::where('RID', $RID)->value('VID');
-            if (isset($row[3])) {
-              // Check for duplicate invoice for same rider and billing month
-              $existingInvoice = RiderInvoices::where('rider_id', $RID)
-                ->where('billing_month', $billing_month)
-                ->first();
 
-              if ($existingInvoice) {
-                throw ValidationException::withMessages(['file' => 'Row(' . $i . ') - An invoice for rider ' . $row[1] . ' has already been generated for the selected billing month.']);
-              }
+            DB::transaction(function () use (
+                $row,
+                $riders,
+                $itemColumns,
+                $itemIdMap,
+                $salaryAccountId,
+                $vatPercentage,
+                $transactionService,
+                $index
+            ) {
 
-              // Map status from Excel: allow 'unpaid'/'paid' or 0/1
-              $excelStatus = strtolower(trim($row[12] ?? ''));
-              if ($excelStatus === 'paid' || $excelStatus === '1') {
-                $status = 1; // Paid
-              } else {
-                $status = 0; // Unpaid (default)
-              }
-              $ret = RiderInvoices::create([
-                'inv_date' => $invoice_date,
-                'rider_id' => $RID,
-                'vendor_id' => $VID,
-                'zone' => $zone,
-                'login_hours' => $row[4],
-                'working_days' => $row[6],
-                'perfect_attendance' => $row[7],
-                'rejection' => $row[3],
-                'performance' => $row[9],
-                'billing_month' => $billing_month,
-                'off' => $row[8],
-                'descriptions' => $row[11],
-                /*  'gaurantee' => $row[30], */
-                'notes' => $row[13],
-                'status' => $status,
-              ]);
-              foreach ($itemColumns as $itemData) {
-                $itemName = $itemData['name'];
-                $columnIndex = $itemData['index'];
-                $itemId = $itemIdMap[$itemName] ?? null;
-                if ($itemId) {
-                  $riderPrice = General::riderItemPrice($RID, $itemId);
-                  $qtyRaw = $row[$columnIndex] ?? 0;
-                  // Normalize quantity so values with decimals or thousand separators are handled
-                  if (is_string($qtyRaw)) {
-                    $normalizedQty = str_replace(',', '', trim($qtyRaw));
-                  } else {
-                    $normalizedQty = $qtyRaw;
-                  }
-                  $qty = (float) $normalizedQty;
-                  $rate = is_numeric($riderPrice) ? (float)$riderPrice : 0.0;
-                  $dta['item_id'] = $itemId;
-                  $dta['qty'] = $qty;
-                  $dta['rate'] = $rate;
-                  $dta['amount'] = $rate * $qty;
-                  $dta['inv_id'] = $ret->id;
-                  RiderInvoiceItem::create($dta);
+                /*
+                |--------------------------------------------------------------------------
+                | Dates
+                |--------------------------------------------------------------------------
+                */
+
+                $invoiceDate = Carbon::instance(
+                    Date::excelToDateTimeObject($row[0])
+                )->format('Y-m-d');
+
+                $billingMonth = date('Y-m-01', strtotime($row[10]));
+
+                if ($billingMonth === '1970-01-01') {
+                    $billingMonth = Carbon::instance(
+                        Date::excelToDateTimeObject($row[10])
+                    )->format('Y-m-01');
                 }
-              }
-              /* $k = 2;
-              foreach ($items as $itemm) {
-                  $itemIdd = Item::where('item_name', $itemm)->value('id');
-                  if($itemIdd) {
-                      $vendorPrice=CommonHelper::vendorItemPrice($VID, $itemIdd);
-                      $dtaa['item_id'] = $itemIdd;
-                      $dtaa['qty'] = $row[$k]??0;
-                      $dtaa['rate'] = $vendorPrice;
-                      $dtaa['amount'] = ($vendorPrice) * ($row[$k]);
-                      $dtaa['inv_id'] = $ret->id;
-                      VendorInvoiceItem::create($dtaa);
-                  }
-                  $k++;
-              } */
-              //$vendor_amount=VendorInvoiceItem::where('inv_id',$ret->id)->sum('amount');
-              //$profit=$vendor_amount-$rider_amount;
-              $total = RiderInvoiceItem::where('inv_id', $ret->id)->sum('amount');
-              $vat = 0;
-              if ($rider->vat == 1) {
-                $vat = $total * (Common::getSetting('vat_percentage') / 100);
-                $total = $total + $vat;
-              }
-              RiderInvoices::where('id', $ret->id)->update(['total_amount' => $total, 'vat' => $vat]);
-              if ($status == 0) {
-                $rider_amount = RiderInvoiceItem::where('inv_id', $ret->id)->sum('amount');
-                $trans_code = Account::trans_code();
-                $transactionService = new TransactionService();
+
+                /*
+                |--------------------------------------------------------------------------
+                | Rider
+                |--------------------------------------------------------------------------
+                */
+
+                $rider = $riders[$row[1]] ?? null;
+
+                if (! $rider) {
+                    throw ValidationException::withMessages([
+                        'file' => 'Row('.($index + 1).") - Rider ID {$row[1]} not found.",
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Duplicate Check
+                |--------------------------------------------------------------------------
+                */
+
+                $exists = RiderInvoices::where('rider_id', $rider->id)
+                    ->where('billing_month', $billingMonth)
+                    ->exists();
+
+                if ($exists) {
+                    throw ValidationException::withMessages([
+                        'file' => 'Row('.($index + 1).") - Invoice already exists for Rider {$row[1]}.",
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Status
+                |--------------------------------------------------------------------------
+                */
+
+                $excelStatus = strtolower(trim($row[12] ?? ''));
+
+                $status = in_array($excelStatus, ['paid', '1']) ? 1 : 0;
+
+                /*
+                |--------------------------------------------------------------------------
+                | Create Invoice
+                |--------------------------------------------------------------------------
+                */
+
+                $invoice = RiderInvoices::create([
+                    'inv_date' => $invoiceDate,
+                    'rider_id' => $rider->id,
+                    'vendor_id' => $rider->VID,
+                    'zone' => $row[5] ?? 'DXB',
+                    'login_hours' => $row[4],
+                    'working_days' => $row[6],
+                    'perfect_attendance' => $row[7],
+                    'rejection' => $row[3],
+                    'performance' => $row[9],
+                    'billing_month' => $billingMonth,
+                    'off' => $row[8],
+                    'descriptions' => $row[11],
+                    'notes' => $row[13],
+                    'status' => $status,
+                    'branch_id' => $rider->branch_id,
+                ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Invoice Items
+                |--------------------------------------------------------------------------
+                */
+
+                $itemsData = [];
+                $subtotal = 0;
+
+                foreach ($itemColumns as $columnIndex => $itemName) {
+
+                    $item = $itemIdMap->get($itemName);
+                    $itemId = $item?->id ?? null;
+
+                    if (! $itemId) {
+                        throw ValidationException::withMessages([
+                            'file' => "Item '{$itemName}' not found.",
+                        ]);
+                    }
+
+                    $qty = (float) str_replace(',', '', $row[$columnIndex] ?? 0);
+
+                    if ($qty <= 0) {
+                        continue;
+                    }
+
+                    $rate = $item?->price ?? 1;
+
+                    $amount = $qty * $rate;
+
+                    $subtotal += $amount;
+
+                    $itemsData[] = [
+                        'inv_id' => $invoice->id,
+                        'item_id' => $itemId,
+                        'qty' => $qty,
+                        'rate' => $rate,
+                        'amount' => $amount,
+                        'branch_id' => $rider->branch_id,
+                        'company_id' => $rider->company_id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+
+                if (! empty($itemsData)) {
+                    RiderInvoiceItem::insert($itemsData);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | VAT + Total
+                |--------------------------------------------------------------------------
+                */
+
+                $vat = 0;
+
                 if ($rider->vat == 1) {
-                  $transactionData = [
-                    'account_id' => HeadAccount::TAX_ACCOUNT,
-                    'reference_id' => $ret->id,
-                    'reference_type' => 'Invoice',
-                    'trans_code' => $trans_code,
-                    'trans_date' => $invoice_date,
-                    'narration' => "Rider Invoice #" . $ret->id . ' - ' . $row[11],
-                    'debit' => $vat ?? 0,
-                    'billing_month' => date("Y-m-01", strtotime($row[10])),
-                  ];
-                  $transactionService->recordTransaction($transactionData);
+                    $vat = ($subtotal * $vatPercentage) / 100;
                 }
-                $transactionData = [
-                  'account_id' => $rider->account_id,
-                  'reference_id' => $ret->id,
-                  'reference_type' => 'Invoice',
-                  'trans_code' => $trans_code,
-                  'trans_date' => $invoice_date,
-                  'narration' => "Rider Invoice #" . $ret->id . ' - ' . $row[11],
-                  'debit' => 0,
-                  'credit' => $total ?? 0,
-                  'billing_month' => date("Y-m-01", strtotime($row[10])),
-                ];
-                $transactionService->recordTransaction($transactionData);
-                $ret->total_amount = $total;
-                $ret->subtotal = $rider_amount;
-                $ret->vat = $vat;
-                $ret->save();
-                $importedInvoiceIds[] = $ret->id;
-              }
-              // creating Vendor Voucher for Bike rent and Sim charges
-              /* if ($row[31]) {
-                $Vdata['billing_month'] = $data['billing_month'];
-                $Vdata['trans_acc_id'] = $data['trans_acc_id'];
-                $Vdata['trans_date'] = $data['trans_date'];
-                $Vdata['amount'] = $row[31];
-                $Vdata['narration'] = "Bike & Sim Charges";
-                $Vdata['voucher_type'] = 9;
-                $Vdata['payment_from'] = 811; //Account ID
-                $Vdata['payment_type'] = 1; //dr/cr
-                Account::CreatVoucher($Vdata);
-              }
-              //creating Fuel Voucher
-              if ($row[32]) {
-                $Vdata['billing_month'] = $data['billing_month'];
-                $Vdata['trans_acc_id'] = $data['trans_acc_id'];
-                $Vdata['trans_date'] = $data['trans_date'];
-                $Vdata['amount'] = $row[32];
-                $Vdata['narration'] = $row[33];
-                $Vdata['voucher_type'] = 11;
-                $Vdata['payment_from'] = 617; //Account ID
-                $Vdata['payment_type'] = 1; //dr/cr
-                Account::CreatVoucher($Vdata);
-              }
-              // creating RTA Voucher
-              if ($row[34]) {
-                $Vdata['billing_month'] = $data['billing_month'];
-                $Vdata['trans_acc_id'] = $data['trans_acc_id'];
-                $Vdata['trans_date'] = $data['trans_date'];
-                $Vdata['amount'] = $row[34];
-                $Vdata['narration'] = $row[35];
-                $Vdata['voucher_type'] = 8;
-                $Vdata['payment_from'] = 425; //Account ID
-                $Vdata['payment_type'] = 1; //dr/cr
-                Account::CreatVoucher($Vdata);
 
-              } */
-            }
-          }
+                $total = $subtotal + $vat;
+
+                $invoice->update([
+                    'subtotal' => $subtotal,
+                    'vat' => $vat,
+                    'total_amount' => $total,
+                ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Transactions
+                |--------------------------------------------------------------------------
+                */
+
+                if ($status == 0) {
+
+                    $transCode = Account::trans_code();
+
+                    // VAT Debit
+                    if ($vat > 0) {
+
+                        $transactionService->recordTransaction([
+                            'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
+                            'reference_id' => $invoice->id,
+                            'reference_type' => 'Invoice',
+                            'trans_code' => $transCode,
+                            'trans_date' => $invoiceDate,
+                            'narration' => 'VAT - Rider Invoice #'.$invoice->id,
+                            'debit' => $vat,
+                            'credit' => 0,
+                            'billing_month' => $billingMonth,
+                        ]);
+                    }
+
+                    // Credit Rider
+                    $transactionService->recordTransaction([
+                        'account_id' => $rider->account_id,
+                        'reference_id' => $invoice->id,
+                        'reference_type' => 'Invoice',
+                        'trans_code' => $transCode,
+                        'trans_date' => $invoiceDate,
+                        'narration' => 'Rider Invoice #'.$invoice->id,
+                        'debit' => 0,
+                        'credit' => $total,
+                        'billing_month' => $billingMonth,
+                    ]);
+
+                    // Debit Salary Account
+                    $transactionService->recordTransaction([
+                        'account_id' => $salaryAccountId,
+                        'reference_id' => $invoice->id,
+                        'reference_type' => 'Invoice',
+                        'trans_code' => $transCode,
+                        'trans_date' => $invoiceDate,
+                        'narration' => 'Salary Debit - Rider Invoice #'.$invoice->id,
+                        'debit' => $total,
+                        'credit' => 0,
+                        'billing_month' => $billingMonth,
+                    ]);
+                }
+            });
         }
-        DB::commit();
-      } catch (QueryException $e) {
-        DB::rollBack();
-        throw $e;
-      }
     }
-    if (!empty($importedInvoiceIds)) {
-      $transactionService = new TransactionService();
-      $salary_account = \App\Support\CompanyQuery::table('accounts')->where('id', 1103)->first();
-      foreach ($importedInvoiceIds as $invoiceId) {
-        $invoice = RiderInvoices::find($invoiceId);
-        if (!$invoice || !$salary_account) {
-          continue;
-        }
-        // Skip if a salary debit already exists for this invoice to avoid duplicates
-        $alreadyExists = \App\Support\CompanyQuery::table('transactions')
-          ->where('reference_type', 'Invoice')
-          ->where('reference_id', $invoice->id)
-          ->where('account_id', $salary_account->id)
-          ->exists();
-        if ($alreadyExists) {
-          continue;
-        }
-        $transactionDataDebit = [
-          'account_id' => $salary_account->id,
-          'reference_id' => $invoice->id,
-          'reference_type' => 'Invoice',
-          'trans_code' => Account::trans_code(),
-          'trans_date' => $invoice->inv_date,
-          'narration' => 'Rider Invoice #' . $invoice->id . ' Salary Debit',
-          'debit' => $invoice->total_amount,
-          'credit' => 0,
-          'billing_month' => $invoice->billing_month,
-        ];
-        $transactionService->recordTransaction($transactionDataDebit);
-      }
-    }
-  }
 }

@@ -70,6 +70,9 @@ class BikeMaintenanceController extends Controller
         }
         DB::beginTransaction();
         try {
+            if ($bike->rentalCompany?->customer_type == 'garage' && $garage->garage_type == 'external') {
+                throw new \Exception('Cannot perform maintenance for a garage customer in an external garage. Please select an internal garage.');
+            }
             $this->validateFinancials($request);
             $bike->update([
                 'previous_km' => $validated['current_km'],
@@ -119,6 +122,8 @@ class BikeMaintenanceController extends Controller
                                         'total_cost' => $purchase->unit_cost * $qty_from_this_purchase,
                                         'profit' => ($request->rate[$index] * $qty_from_this_purchase) - ($purchase->unit_cost * $qty_from_this_purchase),
                                         'charge_to' => $request->charge_to[$index],
+                                        'branch_id' => $bike->branch_id,
+                                        'company_id' => $bike->company_id,
                                         'created_at' => now(),
                                         'updated_at' => now(),
                                     ];
@@ -138,6 +143,8 @@ class BikeMaintenanceController extends Controller
                                         'total_cost' => $purchase->unit_cost * $qty_from_this_purchase,
                                         'profit' => 0,
                                         'charge_to' => $request->charge_to[$index],
+                                        'branch_id' => $bike->branch_id,
+                                        'company_id' => $bike->company_id,
                                         'created_at' => now(),
                                         'updated_at' => now(),
                                     ];
@@ -160,6 +167,8 @@ class BikeMaintenanceController extends Controller
                                 'total_cost' => $item->cost * $request->rate[$index],
                                 'profit' => ($request->rate[$index] * $request->quantity[$index]) - ($item->cost * $request->rate[$index]),
                                 'charge_to' => $request->charge_to[$index],
+                                'branch_id' => $bike->branch_id,
+                                'company_id' => $bike->company_id,
                                 'created_at' => now(),
                                 'updated_at' => now(),
                             ];
@@ -181,14 +190,19 @@ class BikeMaintenanceController extends Controller
                             'vat_amount' => $request->vat_amount[$index] ?? 0,
                             'total_amount' => $request->item_total[$index] ?? 0,
                             'charge_to' => $request->charge_to[$index],
+                            'branch_id' => $bike->branch_id,
+                            'company_id' => $bike->company_id,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ];
                     }
                 }
                 BikeMaintenanceItem::insert($rows);
+                \Log::info('rows: ', $rows);
+                \Log::info('items: ', BikeMaintenanceItem::latest()->take(2)->get()->toArray());
             }
             $maintenance->update(['total_cost' => $maintenance->cost]);
+            \Log::info('Maintenance created with data', BikeMaintenance::latest()->first()->toArray());
             $data = $this->billData($maintenance);
             if (! empty($data['missing'])) {
                 throw new \Exception(implode('. ', $data['missing']));
@@ -206,7 +220,6 @@ class BikeMaintenanceController extends Controller
                 'An error occured while creating bike maintenance record',
                 [
                     'message' => $e->getMessage(),
-                    'trace' => $e->getTrace(),
                 ]
             );
 

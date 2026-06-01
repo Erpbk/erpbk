@@ -2,81 +2,101 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RiderInvoices extends BaseModel
 {
-    use SoftDeletes, LogsActivity;
+    use LogsActivity, SoftDeletes;
 
-  public $table = 'rider_invoices';
+    public $table = 'rider_invoices';
 
-  public $fillable = [
-    'inv_date',
-    'rider_id',
-    'vendor_id',
-    'zone',
-    'login_hours',
-    'working_days',
-    'perfect_attendance',
-    'rejection',
-    'performance',
-    'off',
-    'month_invoice',
-    'descriptions',
-    'total_amount',
-    'vat',
-    'subtotal',
-    'billing_month',
-    'gaurantee',
-    'notes',
-    'status',
-    'deleted_by'
-  ];
+    public $fillable = [
+        'company_id',
+        'branch_id',
+        'inv_date',
+        'rider_id',
+        'vendor_id',
+        'zone',
+        'login_hours',
+        'working_days',
+        'perfect_attendance',
+        'rejection',
+        'performance',
+        'off',
+        'month_invoice',
+        'descriptions',
+        'total_amount',
+        'vat',
+        'subtotal',
+        'billing_month',
+        'gaurantee',
+        'notes',
+        'status',
+        'deleted_by',
+    ];
 
-  protected $casts = [
-    'inv_date' => 'date',
-    'zone' => 'string',
-    'perfect_attendance' => 'float',
-    'performance' => 'string',
-    'off' => 'string',
-    'descriptions' => 'string',
-    'total_amount' => 'float',
-    //'billing_month' => 'date',
-    'gaurantee' => 'string',
-    'notes' => 'string',
-    'status' => 'integer'
-  ];
+    protected $casts = [
+        'inv_date' => 'date',
+        'zone' => 'string',
+        'perfect_attendance' => 'float',
+        'performance' => 'string',
+        'off' => 'string',
+        'descriptions' => 'string',
+        'total_amount' => 'float',
+        // 'billing_month' => 'date',
+        'gaurantee' => 'string',
+        'notes' => 'string',
+        'status' => 'integer',
+    ];
 
-  public static array $rules = [
-    'inv_date' => 'required',
-    'rider_id' => 'required',
-    'vendor_id' => 'nullable',
-    'zone' => 'required|string|max:191',
-    'login_hours' => 'required',
-    'working_days' => 'required',
-    'perfect_attendance' => 'required|numeric',
-    'rejection' => 'required',
-    'performance' => 'required|string|max:20',
-    'off' => 'required|string|max:20',
-    'month_invoice' => 'nullable',
-    'descriptions' => 'nullable|string|max:65535',
-    'total_amount' => 'nullable|numeric',
-    'created_at' => 'nullable',
-    'updated_at' => 'nullable',
-    'billing_month' => 'required',
-    'gaurantee' => 'nullable|string|max:255',
-    'notes' => 'nullable|string|max:500'
-  ];
+    public function getBalanceAttribute()
+    {
+        $rider = $this->rider;
+        if (! $rider) {
+            return $this->total_amount;
+        }
 
-  public function rider()
-  {
-    return $this->belongsTo(Riders::class);
-    //return $this->hasOne(Riders::class, 'id', 'rider_id');
-  }
-  public function items()
-  {
-    return $this->hasMany(RiderInvoiceItem::class, 'inv_id', 'id');
-  }
+        return Transactions::where('account_id', $rider->account_id)
+            ->where('trans_date', '<=', now())
+            ->selectRaw('COALESCE(SUM(credit), 0) - COALESCE(SUM(debit), 0) as balance')
+            ->value('balance');
+    }
+
+    public function getInvoiceNumberAttribute()
+    {
+        return 'RINV-'.str_pad($this->id, 4, '0', STR_PAD_LEFT);
+    }
+
+    public static array $rules = [
+        'inv_date' => 'required',
+        'rider_id' => 'required',
+        'vendor_id' => 'nullable',
+        'zone' => 'required|string|max:191',
+        'login_hours' => 'required',
+        'working_days' => 'required',
+        'perfect_attendance' => 'required|numeric',
+        'rejection' => 'required',
+        'performance' => 'required|string|max:20',
+        'off' => 'required|string|max:20',
+        'month_invoice' => 'nullable',
+        'descriptions' => 'nullable|string|max:65535',
+        'total_amount' => 'nullable|numeric',
+        'created_at' => 'nullable',
+        'updated_at' => 'nullable',
+        'billing_month' => 'required',
+        'gaurantee' => 'nullable|string|max:255',
+        'notes' => 'nullable|string|max:500',
+    ];
+
+    public function rider()
+    {
+        return $this->belongsTo(Riders::class, 'rider_id');
+        // return $this->hasOne(Riders::class, 'id', 'rider_id');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(RiderInvoiceItem::class, 'inv_id', 'id');
+    }
 }

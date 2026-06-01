@@ -65,8 +65,26 @@
                         </tr>
                         <tr>
                             <td><strong>Current Status:</strong></td>
-                            <td><span class="badge bg-danger">Unpaid</span></td>
+                            <td>
+                                @if($invoice->status == 1)
+                                <span class="badge bg-success">Paid</span>
+                                @elseif($invoice->status == 3)
+                                <span class="badge bg-warning">Partially Paid</span>
+                                @else
+                                <span class="badge bg-danger">Unpaid</span>
+                                @endif
+                            </td>
                         </tr>
+                        @if($invoice->paid_amount > 0)
+                        <tr>
+                            <td><strong>Amount Paid:</strong></td>
+                            <td><span class="badge bg-info fs-6">{{ \App\Helpers\Currency::format($invoice->paid_amount, 2) }}</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Amount Due:</strong></td>
+                            <td><span class="badge bg-warning fs-6">{{ \App\Helpers\Currency::format(max($invoice->total_amount - $invoice->paid_amount, 0), 2) }}</span></td>
+                        </tr>
+                        @endif
                     </table>
                 </div>
             </div>
@@ -99,12 +117,17 @@
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label>Payment Amount</label>
-                            <input type="text" class="form-control"
-                                value="{{ \App\Helpers\Currency::format($invoice->total_amount, 2) }}"
-                                readonly>
+                            <label for="payment_amount" class="required">Payment Amount <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" min="0.01"
+                                class="form-control @error('payment_amount') is-invalid @enderror"
+                                id="payment_amount" name="payment_amount"
+                                value="{{ old('payment_amount', max($invoice->total_amount - ($invoice->paid_amount ?? 0), 0)) }}"
+                                required>
+                            @error('payment_amount')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                             <small class="form-text text-muted">
-                                This amount will be debited from rider's account and credited to the selected bank account.
+                                Enter the amount to pay against this invoice. Partial payments are supported and will mark the invoice as partially paid until fully settled.
                             </small>
                         </div>
                     </div>
@@ -115,10 +138,11 @@
                         <div class="alert alert-info">
                             <h6><i class="fas fa-info-circle"></i> Payment Process:</h6>
                             <ul class="mb-0">
-                                <li>Invoice status will be changed from "Unpaid" to "Paid"</li>
-                                <li>Rider's account will be debited with {{ \App\Helpers\Currency::format($invoice->total_amount, 2) }}</li>
-                                <li>Selected bank account will be credited with {{ \App\Helpers\Currency::format($invoice->total_amount, 2) }}</li>
-                                <li>A voucher entry will be created for this transaction</li>
+                                <li>If the payment is less than the invoice total, the invoice will be marked as "Partially Paid".</li>
+                                <li>If the payment covers the remaining balance, the invoice will be marked as "Paid".</li>
+                                <li>Rider's account will be debited with the entered payment amount.</li>
+                                <li>Selected bank account will be credited with the entered payment amount.</li>
+                                <li>A voucher entry will be created for this payment.</li>
                             </ul>
                         </div>
                     </div>
@@ -126,7 +150,7 @@
 
                 <div class="form-group mt-4">
                     <button type="submit" class="btn btn-success btn-lg">
-                        <i class="fas fa-check-circle"></i> Mark as Paid
+                        <i class="fas fa-check-circle"></i> Record Payment
                     </button>
                     <a href="{{ route('riderInvoices.index') }}" class="btn btn-secondary btn-lg">
                         <i class="fas fa-times"></i> Cancel

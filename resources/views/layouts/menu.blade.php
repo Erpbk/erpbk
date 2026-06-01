@@ -249,6 +249,14 @@ $homeLink = $isAdminLogin
       </a>
     </li>
     @endcan
+    @can('payments_view')
+    <li class="menu-item {{ Route::is('rider.payments') ? 'active' : '' }}">
+      <a href="{{ route('rider.payments') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-wallet"></i>
+        <div>{{ $menuLabels['payments_sent'] ?? 'Payments Sent' }}</div>
+      </a>
+    </li>
+    @endcan
     <li class="menu-item {{ Route::is('riderActivities*') ? 'active' : '' }}">
       <a href="{{ route('riderActivities.index') }}" class="menu-link ">
         @include('layouts.partials.module_menu_icon', ['key' => 'activities'])

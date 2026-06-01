@@ -1,147 +1,147 @@
 @extends('layouts.app')
-
 @section('title','Rider Invoices')
+@push('third_party_stylesheets')
+<style>
+    .table-responsive {
+        max-height: calc(100vh - 280px);
+    }
+</style>
+@endpush
 @section('content')
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
-<section class="content-header">
-    <div class="container-fluid">
-        <div class="row mb-2">
-            <div class="col-sm-6">
-                <h3>Rider Invoices</h3>
-            </div>
-            <div class="col-sm-6">
-                <a class="btn btn-success action-btn show-modal mx-2"
-                    href="javascript:void(0);" data-size="sm" data-title="Import Rider Invoices" data-action="{{ route('rider.invoice_import') }}">
-                    Import Invoices
-                </a>
-
-                <a class="btn btn-warning action-btn show-modal mx-2"
-                    href="javascript:void(0);" data-size="sm" data-title="Import Paid Invoices" data-action="{{ route('riderInvoices.importPaid') }}">
-                    Import Paid Invoices
-                </a>
-
-                <a class="btn btn-primary action-btn show-modal"
-                    href="javascript:void(0);" data-size="xl" data-title="Create Rider Invoice" data-action="{{ route('riderInvoices.create') }}">
-                    Create Invoice
-                </a>
-                <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Filter Rider Invoice</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<section class="content-header ">
+    @include('flash::message')
+    <div>
+        <div class="row my-3">
+            <div class="col-sm-12 col-lg-12">
+                <div class="action-buttons d-flex justify-content-end" >
+                <div class="action-dropdown-container">
+                    <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                        <i class="ti ti-plus"></i>
+                        <span>Add New</span>
+                        <i class="ti ti-chevron-down"></i>
+                    </button>
+                    <div class="action-dropdown-menu" id="addBikeDropdown">
+                        @can('riderinvoice_create')
+                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Rider Invoice" data-action="{{ route('riderInvoices.create') }}">
+                            <i class="ti ti-plus"></i>
+                            <div>
+                                <div class="action-dropdown-item-text">New</div>
+                                <div class="action-dropdown-item-desc">Add New Invoice</div>
                             </div>
-                            <div class="modal-body" id="searchTopbody">
-                                <form id="filterForm" action="{{ route('riderInvoices.index') }}" method="GET">
-                                    <div class="row">
-                                        <div class="form-group col-md-4">
-                                            <label for="name">ID</label>
-                                            <input type="text" name="id" class="form-control" placeholder="Filter By ID" value="{{ request('id') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="rider_id">Filter by Rider</label>
-                                            <select class="form-control " id="rider_id" name="rider_id">
-                                                @php
-                                                $riderid = company_table('rider_invoices')
-                                                ->whereNotNull('rider_id')
-                                                ->where('rider_id', '!=', '')
-                                                ->pluck('rider_id')
-                                                ->unique();
-                                                $riders = company_table('riders')
-                                                ->whereIn('id', $riderid)
-                                                ->select('rider_id', 'name', 'id')
-                                                ->get();
-                                                @endphp
-                                                <option value="" selected>Select</option>
-                                                @foreach($riders as $rider)
-                                                <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->id ? 'selected' : '' }}>{{ $rider->rider_id . '-' . $rider->name}}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="billing_month">Billing Month</label>
-                                            <input type="month" name="billing_month" class="form-control" placeholder="Filter By Billing Month" value="{{ request('billing_month') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="vendor_id">Filter by Vendors</label>
-                                            <select class="form-control " id="vendor_id" name="vendor_id">
-                                                @php
-                                                $vendorid = company_table('rider_invoices')
-                                                ->whereNotNull('vendor_id')
-                                                ->where('vendor_id', '!=', '')
-                                                ->pluck('vendor_id')
-                                                ->unique();
-
-                                                $vendors = company_table('vendors')
-                                                ->whereIn('id', $vendorid)
-                                                ->select('id', 'name')
-                                                ->get();
-                                                @endphp
-                                                <option value="" selected>Select</option>
-                                                @foreach($vendors as $vendor)
-                                                <option value="{{ $vendor->id }}" {{ request('vendor_id') == $vendor->id ? 'selected' : '' }}>{{ $vendor->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="zone">Filter by Zone</label>
-                                            <select class="form-control " id="zone" name="zone">
-                                                @php
-                                                $zones = company_table('rider_invoices')
-                                                ->whereNotNull('zone')
-                                                ->where('zone', '!=', '')
-                                                ->pluck('zone')
-                                                ->unique();
-                                                @endphp
-                                                <option value="" selected>Select</option>
-                                                @foreach($zones as $zone)
-                                                <option value="{{ $zone }}" {{ request('zone') == $zone ? 'selected' : '' }}>{{ $zone}}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="performance">Filter by Performance</label>
-                                            <select class="form-control " id="performance" name="performance">
-                                                @php
-                                                $performances = company_table('rider_invoices')
-                                                ->whereNotNull('performance')
-                                                ->where('performance', '!=', '')
-                                                ->pluck('performance')
-                                                ->unique();
-                                                @endphp
-                                                <option value="" selected>Select</option>
-                                                @foreach($performances as $performance)
-                                                <option value="{{ $performance }}" {{ request('performance') == $performance ? 'selected' : '' }}>{{ $performance}}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="status">Filter by Status</label>
-                                            <select class="form-control " id="status" name="status">
-                                                <option value="">Select</option>
-                                                <option value="1" {{ request('status') == 1 ? 'selected' : '' }}>Paid</option>
-                                                <option value="0" {{ request('status') == 0 ? 'selected' : '' }}>Unpaid</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-12 form-group text-center">
-                                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                                        </div>
-                                    </div>
-                                </form>
+                        </a>
+                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Invoices" data-action="{{ route('rider.invoice_import') }}">
+                            <i class="ti ti-plus"></i>
+                            <div>
+                                <div class="action-dropdown-item-text">Import</div>
+                                <div class="action-dropdown-item-desc">Import Invoices</div>
                             </div>
-                        </div>
+                        </a>
+                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Import Paid Invoices" data-action="{{ route('riderInvoices.importPaid') }}">
+                            <i class="ti ti-plus"></i>
+                            <div>
+                                <div class="action-dropdown-item-text">Paid Vouchers</div>
+                                <div class="action-dropdown-item-desc">Import Payment vouchers</div>
+                            </div>
+                        </a>
+                        @endcan
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     </div>
 </section>
-<div class="content px-3">
+<div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+        <div class="filter-header">
+            <h5>Filter Invoices</h5>
+            <button type="button" class="btn-close" id="closeSidebar"></button>
+        </div>
+        <div class="filter-body" id="searchTopbody">
+            <form id="filterForm" action="{{ route('riderInvoices.index') }}" method="GET">
+                @csrf
+                <div class="row">
+                    <div class="form-group col-md-12 col-sm-12">
+                        <label for="name">ID</label>
+                        <input type="text" name="id" class="form-control" placeholder="Filter By ID" value="{{ request('id') }}">
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="rider_id">Filter by Rider</label>
+                        <select class="form-control " id="rider_id" name="rider_id">
+                            @php
+                            $riders = \App\Models\Riders::active()
+                            ->select('rider_id', 'name', 'id')
+                            ->get();
+                            @endphp
+                            <option value="" selected>Select</option>
+                            @foreach($riders as $rider)
+                                <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->id ? 'selected' : '' }}>{{ $rider->rider_id . '-' . $rider->name}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="billing_month">Billing Month</label>
+                        <input type="month" name="billing_month" class="form-control" placeholder="Filter By Billing Month" value="{{ request('billing_month') }}">
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="zone">Filter by Zone</label>
+                        <select class="form-control " id="zone" name="zone">
+                            @php
+                            $zones = company_table('rider_invoices')
+                            ->whereNotNull('zone')
+                            ->where('zone', '!=', '')
+                            ->pluck('zone')
+                            ->unique();
+                            @endphp
+                            <option value="">Select</option>
+                            @foreach($zones as $zone)
+                                <option value="{{ $zone }}" {{ request('zone') == $zone ? 'selected' : '' }}>{{ $zone}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="performance">Filter by Performance</label>
+                        <select class="form-control " id="performance" name="performance">
+                            @php
+                            $performances = company_table('rider_invoices')
+                            ->whereNotNull('performance')
+                            ->where('performance', '!=', '')
+                            ->pluck('performance')
+                            ->unique();
+                            @endphp
+                            <option value="">Select</option>
+                            @foreach($performances as $performance)
+                                <option value="{{ $performance }}" {{ request('performance') == $performance ? 'selected' : '' }}>{{ $performance}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="status">Status</label>
+                        <select class="form-control " id="status" name="status">
+                            <option value="" selected>Select</option>
+                            <option value='1' >Active</option>
+                            <option value='0' >Inactive</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12 form-group text-center">
+                        <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+<div class="content">
     @include('flash::message')
     <div class="clearfix"></div>
     <div class="card">
+        <div class="card-header text-end">
+            <button id="deleteSelectedBtn" class="btn btn-danger me-2" style="display: none;" onclick="deleteSelectedInvoices()">
+                <i class="fa fa-trash"></i> Delete Selected
+            </button>
+            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
+        </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
             @include('rider_invoices.table', [
             'data' => $data,

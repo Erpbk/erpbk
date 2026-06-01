@@ -3,11 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
 class BikeMaintenanceItem extends BaseModel
 {
     use HasFactory;
+
     protected $table = 'bike_maintenance_items';
 
     public $fillable = [
@@ -21,6 +21,8 @@ class BikeMaintenanceItem extends BaseModel
         'vat_amount',
         'total_amount',
         'charge_to',
+        'branch_id',
+        'company_id',
     ];
 
     protected $casts = [

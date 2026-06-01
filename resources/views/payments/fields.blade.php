@@ -111,6 +111,16 @@
                 {!! Form::number('amount', isset($payment) ? ($payment->amount - $payment->bank_charges) : null, ['class' => 'form-control cr_amount', 'step' => 'any', 'placeholder' => 'Enter amount', 'id' => 'payment_amount']) !!}
             </div>
         </div>
+        
+        <div class="form-group col-md-3">
+            {!! Form::label('bank_charges', 'Bank Charges:') !!}
+            <div class="input-group">
+                <div class="input-group-prepend">
+                    <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
+                </div>
+                {!! Form::number('bank_charges', null, ['class' => 'form-control bank_charges', 'step' => 'any', 'placeholder' => 'Enter bank charges', 'id' => 'bank_charges', 'min' => '0']) !!}
+            </div>
+        </div>
     </div>
 
     <!-- Invoice Selection Section -->
@@ -131,6 +141,8 @@
                                 <th>Supplier</th>
                             @elseif($invoiceType == 'employee')
                                 <th>Employee</th>
+                            @elseif($invoiceType == 'rider')
+                                <th>Rider</th>
                             @else
                                 <th>Leasing Company</th>
                             @endif
@@ -145,27 +157,27 @@
                         @if(isset($existingInvoices) && $existingInvoices->count() > 0)
                             @foreach($existingInvoices as $invoice)
                             <tr data-invoice-id="{{ $invoice->id }}"
-                                data-balance="{{ $invoice->balance + ($invoice->partial_paid_amount[$payment->id] ?? 0) }}" 
-                                data-reference="{{ $invoice->invoice_number }}" 
-                                data-old-payment="{{ $invoice->partial_paid_amount[$payment->id] ?? 0 }}"
-                                data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id }}"
-                                data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name }}">
+                                data-balance="{{ $invoice->balance + ($invoice->partial_paid_amount[optional($payment)->id] ?? 0) }}" 
+                                data-reference="{{ $invoice->invoice_number ?? $invoice->id }}" 
+                                data-old-payment="{{ $invoice->partial_paid_amount[optional($payment)->id] ?? 0 }}"
+                                data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id ?? optional($invoice->rider)->id }}"
+                                data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name }}">
                                 <td class="text-center">
                                     <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" checked>
                                 </td>
-                                <td>{{ $invoice->invoice_number }}</td>
-                                <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? '-' }}</td>
+                                <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
+                                <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? '-' }}</td>
                                 <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                                 <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
-                                <td class="text-right">{{ number_format(($invoice->paid_amount ?? 0) - ($invoice->partial_paid_amount[$payment->id] ?? 0), 2) }}</td>
-                                <td class="text-right text-danger">{{ number_format(($invoice->balance ?? 0) + ($invoice->partial_paid_amount[$payment->id] ?? 0), 2) }}</td>
+                                <td class="text-right">{{ number_format(($invoice->paid_amount ?? 0) - ($invoice->partial_paid_amount[optional($payment)->id] ?? 0), 2) }}</td>
+                                <td class="text-right text-danger">{{ number_format(($invoice->balance ?? 0) + ($invoice->partial_paid_amount[optional($payment)->id] ?? 0), 2) }}</td>
                                 <td>
                                     <input type="number" name="payment_amounts[{{ $invoice->id }}]" 
                                         class="form-control payment-amount" 
                                         step="any" 
                                         placeholder="Amount"
                                         data-max="{{ $invoice->total ?? $invoice->total_amount }}"
-                                        value="{{ $invoice->partial_paid_amount[$payment->id] ?? 0 }}">
+                                        value="{{ $invoice->partial_paid_amount[optional($payment)->id] ?? 0 }}">
                                 </td>
                             </tr>
                             @endforeach
@@ -174,8 +186,8 @@
                         <tr data-invoice-id="{{ $invoice->id }}" 
                             data-balance="{{ $invoice->balance }}" 
                             data-reference="{{ $invoice->invoice_number }}"
-                            data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id }}"
-                            data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name }}">
+                            data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id ?? optional($invoice->rider)->id }}"
+                            data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name }}">
                             <td class="text-center">
                                 <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox">
                             </td>
@@ -208,35 +220,6 @@
         </div>
     </div>
     @endif
-
-    <!-- Bank Charges Section -->
-    <div class="row mt-3">
-        <div class="col-md-12">
-            <h6 class="bg-light p-2 mb-3">Bank Charges (Optional)</h6>
-        </div>
-        
-        <div class="form-group col-md-3">
-            {!! Form::label('bank_charges', 'Bank Charges Amount:') !!}
-            <div class="input-group">
-                <div class="input-group-prepend">
-                    <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
-                </div>
-                {!! Form::number('bank_charges', null, ['class' => 'form-control bank_charges', 'step' => 'any', 'placeholder' => 'Enter bank charges', 'id' => 'bank_charges', 'min' => '0']) !!}
-            </div>
-        </div>
-
-        <div class="form-group col-md-4">
-            {!! Form::label('bank_charges_account', 'Bank Charges Account:') !!}
-            <select name="bank_charges_account" class="form-control select2">
-                <option value="">-- Select Bank Charges Account --</option>
-                @foreach(\App\Models\Accounts::active()->where('account_type', 'expense')->get() as $expenseAccount)
-                    <option value="{{ $expenseAccount->id }}" {{ old('bank_charges_account', isset($payment) ? $payment->bank_charges_account : '') == $expenseAccount->id ? 'selected' : '' }}>
-                        {{ $expenseAccount->account_code.'-'.$expenseAccount->name }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-    </div>
 
     <!-- Main Narration Field -->
     <div class="row mt-4">

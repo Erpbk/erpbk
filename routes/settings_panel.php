@@ -298,6 +298,22 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         Route::post('categories/reorder', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'reorderCategories'])->name('reorder-categories');
     });
 
+    // Agreement templates (Settings → Agreements)
+    Route::prefix('agreements')->name('settings-panel.agreements.')->group(function () {
+        Route::get('/', [App\Http\Controllers\AgreementSettingsController::class, 'index'])->name('index');
+        Route::get('/categories/{category}/templates', [App\Http\Controllers\AgreementSettingsController::class, 'templates'])->name('templates')->whereNumber('category');
+        Route::get('/categories/{category}/templates/create', [App\Http\Controllers\AgreementSettingsController::class, 'create'])->name('create')->whereNumber('category');
+        Route::post('/categories/{category}/templates', [App\Http\Controllers\AgreementSettingsController::class, 'store'])->name('store')->whereNumber('category');
+        Route::get('/templates/{id}/edit', [App\Http\Controllers\AgreementSettingsController::class, 'edit'])->name('edit');
+        Route::put('/templates/{id}', [App\Http\Controllers\AgreementSettingsController::class, 'update'])->name('update');
+        Route::delete('/templates/{id}', [App\Http\Controllers\AgreementSettingsController::class, 'destroy'])->name('destroy');
+        Route::post('/templates/{id}/duplicate', [App\Http\Controllers\AgreementSettingsController::class, 'duplicate'])->name('duplicate');
+        Route::post('/templates/{id}/set-default', [App\Http\Controllers\AgreementSettingsController::class, 'setDefault'])->name('set-default');
+        Route::post('/templates/{id}/toggle-status', [App\Http\Controllers\AgreementSettingsController::class, 'toggleStatus'])->name('toggle-status');
+        Route::match(['get', 'post'], '/templates/{id}/preview', [App\Http\Controllers\AgreementSettingsController::class, 'preview'])->name('preview');
+        Route::get('/templates/{id}/preview-pdf', [App\Http\Controllers\AgreementSettingsController::class, 'previewPdf'])->name('preview-pdf');
+    });
+
     // Module settings page + label update
     Route::post('module-settings/dashboard/cards', [App\Http\Controllers\DashboardSettingsController::class, 'update'])->name('settings-panel.dashboard-settings.cards');
     Route::get('module-settings/{module}', [App\Http\Controllers\ModuleSettingsController::class, 'index'])->name('settings-panel.module-settings.index')->where('module', '[A-Za-z0-9_-]+');

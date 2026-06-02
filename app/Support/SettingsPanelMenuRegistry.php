@@ -196,3 +196,4 @@ class SettingsPanelMenuRegistry
         return ModuleMenuIcon::tablerClass($key);
     }
 }
+

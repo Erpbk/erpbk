@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AgreementCategory;
+use App\Models\AgreementPlaceholder;
 use App\Models\AgreementTemplate;
 use App\Models\Riders;
 use App\Services\Agreements\AgreementPdfService;
@@ -27,8 +28,16 @@ class AgreementGenerationController extends Controller
         AgreementCategory::ensureDefaultsForCompany();
 
         $rider = Riders::findOrFail($riderId);
-        $categorySlug = $request->get('category', 'rider_contract');
-        $category = AgreementCategory::where('slug', $categorySlug)->firstOrFail();
+        $categorySlug = (string) $request->get('category', 'rider_contract');
+        $category = AgreementCategory::query()
+            ->where('slug', $categorySlug)
+            ->where('status', true)
+            ->firstOrFail();
+
+        // Tenant-safe gating: riders module can only access agreements assigned to `riders`.
+        if (! $category->assignedToModule('riders')) {
+            abort(403, 'Agreement is not assigned to this module.');
+        }
 
         $templates = AgreementTemplate::where('category_id', $category->id)
             ->where('status', true)
@@ -51,7 +60,7 @@ class AgreementGenerationController extends Controller
         $this->authorizeGenerate();
 
         $rider = Riders::findOrFail($riderId);
-        $template = AgreementTemplate::findOrFail($request->input('template_id'));
+        $template = $this->resolveRiderTemplate((int) $request->input('template_id'));
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
 
         $html = $pdfService->renderHtml($template, $rider, $agreementDate);
@@ -64,11 +73,11 @@ class AgreementGenerationController extends Controller
         $this->authorizeGenerate();
 
         $rider = Riders::findOrFail($riderId);
-        $template = AgreementTemplate::findOrFail($request->input('template_id'));
+        $template = $this->resolveRiderTemplate((int) $request->input('template_id'));
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
 
         $pdf = $pdfService->generatePdf($template, $rider, $agreementDate);
-        $filename = \Str::slug($rider->rider_id . '-' . $template->template_name) . '.pdf';
+        $filename = Str::slug($rider->rider_id . '-' . $template->template_name) . '.pdf';
 
         if ($request->boolean('download', true)) {
             return $pdf->download($filename);
@@ -92,7 +101,7 @@ class AgreementGenerationController extends Controller
         ]);
 
         $rider = Riders::findOrFail($riderId);
-        $template = AgreementTemplate::findOrFail($validated['template_id']);
+        $template = $this->resolveRiderTemplate((int) $validated['template_id']);
         $agreementDate = $validated['agreement_date'] ?? now()->format('Y-m-d');
 
         $user = auth()->user();
@@ -154,10 +163,58 @@ class AgreementGenerationController extends Controller
             : back()->with('success', $successMessage);
     }
 
+    public function editTemplate(Request $request, $company_slug, int $riderId, int $template)
+    {
+        $this->authorizeGenerate();
+
+        $rider = Riders::findOrFail($riderId);
+        $template = $this->resolveRiderTemplate($template);
+        $category = $template->category()->first();
+        $placeholders = AgreementPlaceholder::grouped();
+
+        return view('riders.agreements.template-editor', compact(
+            'rider',
+            'template',
+            'category',
+            'placeholders'
+        ));
+    }
+
+    public function updateTemplate(Request $request, $company_slug, int $riderId, int $template)
+    {
+        $this->authorizeGenerate();
+
+        $template = $this->resolveRiderTemplate($template);
+        $validated = $request->validate([
+            'description' => 'nullable|string',
+        ]);
+
+        $template->description = $validated['description'] ?? '';
+        $template->save();
+
+        return redirect()->route('agreements.templates.edit', [
+            'company_slug' => $company_slug,
+            'riderId' => $riderId,
+            'template' => $template->id,
+        ])->with('success', 'Agreement template updated from module.');
+    }
+
     private function authorizeGenerate(): void
     {
         if (!Gate::allows('agreement_generate') && !Gate::allows('agreement_view') && !Gate::allows('rider_view')) {
             abort(403, 'Unauthorized');
         }
+    }
+
+    private function resolveRiderTemplate(int $templateId): AgreementTemplate
+    {
+        $template = AgreementTemplate::query()->with('category')->findOrFail($templateId);
+        $category = $template->category;
+
+        if (! $category || ! $category->status || ! $category->assignedToModule('riders')) {
+            abort(403, 'Template is not assigned to Riders module.');
+        }
+
+        return $template;
     }
 }

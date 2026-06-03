@@ -407,6 +407,16 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('GarageCustomers/maintenances/{id}', [BikeRentCompaniesController::class, 'maintenances'])->name('garage_customer.maintenances');
     /* Rider section starts from here */
 
+    // Module Agreements (must be registered before riders/{rider} resource routes)
+    Route::prefix('{module}/agreements')->where(['module' => 'riders|employees'])->name('module-agreements.')->group(function () {
+        Route::get('/', [App\Http\Controllers\ModuleAgreementController::class, 'index'])->name('index');
+        Route::get('/categories/{category}', [App\Http\Controllers\ModuleAgreementController::class, 'show'])->name('show')->whereNumber('category');
+        Route::get('/templates/{template}/edit', [App\Http\Controllers\ModuleAgreementController::class, 'editTemplate'])->name('templates.edit')->whereNumber('template');
+        Route::put('/templates/{template}', [App\Http\Controllers\ModuleAgreementController::class, 'updateTemplate'])->name('templates.update')->whereNumber('template');
+        Route::get('/templates/{template}/preview', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplate'])->name('templates.preview')->whereNumber('template');
+        Route::get('/templates/{template}/preview-pdf', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplatePdf'])->name('templates.preview-pdf')->whereNumber('template');
+    });
+
     Route::resource('riders', RidersController::class);
     Route::post('riders/filter-ajax', [RidersController::class, 'filterAjax'])->name('riders.filterAjax');
     Route::get('riders/dropdown-options/modal', [RidersController::class, 'dropdownOptionModal'])->name('riders.dropdown-options.modal');
@@ -421,6 +431,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('riders/{riderId}/agreements/preview', [App\Http\Controllers\AgreementGenerationController::class, 'preview'])->name('agreements.preview');
     Route::get('riders/{riderId}/agreements/pdf', [App\Http\Controllers\AgreementGenerationController::class, 'pdf'])->name('agreements.pdf');
     Route::post('riders/{riderId}/agreements/email', [App\Http\Controllers\AgreementGenerationController::class, 'email'])->name('agreements.email');
+    Route::get('riders/{riderId}/agreements/templates/{template}/edit', [App\Http\Controllers\AgreementGenerationController::class, 'editTemplate'])->name('agreements.templates.edit');
+    Route::put('riders/{riderId}/agreements/templates/{template}', [App\Http\Controllers\AgreementGenerationController::class, 'updateTemplate'])->name('agreements.templates.update');
+
     Route::any('riders/picture_upload/{id?}', [RidersController::class, 'picture_upload'])->name('rider_picture_upload');
     Route::any('riders/rider-document/{id}', [RidersController::class, 'document'])->name('rider.document');
     Route::get('rider/updateRider', [RidersController::class, 'updateRider'])->name('rider.updateRider');

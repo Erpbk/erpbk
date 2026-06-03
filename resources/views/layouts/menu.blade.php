@@ -56,18 +56,19 @@ $homeLink = $isAdminLogin
 @can('employees_view')
 @if(\App\Support\CompanyModuleVisibility::enabled('attendance'))
 @can('attendance_view')
-<li class="menu-item {{ Route::is('employees.*') ? 'open' : '' }} {{ (Route::is('attendance.*') && request('ref_type') === 'employee') || (Route::is('attendance.summary') && request('user_type', 'employee') === 'employee') ? 'open' : '' }} {{ Route::is('employeeInvoices.*') ? 'open' : '' }}">
+<li class="menu-item {{ Route::is('employees.*') ? 'open' : '' }} {{ (Route::is('attendance.*') && request('ref_type') === 'employee') || (Route::is('attendance.summary') && request('user_type', 'employee') === 'employee') ? 'open' : '' }} {{ Route::is('employeeInvoices.*') ? 'open' : '' }} {{ Route::is('module-agreements.*') && request()->route('module') === 'employees' ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
     @include('layouts.partials.module_menu_icon', ['key' => 'employees'])
     <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
   </a>
   <ul class="menu-sub">
-    <li class="menu-item {{ Route::is('employees.*') ? 'active' : '' }}">
+    <li class="menu-item {{ Route::is('employees.*') && !Route::is('module-agreements.*') ? 'active' : '' }}">
       <a href="{{ route('employees.index') }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'employees'])
         <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
       </a>
     </li>
+    @include('layouts.partials.agreement_menu_link', ['module' => 'employees'])
     <li class="menu-item {{ Route::is('attendance.index') && request('ref_type') === 'employee' ? 'active' : '' }}">
       <a href="{{ route('attendance.index', ['ref_type' => 'employee']) }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'attendance_records'])
@@ -213,18 +214,20 @@ $homeLink = $isAdminLogin
   {{ Route::is('rider.*') ? 'open' : '' }}
  {{ Route::is('reports.rider_report*') ? 'open' : '' }}
  {{ Route::is('reports.rider_monthly_report*') ? 'open' : '' }}
+ {{ Route::is('module-agreements.*') && request()->route('module') === 'riders' ? 'open' : '' }}
  {{ (Route::is('attendance*') && request('ref_type') === 'rider') || (Route::is('attendance.summary') && request('user_type') === 'rider') ? 'open' : '' }}  ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     @include('layouts.partials.module_menu_icon', ['key' => 'riders'])
     <div>{{ $menuLabels['riders'] ?? 'Riders' }}</div>
   </a>
   <ul class="menu-sub">
-    <li class="menu-item {{ Route::is('riders*') ? 'active' : '' }}">
+    <li class="menu-item {{ Route::is('riders*') && !Route::is('module-agreements.*') ? 'active' : '' }}">
       <a href="{{ route('riders.index') }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'riders_list'])
         <div>{{ $menuLabels['riders_list'] ?? 'Riders List' }}</div>
       </a>
     </li>
+    @include('layouts.partials.agreement_menu_link', ['module' => 'riders'])
     @if(\App\Support\CompanyModuleVisibility::enabled('attendance'))
     @can('attendance_view')
     <li class="menu-item {{ Route::is('attendance.index') && request('ref_type') === 'rider' ? 'active' : '' }}">

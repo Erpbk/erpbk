@@ -283,7 +283,7 @@ $companySlug = request()->route('company_slug');
   <div class="col-xl-2 col-md-3 col-lg-5 order-1 order-md-0">
     <!-- User Card -->
     <div class="card mb-6" style="border-radius: 25px 25px 0px 0px;">
-      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px; height: 291px; position: relative; background-image: url({{ asset('assets/img/user_back.jpg') }}); background-size: cover;">
+      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px; height: 230px; position: relative; background-image: url({{ asset('assets/img/user_back.jpg') }}); background-size: cover;">
         @isset($result)
         <div class="profile-img">
           @php

@@ -48,7 +48,8 @@ $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
           </p>
 
           <div class="mb-3">
-            <label class="form-label">Assigned Modules</label>
+            <label class="form-label">Assigned Modules <span class="text-danger">*</span></label>
+            <p class="text-muted small mb-2">Choose which modules can use this agreement.</p>
             <div class="row g-2">
               @foreach($modules as $moduleKey => $label)
               <div class="col-md-4">
@@ -63,6 +64,12 @@ $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
               </div>
               @endforeach
             </div>
+            @error('assigned_modules')
+            <div class="text-danger small mt-1">{{ $message }}</div>
+            @enderror
+            @error('assigned_modules.*')
+            <div class="text-danger small mt-1">{{ $message }}</div>
+            @enderror
           </div>
 
           <div class="row mb-3">

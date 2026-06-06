@@ -202,6 +202,25 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('/home', [HomeController::class, 'index'])->name('home-dashboard');
     Route::post('/logout', [CompanyAuthController::class, 'logout'])->name('company.logout');
 
+    // Module Agreements — register before employees/riders resource routes ({module}/agreements must not match {employee} or {rider})
+    Route::prefix('{module}/agreements')->where(['module' => 'riders|employees'])->name('module-agreements.')->group(function () {
+        Route::get('/', [App\Http\Controllers\ModuleAgreementController::class, 'index'])->name('index');
+        Route::get('/categories/{category}', [App\Http\Controllers\ModuleAgreementController::class, 'show'])->name('show')->whereNumber('category');
+        Route::get('/templates/{template}/edit', [App\Http\Controllers\ModuleAgreementController::class, 'editTemplate'])->name('templates.edit')->whereNumber('template');
+        Route::put('/templates/{template}', [App\Http\Controllers\ModuleAgreementController::class, 'updateTemplate'])->name('templates.update')->whereNumber('template');
+        Route::post('/categories/{category}/templates/{template}/assign', [App\Http\Controllers\ModuleAgreementController::class, 'assignContractTemplate'])->name('templates.assign')->whereNumber(['category', 'template']);
+        Route::get('/templates/{template}/preview', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplate'])->name('templates.preview')->whereNumber('template');
+        Route::get('/templates/{template}/preview-pdf', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplatePdf'])->name('templates.preview-pdf')->whereNumber('template');
+    });
+
+    // Module record contracts (listing action → contract modal, PDF, email)
+    Route::prefix('{module}/records/{record}/contracts')->where(['module' => 'riders|employees'])->whereNumber('record')->name('module-contracts.')->group(function () {
+        Route::get('/', [App\Http\Controllers\ModuleContractController::class, 'modal'])->name('modal');
+        Route::get('/preview', [App\Http\Controllers\ModuleContractController::class, 'preview'])->name('preview');
+        Route::get('/pdf', [App\Http\Controllers\ModuleContractController::class, 'pdf'])->name('pdf');
+        Route::post('/email', [App\Http\Controllers\ModuleContractController::class, 'email'])->name('email');
+    });
+
     Route::resource('items', ItemsController::class);
     Route::resource('garage-items', GarageItemsController::class);
     Route::get('garage-items/{id}/vouchers', [GarageItemsController::class, 'vouchers'])->name('garage-items.vouchers');
@@ -406,17 +425,6 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('GarageCustomers/bikes/{id}', [BikeRentCompaniesController::class, 'bikes'])->name('garage_customer.bikes');
     Route::get('GarageCustomers/maintenances/{id}', [BikeRentCompaniesController::class, 'maintenances'])->name('garage_customer.maintenances');
     /* Rider section starts from here */
-
-    // Module Agreements (must be registered before riders/{rider} resource routes)
-    Route::prefix('{module}/agreements')->where(['module' => 'riders|employees'])->name('module-agreements.')->group(function () {
-        Route::get('/', [App\Http\Controllers\ModuleAgreementController::class, 'index'])->name('index');
-        Route::get('/categories/{category}', [App\Http\Controllers\ModuleAgreementController::class, 'show'])->name('show')->whereNumber('category');
-        Route::get('/templates/{template}/edit', [App\Http\Controllers\ModuleAgreementController::class, 'editTemplate'])->name('templates.edit')->whereNumber('template');
-        Route::put('/templates/{template}', [App\Http\Controllers\ModuleAgreementController::class, 'updateTemplate'])->name('templates.update')->whereNumber('template');
-        Route::post('/categories/{category}/templates/{template}/assign', [App\Http\Controllers\ModuleAgreementController::class, 'assignContractTemplate'])->name('templates.assign')->whereNumber(['category', 'template']);
-        Route::get('/templates/{template}/preview', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplate'])->name('templates.preview')->whereNumber('template');
-        Route::get('/templates/{template}/preview-pdf', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplatePdf'])->name('templates.preview-pdf')->whereNumber('template');
-    });
 
     Route::resource('riders', RidersController::class);
     Route::post('riders/filter-ajax', [RidersController::class, 'filterAjax'])->name('riders.filterAjax');

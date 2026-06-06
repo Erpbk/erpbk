@@ -8,7 +8,7 @@
 @php
 $companySlug = request()->route('company_slug');
 $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
-$assignedModules = $category->assigned_modules ?? [];
+  $assignedModules = $category->normalizedAssignedModules();
 @endphp
 
 <div class="row">

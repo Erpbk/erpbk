@@ -77,12 +77,29 @@ class AgreementCategory extends BaseModel
      */
     public function assignedToModule(string $moduleKey): bool
     {
+        return in_array($moduleKey, $this->normalizedAssignedModules(), true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function normalizedAssignedModules(): array
+    {
         $modules = $this->assigned_modules;
-        if (! is_array($modules) || $modules === []) {
-            return false;
+
+        if (is_string($modules)) {
+            $decoded = json_decode($modules, true);
+            $modules = is_array($decoded) ? $decoded : [];
         }
 
-        return in_array($moduleKey, $modules, true);
+        if (! is_array($modules)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn($key) => is_string($key) ? trim($key) : '',
+            $modules
+        ))));
     }
 
     /**
@@ -98,10 +115,8 @@ class AgreementCategory extends BaseModel
             ->where('status', true)
             ->get(['assigned_modules'])
             ->each(function (self $category) use (&$keys): void {
-                foreach ($category->assigned_modules ?? [] as $moduleKey) {
-                    if (is_string($moduleKey) && $moduleKey !== '') {
-                        $keys[$moduleKey] = true;
-                    }
+                foreach ($category->normalizedAssignedModules() as $moduleKey) {
+                    $keys[$moduleKey] = true;
                 }
             });
 
@@ -161,8 +176,19 @@ class AgreementCategory extends BaseModel
                         'status' => true,
                     ]));
                 } else {
-                    $category->fill($categoryPayload);
-                    $category->save();
+                    // Existing categories: only ensure group_key; never overwrite admin-edited
+                    // fields (name, description, assigned_modules, agreement_code).
+                    if ($category->group_key !== $groupKey) {
+                        $category->group_key = $groupKey;
+                        $category->save();
+                    }
+
+                    // Backfill module assignment only when never configured.
+                    $existingModules = $category->assigned_modules;
+                    if ((! is_array($existingModules) || $existingModules === []) && $assignedModules !== []) {
+                        $category->assigned_modules = $assignedModules;
+                        $category->save();
+                    }
                 }
 
                 $defaultContent = '';

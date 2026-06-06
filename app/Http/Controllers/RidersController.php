@@ -1135,15 +1135,7 @@ class RidersController extends AppBaseController
 
       AgreementCategory::ensureDefaultsForCompany();
 
-      $agreements = AgreementCategory::query()
-        ->assignedToModule('riders')
-        ->where('status', true)
-        ->orderBy('sort_order')
-        ->orderBy('name')
-        ->with('defaultTemplate')
-        ->get();
-
-      return view('riders.contract-modal', compact('rider', 'agreements'));
+      return app(ModuleContractController::class)->modal($request, $company_slug, 'riders', (int) $id);
     }
   }
 

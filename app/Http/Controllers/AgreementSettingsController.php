@@ -58,7 +58,7 @@ class AgreementSettingsController extends Controller
         $this->authorizeAgreement('agreement_create');
 
         $companyId = CompanyContext::id();
-        $availableModuleKeys = array_keys(config('erp_modules.modules', []));
+        $assignableModuleKeys = $this->assignableModuleKeys();
 
         $data = $request->validate([
             'agreement_name' => 'required|string|max:191',
@@ -72,9 +72,13 @@ class AgreementSettingsController extends Controller
             ],
             'description' => 'nullable|string',
             'assigned_modules' => 'required|array|min:1',
-            'assigned_modules.*' => ['string', Rule::in($availableModuleKeys)],
+            'assigned_modules.*' => ['string', Rule::in($assignableModuleKeys)],
             'status' => 'sometimes|boolean',
             'group_key' => 'nullable|string|max:80',
+        ], [
+            'assigned_modules.required' => 'Select at least one module for this agreement.',
+            'assigned_modules.min' => 'Select at least one module for this agreement.',
+            'assigned_modules.*.in' => 'One or more selected modules are not valid for agreements.',
         ]);
 
         $slug = Str::slug((string) $data['agreement_code'], '_');
@@ -93,12 +97,12 @@ class AgreementSettingsController extends Controller
             'description' => $data['description'] ?? null,
             'sort_order' => $sortOrder,
             'status' => $request->boolean('status', true),
-            'assigned_modules' => array_values($data['assigned_modules']),
+            'assigned_modules' => $this->normalizeAssignedModules($data['assigned_modules']),
         ]);
 
         $this->seedAgreementTemplates($category, $category->status);
 
-        Flash::success('Agreement created. Corporate template is set as the default contract template — change it under Edit if needed.');
+        Flash::success('Agreement created and assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '. Corporate template is the default contract template — change it under Edit if needed.');
 
         return redirect()->route('settings-panel.agreements.edit-agreement', [
             'company_slug' => $company_slug,
@@ -136,7 +140,7 @@ class AgreementSettingsController extends Controller
 
         $category = AgreementCategory::with('templates')->findOrFail($category);
         $companyId = CompanyContext::id();
-        $availableModuleKeys = array_keys(config('erp_modules.modules', []));
+        $assignableModuleKeys = $this->assignableModuleKeys();
 
         $data = $request->validate([
             'agreement_name' => 'required|string|max:191',
@@ -152,13 +156,17 @@ class AgreementSettingsController extends Controller
             ],
             'description' => 'nullable|string',
             'assigned_modules' => 'required|array|min:1',
-            'assigned_modules.*' => ['string', Rule::in($availableModuleKeys)],
+            'assigned_modules.*' => ['string', Rule::in($assignableModuleKeys)],
             'status' => 'sometimes|boolean',
             'contract_template_id' => [
                 'required',
                 'integer',
-                Rule::exists('agreement_templates', 'id')->where(fn($q) => $q->where('category_id', $category->id)),
+                Rule::exists('agreement_templates', 'id')->where(fn ($q) => $q->where('category_id', $category->id)),
             ],
+        ], [
+            'assigned_modules.required' => 'Select at least one module for this agreement.',
+            'assigned_modules.min' => 'Select at least one module for this agreement.',
+            'assigned_modules.*.in' => 'One or more selected modules are not valid for agreements.',
         ]);
 
         $slug = Str::slug((string) $data['agreement_code'], '_');
@@ -174,7 +182,7 @@ class AgreementSettingsController extends Controller
             'name' => (string) $data['agreement_name'],
             'description' => $data['description'] ?? null,
             'status' => $newStatus,
-            'assigned_modules' => array_values($data['assigned_modules']),
+            'assigned_modules' => $this->normalizeAssignedModules($data['assigned_modules']),
         ]);
         $category->save();
 
@@ -185,11 +193,11 @@ class AgreementSettingsController extends Controller
 
         $this->assignContractTemplate($category, (int) $data['contract_template_id']);
 
-        Flash::success('Agreement updated.');
+        Flash::success('Agreement saved. Assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '.');
 
-        return redirect()->route('settings-panel.agreements.index', [
+        return redirect()->route('settings-panel.agreements.edit-agreement', [
             'company_slug' => $company_slug,
-            'group' => $category->group_key,
+            'category' => $category->id,
         ]);
     }
 
@@ -441,11 +449,57 @@ class AgreementSettingsController extends Controller
     /**
      * @return array<string, string>
      */
+    /**
+     * Module keys that support agreement assignment (must match agreement_modules config).
+     *
+     * @return list<string>
+     */
+    private function assignableModuleKeys(): array
+    {
+        return array_keys(config('agreement_modules.modules', []));
+    }
+
+    /**
+     * @return array<string, string>
+     */
     private function moduleOptions(): array
     {
-        return collect(config('erp_modules.modules', []))
-            ->mapWithKeys(fn($label, $moduleKey) => [$moduleKey => Settings::getMenuLabel($moduleKey)])
+        $erpLabels = config('erp_modules.modules', []);
+
+        return collect($this->assignableModuleKeys())
+            ->mapWithKeys(fn (string $moduleKey) => [
+                $moduleKey => Settings::getMenuLabel($moduleKey) ?: ($erpLabels[$moduleKey] ?? ucfirst(str_replace('_', ' ', $moduleKey))),
+            ])
             ->all();
+    }
+
+    /**
+     * @param  array<int, string>|null  $moduleKeys
+     */
+    private function moduleAssignmentLabel(?array $moduleKeys): string
+    {
+        $keys = $this->normalizeAssignedModules($moduleKeys ?? []);
+        if ($keys === []) {
+            return 'none';
+        }
+
+        $labels = $this->moduleOptions();
+
+        return collect($keys)
+            ->map(fn (string $key) => $labels[$key] ?? $key)
+            ->implode(', ');
+    }
+
+    /**
+     * @param  array<int, string>  $modules
+     * @return list<string>
+     */
+    private function normalizeAssignedModules(array $modules): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static fn ($key) => is_string($key) ? trim($key) : '',
+            $modules
+        ))));
     }
 
     private function assignContractTemplate(AgreementCategory $category, int $templateId): void

@@ -112,15 +112,11 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  @canany(['agreement_generate', 'agreement_view', 'rider_view', 'rider_edit'])
-                  <a href="javascript:void(0);"
-                     data-action="{{ route('rider_contract_upload', ['company_slug' => request()->route('company_slug'), 'id' => $r->id]) }}"
-                     data-size="lg"
-                     data-title="{{ $r->name }} ({{ $r->rider_id }}) — Contracts"
-                     class="dropdown-item waves-effect show-modal">
-                     <i class="ti ti-file-certificate me-1"></i> Contract
-                  </a>
-                  @endcanany
+                  @include('layouts.partials.module_contract_action', [
+                    'module' => 'riders',
+                    'recordId' => $r->id,
+                    'recordLabel' => $r->name . ' (' . $r->rider_id . ') — Contracts',
+                  ])
                   @can('rider_edit')
                   <a href="{{ route('riders.edit', ['company_slug' => request()->route('company_slug'), 'rider' => $r->id]) }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit my-1"></i> Edit

@@ -67,14 +67,16 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Assigned Modules</label>
+            <label class="form-label">Assigned Modules <span class="text-danger">*</span></label>
+            <p class="text-muted small mb-2">Selected modules will show this agreement in their Agreements menu and contract options.</p>
             <div class="row g-2">
+              @php $savedModules = $category->normalizedAssignedModules(); @endphp
               @foreach($modules as $moduleKey => $label)
               <div class="col-md-4">
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="assigned_modules[]" value="{{ $moduleKey }}"
                     id="mod_{{ $moduleKey }}"
-                    {{ in_array($moduleKey, old('assigned_modules', $category->assigned_modules ?? []), true) ? 'checked' : '' }}>
+                    {{ in_array($moduleKey, old('assigned_modules', $savedModules), true) ? 'checked' : '' }}>
                   <label class="form-check-label" for="mod_{{ $moduleKey }}">
                     {{ $label }}
                   </label>
@@ -82,6 +84,12 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
               </div>
               @endforeach
             </div>
+            @error('assigned_modules')
+            <div class="text-danger small mt-1">{{ $message }}</div>
+            @enderror
+            @error('assigned_modules.*')
+            <div class="text-danger small mt-1">{{ $message }}</div>
+            @enderror
           </div>
 
           <div class="row mb-3">

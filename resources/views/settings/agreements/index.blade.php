@@ -56,9 +56,7 @@
                   <code>{{ $category->agreement_code ?? $category->slug }}</code>
                 </td>
                 <td>
-                  @php
-                  $assignedModules = $category->assigned_modules ?? [];
-                  @endphp
+                  @php $assignedModules = $category->normalizedAssignedModules(); @endphp
                   @if(!empty($assignedModules))
                   @foreach($assignedModules as $moduleKey)
                   <span class="badge bg-label-secondary me-1">{{ $modules[$moduleKey] ?? $moduleKey }}</span>

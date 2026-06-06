@@ -6,8 +6,8 @@
 @include('flash::message')
 
 @php
-  $companySlug = request()->route('company_slug');
-  $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
+$companySlug = request()->route('company_slug');
+$groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
 @endphp
 
 <div class="row">
@@ -43,6 +43,27 @@
           <div class="mb-3">
             <label class="form-label">Description</label>
             <textarea name="description" class="form-control" rows="3">{{ old('description', $category->description) }}</textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Contract template <span class="text-danger">*</span></label>
+            <p class="text-muted small mb-2">
+              Select which sample template is used when generating this contract from the module. Template content is edited under Riders → Contract Templates.
+            </p>
+            <select name="contract_template_id" class="form-select" required>
+              @forelse($category->templates as $tpl)
+              <option value="{{ $tpl->id }}"
+                {{ (int) old('contract_template_id', $contractTemplateId) === (int) $tpl->id ? 'selected' : '' }}>
+                {{ $tpl->template_name }}
+                — {{ \App\Models\AgreementTemplate::TYPES[$tpl->template_type] ?? $tpl->template_type }}
+              </option>
+              @empty
+              <option value="" disabled>No sample templates available</option>
+              @endforelse
+            </select>
+            @error('contract_template_id')
+            <div class="text-danger small mt-1">{{ $message }}</div>
+            @enderror
           </div>
 
           <div class="mb-3">
@@ -88,4 +109,3 @@
 </div>
 
 @endsection
-

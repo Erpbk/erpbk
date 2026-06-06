@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AgreementTemplate extends BaseModel
@@ -35,6 +36,14 @@ class AgreementTemplate extends BaseModel
     public function category(): BelongsTo
     {
         return $this->belongsTo(AgreementCategory::class, 'category_id');
+    }
+
+    /**
+     * System sample styles (Corporate + Premium) used for module customization.
+     */
+    public function scopeSampleStyles(Builder $query): Builder
+    {
+        return $query->whereIn('template_type', [self::TYPE_CORPORATE, self::TYPE_PREMIUM]);
     }
 
     public function setAsDefault(): void

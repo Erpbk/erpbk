@@ -1,256 +1,241 @@
 @isset($rider)
-<div class="mb-3">
-  <label class="form-label fw-semibold">Agreement documents</label>
-  <div class="d-flex flex-wrap gap-2 mb-2">
-    @forelse($agreements ?? [] as $agreement)
-    <a href="{{ route('agreements.modal', ['company_slug' => request()->route('company_slug'), 'riderId' => $rider->id, 'category' => $agreement->slug]) }}"
-      class="btn btn-primary btn-sm agreement-modal-trigger"
-      data-modal-title="{{ $agreement->name }}">
-      <i class="ti ti-file-text me-1"></i> Generate {{ $agreement->name }}
-    </a>
-    @empty
-    <span class="text-muted small">No agreements are assigned to this module.</span>
-    @endforelse
-    <a href="{{ route('rider.contract', ['company_slug' => request()->route('company_slug'), 'id' => $rider->id]) }}"
-      class="btn btn-warning btn-sm" target="_blank">
-      <i class="fas fa-file"></i> Legacy Contract
-    </a>
+@php
+$companySlug = request()->route('company_slug');
+$today = date('Y-m-d');
+$contracts = collect($agreements ?? [])->map(function ($agreement) {
+$template = $agreement->contractTemplate();
+return [
+'id' => $agreement->id,
+'name' => $agreement->name,
+'code' => $agreement->agreement_code ?? $agreement->slug,
+'ready' => $template !== null,
+'template_id' => $template?->id,
+];
+});
+@endphp
+
+<div class="contracts-modal" id="rider-contracts-modal"
+  data-company-slug="{{ $companySlug }}"
+  data-rider-id="{{ $rider->id }}"
+  data-rider-name="{{ e($rider->name) }}"
+  data-rider-email="{{ $rider->email ?? '' }}"
+  data-agreement-date="{{ $today }}">
+
+  {{-- Step 1: contract list --}}
+  <div id="contract-list-view">
+    <p class="text-muted small mb-3">
+      Select a contract for <strong>{{ $rider->name }}</strong> ({{ $rider->rider_id }}).
+    </p>
+
+    @if($contracts->where('ready', true)->isNotEmpty())
+    <div class="row g-2">
+      @foreach($contracts->where('ready', true) as $contract)
+      <div class="col-sm-6">
+        <button type="button"
+          class="btn btn-outline-primary w-100 text-start contract-pick-btn py-3"
+          data-contract-id="{{ $contract['id'] }}"
+          data-contract-name="{{ e($contract['name']) }}"
+          data-template-id="{{ $contract['template_id'] }}">
+          <i class="ti ti-file-certificate me-2"></i>
+          <span class="fw-semibold">{{ $contract['name'] }}</span>
+        </button>
+      </div>
+      @endforeach
+    </div>
+    @endif
+
+    @if($contracts->where('ready', false)->isNotEmpty())
+    <div class="mt-3">
+      <p class="text-muted small mb-2">Not available (template not assigned in Settings):</p>
+      @foreach($contracts->where('ready', false) as $contract)
+      <div class="border rounded px-3 py-2 mb-2 text-muted small">
+        <i class="ti ti-alert-circle me-1"></i> {{ $contract['name'] }}
+      </div>
+      @endforeach
+    </div>
+    @endif
+
+    @if($contracts->isEmpty())
+    <div class="alert alert-info mb-0 py-2 small">
+      No contracts are assigned to the Riders module. Configure them in Settings → Agreements.
+    </div>
+    @endif
+  </div>
+
+  {{-- Step 2: download / email --}}
+  <div id="contract-actions-view" class="d-none">
+    <button type="button" class="btn btn-link btn-sm text-muted px-0 mb-2" id="contract-back-btn">
+      <i class="ti ti-arrow-left me-1"></i> All contracts
+    </button>
+
+    <h5 class="mb-1" id="contract-actions-title"></h5>
+    <p class="text-muted small mb-3">Contract date: {{ \Carbon\Carbon::parse($today)->format('d M Y') }}</p>
+
+    <div class="d-grid gap-2 mb-3">
+      <button type="button" class="btn btn-primary" id="contract-download-btn">
+        <i class="ti ti-download me-1"></i> Download Contract
+      </button>
+      <button type="button" class="btn btn-outline-success" id="contract-email-toggle-btn">
+        <i class="ti ti-mail me-1"></i> Email Contract
+      </button>
+    </div>
+
+    <div id="contract-email-panel" class="d-none border rounded p-3 bg-light">
+      <label class="form-label small mb-1">Send to</label>
+      <input type="email" id="contract-email-to" class="form-control form-control-sm mb-2"
+        value="{{ $rider->email }}" placeholder="recipient@example.com">
+      <label class="form-label small mb-1">Message <span class="text-muted">(optional)</span></label>
+      <textarea id="contract-email-message" class="form-control form-control-sm mb-2" rows="2"
+        placeholder="Optional message"></textarea>
+      <button type="button" class="btn btn-success btn-sm w-100" id="contract-email-send-btn">
+        <i class="ti ti-send me-1"></i> Send contract
+      </button>
+    </div>
   </div>
 </div>
 
-<div id="agreement-generate-container" class="d-none border-top pt-3 mt-2"></div>
-
-@if(!empty($rider->contract))
-<a href="{{ storage_url('app/contract/'.$rider->contract) }}" class="btn btn-success btn-xs mr-1 mb-2" target="_blank">
-  <i class="fas fa-file"></i>&nbsp; Signed Contract (uploaded)
-</a>
-@endif
-
-<form action="{{ route('rider_contract_upload', ['company_slug' => request()->route('company_slug'), 'id' => $rider->id]) }}" method="post" enctype="multipart/form-data">
-  @csrf
-  <div class="row mt-3">
-    <div class="col-md-12">
-      <div class="form-group">
-        <label><b>Upload Signed Contract File</b></label>
-        <input name="contract" class="form-control" type="file">
-      </div>
-    </div>
-  </div>
-  <div class="modal-footer1 mt-3">
-    <button type="submit" class="save_rec btn btn-primary save_rec">Upload</button>
-  </div>
-</form>
-
 <script>
   (function() {
-    function initAgreementGeneratePanel() {
-      var panel = document.getElementById('agreement-generate-panel');
-      if (!panel || panel.getAttribute('data-agreement-bound') === '1') {
-        return;
-      }
-      panel.setAttribute('data-agreement-bound', '1');
+    var root = document.getElementById('rider-contracts-modal');
+    if (!root) {
+      return;
+    }
 
-      var slug = panel.getAttribute('data-company-slug') || '';
-      var riderId = panel.getAttribute('data-rider-id') || '';
-      var select = document.getElementById('agreement_template_select');
-      var dateInput = document.getElementById('agreement_date_input');
-      if (!select || !dateInput) {
-        return;
-      }
+    var appBase = @json(url('/app'));
+    var csrfToken = @json(csrf_token());
+    var slug = root.getAttribute('data-company-slug') || '';
+    var riderId = root.getAttribute('data-rider-id') || '';
+    var riderName = root.getAttribute('data-rider-name') || '';
+    var defaultEmail = root.getAttribute('data-rider-email') || '';
+    var agreementDate = root.getAttribute('data-agreement-date') || '';
 
-      function syncTemplateId() {
-        var tid = select.value;
-        var els = document.querySelectorAll('.agreement-email-template-id');
-        for (var i = 0; i < els.length; i++) {
-          els[i].value = tid;
-        }
-      }
+    var listView = document.getElementById('contract-list-view');
+    var actionsView = document.getElementById('contract-actions-view');
+    var actionsTitle = document.getElementById('contract-actions-title');
+    var emailPanel = document.getElementById('contract-email-panel');
+    var emailTo = document.getElementById('contract-email-to');
+    var emailMessage = document.getElementById('contract-email-message');
 
-      function syncDate() {
-        var els = document.querySelectorAll('.agreement-email-date');
-        for (var i = 0; i < els.length; i++) {
-          els[i].value = dateInput.value;
-        }
-      }
+    var selected = {
+      name: '',
+      templateId: ''
+    };
 
-      function syncEditUrl() {
-        var editLink = document.getElementById('agreement-edit-content-link');
-        if (!editLink) {
-          return;
-        }
-        if (!select || !select.selectedOptions || !select.selectedOptions.length) {
-          return;
-        }
-        var opt = select.selectedOptions[0];
-        var url = opt.getAttribute('data-edit-url');
-        if (url) {
-          editLink.href = url;
-        }
-      }
+    function pdfUrl() {
+      var params = 'template_id=' + encodeURIComponent(selected.templateId) +
+        '&agreement_date=' + encodeURIComponent(agreementDate) + '&download=1';
+      return appBase + '/' + encodeURIComponent(slug) + '/riders/' + encodeURIComponent(riderId) + '/agreements/pdf?' + params;
+    }
 
-      function buildUrl(isPdf) {
-        var params = 'template_id=' + encodeURIComponent(select.value) +
-          '&agreement_date=' + encodeURIComponent(dateInput.value);
-        if (isPdf) {
-          params += '&download=1';
-        }
-        var base = @json(url('/app')) + '/' + encodeURIComponent(slug) + '/riders/' + encodeURIComponent(riderId) + '/agreements/';
-        return base + (isPdf ? 'pdf?' : 'preview?') + params;
-      }
+    function emailUrl() {
+      return appBase + '/' + encodeURIComponent(slug) + '/riders/' + encodeURIComponent(riderId) + '/agreements/email';
+    }
 
-      select.addEventListener('change', function() {
-        syncTemplateId();
-        syncEditUrl();
-      });
-      dateInput.addEventListener('change', syncDate);
+    function showList() {
+      listView.classList.remove('d-none');
+      actionsView.classList.add('d-none');
+      emailPanel.classList.add('d-none');
+      selected = {
+        name: '',
+        templateId: ''
+      };
+    }
 
-      syncEditUrl();
-
-      var btnPreview = document.getElementById('btn-agreement-preview');
-      var btnPdf = document.getElementById('btn-agreement-pdf');
-      var btnPrint = document.getElementById('btn-agreement-print');
-      var emailForm = document.getElementById('agreement-email-form');
-
-      if (btnPreview) {
-        btnPreview.addEventListener('click', function() {
-          if (!select.value) {
-            alert('Please select a template.');
-            return;
-          }
-          window.open(buildUrl(false), '_blank');
-        });
-      }
-      if (btnPdf) {
-        btnPdf.addEventListener('click', function() {
-          if (!select.value) {
-            alert('Please select a template.');
-            return;
-          }
-          window.location.href = buildUrl(true);
-        });
-      }
-      if (btnPrint) {
-        btnPrint.addEventListener('click', function() {
-          if (!select.value) {
-            alert('Please select a template.');
-            return;
-          }
-          var w = window.open(buildUrl(false), '_blank');
-          if (w) {
-            w.onload = function() {
-              w.print();
-            };
-          }
-        });
-      }
-      if (emailForm) {
-        emailForm.addEventListener('submit', function(e) {
-          e.preventDefault();
-          syncTemplateId();
-          syncDate();
-
-          if (!select || !select.value) {
-            alert('Please select an agreement template before sending email.');
-            return;
-          }
-
-          var toInput = emailForm.querySelector('input[name="email_to"]');
-          if (!toInput || !toInput.value.trim()) {
-            alert('Please enter a recipient email address.');
-            return;
-          }
-
-          var submitBtn = emailForm.querySelector('button[type="submit"]');
-          var btnLabel = submitBtn ? submitBtn.innerHTML : '';
-          if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = 'Sending…';
-          }
-
-          var formData = new FormData(emailForm);
-
-          fetch(emailForm.action, {
-              method: 'POST',
-              body: formData,
-              headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-              },
-              credentials: 'same-origin'
-            })
-            .then(function(response) {
-              return response.json().then(function(data) {
-                return {
-                  ok: response.ok,
-                  data: data
-                };
-              }).catch(function() {
-                return {
-                  ok: false,
-                  data: {
-                    success: false,
-                    message: 'Unexpected server response.'
-                  }
-                };
-              });
-            })
-            .then(function(result) {
-              if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = btnLabel;
-              }
-              if (result.ok && result.data && result.data.success) {
-                alert(result.data.message || 'Email sent successfully.');
-                return;
-              }
-              var errMsg = (result.data && result.data.message) ? result.data.message : 'Failed to send email.';
-              if (result.data && result.data.errors) {
-                var firstKey = Object.keys(result.data.errors)[0];
-                if (firstKey && result.data.errors[firstKey][0]) {
-                  errMsg = result.data.errors[firstKey][0];
-                }
-              }
-              alert(errMsg);
-            })
-            .catch(function() {
-              if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = btnLabel;
-              }
-              alert('Failed to send email. Check your connection and try again.');
-            });
-        });
+    function showActions(name, templateId) {
+      selected = {
+        name: name,
+        templateId: templateId
+      };
+      actionsTitle.textContent = name;
+      listView.classList.add('d-none');
+      actionsView.classList.remove('d-none');
+      emailPanel.classList.add('d-none');
+      if (emailTo && !emailTo.value) {
+        emailTo.value = defaultEmail;
       }
     }
 
-    document.querySelectorAll('.agreement-modal-trigger').forEach(function(link) {
-      link.addEventListener('click', function(e) {
-        e.preventDefault();
-        var container = document.getElementById('agreement-generate-container');
-        if (!container) {
-          return;
-        }
-        container.classList.remove('d-none');
-        if (window.jQuery) {
-          container.innerHTML = '<p class="text-muted small py-2">Loading…</p>';
-          jQuery(container).load(link.href, function() {
-            initAgreementGeneratePanel();
-          });
-        } else {
-          fetch(link.href, {
-              headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-              }
-            })
-            .then(function(r) {
-              return r.text();
-            })
-            .then(function(html) {
-              container.innerHTML = html;
-              initAgreementGeneratePanel();
-            });
-        }
+    document.querySelectorAll('.contract-pick-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        showActions(btn.getAttribute('data-contract-name'), btn.getAttribute('data-template-id'));
       });
+    });
+
+    document.getElementById('contract-back-btn').addEventListener('click', showList);
+
+    document.getElementById('contract-download-btn').addEventListener('click', function() {
+      if (!selected.templateId) {
+        return;
+      }
+      window.location.href = pdfUrl();
+    });
+
+    document.getElementById('contract-email-toggle-btn').addEventListener('click', function() {
+      emailPanel.classList.toggle('d-none');
+    });
+
+    document.getElementById('contract-email-send-btn').addEventListener('click', function() {
+      if (!selected.templateId) {
+        return;
+      }
+      var to = emailTo ? emailTo.value.trim() : '';
+      if (!to) {
+        alert('Please enter a recipient email address.');
+        return;
+      }
+
+      var sendBtn = document.getElementById('contract-email-send-btn');
+      var label = sendBtn.innerHTML;
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = 'Sending…';
+
+      var formData = new FormData();
+      formData.append('_token', csrfToken);
+      formData.append('template_id', selected.templateId);
+      formData.append('agreement_date', agreementDate);
+      formData.append('email_to', to);
+      formData.append('email_subject', selected.name + ' — ' + riderName);
+      formData.append('email_message', emailMessage ? emailMessage.value : '');
+
+      fetch(emailUrl(), {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+          },
+          credentials: 'same-origin'
+        })
+        .then(function(res) {
+          return res.json().then(function(data) {
+            return {
+              ok: res.ok,
+              data: data
+            };
+          }).catch(function() {
+            return {
+              ok: false,
+              data: {
+                message: 'Unexpected server response.'
+              }
+            };
+          });
+        })
+        .then(function(result) {
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = label;
+          if (result.ok && result.data && result.data.success) {
+            alert(result.data.message || 'Contract emailed successfully.');
+            emailPanel.classList.add('d-none');
+            return;
+          }
+          alert((result.data && result.data.message) ? result.data.message : 'Failed to send email.');
+        })
+        .catch(function() {
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = label;
+          alert('Failed to send email. Check your connection and try again.');
+        });
     });
   })();
 </script>

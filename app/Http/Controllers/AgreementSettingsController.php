@@ -98,11 +98,11 @@ class AgreementSettingsController extends Controller
 
         $this->seedAgreementTemplates($category, $category->status);
 
-        Flash::success('Agreement created.');
+        Flash::success('Agreement created. Corporate template is set as the default contract template — change it under Edit if needed.');
 
-        return redirect()->route('settings-panel.agreements.index', [
+        return redirect()->route('settings-panel.agreements.edit-agreement', [
             'company_slug' => $company_slug,
-            'group' => $category->group_key,
+            'category' => $category->id,
         ]);
     }
 
@@ -110,20 +110,20 @@ class AgreementSettingsController extends Controller
     {
         $this->authorizeAgreement('agreement_edit');
 
-        $category = AgreementCategory::with('templates')->findOrFail($category);
+        $category = AgreementCategory::with(['templates' => fn($q) => $q->sampleStyles()->where('status', true)->orderBy('template_name')])->findOrFail($category);
         $modules = $this->moduleOptions();
         $groups = config('agreement_categories.groups', []);
 
-        $defaultTemplateId = optional($category->defaultTemplate)->id;
+        $contractTemplateId = optional($category->contractTemplate())->id;
 
-        return view('settings.agreements.edit', compact('category', 'modules', 'groups', 'defaultTemplateId'));
+        return view('settings.agreements.edit', compact('category', 'modules', 'groups', 'contractTemplateId'));
     }
 
     public function showAgreement(Request $request, $company_slug, $category)
     {
         $this->authorizeAgreement('agreement_view');
 
-        $category = AgreementCategory::with(['defaultTemplate'])->findOrFail($category);
+        $category = AgreementCategory::with(['defaultTemplate', 'templates' => fn($q) => $q->sampleStyles()])->findOrFail($category);
         $modules = $this->moduleOptions();
         $groups = config('agreement_categories.groups', []);
 
@@ -154,6 +154,11 @@ class AgreementSettingsController extends Controller
             'assigned_modules' => 'required|array|min:1',
             'assigned_modules.*' => ['string', Rule::in($availableModuleKeys)],
             'status' => 'sometimes|boolean',
+            'contract_template_id' => [
+                'required',
+                'integer',
+                Rule::exists('agreement_templates', 'id')->where(fn($q) => $q->where('category_id', $category->id)),
+            ],
         ]);
 
         $slug = Str::slug((string) $data['agreement_code'], '_');
@@ -177,6 +182,8 @@ class AgreementSettingsController extends Controller
         AgreementTemplate::query()
             ->where('category_id', $category->id)
             ->update(['status' => $newStatus]);
+
+        $this->assignContractTemplate($category, (int) $data['contract_template_id']);
 
         Flash::success('Agreement updated.');
 
@@ -439,6 +446,17 @@ class AgreementSettingsController extends Controller
         return collect(config('erp_modules.modules', []))
             ->mapWithKeys(fn($label, $moduleKey) => [$moduleKey => Settings::getMenuLabel($moduleKey)])
             ->all();
+    }
+
+    private function assignContractTemplate(AgreementCategory $category, int $templateId): void
+    {
+        $template = AgreementTemplate::query()
+            ->where('category_id', $category->id)
+            ->sampleStyles()
+            ->where('status', true)
+            ->findOrFail($templateId);
+
+        $template->setAsDefault();
     }
 
     private function seedAgreementTemplates(AgreementCategory $category, bool $status): void

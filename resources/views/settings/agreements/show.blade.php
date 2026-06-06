@@ -6,9 +6,9 @@
 @include('flash::message')
 
 @php
-  $companySlug = request()->route('company_slug');
-  $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
-  $assignedModules = $category->assigned_modules ?? [];
+$companySlug = request()->route('company_slug');
+$groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
+$assignedModules = $category->assigned_modules ?? [];
 @endphp
 
 <div class="row">
@@ -37,13 +37,13 @@
           <div class="col-md-6">
             <div class="mb-2 text-muted small">Assigned Modules</div>
             @if(!empty($assignedModules))
-              @foreach($assignedModules as $moduleKey)
-                <span class="badge bg-label-secondary me-1 mb-1">
-                  {{ $modules[$moduleKey] ?? $moduleKey }}
-                </span>
-              @endforeach
+            @foreach($assignedModules as $moduleKey)
+            <span class="badge bg-label-secondary me-1 mb-1">
+              {{ $modules[$moduleKey] ?? $moduleKey }}
+            </span>
+            @endforeach
             @else
-              <div class="text-muted">—</div>
+            <div class="text-muted">—</div>
             @endif
           </div>
 
@@ -54,12 +54,25 @@
             </div>
           </div>
 
+          <div class="col-md-6">
+            <div class="mb-2 text-muted small">Contract template</div>
+            @php $contractTpl = $category->contractTemplate(); @endphp
+            @if($contractTpl)
+            <div>{{ $contractTpl->template_name }}</div>
+            <span class="badge bg-label-primary">
+              {{ \App\Models\AgreementTemplate::TYPES[$contractTpl->template_type] ?? $contractTpl->template_type }}
+            </span>
+            @else
+            <span class="text-muted">Not assigned — edit agreement to select a template.</span>
+            @endif
+          </div>
+
           <div class="col-md-12">
             <div class="mb-2 text-muted small">Status</div>
             @if($category->status)
-              <span class="badge bg-label-success">Active</span>
+            <span class="badge bg-label-success">Active</span>
             @else
-              <span class="badge bg-label-secondary">Inactive</span>
+            <span class="badge bg-label-secondary">Inactive</span>
             @endif
           </div>
         </div>
@@ -69,4 +82,3 @@
 </div>
 
 @endsection
-

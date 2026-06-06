@@ -25,17 +25,18 @@ class ModuleAgreementController extends Controller
 
         AgreementCategory::ensureDefaultsForCompany();
 
-        $agreements = AgreementCategory::query()
+        $categories = AgreementCategory::query()
             ->assignedToModule($module)
             ->where('status', true)
+            ->withCount(['templates' => fn ($q) => $q->where('status', true)->sampleStyles()])
+            ->with('defaultTemplate')
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->with(['templates' => fn ($q) => $q->orderByDesc('is_default')->orderBy('template_name')])
             ->get();
 
         $moduleLabel = $this->moduleLabel($module);
 
-        return view('agreements.module.index', compact('agreements', 'module', 'moduleLabel'));
+        return view('agreements.module.index', compact('categories', 'module', 'moduleLabel'));
     }
 
     public function show(Request $request, $company_slug, string $module, AgreementCategory $category)
@@ -43,11 +44,29 @@ class ModuleAgreementController extends Controller
         $this->authorizeModule($module);
         $this->assertCategoryAssigned($category, $module);
 
-        $category->load(['templates' => fn ($q) => $q->orderByDesc('is_default')->orderBy('template_name')]);
+        $category->load([
+            'templates' => fn ($q) => $q->sampleStyles()->where('status', true)->orderByDesc('is_default')->orderBy('template_name'),
+            'defaultTemplate',
+        ]);
 
+        $placeholders = AgreementPlaceholder::grouped();
+        $pdfBranding = app(AgreementPdfBranding::class)->forCompany($category->company_id);
         $moduleLabel = $this->moduleLabel($module);
 
-        return view('agreements.module.show', compact('category', 'module', 'moduleLabel'));
+        $activeTemplateId = (int) $request->query('template', 0);
+        $activeTemplate = $activeTemplateId
+            ? $category->templates->firstWhere('id', $activeTemplateId)
+            : null;
+        $activeTemplate = $activeTemplate ?? $category->templates->first();
+
+        return view('agreements.module.show', compact(
+            'category',
+            'module',
+            'moduleLabel',
+            'placeholders',
+            'pdfBranding',
+            'activeTemplate'
+        ));
     }
 
     public function editTemplate(Request $request, $company_slug, string $module, int $template)
@@ -55,19 +74,13 @@ class ModuleAgreementController extends Controller
         $this->authorizeModule($module);
 
         $template = $this->resolveModuleTemplate($template, $module);
-        $category = $template->category;
-        $placeholders = AgreementPlaceholder::grouped();
-        $pdfBranding = app(AgreementPdfBranding::class)->forCompany($template->company_id);
-        $moduleLabel = $this->moduleLabel($module);
 
-        return view('agreements.module.editor', compact(
-            'template',
-            'category',
-            'placeholders',
-            'pdfBranding',
-            'module',
-            'moduleLabel'
-        ));
+        return redirect()->route('module-agreements.show', [
+            'company_slug' => $company_slug,
+            'module' => $module,
+            'category' => $template->category_id,
+            'template' => $template->id,
+        ]);
     }
 
     public function updateTemplate(Request $request, $company_slug, string $module, int $template)
@@ -82,11 +95,36 @@ class ModuleAgreementController extends Controller
         $template->description = $validated['description'] ?? '';
         $template->save();
 
-        return redirect()->route('module-agreements.templates.edit', [
+        return redirect()->route('module-agreements.show', [
             'company_slug' => $company_slug,
             'module' => $module,
+            'category' => $template->category_id,
             'template' => $template->id,
-        ])->with('success', 'Agreement template content saved.');
+        ])->with('success', 'Template updated successfully.');
+    }
+
+    public function assignContractTemplate(Request $request, $company_slug, string $module, AgreementCategory $category, int $template)
+    {
+        $this->authorizeModule($module);
+        $this->assertCategoryAssigned($category, $module);
+
+        if (! Gate::allows('agreement_edit') && ! Gate::allows('agreement_manage_templates') && ! Gate::allows('gn_settings')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $template = $this->resolveModuleTemplate($template, $module);
+        if ((int) $template->category_id !== (int) $category->id) {
+            abort(403, 'Template does not belong to this category.');
+        }
+
+        $template->setAsDefault();
+
+        return redirect()->route('module-agreements.show', [
+            'company_slug' => $company_slug,
+            'module' => $module,
+            'category' => $category->id,
+            'template' => $template->id,
+        ])->with('success', 'Contract template assigned for ' . $category->name . '.');
     }
 
     public function previewTemplate(Request $request, $company_slug, string $module, int $template, AgreementPdfService $pdfService)
@@ -115,7 +153,10 @@ class ModuleAgreementController extends Controller
 
     private function resolveModuleTemplate(int $templateId, string $module): AgreementTemplate
     {
-        $template = AgreementTemplate::query()->with('category')->findOrFail($templateId);
+        $template = AgreementTemplate::query()
+            ->sampleStyles()
+            ->with('category')
+            ->findOrFail($templateId);
         $this->assertCategoryAssigned($template->category, $module);
 
         return $template;

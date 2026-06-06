@@ -41,6 +41,7 @@
                 <th>Agreement</th>
                 <th>Agreement Code</th>
                 <th>Assigned Modules</th>
+                <th>Contract Template</th>
                 <th>Status</th>
                 <th class="text-end">Actions</th>
               </tr>
@@ -56,21 +57,32 @@
                 </td>
                 <td>
                   @php
-                    $assignedModules = $category->assigned_modules ?? [];
+                  $assignedModules = $category->assigned_modules ?? [];
                   @endphp
                   @if(!empty($assignedModules))
-                    @foreach($assignedModules as $moduleKey)
-                      <span class="badge bg-label-secondary me-1">{{ $modules[$moduleKey] ?? $moduleKey }}</span>
-                    @endforeach
+                  @foreach($assignedModules as $moduleKey)
+                  <span class="badge bg-label-secondary me-1">{{ $modules[$moduleKey] ?? $moduleKey }}</span>
+                  @endforeach
                   @else
-                    <span class="text-muted small">—</span>
+                  <span class="text-muted small">—</span>
+                  @endif
+                </td>
+                <td>
+                  @php $contractTpl = $category->defaultTemplate; @endphp
+                  @if($contractTpl)
+                  <span class="small">{{ $contractTpl->template_name }}</span>
+                  <span class="badge bg-label-primary ms-1">
+                    {{ \App\Models\AgreementTemplate::TYPES[$contractTpl->template_type] ?? $contractTpl->template_type }}
+                  </span>
+                  @else
+                  <span class="text-muted small">Not set</span>
                   @endif
                 </td>
                 <td>
                   @if($category->status)
-                    <span class="badge bg-label-success">Active</span>
+                  <span class="badge bg-label-success">Active</span>
                   @else
-                    <span class="badge bg-label-secondary">Inactive</span>
+                  <span class="badge bg-label-secondary">Inactive</span>
                   @endif
                 </td>
                 <td class="text-end">
@@ -110,7 +122,7 @@
               </tr>
               @empty
               <tr>
-                <td colspan="5" class="text-muted text-center py-4">No agreements found.</td>
+                <td colspan="6" class="text-muted text-center py-4">No agreements found.</td>
               </tr>
               @endforelse
             </tbody>

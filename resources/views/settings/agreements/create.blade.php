@@ -6,8 +6,8 @@
 @include('flash::message')
 
 @php
-  $companySlug = request()->route('company_slug');
-  $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
+$companySlug = request()->route('company_slug');
+$groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
 @endphp
 
 <div class="row">
@@ -42,6 +42,10 @@
             <label class="form-label">Description</label>
             <textarea name="description" class="form-control" rows="3">{{ old('description') }}</textarea>
           </div>
+
+          <p class="alert alert-info py-2 small">
+            After creating this agreement, open <strong>Edit</strong> to choose which sample contract template (Corporate or Premium) will be used in the module.
+          </p>
 
           <div class="mb-3">
             <label class="form-label">Assigned Modules</label>
@@ -86,4 +90,3 @@
 </div>
 
 @endsection
-

@@ -37,8 +37,8 @@
     <div class="card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
-          <a href="{{ route('module-agreements.show', ['company_slug' => $companySlug, 'module' => $module, 'category' => $category->id]) }}" class="text-muted small">
-            <i class="ti ti-arrow-left"></i> {{ $category->name }}
+          <a href="{{ route('module-agreements.index', ['company_slug' => $companySlug, 'module' => $module]) }}" class="text-muted small">
+            <i class="ti ti-arrow-left"></i> Sample templates
           </a>
           <h4 class="card-title mb-0 mt-1">Edit agreement content</h4>
           <p class="text-muted small mb-0">{{ $template->template_name }} · {{ $styleLabel }}</p>
@@ -68,7 +68,7 @@
 
           <div class="d-flex flex-wrap gap-2">
             <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Save content</button>
-            <a href="{{ route('module-agreements.show', ['company_slug' => $companySlug, 'module' => $module, 'category' => $category->id]) }}"
+            <a href="{{ route('module-agreements.index', ['company_slug' => $companySlug, 'module' => $module]) }}"
               class="btn btn-label-secondary">Cancel</a>
           </div>
         </form>

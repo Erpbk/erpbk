@@ -39,18 +39,16 @@ class AgreementGenerationController extends Controller
             abort(403, 'Agreement is not assigned to this module.');
         }
 
-        $templates = AgreementTemplate::where('category_id', $category->id)
-            ->where('status', true)
-            ->orderByDesc('is_default')
-            ->orderBy('template_name')
-            ->get();
+        $category->load('defaultTemplate');
+        $defaultTemplate = $category->contractTemplate();
 
-        $defaultTemplate = $templates->firstWhere('is_default', true) ?? $templates->first();
+        if (! $defaultTemplate) {
+            abort(422, 'No contract template assigned for this agreement. Configure it in Settings → Agreements.');
+        }
 
         return view('agreements.generate-modal', compact(
             'rider',
             'category',
-            'templates',
             'defaultTemplate'
         ));
     }
@@ -213,6 +211,11 @@ class AgreementGenerationController extends Controller
 
         if (! $category || ! $category->status || ! $category->assignedToModule('riders')) {
             abort(403, 'Template is not assigned to Riders module.');
+        }
+
+        $assigned = $category->contractTemplate();
+        if (! $assigned || (int) $assigned->id !== (int) $template->id) {
+            abort(403, 'Only the contract template assigned in Agreement settings can be used.');
         }
 
         return $template;

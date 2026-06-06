@@ -34,11 +34,27 @@ class AgreementCategory extends BaseModel
         return $this->hasMany(AgreementTemplate::class, 'category_id');
     }
 
+    /**
+     * Template selected in Agreement settings for generating this contract type.
+     */
     public function defaultTemplate(): HasOne
     {
         return $this->hasOne(AgreementTemplate::class, 'category_id')
             ->where('is_default', true)
             ->where('status', true);
+    }
+
+    /**
+     * Resolved contract template (settings-assigned default).
+     */
+    public function contractTemplate(): ?AgreementTemplate
+    {
+        if ($this->relationLoaded('defaultTemplate')) {
+            return $this->defaultTemplate;
+        }
+
+        return $this->defaultTemplate()->first()
+            ?? $this->templates()->where('status', true)->orderByDesc('is_default')->first();
     }
 
     public function activeTemplates(): HasMany

@@ -1135,12 +1135,13 @@ class RidersController extends AppBaseController
 
       AgreementCategory::ensureDefaultsForCompany();
 
-      // Only agreements assigned to the Riders module should appear here.
       $agreements = AgreementCategory::query()
+        ->assignedToModule('riders')
         ->where('status', true)
-        ->whereJsonContains('assigned_modules', 'riders')
         ->orderBy('sort_order')
-        ->get(['id', 'name', 'slug']);
+        ->orderBy('name')
+        ->with('defaultTemplate')
+        ->get();
 
       return view('riders.contract-modal', compact('rider', 'agreements'));
     }

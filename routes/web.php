@@ -413,6 +413,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('/categories/{category}', [App\Http\Controllers\ModuleAgreementController::class, 'show'])->name('show')->whereNumber('category');
         Route::get('/templates/{template}/edit', [App\Http\Controllers\ModuleAgreementController::class, 'editTemplate'])->name('templates.edit')->whereNumber('template');
         Route::put('/templates/{template}', [App\Http\Controllers\ModuleAgreementController::class, 'updateTemplate'])->name('templates.update')->whereNumber('template');
+        Route::post('/categories/{category}/templates/{template}/assign', [App\Http\Controllers\ModuleAgreementController::class, 'assignContractTemplate'])->name('templates.assign')->whereNumber(['category', 'template']);
         Route::get('/templates/{template}/preview', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplate'])->name('templates.preview')->whereNumber('template');
         Route::get('/templates/{template}/preview-pdf', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplatePdf'])->name('templates.preview-pdf')->whereNumber('template');
     });

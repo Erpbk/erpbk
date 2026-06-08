@@ -56,6 +56,7 @@ class SettingsPanelMenuRegistry
             'vat_ledger' => 'settings-panel.vat-settings.index',
             'vat_return_file' => 'settings-panel.vat-settings.index',
             'visa_expense' => 'settings-panel.visa-statuses.index',
+            'legal_case' => 'settings-panel.legal-case-statuses.index',
             'bike_registration' => 'settings-panel.bike-registration-statuses.index',
             'bike_list' => 'settings-panel.module-settings.index',
             'dashboard' => 'settings-panel.module-settings.index',
@@ -196,4 +197,3 @@ class SettingsPanelMenuRegistry
         return ModuleMenuIcon::tablerClass($key);
     }
 }
-

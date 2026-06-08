@@ -282,6 +282,10 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::put('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'updateDocumentType'])->name('settings-panel.module-settings.update-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::delete('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'destroyDocumentType'])->name('settings-panel.module-settings.destroy-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/visa-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateVisaExpenseTop'])->name('settings-panel.module-settings.update-visa-expense-top')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/legal-case-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateLegalCaseTop'])->name('settings-panel.module-settings.update-legal-case-top')->where('module', '[A-Za-z0-9_-]+');
+    Route::resource('legal-case-statuses', App\Http\Controllers\LegalCaseStatusController::class)->names('settings-panel.legal-case-statuses');
+    Route::post('legal-case-statuses/reorder', [App\Http\Controllers\LegalCaseStatusController::class, 'reorder'])->name('settings-panel.legal-case-statuses.reorder');
+    Route::get('legal-case-statuses/{id}/toggle-active', [App\Http\Controllers\LegalCaseStatusController::class, 'toggleActive'])->name('settings-panel.legal-case-statuses.toggle-active');
     Route::post('module-settings/{module}/bike-registration-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateBikeRegistrationTop'])->name('settings-panel.module-settings.update-bike-registration-top')->where('module', '[A-Za-z0-9_-]+');
 
     // Centralized top bar settings (generic module storage)

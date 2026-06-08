@@ -111,6 +111,8 @@ return [
             'visaloan_edit',
         ]],
 
+        ['parent' => 'Legal Case', 'slug' => 'legalcase', 'extras' => []],
+
         ['parent' => 'Expenses', 'slug' => 'expenses', 'extras' => [
             'expense_voucher_create',
             'voucher_document',

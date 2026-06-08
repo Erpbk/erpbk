@@ -53,6 +53,7 @@ return [
         'rta_saliks' => 'ti-cash',
         'inventory' => 'ti-package',
         'visa_expense' => 'ti-credit-card',
+        'legal_case' => 'ti-scale',
         'expenses' => 'ti-cash',
         'vat' => 'ti-receipt-tax',
         'vat_ledger' => 'ti-receipt-tax',

@@ -35,6 +35,7 @@ return [
     ['key' => 'rta_saliks'],
 
     ['key' => 'visa_expense'],
+    ['key' => 'legal_case'],
 
     ['key' => 'expenses'],
 

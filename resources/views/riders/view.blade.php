@@ -613,6 +613,22 @@ $companySlug = request()->route('company_slug');
                 @endif
                 @endcan
 
+                @can('legalcase_view')
+                @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))
+                @php
+                $legalCaseAccount = company_table('legal_case_accounts')->where('rider_id', $result['id'])->first();
+                @endphp
+                @if($legalCaseAccount)
+                <li class="nav-item nav-priority-5">
+                  <a class="nav-link @if(Route::is('LegalCase.generatentries')) active @endif"
+                    href="{{ route('LegalCase.generatentries', $legalCaseAccount->id) }}">
+                    <i class="ti ti-scale ti-sm me-1_5"></i>Legal Case
+                  </a>
+                </li>
+                @endif
+                @endif
+                @endcan
+
                 @can('item_view')
                 <li class="nav-item nav-priority-6">
                   <a class="nav-link @if(Route::is('rider.items')) active @endif"

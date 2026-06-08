@@ -72,6 +72,8 @@ use App\Http\Controllers\UserTableSettingsController;
 use App\Http\Controllers\VatController;
 use App\Http\Controllers\VendorsController;
 use App\Http\Controllers\VisaexpenseController;
+use App\Http\Controllers\LegalCaseController;
+use App\Http\Controllers\LegalCaseStatusController;
 use App\Http\Controllers\VisaStatusController;
 use App\Http\Controllers\VouchersController;
 use Illuminate\Support\Facades\Artisan;
@@ -354,6 +356,23 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('VisaExpense/payfine', [VisaexpenseController::class, 'payfine'])->name('VisaExpense.payfine');
     Route::get('VisaExpense/edit-voucher-credit/{visaExpense}', [VisaexpenseController::class, 'editVoucherCreditForm'])->name('VisaExpense.editVoucherCreditForm');
     Route::post('VisaExpense/update-voucher-credit', [VisaexpenseController::class, 'updateVoucherCredit'])->name('VisaExpense.updateVoucherCredit');
+
+    // Legal Case custom routes (register before resource to avoid {LegalCase} shadowing)
+    Route::get('LegalCase/generatentries/{id}', [LegalCaseController::class, 'generatentries'])->name('LegalCase.generatentries');
+    Route::get('LegalCase/create/{id}', [LegalCaseController::class, 'create'])->name('LegalCase.create');
+    Route::get('LegalCase/edit/{id}', [LegalCaseController::class, 'edit'])->name('LegalCase.edit');
+    Route::get('LegalCase/delete/{id}', [LegalCaseController::class, 'destroy'])->name('LegalCase.delete');
+    Route::resource('LegalCase', LegalCaseController::class)->only(['index']);
+    Route::resource('legal-case-statuses', LegalCaseStatusController::class);
+    Route::post('legal-case-statuses/reorder', [LegalCaseStatusController::class, 'reorder'])->name('legal-case-statuses.reorder');
+    Route::get('legal-case-statuses/{id}/toggle-active', [LegalCaseStatusController::class, 'toggleActive'])->name('legal-case-statuses.toggle-active');
+    Route::post('LegalCase/store', [LegalCaseController::class, 'store'])->name('LegalCase.store');
+    Route::post('LegalCase/inline-update', [LegalCaseController::class, 'inlineUpdate'])->name('LegalCase.inlineUpdate');
+    Route::post('LegalCase/update', [LegalCaseController::class, 'update'])->name('LegalCase.update');
+    Route::post('LegalCase/complete-step', [LegalCaseController::class, 'completeStep'])->name('LegalCase.completeStep');
+    Route::post('legalcase-accountcreate', [LegalCaseController::class, 'accountcreate'])->name('LegalCase.accountcreate');
+    Route::post('legalcase-editaccount', [LegalCaseController::class, 'editaccount'])->name('LegalCase.editaccount');
+    Route::get('LegalCase/deleteaccount/{id}', [LegalCaseController::class, 'deleteaccount'])->name('LegalCase.deleteaccount');
 
     Route::post('bike-registration-statuses/reorder', [BikeRegistrationStatusController::class, 'reorder'])->name('bike-registration-statuses.reorder');
     Route::get('bike-registration-statuses/{id}/toggle-active', [BikeRegistrationStatusController::class, 'toggleActive'])->name('bike-registration-statuses.toggle-active');

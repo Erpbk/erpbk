@@ -82,6 +82,10 @@ return [
             'label' => 'Visa Expense',
             'primary_label_key' => 'visa_expense',
         ],
+        'legal_case' => [
+            'label' => 'Legal Case',
+            'primary_label_key' => 'legal_case',
+        ],
         'expenses' => [
             'label' => 'Expenses',
             'primary_label_key' => 'expenses',

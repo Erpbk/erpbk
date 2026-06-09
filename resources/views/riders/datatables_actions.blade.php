@@ -5,8 +5,11 @@
     </button>
     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
         @can('rider_edit')
-        <a href="javascript:void();" data-action="{{ route('rider_contract_upload', ['company_slug' => request()->route('company_slug'), 'id' => $id]) }}" data-size="md"
-            data-title="{{$name . ' (' . $rider_id }}') Contract" class="dropdown-item waves-effect show-modal"><i class="fas fa-file my-1"></i> Contract</a>
+        @include('layouts.partials.module_contract_action', [
+          'module' => 'riders',
+          'recordId' => $id,
+          'recordLabel' => $name . ' (' . $rider_id . ') — Contracts',
+        ])
 
         <a href="javascript:void();" data-action="{{ route('rider.sendemail', ['company_slug' => request()->route('company_slug'), 'id' => $id]) }}" data-size="md"
             data-title="{{$name . ' (' . $rider_id }}')" class="dropdown-item waves-effect show-modal"><i class="fas fa-envelope my-1"></i> Send Email</a>

@@ -8,9 +8,12 @@ use App\Models\AgreementTemplate;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Services\Agreements\AgreementPdfService;
 use App\Support\CompanyContext;
+use App\Models\Settings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Laracasts\Flash\Flash;
+use Illuminate\Validation\Rule;
 
 class AgreementSettingsController extends Controller
 {
@@ -30,11 +33,208 @@ class AgreementSettingsController extends Controller
 
         $categories = AgreementCategory::query()
             ->where('group_key', $groupKey)
-            ->where('status', true)
             ->orderBy('sort_order')
+            ->with('defaultTemplate')
             ->get();
 
-        return view('settings.agreements.index', compact('categories', 'groupKey', 'groups'));
+        $modules = $this->moduleOptions();
+
+        return view('settings.agreements.index', compact('categories', 'groupKey', 'groups', 'modules'));
+    }
+
+    public function createAgreement(Request $request, $company_slug)
+    {
+        $this->authorizeAgreement('agreement_create');
+
+        $groupKey = (string) $request->get('group', 'rider_agreements');
+        $groups = config('agreement_categories.groups', []);
+        $modules = $this->moduleOptions();
+
+        return view('settings.agreements.create', compact('groupKey', 'groups', 'modules'));
+    }
+
+    public function storeAgreement(Request $request, $company_slug)
+    {
+        $this->authorizeAgreement('agreement_create');
+
+        $companyId = CompanyContext::id();
+        $assignableModuleKeys = $this->assignableModuleKeys();
+
+        $data = $request->validate([
+            'agreement_name' => 'required|string|max:191',
+            'agreement_code' => [
+                'required',
+                'string',
+                'max:80',
+                Rule::unique('agreement_categories', 'agreement_code')->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId);
+                }),
+            ],
+            'description' => 'nullable|string',
+            'assigned_modules' => 'required|array|min:1',
+            'assigned_modules.*' => ['string', Rule::in($assignableModuleKeys)],
+            'status' => 'sometimes|boolean',
+            'group_key' => 'nullable|string|max:80',
+        ], [
+            'assigned_modules.required' => 'Select at least one module for this agreement.',
+            'assigned_modules.min' => 'Select at least one module for this agreement.',
+            'assigned_modules.*.in' => 'One or more selected modules are not valid for agreements.',
+        ]);
+
+        $slug = Str::slug((string) $data['agreement_code'], '_');
+        if ($slug === '') {
+            $slug = Str::slug((string) $data['agreement_name'], '_');
+        }
+
+        $sortOrder = (int) AgreementCategory::query()->where('group_key', (string) ($data['group_key'] ?? 'rider_agreements'))->max('sort_order');
+        $sortOrder = $sortOrder + 1;
+
+        $category = AgreementCategory::create([
+            'group_key' => (string) ($data['group_key'] ?? 'rider_agreements'),
+            'slug' => $slug,
+            'agreement_code' => (string) $data['agreement_code'],
+            'name' => (string) $data['agreement_name'],
+            'description' => $data['description'] ?? null,
+            'sort_order' => $sortOrder,
+            'status' => $request->boolean('status', true),
+            'assigned_modules' => $this->normalizeAssignedModules($data['assigned_modules']),
+        ]);
+
+        $this->seedAgreementTemplates($category, $category->status);
+
+        Flash::success('Agreement created and assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '. Corporate template is the default contract template — change it under Edit if needed.');
+
+        return redirect()->route('settings-panel.agreements.edit-agreement', [
+            'company_slug' => $company_slug,
+            'category' => $category->id,
+        ]);
+    }
+
+    public function editAgreement(Request $request, $company_slug, $category)
+    {
+        $this->authorizeAgreement('agreement_edit');
+
+        $category = AgreementCategory::with(['templates' => fn($q) => $q->sampleStyles()->where('status', true)->orderBy('template_name')])->findOrFail($category);
+        $modules = $this->moduleOptions();
+        $groups = config('agreement_categories.groups', []);
+
+        $contractTemplateId = optional($category->contractTemplate())->id;
+
+        return view('settings.agreements.edit', compact('category', 'modules', 'groups', 'contractTemplateId'));
+    }
+
+    public function showAgreement(Request $request, $company_slug, $category)
+    {
+        $this->authorizeAgreement('agreement_view');
+
+        $category = AgreementCategory::with(['defaultTemplate', 'templates' => fn($q) => $q->sampleStyles()])->findOrFail($category);
+        $modules = $this->moduleOptions();
+        $groups = config('agreement_categories.groups', []);
+
+        return view('settings.agreements.show', compact('category', 'modules', 'groups'));
+    }
+
+    public function updateAgreement(Request $request, $company_slug, $category)
+    {
+        $this->authorizeAgreement('agreement_edit');
+
+        $category = AgreementCategory::with('templates')->findOrFail($category);
+        $companyId = CompanyContext::id();
+        $assignableModuleKeys = $this->assignableModuleKeys();
+
+        $data = $request->validate([
+            'agreement_name' => 'required|string|max:191',
+            'agreement_code' => [
+                'required',
+                'string',
+                'max:80',
+                Rule::unique('agreement_categories', 'agreement_code')
+                    ->where(function ($q) use ($companyId) {
+                        $q->where('company_id', $companyId);
+                    })
+                    ->ignore($category->id),
+            ],
+            'description' => 'nullable|string',
+            'assigned_modules' => 'required|array|min:1',
+            'assigned_modules.*' => ['string', Rule::in($assignableModuleKeys)],
+            'status' => 'sometimes|boolean',
+            'contract_template_id' => [
+                'required',
+                'integer',
+                Rule::exists('agreement_templates', 'id')->where(fn ($q) => $q->where('category_id', $category->id)),
+            ],
+        ], [
+            'assigned_modules.required' => 'Select at least one module for this agreement.',
+            'assigned_modules.min' => 'Select at least one module for this agreement.',
+            'assigned_modules.*.in' => 'One or more selected modules are not valid for agreements.',
+        ]);
+
+        $slug = Str::slug((string) $data['agreement_code'], '_');
+        if ($slug === '') {
+            $slug = Str::slug((string) $data['agreement_name'], '_');
+        }
+
+        $newStatus = $request->boolean('status', true);
+
+        $category->fill([
+            'agreement_code' => (string) $data['agreement_code'],
+            'slug' => $slug,
+            'name' => (string) $data['agreement_name'],
+            'description' => $data['description'] ?? null,
+            'status' => $newStatus,
+            'assigned_modules' => $this->normalizeAssignedModules($data['assigned_modules']),
+        ]);
+        $category->save();
+
+        // Keep templates status aligned with agreement status.
+        AgreementTemplate::query()
+            ->where('category_id', $category->id)
+            ->update(['status' => $newStatus]);
+
+        $this->assignContractTemplate($category, (int) $data['contract_template_id']);
+
+        Flash::success('Agreement saved. Assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '.');
+
+        return redirect()->route('settings-panel.agreements.edit-agreement', [
+            'company_slug' => $company_slug,
+            'category' => $category->id,
+        ]);
+    }
+
+    public function destroyAgreement(Request $request, $company_slug, $category)
+    {
+        $this->authorizeAgreement('agreement_delete');
+
+        $category = AgreementCategory::findOrFail($category);
+        $groupKey = (string) $category->group_key;
+        $category->delete();
+
+        Flash::success('Agreement deleted.');
+
+        return redirect()->route('settings-panel.agreements.index', [
+            'company_slug' => $company_slug,
+            'group' => $groupKey,
+        ]);
+    }
+
+    public function toggleAgreementStatus(Request $request, $company_slug, $category)
+    {
+        $this->authorizeAgreement('agreement_edit');
+
+        $category = AgreementCategory::findOrFail($category);
+        $category->status = ! $category->status;
+        $category->save();
+
+        AgreementTemplate::query()
+            ->where('category_id', $category->id)
+            ->update(['status' => $category->status]);
+
+        Flash::success('Agreement status updated.');
+
+        return redirect()->route('settings-panel.agreements.index', [
+            'company_slug' => $company_slug,
+            'group' => $category->group_key,
+        ]);
     }
 
     public function templates(Request $request, $company_slug, $category)
@@ -210,7 +410,7 @@ class AgreementSettingsController extends Controller
 
         $template = AgreementTemplate::findOrFail($id);
         $pdf = $pdfService->previewPdf($template);
-        $filename = \Str::slug($template->template_name) . '-preview.pdf';
+        $filename = Str::slug($template->template_name) . '-preview.pdf';
 
         return $pdf->download($filename);
     }
@@ -244,5 +444,114 @@ class AgreementSettingsController extends Controller
         if (!Gate::allows($permission) && !Gate::allows('gn_settings')) {
             abort(403, 'Unauthorized');
         }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    /**
+     * Module keys that support agreement assignment (must match agreement_modules config).
+     *
+     * @return list<string>
+     */
+    private function assignableModuleKeys(): array
+    {
+        return array_keys(config('agreement_modules.modules', []));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function moduleOptions(): array
+    {
+        $erpLabels = config('erp_modules.modules', []);
+
+        return collect($this->assignableModuleKeys())
+            ->mapWithKeys(fn (string $moduleKey) => [
+                $moduleKey => Settings::getMenuLabel($moduleKey) ?: ($erpLabels[$moduleKey] ?? ucfirst(str_replace('_', ' ', $moduleKey))),
+            ])
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>|null  $moduleKeys
+     */
+    private function moduleAssignmentLabel(?array $moduleKeys): string
+    {
+        $keys = $this->normalizeAssignedModules($moduleKeys ?? []);
+        if ($keys === []) {
+            return 'none';
+        }
+
+        $labels = $this->moduleOptions();
+
+        return collect($keys)
+            ->map(fn (string $key) => $labels[$key] ?? $key)
+            ->implode(', ');
+    }
+
+    /**
+     * @param  array<int, string>  $modules
+     * @return list<string>
+     */
+    private function normalizeAssignedModules(array $modules): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static fn ($key) => is_string($key) ? trim($key) : '',
+            $modules
+        ))));
+    }
+
+    private function assignContractTemplate(AgreementCategory $category, int $templateId): void
+    {
+        $template = AgreementTemplate::query()
+            ->where('category_id', $category->id)
+            ->sampleStyles()
+            ->where('status', true)
+            ->findOrFail($templateId);
+
+        $template->setAsDefault();
+    }
+
+    private function seedAgreementTemplates(AgreementCategory $category, bool $status): void
+    {
+        $companyId = CompanyContext::id();
+
+        // Generic default content: editable via “Manage Templates”.
+        // Uses the same placeholder tokens the system already supports.
+        $seedContent = <<<HTML
+<p><strong>Date:</strong> {agreement_date}</p>
+<p>This agreement is made between <strong>{company_name}</strong> and <strong>{rider_name}</strong> (Rider ID: <strong>{rider_code}</strong>).</p>
+
+<h3>Terms &amp; Conditions</h3>
+<ol>
+  <li>Both parties agree to comply with company policies and all applicable regulations.</li>
+  <li>The agreement becomes effective from the signature date shown on this document.</li>
+  <li>Any amendments must be documented in writing.</li>
+</ol>
+
+<p style="margin-top:14pt;"><strong>Signature Section</strong></p>
+<p class="text-muted" style="margin-top:6pt;">(Company and recipient signatures appear automatically in the PDF layout.)</p>
+HTML;
+
+        AgreementTemplate::create([
+            'company_id' => $companyId,
+            'category_id' => $category->id,
+            'template_name' => $category->name . ' (Corporate Professional)',
+            'template_type' => AgreementTemplate::TYPE_CORPORATE,
+            'description' => $seedContent,
+            'is_default' => true,
+            'status' => $status,
+        ]);
+
+        AgreementTemplate::create([
+            'company_id' => $companyId,
+            'category_id' => $category->id,
+            'template_name' => $category->name . ' (Modern Premium)',
+            'template_type' => AgreementTemplate::TYPE_PREMIUM,
+            'description' => $seedContent,
+            'is_default' => false,
+            'status' => $status,
+        ]);
     }
 }

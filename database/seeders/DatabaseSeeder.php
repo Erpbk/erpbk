@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             CoreParentAccountsSeeder::class,
             TenantPermissionsSeeder::class,
             VisaStatusSeeder::class,
+            LegalCaseStatusSeeder::class,
         ]);
 
         // Factories rely on fakerphp/faker (require-dev). On production deployments

@@ -4,8 +4,10 @@ namespace App\Services\Agreements;
 
 use App\Models\AgreementTemplate;
 use App\Models\Riders;
+use App\Services\Agreements\AgreementModuleService;
 use App\Services\Email\CompanyEmailBrandingService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Model;
 
 class AgreementPdfService
 {
@@ -21,10 +23,20 @@ class AgreementPdfService
         ?string $agreementDate = null,
         bool $useSampleData = false
     ): string {
+        return $this->renderHtmlForModule($template, 'riders', $rider, $agreementDate, $useSampleData);
+    }
+
+    public function renderHtmlForModule(
+        AgreementTemplate $template,
+        string $module,
+        Model $record,
+        ?string $agreementDate = null,
+        bool $useSampleData = false
+    ): string {
         $content = (string) ($template->description ?? '');
         $map = $useSampleData
             ? $this->sampleMap()
-            : $this->resolver->resolveForRider($rider, $agreementDate);
+            : $this->resolver->resolveForModule($module, $record, $agreementDate);
 
         $body = $this->resolver->replace($content, $map);
         $branding = $this->pdfBranding->forCompany($template->company_id);
@@ -33,10 +45,12 @@ class AgreementPdfService
             ? 'agreements.pdf.premium'
             : 'agreements.pdf.corporate';
 
+        $subject = app(AgreementModuleService::class)->pdfSubject($module, $record);
+
         return view($view, [
             'body' => $body,
             'branding' => $branding,
-            'rider' => $rider,
+            'rider' => $subject,
             'template' => $template,
             'category' => $template->category,
             'agreementDate' => $agreementDate ?? now()->format('Y-m-d'),
@@ -48,7 +62,16 @@ class AgreementPdfService
         Riders $rider,
         ?string $agreementDate = null
     ) {
-        $html = $this->renderHtml($template, $rider, $agreementDate);
+        return $this->generatePdfForModule($template, 'riders', $rider, $agreementDate);
+    }
+
+    public function generatePdfForModule(
+        AgreementTemplate $template,
+        string $module,
+        Model $record,
+        ?string $agreementDate = null
+    ) {
+        $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate);
 
         return Pdf::loadHTML($html)->setPaper('a4', 'portrait');
     }

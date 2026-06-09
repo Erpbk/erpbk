@@ -3,12 +3,65 @@
 namespace App\Services\Agreements;
 
 use App\Models\Company;
+use App\Models\Employee;
 use App\Models\Riders;
 use App\Support\CompanyContext;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
 class AgreementPlaceholderResolver
 {
+    public function resolveForModule(string $module, Model $record, ?string $agreementDate = null): array
+    {
+        return match ($module) {
+            'riders' => $record instanceof Riders
+                ? $this->resolveForRider($record, $agreementDate)
+                : $this->resolveForRider(Riders::query()->findOrFail($record->getKey()), $agreementDate),
+            'employees' => $record instanceof Employee
+                ? $this->resolveForEmployee($record, $agreementDate)
+                : $this->resolveForEmployee(Employee::query()->findOrFail($record->getKey()), $agreementDate),
+            default => [],
+        };
+    }
+
+    public function resolveForEmployee(Employee $employee, ?string $agreementDate = null): array
+    {
+        $employee->loadMissing(['branch', 'department']);
+
+        $company = request()?->attributes->get('company') ?? Company::find(CompanyContext::id());
+        $custom = is_array($employee->custom_field_values) ? $employee->custom_field_values : [];
+
+        $agreementDateFormatted = $agreementDate
+            ? Carbon::parse($agreementDate)->format('d-M-Y')
+            : now()->format('d-M-Y');
+
+        $email = (string) ($employee->company_email ?: $employee->personal_email ?: '');
+
+        return [
+            '{rider_name}' => (string) ($employee->name ?? ''),
+            '{rider_code}' => (string) ($employee->employee_id ?? ''),
+            '{rider_email}' => $email,
+            '{rider_phone}' => (string) ($employee->company_contact ?: $employee->personal_contact ?: ''),
+            '{rider_cnic}' => (string) ($employee->emirate_id ?? ''),
+            '{rider_passport_number}' => (string) ($employee->passport ?? ''),
+            '{rider_nationality}' => '',
+            '{rider_date_of_birth}' => $this->formatDate($employee->dob),
+            '{rider_gender}' => '',
+            '{rider_address}' => (string) ($employee->address ?? ''),
+            '{rider_city}' => $company->city ?? '',
+            '{rider_country}' => $company->country ?? '',
+            '{joining_date}' => $this->formatDate($employee->doj),
+            '{designation}' => (string) ($employee->designation ?? ''),
+            '{salary}' => (string) ($employee->salary ?? ''),
+            '{branch_name}' => (string) ($employee->branch->name ?? ''),
+            '{company_name}' => (string) ($company->name ?? config('app.name')),
+            '{bike_number}' => '',
+            '{bike_model}' => '',
+            '{current_date}' => now()->format('d-M-Y'),
+            '{agreement_date}' => $agreementDateFormatted,
+        ];
+    }
+
     public function resolveForRider(Riders $rider, ?string $agreementDate = null): array
     {
         $rider->loadMissing(['branch', 'bikes', 'country']);

@@ -7,6 +7,7 @@ use Illuminate\Support\ServiceProvider;
 use Laravel\Fortify\Fortify;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
+use App\Models\AgreementCategory;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Settings;
@@ -96,9 +97,22 @@ class AppServiceProvider extends ServiceProvider
       }
       $fallbackSlug = request()->route('company_slug') ?? session('company_slug');
       $menuCompanySlug = CompanyRouteContext::slug() ?? $fallbackSlug;
+      $agreementMenuModules = [];
+      if (auth()->check() && ! request()->routeIs('admin.*')) {
+        try {
+          AgreementCategory::ensureDefaultsForCompany();
+          $configured = array_keys(config('agreement_modules.modules', []));
+          $active = AgreementCategory::activeModuleKeysWithAgreements();
+          $agreementMenuModules = array_values(array_intersect($configured, $active));
+        } catch (\Throwable) {
+          $agreementMenuModules = [];
+        }
+      }
+
       $view->with([
         'menuLabels' => $labels,
         'menuCompanySlug' => $menuCompanySlug,
+        'agreementMenuModules' => $agreementMenuModules,
       ]);
     });
 

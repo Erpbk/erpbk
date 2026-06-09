@@ -111,6 +111,14 @@ return [
             'visaloan_edit',
         ]],
 
+        ['parent' => 'Legal Case', 'slug' => 'legalcase', 'extras' => []],
+
+        ['parent' => 'Passport Handover', 'slug' => 'passport_handover', 'extras' => [
+            'passport_handover_issue',
+            'passport_handover_return',
+            'passport_handover_print',
+        ]],
+
         ['parent' => 'Expenses', 'slug' => 'expenses', 'extras' => [
             'expense_voucher_create',
             'voucher_document',

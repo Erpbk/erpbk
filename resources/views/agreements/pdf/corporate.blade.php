@@ -38,21 +38,8 @@
     }
 
     .top-band {
-      background-color: {
-          {
-          $p
-        }
-      }
-
-      ;
-
-      color: {
-          {
-          $onPrimary
-        }
-      }
-
-      ;
+      background-color: {{ $p }};
+      color: {{ $onPrimary }};
       padding: 16pt 42pt 14pt 42pt;
     }
 
@@ -65,14 +52,7 @@
       vertical-align: middle;
       border: none;
       padding: 0;
-
-      color: {
-          {
-          $onPrimary
-        }
-      }
-
-      ;
+      color: {{ $onPrimary }};
     }
 
     .logo-cell {
@@ -112,21 +92,8 @@
     }
 
     .doc-badge {
-      background-color: {
-          {
-          $pDark
-        }
-      }
-
-      ;
-
-      color: {
-          {
-          $onPrimary
-        }
-      }
-
-      ;
+      background-color: {{ $pDark }};
+      color: {{ $onPrimary }};
       text-align: right;
       padding: 8pt 10pt;
       font-size: 8.5pt;
@@ -141,42 +108,21 @@
 
     .accent-rule {
       height: 4pt;
-
-      background-color: {
-          {
-          $s
-        }
-      }
-
-      ;
+      background-color: {{ $s }};
       margin: 0;
     }
 
     .title-block {
       text-align: center;
       padding: 10pt 0 8pt;
-
-      border-bottom: 1px solid {
-          {
-          $border
-        }
-      }
-
-      ;
+      border-bottom: 1px solid {{ $border }};
       margin-bottom: 8pt;
     }
 
     .title-block h1 {
       font-size: 12.5pt;
       font-weight: bold;
-
-      color: {
-          {
-          $pDark
-        }
-      }
-
-      ;
+      color: {{ $pDark }};
       margin: 0 0 2pt;
       line-height: 1.2;
       text-transform: uppercase;
@@ -193,22 +139,8 @@
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 8pt;
-
-      background-color: {
-          {
-          $pLight
-        }
-      }
-
-      ;
-
-      border: 1px solid {
-          {
-          $border
-        }
-      }
-
-      ;
+      background-color: {{ $pLight }};
+      border: 1px solid {{ $border }};
     }
 
     .rider-strip td {
@@ -220,13 +152,7 @@
     }
 
     .rider-strip .label {
-      color: {
-          {
-          $p
-        }
-      }
-
-      ;
+      color: {{ $p }};
       font-weight: bold;
       font-size: 6.5pt;
       line-height: 1.1;
@@ -252,13 +178,7 @@
 
     .content h2,
     .content h3 {
-      color: {
-          {
-          $p
-        }
-      }
-
-      ;
+      color: {{ $p }};
       font-size: 10pt;
       margin: 8pt 0 4pt;
       line-height: 1.2;
@@ -271,33 +191,13 @@
     }
 
     .content table th {
-      background-color: {
-          {
-          $p
-        }
-      }
-
-      ;
-
-      color: {
-          {
-          $onPrimary
-        }
-      }
-
-      ;
+      background-color: {{ $p }};
+      color: {{ $onPrimary }};
       padding: 3pt 5pt;
       font-size: 7.5pt;
       line-height: 1.15;
       text-align: left;
-
-      border: 1px solid {
-          {
-          $pDark
-        }
-      }
-
-      ;
+      border: 1px solid {{ $pDark }};
     }
 
     .content table td,
@@ -308,23 +208,11 @@
     }
 
     .content table td {
-      border: 1px solid {
-          {
-          $border
-        }
-      }
-
-      ;
+      border: 1px solid {{ $border }};
     }
 
     .content table tr:nth-child(even) td {
-      background-color: {
-          {
-          $pLight
-        }
-      }
-
-      ;
+      background-color: {{ $pLight }};
     }
 
     .content ul,
@@ -352,48 +240,21 @@
       width: 48%;
       vertical-align: top;
       padding: 8pt;
-
-      border: 1px solid {
-          {
-          $border
-        }
-      }
-
-      ;
-
-      background-color: {
-          {
-          $pSoft
-        }
-      }
-
-      ;
+      border: 1px solid {{ $border }};
+      background-color: {{ $pSoft }};
       font-size: 8.5pt;
       line-height: 1.2;
     }
 
     .signatures td+td {
-      border-left: 3pt solid {
-          {
-          $p
-        }
-      }
-
-      ;
+      border-left: 3pt solid {{ $p }};
     }
 
     .sign-title {
       font-size: 8pt;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-
-      color: {
-          {
-          $p
-        }
-      }
-
-      ;
+      color: {{ $p }};
       font-weight: bold;
       margin-bottom: 8pt;
     }
@@ -412,22 +273,8 @@
       font-size: 7.5pt;
       color: #64748b;
       padding: 8pt 42pt;
-
-      border-top: 2pt solid {
-          {
-          $p
-        }
-      }
-
-      ;
-
-      background-color: {
-          {
-          $pLight
-        }
-      }
-
-      ;
+      border-top: 2pt solid {{ $p }};
+      background-color: {{ $pLight }};
     }
 
     .footer-bar table {

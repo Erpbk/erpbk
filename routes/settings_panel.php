@@ -282,6 +282,10 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::put('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'updateDocumentType'])->name('settings-panel.module-settings.update-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::delete('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'destroyDocumentType'])->name('settings-panel.module-settings.destroy-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/visa-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateVisaExpenseTop'])->name('settings-panel.module-settings.update-visa-expense-top')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/legal-case-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateLegalCaseTop'])->name('settings-panel.module-settings.update-legal-case-top')->where('module', '[A-Za-z0-9_-]+');
+    Route::resource('legal-case-statuses', App\Http\Controllers\LegalCaseStatusController::class)->names('settings-panel.legal-case-statuses');
+    Route::post('legal-case-statuses/reorder', [App\Http\Controllers\LegalCaseStatusController::class, 'reorder'])->name('settings-panel.legal-case-statuses.reorder');
+    Route::get('legal-case-statuses/{id}/toggle-active', [App\Http\Controllers\LegalCaseStatusController::class, 'toggleActive'])->name('settings-panel.legal-case-statuses.toggle-active');
     Route::post('module-settings/{module}/bike-registration-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateBikeRegistrationTop'])->name('settings-panel.module-settings.update-bike-registration-top')->where('module', '[A-Za-z0-9_-]+');
 
     // Centralized top bar settings (generic module storage)
@@ -298,20 +302,16 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         Route::post('categories/reorder', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'reorderCategories'])->name('reorder-categories');
     });
 
-    // Agreement templates (Settings → Agreements)
+    // Agreements (Settings: create + assign modules only)
     Route::prefix('agreements')->name('settings-panel.agreements.')->group(function () {
         Route::get('/', [App\Http\Controllers\AgreementSettingsController::class, 'index'])->name('index');
-        Route::get('/categories/{category}/templates', [App\Http\Controllers\AgreementSettingsController::class, 'templates'])->name('templates')->whereNumber('category');
-        Route::get('/categories/{category}/templates/create', [App\Http\Controllers\AgreementSettingsController::class, 'create'])->name('create')->whereNumber('category');
-        Route::post('/categories/{category}/templates', [App\Http\Controllers\AgreementSettingsController::class, 'store'])->name('store')->whereNumber('category');
-        Route::get('/templates/{id}/edit', [App\Http\Controllers\AgreementSettingsController::class, 'edit'])->name('edit');
-        Route::put('/templates/{id}', [App\Http\Controllers\AgreementSettingsController::class, 'update'])->name('update');
-        Route::delete('/templates/{id}', [App\Http\Controllers\AgreementSettingsController::class, 'destroy'])->name('destroy');
-        Route::post('/templates/{id}/duplicate', [App\Http\Controllers\AgreementSettingsController::class, 'duplicate'])->name('duplicate');
-        Route::post('/templates/{id}/set-default', [App\Http\Controllers\AgreementSettingsController::class, 'setDefault'])->name('set-default');
-        Route::post('/templates/{id}/toggle-status', [App\Http\Controllers\AgreementSettingsController::class, 'toggleStatus'])->name('toggle-status');
-        Route::match(['get', 'post'], '/templates/{id}/preview', [App\Http\Controllers\AgreementSettingsController::class, 'preview'])->name('preview');
-        Route::get('/templates/{id}/preview-pdf', [App\Http\Controllers\AgreementSettingsController::class, 'previewPdf'])->name('preview-pdf');
+        Route::get('/create', [App\Http\Controllers\AgreementSettingsController::class, 'createAgreement'])->name('create-agreement');
+        Route::post('/store', [App\Http\Controllers\AgreementSettingsController::class, 'storeAgreement'])->name('store-agreement');
+        Route::get('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'showAgreement'])->name('show-agreement')->whereNumber('category');
+        Route::get('/categories/{category}/edit', [App\Http\Controllers\AgreementSettingsController::class, 'editAgreement'])->name('edit-agreement')->whereNumber('category');
+        Route::put('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'updateAgreement'])->name('update-agreement')->whereNumber('category');
+        Route::delete('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'destroyAgreement'])->name('destroy-agreement')->whereNumber('category');
+        Route::post('/categories/{category}/toggle-status', [App\Http\Controllers\AgreementSettingsController::class, 'toggleAgreementStatus'])->name('toggle-agreement-status')->whereNumber('category');
     });
 
     // Module settings page + label update

@@ -12,6 +12,7 @@ use App\Models\Settings;
 use App\Models\BikeRegistrationStatus;
 use App\Models\SimAssignFieldAssignment;
 use App\Models\VisaStatus;
+use App\Models\LegalCaseStatus;
 use App\Services\Module\ModuleDefaultCategoryService;
 use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Services\Module\ModuleLabelService;
@@ -32,6 +33,9 @@ class ModuleSettingsController extends Controller
 
     private const VISA_EXPENSE_TOP_SETTING_KEY = 'visa_expense_top_status_ids';
     private const VISA_EXPENSE_TOP_ENABLED_KEY = 'visa_expense_top_enabled';
+
+    private const LEGAL_CASE_TOP_SETTING_KEY = 'legal_case_top_status_ids';
+    private const LEGAL_CASE_TOP_ENABLED_KEY = 'legal_case_top_enabled';
 
     private const BIKE_REGISTRATION_TOP_SETTING_KEY = 'bike_registration_top_status_ids';
 
@@ -87,6 +91,41 @@ class ModuleSettingsController extends Controller
     {
         $raw = (string) (Settings::query()
             ->where('name', self::VISA_EXPENSE_TOP_ENABLED_KEY)
+            ->value('value') ?? '1');
+
+        return in_array(strtolower(trim($raw)), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function selectedLegalCaseTopStatusIds(): array
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::LEGAL_CASE_TOP_SETTING_KEY)
+            ->value('value') ?? '');
+
+        if ($raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return collect($decoded)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function legalCaseTopEnabled(): bool
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::LEGAL_CASE_TOP_ENABLED_KEY)
             ->value('value') ?? '1');
 
         return in_array(strtolower(trim($raw)), ['1', 'true', 'yes', 'on'], true);
@@ -160,7 +199,7 @@ class ModuleSettingsController extends Controller
             $excluded = ModuleFieldSource::defaultExcludedFieldsForModule($module);
             $columns = array_values(array_filter(
                 Schema::getColumnListing($table),
-                fn ($col) => ! in_array($col, $excluded, true)
+                fn($col) => ! in_array($col, $excluded, true)
             ));
 
             foreach ($columns as $index => $column) {
@@ -208,7 +247,7 @@ class ModuleSettingsController extends Controller
             ModuleFieldCategoryAssignment::query()
                 ->where('module_key', $module)
                 ->whereIn('field_key', AttendanceFieldScope::RIDER_ONLY_FIELDS)
-                ->each(fn (ModuleFieldCategoryAssignment $row) => AttendanceFieldScope::ensureRiderScopeOnAssignment($row));
+                ->each(fn(ModuleFieldCategoryAssignment $row) => AttendanceFieldScope::ensureRiderScopeOnAssignment($row));
         }
 
         app(ModuleDefaultCategoryService::class)->assignAllFieldsToDefault($module, $defaultCategory);
@@ -354,6 +393,18 @@ class ModuleSettingsController extends Controller
             $visaExpenseTopEnabled = $this->visaExpenseTopEnabled();
         }
 
+        $legalCaseStatuses = collect();
+        $selectedLegalCaseTopStatusIds = [];
+        $legalCaseTopEnabled = true;
+        if ($module === 'legal_case') {
+            $legalCaseStatuses = LegalCaseStatus::query()
+                ->orderBy('display_order')
+                ->orderBy('name')
+                ->get();
+            $selectedLegalCaseTopStatusIds = $this->selectedLegalCaseTopStatusIds();
+            $legalCaseTopEnabled = $this->legalCaseTopEnabled();
+        }
+
         $bikeRegistrationStatusesForSettings = collect();
         $selectedBikeRegistrationTopStatusIds = [];
         $bikeRegistrationTopEnabled = true;
@@ -422,6 +473,9 @@ class ModuleSettingsController extends Controller
             'visaStatuses' => $visaStatuses,
             'selectedVisaExpenseTopStatusIds' => $selectedVisaExpenseTopStatusIds,
             'visaExpenseTopEnabled' => $visaExpenseTopEnabled,
+            'legalCaseStatuses' => $legalCaseStatuses,
+            'selectedLegalCaseTopStatusIds' => $selectedLegalCaseTopStatusIds,
+            'legalCaseTopEnabled' => $legalCaseTopEnabled,
             'showBikeRegistrationExtras' => $module === 'bike_registration',
             'bikeRegistrationStatusesForSettings' => $bikeRegistrationStatusesForSettings,
             'selectedBikeRegistrationTopStatusIds' => $selectedBikeRegistrationTopStatusIds,
@@ -475,6 +529,51 @@ class ModuleSettingsController extends Controller
             ])
             ->with('success', 'Visa Expense Top statuses updated.')
             ->withFragment('tab-visa-expense-top');
+    }
+
+    public function updateLegalCaseTop(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        abort_unless($module === 'legal_case', 404);
+
+        $validated = $request->validate([
+            'status_ids' => ['nullable', 'array'],
+            'status_ids.*' => ['integer', 'exists:legal_case_statuses,id'],
+            'show_in_top_bar' => ['nullable', 'boolean'],
+        ]);
+
+        $statusIds = collect($validated['status_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        Settings::updateOrCreate(
+            ['name' => self::LEGAL_CASE_TOP_SETTING_KEY],
+            ['value' => json_encode($statusIds)]
+        );
+        Settings::updateOrCreate(
+            ['name' => self::LEGAL_CASE_TOP_ENABLED_KEY],
+            ['value' => $request->boolean('show_in_top_bar') ? '1' : '0']
+        );
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Legal Case Top updated successfully.',
+                'status_ids' => $statusIds,
+                'show_in_top_bar' => $request->boolean('show_in_top_bar'),
+            ]);
+        }
+
+        return redirect()
+            ->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => $module,
+            ])
+            ->with('success', 'Legal Case Top statuses updated.')
+            ->withFragment('tab-legal-case-top');
     }
 
     public function updateBikeRegistrationTop(Request $request, string $company_slug, string $module)

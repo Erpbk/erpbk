@@ -72,6 +72,9 @@ use App\Http\Controllers\UserTableSettingsController;
 use App\Http\Controllers\VatController;
 use App\Http\Controllers\VendorsController;
 use App\Http\Controllers\VisaexpenseController;
+use App\Http\Controllers\LegalCaseController;
+use App\Http\Controllers\LegalCaseStatusController;
+use App\Http\Controllers\PassportHandoverController;
 use App\Http\Controllers\VisaStatusController;
 use App\Http\Controllers\VouchersController;
 use Illuminate\Support\Facades\Artisan;
@@ -201,6 +204,25 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('/', [HomeController::class, 'index'])->name('home');
     Route::get('/home', [HomeController::class, 'index'])->name('home-dashboard');
     Route::post('/logout', [CompanyAuthController::class, 'logout'])->name('company.logout');
+
+    // Module Agreements — register before employees/riders resource routes ({module}/agreements must not match {employee} or {rider})
+    Route::prefix('{module}/agreements')->where(['module' => 'riders|employees'])->name('module-agreements.')->group(function () {
+        Route::get('/', [App\Http\Controllers\ModuleAgreementController::class, 'index'])->name('index');
+        Route::get('/categories/{category}', [App\Http\Controllers\ModuleAgreementController::class, 'show'])->name('show')->whereNumber('category');
+        Route::get('/templates/{template}/edit', [App\Http\Controllers\ModuleAgreementController::class, 'editTemplate'])->name('templates.edit')->whereNumber('template');
+        Route::put('/templates/{template}', [App\Http\Controllers\ModuleAgreementController::class, 'updateTemplate'])->name('templates.update')->whereNumber('template');
+        Route::post('/categories/{category}/templates/{template}/assign', [App\Http\Controllers\ModuleAgreementController::class, 'assignContractTemplate'])->name('templates.assign')->whereNumber(['category', 'template']);
+        Route::get('/templates/{template}/preview', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplate'])->name('templates.preview')->whereNumber('template');
+        Route::get('/templates/{template}/preview-pdf', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplatePdf'])->name('templates.preview-pdf')->whereNumber('template');
+    });
+
+    // Module record contracts (listing action → contract modal, PDF, email)
+    Route::prefix('{module}/records/{record}/contracts')->where(['module' => 'riders|employees'])->whereNumber('record')->name('module-contracts.')->group(function () {
+        Route::get('/', [App\Http\Controllers\ModuleContractController::class, 'modal'])->name('modal');
+        Route::get('/preview', [App\Http\Controllers\ModuleContractController::class, 'preview'])->name('preview');
+        Route::get('/pdf', [App\Http\Controllers\ModuleContractController::class, 'pdf'])->name('pdf');
+        Route::post('/email', [App\Http\Controllers\ModuleContractController::class, 'email'])->name('email');
+    });
 
     Route::resource('items', ItemsController::class);
     Route::resource('garage-items', GarageItemsController::class);
@@ -336,6 +358,43 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('VisaExpense/edit-voucher-credit/{visaExpense}', [VisaexpenseController::class, 'editVoucherCreditForm'])->name('VisaExpense.editVoucherCreditForm');
     Route::post('VisaExpense/update-voucher-credit', [VisaexpenseController::class, 'updateVoucherCredit'])->name('VisaExpense.updateVoucherCredit');
 
+    // Legal Case custom routes (register before resource to avoid {LegalCase} shadowing)
+    Route::get('LegalCase/generatentries/{id}', [LegalCaseController::class, 'generatentries'])->name('LegalCase.generatentries');
+    Route::get('LegalCase/create/{id}', [LegalCaseController::class, 'create'])->name('LegalCase.create');
+    Route::get('LegalCase/edit/{id}', [LegalCaseController::class, 'edit'])->name('LegalCase.edit');
+    Route::get('LegalCase/delete/{id}', [LegalCaseController::class, 'destroy'])->name('LegalCase.delete');
+    Route::resource('LegalCase', LegalCaseController::class)->only(['index']);
+    Route::resource('legal-case-statuses', LegalCaseStatusController::class);
+    Route::post('legal-case-statuses/reorder', [LegalCaseStatusController::class, 'reorder'])->name('legal-case-statuses.reorder');
+    Route::get('legal-case-statuses/{id}/toggle-active', [LegalCaseStatusController::class, 'toggleActive'])->name('legal-case-statuses.toggle-active');
+    Route::post('LegalCase/store', [LegalCaseController::class, 'store'])->name('LegalCase.store');
+    Route::post('LegalCase/inline-update', [LegalCaseController::class, 'inlineUpdate'])->name('LegalCase.inlineUpdate');
+    Route::post('LegalCase/update', [LegalCaseController::class, 'update'])->name('LegalCase.update');
+    Route::post('LegalCase/complete-step', [LegalCaseController::class, 'completeStep'])->name('LegalCase.completeStep');
+    Route::post('legalcase-accountcreate', [LegalCaseController::class, 'accountcreate'])->name('LegalCase.accountcreate');
+    Route::post('legalcase-editaccount', [LegalCaseController::class, 'editaccount'])->name('LegalCase.editaccount');
+    Route::get('LegalCase/deleteaccount/{id}', [LegalCaseController::class, 'deleteaccount'])->name('LegalCase.deleteaccount');
+
+    // Passport Handover
+    Route::get('passport-handover', [PassportHandoverController::class, 'index'])->name('passportHandover.index');
+    Route::get('passport-handover/{type}/{id}/history', [PassportHandoverController::class, 'history'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.history');
+    Route::get('passport-handover/{type}/{id}/issue', [PassportHandoverController::class, 'issueForm'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.issueForm');
+    Route::post('passport-handover/{type}/{id}/issue', [PassportHandoverController::class, 'issueStore'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.issueStore');
+    Route::get('passport-handover/{type}/{id}/return', [PassportHandoverController::class, 'returnForm'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.returnForm');
+    Route::post('passport-handover/{type}/{id}/return', [PassportHandoverController::class, 'returnStore'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.returnStore');
+    Route::get('passport-handover/contracts/issue/{id}', [PassportHandoverController::class, 'issueContract'])->name('passportHandover.issueContract');
+    Route::get('passport-handover/contracts/return/{id}', [PassportHandoverController::class, 'returnContract'])->name('passportHandover.returnContract');
+
     Route::post('bike-registration-statuses/reorder', [BikeRegistrationStatusController::class, 'reorder'])->name('bike-registration-statuses.reorder');
     Route::get('bike-registration-statuses/{id}/toggle-active', [BikeRegistrationStatusController::class, 'toggleActive'])->name('bike-registration-statuses.toggle-active');
     Route::resource('bike-registration-statuses', BikeRegistrationStatusController::class);
@@ -423,6 +482,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('riders/{riderId}/agreements/preview', [App\Http\Controllers\AgreementGenerationController::class, 'preview'])->name('agreements.preview');
     Route::get('riders/{riderId}/agreements/pdf', [App\Http\Controllers\AgreementGenerationController::class, 'pdf'])->name('agreements.pdf');
     Route::post('riders/{riderId}/agreements/email', [App\Http\Controllers\AgreementGenerationController::class, 'email'])->name('agreements.email');
+    Route::get('riders/{riderId}/agreements/templates/{template}/edit', [App\Http\Controllers\AgreementGenerationController::class, 'editTemplate'])->name('agreements.templates.edit');
+    Route::put('riders/{riderId}/agreements/templates/{template}', [App\Http\Controllers\AgreementGenerationController::class, 'updateTemplate'])->name('agreements.templates.update');
+
     Route::any('riders/picture_upload/{id?}', [RidersController::class, 'picture_upload'])->name('rider_picture_upload');
     Route::any('riders/rider-document/{id}', [RidersController::class, 'document'])->name('rider.document');
     Route::get('rider/updateRider', [RidersController::class, 'updateRider'])->name('rider.updateRider');

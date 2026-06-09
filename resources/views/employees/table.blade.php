@@ -7,10 +7,10 @@
          $tableCols = $tableColumns ?? [];
          $hiddenTableColumns = \App\Models\EmployeeCustomField::removedEmployeeColumns();
          $dataColumns = array_values(array_filter($tableCols, function ($c) use ($hiddenTableColumns) {
-             $k = $c['data'] ?? ($c['key'] ?? null);
-             return $k !== 'search'
-                 && $k !== 'control'
-                 && !in_array($k, $hiddenTableColumns, true);
+         $k = $c['data'] ?? ($c['key'] ?? null);
+         return $k !== 'search'
+         && $k !== 'control'
+         && !in_array($k, $hiddenTableColumns, true);
          }));
          @endphp
          @foreach($dataColumns as $col)
@@ -33,11 +33,11 @@
          @php
          $phone = preg_replace('/[^0-9]/', '', (string) $employee->company_contact);
          if (strpos($phone, '971') === 0) {
-             $whatsappNumber = '+' . $phone;
-             $displayNumber = '0' . substr($phone, 3);
+         $whatsappNumber = '+' . $phone;
+         $displayNumber = '0' . substr($phone, 3);
          } else {
-             $whatsappNumber = $phone !== '' ? '+971' . ltrim($phone, '0') : '';
-             $displayNumber = $phone !== '' ? '0' . ltrim($phone, '0') : '';
+         $whatsappNumber = $phone !== '' ? '+971' . ltrim($phone, '0') : '';
+         $displayNumber = $phone !== '' ? '0' . ltrim($phone, '0') : '';
          }
          @endphp
          <td>
@@ -88,59 +88,59 @@
             @if($emirateExpiry->isPast())
             <span class="badge bg-label-danger mb-1 d-block">Emirates ID Expired</span>
             @elseif($emirateExpiry->diffInDays($today) <= 30)
-            <span class="badge bg-label-warning mb-1 d-block">Emirates ID: {{ $emirateExpiry->diffInDays($today) }} days</span>
-            @else
-            <span class="badge bg-label-success mb-1 d-block">Emirates ID: {{ $emirateExpiry->diffInDays($today) }} days</span>
-            @endif
-            @endif
-            @if($passportExpiry)
-            @if($passportExpiry->isPast())
-            <span class="badge bg-label-danger mb-1 d-block">Passport Expired</span>
-            @elseif($passportExpiry->diffInDays($today) <= 60)
-            <span class="badge bg-label-warning mb-1 d-block">Passport: {{ $passportExpiry->diffInDays($today) }} days</span>
-            @else
-            <span class="badge bg-label-success mb-1 d-block">Passport: {{ $passportExpiry->diffInDays($today) }} days</span>
-            @endif
-            @endif
-            @if($visaExpiry)
-            @if($visaExpiry->isPast())
-            <span class="badge bg-label-danger mb-1 d-block">Visa Expired</span>
-            @elseif($visaExpiry->diffInDays($today) <= 30)
-            <span class="badge bg-label-warning mb-1 d-block">Visa: {{ $visaExpiry->diffInDays($today) }} days</span>
-            @else
-            <span class="badge bg-label-success mb-1 d-block">Visa: {{ $visaExpiry->diffInDays($today) }} days</span>
-            @endif
-            @endif
-            @if($licenseExpiry)
-            @if($licenseExpiry->isPast())
-            <span class="badge bg-label-danger mb-1 d-block">License Expired</span>
-            @elseif($licenseExpiry->diffInDays($today) <= 30)
-            <span class="badge bg-label-warning mb-1 d-block">License: {{ $licenseExpiry->diffInDays($today) }} days</span>
-            @else
-            <span class="badge bg-label-success mb-1 d-block">License: {{ $licenseExpiry->diffInDays($today) }} days</span>
-            @endif
-            @endif
-            @if($roadPermitExpiry)
-            @if($roadPermitExpiry->isPast())
-            <span class="badge bg-label-danger mb-1 d-block">Road Permit Expired</span>
-            @elseif($roadPermitExpiry->diffInDays($today) <= 30)
-            <span class="badge bg-label-warning mb-1 d-block">Road Permit: {{ $roadPermitExpiry->diffInDays($today) }} days</span>
-            @else
-            <span class="badge bg-label-success mb-1 d-block">Road Permit: {{ $roadPermitExpiry->diffInDays($today) }} days</span>
-            @endif
-            @endif
-            @if($laborCardExpiry)
-            @if($laborCardExpiry->isPast())
-            <span class="badge bg-label-danger">Labor Card Expired</span>
-            @elseif($laborCardExpiry->diffInDays($today) <= 30)
-            <span class="badge bg-label-warning">Labor Card: {{ $laborCardExpiry->diffInDays($today) }} days</span>
-            @else
-            <span class="badge bg-label-success">Labor Card: {{ $laborCardExpiry->diffInDays($today) }} days</span>
-            @endif
-            @endif
-            @if(!$emirateExpiry && !$passportExpiry && !$visaExpiry && !$licenseExpiry && !$roadPermitExpiry && !$laborCardExpiry)
-            <span class="badge bg-label-secondary">No Documents</span>
-            @endif
+               <span class="badge bg-label-warning mb-1 d-block">Emirates ID: {{ $emirateExpiry->diffInDays($today) }} days</span>
+               @else
+               <span class="badge bg-label-success mb-1 d-block">Emirates ID: {{ $emirateExpiry->diffInDays($today) }} days</span>
+               @endif
+               @endif
+               @if($passportExpiry)
+               @if($passportExpiry->isPast())
+               <span class="badge bg-label-danger mb-1 d-block">Passport Expired</span>
+               @elseif($passportExpiry->diffInDays($today) <= 60)
+                  <span class="badge bg-label-warning mb-1 d-block">Passport: {{ $passportExpiry->diffInDays($today) }} days</span>
+                  @else
+                  <span class="badge bg-label-success mb-1 d-block">Passport: {{ $passportExpiry->diffInDays($today) }} days</span>
+                  @endif
+                  @endif
+                  @if($visaExpiry)
+                  @if($visaExpiry->isPast())
+                  <span class="badge bg-label-danger mb-1 d-block">Visa Expired</span>
+                  @elseif($visaExpiry->diffInDays($today) <= 30)
+                     <span class="badge bg-label-warning mb-1 d-block">Visa: {{ $visaExpiry->diffInDays($today) }} days</span>
+                     @else
+                     <span class="badge bg-label-success mb-1 d-block">Visa: {{ $visaExpiry->diffInDays($today) }} days</span>
+                     @endif
+                     @endif
+                     @if($licenseExpiry)
+                     @if($licenseExpiry->isPast())
+                     <span class="badge bg-label-danger mb-1 d-block">License Expired</span>
+                     @elseif($licenseExpiry->diffInDays($today) <= 30)
+                        <span class="badge bg-label-warning mb-1 d-block">License: {{ $licenseExpiry->diffInDays($today) }} days</span>
+                        @else
+                        <span class="badge bg-label-success mb-1 d-block">License: {{ $licenseExpiry->diffInDays($today) }} days</span>
+                        @endif
+                        @endif
+                        @if($roadPermitExpiry)
+                        @if($roadPermitExpiry->isPast())
+                        <span class="badge bg-label-danger mb-1 d-block">Road Permit Expired</span>
+                        @elseif($roadPermitExpiry->diffInDays($today) <= 30)
+                           <span class="badge bg-label-warning mb-1 d-block">Road Permit: {{ $roadPermitExpiry->diffInDays($today) }} days</span>
+                           @else
+                           <span class="badge bg-label-success mb-1 d-block">Road Permit: {{ $roadPermitExpiry->diffInDays($today) }} days</span>
+                           @endif
+                           @endif
+                           @if($laborCardExpiry)
+                           @if($laborCardExpiry->isPast())
+                           <span class="badge bg-label-danger">Labor Card Expired</span>
+                           @elseif($laborCardExpiry->diffInDays($today) <= 30)
+                              <span class="badge bg-label-warning">Labor Card: {{ $laborCardExpiry->diffInDays($today) }} days</span>
+                              @else
+                              <span class="badge bg-label-success">Labor Card: {{ $laborCardExpiry->diffInDays($today) }} days</span>
+                              @endif
+                              @endif
+                              @if(!$emirateExpiry && !$passportExpiry && !$visaExpiry && !$licenseExpiry && !$roadPermitExpiry && !$laborCardExpiry)
+                              <span class="badge bg-label-secondary">No Documents</span>
+                              @endif
          </td>
          @break
          @case('status')
@@ -155,6 +155,11 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $employee->id }}" style="z-index: 1050;">
+                  @include('layouts.partials.module_contract_action', [
+                    'module' => 'employees',
+                    'recordId' => $employee->id,
+                    'recordLabel' => $employee->name . ' (' . $employee->employee_id . ') — Contracts',
+                  ])
                   @can('employees_view')
                   <a href="{{ route('employees.show', $employee->id) }}" class="dropdown-item waves-effect">
                      <i class="fa fa-eye my-1"></i> View
@@ -188,20 +193,20 @@
          <td>
             @php
             if (is_string($key) && str_starts_with($key, 'custom_field_values.')) {
-                $customId = (int) substr($key, strlen('custom_field_values.'));
-                $customValues = is_array($employee->custom_field_values) ? $employee->custom_field_values : [];
-                $value = $customValues[$customId] ?? $customValues[(string) $customId] ?? '-';
+            $customId = (int) substr($key, strlen('custom_field_values.'));
+            $customValues = is_array($employee->custom_field_values) ? $employee->custom_field_values : [];
+            $value = $customValues[$customId] ?? $customValues[(string) $customId] ?? '-';
             } else {
-                $value = data_get($employee, $key, '-');
+            $value = data_get($employee, $key, '-');
             }
             if (is_array($value)) {
-                $value = array_is_list($value)
-                    ? implode(', ', array_map(fn ($v) => is_scalar($v) ? (string) $v : json_encode($v), $value))
-                    : json_encode($value);
+            $value = array_is_list($value)
+            ? implode(', ', array_map(fn ($v) => is_scalar($v) ? (string) $v : json_encode($v), $value))
+            : json_encode($value);
             } elseif ($value instanceof \Illuminate\Support\Collection) {
-                $value = $value->implode(', ');
+            $value = $value->implode(', ');
             } elseif ($value instanceof \Carbon\CarbonInterface) {
-                $value = $value->format('d M Y');
+            $value = $value->format('d M Y');
             }
             @endphp
             {{ $value }}

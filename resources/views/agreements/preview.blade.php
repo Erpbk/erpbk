@@ -28,8 +28,6 @@
     <button type="button" onclick="window.print()" class="btn-primary">Print</button>
     @if(isset($rider) && $rider->exists)
     <a href="{{ route('agreements.pdf', ['company_slug' => request()->route('company_slug'), 'riderId' => $rider->id, 'template_id' => $template->id, 'agreement_date' => request('agreement_date', now()->format('Y-m-d')), 'download' => 1]) }}">Download PDF</a>
-    @elseif($template->exists ?? false)
-    <a href="{{ route('settings-panel.agreements.preview-pdf', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}">Download PDF</a>
     @endif
     <button type="button" onclick="window.close()">Close</button>
   </div>

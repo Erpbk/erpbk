@@ -154,6 +154,28 @@ return [
             ],
         ],
 
+        'legal_case' => [
+            'storage' => 'generic',
+            'filter_strategy' => 'column',
+            'request' => [
+                'option_id' => 'top_option_id',
+                'filter_mode' => 'top_filter_mode',
+                'date_from' => 'top_date_from',
+                'date_to' => 'top_date_to',
+            ],
+        ],
+
+        'passport_handover' => [
+            'storage' => 'generic',
+            'filter_strategy' => 'column',
+            'request' => [
+                'option_id' => 'top_option_id',
+                'filter_mode' => 'top_filter_mode',
+                'date_from' => 'top_date_from',
+                'date_to' => 'top_date_to',
+            ],
+        ],
+
         'expenses' => [
             'storage' => 'generic',
             'source_table' => 'expenses',

@@ -32,6 +32,8 @@ class ErpModuleRegistry
     {
         return [
             'visa_expense',
+            'legal_case',
+            'passport_handover',
             'bike_registration',
         ];
     }

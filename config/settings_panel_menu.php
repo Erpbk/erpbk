@@ -162,6 +162,18 @@ return [
             'icon' => 'ti-credit-card',
         ],
         [
+            'key' => 'legal_case',
+            'visibility' => 'legal_case',
+            'permission' => 'legalcase_view',
+            'icon' => 'ti-scale',
+        ],
+        [
+            'key' => 'passport_handover',
+            'visibility' => 'passport_handover',
+            'permission' => 'passport_handover_view',
+            'icon' => 'ti-passport',
+        ],
+        [
             'key' => 'expenses',
             'visibility' => 'expenses',
             'permission' => 'expenses_view',

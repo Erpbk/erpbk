@@ -51,6 +51,8 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
 $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 $showVisaStatusManagementTab = ($moduleKey ?? '') === 'visa_expense';
 $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'visa_expense']) . '#tab-visa-status-management';
+$showLegalCaseStatusManagementTab = ($moduleKey ?? '') === 'legal_case';
+$legalCaseStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'legal_case']) . '#tab-legal-case-status-management';
 $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
 $defaultCategoryId = isset($defaultCategory) ? (int) $defaultCategory->id : 0;
 $showAttendanceRiderOnlyHint = !empty($showAttendanceRiderOnlyHint);
@@ -122,6 +124,18 @@ $attendanceRefType = $attendanceRefType ?? null;
             </button>
           </li>
           @endif
+          @if($showLegalCaseStatusManagementTab)
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-legal-case-status-management" type="button" role="tab">
+              Legal Case Status Management
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-legal-case-top" type="button" role="tab">
+              Legal Case Top
+            </button>
+          </li>
+          @endif
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-categories" type="button" role="tab">
               Categories
@@ -172,18 +186,18 @@ $attendanceRefType = $attendanceRefType ?? null;
           {{-- Tab: General --}}
           <div class="tab-pane fade {{ ($showBikeFieldsMainTab || $showAssignFieldsTab) ? '' : 'show active' }}" id="tab-general" role="tabpanel">
             @include('settings.partials._module_general_label_form', [
-              'settingsRoutePrefix' => $settingsRoutePrefix,
-              'settingsRouteParams' => $settingsRouteParams,
-              'moduleMenuKey' => $moduleKey ?? 'bike_list',
-              'moduleLabel' => $moduleLabel ?? null,
-              'settingsHeading' => $settingsHeading ?? null,
-              'defaultLabel' => $moduleLabel ?? $settingsHeading,
+            'settingsRoutePrefix' => $settingsRoutePrefix,
+            'settingsRouteParams' => $settingsRouteParams,
+            'moduleMenuKey' => $moduleKey ?? 'bike_list',
+            'moduleLabel' => $moduleLabel ?? null,
+            'settingsHeading' => $settingsHeading ?? null,
+            'defaultLabel' => $moduleLabel ?? $settingsHeading,
             ])
             @include('settings.partials._module_menu_icon_form', [
-              'settingsRoutePrefix' => $settingsRoutePrefix,
-              'settingsRouteParams' => $settingsRouteParams,
-              'moduleMenuKey' => $moduleKey ?? 'bike_list',
-              'defaultLabel' => $moduleLabel ?? $settingsHeading,
+            'settingsRoutePrefix' => $settingsRoutePrefix,
+            'settingsRouteParams' => $settingsRouteParams,
+            'moduleMenuKey' => $moduleKey ?? 'bike_list',
+            'defaultLabel' => $moduleLabel ?? $settingsHeading,
             ])
           </div>
 
@@ -436,6 +450,11 @@ $attendanceRefType = $attendanceRefType ?? null;
             id="visa-status-manager-config"
             data-edit-url-template="{{ route('settings-panel.visa-statuses.update', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'visa_status' => '__ID__']) }}"
             hidden></div>
+          @endif
+
+          @if($showLegalCaseStatusManagementTab)
+          @include('settings.partials.legal_case_module_settings')
+          @include('settings.partials.legal_case_module_settings_script')
           @endif
 
           {{-- Tab: Categories --}}
@@ -2673,7 +2692,7 @@ $attendanceRefType = $attendanceRefType ?? null;
     document.addEventListener('DOMContentLoaded', function() {
       initVisaStatusSortable();
       var targetHash = window.location.hash;
-      if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top') {
+      if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top' || targetHash === '#tab-legal-case-status-management' || targetHash === '#tab-legal-case-top') {
         var visaTabBtn = document.querySelector('[data-bs-target="' + targetHash + '"]');
         if (visaTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
           bootstrap.Tab.getOrCreateInstance(visaTabBtn).show();
@@ -2998,8 +3017,8 @@ $attendanceRefType = $attendanceRefType ?? null;
   }
 </script>
 @if(($moduleKey ?? '') === 'bike_list')
-  @if(($moduleKey ?? '') === 'bike_list')
-  @include('settings.bike_settings._bike_top_user_prefs_script')
-  @endif
+@if(($moduleKey ?? '') === 'bike_list')
+@include('settings.bike_settings._bike_top_user_prefs_script')
+@endif
 @endif
 @endsection

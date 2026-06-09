@@ -464,6 +464,16 @@ $homeLink = $isAdminLogin
 </li>
 @endcan
 @endif
+@if(\App\Support\CompanyModuleVisibility::enabled('passport_handover'))
+@can('passport_handover_view')
+<li class="menu-item {{ Route::is('passportHandover*') ? 'active' : '' }}">
+  <a href="{{ route('passportHandover.index') }}" class="menu-link">
+    @include('layouts.partials.module_menu_icon', ['key' => 'passport_handover'])
+    <div>{{ $menuLabels['passport_handover'] ?? 'Passport Handover' }}</div>
+  </a>
+</li>
+@endcan
+@endif
 @if(\App\Support\CompanyModuleVisibility::enabled('expenses'))
 @can('expenses_view')
 <li class="menu-item {{ Route::is('expenses*') ? 'active' : '' }}">

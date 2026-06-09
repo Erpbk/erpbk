@@ -36,6 +36,7 @@ return [
 
     ['key' => 'visa_expense'],
     ['key' => 'legal_case'],
+    ['key' => 'passport_handover'],
 
     ['key' => 'expenses'],
 

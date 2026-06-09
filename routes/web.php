@@ -74,6 +74,7 @@ use App\Http\Controllers\VendorsController;
 use App\Http\Controllers\VisaexpenseController;
 use App\Http\Controllers\LegalCaseController;
 use App\Http\Controllers\LegalCaseStatusController;
+use App\Http\Controllers\PassportHandoverController;
 use App\Http\Controllers\VisaStatusController;
 use App\Http\Controllers\VouchersController;
 use Illuminate\Support\Facades\Artisan;
@@ -373,6 +374,26 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('legalcase-accountcreate', [LegalCaseController::class, 'accountcreate'])->name('LegalCase.accountcreate');
     Route::post('legalcase-editaccount', [LegalCaseController::class, 'editaccount'])->name('LegalCase.editaccount');
     Route::get('LegalCase/deleteaccount/{id}', [LegalCaseController::class, 'deleteaccount'])->name('LegalCase.deleteaccount');
+
+    // Passport Handover
+    Route::get('passport-handover', [PassportHandoverController::class, 'index'])->name('passportHandover.index');
+    Route::get('passport-handover/{type}/{id}/history', [PassportHandoverController::class, 'history'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.history');
+    Route::get('passport-handover/{type}/{id}/issue', [PassportHandoverController::class, 'issueForm'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.issueForm');
+    Route::post('passport-handover/{type}/{id}/issue', [PassportHandoverController::class, 'issueStore'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.issueStore');
+    Route::get('passport-handover/{type}/{id}/return', [PassportHandoverController::class, 'returnForm'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.returnForm');
+    Route::post('passport-handover/{type}/{id}/return', [PassportHandoverController::class, 'returnStore'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.returnStore');
+    Route::get('passport-handover/contracts/issue/{id}', [PassportHandoverController::class, 'issueContract'])->name('passportHandover.issueContract');
+    Route::get('passport-handover/contracts/return/{id}', [PassportHandoverController::class, 'returnContract'])->name('passportHandover.returnContract');
 
     Route::post('bike-registration-statuses/reorder', [BikeRegistrationStatusController::class, 'reorder'])->name('bike-registration-statuses.reorder');
     Route::get('bike-registration-statuses/{id}/toggle-active', [BikeRegistrationStatusController::class, 'toggleActive'])->name('bike-registration-statuses.toggle-active');

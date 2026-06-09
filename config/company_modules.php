@@ -86,6 +86,10 @@ return [
             'label' => 'Legal Case',
             'primary_label_key' => 'legal_case',
         ],
+        'passport_handover' => [
+            'label' => 'Passport Handover',
+            'primary_label_key' => 'passport_handover',
+        ],
         'expenses' => [
             'label' => 'Expenses',
             'primary_label_key' => 'expenses',

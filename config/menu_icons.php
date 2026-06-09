@@ -54,6 +54,7 @@ return [
         'inventory' => 'ti-package',
         'visa_expense' => 'ti-credit-card',
         'legal_case' => 'ti-scale',
+        'passport_handover' => 'ti-passport',
         'expenses' => 'ti-cash',
         'vat' => 'ti-receipt-tax',
         'vat_ledger' => 'ti-receipt-tax',

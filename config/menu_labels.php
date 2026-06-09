@@ -55,6 +55,7 @@ return [
         'inventory'            => 'Inventory',
         'visa_expense'         => 'Visa Expense',
         'legal_case'           => 'Legal Case',
+        'passport_handover'    => 'Passport Handover',
         'visa_status_types'    => 'Visa Status Types',
         'expenses'             => 'Expenses',
         'vat'                  => 'VAT',

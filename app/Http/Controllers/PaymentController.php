@@ -14,6 +14,7 @@ use App\Models\LeasingCompanyInvoice;
 use App\Models\Payment;
 use App\Models\RiderInvoices;
 use App\Models\Riders;
+use App\Models\SimInvoice;
 use App\Models\Supplier;
 use App\Models\SupplierInvoices;
 use App\Models\Transactions;
@@ -81,6 +82,7 @@ class PaymentController extends Controller
         $existingInvoices = null;
         $employeePayment = request()->input('employee_payment') || request()->input('invoice_type') == 'employee';
         $riderPayment = request()->input('rider_payment') || request()->input('invoice_type') == 'rider';
+        $simPayment = request()->input('sim_payment') || request()->input('invoice_type') == 'sim';
         $riderId = request()->input('rider_id') ?? null;
         if (request()->input('leasing_payment')) {
             $leasingIds = LeasingCompanies::pluck('id')->toArray();
@@ -171,6 +173,31 @@ class PaymentController extends Controller
                 }
             }
             $accountIds = array_values(array_unique($accountIds));
+        } elseif ($simPayment) {
+            $invoiceType = 'sim';
+            $selectedInvoice = null;
+            if (request()->input('invoice_id')) {
+                $selectedInvoice = SimInvoice::with('vendor')->find(request()->input('invoice_id'));
+            }
+            if ($selectedInvoice) {
+                $invoices = SimInvoice::with('vendor')
+                    ->where('vendor_id', $selectedInvoice->vendor_id)
+                    ->where('status', '!=', 1)
+                    ->get();
+            } else {
+                $invoices = SimInvoice::with('vendor')
+                    ->where('status', '!=', 1)
+                    ->whereHas('vendor', fn ($q) => $q->whereNotNull('account_id'))
+                    ->orderBy('billing_month', 'desc')
+                    ->get();
+            }
+            $accountIds = [];
+            foreach ($invoices as $invoice) {
+                if ($invoice->vendor && $invoice->vendor->account_id) {
+                    $accountIds[] = $invoice->vendor->account_id;
+                }
+            }
+            $accountIds = array_values(array_unique($accountIds));
         } else {
             $invoices = null;
         }
@@ -196,6 +223,10 @@ class PaymentController extends Controller
 
             return view('payments.create', compact('banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'existingInvoices'));
         } elseif ($riderPayment) {
+            $banks = Banks::with('account')->active()->get();
+
+            return view('payments.create', compact('banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'existingInvoices'));
+        } elseif ($simPayment) {
             $banks = Banks::with('account')->active()->get();
 
             return view('payments.create', compact('banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'existingInvoices'));
@@ -346,6 +377,24 @@ class PaymentController extends Controller
                                 'status' => 1, // Paid
                                 'updated_by' => auth()->id(),
                             ]);
+                        }
+                    }
+                } elseif ($invoiceType == 'sim') {
+                    $invoices = SimInvoice::whereIn('id', $invoiceIds)->get();
+
+                    foreach ($invoices as $invoice) {
+                        $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+                        $partialAmount = $invoice->partial_paid_amount ?? [];
+                        $partialAmount[$payment->id] = $invoicePaymentAmount;
+
+                        if ($invoicePaymentAmount > 0) {
+                            if ($invoicePaymentAmount >= ($invoice->balance ?? 0)) {
+                                $invoice->status = 1;
+                            } else {
+                                $invoice->status = 3;
+                            }
+                            $invoice->partial_paid_amount = $partialAmount;
+                            $invoice->save();
                         }
                     }
                 } else {
@@ -587,6 +636,26 @@ class PaymentController extends Controller
             $accountIds = $existingInvoices->pluck('employee.account_id')->toArray();
             $invoiceType = 'employee';
         }
+        if ((str_contains($payment->reference, 'SIMI'))) {
+            $invoice_numbers = explode(' ', $payment->reference);
+            $invoiceIds = [];
+            foreach ($invoice_numbers as $invoice_number) {
+                $invoiceId = SimInvoice::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
+                }
+            }
+            $existingInvoices = SimInvoice::with('vendor')
+                ->whereIn('id', $invoiceIds)
+                ->get();
+            $invoices = SimInvoice::with('vendor')
+                ->whereIn('vendor_id', $existingInvoices->pluck('vendor_id'))
+                ->where('status', '!=', 1)
+                ->whereNotIn('id', $invoiceIds)
+                ->get();
+            $accountIds = $existingInvoices->pluck('vendor.account_id')->toArray();
+            $invoiceType = 'sim';
+        }
         $banks = Banks::active()->get();
         $payment->billing_month = Carbon::parse($payment->billing_month)->format('Y-m');
 
@@ -708,6 +777,17 @@ class PaymentController extends Controller
                     $existingInvoices = EmployeeInvoices::whereIn('id', $invoiceIds)->get();
                     $partial = 0;
                     $pending = 0;
+                } elseif ($input['invoice_type'] == 'sim') {
+                    foreach ($invoice_numbers as $invoice_number) {
+                        $id = SimInvoice::getIdFromInvoiceNumber($invoice_number);
+                        if ($id) {
+                            $invoiceIds[] = $id;
+                        }
+                    }
+
+                    $existingInvoices = SimInvoice::whereIn('id', $invoiceIds)->get();
+                    $partial = 3;
+                    $pending = 0;
                 } else {
                     foreach ($invoice_numbers as $invoice_number) {
                         $id = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
@@ -732,7 +812,9 @@ class PaymentController extends Controller
                     } else {
                         $invoice->status = $partial; // Otherwise, it's still partially paid
                     }
-                    $invoice->updated_by = auth()->id();
+                    if (($input['invoice_type'] ?? null) != 'sim') {
+                        $invoice->updated_by = auth()->id();
+                    }
                     $invoice->save();
                 }
             }
@@ -764,6 +846,10 @@ class PaymentController extends Controller
                     $invoices = EmployeeInvoices::whereIn('id', $invoiceIds)->get();
                     $partial = 0;
                     $paid = 1;
+                } elseif ($input['invoice_type'] == 'sim') {
+                    $invoices = SimInvoice::whereIn('id', $invoiceIds)->get();
+                    $partial = 3;
+                    $paid = 1;
                 } else {
                     $invoices = SupplierInvoices::whereIn('id', $invoiceIds)->get();
                     $partial = 'partially_paid';
@@ -776,14 +862,21 @@ class PaymentController extends Controller
                     $partialAmount[$payment->id] = $invoicePaymentAmount;
 
                     if ($invoicePaymentAmount > 0) {
-                        // Update the invoice status based on the payment
-                        if ($invoicePaymentAmount >= ($invoice->total_amount - ($invoice->paid_amount ?? 0))) {
-                            $invoice->status = $paid; // Paid
+                        if ($input['invoice_type'] == 'sim') {
+                            if ($invoicePaymentAmount >= ($invoice->balance ?? 0)) {
+                                $invoice->status = $paid;
+                            } else {
+                                $invoice->status = $partial;
+                            }
+                        } elseif ($invoicePaymentAmount >= ($invoice->total_amount - ($invoice->paid_amount ?? 0))) {
+                            $invoice->status = $paid;
                         } else {
-                            $invoice->status = $partial; // Partially Paid
+                            $invoice->status = $partial;
                         }
                         $invoice->partial_paid_amount = $partialAmount;
-                        $invoice->updated_by = auth()->id();
+                        if (($input['invoice_type'] ?? null) != 'sim') {
+                            $invoice->updated_by = auth()->id();
+                        }
                         $invoice->save();
                     }
                 }
@@ -1007,6 +1100,30 @@ class PaymentController extends Controller
                         $invoice->status = 0; // Unpaid if no payments remain
                     } else {
                         $invoice->status = 3; // Partially Paid if some payments remain
+                    }
+                    $invoice->save();
+                }
+            }
+            if ((str_contains($payment->reference, 'SIMI'))) {
+                $invoice_numbers = explode(' ', $payment->reference);
+                $invoiceIds = [];
+                foreach ($invoice_numbers as $invoice_number) {
+                    $id = SimInvoice::getIdFromInvoiceNumber($invoice_number);
+                    if ($id) {
+                        $invoiceIds[] = $id;
+                    }
+                }
+                $invoices = SimInvoice::with('vendor')
+                    ->whereIn('id', $invoiceIds)
+                    ->get();
+                foreach ($invoices as $invoice) {
+                    $partialAmount = $invoice->partial_paid_amount ?? [];
+                    unset($partialAmount[$payment->id]);
+                    $invoice->partial_paid_amount = $partialAmount;
+                    if (count($partialAmount) < 1) {
+                        $invoice->status = 0;
+                    } else {
+                        $invoice->status = 3;
                     }
                     $invoice->save();
                 }

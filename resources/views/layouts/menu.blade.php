@@ -346,7 +346,7 @@ $homeLink = $isAdminLogin
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('sims'))
 @can('sim_view')
-<li class="menu-item {{ Route::is('sims*') || Route::is('simInvoices*') || Route::is('simCompanies*') ? 'open' : '' }}">
+<li class="menu-item {{ Route::is('sims*') || Route::is('simInvoices*') || Route::is('simCompanies*') || Route::is('sim.payments') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     @include('layouts.partials.module_menu_icon', ['key' => 'sims'])
     <div>{{ $menuLabels['sims'] ?? 'Sims' }}</div>
@@ -358,6 +358,12 @@ $homeLink = $isAdminLogin
         <div>{{ $menuLabels['sims'] ?? 'Sims' }}</div>
       </a>
     </li>
+    <li class="menu-item {{ Route::is('simCompanies*') ? 'active' : '' }}">
+      <a href="{{ route('simCompanies.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'sim_companies'])
+        <div>{{ $menuLabels['sim_companies'] ?? 'SIM Companies' }}</div>
+      </a>
+    </li>
     @can('sim_invoice_view')
     <li class="menu-item {{ Route::is('simInvoices*') ? 'active' : '' }}">
       <a href="{{ route('simInvoices.index') }}" class="menu-link">
@@ -366,12 +372,14 @@ $homeLink = $isAdminLogin
       </a>
     </li>
     @endcan
-    <li class="menu-item {{ Route::is('simCompanies*') ? 'active' : '' }}">
-      <a href="{{ route('simCompanies.index') }}" class="menu-link">
-        @include('layouts.partials.module_menu_icon', ['key' => 'sim_companies'])
-        <div>{{ $menuLabels['sim_companies'] ?? 'SIM Companies' }}</div>
+    @can('payments_view')
+    <li class="menu-item {{ Route::is('sim.payments') ? 'active' : '' }}">
+      <a href="{{ route('sim.payments') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'payments'])
+        <div>{{ $menuLabels['sim_payments'] ?? 'Payments Sent' }}</div>
       </a>
     </li>
+    @endcan
   </ul>
 </li>
 @endcan

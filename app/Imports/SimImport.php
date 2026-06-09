@@ -8,9 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use App\Models\Sims;
-use App\Models\SimHistory;
-use App\Models\Riders;
-use App\Models\Branch;
+use App\Models\SimCompany;
+use App\Models\Customers;
 
 class SimImport implements ToCollection
 {
@@ -50,67 +49,55 @@ class SimImport implements ToCollection
                     $company    = trim($row[1] ?? '');
                     $emi        = trim($row[2] ?? '');
                     $vendor     = trim($row[3] ?? '');
-                    $branch     = trim($row[4] ?? '');
 
-                    if (empty($simNumber) || empty($company) || empty($vendor) || empty($emi) || empty($branch)) {
+                    if (empty($simNumber) || empty($company)) {
                         $stats['missing_data']++;
-                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $vendor, $emi, $branch, 'Missing required fields');
+                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $emi, $vendor, 'Missing required fields');
                         continue;
                     }
 
                     if (in_array($simNumber, $processedSims)) {
                         $stats['duplicate_excel']++;
-                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $vendor, $emi, $branch, 'Duplicate SIM number in Excel file');
+                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $emi, $vendor, 'Duplicate SIM number in Excel file');
                         continue;
                     }
 
                     if (isset($existingSims[$simNumber])) {
                         $stats['duplicate_db']++;
-                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $vendor, $emi, $branch, 'Sim number already exists in Database');
+                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company,  $emi, $vendor, 'Sim number already exists in Database');
                         continue;
                     }
 
-                    $rider = Riders::where('company_contact', $simNumber)->first();
-                    $branch = Branch::where('code', $branch)->first();
-                    if(!$rider) {
-                        $sim = Sims::create([
+                    $compny = SimCompany::whereRaw(
+                        'LOWER(name) = ?',
+                        [strtolower($company)]
+                    )->first();
+                    $vendors = Customers::whereRaw(
+                        'LOWER(name) = ?',
+                        [strtolower($vendor)]
+                    )->first();
+
+                    if(!$compny) {
+                        $stats['missing_data']++;
+                        $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber, $company, $emi, $vendor, 'Company not found');
+                        continue;
+                    }
+
+                    $sim = Sims::create([
                         'number' => $simNumber,
-                        'company' => $company,
-                        'emi' => $emi,
-                        'vendor' => $vendor,
+                        'company' => $compny->name,
+                        'company_id' => $compny->id,
+                        'vendor' => $vendors?->id ?? null,
+                        'emi' => $emi ?? null,
                         'status' => 0,
-                        'branch_id' => $branch?->id ?? null,
                         'created_by' => Auth::id(),
-                        ]);
+                    ]);
 
-                        $processedSims[] = "Sim:{$simNumber} Imported (Unassigned)";
-                        $stats['imported']++;
-                    }
-                    else {
-                        $sim = Sims::create([
-                        'number' => $simNumber,
-                        'company' => $company,
-                        'emi' => $emi,
-                        'vendor' => $vendor,
-                        'assign_to' => $rider->id,
-                        'status' => 1,
-                        'branch_id' => $branch?->id ?? null,
-                        'created_by' => Auth::id(),
-                        ]);
-
-                        SimHistory::create([
-                            'sim_id' => $sim->id,
-                            'rider_id' => $rider->id,
-                            'note_date' => now()->format('Y-m-d'),
-                            'assigned_by' => Auth::id(),
-                        ]);
-
-                        $processedSims[] = "Sim:{$simNumber} Imported And Assigned to Rider: {$rider->name}";
-                        $stats['imported']++;
-                    }
+                    $processedSims[] = $simNumber;
+                    $stats['imported']++;
                 } catch (\Exception $e) {
                     $stats['failed']++;
-                    $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber ?? null, $company ?? null, $vendor ?? null, $emi ?? null, $branch ?? null, 'Exception: ' . $e->getMessage(), ['exception' => $e->getTraceAsString()]);
+                    $failedSims[] = $this->createFailureEntry($stats['total'], $simNumber ?? null, $company ?? null, $emi ?? null, $vendor ?? null, 'Exception: ' . $e->getMessage(), ['exception' => $e->getTraceAsString()]);
                     \Log::error("Import error: " . $e->getMessage());
                     continue;
                 }           
@@ -130,15 +117,14 @@ class SimImport implements ToCollection
         }
     }
 
-    private function createFailureEntry($rowIndex, $number, $company, $vendor, $emi, $branch, $reason, $extra = [])
+    private function createFailureEntry($rowIndex, $number, $company,  $emi,  $vendor, $reason, $extra = [])
     {
         return array_merge([
             'excel_row' => $rowIndex + 1, 
             'number' => $number ?? 'Missing',
             'company' => $company ?? 'Missing',
-            'vendor' => $vendor ?? 'Missing',
             'emi' => $emi ?? 'Missing',
-            'branch' => $branch ?? 'Missing',
+            'vendor' => $vendor ?? 'Missing',
             'reason' => $reason,
         ], $extra);
     }

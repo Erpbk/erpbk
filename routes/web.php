@@ -75,6 +75,9 @@ use App\Http\Controllers\VisaexpenseController;
 use App\Http\Controllers\LegalCaseController;
 use App\Http\Controllers\LegalCaseStatusController;
 use App\Http\Controllers\PassportHandoverController;
+use App\Http\Controllers\RiderInventoryController;
+use App\Http\Controllers\RiderInventoryItemController;
+use App\Http\Controllers\RiderInventoryReportController;
 use App\Http\Controllers\VisaStatusController;
 use App\Http\Controllers\VouchersController;
 use Illuminate\Support\Facades\Artisan;
@@ -394,6 +397,26 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         ->name('passportHandover.returnStore');
     Route::get('passport-handover/contracts/issue/{id}', [PassportHandoverController::class, 'issueContract'])->name('passportHandover.issueContract');
     Route::get('passport-handover/contracts/return/{id}', [PassportHandoverController::class, 'returnContract'])->name('passportHandover.returnContract');
+
+    // Rider Inventory
+    Route::get('RiderInventory/reports/data', [RiderInventoryReportController::class, 'data'])->name('RiderInventory.reports.data');
+    Route::get('RiderInventory/reports', [RiderInventoryReportController::class, 'index'])->name('RiderInventory.reports');
+    Route::get('RiderInventory/show/{riderId}', [RiderInventoryController::class, 'show'])->name('RiderInventory.show');
+    Route::get('RiderInventory/assign/{riderId}', [RiderInventoryController::class, 'assignForm'])->name('RiderInventory.assignForm');
+    Route::post('RiderInventory/assign/{riderId}', [RiderInventoryController::class, 'assignStore'])->name('RiderInventory.assignStore');
+    Route::get('RiderInventory/return/{assignmentId}', [RiderInventoryController::class, 'returnForm'])->name('RiderInventory.returnForm');
+    Route::post('RiderInventory/return/{assignmentId}', [RiderInventoryController::class, 'returnStore'])->name('RiderInventory.returnStore');
+    Route::get('RiderInventory/lost/{assignmentId}', [RiderInventoryController::class, 'lostForm'])->name('RiderInventory.lostForm');
+    Route::post('RiderInventory/lost/{assignmentId}', [RiderInventoryController::class, 'markLost'])->name('RiderInventory.markLost');
+    Route::get('RiderInventory/assignment-contract/{riderId}', [RiderInventoryController::class, 'assignmentContract'])->name('RiderInventory.assignmentContract');
+    Route::get('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractForm'])->name('RiderInventory.returnContractForm');
+    Route::post('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractProcess'])->name('RiderInventory.returnContractProcess');
+    Route::get('RiderInventory/return-contract-document/{contractId}', [RiderInventoryController::class, 'returnContractDocument'])->name('RiderInventory.returnContractDocument');
+    Route::get('RiderInventory', [RiderInventoryController::class, 'index'])->name('RiderInventory.index');
+
+    Route::resource('rider-inventory-items', RiderInventoryItemController::class);
+    Route::post('rider-inventory-items/reorder', [RiderInventoryItemController::class, 'reorder'])->name('rider-inventory-items.reorder');
+    Route::get('rider-inventory-items/{id}/toggle-active', [RiderInventoryItemController::class, 'toggleActive'])->name('rider-inventory-items.toggle-active');
 
     Route::post('bike-registration-statuses/reorder', [BikeRegistrationStatusController::class, 'reorder'])->name('bike-registration-statuses.reorder');
     Route::get('bike-registration-statuses/{id}/toggle-active', [BikeRegistrationStatusController::class, 'toggleActive'])->name('bike-registration-statuses.toggle-active');

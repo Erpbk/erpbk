@@ -84,7 +84,7 @@ class LedgerDataTable extends DataTable
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
             }
-            if ($row->reference_type == 'LV' || $row->reference_type == 'VL') {
+            if (in_array($row->reference_type, ['LV', 'VL', 'IL'], true)) {
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type.'-'.str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
@@ -314,6 +314,17 @@ class LedgerDataTable extends DataTable
                     }
                 } else {
                     $naration = $row->narration.' (Visa expense not found) '.$view_file;
+                }
+            } elseif ($row->reference_type == 'IL') {
+                $assignment = CompanyQuery::table('rider_inventory_assignments')->where('id', $row->reference_id)->first();
+                if ($assignment) {
+                    $item = CompanyQuery::table('rider_inventory_items')->where('id', $assignment->inventory_item_id)->first();
+                    $rider = CompanyQuery::table('riders')->where('id', $assignment->rider_id)->first();
+                    $itemName = $item->name ?? 'Inventory Item';
+                    $riderName = $rider->name ?? 'Rider';
+                    $naration = 'Inventory loss: <b>'.$itemName.'</b> charged to <b>'.$riderName.'</b>'.$view_file;
+                } else {
+                    $naration = $row->narration.' (Inventory assignment not found) '.$view_file;
                 }
             } else {
                 $naration = $row->narration.', '.$view_file;

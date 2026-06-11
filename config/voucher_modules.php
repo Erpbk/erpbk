@@ -33,6 +33,8 @@ return [
         'rta_fines'            => 'RTA Fines',
         'rta_saliks'           => 'RTA Saliks',
         'inventory'            => 'Inventory',
+        'rider_inventory'      => 'Rider Inventory',
+        'rider_inventory_items' => 'Rider Inventory Items',
         'visa_expense'         => 'Visa Expense',
         'visa_status_types'    => 'Visa Status Types',
         'expenses'             => 'Expenses',

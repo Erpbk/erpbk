@@ -88,6 +88,7 @@ return [
             'icon' => 'ti-user-pin',
             'children' => [
                 ['key' => 'riders_list', 'settings' => 'riders'],
+                ['key' => 'rider_inventory_items', 'visibility' => 'rider_inventory', 'permission' => 'riderinventory_view', 'settings' => 'rider_inventory_items', 'label' => 'Rider Inventory Items'],
                 ['key' => 'attendance_records', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance', 'settings_query' => ['ref_type' => 'rider']],
                 ['key' => 'attendance_summary', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance', 'settings_query' => ['ref_type' => 'rider']],
                 ['key' => 'invoices', 'permission' => 'riderinvoice_view', 'settings' => 'invoices'],

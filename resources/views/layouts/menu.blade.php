@@ -214,6 +214,7 @@ $homeLink = $isAdminLogin
   {{ Route::is('rider.*') ? 'open' : '' }}
  {{ Route::is('reports.rider_report*') ? 'open' : '' }}
  {{ Route::is('reports.rider_monthly_report*') ? 'open' : '' }}
+ {{ Route::is('RiderInventory*') ? 'open' : '' }}
  {{ Route::is('module-agreements.*') && request()->route('module') === 'riders' ? 'open' : '' }}
  {{ (Route::is('attendance*') && request('ref_type') === 'rider') || (Route::is('attendance.summary') && request('user_type') === 'rider') ? 'open' : '' }}  ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
@@ -240,6 +241,16 @@ $homeLink = $isAdminLogin
       <a href="{{ route('attendance.summary', ['user_type' => 'rider']) }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'attendance_summary'])
         {{ $menuLabels['attendance_summary'] ?? 'Attendance Summary' }}
+      </a>
+    </li>
+    @endcan
+    @endif
+    @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
+    @can('riderinventory_view')
+    <li class="menu-item {{ Route::is('RiderInventory*') ? 'active' : '' }}">
+      <a href="{{ route('RiderInventory.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'rider_inventory'])
+        <div>{{ $menuLabels['rider_inventory'] ?? 'Rider Inventory' }}</div>
       </a>
     </li>
     @endcan

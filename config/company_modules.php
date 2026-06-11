@@ -90,6 +90,10 @@ return [
             'label' => 'Passport Handover',
             'primary_label_key' => 'passport_handover',
         ],
+        'rider_inventory' => [
+            'label' => 'Rider Inventory',
+            'primary_label_key' => 'rider_inventory',
+        ],
         'expenses' => [
             'label' => 'Expenses',
             'primary_label_key' => 'expenses',

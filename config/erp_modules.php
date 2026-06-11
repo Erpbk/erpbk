@@ -28,6 +28,7 @@ return [
         'visa_expense' => 'Visa Expense',
         'legal_case' => 'Legal Case',
         'passport_handover' => 'Passport Handover',
+        'rider_inventory' => 'Rider Inventory',
         'expenses' => 'Expenses',
         'leasing_companies' => 'Leasing Companies',
         'garages' => 'Garages',

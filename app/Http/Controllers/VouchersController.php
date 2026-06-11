@@ -314,6 +314,8 @@ class VouchersController extends Controller
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'PN') {
       $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'IL') {
+      $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'PAY') {
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'VC') {
@@ -853,6 +855,8 @@ class VouchersController extends Controller
     } elseif ($vouchers->voucher_type == 'COD') {
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'PN') {
+      $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'IL') {
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'PAY') {
       $data = Transactions::where('trans_code', $id)->get();

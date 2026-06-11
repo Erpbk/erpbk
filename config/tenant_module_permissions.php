@@ -119,6 +119,10 @@ return [
             'passport_handover_print',
         ]],
 
+        ['parent' => 'Rider Inventory', 'slug' => 'riderinventory', 'extras' => [
+            'riderinventory_contract_print',
+        ]],
+
         ['parent' => 'Expenses', 'slug' => 'expenses', 'extras' => [
             'expense_voucher_create',
             'voucher_document',

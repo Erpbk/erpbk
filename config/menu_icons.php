@@ -31,6 +31,8 @@ return [
         'activities' => 'ti-bike',
         'live_activities' => 'ti-activity',
         'rider_report' => 'ti-chart-bar',
+        'rider_inventory' => 'ti-package',
+        'rider_inventory_items' => 'ti-list-details',
         'bikes' => 'ti-motorbike',
         'bike_list' => 'ti-motorbike',
         'bike_registration' => 'ti-id',

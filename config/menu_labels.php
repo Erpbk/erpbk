@@ -33,6 +33,8 @@ return [
         'activities'           => 'Activities',
         'live_activities'      => 'Live Activities',
         'rider_report'         => 'Rider Report',
+        'rider_inventory'      => 'Rider Inventory',
+        'rider_inventory_items' => 'Rider Inventory Items',
         'bikes'                => 'Bikes',
         'bike_list'            => 'Bike List',
         'bike_registration'    => 'Bike Registration',

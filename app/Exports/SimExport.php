@@ -16,7 +16,7 @@ class SimExport implements FromCollection, WithHeadings, WithMapping, WithColumn
     */
     public function collection()
     {
-        return Sims::with(['riders', 'vendor','branch'])->get();
+        return Sims::with(['assignee', 'vendor','branch', 'telecomCompany'])->get();
     }
 
     public function map($sim): array
@@ -24,12 +24,12 @@ class SimExport implements FromCollection, WithHeadings, WithMapping, WithColumn
         return [
             $sim->id,
             $sim->number,
-            $sim->branch?->name ?? 'N/A',
-            $sim->company,
+            $sim->branch?->name ?? 'All',
+            $sim->telecomCompany?->name ?? 'All',
             $sim->emi . " ",
             $sim->vendors?->name??'',
-            $sim->assign_to??'',
-            $sim->riders?->name ?? '',
+            $sim->assignee?->employee_id ?? $sim->assignee?->rider_id ?? '',
+            $sim->assignee?->name ?? '',
             $sim->status?'Active':'inactive',
             
         ];
@@ -44,8 +44,8 @@ class SimExport implements FromCollection, WithHeadings, WithMapping, WithColumn
             'Company',
             'EMI',
             'Vendor',
-            'Rider ID',
-            'Rider Name',
+            'Assigned To',
+            'Name',
             'Status'
         ];
     }

@@ -45,6 +45,7 @@ return [
         'cheques'              => 'Cheques',
         'sims'                 => 'Sims',
         'sim_companies'        => 'SIM Companies',
+        'sim_payments'         => 'Payments Sent',
         'fuel_cards'           => 'Fuel Cards',
         'fuel_card_list'       => 'Card List',
         'fuel_data'            => 'Fuel Transactions',

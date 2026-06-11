@@ -401,7 +401,7 @@
                             </a>
                             @endcan
                             @can('sim_create')
-                            <a class="action-dropdown-item" href="{{ route('sims.import') }}">
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Import Sim Data" data-action="{{ route('sims.import') }}">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Sim Data</span>
                             </a>
@@ -704,7 +704,6 @@ setInterval(function() {
             console.log('Fallback: Initializing', $select.attr('id'));
             $select.select2({
                 dropdownParent: $('.modal:visible'),
-                placeholder: "Search...",
                 allowClear: true,
                 width: '100%'
             });

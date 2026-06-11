@@ -83,11 +83,11 @@
                 <div class="card-body">
                     @php
                     $statusClass = 'bg-secondary';
-                    if($sims->status && $sims->status == 1){
+                    if( $sims->status == 1){
                     $statusClass = 'bg-success';
                     $statusText = 'Active';
                     }
-                    elseif($sims->status && $sims->status == 0) {
+                    elseif( $sims->status == 0) {
                     $statusText = 'Inactive';
                     $statusClass = 'bg-danger';
                     }
@@ -111,7 +111,7 @@
                         <div class="col-5 font-weight-bold text-muted">Company:</div>
                         <div class="col-7">
                             @if($sims->company)
-                            <span class="badge bg-primary">{{ $sims->company }}</span>
+                            <span class="badge bg-primary">{{ $sims->telecomCompany?->name ?? '-' }}</span>
                             @else
                             N/A
                             @endif
@@ -124,7 +124,7 @@
                             @if($sims->branch && $sims->branch->name)
                             <span class="badge bg-primary">{{ $sims->branch->name }}</span>
                             @else
-                            N/A
+                            'All'
                             @endif
                         </div>
                     </div>
@@ -212,9 +212,7 @@
                             <tbody>
                                 @foreach($simHistories as $history)
                                 <tr>
-                                    @php
-                                    $rider = App\Models\Riders::find($history->rider_id);
-                                    @endphp
+                                    @if($history->rider_id)
                                     <td>
                                         <a href="{{ route('riders.show', $rider->id) }}"
                                             class="text-decoration-none"
@@ -222,6 +220,17 @@
                                             {{ $rider ? $rider->name : '-' }}
                                         </a>
                                     </td>
+                                    @elseif($history->employee_id)
+                                    <td>
+                                        <a href="{{ route('employees.show', $history->employee->id) }}"
+                                            class="text-decoration-none"
+                                            target="_blank">
+                                            {{ $history->employee ? $history->employee->name : '-' }}
+                                        </a>
+                                    </td>
+                                    @else
+                                    '-'
+                                    @endif
                                     <td>
                                         <span data-toggle="tooltip" title="{{ $history->note_date }}">
                                             {{ \Carbon\Carbon::parse($history->note_date)->format('d M, Y') }}

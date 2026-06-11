@@ -29,6 +29,8 @@
                 <td>
                     @if($invoice->status == 1)
                         <span class="badge bg-success">Paid</span>
+                    @elseif($invoice->status == 3)
+                        <span class="badge bg-warning">Partially Paid</span>
                     @else
                         <span class="badge bg-danger">Unpaid</span>
                     @endif
@@ -48,6 +50,13 @@
                                 <a href="javascript:void(0);" data-action="{{ route('simInvoices.createFromClone', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Clone Invoice (Next Month)">
                                     <i class="fa fa-copy mx-1 text-primary"></i> Clone (Next Month)
                                 </a>
+                            @endcan
+                            @can('payments_view')
+                                @if((int) $invoice->status !== 1)
+                                    <a href="javascript:void(0);" data-action="{{ route('payments.create') }}?invoice_type=sim&invoice_id={{ $invoice->id }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Add Payment">
+                                        <i class="fa fa-money mx-1 text-success"></i> Add Payment
+                                    </a>
+                                @endif
                             @endcan
                             @can('sim_invoice_payment_voucher')
                                 @if((int) $invoice->status !== 1)

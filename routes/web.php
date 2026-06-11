@@ -447,6 +447,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::match(['get', 'post'], 'sims/return/{id}', [SimsController::class, 'return'])->name('sims.return');
     Route::get('sims/export', [SimsController::class, 'export'])->name('sims.export');
     Route::match(['get', 'post'], 'sims/import', [SimsController::class, 'import'])->name('sims.import');
+    Route::get('sims/import_template', [SimsController::class, 'downloadTemplate'])->name('sims.import_template');
 
     Route::resource('sims', SimsController::class);
     Route::get('sims/delete/{id}', [SimsController::class, 'destroy'])->name('sims.delete');
@@ -468,6 +469,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('simInvoices/vendor/{id}/sims', [SimInvoicesController::class, 'getSims'])->name('simInvoices.getSims');
     Route::get('simInvoices/{id}/payment-voucher/create', [SimInvoicesController::class, 'createPaymentVoucher'])->name('simInvoices.paymentVoucher.create');
     Route::post('simInvoices/{id}/payment-voucher', [SimInvoicesController::class, 'storePaymentVoucher'])->name('simInvoices.paymentVoucher.store');
+    Route::get('sim/payments', [SimInvoicesController::class, 'payments'])->name('sim.payments');
 
     Route::get('bikeRentCompanies/trash', [BikeRentCompaniesController::class, 'trash'])->name('bikeRentCompanies.trash');
     Route::post('bikeRentCompanies/trash/{id}/restore', [BikeRentCompaniesController::class, 'restoreTrash'])->name('bikeRentCompanies.restore');

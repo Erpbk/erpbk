@@ -122,14 +122,14 @@ class SimsController extends AppBaseController
     private function getTableColumns()
     {
         $computedColumns = [
-            'rider_name' => 'Rider Name',
+            'rider_name' => 'Name',
         ];
 
         // Get all columns from sims table
         $filteredColumns = \Illuminate\Support\Facades\Schema::getColumnListing('sims');
 
         // Columns to exclude
-        $exclude = ['id', 'created_at', 'updated_at', 'deleted_by', 'deleted_at', 'fleet_supervisor', 'created_by', 'updated_by', 'company_id'];
+        $exclude = ['id', 'created_at', 'updated_at', 'deleted_by', 'deleted_at', 'fleet_supervisor', 'created_by', 'updated_by', 'company_id', 'branch_id','assign_type'];
 
         // Final filtered columns
         $dbColumns = array_diff($filteredColumns, $exclude);
@@ -137,7 +137,6 @@ class SimsController extends AppBaseController
         // Preferred order (can include both DB and computed columns)
         $preferredOrder = [
             'number',
-            'branch_id',
             'company',
             'emi',
             'assign_to',
@@ -206,26 +205,12 @@ class SimsController extends AppBaseController
 
         $this->validate($request, $this->simValidationRules(), $this->simValidationMessages());
 
-        $input['company'] = $this->resolveSimTelecomCompany($input);
-        if ($input['company'] === '' && ModuleFieldSettings::isSchemaFieldRequired('sims', 'company')) {
-            return response()->json([
-                'message' => 'The given data was invalid.',
-                'errors' => [
-                    'company' => [
-                        'Telecom company (e.g. du / etisalat) is required. Send a "company" value, choose a vendor with a known name, or use a UAE mobile number so it can be inferred from the prefix.',
-                    ],
-                ],
-            ], 422);
-        }
-        if ($input['company'] === '') {
-            unset($input['company']);
-        }
-
         try {
             $sims = Sims::create($input);
 
             return response()->json([
                 'message' => 'Sim added successfully.',
+                'reload' => true,
             ]);
         } catch (\Exception $e) {
             \Log::error('Error creating SIM: ' . $e->getMessage());
@@ -249,7 +234,7 @@ class SimsController extends AppBaseController
             return redirect(route('sims.index'));
         }
 
-        $simHistories = SimHistory::where('sim_id', $sims->id)->orderBy('created_at', 'desc')->get();
+        $simHistories = SimHistory::with(['rider', 'employee'])->where('sim_id', $sims->id)->orderBy('created_at', 'desc')->get();
 
         return view('sims.show')->with('sims', $sims)->with('simHistories', $simHistories);
     }
@@ -291,29 +276,11 @@ class SimsController extends AppBaseController
             $this->simValidationMessages()
         );
 
-        $input['company'] = $this->resolveSimTelecomCompany(array_merge(
-            $sims->only(['number', 'company', 'vendor']),
-            $input
-        ));
-        if ($input['company'] === '' && ModuleFieldSettings::isSchemaFieldRequired('sims', 'company')) {
-            return response()->json([
-                'message' => 'The given data was invalid.',
-                'errors' => [
-                    'company' => [
-                        'Telecom company (e.g. du / etisalat) is required. Choose a vendor with a known name or use a UAE mobile number so it can be inferred from the prefix.',
-                    ],
-                ],
-            ], 422);
-        }
-        if ($input['company'] === '') {
-            unset($input['company']);
-        }
-
         try {
             $sims->update($input);
             return response()->json([
                 'message' => 'Sim updated successfully.',
-                'data' => $sims
+                'reload' => true,
             ]);
         } catch (\Exception $e) {
             \Log::error('Error updating SIM: ' . $e->getMessage());
@@ -473,6 +440,7 @@ class SimsController extends AppBaseController
 
             return response()->json([
                 'message' => 'Sim assignment updated successfully.',
+                'reload' => true,
             ]);
         }
 
@@ -520,7 +488,8 @@ class SimsController extends AppBaseController
                 function ($attribute, $value, $fail) use ($sims) {
                     // Check if return date is after last assigned date
                     $lastHistory = $sims->histories()->orderBy('created_at', 'desc')->first();
-                    if ($lastHistory && $value < $lastHistory->note_date) {
+                    $returnDate = \Carbon\Carbon::parse($value)->startOfDay();
+                    if ($lastHistory && $returnDate < $lastHistory->note_date) {
                         $fail('Return date cannot be before the last assigned date: ' . $lastHistory->note_date);
                     }
                 }
@@ -576,6 +545,7 @@ class SimsController extends AppBaseController
 
             return response()->json([
                 'message' => 'Sim returned successfully.',
+                'reload' => true,
             ]);
         } catch (\Exception $e) {
             \Log::error('Error returning SIM: ' . $e->getMessage());
@@ -660,38 +630,97 @@ class SimsController extends AppBaseController
         }
 
         $request->validate([
-            'file' => 'required|file|mimes:xlsx,csv,xls',
+            'file' => 'required|file|max:10240',
         ]);
+
+        $uploadedFile = $request->file('file');
+        $extension = strtolower((string) $uploadedFile->getClientOriginalExtension());
+        if (!in_array($extension, ['xlsx', 'xls', 'csv'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The file field must be a file of type: xlsx, xls, csv.',
+                'errors' => [
+                    'file' => ['The file field must be a file of type: xlsx, xls, csv.'],
+                ],
+            ], 422);
+        }
 
         try {
             $import = new \App\Imports\SimImport();
-            $file = $request->file('file');
-            Excel::import($import, $file);
+            Excel::import($import, $uploadedFile);
+
             $results = $import->getResults();
-            $importedCount = $results['stats']['imported'];
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'results' => $results,
-                    'message' => 'Sim data imported successfully.',
-                    'redirect' => route('sims.index')
-                ]);
-            }
-            Flash::success("Sims imported successfully. Records imported: {$importedCount}");
-            return redirect()->back();
+            $stats = $results['stats'] ?? [];
+            $failedRaw = $results['failed'] ?? [];
+
+            // Map importer output into FuelData-style payload keys.
+            $failedRows = collect($failedRaw)->map(function ($row) {
+                return [
+                    'row_number' => $row['excel_row'] ?? ($row['row_number'] ?? null),
+                    'number' => $row['number'] ?? null,
+                    'company' => $row['company'] ?? null,
+                    'emi' => $row['emi'] ?? null,
+                    'vendor' => $row['vendor'] ?? null,
+                    'reason' => $row['reason'] ?? 'Unknown error',
+                    'details' => $row['details'] ?? ($row['exception'] ?? '-'),
+                ];
+            })->values()->all();
+
+            $result = [
+                'success_count' => $stats['imported'] ?? 0,
+                'failed_count' => count($failedRows),
+                'total_rows' => $stats['total'] ?? 0,
+                'failed_rows' => $failedRows,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Import completed successfully',
+                'data' => $result,
+            ]);
         } catch (\Exception $e) {
             \Log::error('Error importing SIM data: ' . $e->getMessage());
             \Log::error($e->getTraceAsString());
+
             return response()->json([
-                'errors' => ['error' => 'Failed to import SIM data. Please check the file and try again.'],
-                'message' => 'Server error occurred.' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString(),
+                'success' => false,
+                'message' => 'Failed to import SIM data. ' . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * `sims.company` stores the telecom operator (du / etisalat), not the business `company_id`.
+     * Download import template
      */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Number',
+            'Company',
+            'EMI',
+            'Vendor',
+        ];
+
+        $callback = function () use ($headers) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $headers);
+
+            // Sample data
+            fputcsv($file, [
+                '0554563213',
+                'du,etisalat,etc',
+                'Empty or 7001055670',
+                'Empty or (Keeta, Noon, Careem, etc)',
+            ]);
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="sim_import_template.csv"'
+        ]);
+    }
     /**
      * Validation rules from SIM field settings (module_key: sims).
      */
@@ -699,8 +728,8 @@ class SimsController extends AppBaseController
     {
         $baseRules = [
             'emi' => 'nullable|string|min:15|max:25',
-            'company' => 'nullable|string|max:191',
-            'vendor' => 'nullable|integer',
+            'company' => 'nullable|exists:sim_companies,id',
+            'vendor' => 'nullable|exists:customers,id',
             'fleet_supervisor' => 'nullable|string|max:50',
             'branch_id' => 'nullable|numeric|exists:branches,id',
         ];
@@ -732,13 +761,14 @@ class SimsController extends AppBaseController
             'number.max' => 'SIM number cannot exceed 13 characters',
             'number.unique' => 'This SIM number already exists',
             'company.required' => 'Telecom company is required',
-            'company.max' => 'Telecom company name cannot exceed 191 characters',
+            'company.exists' => 'Telecom company does not exist',
             'emi.required' => 'EMI number is required',
             'emi.min' => 'EMI number must be at least 15 characters',
             'emi.max' => 'EMI number cannot exceed 25 characters',
             'branch_id.required' => 'Please select relevant branch',
             'branch_id.exists' => 'Selected branch does not exist',
             'vendor.required' => 'Vendor is required',
+            'vendor.exists' => 'Vendor does not exist',
             'fleet_supervisor.required' => 'Fleet supervisor is required',
         ];
     }
@@ -760,34 +790,6 @@ class SimsController extends AppBaseController
         $rider = $sims->riders ?? Riders::find($sims->assign_to);
 
         return $rider ? trim($rider->rider_id . '-' . $rider->name) : 'N/A';
-    }
-
-    private function resolveSimTelecomCompany(array $input): string
-    {
-        $fromRequest = trim((string) ($input['company'] ?? ''));
-        if ($fromRequest !== '') {
-            return $fromRequest;
-        }
-
-        if (!empty($input['vendor'])) {
-            $name = SimCompany::where('id', $input['vendor'])->value('name');
-            if (is_string($name) && trim($name) !== '') {
-                return trim($name);
-            }
-        }
-
-        $digits = preg_replace('/\D/', '', (string) ($input['number'] ?? ''));
-        if (strlen($digits) >= 3) {
-            $prefix = substr($digits, 0, 3);
-            if (in_array($prefix, ['052', '055'], true)) {
-                return 'du';
-            }
-            if (in_array($prefix, ['050', '054', '056', '058'], true)) {
-                return 'etisalat';
-            }
-        }
-
-        return '';
     }
 
     /**

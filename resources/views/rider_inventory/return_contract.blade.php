@@ -97,7 +97,7 @@
             <div class="section-card">
                 <div class="section-card-header">Return Summary</div>
                 <table class="info-table">
-                    <tr><th>Total Assigned Items</th><td>{{ $totalAssigned }}</td></tr>
+                    <tr><th>Total Items on Contract</th><td>{{ $totalAssigned }}</td></tr>
                     <tr><th>Total Returned Items</th><td>{{ $totalReturned }}</td></tr>
                     <tr><th>Total Lost Items</th><td>{{ $totalLost }}</td></tr>
                     <tr><th>Total Chargeable Amount</th><td><strong>{{ number_format($totalChargeable, 2) }}</strong></td></tr>

@@ -7,12 +7,14 @@ use App\Models\RiderInventoryContract;
 use App\Models\RiderInventoryItem;
 use App\Models\Riders;
 use App\Models\Transactions;
+use App\Models\User;
 use App\Models\Vouchers;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Services\RiderInventoryLossService;
 use App\Support\CompanyAuthRedirect;
 use App\Support\CompanyContext;
 use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Http\Request;
@@ -21,7 +23,7 @@ use Illuminate\Validation\Rule;
 
 class RiderInventoryController extends AppBaseController
 {
-    use GlobalPagination;
+    use GlobalPagination, TracksCascadingDeletions;
 
     public function index(Request $request)
     {
@@ -35,19 +37,8 @@ class RiderInventoryController extends AppBaseController
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $statusFilter = $request->input('status_filter', '');
-        $userBranches = app('user_branches');
-
-        $query = Riders::query()->orderBy('name');
-
-        if (!auth()->user()->isAdmin()) {
-            if (!empty($userBranches)) {
-                $query->where(function ($q) use ($userBranches) {
-                    $q->whereIn('branch_id', $userBranches)->orWhereNull('branch_id');
-                });
-            } else {
-                $query->whereNull('branch_id');
-            }
-        }
+        $riderIds = RiderInventoryAssignment::pluck('rider_id')->unique();
+        $query = Riders::query()->whereIn('id', $riderIds)->orderBy('name');
 
         if ($request->filled('quick_search')) {
             $term = trim((string) $request->quick_search);
@@ -164,12 +155,6 @@ class RiderInventoryController extends AppBaseController
         ]);
 
         $item = RiderInventoryItem::findOrFail($validated['inventory_item_id']);
-        if ($item->hasOpenAssignment()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This inventory item is already assigned and has not been returned.',
-            ], 422);
-        }
 
         $assignment = RiderInventoryAssignment::create([
             'rider_id' => $rider->id,
@@ -514,25 +499,34 @@ class RiderInventoryController extends AppBaseController
         $validated = $request->validate([
             'return_date' => 'required|date',
             'remarks' => 'nullable|string|max:2000',
-            'dispositions' => 'required|array',
-            'dispositions.*' => 'required|in:returned,lost',
-            'amounts' => 'required|array',
-            'amounts.*' => 'required|numeric|min:0.01',
+            'dispositions' => 'nullable|array',
+            'dispositions.*' => 'nullable|in:returned,lost,skip',
+            'amounts' => 'nullable|array',
+            'amounts.*' => 'nullable|numeric|min:0.01',
         ]);
 
         $assignmentIds = $assignments->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $processedCount = 0;
+
         foreach ($assignmentIds as $id) {
-            if (!isset($validated['dispositions'][$id])) {
-                return back()->withInput()->withErrors([
-                    'dispositions' => 'Please select Returned or Lost for every inventory item.',
-                ]);
+            $disposition = $validated['dispositions'][$id] ?? 'skip';
+            if ($disposition === 'skip') {
+                continue;
             }
+
+            $processedCount++;
 
             if (!isset($validated['amounts'][$id])) {
                 return back()->withInput()->withErrors([
-                    'amounts' => 'Please enter an amount for every inventory item.',
+                    'amounts' => 'Please enter an amount for each returned or lost item.',
                 ]);
             }
+        }
+
+        if ($processedCount === 0) {
+            return back()->withInput()->withErrors([
+                'dispositions' => 'Please mark at least one item as Returned or Lost.',
+            ]);
         }
 
         DB::beginTransaction();
@@ -547,13 +541,14 @@ class RiderInventoryController extends AppBaseController
             $lossService = app(RiderInventoryLossService::class);
 
             foreach ($assignments as $assignment) {
+                $disposition = $validated['dispositions'][$assignment->id] ?? 'skip';
+                if ($disposition === 'skip') {
+                    continue;
+                }
+
                 $assignment->amount = (float) $validated['amounts'][$assignment->id];
                 $assignment->updated_by = auth()->id();
                 $assignment->save();
-            }
-
-            foreach ($assignments as $assignment) {
-                $disposition = $validated['dispositions'][$assignment->id];
 
                 if ($disposition === 'returned') {
                     $assignment->status = RiderInventoryAssignment::STATUS_RETURNED;
@@ -584,12 +579,14 @@ class RiderInventoryController extends AppBaseController
                 }
             }
 
+            $processedItems = $returnedItems->merge($lostItems);
+
             $contract = RiderInventoryContract::create([
                 'rider_id' => $rider->id,
                 'contract_type' => RiderInventoryContract::TYPE_RETURN,
                 'contract_number' => $contractNumber,
                 'contract_date' => $contractDate,
-                'total_items' => $assignments->count(),
+                'total_items' => $processedItems->count(),
                 'total_returned' => $returnedItems->count(),
                 'total_lost' => $lostItems->count(),
                 'total_chargeable_amount' => $totalChargeable,
@@ -606,7 +603,7 @@ class RiderInventoryController extends AppBaseController
                 'contract' => $contract,
                 'returnedItems' => $returnedItems,
                 'lostItems' => $lostItems,
-                'allItems' => $assignments,
+                'allItems' => $processedItems,
                 'branding' => $this->contractBranding(),
             ]);
         } catch (\Throwable $e) {
@@ -645,6 +642,79 @@ class RiderInventoryController extends AppBaseController
             'allItems' => $allItems,
             'branding' => $this->contractBranding(),
         ]);
+    }
+
+    public function destroyAssignment(Request $request, string $company_slug, int $assignmentId)
+    {
+        if (!auth()->user()->hasPermissionTo('riderinventory_delete')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $assignment = RiderInventoryAssignment::with(['rider', 'inventoryItem'])->findOrFail($assignmentId);
+
+        if (!$assignment->isAssigned()) {
+            $message = 'Only assigned inventory items can be deleted.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            Flash::error($message);
+
+            return redirect()->back();
+        }
+
+        DB::beginTransaction();
+        try {
+            $user = auth()->user();
+            $userName = $user ? ($user->name ?? 'User #' . $user->id) : 'System';
+            $itemName = $assignment->inventoryItem->name ?? 'Inventory Item';
+            $rider = $assignment->rider;
+            $riderLabel = ($rider->name ?? 'Rider') . ' (' . ($rider->rider_id ?? $assignment->rider_id) . ')';
+            $assignmentName = "{$itemName} — {$riderLabel}";
+
+            $assignment->deleted_by = auth()->id();
+            $assignment->save();
+
+            $this->trackCascadeDeletion(
+                User::class,
+                auth()->id(),
+                $userName,
+                RiderInventoryAssignment::class,
+                $assignment->id,
+                $assignmentName,
+                'hasMany',
+                'inventoryAssignments',
+                'soft',
+                'User-initiated inventory assignment deletion'
+            );
+
+            $assignment->delete();
+
+            DB::commit();
+
+            $message = 'Inventory assignment moved to Recycle Bin. <a href="' . route('settings-panel.trash.index') . '?module=rider_inventory_assignments" class="alert-link">View Recycle Bin</a> to restore if needed.';
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'id' => (int) $assignmentId,
+                ]);
+            }
+
+            Flash::success($message);
+
+            return redirect()->back();
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+            }
+
+            Flash::error('Error: ' . $e->getMessage());
+
+            return redirect()->back();
+        }
     }
 
     private function findAssignedRecord(int $assignmentId): RiderInventoryAssignment

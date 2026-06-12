@@ -410,6 +410,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('RiderInventory/lost/{assignmentId}', [RiderInventoryController::class, 'markLost'])->name('RiderInventory.markLost');
     Route::get('RiderInventory/change-status/{assignmentId}', [RiderInventoryController::class, 'changeStatusForm'])->name('RiderInventory.changeStatusForm');
     Route::post('RiderInventory/change-status/{assignmentId}', [RiderInventoryController::class, 'changeStatusStore'])->name('RiderInventory.changeStatusStore');
+    Route::delete('RiderInventory/assignment/{assignmentId}', [RiderInventoryController::class, 'destroyAssignment'])->name('RiderInventory.destroyAssignment');
     Route::get('RiderInventory/assignment-contract/{riderId}', [RiderInventoryController::class, 'assignmentContract'])->name('RiderInventory.assignmentContract');
     Route::get('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractForm'])->name('RiderInventory.returnContractForm');
     Route::post('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractProcess'])->name('RiderInventory.returnContractProcess');

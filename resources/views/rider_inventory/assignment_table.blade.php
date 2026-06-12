@@ -74,6 +74,18 @@
                         Lost
                     </a>
                     @endcan
+                    @can('riderinventory_delete')
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                        onclick="if(confirm('Delete this assignment? It will be moved to the Recycle Bin.')) { document.getElementById('delete-assignment-{{ $row->id }}').submit(); }">
+                        Delete
+                    </button>
+                    <form id="delete-assignment-{{ $row->id }}"
+                        action="{{ route('RiderInventory.destroyAssignment', $row->id) }}"
+                        method="POST" style="display:none;">
+                        @csrf
+                        @method('DELETE')
+                    </form>
+                    @endcan
                 </div>
                 @elseif(in_array($row->status, ['returned', 'lost'], true))
                 @can('riderinventory_edit')

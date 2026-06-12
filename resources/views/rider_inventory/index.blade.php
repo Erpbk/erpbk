@@ -13,7 +13,7 @@
             <h3 class="mb-0">Rider Inventory</h3>
             @can('riderinventory_create')
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#selectRiderModal">
-                <i class="ti ti-package me-1"></i> Select Rider
+                <i class="ti ti-package me-1"></i> Assign Inventory
             </button>
             @endcan
         </div>
@@ -117,7 +117,7 @@
 @endcan
 @endsection
 
-@push('page_scripts')
+@push('page-scripts')
 <script>
 function filterByInventoryStatus(status) {
     const url = new URL(window.location.href);
@@ -130,13 +130,29 @@ function filterByInventoryStatus(status) {
     window.location.href = url.toString();
 }
 
-document.getElementById('goToRiderInventoryBtn')?.addEventListener('click', function () {
-    const riderId = document.getElementById('rider_select').value;
-    if (!riderId) {
-        alert('Please select a rider.');
-        return;
-    }
-    window.location.href = '{{ url('RiderInventory/show') }}/' + riderId;
+$(function () {
+    const $riderSelect = $('#rider_select');
+    const showUrlTemplate = @json(route('RiderInventory.show', ['riderId' => '__RIDER__']));
+
+    $('#selectRiderModal').on('shown.bs.modal', function () {
+        if ($riderSelect.hasClass('select2-hidden-accessible')) {
+            $riderSelect.select2('destroy');
+        }
+        $riderSelect.select2({
+            dropdownParent: $('#selectRiderModal'),
+            allowClear: true,
+            width: '100%',
+        });
+    });
+
+    $('#goToRiderInventoryBtn').on('click', function () {
+        const riderId = $riderSelect.val();
+        if (!riderId) {
+            alert('Please select a rider.');
+            return;
+        }
+        window.location.href = showUrlTemplate.replace('__RIDER__', riderId);
+    });
 });
 </script>
 @endpush

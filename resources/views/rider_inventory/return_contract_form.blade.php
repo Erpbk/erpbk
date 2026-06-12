@@ -38,6 +38,7 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">Select disposition for each assigned item</h5>
+                <small class="text-muted">Use <strong>Keep Assigned</strong> to leave an item unchanged on this contract.</small>
             </div>
             <div class="card-body table-responsive">
                 @error('dispositions')<div class="alert alert-danger">{{ $message }}</div>@enderror
@@ -50,28 +51,33 @@
                             <th>Item Value</th>
                             <th>Returned</th>
                             <th>Lost</th>
+                            <th>Keep Assigned</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($assignments as $row)
-                        @php $oldDisp = old('dispositions.' . $row->id, 'returned'); @endphp
-                        <tr>
+                        @php $oldDisp = old('dispositions.' . $row->id, 'skip'); @endphp
+                        <tr data-assignment-row="{{ $row->id }}">
                             <td>{{ $row->inventoryItem->name ?? '—' }}</td>
                             <td>{{ $row->assigned_date?->format('Y-m-d') }}</td>
                             <td style="min-width: 140px;">
                                 <input type="number"
                                     name="amounts[{{ $row->id }}]"
-                                    class="form-control form-control-sm"
+                                    class="form-control form-control-sm js-assignment-amount"
+                                    data-assignment-id="{{ $row->id }}"
                                     step="0.01"
                                     min="0.01"
                                     value="{{ old('amounts.' . $row->id, $row->amount) }}"
-                                    required>
+                                    {{ $oldDisp === 'skip' ? 'disabled' : '' }}>
                             </td>
                             <td>
-                                <input type="radio" name="dispositions[{{ $row->id }}]" value="returned" {{ $oldDisp === 'returned' ? 'checked' : '' }} required>
+                                <input type="radio" class="js-disposition-radio" name="dispositions[{{ $row->id }}]" value="returned" data-assignment-id="{{ $row->id }}" {{ $oldDisp === 'returned' ? 'checked' : '' }}>
                             </td>
                             <td>
-                                <input type="radio" name="dispositions[{{ $row->id }}]" value="lost" {{ $oldDisp === 'lost' ? 'checked' : '' }}>
+                                <input type="radio" class="js-disposition-radio" name="dispositions[{{ $row->id }}]" value="lost" data-assignment-id="{{ $row->id }}" {{ $oldDisp === 'lost' ? 'checked' : '' }}>
+                            </td>
+                            <td>
+                                <input type="radio" class="js-disposition-radio" name="dispositions[{{ $row->id }}]" value="skip" data-assignment-id="{{ $row->id }}" {{ $oldDisp === 'skip' ? 'checked' : '' }}>
                             </td>
                         </tr>
                         @endforeach
@@ -87,3 +93,30 @@
     </form>
 </div>
 @endsection
+
+@push('page-scripts')
+<script>
+    (function () {
+        function toggleAmountForRow(assignmentId) {
+            var selected = document.querySelector('input[name="dispositions[' + assignmentId + ']"]:checked');
+            var amountInput = document.querySelector('.js-assignment-amount[data-assignment-id="' + assignmentId + '"]');
+            if (!amountInput) {
+                return;
+            }
+            var isSkipped = !selected || selected.value === 'skip';
+            amountInput.disabled = isSkipped;
+            amountInput.required = !isSkipped;
+        }
+
+        document.querySelectorAll('.js-disposition-radio').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                toggleAmountForRow(this.dataset.assignmentId);
+            });
+        });
+
+        document.querySelectorAll('[data-assignment-row]').forEach(function (row) {
+            toggleAmountForRow(row.dataset.assignmentRow);
+        });
+    })();
+</script>
+@endpush

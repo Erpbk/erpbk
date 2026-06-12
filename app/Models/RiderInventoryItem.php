@@ -37,13 +37,6 @@ class RiderInventoryItem extends BaseModel
             ->get();
     }
 
-    public function hasOpenAssignment(): bool
-    {
-        return $this->assignments()
-            ->where('status', RiderInventoryAssignment::STATUS_ASSIGNED)
-            ->exists();
-    }
-
     public static function availableForAssignment()
     {
         return self::query()

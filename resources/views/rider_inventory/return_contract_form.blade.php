@@ -41,6 +41,7 @@
             </div>
             <div class="card-body table-responsive">
                 @error('dispositions')<div class="alert alert-danger">{{ $message }}</div>@enderror
+                @error('amounts')<div class="alert alert-danger">{{ $message }}</div>@enderror
                 <table class="table table-striped">
                     <thead>
                         <tr>
@@ -57,7 +58,15 @@
                         <tr>
                             <td>{{ $row->inventoryItem->name ?? '—' }}</td>
                             <td>{{ $row->assigned_date?->format('Y-m-d') }}</td>
-                            <td>{{ number_format((float) $row->amount, 2) }}</td>
+                            <td style="min-width: 140px;">
+                                <input type="number"
+                                    name="amounts[{{ $row->id }}]"
+                                    class="form-control form-control-sm"
+                                    step="0.01"
+                                    min="0.01"
+                                    value="{{ old('amounts.' . $row->id, $row->amount) }}"
+                                    required>
+                            </td>
                             <td>
                                 <input type="radio" name="dispositions[{{ $row->id }}]" value="returned" {{ $oldDisp === 'returned' ? 'checked' : '' }} required>
                             </td>

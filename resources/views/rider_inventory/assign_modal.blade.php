@@ -2,7 +2,7 @@
     @csrf
     <div class="form-group mb-3">
         <label for="inventory_item_id" class="required">Inventory Item</label>
-        <select name="inventory_item_id" id="inventory_item_id" class="form-control" required>
+        <select name="inventory_item_id" id="inventory_item_id" class="form-control select2" required>
             <option value="">Select Item</option>
             @foreach($availableItems as $item)
             <option value="{{ $item->id }}" data-price="{{ $item->item_price }}">
@@ -21,6 +21,12 @@
 </form>
 
 <script>
+$(document).ready(function() {
+    $('.select2').select2({
+        dropdownParent: $('#assignInventoryForm'),
+        allowClear: true
+    });
+});
 $('#assignInventoryForm').on('submit', function (e) {
     e.preventDefault();
     const form = $(this);

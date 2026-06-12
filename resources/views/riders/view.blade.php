@@ -616,8 +616,8 @@ $companySlug = request()->route('company_slug');
                 @can('riderinventory_view')
                 @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
                 <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(Route::is('RiderInventory.show')) active @endif"
-                    href="{{ route('RiderInventory.show', $result['id']) }}">
+                  <a class="nav-link @if(Route::is('rider.inventory')) active @endif"
+                    href="{{ route('rider.inventory', $result['id']) }}">
                     <i class="ti ti-package ti-sm me-1_5"></i>Rider Inventory
                   </a>
                 </li>

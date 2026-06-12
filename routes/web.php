@@ -408,6 +408,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('RiderInventory/return/{assignmentId}', [RiderInventoryController::class, 'returnStore'])->name('RiderInventory.returnStore');
     Route::get('RiderInventory/lost/{assignmentId}', [RiderInventoryController::class, 'lostForm'])->name('RiderInventory.lostForm');
     Route::post('RiderInventory/lost/{assignmentId}', [RiderInventoryController::class, 'markLost'])->name('RiderInventory.markLost');
+    Route::get('RiderInventory/change-status/{assignmentId}', [RiderInventoryController::class, 'changeStatusForm'])->name('RiderInventory.changeStatusForm');
+    Route::post('RiderInventory/change-status/{assignmentId}', [RiderInventoryController::class, 'changeStatusStore'])->name('RiderInventory.changeStatusStore');
     Route::get('RiderInventory/assignment-contract/{riderId}', [RiderInventoryController::class, 'assignmentContract'])->name('RiderInventory.assignmentContract');
     Route::get('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractForm'])->name('RiderInventory.returnContractForm');
     Route::post('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractProcess'])->name('RiderInventory.returnContractProcess');
@@ -510,6 +512,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::any('riders/picture_upload/{id?}', [RidersController::class, 'picture_upload'])->name('rider_picture_upload');
     Route::any('riders/rider-document/{id}', [RidersController::class, 'document'])->name('rider.document');
+    Route::get('riders/inventory/{id}', [RidersController::class, 'inventory'])->name('rider.inventory');
     Route::get('rider/updateRider', [RidersController::class, 'updateRider'])->name('rider.updateRider');
     Route::get('rider/delete/{id}', [RidersController::class, 'destroy'])->name('rider.delete');
     Route::get('riders/ledger/{id}', [RidersController::class, 'ledger'])->name('rider.ledger');

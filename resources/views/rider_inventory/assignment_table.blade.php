@@ -1,5 +1,5 @@
-<table class="table table-striped table-sm">
-    <thead>
+<table class="table dataTable no-footer" id="dataTableBuilder">
+    <thead class="text-center">
         <tr>
             <th>Item</th>
             <th>Price</th>
@@ -7,8 +7,7 @@
             <th>Assigned By</th>
             <th>Status</th>
             <th>Return / Loss</th>
-            <th>Returned / Lost By</th>
-            <th>Contract Ref</th>
+            <th>Returned To</th>
             <th>IL Voucher</th>
             <th>Remarks</th>
             <th>Actions</th>
@@ -48,17 +47,18 @@
                 —
                 @endif
             </td>
-            <td class="small">
-                @if($row->assignment_contract_number)
-                <div>A: {{ $row->assignment_contract_number }}</div>
-                @endif
-                @if($row->return_contract_number)
-                <div>R: {{ $row->return_contract_number }}</div>
-                @endif
-                @if(!$row->assignment_contract_number && !$row->return_contract_number)—@endif
+            @if($row->voucher_id)
+            <td>
+                <a href="javascript:void(0);" class=" show-modal"
+                    data-action="{{ route('vouchers.show', $row->voucher_id) }}"
+                    data-size="xl" data-title="Inventory Loss Voucher">
+                    {{ ($row->voucher_id ? 'IL-' : '—' ) . $row->voucher_id }}
+                </a>
             </td>
-            <td>{{ $row->il_voucher_number ?? ($row->voucher_id ? ($row->trans_code ?? 'IL') : '—') }}</td>
-            <td>{{ $row->remarks ?? '-' }}</td>
+            @else
+            <td>—</td>
+            @endif
+            <td class="small">{{ $row->remarks ?? '-' }}</td>
             <td>
                 @if($row->isAssigned())
                 <div class="btn-group">
@@ -75,20 +75,25 @@
                     </a>
                     @endcan
                 </div>
-                @elseif($row->status === 'lost' && $row->voucher_id)
-                <a href="javascript:void(0);" class="btn btn-sm btn-outline-secondary show-modal"
-                    data-action="{{ route('vouchers.show', $row->voucher_id) }}"
-                    data-size="xl" data-title="Inventory Loss Voucher">
-                    Voucher
-                </a>
-                @elseif($row->return_contract_number)
-                @php $returnContractId = \App\Models\RiderInventoryContract::where('contract_number', $row->return_contract_number)->value('id'); @endphp
-                @if($returnContractId)
-                <a href="{{ route('RiderInventory.returnContractDocument', $returnContractId) }}"
-                    class="btn btn-sm btn-outline-primary" target="_blank">
-                    Contract
-                </a>
-                @endif
+                @elseif(in_array($row->status, ['returned', 'lost'], true))
+                @can('riderinventory_edit')
+                <div class="d-flex gap-1 flex-wrap justify-content-center">
+                    <a href="javascript:void(0);" class="btn btn-sm btn-outline-secondary show-modal"
+                        data-action="{{ route('RiderInventory.changeStatusForm', $row->id) }}"
+                        data-size="md" data-title="Change Inventory Status">
+                        Change Status
+                    </a>
+                    @if($row->return_contract_number)
+                    @php $returnContractId = \App\Models\RiderInventoryContract::where('contract_number', $row->return_contract_number)->value('id'); @endphp
+                    @if($returnContractId)
+                    <a href="{{ route('RiderInventory.returnContractDocument', $returnContractId) }}"
+                        class="btn btn-sm btn-outline-primary" target="_blank">
+                        Contract
+                    </a>
+                    @endif
+                    @endif
+                </div>
+                @endcan
                 @else
                 —
                 @endif

@@ -43,4 +43,13 @@ class RiderInventoryItem extends BaseModel
             ->where('status', RiderInventoryAssignment::STATUS_ASSIGNED)
             ->exists();
     }
+
+    public static function availableForAssignment()
+    {
+        return self::query()
+            ->where('is_active', true)
+            ->orderBy('display_order')
+            ->orderBy('name')
+            ->get();
+    }
 }

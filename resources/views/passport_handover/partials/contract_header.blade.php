@@ -25,8 +25,7 @@ $companyName = $branding['company_name'] ?? config('app.name', 'Company');
             </td>
             <td style="width: 210px;">
                 <div class="doc-badge">
-                    <strong>Ref: {{ $docRef }}</strong>
-                    {{ $docDateLabel }}<br>
+                    <strong>{{ $docRef }}</strong>
                     {{ $docDateValue }}
                 </div>
             </td>

@@ -44,17 +44,17 @@
                 <table class="info-table">
                     <thead>
                         <tr>
-                            <th style="width:40px;text-align:center;">✓</th>
-                            <th>Item Name</th>
-                            <th>Assignment Date</th>
-                            <th>Item Value</th>
-                            <th>Status</th>
+                            <th style="width:40px;">✓</th>
+                            <th style="text-align:left;">Item Name</th>
+                            <th style="text-align:left;">Assignment Date</th>
+                            <th style="text-align:left;">Item Value</th>
+                            <th style="text-align:left;">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($assignments as $row)
                         <tr>
-                            <td style="text-align:center;">☑</td>
+                            <td>☑</td>
                             <td>{{ $row->inventoryItem->name ?? '—' }}</td>
                             <td>{{ $row->assigned_date?->format('d M Y') ?? '—' }}</td>
                             <td>{{ number_format((float) $row->amount, 2) }}</td>

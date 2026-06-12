@@ -48,11 +48,10 @@
                 <table class="info-table">
                     <thead>
                         <tr>
-                            <th>Item Name</th>
-                            <th>Assignment Date</th>
-                            <th>Item Value</th>
-                            <th>Return Date</th>
-                            <th>Returned By</th>
+                            <th style="text-align:left;">Item Name</th>
+                            <th style="text-align:left;">Assignment Date</th>
+                            <th style="text-align:left;">Item Value</th>
+                            <th style="text-align:left;">Return Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -61,8 +60,7 @@
                             <td>{{ $row->inventoryItem->name ?? '—' }}</td>
                             <td>{{ $row->assigned_date?->format('d M Y') ?? '—' }}</td>
                             <td>{{ number_format((float) $row->amount, 2) }}</td>
-                            <td>{{ $row->return_date?->format('d M Y') ?? '—' }}</td>
-                            <td>{{ $row->returnedByUser->name ?? '—' }}</td>
+                            <td style="white-space: nowrap;">{{ $row->return_date?->format('d M Y') ?? '—' }}</td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -76,12 +74,10 @@
                 <table class="info-table">
                     <thead>
                         <tr>
-                            <th>Item Name</th>
-                            <th>Assignment Date</th>
-                            <th>Item Value</th>
-                            <th>Loss Date</th>
-                            <th>Lost By</th>
-                            <th>IL Voucher</th>
+                            <th style="text-align:left;">Item Name</th>
+                            <th style="text-align:left;">Assignment Date</th>
+                            <th style="text-align:left;">Item Value</th>
+                            <th style="text-align:left;">Loss Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -90,9 +86,7 @@
                             <td>{{ $row->inventoryItem->name ?? '—' }}</td>
                             <td>{{ $row->assigned_date?->format('d M Y') ?? '—' }}</td>
                             <td>{{ number_format((float) $row->amount, 2) }}</td>
-                            <td>{{ $row->loss_date?->format('d M Y') ?? '—' }}</td>
-                            <td>{{ $row->lostByUser->name ?? '—' }}</td>
-                            <td>{{ $row->il_voucher_number ?? $row->trans_code ?? '—' }}</td>
+                            <td style="white-space: nowrap;">{{ $row->loss_date?->format('d M Y') ?? '—' }}</td>
                         </tr>
                         @endforeach
                     </tbody>

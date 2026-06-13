@@ -5,8 +5,8 @@
         <select name="inventory_item_id" id="inventory_item_id" class="form-control select2" required>
             <option value="">Select Item</option>
             @foreach($availableItems as $item)
-            <option value="{{ $item->id }}" data-price="{{ $item->item_price }}">
-                {{ $item->name }} ({{ number_format((float) $item->item_price, 2) }})
+            <option value="{{ $item->id }}" data-price="{{ $item->price }}">
+                {{ $item->name }} ({{ number_format((float) $item->price, 2) }})
             </option>
             @endforeach
         </select>

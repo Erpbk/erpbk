@@ -50,7 +50,7 @@ class RiderInventoryAssignment extends BaseModel
 
     public function inventoryItem(): BelongsTo
     {
-        return $this->belongsTo(RiderInventoryItem::class, 'inventory_item_id');
+        return $this->belongsTo(Items::class, 'inventory_item_id');
     }
 
     public function assignedByUser(): BelongsTo

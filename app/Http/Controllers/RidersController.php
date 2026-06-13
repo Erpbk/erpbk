@@ -66,7 +66,6 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Models\RiderInventoryItem;
 use App\Models\RiderInventoryAssignment;
 
 class RidersController extends AppBaseController
@@ -1818,7 +1817,7 @@ class RidersController extends AppBaseController
             ->orderByDesc('assigned_date')
             ->orderByDesc('id')
             ->get();
-    $availableItems = RiderInventoryItem::availableForAssignment();
+    $availableItems = Items::availableForAssignment();
 
     return view('riders.inventory', compact('riders', 'rider', 'assignments', 'availableItems'));
   }

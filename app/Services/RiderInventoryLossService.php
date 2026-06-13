@@ -71,7 +71,7 @@ class RiderInventoryLossService
         foreach ($assignments as $assignment) {
             $amount = (float) $assignment->amount;
             if ($amount <= 0) {
-                $amount = (float) ($assignment->inventoryItem->item_price ?? 0);
+                $amount = (float) ($assignment->inventoryItem->price ?? 0);
             }
 
             if ($amount <= 0) {

@@ -39,10 +39,6 @@ class RiderInventoryItem extends BaseModel
 
     public static function availableForAssignment()
     {
-        return self::query()
-            ->where('is_active', true)
-            ->orderBy('display_order')
-            ->orderBy('name')
-            ->get();
+        return Items::availableForAssignment();
     }
 }

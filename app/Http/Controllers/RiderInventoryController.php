@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Items;
 use App\Models\RiderInventoryAssignment;
 use App\Models\RiderInventoryContract;
-use App\Models\RiderInventoryItem;
 use App\Models\Riders;
 use App\Models\Transactions;
 use App\Models\User;
@@ -109,7 +109,7 @@ class RiderInventoryController extends AppBaseController
             ->orderByDesc('id')
             ->get();
 
-        $availableItems = RiderInventoryItem::availableForAssignment();
+        $availableItems = Items::availableForAssignment();
 
         if ($request->ajax()) {
             return response()->json([
@@ -133,7 +133,7 @@ class RiderInventoryController extends AppBaseController
 
         return view('rider_inventory.assign_modal', [
             'rider' => $rider,
-            'availableItems' => RiderInventoryItem::availableForAssignment(),
+            'availableItems' => Items::availableForAssignment(),
         ]);
     }
 
@@ -149,12 +149,15 @@ class RiderInventoryController extends AppBaseController
             'inventory_item_id' => [
                 'required',
                 'integer',
-                Rule::exists('rider_inventory_items', 'id')->where(fn($q) => $q->where('is_active', true)),
+                Rule::exists('items', 'id')->where(function ($query) {
+                    $query->where('status', 1)
+                        ->whereJsonContains('owner', 'riderInventory');
+                }),
             ],
             'assigned_date' => 'required|date',
         ]);
 
-        $item = RiderInventoryItem::findOrFail($validated['inventory_item_id']);
+        $item = Items::findOrFail($validated['inventory_item_id']);
 
         $assignment = RiderInventoryAssignment::create([
             'rider_id' => $rider->id,
@@ -162,7 +165,7 @@ class RiderInventoryController extends AppBaseController
             'assigned_date' => $validated['assigned_date'],
             'assigned_by' => auth()->id(),
             'status' => RiderInventoryAssignment::STATUS_ASSIGNED,
-            'amount' => $item->item_price,
+            'amount' => $item->price,
             'created_by' => auth()->id(),
         ]);
 

@@ -24,13 +24,11 @@
             @endif
             @endcan
             @can('riderinventory_create')
-            @if($availableItems->isNotEmpty())
             <a href="javascript:void(0);" class="btn btn-sm btn-primary show-modal"
                 data-action="{{ route('RiderInventory.assignForm', $rider->id) }}"
                 data-size="md" data-title="Assign Inventory Item">
                 <i class="ti ti-plus"></i> Assign Item
             </a>
-            @endif
             @endcan
         </div>
     </div>

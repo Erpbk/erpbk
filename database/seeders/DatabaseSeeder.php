@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             CoreParentAccountsSeeder::class,
             TenantPermissionsSeeder::class,
             VisaStatusSeeder::class,
+            LicenseStatusSeeder::class,
             LegalCaseStatusSeeder::class,
         ]);
 

@@ -72,6 +72,8 @@ use App\Http\Controllers\UserTableSettingsController;
 use App\Http\Controllers\VatController;
 use App\Http\Controllers\VendorsController;
 use App\Http\Controllers\VisaexpenseController;
+use App\Http\Controllers\LicenseexpenseController;
+use App\Http\Controllers\LicenseStatusController;
 use App\Http\Controllers\LegalCaseController;
 use App\Http\Controllers\LegalCaseStatusController;
 use App\Http\Controllers\PassportHandoverController;
@@ -337,6 +339,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::resource('visa-statuses', VisaStatusController::class);
     Route::post('visa-statuses/reorder', [VisaStatusController::class, 'reorder'])->name('visa-statuses.reorder');
     Route::get('visa-statuses/{id}/toggle-active', [VisaStatusController::class, 'toggleActive'])->name('visa-statuses.toggle-active');
+    Route::resource('license-statuses', LicenseStatusController::class);
+    Route::post('license-statuses/reorder', [LicenseStatusController::class, 'reorder'])->name('license-statuses.reorder');
+    Route::get('license-statuses/{id}/toggle-active', [LicenseStatusController::class, 'toggleActive'])->name('license-statuses.toggle-active');
     Route::post('VisaExpense/store', [VisaexpenseController::class, 'store'])->name('VisaExpense.store');
     Route::post('VisaExpense/inline-update', [VisaexpenseController::class, 'inlineUpdate'])->name('VisaExpense.inlineUpdate');
     Route::post('VisaExpense/update', [VisaexpenseController::class, 'update'])->name('VisaExpense.update');
@@ -361,6 +366,27 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('VisaExpense/payfine', [VisaexpenseController::class, 'payfine'])->name('VisaExpense.payfine');
     Route::get('VisaExpense/edit-voucher-credit/{visaExpense}', [VisaexpenseController::class, 'editVoucherCreditForm'])->name('VisaExpense.editVoucherCreditForm');
     Route::post('VisaExpense/update-voucher-credit', [VisaexpenseController::class, 'updateVoucherCredit'])->name('VisaExpense.updateVoucherCredit');
+
+    // License Expense custom routes (register before resource to avoid {LicenseExpense} shadowing)
+    Route::get('LicenseExpense/generatentries/{id}', [LicenseexpenseController::class, 'generatentries'])->name('LicenseExpense.generatentries');
+    Route::get('LicenseExpense/create/{id}', [LicenseexpenseController::class, 'create'])->name('LicenseExpense.create');
+    Route::get('LicenseExpense/edit/{id}', [LicenseexpenseController::class, 'edit'])->name('LicenseExpense.edit');
+    Route::get('LicenseExpense/delete/{id}', [LicenseexpenseController::class, 'destroy'])->name('LicenseExpense.delete');
+    Route::get('LicenseExpense/viewvoucher/{id}', [LicenseexpenseController::class, 'viewvoucher'])->name('LicenseExpense.viewvoucher');
+
+    Route::resource('LicenseExpense', LicenseexpenseController::class);
+
+    Route::post('LicenseExpense/store', [LicenseexpenseController::class, 'store'])->name('LicenseExpense.store');
+    Route::post('LicenseExpense/inline-update', [LicenseexpenseController::class, 'inlineUpdate'])->name('LicenseExpense.inlineUpdate');
+    Route::post('LicenseExpense/update', [LicenseexpenseController::class, 'update'])->name('LicenseExpense.update');
+    Route::any('LicenseExpense/attach_file/{id}', [LicenseexpenseController::class, 'fileUpload'])->name('LicenseExpense.fileupload');
+    Route::post('LicenseExpense/getLicenseStatusFee', [LicenseexpenseController::class, 'getLicenseStatusFee'])->name('LicenseExpense.getLicenseStatusFee');
+    Route::post('license-accountcreate', [LicenseexpenseController::class, 'accountcreate'])->name('LicenseExpense.accountcreate');
+    Route::post('license-editaccount', [LicenseexpenseController::class, 'editaccount'])->name('LicenseExpense.editaccount');
+    Route::get('LicenseExpense/deleteaccount/{id}', [LicenseexpenseController::class, 'deleteaccount'])->name('LicenseExpense.deleteaccount');
+    Route::post('LicenseExpense/payfine', [LicenseexpenseController::class, 'payfine'])->name('LicenseExpense.payfine');
+    Route::get('LicenseExpense/edit-voucher-credit/{licenseExpense}', [LicenseexpenseController::class, 'editVoucherCreditForm'])->name('LicenseExpense.editVoucherCreditForm');
+    Route::post('LicenseExpense/update-voucher-credit', [LicenseexpenseController::class, 'updateVoucherCredit'])->name('LicenseExpense.updateVoucherCredit');
 
     // Legal Case custom routes (register before resource to avoid {LegalCase} shadowing)
     Route::get('LegalCase/generatentries/{id}', [LegalCaseController::class, 'generatentries'])->name('LegalCase.generatentries');

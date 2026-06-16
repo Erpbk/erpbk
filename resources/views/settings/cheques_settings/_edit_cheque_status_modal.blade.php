@@ -1,4 +1,4 @@
-﻿{{-- Edit Cheque Status modal --}}
+{{-- Edit Cheque Status modal --}}
 <div class="modal fade" id="editchequeStatusModal" tabindex="-1" data-bs-backdrop="static">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">

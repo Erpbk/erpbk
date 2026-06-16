@@ -26,4 +26,9 @@ class ExpenseAccount extends BaseModel
     {
         return $this->hasMany(visa_expenses::class, 'expense_account_id');
     }
+
+    public function licenseExpenses(): HasMany
+    {
+        return $this->hasMany(license_expenses::class, 'expense_account_id');
+    }
 }

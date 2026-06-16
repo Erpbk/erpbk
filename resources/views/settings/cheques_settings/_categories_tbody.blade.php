@@ -1,4 +1,4 @@
-﻿@forelse($categories as $index => $category)
+@forelse($categories as $index => $category)
 <tr data-id="{{ $category->id }}">
   <td class="align-middle">
     <span class="drag-handle"><i class="ti ti-grip-vertical"></i></span>

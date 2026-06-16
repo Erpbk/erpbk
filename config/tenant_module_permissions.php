@@ -111,6 +111,8 @@ return [
             'visaloan_edit',
         ]],
 
+        ['parent' => 'License Expense', 'slug' => 'licenseexpense', 'extras' => []],
+
         ['parent' => 'Legal Case', 'slug' => 'legalcase', 'extras' => []],
 
         ['parent' => 'Passport Handover', 'slug' => 'passport_handover', 'extras' => [

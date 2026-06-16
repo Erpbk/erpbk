@@ -1,4 +1,4 @@
-﻿@forelse($chequeStatusOptions as $idx => $statusOption)
+@forelse($chequeStatusOptions as $idx => $statusOption)
 <tr data-id="{{ $statusOption->id }}" data-status-name="{{ $statusOption->name }}">
   <td class="align-middle">{{ $idx + 1 }}</td>
   <td class="align-middle">

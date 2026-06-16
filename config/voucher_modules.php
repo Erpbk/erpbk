@@ -37,6 +37,8 @@ return [
         'rider_inventory_items' => 'Rider Inventory Items',
         'visa_expense'         => 'Visa Expense',
         'visa_status_types'    => 'Visa Status Types',
+        'license_expense'      => 'License Expense',
+        'license_status_types' => 'License Status Types',
         'expenses'             => 'Expenses',
         'leasing_companies'    => 'Leasing Companies',
         'leasing_companies_list' => 'Leasing Companies List',

@@ -51,6 +51,8 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
 $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 $showVisaStatusManagementTab = ($moduleKey ?? '') === 'visa_expense';
 $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'visa_expense']) . '#tab-visa-status-management';
+$showLicenseStatusManagementTab = ($moduleKey ?? '') === 'license_expense';
+$licenseExpenseStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'license_expense']) . '#tab-license-status-management';
 $showLegalCaseStatusManagementTab = ($moduleKey ?? '') === 'legal_case';
 $legalCaseStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'legal_case']) . '#tab-legal-case-status-management';
 $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
@@ -121,6 +123,18 @@ $attendanceRefType = $attendanceRefType ?? null;
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-visa-expense-top" type="button" role="tab">
               Visa Expense Top
+            </button>
+          </li>
+          @endif
+          @if($showLicenseStatusManagementTab)
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-license-status-management" type="button" role="tab">
+              License Status Management
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-license-top" type="button" role="tab">
+              License Expense Top
             </button>
           </li>
           @endif
@@ -450,6 +464,11 @@ $attendanceRefType = $attendanceRefType ?? null;
             id="visa-status-manager-config"
             data-edit-url-template="{{ route('settings-panel.visa-statuses.update', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'visa_status' => '__ID__']) }}"
             hidden></div>
+          @endif
+
+          @if($showLicenseStatusManagementTab)
+          @include('settings.partials.license_expense_module_settings')
+          @include('settings.partials.license_expense_module_settings_script')
           @endif
 
           @if($showLegalCaseStatusManagementTab)
@@ -2692,7 +2711,7 @@ $attendanceRefType = $attendanceRefType ?? null;
     document.addEventListener('DOMContentLoaded', function() {
       initVisaStatusSortable();
       var targetHash = window.location.hash;
-      if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top' || targetHash === '#tab-legal-case-status-management' || targetHash === '#tab-legal-case-top') {
+      if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top' || targetHash === '#tab-license-status-management' || targetHash === '#tab-license-top' || targetHash === '#tab-legal-case-status-management' || targetHash === '#tab-legal-case-top') {
         var visaTabBtn = document.querySelector('[data-bs-target="' + targetHash + '"]');
         if (visaTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
           bootstrap.Tab.getOrCreateInstance(visaTabBtn).show();

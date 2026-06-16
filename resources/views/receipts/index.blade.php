@@ -1,4 +1,4 @@
-﻿@extends('banks.viewindex')
+@extends('banks.viewindex')
 @section('page_content')
 @push('third_party_stylesheets')
 <style>

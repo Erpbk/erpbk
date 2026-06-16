@@ -45,6 +45,9 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::resource('visa-statuses', App\Http\Controllers\VisaStatusController::class)->names('settings-panel.visa-statuses');
     Route::post('visa-statuses/reorder', [App\Http\Controllers\VisaStatusController::class, 'reorder'])->name('settings-panel.visa-statuses.reorder');
     Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('settings-panel.visa-statuses.toggle-active');
+    Route::resource('license-statuses', App\Http\Controllers\LicenseStatusController::class)->names('settings-panel.license-statuses');
+    Route::post('license-statuses/reorder', [App\Http\Controllers\LicenseStatusController::class, 'reorder'])->name('settings-panel.license-statuses.reorder');
+    Route::get('license-statuses/{id}/toggle-active', [App\Http\Controllers\LicenseStatusController::class, 'toggleActive'])->name('settings-panel.license-statuses.toggle-active');
     Route::post('bike-registration-statuses/reorder', [App\Http\Controllers\BikeRegistrationStatusController::class, 'reorder'])->name('settings-panel.bike-registration-statuses.reorder');
     Route::get('bike-registration-statuses/{id}/toggle-active', [App\Http\Controllers\BikeRegistrationStatusController::class, 'toggleActive'])->name('settings-panel.bike-registration-statuses.toggle-active');
     Route::resource('bike-registration-statuses', App\Http\Controllers\BikeRegistrationStatusController::class)->names('settings-panel.bike-registration-statuses');
@@ -282,6 +285,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::put('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'updateDocumentType'])->name('settings-panel.module-settings.update-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::delete('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'destroyDocumentType'])->name('settings-panel.module-settings.destroy-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/visa-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateVisaExpenseTop'])->name('settings-panel.module-settings.update-visa-expense-top')->where('module', '[A-Za-z0-9_-]+');
+    Route::post('module-settings/{module}/license-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateLicenseExpenseTop'])->name('settings-panel.module-settings.update-license-top')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/legal-case-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateLegalCaseTop'])->name('settings-panel.module-settings.update-legal-case-top')->where('module', '[A-Za-z0-9_-]+');
     Route::resource('rider-inventory-items', App\Http\Controllers\RiderInventoryItemController::class)->names('settings-panel.rider-inventory-items');
     Route::post('rider-inventory-items/reorder', [App\Http\Controllers\RiderInventoryItemController::class, 'reorder'])->name('settings-panel.rider-inventory-items.reorder');

@@ -26,6 +26,7 @@ class SimInvoice extends BaseModel
         'notes',
         'attachment',
         'status',
+        'partial_paid_amount',
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class SimInvoice extends BaseModel
         'vat' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'status' => 'integer',
+        'partial_paid_amount' => 'array',
     ];
 
     protected $dates = ['deleted_at'];
@@ -62,5 +64,28 @@ class SimInvoice extends BaseModel
     public function items()
     {
         return $this->hasMany(SimInvoiceItem::class, 'inv_id', 'id');
+    }
+
+    public function getInvoiceNumberAttribute()
+    {
+        return 'SIMI' . str_pad($this->id, 4, '0', STR_PAD_LEFT);
+    }
+
+    public static function getIdFromInvoiceNumber($invoiceNumber)
+    {
+        $numericPart = str_replace('SIMI', '', $invoiceNumber);
+        $id = (int) ltrim($numericPart, '0');
+
+        return self::where('id', $id)->exists() ? $id : null;
+    }
+
+    public function getPaidAmountAttribute()
+    {
+        return array_sum($this->partial_paid_amount ?? []);
+    }
+
+    public function getBalanceAttribute()
+    {
+        return $this->total_amount - $this->paid_amount;
     }
 }

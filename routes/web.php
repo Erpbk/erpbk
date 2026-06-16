@@ -72,8 +72,14 @@ use App\Http\Controllers\UserTableSettingsController;
 use App\Http\Controllers\VatController;
 use App\Http\Controllers\VendorsController;
 use App\Http\Controllers\VisaexpenseController;
+use App\Http\Controllers\LicenseexpenseController;
+use App\Http\Controllers\LicenseStatusController;
 use App\Http\Controllers\LegalCaseController;
 use App\Http\Controllers\LegalCaseStatusController;
+use App\Http\Controllers\PassportHandoverController;
+use App\Http\Controllers\RiderInventoryController;
+use App\Http\Controllers\RiderInventoryItemController;
+use App\Http\Controllers\RiderInventoryReportController;
 use App\Http\Controllers\VisaStatusController;
 use App\Http\Controllers\VouchersController;
 use Illuminate\Support\Facades\Artisan;
@@ -265,6 +271,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('customer/receipts', [CustomersController::class, 'cReceipts'])->name('customer.receipts');
     Route::get('customers/payments/{id}', [CustomersController::class, 'payments'])->name('customers.payments');
     Route::get('customers/receipts/{id}', [CustomersController::class, 'receipts'])->name('customers.receipts');
+    Route::get('customer/inventory/{id}', [CustomersController::class, 'inventory'])->name('customer.inventory');
     // Customers Trash Routes
     Route::get('customers/trash', [CustomersController::class, 'trash'])->name('customers.trash');
     Route::post('customers/trash/{id}/restore', [CustomersController::class, 'restoreTrash'])->name('customers.restore');
@@ -332,6 +339,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::resource('visa-statuses', VisaStatusController::class);
     Route::post('visa-statuses/reorder', [VisaStatusController::class, 'reorder'])->name('visa-statuses.reorder');
     Route::get('visa-statuses/{id}/toggle-active', [VisaStatusController::class, 'toggleActive'])->name('visa-statuses.toggle-active');
+    Route::resource('license-statuses', LicenseStatusController::class);
+    Route::post('license-statuses/reorder', [LicenseStatusController::class, 'reorder'])->name('license-statuses.reorder');
+    Route::get('license-statuses/{id}/toggle-active', [LicenseStatusController::class, 'toggleActive'])->name('license-statuses.toggle-active');
     Route::post('VisaExpense/store', [VisaexpenseController::class, 'store'])->name('VisaExpense.store');
     Route::post('VisaExpense/inline-update', [VisaexpenseController::class, 'inlineUpdate'])->name('VisaExpense.inlineUpdate');
     Route::post('VisaExpense/update', [VisaexpenseController::class, 'update'])->name('VisaExpense.update');
@@ -357,6 +367,27 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('VisaExpense/edit-voucher-credit/{visaExpense}', [VisaexpenseController::class, 'editVoucherCreditForm'])->name('VisaExpense.editVoucherCreditForm');
     Route::post('VisaExpense/update-voucher-credit', [VisaexpenseController::class, 'updateVoucherCredit'])->name('VisaExpense.updateVoucherCredit');
 
+    // License Expense custom routes (register before resource to avoid {LicenseExpense} shadowing)
+    Route::get('LicenseExpense/generatentries/{id}', [LicenseexpenseController::class, 'generatentries'])->name('LicenseExpense.generatentries');
+    Route::get('LicenseExpense/create/{id}', [LicenseexpenseController::class, 'create'])->name('LicenseExpense.create');
+    Route::get('LicenseExpense/edit/{id}', [LicenseexpenseController::class, 'edit'])->name('LicenseExpense.edit');
+    Route::get('LicenseExpense/delete/{id}', [LicenseexpenseController::class, 'destroy'])->name('LicenseExpense.delete');
+    Route::get('LicenseExpense/viewvoucher/{id}', [LicenseexpenseController::class, 'viewvoucher'])->name('LicenseExpense.viewvoucher');
+
+    Route::resource('LicenseExpense', LicenseexpenseController::class);
+
+    Route::post('LicenseExpense/store', [LicenseexpenseController::class, 'store'])->name('LicenseExpense.store');
+    Route::post('LicenseExpense/inline-update', [LicenseexpenseController::class, 'inlineUpdate'])->name('LicenseExpense.inlineUpdate');
+    Route::post('LicenseExpense/update', [LicenseexpenseController::class, 'update'])->name('LicenseExpense.update');
+    Route::any('LicenseExpense/attach_file/{id}', [LicenseexpenseController::class, 'fileUpload'])->name('LicenseExpense.fileupload');
+    Route::post('LicenseExpense/getLicenseStatusFee', [LicenseexpenseController::class, 'getLicenseStatusFee'])->name('LicenseExpense.getLicenseStatusFee');
+    Route::post('license-accountcreate', [LicenseexpenseController::class, 'accountcreate'])->name('LicenseExpense.accountcreate');
+    Route::post('license-editaccount', [LicenseexpenseController::class, 'editaccount'])->name('LicenseExpense.editaccount');
+    Route::get('LicenseExpense/deleteaccount/{id}', [LicenseexpenseController::class, 'deleteaccount'])->name('LicenseExpense.deleteaccount');
+    Route::post('LicenseExpense/payfine', [LicenseexpenseController::class, 'payfine'])->name('LicenseExpense.payfine');
+    Route::get('LicenseExpense/edit-voucher-credit/{licenseExpense}', [LicenseexpenseController::class, 'editVoucherCreditForm'])->name('LicenseExpense.editVoucherCreditForm');
+    Route::post('LicenseExpense/update-voucher-credit', [LicenseexpenseController::class, 'updateVoucherCredit'])->name('LicenseExpense.updateVoucherCredit');
+
     // Legal Case custom routes (register before resource to avoid {LegalCase} shadowing)
     Route::get('LegalCase/generatentries/{id}', [LegalCaseController::class, 'generatentries'])->name('LegalCase.generatentries');
     Route::get('LegalCase/create/{id}', [LegalCaseController::class, 'create'])->name('LegalCase.create');
@@ -373,6 +404,52 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('legalcase-accountcreate', [LegalCaseController::class, 'accountcreate'])->name('LegalCase.accountcreate');
     Route::post('legalcase-editaccount', [LegalCaseController::class, 'editaccount'])->name('LegalCase.editaccount');
     Route::get('LegalCase/deleteaccount/{id}', [LegalCaseController::class, 'deleteaccount'])->name('LegalCase.deleteaccount');
+
+    // Passport Handover
+    Route::get('passport-handover', [PassportHandoverController::class, 'index'])->name('passportHandover.index');
+    Route::get('passport-handover/{type}/{id}/history', [PassportHandoverController::class, 'history'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.history');
+    Route::get('passport-handover/{type}/{id}/issue', [PassportHandoverController::class, 'issueForm'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.issueForm');
+    Route::post('passport-handover/{type}/{id}/issue', [PassportHandoverController::class, 'issueStore'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.issueStore');
+    Route::get('passport-handover/{type}/{id}/return', [PassportHandoverController::class, 'returnForm'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.returnForm');
+    Route::post('passport-handover/{type}/{id}/return', [PassportHandoverController::class, 'returnStore'])
+        ->where(['type' => 'rider|employee'])
+        ->name('passportHandover.returnStore');
+    Route::get('passport-handover/contracts/issue/{id}', [PassportHandoverController::class, 'issueContract'])->name('passportHandover.issueContract');
+    Route::get('passport-handover/contracts/return/{id}', [PassportHandoverController::class, 'returnContract'])->name('passportHandover.returnContract');
+
+    // Rider Inventory
+    Route::get('RiderInventory/reports/data', [RiderInventoryReportController::class, 'data'])->name('RiderInventory.reports.data');
+    Route::get('RiderInventory/reports', [RiderInventoryReportController::class, 'index'])->name('RiderInventory.reports');
+    Route::get('RiderInventory/show/{riderId}', [RiderInventoryController::class, 'show'])->name('RiderInventory.show');
+    Route::get('RiderInventory/assign/{riderId}', [RiderInventoryController::class, 'assignForm'])->name('RiderInventory.assignForm');
+    Route::post('RiderInventory/assign/{riderId}', [RiderInventoryController::class, 'assignStore'])->name('RiderInventory.assignStore');
+    Route::get('RiderInventory/return/{assignmentId}', [RiderInventoryController::class, 'returnForm'])->name('RiderInventory.returnForm');
+    Route::post('RiderInventory/return/{assignmentId}', [RiderInventoryController::class, 'returnStore'])->name('RiderInventory.returnStore');
+    Route::get('RiderInventory/lost/{assignmentId}', [RiderInventoryController::class, 'lostForm'])->name('RiderInventory.lostForm');
+    Route::post('RiderInventory/lost/{assignmentId}', [RiderInventoryController::class, 'markLost'])->name('RiderInventory.markLost');
+    Route::get('RiderInventory/change-status/{assignmentId}', [RiderInventoryController::class, 'changeStatusForm'])->name('RiderInventory.changeStatusForm');
+    Route::post('RiderInventory/change-status/{assignmentId}', [RiderInventoryController::class, 'changeStatusStore'])->name('RiderInventory.changeStatusStore');
+    Route::delete('RiderInventory/assignment/{assignmentId}', [RiderInventoryController::class, 'destroyAssignment'])->name('RiderInventory.destroyAssignment');
+    Route::get('RiderInventory/assignment-contract/{riderId}', [RiderInventoryController::class, 'assignmentContract'])->name('RiderInventory.assignmentContract');
+    Route::get('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractForm'])->name('RiderInventory.returnContractForm');
+    Route::post('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractProcess'])->name('RiderInventory.returnContractProcess');
+    Route::get('RiderInventory/return-contract-document/{contractId}', [RiderInventoryController::class, 'returnContractDocument'])->name('RiderInventory.returnContractDocument');
+    Route::get('RiderInventory/return-to-customer', [RiderInventoryController::class, 'returnToCustomerForm'])->name('RiderInventory.returnToCustomerForm');
+    Route::get('RiderInventory/return-to-customer/assignments', [RiderInventoryController::class, 'returnToCustomerAssignments'])->name('RiderInventory.returnToCustomerAssignments');
+    Route::post('RiderInventory/return-to-customer', [RiderInventoryController::class, 'returnToCustomerStore'])->name('RiderInventory.returnToCustomerStore');
+    Route::get('RiderInventory', [RiderInventoryController::class, 'index'])->name('RiderInventory.index');
+
+    Route::resource('rider-inventory-items', RiderInventoryItemController::class);
+    Route::post('rider-inventory-items/reorder', [RiderInventoryItemController::class, 'reorder'])->name('rider-inventory-items.reorder');
+    Route::get('rider-inventory-items/{id}/toggle-active', [RiderInventoryItemController::class, 'toggleActive'])->name('rider-inventory-items.toggle-active');
 
     Route::post('bike-registration-statuses/reorder', [BikeRegistrationStatusController::class, 'reorder'])->name('bike-registration-statuses.reorder');
     Route::get('bike-registration-statuses/{id}/toggle-active', [BikeRegistrationStatusController::class, 'toggleActive'])->name('bike-registration-statuses.toggle-active');
@@ -403,6 +480,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::match(['get', 'post'], 'sims/return/{id}', [SimsController::class, 'return'])->name('sims.return');
     Route::get('sims/export', [SimsController::class, 'export'])->name('sims.export');
     Route::match(['get', 'post'], 'sims/import', [SimsController::class, 'import'])->name('sims.import');
+    Route::get('sims/import_template', [SimsController::class, 'downloadTemplate'])->name('sims.import_template');
 
     Route::resource('sims', SimsController::class);
     Route::get('sims/delete/{id}', [SimsController::class, 'destroy'])->name('sims.delete');
@@ -424,6 +502,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('simInvoices/vendor/{id}/sims', [SimInvoicesController::class, 'getSims'])->name('simInvoices.getSims');
     Route::get('simInvoices/{id}/payment-voucher/create', [SimInvoicesController::class, 'createPaymentVoucher'])->name('simInvoices.paymentVoucher.create');
     Route::post('simInvoices/{id}/payment-voucher', [SimInvoicesController::class, 'storePaymentVoucher'])->name('simInvoices.paymentVoucher.store');
+    Route::get('sim/payments', [SimInvoicesController::class, 'payments'])->name('sim.payments');
 
     Route::get('bikeRentCompanies/trash', [BikeRentCompaniesController::class, 'trash'])->name('bikeRentCompanies.trash');
     Route::post('bikeRentCompanies/trash/{id}/restore', [BikeRentCompaniesController::class, 'restoreTrash'])->name('bikeRentCompanies.restore');
@@ -464,6 +543,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::any('riders/picture_upload/{id?}', [RidersController::class, 'picture_upload'])->name('rider_picture_upload');
     Route::any('riders/rider-document/{id}', [RidersController::class, 'document'])->name('rider.document');
+    Route::get('riders/inventory/{id}', [RidersController::class, 'inventory'])->name('rider.inventory');
     Route::get('rider/updateRider', [RidersController::class, 'updateRider'])->name('rider.updateRider');
     Route::get('rider/delete/{id}', [RidersController::class, 'destroy'])->name('rider.delete');
     Route::get('riders/ledger/{id}', [RidersController::class, 'ledger'])->name('rider.ledger');

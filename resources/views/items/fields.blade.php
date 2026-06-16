@@ -104,6 +104,7 @@
             <option value="customer">Customer</option>
             <option value="employee">employee</option>
             <option value="leasingCompany">Leasing Company</option>
+            <option value="riderInventory">Rider Inventory</option>
         </select>
         <small class="text-muted">Click on an option to add it. Selected types will appear below.</small>
     </div>
@@ -206,7 +207,9 @@ $(document).ready(function () {
             'garage': { label: 'Garage', color: '#dc3545', icon: 'fa-car' },
             'supplier': { label: 'Supplier', color: '#007bff', icon: 'fa-truck' },
             'customer': { label: 'Customer', color: '#28a745', icon: 'fa-user' },
-            'leasingCompany': { label: 'Leasing', color: '#ffc107', icon: 'fa-building' }
+            'employee': { label: 'Employee', color: '#6610f2', icon: 'fa-id-badge' },
+            'leasingCompany': { label: 'Leasing', color: '#ffc107', icon: 'fa-building' },
+            'riderInventory': { label: 'Rider Inventory', color: '#fd7e14', icon: 'fa-box-open' }
         };
         
         // Create smaller cards for each selected owner

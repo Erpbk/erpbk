@@ -111,7 +111,19 @@ return [
             'visaloan_edit',
         ]],
 
+        ['parent' => 'License Expense', 'slug' => 'licenseexpense', 'extras' => []],
+
         ['parent' => 'Legal Case', 'slug' => 'legalcase', 'extras' => []],
+
+        ['parent' => 'Passport Handover', 'slug' => 'passport_handover', 'extras' => [
+            'passport_handover_issue',
+            'passport_handover_return',
+            'passport_handover_print',
+        ]],
+
+        ['parent' => 'Rider Inventory', 'slug' => 'riderinventory', 'extras' => [
+            'riderinventory_contract_print',
+        ]],
 
         ['parent' => 'Expenses', 'slug' => 'expenses', 'extras' => [
             'expense_voucher_create',

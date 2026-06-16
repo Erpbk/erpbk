@@ -61,8 +61,7 @@
             {{$r->number}}
           </a>
         </td>
-        <td>{{ $r->branch?->name ?? '-' }}</td>
-        <td>{{$r->company}}</td>
+        <td>{{$r->telecomCompany?->name ?? '-'}}</td>
         <td>{{$r->emi}}</td>
         <td>
           @if($r->assign_to)
@@ -106,18 +105,9 @@
           <span class="badge bg-danger">Inactive</span>
           @endif
         </td>
-        <td>
-          @if($r->assign_type === 'employee' && $r->employee)
-          <a href="{{ route('employees.show', $r->employee->id) }}" class="table-link">{{ $r->employee->employee_id }} - {{ $r->employee->name }}</a>
-          @elseif($r->riders)
-          <a href="{{ route('riders.show', $r->riders->id) }}" class="table-link">{{ $r->riders->rider_id }} - {{ $r->riders->name }}</a>
-          @else
-          -
-          @endif
-        </td>
         <td style="position: relative;">
           <div class="dropdown sim-table-action-dropdown">
-            <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
+            <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
               <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
             </button>
             <div class="dropdown-menu dropdown-menu-end sim-table-dropdown-menu" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">

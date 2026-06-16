@@ -143,6 +143,8 @@
                                 <th>Employee</th>
                             @elseif($invoiceType == 'rider')
                                 <th>Rider</th>
+                            @elseif($invoiceType == 'sim')
+                                <th>Vendor</th>
                             @else
                                 <th>Leasing Company</th>
                             @endif
@@ -160,13 +162,13 @@
                                 data-balance="{{ $invoice->balance + ($invoice->partial_paid_amount[optional($payment)->id] ?? 0) }}" 
                                 data-reference="{{ $invoice->invoice_number ?? $invoice->id }}" 
                                 data-old-payment="{{ $invoice->partial_paid_amount[optional($payment)->id] ?? 0 }}"
-                                data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id ?? optional($invoice->rider)->id }}"
-                                data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name }}">
+                                data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id ?? optional($invoice->rider)->id ?? optional($invoice->vendor)->id }}"
+                                data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->vendor)->name }}">
                                 <td class="text-center">
                                     <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" checked>
                                 </td>
                                 <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
-                                <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? '-' }}</td>
+                                <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->vendor)->name ?? '-' }}</td>
                                 <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                                 <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                                 <td class="text-right">{{ number_format(($invoice->paid_amount ?? 0) - ($invoice->partial_paid_amount[optional($payment)->id] ?? 0), 2) }}</td>
@@ -186,13 +188,13 @@
                         <tr data-invoice-id="{{ $invoice->id }}" 
                             data-balance="{{ $invoice->balance }}" 
                             data-reference="{{ $invoice->invoice_number }}"
-                            data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id ?? optional($invoice->rider)->id }}"
-                            data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name }}">
+                            data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id ?? optional($invoice->rider)->id ?? optional($invoice->vendor)->id }}"
+                            data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->vendor)->name }}">
                             <td class="text-center">
                                 <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox">
                             </td>
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
-                            <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? '-' }}</td>
+                            <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->vendor)->name ?? '-' }}</td>
                             <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                             <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                             <td class="text-right">{{ number_format($invoice->paid_amount ?? 0, 2) }}</td>

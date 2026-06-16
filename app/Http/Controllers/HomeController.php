@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
+use Illuminate\Validation\Rule;
 use App\Traits\GlobalPagination;
 use App\Support\DashboardCardRegistry;
 use App\Support\DocumentExpiryDashboard;
@@ -59,7 +60,12 @@ class HomeController extends Controller
 
     if ($isSettingsPanel && $currentCompany instanceof Company && $request->isMethod('post')) {
       $validated = $request->validate([
-        'company_name' => 'required|string|max:255',
+        'company_name' => [
+          'required',
+          'string',
+          'max:255',
+          Rule::unique('companies', 'name')->ignore($currentCompany->id),
+        ],
         'company_email' => [
           'nullable',
           'email',
@@ -79,7 +85,11 @@ class HomeController extends Controller
         'settings.vat_percentage' => 'nullable|numeric',
       ]);
 
+      $nameChanged = $validated['company_name'] !== $currentCompany->name;
       $currentCompany->name = $validated['company_name'];
+      if ($nameChanged) {
+        $currentCompany->slug = Company::generateUniqueSlug($currentCompany->name, $currentCompany->id);
+      }
 
       $newEmail = isset($validated['company_email'])
         ? strtolower(trim((string) $validated['company_email']))

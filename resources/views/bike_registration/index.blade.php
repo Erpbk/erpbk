@@ -1,4 +1,4 @@
-﻿@extends($bikes ?? null ? 'bikes.view' : 'layouts.app')
+@extends($bikes ?? null ? 'bikes.view' : 'layouts.app')
 @section('title','Bike Registration')
 @section($bikes ?? null ? 'page_content' : 'content')
 <div class="content">

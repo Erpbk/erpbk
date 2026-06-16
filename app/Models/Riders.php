@@ -358,4 +358,9 @@ class Riders extends BaseModel
   {
     return $this->belongsTo(Recruiters::class, 'recruiter_id', 'id');
   }
+
+  public function inventoryAssignments()
+  {
+    return $this->hasMany(RiderInventoryAssignment::class, 'rider_id', 'id');
+  }
 }

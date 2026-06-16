@@ -1,4 +1,4 @@
-﻿@extends('banks.viewindex')
+@extends('banks.viewindex')
 @section('page_content')
 <div class="content px-3">
     @include('flash::message')

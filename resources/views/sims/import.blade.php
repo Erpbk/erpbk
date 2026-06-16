@@ -1,470 +1,386 @@
-@extends('layouts.app')
-@section('title', 'Import RTA Fines')
-@section('content')
-<section class="content-header">
-    <div class="container-fluid">
-        <div class="row mb-2">
-            <div class="col-sm-6">
-                <h1>Import Sims</h1>
-            </div>
-            <div class="col-sm-6 text-right">
-                <a class="btn btn-primary float-right action-btn" href="{{ route('sims.index') }}" style="color: white; background-color: #007bff;">
-                    Back to Sim List
+
+<style>
+    .upload-area {
+        border: 2px dashed #ccc;
+        border-radius: 10px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .upload-area:hover {
+        border-color: #004aad;
+        background-color: #f8f9fa;
+    }
+
+    .upload-area.dragover {
+        border-color: #004aad;
+        background-color: #e6f1ff;
+    }
+
+    .file-info {
+        margin-top: 15px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+    }
+
+    .progress-bar-container {
+        margin-top: 20px;
+        display: none;
+    }
+
+    .progress {
+        height: 25px;
+        border-radius: 5px;
+    }
+
+    .failed-rows-table {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+
+<div class="content mt-3">
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="ti ti-upload"></i> Import Sims
+                </h4>
+                <a href="{{ route('sims.index') }}" class="btn btn-secondary">
+                    <i class="ti ti-arrow-left"></i> Back to List
                 </a>
             </div>
         </div>
+
+        <div class="card-body">
+            <!-- Template Download Section -->
+            <div class="alert alert-info">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="ti ti-info-circle"></i>
+                        <strong>Need a template?</strong> Download the Excel template to get started.
+                    </div>
+                    <a href="{{ route('sims.import_template') }}" class="btn btn-success" download>
+                        <i class="ti ti-download"></i> Download Template
+                    </a>
+                </div>
+            </div>
+
+            <!-- Upload Form -->
+            <form action="{{ route('sims.import') }}" method="POST" enctype="multipart/form-data" id="importForm">
+                @csrf
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label for="file" class="form-label">
+                                <i class="ti ti-file-excel"></i> Excel File <span class="text-danger">*</span>
+                            </label>
+                            <input type="file"
+                                   name="file"
+                                   id="file"
+                                   class="form-control @error('file') is-invalid @enderror"
+                                   accept=".xlsx,.xls,.csv"
+                                   required>
+                            @error('file')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <small class="form-text text-muted">
+                                Allowed formats: .xlsx, .xls, .csv (Max 10MB)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Drag & Drop Upload Area -->
+                <div class="upload-area mb-3" id="uploadArea">
+                    <i class="ti ti-cloud-upload" style="font-size: 48px; color: #004aad;"></i>
+                    <h5 class="mt-3">Drag & Drop your Excel file here</h5>
+                    <p class="text-muted">or click to browse</p>
+                    <small class="text-muted">Supported formats: .xlsx, .xls, .csv</small>
+                </div>
+
+                <!-- File Info -->
+                <div id="fileInfo" class="file-info" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="ti ti-file-excel text-success"></i>
+                            <strong id="fileName"></strong>
+                            <span id="fileSize" class="text-muted ms-2"></span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-danger" id="removeFile">
+                            <i class="ti ti-trash"></i> Remove
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="progress-bar-container" id="progressBarContainer">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar"
+                             style="width: 0%">0%</div>
+                    </div>
+                    <p class="text-muted mt-2" id="progressStatus">Processing...</p>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="form-group mt-4">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <i class="ti ti-upload"></i> Import Data
+                    </button>
+                    <button type="reset" class="btn btn-secondary" id="resetBtn">
+                        <i class="ti ti-refresh"></i> Reset
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-</section>
 
-<div class="content px-3">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <form id="salikImportForm" action="{{ route('sims.import') }}" method="POST" enctype="multipart/form-data">
-                        @csrf
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="file">Excel File</label>
-                                    <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.csv,.xls" required>
-                                    <small class="form-text text-muted">Upload Excel file with Sim data</small>
-                                    <a href="{{ asset('samples/sims_template.xlsx') }}" class="btn btn-sm btn-outline-primary mt-2" download>
-                                        <i class="fas fa-download"></i> Download Sim Template
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
+    <!-- Import Results Section -->
+    <div id="importResults" style="display: none;">
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="ti ti-chart-bar"></i> Import Results
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert" id="resultAlert"></div>
 
-                        <!-- Excel Template Format Section -->
-                        <div class="row" id="excelFormatSection">
-                            <div class="col-12">
-                                <div class="alert alert-info">
-                                    <h5><i class="icon fas fa-info"></i> Excel Template Format:</h5>
-                                    <ul>
-                                        <li><strong>Use the provided Excel template</strong> - Download it using the button above</li>
-                                        <li><strong>Required Fields:</strong> Transaction ID, Trip Date, Plate Number, Amount</li>
-                                        <li><strong>Optional Fields:</strong> Trip Time, Transaction Post Date, Toll Gate, Direction, Tag Number</li>
-                                        <li><strong>Date Format:</strong> Use YYYY-MM-DD format for dates</li>
-                                        <li><strong>Plate Numbers:</strong> Must match existing bikes in the system</li>
-                                        <li><strong>Do not modify</strong> the header row or column structure</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Import Process Section -->
-                        <div class="row" id="importProcessSection">
-                            <div class="col-12">
-                                <div class="alert alert-warning">
-                                    <h5><i class="icon fas fa-exclamation-triangle"></i> Import Process:</h5>
-                                    <ul>
-                                        <li><strong>Rider Matching:</strong> System retrieves rider_id from bikes table by plate number</li>
-                                        <li><strong>Account Lookup:</strong> Gets account ID from accounts table using ref_id = rider_id</li>
-                                        <li><strong>History Check:</strong> If bike history has a rider for the trip date, uses that; otherwise uses current bike rider</li>
-                                        <li><strong>Voucher Creation:</strong> Creates vouchers per rider group (not per individual transaction)</li>
-                                        <li><strong>Error Handling:</strong> Problematic records are automatically skipped - import continues processing</li>
-                                        <li><strong>Skip Reasons:</strong> Missing data, duplicates, unknown bikes, no riders, no accounts</li>
-                                        <li><strong>Partial Import:</strong> Valid records are imported even if some fail</li>
-                                        <li><strong>Detailed Feedback:</strong> Success message shows imported count and skip reasons</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group text-center">
-                            <button type="submit" class="btn btn-success" id="importBtn">
-                                <i class="fas fa-upload"></i> Import Sims
-                            </button>
-                        </div>
-
-                        <!-- Progress indicator -->
-                        <div id="importProgress" class="text-center" style="display: none;">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="sr-only">Loading...</span>
-                            </div>
-                            <p class="mt-2">Processing import... Please wait.</p>
-                        </div>
-
-                        <!-- Result messages -->
-                        <div id="importResult" class="mt-3" style="display: none;"></div>
-                    </form>
+                <div id="failedRowsContainer" style="display: none;">
+                    <h6><i class="ti ti-alert-triangle"></i> Failed Rows</h6>
+                    <div class="table-responsive failed-rows-table">
+                        <table class="table table-bordered table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Row #</th>
+                                    <th>Sim Number</th>
+                                    <th>Company</th>
+                                    <th>EMI</th>
+                                    <th>Vendor</th>
+                                    <th>Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody id="failedRowsBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-@endsection
 
-@section('page-script')
 <script>
-    $(document).ready(function() {
+$(document).ready(function() {
+    const uploadArea = $('#uploadArea');
+    const fileInput = $('#file');
+    const fileInfo = $('#fileInfo');
+    const fileName = $('#fileName');
+    const fileSize = $('#fileSize');
+    const removeFile = $('#removeFile');
 
-        $('#salikImportForm').on('submit', function(e) {
-            e.preventDefault();
-
-            var formData = new FormData(this);
-            var $form = $(this);
-            var $btn = $('#importBtn');
-            var $progress = $('#importProgress');
-            var $result = $('#importResult');
-
-            // Validate file selection
-            if (!$('#file').val()) {
-                $result.html(
-                    '<div class="alert alert-danger">' +
-                    '<h5><i class="fas fa-exclamation-triangle"></i> File Required</h5>' +
-                    '<div class="mt-2">Please select a file to import.</div>' +
-                    '</div>'
-                ).show();
-                return;
-            }
-
-            // Validate file type
-            var fileName = $('#file').val();
-            var fileExtension = fileName.split('.').pop().toLowerCase();
-            if (fileExtension !== 'xlsx' && fileExtension !== 'csv' && fileExtension !== 'xls') {
-                $result.html(
-                    '<div class="alert alert-danger">' +
-                    '<h5><i class="fas fa-exclamation-triangle"></i> Invalid File</h5>' +
-                    '<div class="mt-2">Please select a valid Excel (.xlsx) or CSV (.csv) file.</div>' +
-                    '</div>'
-                ).show();
-                return;
-            }
-
-            // Show progress, hide info sections, disable button
-            $progress.show();
-            $result.hide();
-            $btn.prop('disabled', true);
-
-            $.ajax({
-                url: $form.attr('action'),
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function(response) {
-                    $progress.hide();
-                    $btn.prop('disabled', false);
-
-                    if (response.success) {
-                        // Build detailed results HTML
-                        var results = response.results || {};
-                        var stats = results.stats || {};
-                        var failedFines = results.failed || [];
-                        var importedFines = results.processed || [];
-
-                        var resultsHtml = '';
-                        resultsHtml += '<div class="card border-success mb-3">';
-                        resultsHtml += '    <div class="card-header bg-success text-white">';
-                        resultsHtml += '        <h5 class="mb-0">';
-                        resultsHtml += '            <i class="fas fa-check-circle"></i> Import Completed';
-                        resultsHtml += '        </h5>';
-                        resultsHtml += '    </div>';
-                        resultsHtml += '    <div class="card-body">';
-                        resultsHtml += '        <div class="row">';
-                        resultsHtml += '            <div class="col-md-6">';
-                        resultsHtml += '                <h6>📊 Import Statistics</h6>';
-                        resultsHtml += '                <table class="table table-sm">';
-                        resultsHtml += '                    <tbody>';
-                        resultsHtml += '                        <tr>';
-                        resultsHtml += '                            <td><strong>Total Rows Processed:</strong></td>';
-                        resultsHtml += '                            <td class="text-right">' + (stats.total || 0) + '</td>';
-                        resultsHtml += '                        </tr>';
-                        resultsHtml += '                        <tr class="table-success">';
-                        resultsHtml += '                            <td><strong>✅ Successfully Imported:</strong></td>';
-                        resultsHtml += '                            <td class="text-right">' + (stats.imported || 0) + '</td>';
-                        resultsHtml += '                        </tr>';
-                        resultsHtml += '                        <tr class="table-danger">';
-                        resultsHtml += '                            <td><strong>❌ Failed to Import:</strong></td>';
-                        resultsHtml += '                            <td class="text-right">' + (stats.failed || 0) + '</td>';
-                        resultsHtml += '                        </tr>';
-                        resultsHtml += '                    </tbody>';
-                        resultsHtml += '                </table>';
-                        resultsHtml += '            </div>';
-                        resultsHtml += '            ';
-                        resultsHtml += '            <div class="col-md-6">';
-                        resultsHtml += '                <h6>⚠️ Skip Details</h6>';
-                        resultsHtml += '                <table class="table table-sm">';
-                        resultsHtml += '                    <tbody>';
-
-                        // Add skip reasons
-                        var skipReasons = [{
-                                key: 'duplicate_db',
-                                label: 'Duplicate in Database'
-                            },
-                            {
-                                key: 'duplicate_excel',
-                                label: 'Duplicate in File'
-                            },
-                            {
-                                key: 'missing_data',
-                                label: 'Missing Data'
-                            }
-                        ];
-
-                        for (var i = 0; i < skipReasons.length; i++) {
-                            var reason = skipReasons[i];
-                            if (stats[reason.key] > 0) {
-                                resultsHtml += '<tr>';
-                                resultsHtml += '    <td>' + reason.label + ':</td>';
-                                resultsHtml += '    <td class="text-right">' + stats[reason.key] + '</td>';
-                                resultsHtml += '</tr>';
-                            }
-                        }
-
-                        resultsHtml += '                    </tbody>';
-                        resultsHtml += '                </table>';
-                        resultsHtml += '            </div>';
-                        resultsHtml += '        </div>';
-
-                        // Add failed rows details
-                        if (failedFines.length > 0) {
-                            resultsHtml += '<div class="mt-3">';
-                            resultsHtml += '    <button type="button" class="btn btn-sm btn-outline-danger mb-2 w-100 text-left" onclick="toggleFailedRows()" id="failedRowsToggle">';
-                            resultsHtml += '        <i class="fas fa-file-excel"></i> Show Failed Rows (' + failedFines.length + ')';
-                            resultsHtml += '        <i class="fas fa-chevron-down float-right"></i>';
-                            resultsHtml += '    </button>';
-                            resultsHtml += '    ';
-                            resultsHtml += '    <div id="failedRows" style="display: none;">';
-                            resultsHtml += '        <div class="alert alert-warning py-2">';
-                            resultsHtml += '            <small><i class="fas fa-info-circle"></i> These rows were skipped due to errors</small>';
-                            resultsHtml += '        </div>';
-                            resultsHtml += '        <div style="max-height: 200px; overflow-y: auto;">';
-                            resultsHtml += '            <table class="table table-sm table-bordered table-hover">';
-                            resultsHtml += '                <thead class="bg-light">';
-                            resultsHtml += '                    <tr>';
-                            resultsHtml += '                        <th width="15%">Row #</th>';
-                            resultsHtml += '                        <th width="25%">Number #</th>';
-                            resultsHtml += '                        <th width="20%">Company</th>';
-                            resultsHtml += '                        <th>Error Reason</th>';
-                            resultsHtml += '                    </tr>';
-                            resultsHtml += '                </thead>';
-                            resultsHtml += '                <tbody>';
-
-                            for (var j = 0; j < failedFines.length; j++) {
-                                var fine = failedFines[j];
-                                resultsHtml += '<tr>';
-                                resultsHtml += '    <td>' + (fine.excel_row || 'N/A') + '</td>';
-                                resultsHtml += '    <td>' + (fine.number || 'N/A') + '</td>';
-                                resultsHtml += '    <td>' + (fine.company || 'N/A') + '</td>';
-                                resultsHtml += '    <td class="text-danger"><small>' + (fine.reason || 'Unknown error') + '</small></td>';
-                                resultsHtml += '</tr>';
-                            }
-
-                            resultsHtml += '                </tbody>';
-                            resultsHtml += '            </table>';
-                            resultsHtml += '        </div>';
-                            resultsHtml += '    </div>';
-                            resultsHtml += '</div>';
-                        }
-
-                        // Add Successful rows details
-                        if (stats.imported > 0) {
-                            resultsHtml += '<div class="mt-3">';
-                            resultsHtml += '    <button type="button" class="btn btn-sm btn-outline-success mb-2 w-100 text-left" onclick="toggleSuccessRows()" id="successRowsToggle">';
-                            resultsHtml += '        <i class="fas fa-file-excel"></i> Show Successfully Imported Fine(s) (' + importedFines.length + ')';
-                            resultsHtml += '        <i class="fas fa-chevron-down float-right"></i>';
-                            resultsHtml += '    </button>';
-                            resultsHtml += '    ';
-                            resultsHtml += '    <div id="successRows" style="display: none;">';
-                            resultsHtml += '        <div class="alert alert-success py-2">';
-                            resultsHtml += '            <small><i class="fas fa-info-circle"></i> These fines were imported successfully </small>';
-                            resultsHtml += '        </div>';
-                            resultsHtml += '        <div style="max-height: 200px; overflow-y: auto;">';
-                            resultsHtml += '            <table class="table table-sm table-bordered table-hover">';
-                            resultsHtml += '                <thead class="bg-light">';
-                            resultsHtml += '                    <tr>';
-                            resultsHtml += '                        <th>Details</th>';
-                            resultsHtml += '                    </tr>';
-                            resultsHtml += '                </thead>';
-                            resultsHtml += '                <tbody>';
-
-                            for (var j = 0; j < importedFines.length; j++) {
-                                var fine = importedFines[j];
-                                resultsHtml += '<tr>';
-                                resultsHtml += '    <td>' + (fine || 'N/A') + '</td>';
-                                resultsHtml += '</tr>';
-                            }
-
-                            resultsHtml += '                </tbody>';
-                            resultsHtml += '            </table>';
-                            resultsHtml += '        </div>';
-                            resultsHtml += '    </div>';
-                            resultsHtml += '</div>';
-                        }
-
-                        // Add success message if any imported
-                        if (stats.imported > 0) {
-                            resultsHtml += '<div class="alert alert-success mt-3 py-2">';
-                            resultsHtml += '    <i class="fas fa-check"></i> ';
-                            resultsHtml += '    ' + stats.imported + ' fine(s) successfully imported and now available in the fines list.';
-                            resultsHtml += '</div>';
-                        } else {
-                            resultsHtml += '<div class="alert alert-warning mt-3 py-2">';
-                            resultsHtml += '    <i class="fas fa-exclamation-triangle"></i> ';
-                            resultsHtml += '    No fines were imported. Please check your file and try again.';
-                            resultsHtml += '</div>';
-                        }
-
-                        // Add buttons with proper event handlers
-                        resultsHtml += '<div class="text-center mt-3">';
-                        resultsHtml += '    <a href="{{ route("sims.index") }}" class="btn btn-primary">';
-                        resultsHtml += '        <i class="fas fa-list"></i> View Imported Fines';
-                        resultsHtml += '    </a>';
-                        resultsHtml += '    <button type="button" class="btn btn-secondary ml-2" id="closeResultsBtn">';
-                        resultsHtml += '        <i class="fas fa-times"></i> Close';
-                        resultsHtml += '    </button>';
-                        resultsHtml += '</div>';
-
-                        resultsHtml += '    </div>';
-                        resultsHtml += '</div>';
-
-                        // Display the detailed results
-                        $result.html(resultsHtml).show();
-
-                        // Reset form
-                        $form[0].reset();
-
-                        // Add event listener for close button
-                        setTimeout(function() {
-                            $('#closeResultsBtn').on('click', function() {
-                                $result.hide();
-                            });
-                        }, 100);
-
-                    } else {
-                        $result.html(
-                            '<div class="alert alert-danger">' +
-                            '<h5><i class="fas fa-exclamation-triangle"></i> Import Failed</h5>' +
-                            '<div class="mt-2">' + (response.message || 'Unknown error occurred') + '</div>' +
-                            '</div>'
-                        ).show();
-                    }
-                },
-                error: function(xhr) {
-                    $progress.hide();
-                    $btn.prop('disabled', false);
-
-                    var errorMessage = 'Import failed. Please try again.';
-
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                        var errors = [];
-                        $.each(xhr.responseJSON.errors, function(key, value) {
-                            errors.push(value[0]);
-                        });
-                        errorMessage = '<ul class="mb-0"><li>' + errors.join('</li><li>') + '</li></ul>';
-                    }
-
-                    $result.html(
-                        '<div class="alert alert-danger">' +
-                        '<h5><i class="fas fa-exclamation-triangle"></i> Import Error</h5>' +
-                        '<div class="mt-2">' + errorMessage + '</div>' +
-                        '</div>'
-                    ).show();
-                }
-            });
-        });
-
-        // Test button functionality
-        $('#testBtn').on('click', function() {
-            var $result = $('#importResult');
-
-            if (!$('#file').val()) {
-                $result.html(
-                    '<div class="alert alert-danger">' +
-                    '<h5><i class="fas fa-exclamation-triangle"></i> File Required</h5>' +
-                    '<div class="mt-2">Please select a file to test.</div>' +
-                    '</div>'
-                ).show();
-                return;
-            }
-
-            var formData = new FormData();
-            formData.append('file', $('#file')[0].files[0]);
-            formData.append('_token', $('input[name="_token"]').val());
-
-            $.ajax({
-                url: "{{ route('salik.test.import') }}",
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function(response) {
-                    $result.html(
-                        '<div class="alert alert-info">' +
-                        '<h5><i class="fas fa-check-circle"></i> Test Completed</h5>' +
-                        '<div class="mt-2">' + response.message + '<br>Check the Laravel logs for detailed file information.</div>' +
-                        '</div>'
-                    ).show();
-                },
-                error: function(xhr) {
-                    var errorMessage = xhr.responseJSON ? xhr.responseJSON.error : 'Test failed';
-                    $result.html(
-                        '<div class="alert alert-danger">' +
-                        '<h5><i class="fas fa-exclamation-triangle"></i> Test Failed</h5>' +
-                        '<div class="mt-2">' + errorMessage + '</div>' +
-                        '</div>'
-                    ).show();
-                }
-            });
-        });
+    // Click on upload area to trigger file input
+    uploadArea.on('click', function() {
+        fileInput.click();
     });
 
-    // Toggle function for failed rows
-    window.toggleFailedRows = function() {
-        var div = document.getElementById('failedRows');
-        var toggleBtn = document.getElementById('failedRowsToggle');
-
-        if (!div || !toggleBtn) return;
-
-        var chevron = toggleBtn.querySelector('.fa-chevron-down');
-        if (!chevron) {
-            chevron = toggleBtn.querySelector('.fa-chevron-up');
+    // Handle file selection
+    fileInput.on('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            displayFileInfo(file);
         }
+    });
 
-        if (div.style.display === 'none') {
-            div.style.display = 'block';
-            if (chevron) {
-                chevron.classList.remove('fa-chevron-down');
-                chevron.classList.add('fa-chevron-up');
-            }
+    // Drag & Drop events
+    uploadArea.on('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.addClass('dragover');
+    });
+
+    uploadArea.on('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.removeClass('dragover');
+    });
+
+    uploadArea.on('drop', function(e) {
+        e.preventDefault();
+        uploadArea.removeClass('dragover');
+
+        const file = e.originalEvent.dataTransfer.files[0];
+        if (file && (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                     file.type === 'application/vnd.ms-excel' ||
+                     file.name.endsWith('.csv'))) {
+            fileInput[0].files = e.originalEvent.dataTransfer.files;
+            displayFileInfo(file);
         } else {
-            div.style.display = 'none';
-            if (chevron) {
-                chevron.classList.remove('fa-chevron-up');
-                chevron.classList.add('fa-chevron-down');
-            }
+            Swal.fire({
+                title: 'Invalid File',
+                text: 'Please upload an Excel file (.xlsx, .xls, or .csv)',
+                icon: 'error'
+            });
         }
-    };
+    });
 
-    window.toggleSuccessRows = function() {
-        var div = document.getElementById('successRows');
-        var toggleBtn = document.getElementById('successRowsToggle');
+    // Remove file
+    removeFile.on('click', function() {
+        fileInput.val('');
+        fileInfo.hide();
+        uploadArea.show();
+    });
 
-        if (!div || !toggleBtn) return;
+    // Display file information
+    function displayFileInfo(file) {
+        uploadArea.hide();
+        fileName.text(file.name);
+        fileSize.text((file.size / 1024).toFixed(2) + ' KB');
+        fileInfo.show();
+    }
 
-        var chevron = toggleBtn.querySelector('.fa-chevron-down');
-        if (!chevron) {
-            chevron = toggleBtn.querySelector('.fa-chevron-up');
+    // Reset form
+    $('#resetBtn').on('click', function() {
+        fileInput.val('');
+        fileInfo.hide();
+        uploadArea.show();
+        $('#importResults').hide();
+    });
+
+    // Form submission with AJAX
+    $('#importForm').on('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const submitBtn = $('#submitBtn');
+        const progressBarContainer = $('#progressBarContainer');
+        const progressBar = $('.progress-bar');
+        const progressStatus = $('#progressStatus');
+
+        // Validate file
+        const file = fileInput[0].files[0];
+        if (!file) {
+            Swal.fire({
+                title: 'Error',
+                text: 'Please select a file to upload',
+                icon: 'error'
+            });
+            return;
         }
 
-        if (div.style.display === 'none') {
-            div.style.display = 'block';
-            if (chevron) {
-                chevron.classList.remove('fa-chevron-down');
-                chevron.classList.add('fa-chevron-up');
+        // Show progress bar
+        progressBarContainer.show();
+        progressBar.css('width', '0%').text('0%');
+        progressStatus.text('Uploading file...');
+        submitBtn.prop('disabled', true);
+
+        $.ajax({
+            url: $(this).attr('action'),
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            xhr: function() {
+                const xhr = new window.XMLHttpRequest();
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        progressBar.css('width', percent + '%').text(percent + '%');
+                        progressStatus.text('Uploading... ' + percent + '%');
+                    }
+                });
+                return xhr;
+            },
+            success: function(response) {
+                progressBar.css('width', '100%').text('100%');
+                progressStatus.text('Processing complete!');
+
+                setTimeout(function() {
+                    // Display results
+                    $('#importResults').show();
+
+                    if (response.success) {
+                        $('#resultAlert').removeClass('alert-danger').addClass('alert-success');
+                        $('#resultAlert').html(`
+                            <i class="ti ti-check-circle"></i>
+                            <strong>Import Completed!</strong><br>
+                            Total Rows: ${response.data.total_rows}<br>
+                            Successfully Imported: ${response.data.success_count}<br>
+                            Failed: ${response.data.failed_count}
+                        `);
+
+                        // Show failed rows if any
+                        if (response.data.failed_rows && response.data.failed_rows.length > 0) {
+                            $('#failedRowsContainer').show();
+                            const tbody = $('#failedRowsBody');
+                            tbody.empty();
+
+                            response.data.failed_rows.forEach(function(row) {
+                                tbody.append(`
+                                    <tr>
+                                        <td>${row.row_number ?? 'N/A'}</td>
+                                        <td>${row.number || 'N/A'}</td>
+                                        <td>${row.company || 'N/A'}</td>
+                                        <td>${row.emi || 'N/A'}</td>
+                                        <td>${row.vendor || 'N/A'}</td>
+                                        <td><span class="badge bg-danger">${row.reason || 'Unknown error'}</span></td>
+                                    </tr>
+                                `);
+                            });
+                        } else {
+                            $('#failedRowsContainer').hide();
+                        }
+
+                        // Optionally redirect after 3 seconds if fully successful
+                        if (response.data.failed_rows.length === 0) {
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 3000);
+                        }
+                    } else {
+                        $('#resultAlert').removeClass('alert-success').addClass('alert-danger');
+                        $('#resultAlert').html(`
+                            <i class="ti ti-alert-circle"></i>
+                            <strong>Import Failed!</strong><br>
+                            ${response.message}
+                        `);
+
+                        Swal.fire({
+                            title: 'Error',
+                            text: response.message,
+                            icon: 'error'
+                        });
+                    }
+
+                    submitBtn.prop('disabled', false);
+                }, 1000);
+            },
+            error: function(xhr) {
+                progressBarContainer.hide();
+                submitBtn.prop('disabled', false);
+
+                let errorMessage = 'An error occurred during import.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+
+                Swal.fire({
+                    title: 'Error',
+                    text: errorMessage,
+                    icon: 'error'
+                });
+
+                $('#importResults').show();
+                $('#resultAlert').removeClass('alert-success').addClass('alert-danger');
+                $('#resultAlert').html(`
+                    <i class="ti ti-alert-circle"></i>
+                    <strong>Import Failed!</strong><br>
+                    ${errorMessage}
+                `);
             }
-        } else {
-            div.style.display = 'none';
-            if (chevron) {
-                chevron.classList.remove('fa-chevron-up');
-                chevron.classList.add('fa-chevron-down');
-            }
-        }
-    };
+        });
+    });
+});
 </script>
-@endsection

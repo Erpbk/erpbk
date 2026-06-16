@@ -214,6 +214,7 @@ $homeLink = $isAdminLogin
   {{ Route::is('rider.*') ? 'open' : '' }}
  {{ Route::is('reports.rider_report*') ? 'open' : '' }}
  {{ Route::is('reports.rider_monthly_report*') ? 'open' : '' }}
+ {{ Route::is('RiderInventory*') ? 'open' : '' }}
  {{ Route::is('module-agreements.*') && request()->route('module') === 'riders' ? 'open' : '' }}
  {{ (Route::is('attendance*') && request('ref_type') === 'rider') || (Route::is('attendance.summary') && request('user_type') === 'rider') ? 'open' : '' }}  ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
@@ -240,6 +241,16 @@ $homeLink = $isAdminLogin
       <a href="{{ route('attendance.summary', ['user_type' => 'rider']) }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'attendance_summary'])
         {{ $menuLabels['attendance_summary'] ?? 'Attendance Summary' }}
+      </a>
+    </li>
+    @endcan
+    @endif
+    @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
+    @can('riderinventory_view')
+    <li class="menu-item {{ Route::is('RiderInventory*') ? 'active' : '' }}">
+      <a href="{{ route('RiderInventory.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'rider_inventory'])
+        <div>{{ $menuLabels['rider_inventory'] ?? 'Rider Inventory' }}</div>
       </a>
     </li>
     @endcan
@@ -349,7 +360,7 @@ $homeLink = $isAdminLogin
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('sims'))
 @can('sim_view')
-<li class="menu-item {{ Route::is('sims*') || Route::is('simInvoices*') || Route::is('simCompanies*') ? 'open' : '' }}">
+<li class="menu-item {{ Route::is('sims*') || Route::is('simInvoices*') || Route::is('simCompanies*') || Route::is('sim.payments') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     @include('layouts.partials.module_menu_icon', ['key' => 'sims'])
     <div>{{ $menuLabels['sims'] ?? 'Sims' }}</div>
@@ -361,6 +372,12 @@ $homeLink = $isAdminLogin
         <div>{{ $menuLabels['sims'] ?? 'Sims' }}</div>
       </a>
     </li>
+    <li class="menu-item {{ Route::is('simCompanies*') ? 'active' : '' }}">
+      <a href="{{ route('simCompanies.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'sim_companies'])
+        <div>{{ $menuLabels['sim_companies'] ?? 'SIM Companies' }}</div>
+      </a>
+    </li>
     @can('sim_invoice_view')
     <li class="menu-item {{ Route::is('simInvoices*') ? 'active' : '' }}">
       <a href="{{ route('simInvoices.index') }}" class="menu-link">
@@ -369,12 +386,14 @@ $homeLink = $isAdminLogin
       </a>
     </li>
     @endcan
-    <li class="menu-item {{ Route::is('simCompanies*') ? 'active' : '' }}">
-      <a href="{{ route('simCompanies.index') }}" class="menu-link">
-        @include('layouts.partials.module_menu_icon', ['key' => 'sim_companies'])
-        <div>{{ $menuLabels['sim_companies'] ?? 'SIM Companies' }}</div>
+    @can('payments_view')
+    <li class="menu-item {{ Route::is('sim.payments') ? 'active' : '' }}">
+      <a href="{{ route('sim.payments') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'payments'])
+        <div>{{ $menuLabels['sim_payments'] ?? 'Payments Sent' }}</div>
       </a>
     </li>
+    @endcan
   </ul>
 </li>
 @endcan
@@ -454,12 +473,32 @@ $homeLink = $isAdminLogin
 </li>
 @endcan
 @endif
+@if(\App\Support\CompanyModuleVisibility::enabled('license_expense'))
+@can('licenseexpense_view')
+<li class="menu-item {{ Route::is('LicenseExpense*') ? 'active' : '' }}">
+  <a href="{{ route('LicenseExpense.index') }}" class="menu-link">
+    @include('layouts.partials.module_menu_icon', ['key' => 'license_expense'])
+    <div>{{ $menuLabels['license_expense'] ?? 'License Expense' }}</div>
+  </a>
+</li>
+@endcan
+@endif
 @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))
 @can('legalcase_view')
 <li class="menu-item {{ Route::is('LegalCase*') || Route::is('legal-case-statuses*') ? 'active' : '' }}">
   <a href="{{ route('LegalCase.index') }}" class="menu-link">
     @include('layouts.partials.module_menu_icon', ['key' => 'legal_case'])
     <div>{{ $menuLabels['legal_case'] ?? 'Legal Case' }}</div>
+  </a>
+</li>
+@endcan
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('passport_handover'))
+@can('passport_handover_view')
+<li class="menu-item {{ Route::is('passportHandover*') ? 'active' : '' }}">
+  <a href="{{ route('passportHandover.index') }}" class="menu-link">
+    @include('layouts.partials.module_menu_icon', ['key' => 'passport_handover'])
+    <div>{{ $menuLabels['passport_handover'] ?? 'Passport Handover' }}</div>
   </a>
 </li>
 @endcan

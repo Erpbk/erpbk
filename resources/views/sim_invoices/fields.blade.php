@@ -1,21 +1,20 @@
-<script src="{{ asset('js/modal_custom.js') }}"></script>
-
 <div class="row">
-    <div class="col-md-2 form-group">
-        <label>Invoice Date</label>
-        <input type="date" class="form-control" value="{{ isset($cloneFromInvoice) ? $cloneFromInvoice->inv_date : (isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d')) }}" name="inv_date">
-    </div>
 
-    <div class="col-md-4 form-group">
+    <div class="col-md-3 form-group">
         <label>Company</label>
         @php
         $selectedCompany = isset($cloneFromInvoice) ? $cloneFromInvoice->company_id : (isset($invoice) ? $invoice->company_id : (isset($company) && $company ? $company->id : null));
         $isClone = isset($cloneFromInvoice);
         @endphp
-        {!! Form::select('vendor_id', $companies, $selectedCompany, ['class' => 'form-select form-select-sm select2', 'id' => 'company_id', 'disabled' => $isClone]) !!}
+        {!! Form::select('vendor_id', $companies, $selectedCompany, ['class' => 'form-select select2', 'id' => 'company_id', 'disabled' => $isClone]) !!}
         @if($isClone)
         <input type="hidden" name="vendor_id" value="{{ $selectedVendor }}">
         @endif
+    </div>
+
+    <div class="col-md-2 form-group">
+        <label>Invoice Date</label>
+        <input type="date" class="form-control" value="{{ isset($cloneFromInvoice) ? $cloneFromInvoice->inv_date : (isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : null) }}" name="inv_date">
     </div>
 
     <div class="form-group col-md-2">
@@ -40,7 +39,7 @@
         <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
     </div>
 
-    <div class="col-md-12 form-group">
+    <div class="col-md-6 form-group">
         <label>Descriptions</label>
         {!! Form::textarea('descriptions', isset($cloneFromInvoice) ? $cloneFromInvoice->descriptions : null, ['class' => 'form-control', 'rows' => 2]) !!}
     </div>

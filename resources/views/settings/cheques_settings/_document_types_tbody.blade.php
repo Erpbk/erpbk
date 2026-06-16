@@ -1,4 +1,4 @@
-﻿@forelse($documentTypes as $index => $doc)
+@forelse($documentTypes as $index => $doc)
   <tr data-id="{{ $doc->id }}">
     <td class="align-middle">
       <span class="drag-handle cursor-grab"><i class="ti ti-grip-vertical"></i></span>

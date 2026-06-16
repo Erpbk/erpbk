@@ -22,7 +22,7 @@ return [
     ['key' => 'vendors'],
     ['key' => 'recruiters'],
 
-    ['key' => 'riders', 'children' => ['riders_list', 'invoices', 'activities', 'live_activities', 'rider_report']],
+    ['key' => 'riders', 'children' => ['riders_list', 'rider_inventory', 'invoices', 'activities', 'live_activities', 'rider_report']],
 
     ['key' => 'bikes', 'children' => ['bike_list', 'bike_registration']],
     ['key' => 'bike_on_rent', 'children' => ['bike_rent_customers', 'leasing_billing_invoice']],
@@ -35,7 +35,9 @@ return [
     ['key' => 'rta_saliks'],
 
     ['key' => 'visa_expense'],
+    ['key' => 'license_expense'],
     ['key' => 'legal_case'],
+    ['key' => 'passport_handover'],
 
     ['key' => 'expenses'],
 

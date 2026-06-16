@@ -1,9 +1,11 @@
 @extends('customers.view')
+@section('third_party_stylesheets')
 <style>
     .table-responsive {
         max-height: calc(100vh + 350px);
     }
 </style>
+@endsection
 @section('page_content')
     <div class="content">
         @include('flash::message')

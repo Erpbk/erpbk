@@ -22,6 +22,7 @@ use App\Models\BikeRentCompany;
 use App\Models\FuelCompany;
 use App\Models\Items;
 use App\Models\salik;
+use App\Models\RiderInventoryAssignment;
 use App\Models\RiderInvoices;
 use App\Models\DeletionCascade;
 use App\Traits\TracksCascadingDeletions;
@@ -168,6 +169,12 @@ class TrashController extends Controller
             'name' => 'Items',
             'icon' => 'fa-box',
             'display_columns' => ['name', 'price', 'cost'],
+        ],
+        'rider_inventory_assignments' => [
+            'model' => RiderInventoryAssignment::class,
+            'name' => 'Rider Inventory Assignments',
+            'icon' => 'fa-box-open',
+            'display_columns' => ['id', 'rider_id', 'status', 'amount'],
         ],
         'rider_invoices' => [
             'model' => RiderInvoices::class,

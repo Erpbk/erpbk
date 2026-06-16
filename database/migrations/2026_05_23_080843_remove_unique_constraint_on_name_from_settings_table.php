@@ -8,9 +8,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('settings', function (Blueprint $table) {
-            $table->dropUnique('settings_name_unique');
-        });
+        try {
+            Schema::table('settings', function (Blueprint $table) {
+                $table->dropUnique('settings_name_unique');
+            });
+        } catch (\Exception $e) {
+            // index doesn't exist, ignore
+        }
     }
 
     public function down(): void

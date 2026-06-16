@@ -66,6 +66,8 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Models\RiderInventoryAssignment;
+use App\Models\RiderCategory;
 
 class RidersController extends AppBaseController
 {
@@ -1799,6 +1801,26 @@ class RidersController extends AppBaseController
     }
 
     return view('riders.document', compact('missingFiles', 'files', 'riders'));
+  }
+
+  public function inventory($company_slug, $rider_id)
+  {
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider) || (! empty($rider->branch_id) && ! in_array($rider->branch_id, app('user_branches')))) {
+      Flash::error('Rider not found');
+
+      return redirect(route('riders.index'));
+    }
+    $riders = $rider;
+    $assignments = RiderInventoryAssignment::query()
+            ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
+            ->where('rider_id', $rider_id)
+            ->orderByDesc('assigned_date')
+            ->orderByDesc('id')
+            ->get();
+    $availableItems = Items::availableForAssignment();
+
+    return view('riders.inventory', compact('riders', 'rider', 'assignments', 'availableItems'));
   }
 
   public function sendEmail($company_slug, $id, Request $request)

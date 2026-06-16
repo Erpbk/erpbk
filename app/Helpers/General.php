@@ -770,6 +770,7 @@ class General
       'PV' => 'Payments Voucher',
       'VP' => 'VP VAT Payment',
       'EXP' => 'Expense Voucher',
+      'IL' => 'Inventory Loss',
     ];
 
     try {

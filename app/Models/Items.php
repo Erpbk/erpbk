@@ -63,6 +63,11 @@ class Items extends BaseModel
     $items = self::where('status',1)->whereJsonContains('owner',$type)->get();
     return $items;
   }
+
+  public static function availableForAssignment()
+  {
+    return self::dropdown('riderInventory');
+  }
   public function getOwnersAttribute()
   {
     if(!$this->owner)
@@ -75,6 +80,8 @@ class Items extends BaseModel
             'leasingCompany' => '#ffc107', // Yellow
             'garage' => '#dc3545',        // Red
             'rider' => '#17a2b8',         // Teal
+            'employee' => '#6610f2',      // Purple
+            'riderInventory' => '#fd7e14', // Orange
         ];
         
         $ownerNames = [];

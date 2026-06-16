@@ -12,6 +12,7 @@ use App\Http\Controllers\AppBaseController;
 use App\Models\Accounts;
 use App\Models\CustomerInvoices;
 use App\Models\Customers;
+use App\Models\RiderInventoryAssignment;
 use App\Models\Transactions;
 use App\Models\Files;
 use App\Models\Payment;
@@ -363,6 +364,30 @@ class CustomersController extends AppBaseController
     $invoices = $this->applyPagination($query, $paginationParams);
     $details = $this->getDetails($customer->account_id);
     return view('customers.invoice', compact('invoices', 'customer', 'details'));
+  }
+
+  public function inventory($company_slug, $id)
+  {
+    if (!auth()->user()->hasPermissionTo('riderinventory_view') && !auth()->user()->hasPermissionTo('customer_view')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $customer = Customers::find($id);
+    if (!$customer) {
+      Flash::error('Customer not found');
+      return redirect(route('customers.index'));
+    }
+
+    $assignments = RiderInventoryAssignment::query()
+      ->with(['rider', 'inventoryItem', 'assignedByUser', 'returnedByUser'])
+      ->where('customer_id', $customer->id)
+      ->orderByDesc('assigned_date')
+      ->orderByDesc('id')
+      ->get();
+
+    $details = $this->getDetails($customer->account_id);
+
+    return view('customers.inventory', compact('customer', 'assignments', 'details'));
   }
 
   private function getDetails($accountId)

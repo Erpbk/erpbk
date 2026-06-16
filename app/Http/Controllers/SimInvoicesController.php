@@ -10,6 +10,7 @@ use App\Models\Sims;
 use App\Models\Transactions;
 use App\Models\VoucherType;
 use App\Models\Vouchers;
+use App\Models\Payment;
 use App\Models\SimCompany;
 use App\Repositories\SimInvoicesRepository;
 use App\Traits\GlobalPagination;
@@ -355,6 +356,25 @@ class SimInvoicesController extends AppBaseController
 
         $sims = Sims::where('vendor', $id)->orderBy('number')->get(['id', 'number', 'company']);
         return response()->json(['sims' => $sims]);
+    }
+
+    public function payments(Request $request)
+    {
+        $accountIds = SimCompany::whereNotNull('account_id')->pluck('account_id')->toArray();
+
+        if (empty($accountIds)) {
+            Flash::error('No SIM companies found with configured accounts.');
+
+            return redirect()->back();
+        }
+
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+        $query = Payment::query()->latest('date_of_payment');
+        $query->whereIn('payee_account_id', $accountIds);
+
+        $data = $this->applyPagination($query, $paginationParams);
+
+        return view('sims.payments', compact('data'));
     }
 
     public function createPaymentVoucher($company_slug, $id)

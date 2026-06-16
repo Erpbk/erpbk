@@ -230,7 +230,7 @@ class VouchersController extends Controller
       if ($request->voucher_type == 'VL') {
         $result = $voucherService->loanvoucher($request);
       }
-      if (in_array($request->voucher_type, ['LV'])) {
+      if (in_array($request->voucher_type, ['LV', 'LE'])) {
         $result = $voucherService->DefaultVoucher($request, 'debit');
       }
       if (in_array($request->voucher_type, ['AL'])) {
@@ -313,6 +313,8 @@ class VouchersController extends Controller
     } elseif ($vouchers->voucher_type == 'COD') {
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'PN') {
+      $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'IL') {
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'PAY') {
       $data = Transactions::where('trans_code', $id)->get();
@@ -465,7 +467,7 @@ class VouchersController extends Controller
 
 
 
-    if (in_array($request->voucher_type, ['LV', 'AL', 'COD', 'PN', 'PAY', 'VC', 'INC'])) {
+    if (in_array($request->voucher_type, ['LV', 'LE', 'AL', 'COD', 'PN', 'PAY', 'VC', 'INC'])) {
       $result = $voucherService->DefaultVoucher($request, 'debit');
     }
     /*  if (in_array($request->voucher_type, [13])) {
@@ -784,7 +786,7 @@ class VouchersController extends Controller
     if ($request->hasFile('attach_file')) {
       $photo = $request->file('attach_file');
       $fileName = $photo->getClientOriginalName();
-      if ($voucher->voucher_type == 'LV') {
+      if (in_array($voucher->voucher_type, ['LV', 'LE'])) {
         $fileName = $photo->store('vouchers', 'public');
       } else {
         $photo->storeAs('public/vouchers', $fileName);
@@ -853,6 +855,8 @@ class VouchersController extends Controller
     } elseif ($vouchers->voucher_type == 'COD') {
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'PN') {
+      $data = Transactions::where('trans_code', $id)->get();
+    } elseif ($vouchers->voucher_type == 'IL') {
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'PAY') {
       $data = Transactions::where('trans_code', $id)->get();

@@ -36,7 +36,7 @@ $containerNav = 'container-fluid';
           <span class="menu-header-text">Administration</span>
         </li>
 
-        @canany(['gn_settings','department_view','dropdown_view','visaexpense_view','branches_view'])
+        @canany(['gn_settings','department_view','dropdown_view','visaexpense_view','riderinventory_view','branches_view'])
         <li class="menu-item {{ Request::is('settings-panel/company') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.company', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-building-community"></i>

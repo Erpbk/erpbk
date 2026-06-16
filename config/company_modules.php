@@ -82,9 +82,21 @@ return [
             'label' => 'Visa Expense',
             'primary_label_key' => 'visa_expense',
         ],
+        'license_expense' => [
+            'label' => 'License Expense',
+            'primary_label_key' => 'license_expense',
+        ],
         'legal_case' => [
             'label' => 'Legal Case',
             'primary_label_key' => 'legal_case',
+        ],
+        'passport_handover' => [
+            'label' => 'Passport Handover',
+            'primary_label_key' => 'passport_handover',
+        ],
+        'rider_inventory' => [
+            'label' => 'Rider Inventory',
+            'primary_label_key' => 'rider_inventory',
         ],
         'expenses' => [
             'label' => 'Expenses',

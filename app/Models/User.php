@@ -117,10 +117,10 @@ class User extends Authenticatable
       });
 
     if ($all) {
-      return $options->prepend('All', null)->prepend('select', '')->toArray();
+      return $options->prepend('All', null)->toArray();
+    }else{
+      return $options->prepend('select', '')->toArray();
     }
-
-    return $options->prepend('select', '')->toArray();
   }
 
   public function hasMultiplebranches()

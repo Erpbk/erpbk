@@ -43,7 +43,8 @@ class Sims extends BaseModel
 
   public static array $rules = [
     'number' => 'nullable|string|min:10|max:13|unique:sims,number',
-    'company' => 'nullable|string|max:191',
+    'company' => 'nullable|exists:sim_companies,id',
+    'vendor' => 'nullable|exists:customers,id',
     'branch_id' => 'nullable|numeric|exists:branches,id',
     'assign_to' => 'nullable',
     'created_by' => 'nullable',
@@ -53,7 +54,6 @@ class Sims extends BaseModel
     'deleted_at' => 'nullable',
     'fleet_supervisor' => 'nullable|string|max:50',
     'emi' => 'nullable|string|min:15|max:25',
-    'vendor' => 'nullable|integer',
   ];
 
   public function histories()
@@ -78,7 +78,12 @@ class Sims extends BaseModel
 
   public function vendors()
   {
-    return $this->hasOne(Vendors::class, 'id', 'vendor');
+    return $this->hasOne(Customers::class, 'id', 'vendor');
+  }
+
+  public function telecomCompany()
+  {
+    return $this->belongsTo(SimCompany::class, 'company', 'id');
   }
 
   public function branch()

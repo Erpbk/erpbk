@@ -12,6 +12,7 @@ use App\Models\Settings;
 use App\Models\BikeRegistrationStatus;
 use App\Models\SimAssignFieldAssignment;
 use App\Models\VisaStatus;
+use App\Models\LicenseStatus;
 use App\Models\LegalCaseStatus;
 use App\Services\Module\ModuleDefaultCategoryService;
 use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
@@ -33,6 +34,9 @@ class ModuleSettingsController extends Controller
 
     private const VISA_EXPENSE_TOP_SETTING_KEY = 'visa_expense_top_status_ids';
     private const VISA_EXPENSE_TOP_ENABLED_KEY = 'visa_expense_top_enabled';
+
+    private const LICENSE_EXPENSE_TOP_SETTING_KEY = 'license_expense_top_status_ids';
+    private const LICENSE_EXPENSE_TOP_ENABLED_KEY = 'license_expense_top_enabled';
 
     private const LEGAL_CASE_TOP_SETTING_KEY = 'legal_case_top_status_ids';
     private const LEGAL_CASE_TOP_ENABLED_KEY = 'legal_case_top_enabled';
@@ -99,6 +103,41 @@ class ModuleSettingsController extends Controller
     /**
      * @return list<int>
      */
+    protected function selectedLicenseExpenseTopStatusIds(): array
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::LICENSE_EXPENSE_TOP_SETTING_KEY)
+            ->value('value') ?? '');
+
+        if ($raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return collect($decoded)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function licenseExpenseTopEnabled(): bool
+    {
+        $raw = (string) (Settings::query()
+            ->where('name', self::LICENSE_EXPENSE_TOP_ENABLED_KEY)
+            ->value('value') ?? '1');
+
+        return in_array(strtolower(trim($raw)), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    /**
+     * @return list<int>
+     */
     protected function selectedLegalCaseTopStatusIds(): array
     {
         $raw = (string) (Settings::query()
@@ -115,8 +154,8 @@ class ModuleSettingsController extends Controller
         }
 
         return collect($decoded)
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
             ->unique()
             ->values()
             ->all();
@@ -393,6 +432,18 @@ class ModuleSettingsController extends Controller
             $visaExpenseTopEnabled = $this->visaExpenseTopEnabled();
         }
 
+        $licenseStatuses = collect();
+        $selectedLicenseExpenseTopStatusIds = [];
+        $licenseExpenseTopEnabled = true;
+        if ($module === 'license_expense') {
+            $licenseStatuses = LicenseStatus::query()
+                ->orderBy('display_order')
+                ->orderBy('name')
+                ->get();
+            $selectedLicenseExpenseTopStatusIds = $this->selectedLicenseExpenseTopStatusIds();
+            $licenseExpenseTopEnabled = $this->licenseExpenseTopEnabled();
+        }
+
         $legalCaseStatuses = collect();
         $selectedLegalCaseTopStatusIds = [];
         $legalCaseTopEnabled = true;
@@ -473,6 +524,9 @@ class ModuleSettingsController extends Controller
             'visaStatuses' => $visaStatuses,
             'selectedVisaExpenseTopStatusIds' => $selectedVisaExpenseTopStatusIds,
             'visaExpenseTopEnabled' => $visaExpenseTopEnabled,
+            'licenseStatuses' => $licenseStatuses,
+            'selectedLicenseExpenseTopStatusIds' => $selectedLicenseExpenseTopStatusIds,
+            'licenseExpenseTopEnabled' => $licenseExpenseTopEnabled,
             'legalCaseStatuses' => $legalCaseStatuses,
             'selectedLegalCaseTopStatusIds' => $selectedLegalCaseTopStatusIds,
             'legalCaseTopEnabled' => $legalCaseTopEnabled,
@@ -531,6 +585,51 @@ class ModuleSettingsController extends Controller
             ->withFragment('tab-visa-expense-top');
     }
 
+    public function updateLicenseExpenseTop(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        abort_unless($module === 'license_expense', 404);
+
+        $validated = $request->validate([
+            'status_ids' => ['nullable', 'array'],
+            'status_ids.*' => ['integer', 'exists:license_statuses,id'],
+            'show_in_top_bar' => ['nullable', 'boolean'],
+        ]);
+
+        $statusIds = collect($validated['status_ids'] ?? [])
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        Settings::updateOrCreate(
+            ['name' => self::LICENSE_EXPENSE_TOP_SETTING_KEY],
+            ['value' => json_encode($statusIds)]
+        );
+        Settings::updateOrCreate(
+            ['name' => self::LICENSE_EXPENSE_TOP_ENABLED_KEY],
+            ['value' => $request->boolean('show_in_top_bar') ? '1' : '0']
+        );
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'License Expense Top updated successfully.',
+                'status_ids' => $statusIds,
+                'show_in_top_bar' => $request->boolean('show_in_top_bar'),
+            ]);
+        }
+
+        return redirect()
+            ->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => $module,
+            ])
+            ->with('success', 'License Expense Top statuses updated.')
+            ->withFragment('tab-license-top');
+    }
+
     public function updateLegalCaseTop(Request $request, string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);
@@ -543,8 +642,8 @@ class ModuleSettingsController extends Controller
         ]);
 
         $statusIds = collect($validated['status_ids'] ?? [])
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
             ->unique()
             ->values()
             ->all();

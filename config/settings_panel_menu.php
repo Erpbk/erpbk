@@ -163,6 +163,12 @@ return [
             'icon' => 'ti-credit-card',
         ],
         [
+            'key' => 'license_expense',
+            'visibility' => 'license_expense',
+            'permission' => 'licenseexpense_view',
+            'icon' => 'ti-steering-wheel',
+        ],
+        [
             'key' => 'legal_case',
             'visibility' => 'legal_case',
             'permission' => 'legalcase_view',

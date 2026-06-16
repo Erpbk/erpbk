@@ -613,6 +613,24 @@ $companySlug = request()->route('company_slug');
                 @endif
                 @endcan
 
+                @can('licenseexpense_view')
+                @if(\App\Support\CompanyModuleVisibility::enabled('license_expense'))
+                @if(!empty($riders))
+                @php
+                $licenseExpenseAccount = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
+                @endphp
+                @if($licenseExpenseAccount)
+                <li class="nav-item nav-priority-5">
+                  <a class="nav-link @if(Route::is('LicenseExpense.generatentries')) active @endif"
+                    href="{{ route('LicenseExpense.generatentries', $licenseExpenseAccount->id) }}">
+                    <i class="ti ti-steering-wheel ti-sm me-1_5"></i>License Expense
+                  </a>
+                </li>
+                @endif
+                @endif
+                @endif
+                @endcan
+
                 @can('riderinventory_view')
                 @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
                 <li class="nav-item nav-priority-5">

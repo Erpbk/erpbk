@@ -24,4 +24,5 @@ interface HeadAccount
   const VISA_EXPENSE_ACCOUNT = 2515; // Visa Expense Account
   const BIKE_REGISTRATION_EXPENSE_ACCOUNT = 2516; // Bike Registration Expense Account
   const INVENTORY_LOSS = 2519; // Inventory Loss Account
+  const LICENSE_EXPENSE_ACCOUNT = 2520; // Dubai Driving License Expense Account
 }

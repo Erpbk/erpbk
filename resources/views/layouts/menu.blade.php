@@ -473,6 +473,16 @@ $homeLink = $isAdminLogin
 </li>
 @endcan
 @endif
+@if(\App\Support\CompanyModuleVisibility::enabled('license_expense'))
+@can('licenseexpense_view')
+<li class="menu-item {{ Route::is('LicenseExpense*') ? 'active' : '' }}">
+  <a href="{{ route('LicenseExpense.index') }}" class="menu-link">
+    @include('layouts.partials.module_menu_icon', ['key' => 'license_expense'])
+    <div>{{ $menuLabels['license_expense'] ?? 'License Expense' }}</div>
+  </a>
+</li>
+@endcan
+@endif
 @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))
 @can('legalcase_view')
 <li class="menu-item {{ Route::is('LegalCase*') || Route::is('legal-case-statuses*') ? 'active' : '' }}">

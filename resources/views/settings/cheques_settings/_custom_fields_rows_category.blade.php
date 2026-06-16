@@ -1,4 +1,4 @@
-﻿@forelse($customFields as $index => $field)
+@forelse($customFields as $index => $field)
   <tr data-id="{{ $field->id }}">
     <td class="align-middle">
       <span class="drag-handle"><i class="ti ti-grip-vertical"></i></span>

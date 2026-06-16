@@ -13,16 +13,19 @@ class RiderInventoryAssignment extends BaseModel
     public const STATUS_ASSIGNED = 'assigned';
     public const STATUS_RETURNED = 'returned';
     public const STATUS_LOST = 'lost';
+    public const STATUS_RETURNED_TO_CUSTOMER = 'returned_to_customer';
 
     protected $fillable = [
         'rider_id',
         'inventory_item_id',
+        'customer_id',
         'assigned_date',
         'assigned_by',
         'status',
         'amount',
         'return_date',
         'returned_by',
+        'returned_to_customer',
         'remarks',
         'assignment_contract_number',
         'return_contract_number',
@@ -41,6 +44,7 @@ class RiderInventoryAssignment extends BaseModel
         'return_date' => 'date',
         'loss_date' => 'date',
         'amount' => 'decimal:2',
+        'returned_to_customer' => 'date',
     ];
 
     public function rider(): BelongsTo
@@ -51,6 +55,11 @@ class RiderInventoryAssignment extends BaseModel
     public function inventoryItem(): BelongsTo
     {
         return $this->belongsTo(Items::class, 'inventory_item_id');
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customers::class, 'customer_id');
     }
 
     public function assignedByUser(): BelongsTo

@@ -13,6 +13,11 @@
             <i class="ti ti-package ti-lg text-body me-2"></i>Rider Inventory
         </h5>
         <div class="d-flex gap-2 flex-wrap">
+            @can('riderinventory_edit')
+            <a href="{{ route('RiderInventory.returnToCustomerForm') }}" class="btn btn-sm btn-info">
+                <i class="ti ti-truck-return"></i> Return to Customer
+            </a>
+            @endcan
             @can('riderinventory_contract_print')
             @if($assignments->where('status', 'assigned')->isNotEmpty())
             <a href="{{ route('RiderInventory.assignmentContract', $rider->id) }}" class="btn btn-sm btn-outline-primary" target="_blank">

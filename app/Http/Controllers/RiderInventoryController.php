@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Customers;
 use App\Models\Items;
 use App\Models\RiderInventoryAssignment;
 use App\Models\RiderInventoryContract;
@@ -37,45 +38,48 @@ class RiderInventoryController extends AppBaseController
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $statusFilter = $request->input('status_filter', '');
-        $riderIds = RiderInventoryAssignment::pluck('rider_id')->unique();
-        $query = Riders::query()->whereIn('id', $riderIds)->orderBy('name');
+
+        $assignmentQuery = RiderInventoryAssignment::query()
+            ->with(['rider', 'customer', 'inventoryItem'])
+            ->orderByDesc('assigned_date')
+            ->orderByDesc('id');
 
         if ($request->filled('quick_search')) {
             $term = trim((string) $request->quick_search);
-            $query->where(function ($q) use ($term) {
-                $q->where('name', 'like', '%' . $term . '%')
-                    ->orWhere('rider_id', 'like', '%' . $term . '%')
-                    ->orWhere('person_code', 'like', '%' . $term . '%');
+            $assignmentQuery->where(function ($q) use ($term) {
+                $q->whereHas('rider', function ($riderQuery) use ($term) {
+                    $riderQuery->where('name', 'like', '%' . $term . '%')
+                        ->orWhere('rider_id', 'like', '%' . $term . '%')
+                        ->orWhere('person_code', 'like', '%' . $term . '%');
+                })->orWhereHas('customer', function ($customerQuery) use ($term) {
+                    $customerQuery->where('name', 'like', '%' . $term . '%')
+                        ->orWhere('company_name', 'like', '%' . $term . '%');
+                })->orWhereHas('inventoryItem', function ($itemQuery) use ($term) {
+                    $itemQuery->where('name', 'like', '%' . $term . '%');
+                });
             });
         }
 
         if ($statusFilter === 'assigned') {
-            $query->whereHas('inventoryAssignments', fn($q) => $q->where('status', RiderInventoryAssignment::STATUS_ASSIGNED));
+            $assignmentQuery->where('status', RiderInventoryAssignment::STATUS_ASSIGNED);
         } elseif ($statusFilter === 'returned') {
-            $query->whereHas('inventoryAssignments', fn($q) => $q->where('status', RiderInventoryAssignment::STATUS_RETURNED));
+            $assignmentQuery->where('status', RiderInventoryAssignment::STATUS_RETURNED);
         } elseif ($statusFilter === 'lost') {
-            $query->whereHas('inventoryAssignments', fn($q) => $q->where('status', RiderInventoryAssignment::STATUS_LOST));
+            $assignmentQuery->where('status', RiderInventoryAssignment::STATUS_LOST);
         }
 
         $assignedCount = RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_ASSIGNED)->count();
         $returnedCount = RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_RETURNED)->count();
         $lostCount = RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_LOST)->count();
 
-        $data = $this->applyPagination($query, $paginationParams);
-        $assignmentCounts = RiderInventoryAssignment::query()
-            ->selectRaw('rider_id, status, COUNT(*) as total')
-            ->whereIn('rider_id', collect($data->items())->pluck('id'))
-            ->groupBy('rider_id', 'status')
-            ->get()
-            ->groupBy('rider_id');
+        $assignments = $this->applyPagination($assignmentQuery, $paginationParams);
 
         if ($request->ajax()) {
             return response()->json([
-                'tableData' => view('rider_inventory.rider_table', [
-                    'riders' => $data,
-                    'assignmentCounts' => $assignmentCounts,
+                'tableData' => view('rider_inventory.assignment_index_table', [
+                    'assignments' => $assignments,
                 ])->render(),
-                'paginationLinks' => $data->links('components.global-pagination')->render(),
+                'paginationLinks' => $assignments->links('components.global-pagination')->render(),
                 'stats' => [
                     'assigned' => $assignedCount,
                     'returned' => $returnedCount,
@@ -85,8 +89,7 @@ class RiderInventoryController extends AppBaseController
         }
 
         return view('rider_inventory.index', [
-            'riders' => $data,
-            'assignmentCounts' => $assignmentCounts,
+            'assignments' => $assignments,
             'assignedCount' => $assignedCount,
             'returnedCount' => $returnedCount,
             'lostCount' => $lostCount,
@@ -103,7 +106,7 @@ class RiderInventoryController extends AppBaseController
 
         $rider = Riders::findOrFail($riderId);
         $assignments = RiderInventoryAssignment::query()
-            ->with(['inventoryItem', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
+            ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
             ->where('rider_id', $riderId)
             ->orderByDesc('assigned_date')
             ->orderByDesc('id')
@@ -134,6 +137,7 @@ class RiderInventoryController extends AppBaseController
         return view('rider_inventory.assign_modal', [
             'rider' => $rider,
             'availableItems' => Items::availableForAssignment(),
+            'customers' => $this->customersForInventory(activeOnly: true),
         ]);
     }
 
@@ -146,38 +150,72 @@ class RiderInventoryController extends AppBaseController
         $rider = Riders::findOrFail($riderId);
 
         $validated = $request->validate([
-            'inventory_item_id' => [
-                'required',
+            'inventory_item_ids' => 'required|array|min:1',
+            'inventory_item_ids.*' => [
                 'integer',
+                'distinct',
                 Rule::exists('items', 'id')->where(function ($query) {
                     $query->where('status', 1)
                         ->whereJsonContains('owner', 'riderInventory');
                 }),
             ],
             'assigned_date' => 'required|date',
+            'customer_id' => 'required|integer|exists:customers,id',
         ]);
 
-        $item = Items::findOrFail($validated['inventory_item_id']);
+        $items = Items::query()
+            ->whereIn('id', $validated['inventory_item_ids'])
+            ->get()
+            ->keyBy('id');
 
-        $assignment = RiderInventoryAssignment::create([
-            'rider_id' => $rider->id,
-            'inventory_item_id' => $item->id,
-            'assigned_date' => $validated['assigned_date'],
-            'assigned_by' => auth()->id(),
-            'status' => RiderInventoryAssignment::STATUS_ASSIGNED,
-            'amount' => $item->price,
-            'created_by' => auth()->id(),
-        ]);
+        if ($items->count() !== count($validated['inventory_item_ids'])) {
+            $message = 'One or more selected inventory items are invalid.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            Flash::error($message);
+
+            return redirect()->back()->withInput();
+        }
+
+        $assignments = DB::transaction(function () use ($rider, $validated, $items) {
+            $created = collect();
+
+            foreach ($validated['inventory_item_ids'] as $itemId) {
+                $item = $items->get($itemId);
+                if (!$item) {
+                    continue;
+                }
+
+                $created->push(RiderInventoryAssignment::create([
+                    'rider_id' => $rider->id,
+                    'inventory_item_id' => $item->id,
+                    'customer_id' => $validated['customer_id'],
+                    'assigned_date' => $validated['assigned_date'],
+                    'assigned_by' => auth()->id(),
+                    'status' => RiderInventoryAssignment::STATUS_ASSIGNED,
+                    'amount' => $item->price,
+                    'created_by' => auth()->id(),
+                ]));
+            }
+
+            return $created;
+        });
+
+        $count = $assignments->count();
+        $message = $count === 1
+            ? 'Inventory item assigned successfully.'
+            : $count . ' inventory items assigned successfully.';
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Inventory item assigned successfully.',
-                'assignment_id' => $assignment->id,
+                'message' => $message,
+                'assignment_ids' => $assignments->pluck('id')->values(),
             ]);
         }
 
-        Flash::success('Inventory item assigned successfully.');
+        Flash::success($message);
 
         return redirect()->route('RiderInventory.show', $riderId);
     }
@@ -630,7 +668,7 @@ class RiderInventoryController extends AppBaseController
         }
 
         $allItems = RiderInventoryAssignment::query()
-            ->with(['inventoryItem', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
+            ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
             ->where('return_contract_number', $contract->contract_number)
             ->get();
 
@@ -645,6 +683,110 @@ class RiderInventoryController extends AppBaseController
             'allItems' => $allItems,
             'branding' => $this->contractBranding(),
         ]);
+    }
+
+    public function returnToCustomerForm(string $company_slug)
+    {
+        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        return view('rider_inventory.return_to_customer_form', [
+            'customers' => $this->customersForInventory(activeOnly: false),
+        ]);
+    }
+
+    public function returnToCustomerAssignments(Request $request, string $company_slug)
+    {
+        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'customer_id' => 'required|integer|exists:customers,id',
+        ]);
+
+        $assignments = RiderInventoryAssignment::query()
+            ->with(['rider', 'inventoryItem', 'returnedByUser'])
+            ->where('customer_id', $validated['customer_id'])
+            ->where('status', RiderInventoryAssignment::STATUS_RETURNED)
+            ->orderByDesc('return_date')
+            ->orderByDesc('id')
+            ->get();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'tableHtml' => view('rider_inventory.return_to_customer_table', [
+                    'assignments' => $assignments,
+                ])->render(),
+                'count' => $assignments->count(),
+            ]);
+        }
+
+        return view('rider_inventory.return_to_customer_table', compact('assignments'));
+    }
+
+    public function returnToCustomerStore(Request $request, string $company_slug)
+    {
+        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'customer_id' => 'required|integer|exists:customers,id',
+            'return_to_customer_date' => 'required|date',
+            'assignment_ids' => 'required|array|min:1',
+            'assignment_ids.*' => 'integer',
+        ]);
+
+        $returnToCustomerDate = Carbon::parse($validated['return_to_customer_date'])->format('Y-m-d');
+
+        $assignments = RiderInventoryAssignment::query()
+            ->where('customer_id', $validated['customer_id'])
+            ->where('status', RiderInventoryAssignment::STATUS_RETURNED)
+            ->whereIn('id', $validated['assignment_ids'])
+            ->get();
+
+        if ($assignments->isEmpty()) {
+            $message = 'No eligible inventory items were found for return to customer.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            Flash::error($message);
+
+            return redirect()->route('RiderInventory.returnToCustomerForm')->withInput();
+        }
+
+        if ($assignments->count() !== count($validated['assignment_ids'])) {
+            $message = 'One or more selected items are not eligible for return to customer.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            Flash::error($message);
+
+            return redirect()->route('RiderInventory.returnToCustomerForm')->withInput();
+        }
+
+        RiderInventoryAssignment::query()
+            ->whereIn('id', $assignments->pluck('id'))
+            ->update([
+                'status' => RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER,
+                'returned_to_customer' => $returnToCustomerDate,
+                'updated_by' => auth()->id(),
+            ]);
+
+        $message = $assignments->count() . ' item(s) marked as returned to customer.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+            ]);
+        }
+
+        Flash::success($message);
+
+        return redirect()->route('RiderInventory.returnToCustomerForm');
     }
 
     public function destroyAssignment(Request $request, string $company_slug, int $assignmentId)
@@ -737,8 +879,9 @@ class RiderInventoryController extends AppBaseController
         if (!in_array($assignment->status, [
             RiderInventoryAssignment::STATUS_RETURNED,
             RiderInventoryAssignment::STATUS_LOST,
+            RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER,
         ], true)) {
-            abort(422, 'Only returned or lost inventory items can have their status changed.');
+            abort(422, 'Only returned, lost, or returned-to-customer inventory items can have their status changed.');
         }
 
         return $assignment;
@@ -755,6 +898,10 @@ class RiderInventoryController extends AppBaseController
                 RiderInventoryAssignment::STATUS_ASSIGNED => 'Assigned',
                 RiderInventoryAssignment::STATUS_LOST => 'Lost (charge rider)',
             ],
+            RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER => [
+                RiderInventoryAssignment::STATUS_ASSIGNED => 'Assigned',
+                RiderInventoryAssignment::STATUS_RETURNED => 'Returned (from rider)',
+            ],
             default => [],
         };
     }
@@ -767,6 +914,10 @@ class RiderInventoryController extends AppBaseController
 
         if ($assignment->status === RiderInventoryAssignment::STATUS_RETURNED) {
             $this->removeReturnContractLink($assignment);
+        }
+
+        if ($assignment->status === RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER) {
+            $assignment->returned_to_customer = null;
         }
 
         $assignment->status = RiderInventoryAssignment::STATUS_ASSIGNED;
@@ -786,6 +937,16 @@ class RiderInventoryController extends AppBaseController
 
     private function convertAssignmentToReturned(RiderInventoryAssignment $assignment, string $eventDate, ?string $remarks): string
     {
+        if ($assignment->status === RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER) {
+            $assignment->status = RiderInventoryAssignment::STATUS_RETURNED;
+            $assignment->returned_to_customer = null;
+            $assignment->remarks = $remarks;
+            $assignment->updated_by = auth()->id();
+            $assignment->save();
+
+            return 'Inventory item reverted to returned from rider (not yet returned to customer).';
+        }
+
         if ($assignment->status === RiderInventoryAssignment::STATUS_LOST) {
             $this->removeLossVoucher($assignment);
         }
@@ -893,6 +1054,17 @@ class RiderInventoryController extends AppBaseController
             ->orderBy('assigned_date')
             ->orderBy('id')
             ->get();
+    }
+
+    private function customersForInventory(bool $activeOnly = true)
+    {
+        $query = Customers::query()->orderBy('name');
+
+        if ($activeOnly) {
+            $query->active();
+        }
+
+        return $query->get(['id', 'name', 'company_name', 'status']);
     }
 
     private function contractBranding(): array

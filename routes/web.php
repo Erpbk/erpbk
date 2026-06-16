@@ -269,6 +269,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('customer/receipts', [CustomersController::class, 'cReceipts'])->name('customer.receipts');
     Route::get('customers/payments/{id}', [CustomersController::class, 'payments'])->name('customers.payments');
     Route::get('customers/receipts/{id}', [CustomersController::class, 'receipts'])->name('customers.receipts');
+    Route::get('customer/inventory/{id}', [CustomersController::class, 'inventory'])->name('customer.inventory');
     // Customers Trash Routes
     Route::get('customers/trash', [CustomersController::class, 'trash'])->name('customers.trash');
     Route::post('customers/trash/{id}/restore', [CustomersController::class, 'restoreTrash'])->name('customers.restore');
@@ -415,6 +416,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractForm'])->name('RiderInventory.returnContractForm');
     Route::post('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractProcess'])->name('RiderInventory.returnContractProcess');
     Route::get('RiderInventory/return-contract-document/{contractId}', [RiderInventoryController::class, 'returnContractDocument'])->name('RiderInventory.returnContractDocument');
+    Route::get('RiderInventory/return-to-customer', [RiderInventoryController::class, 'returnToCustomerForm'])->name('RiderInventory.returnToCustomerForm');
+    Route::get('RiderInventory/return-to-customer/assignments', [RiderInventoryController::class, 'returnToCustomerAssignments'])->name('RiderInventory.returnToCustomerAssignments');
+    Route::post('RiderInventory/return-to-customer', [RiderInventoryController::class, 'returnToCustomerStore'])->name('RiderInventory.returnToCustomerStore');
     Route::get('RiderInventory', [RiderInventoryController::class, 'index'])->name('RiderInventory.index');
 
     Route::resource('rider-inventory-items', RiderInventoryItemController::class);

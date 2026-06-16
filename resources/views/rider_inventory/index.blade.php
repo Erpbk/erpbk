@@ -8,20 +8,50 @@
 
 @section('content')
 <section class="content-header">
+    @include('flash::message')
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <h3 class="mb-0">Rider Inventory</h3>
-            @can('riderinventory_create')
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#selectRiderModal">
-                <i class="ti ti-package me-1"></i> Assign Inventory
-            </button>
-            @endcan
+        <div class="row mb-2">
+            <div class="col-sm-12 col-lg-12">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h3 class="mb-0">Rider Inventory</h3>
+                    @if(auth()->user()->can('riderinventory_create') || auth()->user()->can('riderinventory_edit'))
+                    <div class="action-buttons d-flex justify-content-end">
+                        <div class="action-dropdown-container">
+                            <button type="button" class="action-dropdown-btn" id="addBikeDropdownBtn">
+                                <i class="ti ti-plus"></i>
+                                <span>Actions</span>
+                                <i class="ti ti-chevron-down"></i>
+                            </button>
+                            <div class="action-dropdown-menu" id="addBikeDropdown">
+                                @can('riderinventory_create')
+                                <a class="action-dropdown-item" href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#selectRiderModal">
+                                    <i class="ti ti-package"></i>
+                                    <div>
+                                        <div class="action-dropdown-item-text">Assign Inventory</div>
+                                        <div class="action-dropdown-item-desc">Assign items to a rider</div>
+                                    </div>
+                                </a>
+                                @endcan
+                                @can('riderinventory_edit')
+                                <a class="action-dropdown-item" href="{{ route('RiderInventory.returnToCustomerForm') }}">
+                                    <i class="ti ti-truck-return"></i>
+                                    <div>
+                                        <div class="action-dropdown-item-text">Return to Customer</div>
+                                        <div class="action-dropdown-item-desc">Mark returned items as sent back to customer</div>
+                                    </div>
+                                </a>
+                                @endcan
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
 </section>
 
-<div class="content">
-    @include('flash::message')
+<div class="content px-3">
 
     <div class="fleet-supervisor-section mb-3">
         <div class="fleet-supervisor-cards slider-track d-flex gap-3 flex-wrap">
@@ -45,7 +75,7 @@
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <h5 class="mb-0">Riders</h5>
+            <h5 class="mb-0">Inventory Assignments</h5>
             <div class="d-flex gap-2">
                 <a href="{{ route('RiderInventory.reports') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="ti ti-report"></i> Reports
@@ -57,9 +87,9 @@
         </div>
         <div class="card-body">
             <div id="riderInventoryTableWrapper">
-                @include('rider_inventory.rider_table', ['riders' => $riders, 'assignmentCounts' => $assignmentCounts])
+                @include('rider_inventory.assignment_index_table', ['assignments' => $assignments])
             </div>
-            <div id="paginationLinks">{!! $riders->links('components.global-pagination') !!}</div>
+            <div id="paginationLinks">{!! $assignments->links('components.global-pagination') !!}</div>
         </div>
     </div>
 </div>
@@ -72,13 +102,13 @@
                 <input type="hidden" name="status_filter" value="{{ request('status_filter') }}">
                 @endif
                 <div class="modal-header">
-                    <h5 class="modal-title">Filter Riders</h5>
+                    <h5 class="modal-title">Filter Assignments</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="quick_search">Quick Search</label>
-                        <input type="text" name="quick_search" id="quick_search" class="form-control" value="{{ request('quick_search') }}" placeholder="Rider ID, name, person code">
+                        <input type="text" name="quick_search" id="quick_search" class="form-control" value="{{ request('quick_search') }}" placeholder="Rider, customer, or item name">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -135,6 +165,7 @@ $(function () {
     const showUrlTemplate = @json(route('RiderInventory.show', ['riderId' => '__RIDER__']));
 
     $('#selectRiderModal').on('shown.bs.modal', function () {
+        $('#addBikeDropdown').removeClass('show');
         if ($riderSelect.hasClass('select2-hidden-accessible')) {
             $riderSelect.select2('destroy');
         }

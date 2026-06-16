@@ -17,6 +17,11 @@
                         <h3 class="mb-0">Rider Inventory</h3>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
+                        @can('riderinventory_edit')
+                        <a href="{{ route('RiderInventory.returnToCustomerForm') }}" class="btn btn-info">
+                            <i class="ti ti-truck-return"></i> Return to Customer
+                        </a>
+                        @endcan
                         <a href="{{ route('RiderInventory.index') }}" class="btn btn-outline-secondary">
                             <i class="ti ti-arrow-left"></i> Back
                         </a>

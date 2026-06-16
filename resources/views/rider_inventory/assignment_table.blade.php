@@ -2,12 +2,14 @@
     <thead class="text-center">
         <tr>
             <th>Item</th>
+            <th>Customer</th>
             <th>Price</th>
             <th>Assigned</th>
             <th>Assigned By</th>
             <th>Status</th>
             <th>Return / Loss</th>
             <th>Returned To</th>
+            <th>Returned to Customer</th>
             <th>IL Voucher</th>
             <th>Remarks</th>
             <th>Actions</th>
@@ -17,6 +19,15 @@
         @forelse($assignments as $row)
         <tr>
             <td>{{ $row->inventoryItem->name ?? '-' }}</td>
+            <td>
+                @if($row->customer_id && $row->customer)
+                <a href="{{ route('customer.inventory', $row->customer_id) }}">
+                    {{ $row->customer->name }}{{ $row->customer->company_name ? ' — ' . $row->customer->company_name : '' }}
+                </a>
+                @else
+                —
+                @endif
+            </td>
             <td>{{ number_format((float) $row->amount, 2) }}</td>
             <td>{{ $row->assigned_date?->format('Y-m-d') }}</td>
             <td>{{ $row->assignedByUser->name ?? '-' }}</td>
@@ -25,6 +36,8 @@
                 <span class="badge bg-primary">Assigned</span>
                 @elseif($row->status === 'returned')
                 <span class="badge bg-success">Returned</span>
+                @elseif($row->status === 'returned_to_customer')
+                <span class="badge bg-info">Returned to Customer</span>
                 @else
                 <span class="badge bg-danger">Lost</span>
                 @endif
@@ -41,11 +54,14 @@
             <td>
                 @if($row->status === 'lost')
                 {{ $row->lostByUser->name ?? '-' }}
-                @elseif($row->status === 'returned')
+                @elseif(in_array($row->status, ['returned', 'returned_to_customer'], true))
                 {{ $row->returnedByUser->name ?? '-' }}
                 @else
                 —
                 @endif
+            </td>
+            <td>
+                {{ $row->returned_to_customer?->format('Y-m-d') ?? '—' }}
             </td>
             @if($row->voucher_id)
             <td>
@@ -87,7 +103,7 @@
                     </form>
                     @endcan
                 </div>
-                @elseif(in_array($row->status, ['returned', 'lost'], true))
+                @elseif(in_array($row->status, ['returned', 'lost', 'returned_to_customer'], true))
                 @can('riderinventory_edit')
                 <div class="d-flex gap-1 flex-wrap justify-content-center">
                     <a href="javascript:void(0);" class="btn btn-sm btn-outline-secondary show-modal"
@@ -113,7 +129,7 @@
         </tr>
         @empty
         <tr>
-            <td colspan="11" class="text-center text-muted py-4">No inventory assignments for this rider.</td>
+            <td colspan="13" class="text-center text-muted py-4">No inventory assignments for this rider.</td>
         </tr>
         @endforelse
     </tbody>

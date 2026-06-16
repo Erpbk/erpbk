@@ -67,6 +67,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\RiderInventoryAssignment;
+use App\Models\RiderCategory;
 
 class RidersController extends AppBaseController
 {
@@ -1812,7 +1813,7 @@ class RidersController extends AppBaseController
     }
     $riders = $rider;
     $assignments = RiderInventoryAssignment::query()
-            ->with(['inventoryItem', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
+            ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
             ->where('rider_id', $rider_id)
             ->orderByDesc('assigned_date')
             ->orderByDesc('id')

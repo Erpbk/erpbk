@@ -403,8 +403,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('RiderInventory/reports/data', [RiderInventoryReportController::class, 'data'])->name('RiderInventory.reports.data');
     Route::get('RiderInventory/reports', [RiderInventoryReportController::class, 'index'])->name('RiderInventory.reports');
     Route::get('RiderInventory/show/{riderId}', [RiderInventoryController::class, 'show'])->name('RiderInventory.show');
-    Route::get('RiderInventory/assign/{riderId}', [RiderInventoryController::class, 'assignForm'])->name('RiderInventory.assignForm');
-    Route::post('RiderInventory/assign/{riderId}', [RiderInventoryController::class, 'assignStore'])->name('RiderInventory.assignStore');
+    Route::get('RiderInventory/assign/{riderId?}', [RiderInventoryController::class, 'assignForm'])->name('RiderInventory.assignForm')->where(['riderId' => '[0-9]+']);
+    Route::post('RiderInventory/assign', [RiderInventoryController::class, 'assignStore'])->name('RiderInventory.assignStore');
     Route::get('RiderInventory/return/{assignmentId}', [RiderInventoryController::class, 'returnForm'])->name('RiderInventory.returnForm');
     Route::post('RiderInventory/return/{assignmentId}', [RiderInventoryController::class, 'returnStore'])->name('RiderInventory.returnStore');
     Route::get('RiderInventory/lost/{assignmentId}', [RiderInventoryController::class, 'lostForm'])->name('RiderInventory.lostForm');

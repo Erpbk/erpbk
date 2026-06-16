@@ -13,7 +13,7 @@
     $totalAssigned = (int) ($contract->total_items ?? $allItems->count());
     $totalReturned = (int) ($contract->total_returned ?? $returnedItems->count());
     $totalLost = (int) ($contract->total_lost ?? $lostItems->count());
-    $totalChargeable = (float) ($contract->total_chargeable_amount ?? $lostItems->sum('amount'));
+    $totalChargeable = (float) ($contract->total_chargeable_amount ?? $lostItems->sum(fn ($row) => $row->lineTotal()));
     @endphp
     @include('passport_handover.partials.contract_styles')
 </head>
@@ -49,6 +49,7 @@
                     <thead>
                         <tr>
                             <th style="text-align:left;">Item Name</th>
+                            <th style="text-align:left;">Qty</th>
                             <th style="text-align:left;">Assignment Date</th>
                             <th style="text-align:left;">Item Value</th>
                             <th style="text-align:left;">Return Date</th>
@@ -58,8 +59,9 @@
                         @foreach($returnedItems as $row)
                         <tr>
                             <td>{{ $row->inventoryItem->name ?? '—' }}</td>
+                            <td>{{ (int) ($row->qty ?? 1) }}</td>
                             <td>{{ $row->assigned_date?->format('d M Y') ?? '—' }}</td>
-                            <td>{{ number_format((float) $row->amount, 2) }}</td>
+                            <td>{{ number_format($row->lineTotal(), 2) }}</td>
                             <td style="white-space: nowrap;">{{ $row->return_date?->format('d M Y') ?? '—' }}</td>
                         </tr>
                         @endforeach
@@ -75,6 +77,7 @@
                     <thead>
                         <tr>
                             <th style="text-align:left;">Item Name</th>
+                            <th style="text-align:left;">Qty</th>
                             <th style="text-align:left;">Assignment Date</th>
                             <th style="text-align:left;">Item Value</th>
                             <th style="text-align:left;">Loss Date</th>
@@ -84,8 +87,9 @@
                         @foreach($lostItems as $row)
                         <tr>
                             <td>{{ $row->inventoryItem->name ?? '—' }}</td>
+                            <td>{{ (int) ($row->qty ?? 1) }}</td>
                             <td>{{ $row->assigned_date?->format('d M Y') ?? '—' }}</td>
-                            <td>{{ number_format((float) $row->amount, 2) }}</td>
+                            <td>{{ number_format($row->lineTotal(), 2) }}</td>
                             <td style="white-space: nowrap;">{{ $row->loss_date?->format('d M Y') ?? '—' }}</td>
                         </tr>
                         @endforeach

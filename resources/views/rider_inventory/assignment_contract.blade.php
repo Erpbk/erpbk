@@ -46,6 +46,7 @@
                         <tr>
                             <th style="width:40px;">✓</th>
                             <th style="text-align:left;">Item Name</th>
+                            <th style="text-align:left;">Qty</th>
                             <th style="text-align:left;">Assignment Date</th>
                             <th style="text-align:left;">Item Value</th>
                             <th style="text-align:left;">Status</th>
@@ -56,8 +57,9 @@
                         <tr>
                             <td>☑</td>
                             <td>{{ $row->inventoryItem->name ?? '—' }}</td>
+                            <td>{{ (int) ($row->qty ?? 1) }}</td>
                             <td>{{ $row->assigned_date?->format('d M Y') ?? '—' }}</td>
-                            <td>{{ number_format((float) $row->amount, 2) }}</td>
+                            <td>{{ number_format($row->lineTotal(), 2) }}</td>
                             <td><strong>Assigned</strong></td>
                         </tr>
                         @endforeach

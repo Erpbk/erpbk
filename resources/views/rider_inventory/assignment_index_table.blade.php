@@ -5,7 +5,9 @@
                 <th>Item</th>
                 <th>Rider</th>
                 <th>Customer</th>
-                <th>Price</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Total</th>
                 <th>Assigned</th>
                 <th>Status</th>
                 <th>Return / Loss</th>
@@ -35,7 +37,9 @@
                     —
                     @endif
                 </td>
+                <td>{{ (int) ($row->qty ?? 1) }}</td>
                 <td>{{ number_format((float) $row->amount, 2) }}</td>
+                <td>{{ number_format($row->lineTotal(), 2) }}</td>
                 <td>{{ $row->assigned_date?->format('Y-m-d') ?? '—' }}</td>
                 <td>
                     @if($row->status === 'assigned')
@@ -68,7 +72,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="9" class="text-center text-muted py-4">No inventory assignments found.</td>
+                <td colspan="11" class="text-center text-muted py-4">No inventory assignments found.</td>
             </tr>
             @endforelse
         </tbody>

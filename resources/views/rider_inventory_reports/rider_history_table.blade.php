@@ -6,7 +6,9 @@
         <thead>
             <tr>
                 <th>Item</th>
-                <th>Amount</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Total</th>
                 <th>Assigned Date</th>
                 <th>Assigned By</th>
                 <th>Status</th>
@@ -20,7 +22,9 @@
             @forelse($rows as $row)
             <tr>
                 <td>{{ $row->inventoryItem->name ?? '-' }}</td>
+                <td>{{ (int) ($row->qty ?? 1) }}</td>
                 <td>{{ number_format((float) $row->amount, 2) }}</td>
+                <td>{{ number_format($row->lineTotal(), 2) }}</td>
                 <td>{{ $row->assigned_date?->format('Y-m-d') }}</td>
                 <td>{{ $row->assignedByUser->name ?? '-' }}</td>
                 <td>{{ ucfirst($row->status) }}</td>
@@ -36,7 +40,7 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="9" class="text-center text-muted py-4">No history found.</td></tr>
+            <tr><td colspan="11" class="text-center text-muted py-4">No history found.</td></tr>
             @endforelse
         </tbody>
     </table>

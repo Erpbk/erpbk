@@ -47,8 +47,9 @@
                     <thead>
                         <tr>
                             <th>Item Name</th>
+                            <th>Qty</th>
                             <th>Assignment Date</th>
-                            <th>Item Value</th>
+                            <th>Item Value (Total)</th>
                             <th>Returned</th>
                             <th>Lost</th>
                             <th>Keep Assigned</th>
@@ -59,6 +60,7 @@
                         @php $oldDisp = old('dispositions.' . $row->id, 'skip'); @endphp
                         <tr data-assignment-row="{{ $row->id }}">
                             <td>{{ $row->inventoryItem->name ?? '—' }}</td>
+                            <td>{{ (int) ($row->qty ?? 1) }}</td>
                             <td>{{ $row->assigned_date?->format('Y-m-d') }}</td>
                             <td style="min-width: 140px;">
                                 <input type="number"
@@ -67,7 +69,7 @@
                                     data-assignment-id="{{ $row->id }}"
                                     step="0.01"
                                     min="0.01"
-                                    value="{{ old('amounts.' . $row->id, $row->amount) }}"
+                                    value="{{ old('amounts.' . $row->id, $row->lineTotal()) }}"
                                     {{ $oldDisp === 'skip' ? 'disabled' : '' }}>
                             </td>
                             <td>

@@ -56,19 +56,19 @@ $homeLink = $isAdminLogin
 @can('employees_view')
 @if(\App\Support\CompanyModuleVisibility::enabled('attendance'))
 @can('attendance_view')
-<li class="menu-item {{ Route::is('employees.*') ? 'open' : '' }} {{ (Route::is('attendance.*') && request('ref_type') === 'employee') || (Route::is('attendance.summary') && request('user_type', 'employee') === 'employee') ? 'open' : '' }} {{ Route::is('employeeInvoices.*') ? 'open' : '' }} {{ Route::is('module-agreements.*') && request()->route('module') === 'employees' ? 'open' : '' }}">
+<li class="menu-item {{ Route::is('employees.*') ? 'open' : '' }} {{ (Route::is('attendance.*') && request('ref_type') === 'employee') || (Route::is('attendance.summary') && request('user_type', 'employee') === 'employee') ? 'open' : '' }} {{ Route::is('employeeInvoices.*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
     @include('layouts.partials.module_menu_icon', ['key' => 'employees'])
     <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
   </a>
   <ul class="menu-sub">
-    <li class="menu-item {{ Route::is('employees.*') && !Route::is('module-agreements.*') ? 'active' : '' }}">
+    <li class="menu-item {{ Route::is('employees.*') ? 'active' : '' }}">
       <a href="{{ route('employees.index') }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'employees'])
         <div>{{ $menuLabels['employees'] ?? 'Employees' }}</div>
       </a>
     </li>
-    @include('layouts.partials.agreement_menu_link', ['module' => 'employees'])
+
     <li class="menu-item {{ Route::is('attendance.index') && request('ref_type') === 'employee' ? 'active' : '' }}">
       <a href="{{ route('attendance.index', ['ref_type' => 'employee']) }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'attendance_records'])
@@ -215,20 +215,19 @@ $homeLink = $isAdminLogin
  {{ Route::is('reports.rider_report*') ? 'open' : '' }}
  {{ Route::is('reports.rider_monthly_report*') ? 'open' : '' }}
  {{ Route::is('RiderInventory*') ? 'open' : '' }}
- {{ Route::is('module-agreements.*') && request()->route('module') === 'riders' ? 'open' : '' }}
  {{ (Route::is('attendance*') && request('ref_type') === 'rider') || (Route::is('attendance.summary') && request('user_type') === 'rider') ? 'open' : '' }}  ">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     @include('layouts.partials.module_menu_icon', ['key' => 'riders'])
     <div>{{ $menuLabels['riders'] ?? 'Riders' }}</div>
   </a>
   <ul class="menu-sub">
-    <li class="menu-item {{ Route::is('riders*') && !Route::is('module-agreements.*') ? 'active' : '' }}">
+    <li class="menu-item {{ Route::is('riders*') ? 'active' : '' }}">
       <a href="{{ route('riders.index') }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'riders_list'])
         <div>{{ $menuLabels['riders_list'] ?? 'Riders List' }}</div>
       </a>
     </li>
-    @include('layouts.partials.agreement_menu_link', ['module' => 'riders'])
+
     @if(\App\Support\CompanyModuleVisibility::enabled('attendance'))
     @can('attendance_view')
     <li class="menu-item {{ Route::is('attendance.index') && request('ref_type') === 'rider' ? 'active' : '' }}">
@@ -665,14 +664,41 @@ $homeLink = $isAdminLogin
 @endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('documents'))
-@can('company_documents_view')
-<li class="menu-item {{ Route::is('upload_files*') ? 'active' : '' }}">
-  <a href="{{ route('upload_files.index') }}" class="menu-link">
+@php
+  $documentsMenuOpen = Route::is('upload_files*') || Route::is('documents.agreements.*');
+  $canViewCompanyDocuments = auth()->check() && auth()->user()->can('company_documents_view');
+  $canViewAgreements = auth()->check() && (
+    auth()->user()->can('agreement_view')
+    || auth()->user()->can('agreement_manage_templates')
+    || auth()->user()->can('gn_settings')
+  );
+@endphp
+@if($canViewCompanyDocuments || $canViewAgreements)
+<li class="menu-item {{ $documentsMenuOpen ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle">
     @include('layouts.partials.module_menu_icon', ['key' => 'documents'])
     <div>{{ $menuLabels['documents'] ?? 'Documents' }}</div>
   </a>
+  <ul class="menu-sub">
+    @if($canViewCompanyDocuments)
+    <li class="menu-item {{ Route::is('upload_files*') ? 'active' : '' }}">
+      <a href="{{ route('upload_files.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'documents'])
+        <div>{{ $menuLabels['documents'] ?? 'Documents' }}</div>
+      </a>
+    </li>
+    @endif
+    @if($canViewAgreements)
+    <li class="menu-item {{ Route::is('documents.agreements.*') ? 'active' : '' }}">
+      <a href="{{ route('documents.agreements.index', ['company_slug' => $companySlug]) }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-file-certificate"></i>
+        <div>{{ $menuLabels['agreements'] ?? 'Agreements' }}</div>
+      </a>
+    </li>
+    @endif
+  </ul>
 </li>
-@endcan
+@endif
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('vouchers'))
 @can('voucher_view')

@@ -80,6 +80,7 @@ return [
         'supplier_payments'    => 'Payments Sent',
         'assets'               => 'Assets',
         'documents'            => 'Documents',
+        'agreements'           => 'Agreements',
         'vouchers'             => 'Vouchers',
         'accounts'             => 'Accounts',
         'chart_of_accounts'    => 'Chart Of Accounts',

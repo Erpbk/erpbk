@@ -19,8 +19,8 @@
       <span class="badge bg-label-primary">{{ $styleLabel }}</span>
     </div>
     @canany(['agreement_edit', 'agreement_manage_templates', 'gn_settings'])
-    <a href="{{ route('module-agreements.templates.edit', ['company_slug' => $companySlug, 'module' => 'riders', 'template' => $template->id]) }}"
-      class="btn btn-outline-primary btn-sm" target="_blank" title="Edit template content in module settings">
+    <a href="{{ route('documents.agreements.manage-category', ['company_slug' => $companySlug, 'category' => $category->id, 'template' => $template->id]) }}#template-editor-panel"
+      class="btn btn-outline-primary btn-sm" target="_blank" title="Edit template content in Documents → Agreements">
       <i class="ti ti-edit me-1"></i> Edit template
     </a>
     @endcanany

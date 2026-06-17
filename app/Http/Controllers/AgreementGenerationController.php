@@ -43,7 +43,7 @@ class AgreementGenerationController extends Controller
         $defaultTemplate = $category->contractTemplate();
 
         if (! $defaultTemplate) {
-            abort(422, 'No contract template assigned for this agreement. Configure it in Settings → Agreements.');
+            abort(422, 'No contract template assigned for this agreement. Configure it in Documents → Agreements.');
         }
 
         return view('agreements.generate-modal', compact(

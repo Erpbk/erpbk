@@ -21,8 +21,9 @@ class MigrateConnectionRunner
 
         DeployDatabaseConfig::refreshFromEnvironment();
 
-        if (! DeployDatabaseWaiter::waitForConnection($connection)) {
+        if (! DeployDatabaseWaiter::waitForConnection($connection, output: $output)) {
             $message = DeployDatabaseWaiter::connectionFailureMessage($connection);
+            DeployDatabaseWaiter::deployLog($message);
             if ($output !== null) {
                 $output->writeln('<error>' . $message . '</error>');
             }

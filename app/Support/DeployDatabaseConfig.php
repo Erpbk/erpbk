@@ -86,8 +86,8 @@ class DeployDatabaseConfig
         $sslCa = $readEnv('MYSQL_ATTR_SSL_CA');
 
         $options = array_filter([
-            defined('PDO::MYSQL_ATTR_CONNECT_TIMEOUT') ? PDO::MYSQL_ATTR_CONNECT_TIMEOUT : null => 5,
-            PDO::MYSQL_ATTR_SSL_CA => $sslCa,
+            defined('\PDO::MYSQL_ATTR_CONNECT_TIMEOUT') ? \PDO::MYSQL_ATTR_CONNECT_TIMEOUT : null => 5,
+            \PDO::MYSQL_ATTR_SSL_CA => $sslCa,
         ], fn ($value, $key) => $key !== null && $value !== null && $value !== '', ARRAY_FILTER_USE_BOTH);
 
         foreach ($connections as $connection) {

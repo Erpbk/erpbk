@@ -178,7 +178,7 @@ return [
             'key' => 'passport_handover',
             'visibility' => 'passport_handover',
             'permission' => 'passport_handover_view',
-            'icon' => 'ti-passport',
+            'icon' => 'ti-e-passport',
         ],
         [
             'key' => 'expenses',
@@ -237,6 +237,13 @@ return [
             'visibility' => 'assets',
             'permission' => 'asset_view',
             'icon' => 'ti-box',
+            'settings' => null,
+        ],
+        [
+            'key' => 'agreements',
+            'visibility' => 'agreements',
+            'permission' => ['agreement_view', 'agreement_manage_templates', 'gn_settings'],
+            'icon' => 'ti-file-certificate',
             'settings' => null,
         ],
         [

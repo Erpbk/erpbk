@@ -23,10 +23,10 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
         </div>
 
         <div class="d-flex gap-2 flex-wrap">
-          <a href="{{ route('settings-panel.agreements.edit-agreement', ['company_slug' => $companySlug, 'category' => $category->id]) }}" class="btn btn-outline-primary btn-sm">
+          <a href="{{ route('agreements.edit-agreement', ['company_slug' => $companySlug, 'category' => $category->id]) }}" class="btn btn-outline-primary btn-sm">
             Edit
           </a>
-          <a href="{{ route('settings-panel.agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary btn-sm">
+          <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary btn-sm">
             Back
           </a>
         </div>

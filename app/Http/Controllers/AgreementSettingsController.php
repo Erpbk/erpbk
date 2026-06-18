@@ -104,7 +104,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Agreement created and assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '. Corporate template is the default contract template — change it under Edit if needed.');
 
-        return redirect()->route('settings-panel.agreements.edit-agreement', [
+        return redirect()->route('agreements.edit-agreement', [
             'company_slug' => $company_slug,
             'category' => $category->id,
         ]);
@@ -195,7 +195,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Agreement saved. Assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '.');
 
-        return redirect()->route('settings-panel.agreements.edit-agreement', [
+        return redirect()->route('agreements.edit-agreement', [
             'company_slug' => $company_slug,
             'category' => $category->id,
         ]);
@@ -211,7 +211,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Agreement deleted.');
 
-        return redirect()->route('settings-panel.agreements.index', [
+        return redirect()->route('agreements.index', [
             'company_slug' => $company_slug,
             'group' => $groupKey,
         ]);
@@ -231,7 +231,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Agreement status updated.');
 
-        return redirect()->route('settings-panel.agreements.index', [
+        return redirect()->route('agreements.index', [
             'company_slug' => $company_slug,
             'group' => $category->group_key,
         ]);
@@ -298,7 +298,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Agreement template created.');
 
-        return redirect()->route('settings-panel.agreements.templates', [
+        return redirect()->route('agreements.templates', [
             'company_slug' => $company_slug,
             'category' => $category->id,
         ]);
@@ -322,7 +322,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Agreement template updated.');
 
-        return redirect()->route('settings-panel.agreements.templates', [
+        return redirect()->route('agreements.templates', [
             'company_slug' => $company_slug,
             'category' => $template->category_id,
         ]);
@@ -346,7 +346,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Template deleted.');
 
-        return redirect()->route('settings-panel.agreements.templates', [
+        return redirect()->route('agreements.templates', [
             'company_slug' => $company_slug,
             'category' => $categoryId,
         ]);
@@ -362,7 +362,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Template duplicated.');
 
-        return redirect()->route('settings-panel.agreements.templates', [
+        return redirect()->route('agreements.templates', [
             'company_slug' => $company_slug,
             'category' => $template->category_id,
         ]);
@@ -377,7 +377,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Default template updated.');
 
-        return redirect()->route('settings-panel.agreements.templates', [
+        return redirect()->route('agreements.templates', [
             'company_slug' => $company_slug,
             'category' => $template->category_id,
         ]);

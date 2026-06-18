@@ -9,13 +9,13 @@
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
-          <a href="{{ route('settings-panel.agreements.index', ['company_slug' => request()->route('company_slug')]) }}" class="text-muted small">
+          <a href="{{ route('agreements.index', ['company_slug' => request()->route('company_slug')]) }}" class="text-muted small">
             <i class="ti ti-arrow-left"></i> Agreements
           </a>
           <h4 class="card-title mb-0 mt-1">{{ $category->name }}</h4>
         </div>
         @canany(['agreement_create', 'gn_settings'])
-        <a href="{{ route('settings-panel.agreements.create', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}"
+        <a href="{{ route('agreements.create', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}"
           class="btn btn-primary btn-sm">
           <i class="ti ti-plus me-1"></i> New Template
         </a>
@@ -48,7 +48,7 @@
                 <span class="badge bg-label-primary">Default</span>
                 @else
                 @canany(['agreement_manage_templates', 'gn_settings'])
-                <form method="POST" action="{{ route('settings-panel.agreements.set-default', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}" class="d-inline">
+                <form method="POST" action="{{ route('agreements.set-default', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}" class="d-inline">
                   @csrf
                   <button type="submit" class="btn btn-outline-secondary btn-xs">Set default</button>
                 </form>
@@ -64,29 +64,29 @@
               </td>
               <td class="text-end">
                 <div class="btn-group btn-group-sm">
-                  <a href="{{ route('settings-panel.agreements.preview', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}"
+                  <a href="{{ route('agreements.preview', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}"
                     class="btn btn-outline-info" target="_blank">Preview</a>
-                  <a href="{{ route('settings-panel.agreements.preview-pdf', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}"
+                  <a href="{{ route('agreements.preview-pdf', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}"
                     class="btn btn-outline-secondary">PDF</a>
                   @canany(['agreement_edit', 'gn_settings'])
-                  <a href="{{ route('settings-panel.agreements.edit', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}"
+                  <a href="{{ route('agreements.edit', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}"
                     class="btn btn-outline-primary">Edit</a>
                   @endcanany
                   @canany(['agreement_create', 'gn_settings'])
-                  <form method="POST" action="{{ route('settings-panel.agreements.duplicate', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}" class="d-inline">
+                  <form method="POST" action="{{ route('agreements.duplicate', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}" class="d-inline">
                     @csrf
                     <button type="submit" class="btn btn-outline-warning">Duplicate</button>
                   </form>
                   @endcanany
                   @canany(['agreement_edit', 'gn_settings'])
-                  <form method="POST" action="{{ route('settings-panel.agreements.toggle-status', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}" class="d-inline">
+                  <form method="POST" action="{{ route('agreements.toggle-status', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}" class="d-inline">
                     @csrf
                     <button type="submit" class="btn btn-outline-secondary">{{ $template->status ? 'Disable' : 'Enable' }}</button>
                   </form>
                   @endcanany
                   @canany(['agreement_delete', 'gn_settings'])
                   @if(!$template->is_default || $templates->count() > 1)
-                  <form method="POST" action="{{ route('settings-panel.agreements.destroy', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}" class="d-inline" onsubmit="return confirm('Delete this template?');">
+                  <form method="POST" action="{{ route('agreements.destroy', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}" class="d-inline" onsubmit="return confirm('Delete this template?');">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="btn btn-outline-danger">Delete</button>

@@ -210,6 +210,29 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('/home', [HomeController::class, 'index'])->name('home-dashboard');
     Route::post('/logout', [CompanyAuthController::class, 'logout'])->name('company.logout');
 
+    // Agreements (main app — centralized management)
+    Route::prefix('agreements')->name('agreements.')->group(function () {
+        Route::get('/', [App\Http\Controllers\AgreementSettingsController::class, 'index'])->name('index');
+        Route::get('/create', [App\Http\Controllers\AgreementSettingsController::class, 'createAgreement'])->name('create-agreement');
+        Route::post('/store', [App\Http\Controllers\AgreementSettingsController::class, 'storeAgreement'])->name('store-agreement');
+        Route::get('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'showAgreement'])->name('show-agreement')->whereNumber('category');
+        Route::get('/categories/{category}/edit', [App\Http\Controllers\AgreementSettingsController::class, 'editAgreement'])->name('edit-agreement')->whereNumber('category');
+        Route::put('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'updateAgreement'])->name('update-agreement')->whereNumber('category');
+        Route::delete('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'destroyAgreement'])->name('destroy-agreement')->whereNumber('category');
+        Route::post('/categories/{category}/toggle-status', [App\Http\Controllers\AgreementSettingsController::class, 'toggleAgreementStatus'])->name('toggle-agreement-status')->whereNumber('category');
+        Route::get('/categories/{category}/templates', [App\Http\Controllers\AgreementSettingsController::class, 'templates'])->name('templates')->whereNumber('category');
+        Route::get('/categories/{category}/templates/create', [App\Http\Controllers\AgreementSettingsController::class, 'create'])->name('create')->whereNumber('category');
+        Route::post('/categories/{category}/templates', [App\Http\Controllers\AgreementSettingsController::class, 'store'])->name('store')->whereNumber('category');
+        Route::get('/templates/{id}/edit', [App\Http\Controllers\AgreementSettingsController::class, 'edit'])->name('edit')->whereNumber('id');
+        Route::put('/templates/{id}', [App\Http\Controllers\AgreementSettingsController::class, 'update'])->name('update')->whereNumber('id');
+        Route::delete('/templates/{id}', [App\Http\Controllers\AgreementSettingsController::class, 'destroy'])->name('destroy')->whereNumber('id');
+        Route::post('/templates/{id}/duplicate', [App\Http\Controllers\AgreementSettingsController::class, 'duplicate'])->name('duplicate')->whereNumber('id');
+        Route::post('/templates/{id}/set-default', [App\Http\Controllers\AgreementSettingsController::class, 'setDefault'])->name('set-default')->whereNumber('id');
+        Route::post('/templates/{id}/toggle-status', [App\Http\Controllers\AgreementSettingsController::class, 'toggleStatus'])->name('toggle-status')->whereNumber('id');
+        Route::get('/templates/{id}/preview', [App\Http\Controllers\AgreementSettingsController::class, 'preview'])->name('preview')->whereNumber('id');
+        Route::get('/templates/{id}/preview-pdf', [App\Http\Controllers\AgreementSettingsController::class, 'previewPdf'])->name('preview-pdf')->whereNumber('id');
+    });
+
     // Module Agreements — register before employees/riders resource routes ({module}/agreements must not match {employee} or {rider})
     Route::prefix('{module}/agreements')->where(['module' => 'riders|employees'])->name('module-agreements.')->group(function () {
         Route::get('/', [App\Http\Controllers\ModuleAgreementController::class, 'index'])->name('index');

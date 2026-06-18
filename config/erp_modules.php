@@ -35,6 +35,7 @@ return [
         'garages' => 'Garages',
         'supplier' => 'Supplier',
         'assets' => 'Assets',
+        'agreements' => 'Agreements',
         'documents' => 'Documents',
         'cheques' => 'Cheques',
         'riders' => 'Riders',

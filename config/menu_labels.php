@@ -79,6 +79,7 @@ return [
         'supplier_orders'      => 'Purchase Orders',
         'supplier_payments'    => 'Payments Sent',
         'assets'               => 'Assets',
+        'agreements'           => 'Agreements',
         'documents'            => 'Documents',
         'vouchers'             => 'Vouchers',
         'accounts'             => 'Accounts',

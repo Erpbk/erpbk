@@ -309,17 +309,14 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         Route::post('categories/reorder', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'reorderCategories'])->name('reorder-categories');
     });
 
-    // Agreements (Settings: create + assign modules only)
-    Route::prefix('agreements')->name('settings-panel.agreements.')->group(function () {
-        Route::get('/', [App\Http\Controllers\AgreementSettingsController::class, 'index'])->name('index');
-        Route::get('/create', [App\Http\Controllers\AgreementSettingsController::class, 'createAgreement'])->name('create-agreement');
-        Route::post('/store', [App\Http\Controllers\AgreementSettingsController::class, 'storeAgreement'])->name('store-agreement');
-        Route::get('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'showAgreement'])->name('show-agreement')->whereNumber('category');
-        Route::get('/categories/{category}/edit', [App\Http\Controllers\AgreementSettingsController::class, 'editAgreement'])->name('edit-agreement')->whereNumber('category');
-        Route::put('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'updateAgreement'])->name('update-agreement')->whereNumber('category');
-        Route::delete('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'destroyAgreement'])->name('destroy-agreement')->whereNumber('category');
-        Route::post('/categories/{category}/toggle-status', [App\Http\Controllers\AgreementSettingsController::class, 'toggleAgreementStatus'])->name('toggle-agreement-status')->whereNumber('category');
-    });
+    // Agreements moved to main app sidebar — redirect legacy settings-panel URLs
+    Route::any('agreements/{path?}', function (Request $request, string $company_slug, ?string $path = null) {
+        $suffix = $path !== null && $path !== '' ? '/' . ltrim($path, '/') : '';
+        $target = url('app/' . $company_slug . '/agreements' . $suffix);
+        $query = $request->getQueryString();
+
+        return redirect()->to($query ? $target . '?' . $query : $target);
+    })->where('path', '.*')->name('settings-panel.agreements.legacy');
 
     // Module settings page + label update
     Route::post('module-settings/dashboard/cards', [App\Http\Controllers\DashboardSettingsController::class, 'update'])->name('settings-panel.dashboard-settings.cards');

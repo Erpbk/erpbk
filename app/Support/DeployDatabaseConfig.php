@@ -30,6 +30,13 @@ class DeployDatabaseConfig
                 'database.connections.mysql.url' => $url,
                 'database.connections.mysql_central.url' => $url,
             ]);
+        } else {
+            // When config is cached at build time, a stale DATABASE_URL can override
+            // runtime DB_* credentials injected by Laravel Cloud.
+            config([
+                'database.connections.mysql.url' => null,
+                'database.connections.mysql_central.url' => null,
+            ]);
         }
 
         foreach (self::credentialKeys('DB') as $configKey => $envKey) {

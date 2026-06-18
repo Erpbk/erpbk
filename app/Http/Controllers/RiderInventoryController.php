@@ -71,6 +71,7 @@ class RiderInventoryController extends AppBaseController
         $assignedCount = RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_ASSIGNED)->count();
         $returnedCount = RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_RETURNED)->count();
         $lostCount = RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_LOST)->count();
+        $returnedToCustomerCount = RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER)->count();
 
         $assignments = $this->applyPagination($assignmentQuery, $paginationParams);
 
@@ -84,6 +85,7 @@ class RiderInventoryController extends AppBaseController
                     'assigned' => $assignedCount,
                     'returned' => $returnedCount,
                     'lost' => $lostCount,
+                    'returnedToCustomer' => $returnedToCustomerCount,
                 ],
             ]);
         }
@@ -93,8 +95,8 @@ class RiderInventoryController extends AppBaseController
             'assignedCount' => $assignedCount,
             'returnedCount' => $returnedCount,
             'lostCount' => $lostCount,
+            'returnedToCustomerCount' => $returnedToCustomerCount,
             'statusFilter' => $statusFilter,
-            'allRiders' => Riders::orderBy('name')->get(['id', 'name', 'rider_id']),
         ]);
     }
 
@@ -126,75 +128,97 @@ class RiderInventoryController extends AppBaseController
         return view('rider_inventory.show', compact('rider', 'assignments', 'availableItems'));
     }
 
-    public function assignForm(string $company_slug, int $riderId)
+    public function assignForm(string $company_slug, ?int $riderId = null)
     {
         if (!auth()->user()->hasPermissionTo('riderinventory_create')) {
             abort(403, 'Unauthorized action.');
         }
 
-        $rider = Riders::findOrFail($riderId);
+        $rider = $riderId ? Riders::findOrFail($riderId) : null;
+        $showRiderSelect = $rider === null;
 
-        return view('rider_inventory.assign_modal', [
+        return view('rider_inventory.assign_form', [
             'rider' => $rider,
+            'showRiderSelect' => $showRiderSelect,
+            'allRiders' => $showRiderSelect
+                ? Riders::orderBy('name')->get(['id', 'name', 'rider_id'])
+                : collect(),
             'availableItems' => Items::availableForAssignment(),
             'customers' => $this->customersForInventory(activeOnly: true),
         ]);
     }
 
-    public function assignStore(Request $request, string $company_slug, int $riderId)
+    public function assignStore(Request $request, string $company_slug)
     {
         if (!auth()->user()->hasPermissionTo('riderinventory_create')) {
             abort(403, 'Unauthorized action.');
         }
 
-        $rider = Riders::findOrFail($riderId);
-
         $validated = $request->validate([
-            'inventory_item_ids' => 'required|array|min:1',
-            'inventory_item_ids.*' => [
-                'integer',
-                'distinct',
-                Rule::exists('items', 'id')->where(function ($query) {
-                    $query->where('status', 1)
-                        ->whereJsonContains('owner', 'riderInventory');
-                }),
-            ],
+            'rider_id' => 'required|integer|exists:riders,id',
             'assigned_date' => 'required|date',
             'customer_id' => 'required|integer|exists:customers,id',
+            'item_id' => 'required|array|min:1',
+            'item_id.*' => 'nullable|integer',
+            'qty' => 'required|array',
+            'qty.*' => 'nullable|integer|min:1',
+            'rate' => 'required|array',
+            'rate.*' => 'nullable|numeric|min:0',
         ]);
 
-        $items = Items::query()
-            ->whereIn('id', $validated['inventory_item_ids'])
-            ->get()
-            ->keyBy('id');
+        $lines = collect($validated['item_id'])
+            ->map(function ($itemId, $index) use ($validated) {
+                return [
+                    'inventory_item_id' => $itemId,
+                    'qty' => $validated['qty'][$index] ?? 1,
+                    'amount' => $validated['rate'][$index] ?? null,
+                ];
+            })
+            ->filter(fn ($line) => !empty($line['inventory_item_id']))
+            ->values();
 
-        if ($items->count() !== count($validated['inventory_item_ids'])) {
-            $message = 'One or more selected inventory items are invalid.';
+        if ($lines->isEmpty()) {
+            $message = 'Please add at least one inventory item.';
             if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $message], 422);
+                return response()->json(['success' => false, 'message' => $message, 'errors' => ['item_id' => [$message]]], 422);
             }
             Flash::error($message);
 
             return redirect()->back()->withInput();
         }
 
-        $assignments = DB::transaction(function () use ($rider, $validated, $items) {
+        $itemExistsRule = Rule::exists('items', 'id')->where(function ($query) {
+            $query->where('status', 1)
+                ->whereJsonContains('owner', 'riderInventory');
+        });
+
+        foreach ($lines as $line) {
+            validator($line, [
+                'inventory_item_id' => ['required', 'integer', $itemExistsRule],
+                'qty' => 'required|integer|min:1',
+                'amount' => 'required|numeric|min:0.01',
+            ], [], [
+                'inventory_item_id' => 'item',
+                'qty' => 'quantity',
+                'amount' => 'price',
+            ])->validate();
+        }
+
+        $rider = Riders::findOrFail($validated['rider_id']);
+
+        $assignments = DB::transaction(function () use ($rider, $validated, $lines) {
             $created = collect();
 
-            foreach ($validated['inventory_item_ids'] as $itemId) {
-                $item = $items->get($itemId);
-                if (!$item) {
-                    continue;
-                }
-
+            foreach ($lines as $line) {
                 $created->push(RiderInventoryAssignment::create([
                     'rider_id' => $rider->id,
-                    'inventory_item_id' => $item->id,
+                    'inventory_item_id' => $line['inventory_item_id'],
                     'customer_id' => $validated['customer_id'],
                     'assigned_date' => $validated['assigned_date'],
                     'assigned_by' => auth()->id(),
                     'status' => RiderInventoryAssignment::STATUS_ASSIGNED,
-                    'amount' => $item->price,
+                    'qty' => (int) $line['qty'],
+                    'amount' => $line['amount'],
                     'created_by' => auth()->id(),
                 ]));
             }
@@ -211,13 +235,14 @@ class RiderInventoryController extends AppBaseController
             return response()->json([
                 'success' => true,
                 'message' => $message,
+                'reload' => true,
                 'assignment_ids' => $assignments->pluck('id')->values(),
             ]);
         }
 
         Flash::success($message);
 
-        return redirect()->route('RiderInventory.show', $riderId);
+        return redirect()->route('RiderInventory.show', $rider->id);
     }
 
     public function returnForm(string $company_slug, int $assignmentId)
@@ -587,7 +612,9 @@ class RiderInventoryController extends AppBaseController
                     continue;
                 }
 
-                $assignment->amount = (float) $validated['amounts'][$assignment->id];
+                $formTotal = (float) $validated['amounts'][$assignment->id];
+                $qty = max(1, (int) ($assignment->qty ?? 1));
+                $assignment->amount = round($formTotal / $qty, 2);
                 $assignment->updated_by = auth()->id();
                 $assignment->save();
 

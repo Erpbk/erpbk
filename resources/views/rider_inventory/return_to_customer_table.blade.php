@@ -11,7 +11,8 @@
             <th>Rider</th>
             <th>Assigned</th>
             <th>Returned</th>
-            <th>Amount</th>
+            <th>Qty</th>
+            <th>Total</th>
             <th>Returned By</th>
         </tr>
     </thead>
@@ -33,7 +34,8 @@
             </td>
             <td>{{ $row->assigned_date?->format('Y-m-d') ?? '—' }}</td>
             <td>{{ $row->return_date?->format('Y-m-d') ?? '—' }}</td>
-            <td>{{ number_format((float) $row->amount, 2) }}</td>
+            <td>{{ (int) ($row->qty ?? 1) }}</td>
+            <td>{{ number_format($row->lineTotal(), 2) }}</td>
             <td>{{ $row->returnedByUser->name ?? '—' }}</td>
         </tr>
         @endforeach

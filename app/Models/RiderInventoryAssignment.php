@@ -23,6 +23,7 @@ class RiderInventoryAssignment extends BaseModel
         'assigned_by',
         'status',
         'amount',
+        'qty',
         'return_date',
         'returned_by',
         'returned_to_customer',
@@ -44,8 +45,16 @@ class RiderInventoryAssignment extends BaseModel
         'return_date' => 'date',
         'loss_date' => 'date',
         'amount' => 'decimal:2',
+        'qty' => 'integer',
         'returned_to_customer' => 'date',
     ];
+
+    public function lineTotal(): float
+    {
+        $qty = max(1, (int) ($this->qty ?? 1));
+
+        return round((float) $this->amount * $qty, 2);
+    }
 
     public function rider(): BelongsTo
     {

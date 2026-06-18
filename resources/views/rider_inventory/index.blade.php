@@ -24,7 +24,9 @@
                             </button>
                             <div class="action-dropdown-menu" id="addBikeDropdown">
                                 @can('riderinventory_create')
-                                <a class="action-dropdown-item" href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#selectRiderModal">
+                                <a class="action-dropdown-item show-modal" href="javascript:void(0);"
+                                    data-action="{{ route('RiderInventory.assignForm') }}"
+                                    data-size="xl" data-title="Assign Inventory">
                                     <i class="ti ti-package"></i>
                                     <div>
                                         <div class="action-dropdown-item-text">Assign Inventory</div>
@@ -119,32 +121,6 @@
     </div>
 </div>
 
-@can('riderinventory_create')
-<div class="modal fade" id="selectRiderModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Select Rider</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="rider_select">Rider</label>
-                    <select id="rider_select" class="form-control select2">
-                        <option value="">Select Rider</option>
-                        @foreach($allRiders as $r)
-                        <option value="{{ $r->id }}">{{ $r->rider_id }} - {{ $r->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="goToRiderInventoryBtn">Open Inventory</button>
-            </div>
-        </div>
-    </div>
-</div>
-@endcan
 @endsection
 
 @push('page-scripts')
@@ -159,31 +135,5 @@ function filterByInventoryStatus(status) {
     url.searchParams.delete('page');
     window.location.href = url.toString();
 }
-
-$(function () {
-    const $riderSelect = $('#rider_select');
-    const showUrlTemplate = @json(route('RiderInventory.show', ['riderId' => '__RIDER__']));
-
-    $('#selectRiderModal').on('shown.bs.modal', function () {
-        $('#addBikeDropdown').removeClass('show');
-        if ($riderSelect.hasClass('select2-hidden-accessible')) {
-            $riderSelect.select2('destroy');
-        }
-        $riderSelect.select2({
-            dropdownParent: $('#selectRiderModal'),
-            allowClear: true,
-            width: '100%',
-        });
-    });
-
-    $('#goToRiderInventoryBtn').on('click', function () {
-        const riderId = $riderSelect.val();
-        if (!riderId) {
-            alert('Please select a rider.');
-            return;
-        }
-        window.location.href = showUrlTemplate.replace('__RIDER__', riderId);
-    });
-});
 </script>
 @endpush

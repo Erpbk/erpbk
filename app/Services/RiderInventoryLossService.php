@@ -69,10 +69,13 @@ class RiderInventoryLossService
         $totalAmount = 0.0;
 
         foreach ($assignments as $assignment) {
-            $amount = (float) $assignment->amount;
-            if ($amount <= 0) {
-                $amount = (float) ($assignment->inventoryItem->price ?? 0);
+            $unitPrice = (float) $assignment->amount;
+            if ($unitPrice <= 0) {
+                $unitPrice = (float) ($assignment->inventoryItem->price ?? 0);
             }
+
+            $qty = max(1, (int) ($assignment->qty ?? 1));
+            $amount = round($unitPrice * $qty, 2);
 
             if ($amount <= 0) {
                 $itemName = $assignment->inventoryItem->name ?? 'Inventory Item';

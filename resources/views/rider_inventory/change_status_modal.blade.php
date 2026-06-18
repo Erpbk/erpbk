@@ -29,7 +29,7 @@
 
     <div class="alert alert-warning d-none" id="lost_status_warning">
         Changing to <strong>Lost</strong> will debit
-        <strong>{{ number_format((float) $assignment->amount, 2) }}</strong>
+        <strong>{{ number_format($assignment->lineTotal(), 2) }}</strong>
         to the rider and create an Inventory Loss (IL) voucher.
     </div>
 

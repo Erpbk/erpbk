@@ -2,7 +2,7 @@
     @csrf
     <div class="alert alert-warning">
         Marking this item as <strong>Lost</strong> will debit
-        <strong>{{ number_format((float) $assignment->amount, 2) }}</strong>
+        <strong>{{ number_format($assignment->lineTotal(), 2) }}</strong>
         to rider <strong>{{ $assignment->rider->name ?? '-' }}</strong>
         and generate an Inventory Loss (IL) voucher.
     </div>

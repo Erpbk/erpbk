@@ -31,7 +31,7 @@
             @can('riderinventory_create')
             <a href="javascript:void(0);" class="btn btn-sm btn-primary show-modal"
                 data-action="{{ route('RiderInventory.assignForm', $rider->id) }}"
-                data-size="md" data-title="Assign Inventory Item">
+                data-size="xl" data-title="Assign Inventory">
                 <i class="ti ti-plus"></i> Assign Item
             </a>
             @endcan

@@ -64,36 +64,8 @@ class DeployDatabaseConfig
             }
         }
 
-        self::applyMysqlDriverOptions(['mysql', 'mysql_central', 'mysql_admin', 'admin'], $readEnv);
-
         foreach (['mysql', 'mysql_central', 'mysql_admin', 'admin'] as $connection) {
             DB::purge($connection);
-        }
-    }
-
-    /**
-     * Shorter connect timeout during deploy so ProxySQL failures surface in logs faster.
-     *
-     * @param  list<string>  $connections
-     */
-    protected static function applyMysqlDriverOptions(array $connections, ?callable $readEnv = null): void
-    {
-        if (! extension_loaded('pdo_mysql')) {
-            return;
-        }
-
-        $readEnv ??= static fn (string $key, mixed $default = null): mixed => self::readEnv($key, $default);
-        $sslCa = $readEnv('MYSQL_ATTR_SSL_CA');
-
-        $options = array_filter([
-            defined('\PDO::MYSQL_ATTR_CONNECT_TIMEOUT') ? \PDO::MYSQL_ATTR_CONNECT_TIMEOUT : null => 5,
-            \PDO::MYSQL_ATTR_SSL_CA => $sslCa,
-        ], fn ($value, $key) => $key !== null && $value !== null && $value !== '', ARRAY_FILTER_USE_BOTH);
-
-        foreach ($connections as $connection) {
-            config([
-                "database.connections.{$connection}.options" => $options,
-            ]);
         }
     }
 

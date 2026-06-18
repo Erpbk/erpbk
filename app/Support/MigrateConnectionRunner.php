@@ -21,6 +21,15 @@ class MigrateConnectionRunner
 
         DeployDatabaseConfig::refreshFromEnvironment();
 
+        if (! DeployDatabaseWaiter::waitForConnection($connection)) {
+            $message = DeployDatabaseWaiter::connectionFailureMessage($connection);
+            if ($output !== null) {
+                $output->writeln('<error>' . $message . '</error>');
+            }
+
+            return 1;
+        }
+
         $command = new MigrateCommand(app('migrator'), app('events'));
         $command->setLaravel(app());
 

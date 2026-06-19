@@ -67,7 +67,7 @@
           </button>
           <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}" style="z-index: 1050;">
             @can('voucher_document')
-              @if(!in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV']))
+              @if(!in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
               <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
                   data-action="{{ url('voucher/attach_file/'.$voucher->id) }}" class='dropdown-item waves-effect show-modal'>
                   <i class="fa fa-file my-1"></i> Upload Document
@@ -80,7 +80,7 @@
               </a></li>
             @endcan
             @can('voucher_edit')
-            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV']))
+            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
             <li><a href="javascript:void(0);" data-size="xl"
                 data-title="Edit Voucher No. {{ $voucher->voucher_type.'-'.str_pad($voucher->id,4,'0',STR_PAD_LEFT) }}"
                 data-action="{{ route('vouchers.edit', $voucher->trans_code) }}"
@@ -90,7 +90,7 @@
             @endif
             @endcan
             @can('voucher_delete')
-            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV']))
+            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
             <li><a href="javascript:void(0);" onclick="deleteVoucher('{{ $voucher->trans_code }}')" class='dropdown-item waves-effect text-danger'>
                 <i class="fa fa-trash my-1"></i> Delete
               </a></li>

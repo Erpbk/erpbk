@@ -656,8 +656,8 @@ $homeLink = $isAdminLogin
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('assets'))
 @can('asset_view')
-<li class="menu-item ">
-  <a href="#" class="menu-link">
+<li class="menu-item {{ Route::is('fixed-assets*') || Route::is('asset-categories*') ? 'active' : '' }}">
+  <a href="{{ route('fixed-assets.index') }}" class="menu-link">
     @include('layouts.partials.module_menu_icon', ['key' => 'assets'])
     <div>{{ $menuLabels['assets'] ?? 'Assets' }}</div>
   </a>

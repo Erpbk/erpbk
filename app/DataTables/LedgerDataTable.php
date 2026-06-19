@@ -84,7 +84,7 @@ class LedgerDataTable extends DataTable
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
             }
-            if (in_array($row->reference_type, ['LV', 'LE', 'VL', 'IL'], true)) {
+            if (in_array($row->reference_type, ['LV', 'LE', 'VL', 'IL', 'FAV', 'FDV'], true)) {
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);

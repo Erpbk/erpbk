@@ -43,7 +43,10 @@ final class CompanyContext
             return (int) $authUser->company_id;
         }
 
-        $companySlug = $request?->route('company_slug') ?? $request?->session()->get('company_slug');
+        $companySlug = $request?->route('company_slug');
+        if (empty($companySlug) && $request?->hasSession()) {
+            $companySlug = $request->session()->get('company_slug');
+        }
         if (empty($companySlug)) {
             return null;
         }

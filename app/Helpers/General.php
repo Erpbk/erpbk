@@ -771,6 +771,8 @@ class General
       'VP' => 'VP VAT Payment',
       'EXP' => 'Expense Voucher',
       'IL' => 'Inventory Loss',
+      'FAV' => 'Fixed Asset Acquisition',
+      'FDV' => 'Fixed Asset Depreciation',
     ];
 
     try {

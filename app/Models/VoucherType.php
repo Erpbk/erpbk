@@ -94,6 +94,8 @@ class VoucherType extends BaseModel
             'PV' => ['cash_banks', 'cheques', 'vouchers'],
             'EXP' => ['expenses', 'vouchers'],
             'VP' => ['vat', 'vouchers'],
+            'FAV' => ['assets', 'vouchers'],
+            'FDV' => ['assets', 'vouchers'],
         ];
     }
 
@@ -150,6 +152,21 @@ class VoucherType extends BaseModel
     }
 
     /**
+     * Voucher types that are system-managed and cannot be edited or deleted from the Vouchers module.
+     *
+     * @return list<string>
+     */
+    public static function vouchersModuleLockedCodes(): array
+    {
+        return ['FAV', 'FDV'];
+    }
+
+    public static function isLockedInVouchersModule(string $code): bool
+    {
+        return in_array($code, static::vouchersModuleLockedCodes(), true);
+    }
+
+    /**
      * For a given module, return edit/delete flags per voucher type code.
      * Used in views to show/hide Edit and Delete per voucher type in that module.
      *
@@ -158,11 +175,13 @@ class VoucherType extends BaseModel
     public static function getEditDeleteFlagsByModule(string $moduleKey): array
     {
         $defaultCodes = static::defaultCodesForModule($moduleKey);
+        $lockedCodes = $moduleKey === 'vouchers' ? static::vouchersModuleLockedCodes() : [];
         $flags = [];
         foreach ($defaultCodes as $code) {
+            $locked = in_array($code, $lockedCodes, true);
             $flags[$code] = [
-                'can_edit' => true,
-                'can_delete' => true,
+                'can_edit' => !$locked,
+                'can_delete' => !$locked,
             ];
         }
 

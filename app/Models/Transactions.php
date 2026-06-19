@@ -90,8 +90,11 @@ class Transactions extends BaseModel
             } else {
                 $voucher_text = 'SUP-'.str_pad($this->reference_id, 4, '0', STR_PAD_LEFT);
             }
-        } else {
-
+        } elseif (in_array($this->reference_type, ['FAV', 'FDV'], true)) {
+            $voucher = $this->voucher ?? Vouchers::where('trans_code', $this->trans_code)->first();
+            if ($voucher) {
+                $voucher_text = $voucher->voucher_type.'-'.str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
+            }
         }
 
         return $voucher_text;

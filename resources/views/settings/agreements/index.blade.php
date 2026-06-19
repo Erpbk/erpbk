@@ -1,6 +1,6 @@
 @extends($layout ?? 'layouts.app')
 
-@section('title', 'Agreements – Settings')
+@section('title', 'Agreements')
 
 @section('content')
 @include('flash::message')
@@ -16,7 +16,7 @@
           </p>
         </div>
         @canany(['agreement_create', 'gn_settings'])
-        <a class="btn btn-primary btn-sm" href="{{ route('settings-panel.agreements.create-agreement', ['company_slug' => request()->route('company_slug'), 'group' => $groupKey]) }}">
+        <a class="btn btn-primary btn-sm" href="{{ route('agreements.create-agreement', ['company_slug' => request()->route('company_slug'), 'group' => $groupKey]) }}">
           <i class="ti ti-plus me-1"></i> New Agreement
         </a>
         @endcanany
@@ -27,7 +27,7 @@
           @foreach($groups as $key => $group)
           <li class="nav-item">
             <a class="nav-link {{ $groupKey === $key ? 'active' : '' }}"
-              href="{{ route('settings-panel.agreements.index', ['company_slug' => request()->route('company_slug'), 'group' => $key]) }}">
+              href="{{ route('agreements.index', ['company_slug' => request()->route('company_slug'), 'group' => $key]) }}">
               {{ $group['label'] ?? $key }}
             </a>
           </li>
@@ -86,19 +86,19 @@
                 <td class="text-end">
                   <div class="btn-group btn-group-sm">
                     @canany(['agreement_view', 'gn_settings'])
-                    <a href="{{ route('settings-panel.agreements.show-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="btn btn-outline-info">
+                    <a href="{{ route('agreements.show-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="btn btn-outline-info">
                       View
                     </a>
                     @endcanany
 
                     @canany(['agreement_edit', 'gn_settings'])
-                    <a href="{{ route('settings-panel.agreements.edit-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="btn btn-outline-primary">
+                    <a href="{{ route('agreements.edit-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="btn btn-outline-primary">
                       Edit
                     </a>
                     @endcanany
 
                     @canany(['agreement_edit', 'gn_settings'])
-                    <form method="POST" action="{{ route('settings-panel.agreements.toggle-agreement-status', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="d-inline">
+                    <form method="POST" action="{{ route('agreements.toggle-agreement-status', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="d-inline">
                       @csrf
                       <button type="submit" class="btn btn-outline-secondary">
                         {{ $category->status ? 'Deactivate' : 'Activate' }}
@@ -107,7 +107,7 @@
                     @endcanany
 
                     @canany(['agreement_delete', 'gn_settings'])
-                    <form method="POST" action="{{ route('settings-panel.agreements.destroy-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="d-inline" onsubmit="return confirm('Delete this agreement? This will also delete its templates.');">
+                    <form method="POST" action="{{ route('agreements.destroy-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="d-inline" onsubmit="return confirm('Delete this agreement? This will also delete its templates.');">
                       @csrf
                       @method('DELETE')
                       <button type="submit" class="btn btn-outline-danger">

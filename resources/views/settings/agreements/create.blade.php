@@ -18,13 +18,13 @@ $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
           <h4 class="card-title mb-0">Create Agreement</h4>
           <div class="text-muted small mt-1">Group: {{ $groupLabel }}</div>
         </div>
-        <a href="{{ route('settings-panel.agreements.index', ['company_slug' => $companySlug, 'group' => $groupKey]) }}" class="btn btn-outline-secondary btn-sm">
+        <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $groupKey]) }}" class="btn btn-outline-secondary btn-sm">
           Back
         </a>
       </div>
 
       <div class="card-body">
-        <form method="POST" action="{{ route('settings-panel.agreements.store-agreement', ['company_slug' => $companySlug]) }}">
+        <form method="POST" action="{{ route('agreements.store-agreement', ['company_slug' => $companySlug]) }}">
           @csrf
           <input type="hidden" name="group_key" value="{{ $groupKey }}">
 
@@ -86,7 +86,7 @@ $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
             <button type="submit" class="btn btn-primary">
               <i class="ti ti-device-floppy me-1"></i> Create Agreement
             </button>
-            <a href="{{ route('settings-panel.agreements.index', ['company_slug' => $companySlug, 'group' => $groupKey]) }}" class="btn btn-outline-secondary">
+            <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $groupKey]) }}" class="btn btn-outline-secondary">
               Cancel
             </a>
           </div>

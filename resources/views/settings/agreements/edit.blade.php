@@ -19,14 +19,14 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
           <div class="text-muted small mt-1">Group: {{ $groupLabel }}</div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-          <a href="{{ route('settings-panel.agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary btn-sm">
+          <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary btn-sm">
             Back
           </a>
         </div>
       </div>
 
       <div class="card-body">
-        <form method="POST" action="{{ route('settings-panel.agreements.update-agreement', ['company_slug' => $companySlug, 'category' => $category->id]) }}">
+        <form method="POST" action="{{ route('agreements.update-agreement', ['company_slug' => $companySlug, 'category' => $category->id]) }}">
           @csrf
           @method('PUT')
 
@@ -106,7 +106,7 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
             <button type="submit" class="btn btn-primary">
               <i class="ti ti-device-floppy me-1"></i> Save Agreement
             </button>
-            <a href="{{ route('settings-panel.agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary">
+            <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary">
               Cancel
             </a>
           </div>

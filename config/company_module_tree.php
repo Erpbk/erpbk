@@ -55,6 +55,7 @@ return [
     ['key' => 'supplier', 'children' => ['suppliers', 'supplier_orders', 'supplier_invoices', 'supplier_payments']],
 
     ['key' => 'assets'],
+    ['key' => 'agreements'],
     ['key' => 'documents'],
     ['key' => 'vouchers'],
 

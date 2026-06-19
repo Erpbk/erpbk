@@ -38,7 +38,7 @@
                     <a href="javascript:void(0);" class="btn btn-sm btn-primary show-modal"
                         data-action="{{ route('passportHandover.issueForm', ['type' => $person['type'], 'id' => $person['id']]) }}"
                         data-size="lg" data-title="Issue Passport">
-                        <i class="ti ti-passport me-1"></i> Issue
+                        <i class="ti ti-e-passport me-1"></i> Issue
                     </a>
                     @endif
                     @endcan

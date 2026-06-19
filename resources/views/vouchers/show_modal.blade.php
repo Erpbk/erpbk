@@ -25,7 +25,7 @@ $settings = company_table('settings')->pluck('value', 'name')->toArray();
           <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Clone Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.clone', $voucher->trans_code) }}" data-collapse-sidebar="1"><i class="ti ti-copy me-1"></i> Clone</a>
         @endif
       @endcan
-      @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV']))
+      @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
         <li>
           <form action="{{ route('vouchers.destroy',$voucher->trans_code) }}" id="formajax" >
               @csrf

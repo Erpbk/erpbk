@@ -304,6 +304,17 @@ class VouchersController extends Controller
   {
     /** @var Vouchers $vouchers */
     $vouchers = Vouchers::where('trans_code', $id)->first();
+
+    if (empty($vouchers)) {
+      Flash::error('Vouchers not found');
+
+      return redirect(route('vouchers.index'));
+    }
+
+    if (VoucherType::isLockedInVouchersModule($vouchers->voucher_type)) {
+      abort(403, 'This voucher cannot be edited from the Vouchers module.');
+    }
+
     if ($vouchers->voucher_type == 'JV') {
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'RFV') {
@@ -324,12 +335,6 @@ class VouchersController extends Controller
       $data = Transactions::where('trans_code', $id)->get();
     } else {
       $data = Transactions::where('trans_code', $id)->where('debit', '>', 0)->get();
-    }
-
-    if (empty($vouchers)) {
-      Flash::error('Vouchers not found');
-
-      return redirect(route('vouchers.index'));
     }
 
     $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
@@ -362,6 +367,11 @@ class VouchersController extends Controller
 
       return redirect(route('vouchers.index'));
     }
+
+    if (VoucherType::isLockedInVouchersModule($vouchers->voucher_type)) {
+      return response()->json(['errors' => ['error' => 'This voucher cannot be edited from the Vouchers module.']], 403);
+    }
+
     if ($request->voucher_type == 'JV') {
       if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
 
@@ -514,6 +524,12 @@ class VouchersController extends Controller
 
       // Use the first voucher for reference data
       $voucher = $vouchers->first();
+
+      if (VoucherType::isLockedInVouchersModule($voucher->voucher_type)) {
+        DB::rollBack();
+
+        return response()->json(['errors' => ['error' => 'This voucher cannot be deleted from the Vouchers module.']], 403);
+      }
       $billingMonth = $voucher->billing_month;
 
       // Get all related transactions before deletion for cascade tracking

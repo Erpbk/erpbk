@@ -31,7 +31,9 @@ use App\Http\Controllers\DropdownsController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeInvoicesController;
 use App\Http\Controllers\ErpSettingsController;
+use App\Http\Controllers\AssetCategoryController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\FixedAssetController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FilesController;
 use App\Http\Controllers\FuelCardController;
@@ -471,6 +473,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('RiderInventory/return-to-customer/assignments', [RiderInventoryController::class, 'returnToCustomerAssignments'])->name('RiderInventory.returnToCustomerAssignments');
     Route::post('RiderInventory/return-to-customer', [RiderInventoryController::class, 'returnToCustomerStore'])->name('RiderInventory.returnToCustomerStore');
     Route::get('RiderInventory', [RiderInventoryController::class, 'index'])->name('RiderInventory.index');
+
+    Route::get('fixed-assets/category-defaults/{categoryId}', [FixedAssetController::class, 'categoryDefaults'])->name('fixed-assets.category-defaults')->whereNumber('categoryId');
+    Route::get('fixed-assets/delete/{id}', [FixedAssetController::class, 'destroy'])->name('fixed-assets.delete')->whereNumber('id');
+    Route::resource('fixed-assets', FixedAssetController::class);
+    Route::get('asset-categories/delete/{id}', [AssetCategoryController::class, 'destroy'])->name('asset-categories.delete')->whereNumber('id');
+    Route::resource('asset-categories', AssetCategoryController::class)->except(['show']);
 
     Route::resource('rider-inventory-items', RiderInventoryItemController::class);
     Route::post('rider-inventory-items/reorder', [RiderInventoryItemController::class, 'reorder'])->name('rider-inventory-items.reorder');

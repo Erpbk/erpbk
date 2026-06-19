@@ -18,6 +18,9 @@ class ModuleMenuIcon
         }
 
         $class = e($icon['class'] ?? 'ti-adjustments-alt');
+        if ($class === 'ti-passport') {
+            $class = 'ti-e-passport';
+        }
 
         return '<i class="menu-icon tf-icons ti ' . $class . '"></i>';
     }

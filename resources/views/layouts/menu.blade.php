@@ -663,42 +663,25 @@ $homeLink = $isAdminLogin
 </li>
 @endcan
 @endif
+@if(\App\Support\CompanyModuleVisibility::enabled('agreements'))
+@canany(['agreement_view', 'agreement_manage_templates', 'gn_settings'])
+<li class="menu-item {{ Route::is('agreements.*') ? 'active' : '' }}">
+  <a href="{{ route('agreements.index', ['company_slug' => $menuCompanySlug]) }}" class="menu-link">
+    @include('layouts.partials.module_menu_icon', ['key' => 'agreements'])
+    <div>{{ $menuLabels['agreements'] ?? 'Agreements' }}</div>
+  </a>
+</li>
+@endcanany
+@endif
 @if(\App\Support\CompanyModuleVisibility::enabled('documents'))
-@php
-  $documentsMenuOpen = Route::is('upload_files*') || Route::is('documents.agreements.*');
-  $canViewCompanyDocuments = auth()->check() && auth()->user()->can('company_documents_view');
-  $canViewAgreements = auth()->check() && (
-    auth()->user()->can('agreement_view')
-    || auth()->user()->can('agreement_manage_templates')
-    || auth()->user()->can('gn_settings')
-  );
-@endphp
-@if($canViewCompanyDocuments || $canViewAgreements)
-<li class="menu-item {{ $documentsMenuOpen ? 'open' : '' }}">
-  <a href="javascript:void(0);" class="menu-link menu-toggle">
+@can('company_documents_view')
+<li class="menu-item {{ Route::is('upload_files*') ? 'active' : '' }}">
+  <a href="{{ route('upload_files.index') }}" class="menu-link">
     @include('layouts.partials.module_menu_icon', ['key' => 'documents'])
     <div>{{ $menuLabels['documents'] ?? 'Documents' }}</div>
   </a>
-  <ul class="menu-sub">
-    @if($canViewCompanyDocuments)
-    <li class="menu-item {{ Route::is('upload_files*') ? 'active' : '' }}">
-      <a href="{{ route('upload_files.index') }}" class="menu-link">
-        @include('layouts.partials.module_menu_icon', ['key' => 'documents'])
-        <div>{{ $menuLabels['documents'] ?? 'Documents' }}</div>
-      </a>
-    </li>
-    @endif
-    @if($canViewAgreements)
-    <li class="menu-item {{ Route::is('documents.agreements.*') ? 'active' : '' }}">
-      <a href="{{ route('documents.agreements.index', ['company_slug' => $companySlug]) }}" class="menu-link">
-        <i class="menu-icon tf-icons ti ti-file-certificate"></i>
-        <div>{{ $menuLabels['agreements'] ?? 'Agreements' }}</div>
-      </a>
-    </li>
-    @endif
-  </ul>
 </li>
-@endif
+@endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('vouchers'))
 @can('voucher_view')

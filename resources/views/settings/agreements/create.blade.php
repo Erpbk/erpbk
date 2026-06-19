@@ -1,6 +1,6 @@
 @extends($layout ?? 'layouts.app')
 
-@section('title', 'Create Agreement')
+@section('title', 'Create Agreement – Settings')
 
 @section('content')
 @include('flash::message')
@@ -18,13 +18,13 @@ $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
           <h4 class="card-title mb-0">Create Agreement</h4>
           <div class="text-muted small mt-1">Group: {{ $groupLabel }}</div>
         </div>
-        <a href="{{ route('documents.agreements.index', ['company_slug' => $companySlug, 'group' => $groupKey]) }}" class="btn btn-outline-secondary btn-sm">
+        <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $groupKey]) }}" class="btn btn-outline-secondary btn-sm">
           Back
         </a>
       </div>
 
       <div class="card-body">
-        <form method="POST" action="{{ route('documents.agreements.store-agreement', ['company_slug' => $companySlug]) }}">
+        <form method="POST" action="{{ route('agreements.store-agreement', ['company_slug' => $companySlug]) }}">
           @csrf
           <input type="hidden" name="group_key" value="{{ $groupKey }}">
 
@@ -44,7 +44,7 @@ $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
           </div>
 
           <p class="alert alert-info py-2 small">
-            After creating this agreement, open <strong>Edit</strong> to choose which sample contract template (Corporate or Premium) will be used by assigned modules.
+            After creating this agreement, open <strong>Edit</strong> to choose which sample contract template (Corporate or Premium) will be used in the module.
           </p>
 
           <div class="mb-3">
@@ -86,7 +86,7 @@ $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
             <button type="submit" class="btn btn-primary">
               <i class="ti ti-device-floppy me-1"></i> Create Agreement
             </button>
-            <a href="{{ route('documents.agreements.index', ['company_slug' => $companySlug, 'group' => $groupKey]) }}" class="btn btn-outline-secondary">
+            <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $groupKey]) }}" class="btn btn-outline-secondary">
               Cancel
             </a>
           </div>

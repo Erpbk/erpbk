@@ -12,11 +12,11 @@
         <div>
           <h4 class="card-title mb-0">Agreements</h4>
           <p class="text-muted small mb-0 mt-1">
-            Create agreements, assign them to modules, and manage templates from one place.
+            Create agreements and assign them to modules. Template editing is module-side only.
           </p>
         </div>
         @canany(['agreement_create', 'gn_settings'])
-        <a class="btn btn-primary btn-sm" href="{{ route('documents.agreements.create-agreement', ['company_slug' => request()->route('company_slug'), 'group' => $groupKey]) }}">
+        <a class="btn btn-primary btn-sm" href="{{ route('agreements.create-agreement', ['company_slug' => request()->route('company_slug'), 'group' => $groupKey]) }}">
           <i class="ti ti-plus me-1"></i> New Agreement
         </a>
         @endcanany
@@ -27,7 +27,7 @@
           @foreach($groups as $key => $group)
           <li class="nav-item">
             <a class="nav-link {{ $groupKey === $key ? 'active' : '' }}"
-              href="{{ route('documents.agreements.index', ['company_slug' => request()->route('company_slug'), 'group' => $key]) }}">
+              href="{{ route('agreements.index', ['company_slug' => request()->route('company_slug'), 'group' => $key]) }}">
               {{ $group['label'] ?? $key }}
             </a>
           </li>
@@ -85,26 +85,20 @@
                 </td>
                 <td class="text-end">
                   <div class="btn-group btn-group-sm">
-                    @canany(['agreement_view', 'agreement_manage_templates', 'gn_settings'])
-                    <a href="{{ route('documents.agreements.manage-category', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="btn btn-outline-secondary">
-                      Templates
-                    </a>
-                    @endcanany
-
                     @canany(['agreement_view', 'gn_settings'])
-                    <a href="{{ route('documents.agreements.show-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="btn btn-outline-info">
+                    <a href="{{ route('agreements.show-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="btn btn-outline-info">
                       View
                     </a>
                     @endcanany
 
                     @canany(['agreement_edit', 'gn_settings'])
-                    <a href="{{ route('documents.agreements.edit-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="btn btn-outline-primary">
+                    <a href="{{ route('agreements.edit-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="btn btn-outline-primary">
                       Edit
                     </a>
                     @endcanany
 
                     @canany(['agreement_edit', 'gn_settings'])
-                    <form method="POST" action="{{ route('documents.agreements.toggle-agreement-status', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="d-inline">
+                    <form method="POST" action="{{ route('agreements.toggle-agreement-status', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="d-inline">
                       @csrf
                       <button type="submit" class="btn btn-outline-secondary">
                         {{ $category->status ? 'Deactivate' : 'Activate' }}
@@ -113,7 +107,7 @@
                     @endcanany
 
                     @canany(['agreement_delete', 'gn_settings'])
-                    <form method="POST" action="{{ route('documents.agreements.destroy-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="d-inline" onsubmit="return confirm('Delete this agreement? This will also delete its templates.');">
+                    <form method="POST" action="{{ route('agreements.destroy-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="d-inline" onsubmit="return confirm('Delete this agreement? This will also delete its templates.');">
                       @csrf
                       @method('DELETE')
                       <button type="submit" class="btn btn-outline-danger">

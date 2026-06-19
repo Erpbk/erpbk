@@ -104,36 +104,10 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Agreement created and assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '. Corporate template is the default contract template — change it under Edit if needed.');
 
-        return redirect()->route('documents.agreements.edit-agreement', [
+        return redirect()->route('agreements.edit-agreement', [
             'company_slug' => $company_slug,
             'category' => $category->id,
         ]);
-    }
-
-    public function manageCategory(Request $request, $company_slug, $category)
-    {
-        $this->authorizeAgreement('agreement_view');
-
-        $category = AgreementCategory::with([
-            'templates' => fn ($q) => $q->sampleStyles()->where('status', true)->orderByDesc('is_default')->orderBy('template_name'),
-            'defaultTemplate',
-        ])->findOrFail($category);
-
-        $placeholders = AgreementPlaceholder::grouped();
-        $pdfBranding = app(AgreementPdfBranding::class)->forCompany(CompanyContext::id());
-
-        $activeTemplateId = (int) $request->query('template', 0);
-        $activeTemplate = $activeTemplateId
-            ? $category->templates->firstWhere('id', $activeTemplateId)
-            : null;
-        $activeTemplate = $activeTemplate ?? $category->templates->first();
-
-        return view('settings.agreements.manage', compact(
-            'category',
-            'placeholders',
-            'pdfBranding',
-            'activeTemplate'
-        ));
     }
 
     public function editAgreement(Request $request, $company_slug, $category)
@@ -217,11 +191,11 @@ class AgreementSettingsController extends Controller
             ->where('category_id', $category->id)
             ->update(['status' => $newStatus]);
 
-        $this->setCategoryContractTemplate($category, (int) $data['contract_template_id']);
+        $this->assignContractTemplate($category, (int) $data['contract_template_id']);
 
         Flash::success('Agreement saved. Assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '.');
 
-        return redirect()->route('documents.agreements.edit-agreement', [
+        return redirect()->route('agreements.edit-agreement', [
             'company_slug' => $company_slug,
             'category' => $category->id,
         ]);
@@ -237,7 +211,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Agreement deleted.');
 
-        return redirect()->route('documents.agreements.index', [
+        return redirect()->route('agreements.index', [
             'company_slug' => $company_slug,
             'group' => $groupKey,
         ]);
@@ -257,7 +231,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Agreement status updated.');
 
-        return redirect()->route('documents.agreements.index', [
+        return redirect()->route('agreements.index', [
             'company_slug' => $company_slug,
             'group' => $category->group_key,
         ]);
@@ -324,7 +298,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Agreement template created.');
 
-        return redirect()->route('documents.agreements.templates', [
+        return redirect()->route('agreements.templates', [
             'company_slug' => $company_slug,
             'category' => $category->id,
         ]);
@@ -348,48 +322,10 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Agreement template updated.');
 
-        return redirect()->route('documents.agreements.templates', [
+        return redirect()->route('agreements.templates', [
             'company_slug' => $company_slug,
             'category' => $template->category_id,
         ]);
-    }
-
-    public function updateTemplateContent(Request $request, $company_slug, $id)
-    {
-        $this->authorizeAgreement('agreement_edit');
-
-        $template = AgreementTemplate::with('category')->findOrFail($id);
-        $validated = $request->validate([
-            'description' => 'nullable|string',
-        ]);
-
-        $template->description = $validated['description'] ?? '';
-        $template->save();
-
-        return redirect()->route('documents.agreements.manage-category', [
-            'company_slug' => $company_slug,
-            'category' => $template->category_id,
-            'template' => $template->id,
-        ])->with('success', 'Template updated successfully.');
-    }
-
-    public function assignContractTemplateAction(Request $request, $company_slug, $category, $template)
-    {
-        $this->authorizeAgreement('agreement_manage_templates');
-
-        $category = AgreementCategory::findOrFail($category);
-        $template = AgreementTemplate::query()
-            ->sampleStyles()
-            ->where('category_id', $category->id)
-            ->findOrFail($template);
-
-        $template->setAsDefault();
-
-        return redirect()->route('documents.agreements.manage-category', [
-            'company_slug' => $company_slug,
-            'category' => $category->id,
-            'template' => $template->id,
-        ])->with('success', 'Contract template assigned for ' . $category->name . '.');
     }
 
     public function destroy(Request $request, $company_slug, $id)
@@ -410,7 +346,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Template deleted.');
 
-        return redirect()->route('documents.agreements.templates', [
+        return redirect()->route('agreements.templates', [
             'company_slug' => $company_slug,
             'category' => $categoryId,
         ]);
@@ -426,7 +362,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Template duplicated.');
 
-        return redirect()->route('documents.agreements.templates', [
+        return redirect()->route('agreements.templates', [
             'company_slug' => $company_slug,
             'category' => $template->category_id,
         ]);
@@ -441,7 +377,7 @@ class AgreementSettingsController extends Controller
 
         Flash::success('Default template updated.');
 
-        return redirect()->route('documents.agreements.templates', [
+        return redirect()->route('agreements.templates', [
             'company_slug' => $company_slug,
             'category' => $template->category_id,
         ]);
@@ -566,7 +502,7 @@ class AgreementSettingsController extends Controller
         ))));
     }
 
-    private function setCategoryContractTemplate(AgreementCategory $category, int $templateId): void
+    private function assignContractTemplate(AgreementCategory $category, int $templateId): void
     {
         $template = AgreementTemplate::query()
             ->where('category_id', $category->id)

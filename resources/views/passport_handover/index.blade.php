@@ -13,7 +13,7 @@
             <h3 class="mb-0">Passport Handover</h3>
             @can('passport_handover_issue')
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPassportHandover">
-                <i class="ti ti-passport me-1"></i> New Passport Handover
+                <i class="ti ti-e-passport me-1"></i> New Passport Handover
             </button>
             @endcan
         </div>
@@ -44,7 +44,7 @@
                         <h3 class="fleet-supervisor-name">Currently Issued</h3>
                         <div class="fleet-supervisor-stats">
                             <div class="fleet-stat active">
-                                <i class="fleet-stat-icon ti ti-passport"></i>
+                                <i class="fleet-stat-icon ti ti-e-passport"></i>
                                 <span class="fleet-stat-label">Issued</span>
                                 <span class="fleet-stat-value">{{ $issuedCount }}</span>
                             </div>
@@ -157,7 +157,7 @@
                     </div>
                     <div class="col-12 text-end">
                         <button type="button" class="btn btn-primary" id="startPassportHandoverBtn">
-                            <i class="ti ti-passport me-1"></i> Continue to Issue
+                            <i class="ti ti-e-passport me-1"></i> Continue to Issue
                         </button>
                     </div>
                 </div>

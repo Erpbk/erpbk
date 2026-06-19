@@ -1,6 +1,6 @@
 @extends($layout ?? 'layouts.app')
 
-@section('title', 'Edit Agreement')
+@section('title', 'Edit Agreement – Settings')
 
 @section('content')
 @include('flash::message')
@@ -19,14 +19,14 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
           <div class="text-muted small mt-1">Group: {{ $groupLabel }}</div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-          <a href="{{ route('documents.agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary btn-sm">
+          <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary btn-sm">
             Back
           </a>
         </div>
       </div>
 
       <div class="card-body">
-        <form method="POST" action="{{ route('documents.agreements.update-agreement', ['company_slug' => $companySlug, 'category' => $category->id]) }}">
+        <form method="POST" action="{{ route('agreements.update-agreement', ['company_slug' => $companySlug, 'category' => $category->id]) }}">
           @csrf
           @method('PUT')
 
@@ -48,7 +48,7 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
           <div class="mb-3">
             <label class="form-label">Contract template <span class="text-danger">*</span></label>
             <p class="text-muted small mb-2">
-              Select which sample template is used when generating this contract from assigned modules. Template content is edited under Documents → Agreements.
+              Select which sample template is used when generating this contract from the module. Template content is edited under Riders → Contract Templates.
             </p>
             <select name="contract_template_id" class="form-select" required>
               @forelse($category->templates as $tpl)
@@ -68,7 +68,7 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
 
           <div class="mb-3">
             <label class="form-label">Assigned Modules <span class="text-danger">*</span></label>
-            <p class="text-muted small mb-2">Selected modules can use this agreement when generating contracts. Agreement management stays under Documents → Agreements.</p>
+            <p class="text-muted small mb-2">Selected modules will show this agreement in their Agreements menu and contract options.</p>
             <div class="row g-2">
               @php $savedModules = $category->normalizedAssignedModules(); @endphp
               @foreach($modules as $moduleKey => $label)
@@ -106,7 +106,7 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
             <button type="submit" class="btn btn-primary">
               <i class="ti ti-device-floppy me-1"></i> Save Agreement
             </button>
-            <a href="{{ route('documents.agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary">
+            <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary">
               Cancel
             </a>
           </div>

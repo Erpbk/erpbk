@@ -41,7 +41,7 @@
         </div>
         <div class="col-md-12 text-end">
             <button type="submit" class="btn btn-primary">
-                <i class="ti ti-passport me-1"></i> Issue Passport &amp; Generate Document
+                <i class="ti ti-e-passport me-1"></i> Issue Passport &amp; Generate Document
             </button>
         </div>
     </div>

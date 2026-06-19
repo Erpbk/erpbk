@@ -126,6 +126,10 @@ return [
             'label' => 'Assets',
             'primary_label_key' => 'assets',
         ],
+        'agreements' => [
+            'label' => 'Agreements',
+            'primary_label_key' => 'agreements',
+        ],
         'documents' => [
             'label' => 'Documents',
             'primary_label_key' => 'documents',

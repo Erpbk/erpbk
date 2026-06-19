@@ -309,14 +309,13 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         Route::post('categories/reorder', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'reorderCategories'])->name('reorder-categories');
     });
 
-    // Agreements — moved to Documents → Agreements in main menu (redirect legacy URLs)
-    Route::any('agreements/{path?}', function (Request $request, ?string $path = null) {
-        $companySlug = $request->route('company_slug') ?? session('company_slug');
-        $suffix = $path ? '/' . ltrim($path, '/') : '';
+    // Agreements moved to main app sidebar — redirect legacy settings-panel URLs
+    Route::any('agreements/{path?}', function (Request $request, string $company_slug, ?string $path = null) {
+        $suffix = $path !== null && $path !== '' ? '/' . ltrim($path, '/') : '';
+        $target = url('app/' . $company_slug . '/agreements' . $suffix);
         $query = $request->getQueryString();
-        $url = url('app/' . $companySlug . '/documents/agreements' . $suffix);
 
-        return redirect()->to($query ? $url . '?' . $query : $url);
+        return redirect()->to($query ? $target . '?' . $query : $target);
     })->where('path', '.*')->name('settings-panel.agreements.legacy');
 
     // Module settings page + label update

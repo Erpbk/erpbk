@@ -118,16 +118,16 @@ $selectedType = old('template_type', $template->template_type ?? 'corporate');
     <div class="card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
-          <a href="{{ route('documents.agreements.templates', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="text-muted small">
+          <a href="{{ route('agreements.templates', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="text-muted small">
             <i class="ti ti-arrow-left"></i> {{ $category->name }}
           </a>
           <h4 class="card-title mb-0 mt-1">{{ $template->exists ? 'Edit' : 'Create' }} Agreement Template</h4>
         </div>
         @if($template->exists)
         <div class="d-flex gap-1">
-          <a href="{{ route('documents.agreements.preview', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}"
+          <a href="{{ route('agreements.preview', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}"
             class="btn btn-sm btn-outline-info" target="_blank"><i class="ti ti-eye"></i> Preview</a>
-          <a href="{{ route('documents.agreements.preview-pdf', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}"
+          <a href="{{ route('agreements.preview-pdf', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}"
             class="btn btn-sm btn-outline-dark" target="_blank"><i class="ti ti-file-type-pdf"></i> PDF</a>
         </div>
         @endif
@@ -135,8 +135,8 @@ $selectedType = old('template_type', $template->template_type ?? 'corporate');
       <div class="card-body">
         <form method="POST"
           action="{{ $template->exists
-                ? route('documents.agreements.update', ['company_slug' => request()->route('company_slug'), 'id' => $template->id])
-                : route('documents.agreements.store', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}"
+                ? route('agreements.update', ['company_slug' => request()->route('company_slug'), 'id' => $template->id])
+                : route('agreements.store', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}"
           id="agreement-template-form">
           @csrf
           @if($template->exists) @method('PUT') @endif
@@ -197,7 +197,7 @@ $selectedType = old('template_type', $template->template_type ?? 'corporate');
           <div class="d-flex flex-wrap gap-2">
             <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Save template</button>
             <button type="button" class="btn btn-outline-secondary" id="btn-preview-before-save"><i class="ti ti-eye me-1"></i> Quick preview</button>
-            <a href="{{ route('documents.agreements.templates', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}"
+            <a href="{{ route('agreements.templates', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}"
               class="btn btn-label-secondary">Cancel</a>
           </div>
         </form>

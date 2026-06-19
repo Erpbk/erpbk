@@ -210,13 +210,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('/home', [HomeController::class, 'index'])->name('home-dashboard');
     Route::post('/logout', [CompanyAuthController::class, 'logout'])->name('company.logout');
 
-    // Documents → Agreements (centralized agreement management)
-    Route::prefix('documents/agreements')->name('documents.agreements.')->group(function () {
+    // Agreements (main app — centralized management)
+    Route::prefix('agreements')->name('agreements.')->group(function () {
         Route::get('/', [App\Http\Controllers\AgreementSettingsController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\AgreementSettingsController::class, 'createAgreement'])->name('create-agreement');
         Route::post('/store', [App\Http\Controllers\AgreementSettingsController::class, 'storeAgreement'])->name('store-agreement');
-        Route::get('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'manageCategory'])->name('manage-category')->whereNumber('category');
-        Route::get('/categories/{category}/details', [App\Http\Controllers\AgreementSettingsController::class, 'showAgreement'])->name('show-agreement')->whereNumber('category');
+        Route::get('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'showAgreement'])->name('show-agreement')->whereNumber('category');
         Route::get('/categories/{category}/edit', [App\Http\Controllers\AgreementSettingsController::class, 'editAgreement'])->name('edit-agreement')->whereNumber('category');
         Route::put('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'updateAgreement'])->name('update-agreement')->whereNumber('category');
         Route::delete('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'destroyAgreement'])->name('destroy-agreement')->whereNumber('category');
@@ -226,52 +225,23 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::post('/categories/{category}/templates', [App\Http\Controllers\AgreementSettingsController::class, 'store'])->name('store')->whereNumber('category');
         Route::get('/templates/{id}/edit', [App\Http\Controllers\AgreementSettingsController::class, 'edit'])->name('edit')->whereNumber('id');
         Route::put('/templates/{id}', [App\Http\Controllers\AgreementSettingsController::class, 'update'])->name('update')->whereNumber('id');
-        Route::put('/templates/{id}/content', [App\Http\Controllers\AgreementSettingsController::class, 'updateTemplateContent'])->name('update-content')->whereNumber('id');
         Route::delete('/templates/{id}', [App\Http\Controllers\AgreementSettingsController::class, 'destroy'])->name('destroy')->whereNumber('id');
         Route::post('/templates/{id}/duplicate', [App\Http\Controllers\AgreementSettingsController::class, 'duplicate'])->name('duplicate')->whereNumber('id');
         Route::post('/templates/{id}/set-default', [App\Http\Controllers\AgreementSettingsController::class, 'setDefault'])->name('set-default')->whereNumber('id');
-        Route::post('/categories/{category}/templates/{template}/assign', [App\Http\Controllers\AgreementSettingsController::class, 'assignContractTemplateAction'])->name('assign-contract-template')->whereNumber(['category', 'template']);
         Route::post('/templates/{id}/toggle-status', [App\Http\Controllers\AgreementSettingsController::class, 'toggleStatus'])->name('toggle-status')->whereNumber('id');
         Route::get('/templates/{id}/preview', [App\Http\Controllers\AgreementSettingsController::class, 'preview'])->name('preview')->whereNumber('id');
         Route::get('/templates/{id}/preview-pdf', [App\Http\Controllers\AgreementSettingsController::class, 'previewPdf'])->name('preview-pdf')->whereNumber('id');
     });
 
-    // Legacy module agreement URLs → centralized Documents → Agreements
+    // Module Agreements — register before employees/riders resource routes ({module}/agreements must not match {employee} or {rider})
     Route::prefix('{module}/agreements')->where(['module' => 'riders|employees'])->name('module-agreements.')->group(function () {
-        Route::get('/', function ($company_slug) {
-            return redirect()->route('documents.agreements.index', ['company_slug' => $company_slug]);
-        })->name('index');
-        Route::get('/categories/{category}', function ($company_slug, $module, $category) {
-            return redirect()->route('documents.agreements.manage-category', [
-                'company_slug' => $company_slug,
-                'category' => $category,
-            ]);
-        })->name('show')->whereNumber('category');
-        Route::get('/templates/{template}/edit', function ($company_slug, $module, $template) {
-            $tpl = App\Models\AgreementTemplate::query()->sampleStyles()->findOrFail($template);
-
-            return redirect()->route('documents.agreements.manage-category', [
-                'company_slug' => $company_slug,
-                'category' => $tpl->category_id,
-                'template' => $template,
-            ]);
-        })->name('templates.edit')->whereNumber('template');
-        Route::put('/templates/{template}', function ($company_slug, $module, $template, Illuminate\Http\Request $request) {
-            return app(App\Http\Controllers\AgreementSettingsController::class)
-                ->updateTemplateContent($request, $company_slug, $template);
-        })->name('templates.update')->whereNumber('template');
-        Route::post('/categories/{category}/templates/{template}/assign', function ($company_slug, $module, $category, $template, Illuminate\Http\Request $request) {
-            return app(App\Http\Controllers\AgreementSettingsController::class)
-                ->assignContractTemplateAction($request, $company_slug, $category, $template);
-        })->name('templates.assign')->whereNumber(['category', 'template']);
-        Route::get('/templates/{template}/preview', function ($company_slug, $module, $template, App\Services\Agreements\AgreementPdfService $pdfService) {
-            return app(App\Http\Controllers\AgreementSettingsController::class)
-                ->preview(request(), $company_slug, $template, $pdfService);
-        })->name('templates.preview')->whereNumber('template');
-        Route::get('/templates/{template}/preview-pdf', function ($company_slug, $module, $template, App\Services\Agreements\AgreementPdfService $pdfService) {
-            return app(App\Http\Controllers\AgreementSettingsController::class)
-                ->previewPdf(request(), $company_slug, $template, $pdfService);
-        })->name('templates.preview-pdf')->whereNumber('template');
+        Route::get('/', [App\Http\Controllers\ModuleAgreementController::class, 'index'])->name('index');
+        Route::get('/categories/{category}', [App\Http\Controllers\ModuleAgreementController::class, 'show'])->name('show')->whereNumber('category');
+        Route::get('/templates/{template}/edit', [App\Http\Controllers\ModuleAgreementController::class, 'editTemplate'])->name('templates.edit')->whereNumber('template');
+        Route::put('/templates/{template}', [App\Http\Controllers\ModuleAgreementController::class, 'updateTemplate'])->name('templates.update')->whereNumber('template');
+        Route::post('/categories/{category}/templates/{template}/assign', [App\Http\Controllers\ModuleAgreementController::class, 'assignContractTemplate'])->name('templates.assign')->whereNumber(['category', 'template']);
+        Route::get('/templates/{template}/preview', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplate'])->name('templates.preview')->whereNumber('template');
+        Route::get('/templates/{template}/preview-pdf', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplatePdf'])->name('templates.preview-pdf')->whereNumber('template');
     });
 
     // Module record contracts (listing action → contract modal, PDF, email)
@@ -427,7 +397,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('LicenseExpense/delete/{id}', [LicenseexpenseController::class, 'destroy'])->name('LicenseExpense.delete');
     Route::get('LicenseExpense/viewvoucher/{id}', [LicenseexpenseController::class, 'viewvoucher'])->name('LicenseExpense.viewvoucher');
 
-    Route::resource('LicenseExpense', LicenseexpenseController::class);
+    Route::resource('LicenseExpense', LicenseexpenseController::class)->except([
+        'create', 'edit', 'store', 'update', 'destroy', 'show',
+    ]);
 
     Route::post('LicenseExpense/store', [LicenseexpenseController::class, 'store'])->name('LicenseExpense.store');
     Route::post('LicenseExpense/inline-update', [LicenseexpenseController::class, 'inlineUpdate'])->name('LicenseExpense.inlineUpdate');

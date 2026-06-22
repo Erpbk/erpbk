@@ -47,8 +47,11 @@
                     <input class="form-check-input module-permission" name="permission[]" id="{{ $item->id }}" value="{{ $item->id }}" type="checkbox" data-module-key="{{ $moduleKey }}"
                     @isset($rolePermissions[$item->id]) checked @endisset >
                     @php
+                         $customPermissionLabels = [
+                             'visaexpense_show_in_menu' => 'Show in Menu',
+                         ];
                          $name = explode('_',$item->name,2);
-                        $name = ucwords(str_replace("_"," ",$name[1] ?? $item->name));
+                        $name = $customPermissionLabels[$item->name] ?? ucwords(str_replace("_"," ",$name[1] ?? $item->name));
                     @endphp
                     <label class="form-check-label" for="{{ $item->id }}">{{ $name }}</label>
                 </div>

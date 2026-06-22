@@ -26,6 +26,7 @@ return [
         'rta_saliks' => 'RTA Saliks',
         'inventory' => 'Inventory',
         'visa_expense' => 'Visa Expense',
+        'installments' => 'Installments',
         'license_expense' => 'License Expense',
         'legal_case' => 'Legal Case',
         'passport_handover' => 'Passport Handover',

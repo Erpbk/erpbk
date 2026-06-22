@@ -46,54 +46,6 @@ $paidCount = company_table('visa_expenses')->where('rider_id', $accountId)->wher
   </div>
 </div>
 
-{{-- Visa Installment Plan --}}
-<div class="content">
-  <div class="card">
-    <div class="card-header d-flex justify-content-between">
-      <div class="col-sm-6">
-        <h3>Visa Installments</h3>
-      </div>
-      <div class="col-sm-6">
-        @can('visaloan_create')
-        <a class="btn btn-sm btn-success action-btn show-modal"
-          href="javascript:void(0);" data-action="{{ route('VisaExpense.createInstallmentPlanForm', $account->id) }}" data-size="lg" data-title="Create Installment Entry">
-          <i class="fa fa-plus"></i> Installment Plan
-        </a>
-        @endcan
-        @if(isset($installmentData) && $installmentData->count() > 0)
-        <a href="javascript:void(0);"
-          class="btn btn-sm btn-info action-btn mx-2 show-modal"
-          data-action="{{ route('VisaExpense.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
-          data-size="xl"
-          data-title="Installment plan invoice — {{ $account->name ?? 'Rider' }}">
-          <i class="fa fa-file-invoice"></i> Invoice
-        </a>
-        @endif
-      </div>
-    </div>
-    <div class="totals-cards pt-3">
-      <div class="total-card total-red">
-        <div class="label">Total Unpaid Amount</div>
-        <div class="value">{{ company_table('visa_installment_plans')->where('status' , 'pending')->where('rider_id', $account->rider_id)->sum('amount') }}</div>
-      </div>
-      <div class="total-card total-green">
-        <div class="label">Total Paid Amount</div>
-        <div class="value">{{ company_table('visa_installment_plans')->where('status' , 'paid')->where('rider_id', $account->rider_id)->sum('amount') }}</div>
-      </div>
-      <div class="total-card total-red">
-        <div class="label">Unpaid Installments</div>
-        <div class="value">{{ company_table('visa_installment_plans')->where('rider_id' , $account->rider_id)->where('status' , 'pending')->count() }}</div>
-      </div>
-      <div class="total-card total-green">
-        <div class="label">Paid Installments</div>
-        <div class="value">{{ company_table('visa_installment_plans')->where('rider_id' , $account->rider_id)->where('status' , 'paid')->count() }}</div>
-      </div>
-    </div>
-    <div class="card-body table-responsive px-2 py-0">
-      @include('visa_expenses.installmentPlanTable', ['data' => $installmentData, 'account' => $account])
-    </div>
-  </div>
-</div>
 @endsection
 @section('page-script')
 

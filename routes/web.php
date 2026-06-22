@@ -73,6 +73,7 @@ use App\Http\Controllers\UserEmailSettingsController;
 use App\Http\Controllers\UserTableSettingsController;
 use App\Http\Controllers\VatController;
 use App\Http\Controllers\VendorsController;
+use App\Http\Controllers\InstallmentsController;
 use App\Http\Controllers\VisaexpenseController;
 use App\Http\Controllers\LicenseexpenseController;
 use App\Http\Controllers\LicenseStatusController;
@@ -349,8 +350,6 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('attendance/users/{refType}', [AttendanceController::class, 'getUsers'])->name('attendance.users');
 
     // Visa expense custom routes (register before resource to avoid {VisaExpense} shadowing)
-    Route::get('VisaExpense/createInstallmentPlanForm/{riderId}', [VisaexpenseController::class, 'createInstallmentPlanForm'])->name('VisaExpense.createInstallmentPlanForm');
-    Route::get('VisaExpense/installmentPlan/{id}', [VisaexpenseController::class, 'installmentPlan'])->name('VisaExpense.installmentPlan');
     Route::get('VisaExpense/generatentries/{id}', [VisaexpenseController::class, 'generatentries'])->name('VisaExpense.generatentries');
     Route::get('VisaExpense/create/{id}', [VisaexpenseController::class, 'create'])->name('VisaExpense.create');
     Route::get('VisaExpense/edit/{id}', [VisaexpenseController::class, 'edit'])->name('VisaExpense.edit');
@@ -374,16 +373,20 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     // Settings panel: registered under /app/{company_slug}/ — see routes/settings_panel.php
 
-    // Simple Installment Plan Routes
-    Route::post('VisaExpense/createInstallmentPlan', [VisaexpenseController::class, 'createInstallmentPlan'])->name('VisaExpense.createInstallmentPlan');
-    Route::post('VisaExpense/payInstallment', [VisaexpenseController::class, 'payInstallment'])->name('VisaExpense.payInstallment');
-    Route::post('VisaExpense/updateInstallmentField', [VisaexpenseController::class, 'updateInstallmentField'])->name('VisaExpense.updateInstallmentField');
-    Route::post('VisaExpense/finalizePayment', [VisaexpenseController::class, 'finalizePayment'])->name('VisaExpense.finalizePayment');
-    Route::get('VisaExpense/deleteInstallment/{id}', [VisaexpenseController::class, 'deleteInstallment'])->name('VisaExpense.deleteInstallment');
     Route::post('VisaExpense/getVisaStatusFee', [VisaexpenseController::class, 'getVisaStatusFee'])->name('VisaExpense.getVisaStatusFee');
-    Route::get('VisaExpense/generateInstallmentInvoice/{riderId}', [VisaexpenseController::class, 'generateInstallmentInvoice'])->name('VisaExpense.generateInstallmentInvoice');
-    Route::get('VisaExpense/autoMarkInstallments/{riderId?}', [VisaexpenseController::class, 'autoMarkInstallmentsAsPaid'])->name('VisaExpense.autoMarkInstallments');
-    Route::post('VisaExpense/recalculateInstallments', [VisaexpenseController::class, 'recalculateInstallments'])->name('VisaExpense.recalculateInstallments');
+
+    // Installments module routes
+    Route::get('Installments/createInstallmentPlanForm/{riderId}', [InstallmentsController::class, 'createInstallmentPlanForm'])->name('Installments.createInstallmentPlanForm');
+    Route::get('Installments/installmentPlan/{id}', [InstallmentsController::class, 'installmentPlan'])->name('Installments.installmentPlan');
+    Route::post('Installments/createInstallmentPlan', [InstallmentsController::class, 'createInstallmentPlan'])->name('Installments.createInstallmentPlan');
+    Route::post('Installments/payInstallment', [InstallmentsController::class, 'payInstallment'])->name('Installments.payInstallment');
+    Route::post('Installments/updateInstallmentField', [InstallmentsController::class, 'updateInstallmentField'])->name('Installments.updateInstallmentField');
+    Route::post('Installments/finalizePayment', [InstallmentsController::class, 'finalizePayment'])->name('Installments.finalizePayment');
+    Route::get('Installments/deleteInstallment/{id}', [InstallmentsController::class, 'deleteInstallment'])->name('Installments.deleteInstallment');
+    Route::get('Installments/generateInstallmentInvoice/{riderId}', [InstallmentsController::class, 'generateInstallmentInvoice'])->name('Installments.generateInstallmentInvoice');
+    Route::get('Installments/autoMarkInstallments/{riderId?}', [InstallmentsController::class, 'autoMarkInstallmentsAsPaid'])->name('Installments.autoMarkInstallments');
+    Route::post('Installments/recalculateInstallments', [InstallmentsController::class, 'recalculateInstallments'])->name('Installments.recalculateInstallments');
+    Route::get('Installments', [InstallmentsController::class, 'index'])->name('Installments.index');
 
     Route::post('accountcreate', [VisaexpenseController::class, 'accountcreate'])->name('VisaExpense.accountcreate');
     Route::post('editaccount', [VisaexpenseController::class, 'editaccount'])->name('VisaExpense.editaccount');

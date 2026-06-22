@@ -463,11 +463,21 @@ $homeLink = $isAdminLogin
 @endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('visa_expense'))
-@can('visaexpense_view')
+@if(\App\Support\VisaExpenseAccess::visibleInSidebar())
 <li class="menu-item {{ Route::is('VisaExpense*') ? 'active' : '' }}">
   <a href="{{ route('VisaExpense.index') }}" class="menu-link">
     @include('layouts.partials.module_menu_icon', ['key' => 'visa_expense'])
     <div>{{ $menuLabels['visa_expense'] ?? 'Visa Expense' }}</div>
+  </a>
+</li>
+@endif
+@endif
+@if(\App\Support\CompanyModuleVisibility::enabled('installments'))
+@can('installment_view')
+<li class="menu-item {{ Route::is('Installments*') ? 'active' : '' }}">
+  <a href="{{ route('Installments.index') }}" class="menu-link">
+    @include('layouts.partials.module_menu_icon', ['key' => 'installments'])
+    <div>{{ $menuLabels['installments'] ?? 'Visa Installments' }}</div>
   </a>
 </li>
 @endcan

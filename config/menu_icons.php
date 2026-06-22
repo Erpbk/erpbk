@@ -55,6 +55,7 @@ return [
         'rta_saliks' => 'ti-cash',
         'inventory' => 'ti-package',
         'visa_expense' => 'ti-credit-card',
+        'installments' => 'ti-calendar-dollar',
         'license_expense' => 'ti-steering-wheel',
         'legal_case' => 'ti-scale',
         'passport_handover' => 'ti-e-passport',

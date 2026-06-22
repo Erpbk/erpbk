@@ -33,6 +33,7 @@ return [
         'rta_saliks' => 'salik.index',
         'inventory' => 'inventory.index',
         'visa_expense' => 'VisaExpense.index',
+        'installments' => 'Installments.index',
         'license_expense' => 'LicenseExpense.index',
         'legal_case' => 'LegalCase.index',
         'passport_handover' => 'passportHandover.index',

@@ -48,6 +48,8 @@ $displayValue = $value;
 }
 } elseif ($item->kind === 'fixed' && ($spec['type'] ?? '') === 'checkbox') {
 $displayValue = ($value == 1 || $value === true) ? 'Yes' : 'No';
+} elseif ($item->kind === 'fixed' && ($spec['type'] ?? '') === 'select' && isset($fieldKey)) {
+$displayValue = \App\Models\BikeCustomField::displayLabelForFixedFieldValue($fieldKey, (string) $value);
 } elseif ($item->kind === 'custom' && ($item->field->data_type ?? '') === 'checkbox') {
 $displayValue = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'Yes' : 'No';
 }

@@ -1,7 +1,14 @@
 <div class="card-body p-4">
+    @php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
     <div class="row mb-3">
         <div class="col-md-6">
-            <h5 class="mb-1">{{ $asset->name }}</h5>
+            <h5 class="mb-1">
+                @if($asset->bike_id)
+                    <a href="{{ route('bikes.show', ['company_slug' => $__companySlug, 'bike' => $asset->bike_id]) }}" target="_blank" rel="noopener">{{ $asset->name }}</a>
+                @else
+                    {{ $asset->name }}
+                @endif
+            </h5>
             <p class="text-muted mb-0">{{ $asset->asset_code }} &middot; {{ $asset->category?->name }}</p>
         </div>
         <div class="col-md-6 text-md-end">

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AssetCategory;
 use App\Models\Accounts;
+use App\Models\Bikes;
 use App\Models\FixedAsset;
 use App\Services\FixedAssets\DepreciationScheduleService;
 use App\Services\FixedAssets\FixedAssetDepreciationPostingService;
@@ -38,7 +39,7 @@ class FixedAssetController extends AppBaseController
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = FixedAsset::query()
-            ->with(['category', 'branch', 'depreciationSchedules'])
+            ->with(['category', 'branch', 'bike', 'depreciationSchedules'])
             ->orderByDesc('acquisition_date')
             ->orderByDesc('id');
 
@@ -99,6 +100,7 @@ class FixedAssetController extends AppBaseController
         return view('fixed_assets.create', [
             'categories' => $categories,
             'creditAccounts' => $creditAccounts,
+            'availableBikes' => Bikes::availableForFixedAssetSelect(),
             'depreciationMethods' => AssetCategory::depreciationMethods(),
             'depreciationFrequencies' => AssetCategory::depreciationFrequencies(),
         ]);
@@ -113,6 +115,7 @@ class FixedAssetController extends AppBaseController
         $validated = $this->validateAssetRequest($request, forUpdate: false);
 
         $category = AssetCategory::findOrFail($validated['asset_category_id']);
+        $this->resolveAssetIdentity($validated, $category);
         $acquisitionCost = (float) $validated['acquisition_cost'];
         $salvageValue = (float) $validated['salvage_value'];
 
@@ -131,6 +134,7 @@ class FixedAssetController extends AppBaseController
 
             $asset = new FixedAsset();
             $asset->asset_category_id = $category->id;
+            $asset->bike_id = $validated['bike_id'] ?? null;
             $asset->name = $validated['name'];
             $asset->asset_code = $validated['asset_code'] ?? null;
             $asset->description = $validated['description'] ?? null;
@@ -199,7 +203,7 @@ class FixedAssetController extends AppBaseController
             abort(403, 'Unauthorized action.');
         }
 
-        $asset = FixedAsset::with(['category', 'branch', 'depreciationSchedules'])->findOrFail($id);
+        $asset = FixedAsset::with(['category', 'branch', 'depreciationSchedules', 'bike'])->findOrFail($id);
 
         return view('fixed_assets.show', compact('asset'));
     }
@@ -210,7 +214,7 @@ class FixedAssetController extends AppBaseController
             abort(403, 'Unauthorized action.');
         }
 
-        $asset = FixedAsset::with(['category', 'assetAccount'])->findOrFail($id);
+        $asset = FixedAsset::with(['category', 'assetAccount', 'bike'])->findOrFail($id);
         $categories = AssetCategory::query()->where('is_active', true)->with('assetAccount')->orderBy('name')->get();
         $creditAccounts = Accounts::dropdown(null);
 
@@ -218,6 +222,7 @@ class FixedAssetController extends AppBaseController
             'asset' => $asset,
             'categories' => $categories,
             'creditAccounts' => $creditAccounts,
+            'availableBikes' => Bikes::availableForFixedAssetSelect($asset->id),
             'depreciationMethods' => AssetCategory::depreciationMethods(),
             'depreciationFrequencies' => AssetCategory::depreciationFrequencies(),
         ]);
@@ -232,6 +237,9 @@ class FixedAssetController extends AppBaseController
         $asset = FixedAsset::findOrFail($id);
 
         $validated = $this->validateAssetRequest($request, forUpdate: true);
+
+        $category = AssetCategory::findOrFail($validated['asset_category_id']);
+        $this->resolveAssetIdentity($validated, $category, $asset->id);
 
         $salvageValue = (float) $validated['salvage_value'];
 
@@ -252,6 +260,7 @@ class FixedAssetController extends AppBaseController
         $depreciationChanged = $asset->acquisition_date->toDateString() !== $validated['acquisition_date']
             || ($asset->in_service_date?->toDateString() ?? '') !== $validated['in_service_date']
             || ($asset->acquisition_type ?? FixedAsset::ACQUISITION_NEW_PURCHASE) !== $validated['acquisition_type']
+            || (int) ($asset->bike_id ?? 0) !== (int) ($validated['bike_id'] ?? 0)
             || (float) $asset->opening_accumulated_depreciation !== (float) $validated['opening_accumulated_depreciation']
             || ($asset->depreciation_as_of_date?->toDateString() ?? '') !== ($validated['depreciation_as_of_date'] ?? '')
             || ($asset->past_depreciation_handling ?? null) !== ($validated['past_depreciation_handling'] ?? null)
@@ -268,6 +277,7 @@ class FixedAssetController extends AppBaseController
             $previousCategoryId = $asset->asset_category_id;
 
             $asset->asset_category_id = $category->id;
+            $asset->bike_id = $validated['bike_id'] ?? null;
             $asset->name = $validated['name'];
             $asset->asset_code = $validated['asset_code'] ?? $asset->asset_code;
             $asset->description = $validated['description'] ?? null;
@@ -392,7 +402,8 @@ class FixedAssetController extends AppBaseController
 
         $rules = [
             'asset_category_id' => 'required|exists:asset_categories,id',
-            'name' => 'required|string|max:255',
+            'bike_id' => 'nullable|exists:bikes,id',
+            'name' => 'nullable|string|max:255',
             'asset_code' => 'nullable|string|max:50',
             'description' => 'nullable|string|max:1000',
             'serial_number' => 'nullable|string|max:100',
@@ -479,6 +490,48 @@ class FixedAssetController extends AppBaseController
         }
 
         return $validated;
+    }
+
+    private function resolveAssetIdentity(array &$validated, AssetCategory $category, ?int $existingAssetId = null): void
+    {
+        if ($category->isVehicles()) {
+            if (empty($validated['bike_id'])) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'bike_id' => 'Please select a vehicle for the Vehicles category.',
+                ]);
+            }
+
+            $bike = Bikes::findOrFail($validated['bike_id']);
+
+            $alreadyLinked = FixedAsset::query()
+                ->where('bike_id', $bike->id)
+                ->when($existingAssetId, fn ($query) => $query->where('id', '!=', $existingAssetId))
+                ->exists();
+
+            if ($alreadyLinked) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'bike_id' => 'This bike is already linked to another fixed asset.',
+                ]);
+            }
+
+            $validated['name'] = $bike->emiratesPlateLabel();
+            $validated['bike_id'] = $bike->id;
+            $validated['serial_number'] = $bike->chassis_number;
+
+            if (!empty($bike->branch_id)) {
+                $validated['branch_id'] = $bike->branch_id;
+            }
+
+            return;
+        }
+
+        $validated['bike_id'] = null;
+
+        if (empty(trim((string) ($validated['name'] ?? '')))) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'name' => 'Asset name is required.',
+            ]);
+        }
     }
 
     private function validateDepreciationAmounts(Request $request, float $cost, float $salvageValue, array $validated)

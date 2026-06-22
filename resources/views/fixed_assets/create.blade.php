@@ -14,16 +14,18 @@
                         data-life="{{ $category->useful_life_months }}"
                         data-salvage-percent="{{ $category->salvage_value_percent }}"
                         data-asset-account-id="{{ $category->asset_account_id }}"
-                        data-asset-account-name="{{ $acc?->name ?? $category->name }}">
+                        data-asset-account-name="{{ $acc?->name ?? $category->name }}"
+                        data-is-vehicles="{{ $category->isVehicles() ? '1' : '0' }}">
                         {{ $category->name }}
                     </option>
                 @endforeach
             </select>
         </div>
-        <div class="form-group col-sm-3">
-            {!! Form::label('name', 'Asset Name:') !!}
-            {!! Form::text('name', null, ['class' => 'form-control', 'required' => true]) !!}
-        </div>
+        @include('fixed_assets.partials.asset_identity_fields', [
+            'availableBikes' => $availableBikes ?? [],
+            'nameValue' => null,
+            'bikeIdValue' => null,
+        ])
         <div class="form-group col-sm-3">
             {!! Form::label('asset_code', 'Asset Code:') !!}
             {!! Form::text('asset_code', null, ['class' => 'form-control']) !!}
@@ -31,7 +33,7 @@
         </div>
         <div class="form-group col-sm-3">
             {!! Form::label('serial_number', 'Serial Number:') !!}
-            {!! Form::text('serial_number', null, ['class' => 'form-control']) !!}
+            {!! Form::text('serial_number', null, ['class' => 'form-control', 'id' => 'serial_number']) !!}
         </div>
         <div class="form-group col-sm-3">
             {!! Form::label('branch_id', 'Branch:') !!}

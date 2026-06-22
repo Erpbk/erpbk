@@ -125,21 +125,36 @@ class AssetCategoryController extends Controller
         $category = AssetCategory::findOrFail($id);
         $oldName = $category->name;
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'code' => 'nullable|string|max:50',
-            'description' => 'nullable|string|max:1000',
-            'depreciation_method' => 'required|string|in:straight_line,declining_balance,double_declining_balance',
-            'depreciation_frequency' => 'required|string|in:monthly,yearly',
-            'useful_life_months' => 'required|integer|min:1|max:600',
-            'salvage_value_percent' => 'nullable|numeric|min:0|max:100',
-            'is_active' => 'nullable|boolean',
-        ]);
+        if ($category->isSystemLocked()) {
+            $validated = $request->validate([
+                'code' => 'nullable|string|max:50',
+                'description' => 'nullable|string|max:1000',
+                'depreciation_method' => 'required|string|in:straight_line,declining_balance,double_declining_balance',
+                'depreciation_frequency' => 'required|string|in:monthly,yearly',
+                'useful_life_months' => 'required|integer|min:1|max:600',
+                'salvage_value_percent' => 'nullable|numeric|min:0|max:100',
+                'is_active' => 'nullable|boolean',
+            ]);
+            $validated['name'] = $category->name;
+        } else {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'code' => 'nullable|string|max:50',
+                'description' => 'nullable|string|max:1000',
+                'depreciation_method' => 'required|string|in:straight_line,declining_balance,double_declining_balance',
+                'depreciation_frequency' => 'required|string|in:monthly,yearly',
+                'useful_life_months' => 'required|integer|min:1|max:600',
+                'salvage_value_percent' => 'nullable|numeric|min:0|max:100',
+                'is_active' => 'nullable|boolean',
+            ]);
+        }
 
         try {
             DB::beginTransaction();
 
-            $category->name = $validated['name'];
+            if (!$category->isSystemLocked()) {
+                $category->name = $validated['name'];
+            }
             $category->code = $validated['code'] ?? $category->code;
             $category->description = $validated['description'] ?? null;
             $category->depreciation_method = $validated['depreciation_method'];
@@ -182,6 +197,15 @@ class AssetCategoryController extends Controller
         }
 
         $category = AssetCategory::findOrFail($id);
+
+        if ($category->isSystemLocked()) {
+            $message = 'The Vehicles category is a system category and cannot be deleted.';
+            if ($request->ajax()) {
+                return response()->json(['message' => $message], 422);
+            }
+            Flash::error($message);
+            return redirect()->back();
+        }
 
         if ($category->fixedAssets()->exists()) {
             $message = 'Cannot delete category while fixed assets are assigned to it.';

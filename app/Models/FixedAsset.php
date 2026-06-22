@@ -32,6 +32,7 @@ class FixedAsset extends BaseModel
     protected $fillable = [
         'company_id',
         'asset_category_id',
+        'bike_id',
         'asset_code',
         'name',
         'description',
@@ -68,6 +69,7 @@ class FixedAsset extends BaseModel
         'salvage_value' => 'decimal:2',
         'opening_accumulated_depreciation' => 'decimal:2',
         'useful_life_months' => 'integer',
+        'bike_id' => 'integer',
     ];
 
     public static function acquisitionTypes(): array
@@ -159,6 +161,16 @@ class FixedAsset extends BaseModel
     public function category(): BelongsTo
     {
         return $this->belongsTo(AssetCategory::class, 'asset_category_id');
+    }
+
+    public function bike(): BelongsTo
+    {
+        return $this->belongsTo(Bikes::class, 'bike_id');
+    }
+
+    public function isVehicleAsset(): bool
+    {
+        return $this->bike_id !== null || $this->category?->isVehicles() === true;
     }
 
     public function branch(): BelongsTo

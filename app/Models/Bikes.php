@@ -112,11 +112,45 @@ class Bikes extends BaseModel
     'leased_return_by' => 'nullable|date',
     'leased_return_date' => 'nullable|date',
     'leased_return_company_id' => 'nullable|integer|exists:leasing_companies,id',
+    'bike_owner' => 'required|string|in:Owned,Leased',
   ];
   public static function dropdown()
   {
     return self::select('id', 'plate')->pluck('plate', 'id')->prepend('Select', '');
   }
+
+  public function emiratesPlateLabel(): string
+  {
+    $emirates = trim((string) ($this->emirates ?? ''));
+    $plate = trim((string) ($this->plate ?? ''));
+
+    if ($emirates !== '' && $plate !== '') {
+      return $emirates . '-' . $plate;
+    }
+
+    return $emirates !== '' ? $emirates : ($plate !== '' ? $plate : (string) ($this->bike_code ?? $this->id));
+  }
+
+  public static function availableForFixedAssetOptions(?int $exceptAssetId = null): array
+  {
+    $assignedQuery = FixedAsset::query()
+      ->whereNotNull('bike_id');
+
+    if ($exceptAssetId) {
+      $assignedQuery->where('id', '!=', $exceptAssetId);
+    }
+
+    $assignedBikeIds = $assignedQuery->pluck('bike_id');
+
+    return self::query()
+      ->when($assignedBikeIds->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $assignedBikeIds))
+      ->orderBy('emirates')
+      ->orderBy('plate')
+      ->get()
+      ->mapWithKeys(fn (self $bike) => [$bike->id => $bike->emiratesPlateLabel()])
+      ->all();
+  }
+
   public static function riderBikes()
   {
     //return self::select('id', \DB::raw("CONCAT(plate, '-', company) as plate_name"))->whereNotNull('rider_id')->pluck('plate_name', 'id')->prepend('Select', '');

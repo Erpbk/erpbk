@@ -122,6 +122,40 @@ window.initFixedAssetForm = function (options) {
         $('#acquisition_voucher_amount').val(cost > 0 ? cost.toFixed(2) : '');
     }
 
+    function syncBikeHiddenName() {
+        var $selectedBike = $('#bike_id option:selected');
+        var label = $selectedBike.data('label') || $.trim($selectedBike.text());
+        $('#asset_name_hidden').val(label || '');
+    }
+
+    function syncVehicleCategoryMode() {
+        var $selected = $('#asset_category_id option:selected');
+        var isVehicles = String($selected.attr('data-is-vehicles')) === '1';
+        var $nameWrap = $('#asset-name-field-wrap');
+        var $bikeWrap = $('#asset-bike-field-wrap');
+        var $nameInput = $('#asset_name');
+        var $hiddenName = $('#asset_name_hidden');
+
+        if (!$nameWrap.length || !$bikeWrap.length) {
+            return;
+        }
+
+        if (isVehicles) {
+            $nameWrap.hide();
+            $bikeWrap.show();
+            $nameInput.prop('required', false).removeAttr('name');
+            $('#bike_id').prop('required', true);
+            $hiddenName.prop('disabled', false).attr('name', 'name');
+            syncBikeHiddenName();
+        } else {
+            $bikeWrap.hide();
+            $nameWrap.show();
+            $('#bike_id').prop('required', false).val('');
+            $hiddenName.prop('disabled', true).removeAttr('name');
+            $nameInput.prop('required', true).attr('name', 'name');
+        }
+    }
+
     function applyCategoryDefaults() {
         var $selected = $('#asset_category_id option:selected');
         if (!$selected.val()) {
@@ -149,6 +183,15 @@ window.initFixedAssetForm = function (options) {
         }
 
         syncVoucherAmount();
+        syncVehicleCategoryMode();
+    }
+
+    if ($('#bike_id').length) {
+        $('#bike_id').select2({
+            dropdownParent: $('#modalTopbody'),
+            allowClear: true,
+            placeholder: 'Select bike'
+        }).on('change', syncBikeHiddenName);
     }
 
     $('#branch_id').select2({
@@ -232,10 +275,12 @@ window.initFixedAssetForm = function (options) {
     $('#asset_status').on('change', syncAcquisitionSections);
     $('input[name="acquisition_posting"]').on('change', syncAcquisitionSections);
     $('#asset_category_id, #acquisition_cost').on('change input', applyCategoryDefaults);
+    $('#asset_category_id').on('change', syncVehicleCategoryMode);
 
     applyCategoryDefaults();
     syncInServiceMinDate();
     syncOpeningBalanceMode();
     syncPastDepreciationSection();
+    syncVehicleCategoryMode();
     syncVoucherAmount();
 };

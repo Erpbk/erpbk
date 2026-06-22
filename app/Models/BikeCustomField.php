@@ -159,6 +159,35 @@ class BikeCustomField extends BaseModel
     }
 
     /**
+     * @return array<string, string>
+     */
+    public static function bikeOwnerSelectOptions(): array
+    {
+        return [
+            '' => 'Select',
+            'Owned' => 'Owned',
+            'Leased' => 'Leased',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function bikeOwnerFieldSpec(): array
+    {
+        return [
+            'type' => 'select',
+            'options' => "Owned\nLeased",
+            'required' => true,
+        ];
+    }
+
+    public static function isAlwaysRequiredFixedField(string $fieldKey): bool
+    {
+        return $fieldKey === 'bike_owner';
+    }
+
+    /**
      * Merge bike_field_category_assignment overrides into the default fixed-field spec
      * (same rules as resources/views/bikes/_form_field.blade.php).
      */
@@ -180,6 +209,10 @@ class BikeCustomField extends BaseModel
             }
         }
 
+        if ($fieldKey === 'bike_owner') {
+            return array_merge($spec, self::bikeOwnerFieldSpec());
+        }
+
         return $spec;
     }
 
@@ -194,6 +227,18 @@ class BikeCustomField extends BaseModel
         $spec = self::resolvedFixedFieldSpec($fieldKey);
         if (($spec['type'] ?? 'text') !== 'select') {
             return [];
+        }
+
+        if ($fieldKey === 'bike_owner') {
+            $choices = [];
+            foreach (self::bikeOwnerSelectOptions() as $value => $label) {
+                if ($value === '') {
+                    continue;
+                }
+                $choices[] = ['value' => (string) $value, 'label' => (string) $label];
+            }
+
+            return $choices;
         }
 
         $rawOptions = $spec['options'] ?? null;
@@ -311,7 +356,7 @@ class BikeCustomField extends BaseModel
             'vehicle_type' => ['type' => 'select', 'dropdown' => 'vehicle_models'],
             'branch_id' => ['type' => 'select', 'dropdown' => 'branch'],
             'company' => ['type' => 'select', 'dropdown' => 'leasing_companies'],
-            'bike_owner' => ['type' => 'select', 'dropdown' => 'bike-owner'],
+            'bike_owner' => self::bikeOwnerFieldSpec(),
             'rider_id' => ['type' => 'select', 'dropdown' => 'riders'],
             'customer_id' => ['type' => 'select', 'dropdown' => 'customers'],
             'warehouse' => ['type' => 'select', 'dropdown' => 'warehouse'],
@@ -458,13 +503,18 @@ class BikeCustomField extends BaseModel
                     $spec['type'] = $a->input_type === 'dropdown' ? 'select' : $a->input_type;
                 }
 
-                $spec['required'] = (bool) ($a->is_required ?? false);
+                $spec['required'] = self::isAlwaysRequiredFixedField($fieldKey)
+                    || (bool) ($a->is_required ?? false);
 
                 if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
                     $spec['options'] = $a->input_config['options'];
                 }
 
                 $spec['dropdown'] = $spec['dropdown'] ?? $a->input_config['dropdown'] ?? null;
+
+                if ($fieldKey === 'bike_owner') {
+                    $spec = array_merge($spec, self::bikeOwnerFieldSpec());
+                }
 
                 $fields[] = (object) [
                     'kind' => 'fixed',

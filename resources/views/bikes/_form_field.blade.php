@@ -63,6 +63,8 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     $opts[$opt] = $opt;
     }
     // Skip dropdown-key-based options since we already have explicit options.
+    } elseif ($item->field_key === 'bike_owner') {
+    $opts = \App\Models\BikeCustomField::bikeOwnerSelectOptions();
     } else {
     switch ($dropdownKey) {
     case 'vehicle_models':

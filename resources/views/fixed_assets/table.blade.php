@@ -1,3 +1,4 @@
+@php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
 <table class="table dataTable no-footer" id="dataTableBuilder">
     <thead class="text-center">
         <tr>
@@ -14,15 +15,27 @@
     <tbody>
         @forelse($data as $asset)
             @php
-                $latestSchedule = $asset->depreciationSchedules->sortByDesc('period_number')->first();
-                $bookValue = $latestSchedule?->book_value ?? $asset->acquisition_cost;
+                $lastPostedOrSkipped = $asset->depreciationSchedules
+                    ->whereIn('status', ['posted', 'skipped'])
+                    ->last();
+                $bookValue = $lastPostedOrSkipped
+                    ? (float) $asset->acquisition_cost - (float) $lastPostedOrSkipped->accumulated_depreciation
+                    : (float) $asset->acquisition_cost;
             @endphp
             <tr class="text-center">
-                <td>{{ $asset->asset_code }}</td>
                 <td>
                     <a href="javascript:void(0);" class="show-modal-right" data-size="xl" data-title="Asset Details" data-action="{{ route('fixed-assets.show', $asset->id) }}">
-                        {{ $asset->name }}
+                        {{ $asset->asset_code }}
                     </a>
+                </td>
+                <td>
+                    @if($asset->bike_id)
+                        <a href="{{ route('bikes.show', ['company_slug' => $__companySlug, 'bike' => $asset->bike_id]) }}" target="_blank" rel="noopener">
+                            {{ $asset->name }}
+                        </a>
+                    @else
+                        {{ $asset->name }}
+                    @endif
                 </td>
                 <td>{{ $asset->category?->name }}</td>
                 <td>{{ $asset->acquisition_date?->format('d M Y') }}</td>

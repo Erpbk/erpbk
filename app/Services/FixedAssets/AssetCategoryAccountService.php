@@ -50,7 +50,8 @@ class AssetCategoryAccountService
             parentId: $fixedAssetsHead->id,
             refName: 'AssetCategory',
             refId: $category->id,
-            codePrefix: 'FAC'
+            codePrefix: 'FAC',
+            companyId: $category->company_id
         );
 
         $accumulatedAccount = $this->createAccount(
@@ -59,7 +60,8 @@ class AssetCategoryAccountService
             parentId: $accumulatedDepreciationHead->id,
             refName: 'AssetCategoryAccumDep',
             refId: $category->id,
-            codePrefix: 'FAD'
+            codePrefix: 'FAD',
+            companyId: $category->company_id
         );
 
         $expenseAccount = $this->createAccount(
@@ -68,7 +70,8 @@ class AssetCategoryAccountService
             parentId: $depreciationExpenseHead->id,
             refName: 'AssetCategoryDepExpense',
             refId: $category->id,
-            codePrefix: 'FDE'
+            codePrefix: 'FDE',
+            companyId: $category->company_id
         );
 
         $category->asset_account_id = $assetAccount->id;
@@ -190,7 +193,8 @@ class AssetCategoryAccountService
             parentId: $parent->id,
             refName: null,
             refId: null,
-            codePrefix: $codePrefix
+            codePrefix: $codePrefix,
+            companyId: CompanyContext::id()
         );
     }
 
@@ -200,7 +204,8 @@ class AssetCategoryAccountService
         int $parentId,
         ?string $refName,
         ?int $refId,
-        string $codePrefix
+        string $codePrefix,
+        ?int $companyId = null
     ): Accounts {
         $account = new Accounts();
         $account->name = $name;
@@ -212,8 +217,8 @@ class AssetCategoryAccountService
         $account->opening_balance = 0;
         $account->is_locked = 0;
 
-        if (CompanyContext::id()) {
-            $account->company_id = CompanyContext::id();
+        if ($companyId ?? CompanyContext::id()) {
+            $account->company_id = $companyId ?? CompanyContext::id();
         }
 
         $account->save();

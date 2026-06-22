@@ -15,6 +15,9 @@ class AssetCategory extends BaseModel
     public const FREQUENCY_MONTHLY = 'monthly';
     public const FREQUENCY_YEARLY = 'yearly';
 
+    public const SYSTEM_CODE_VEHICLES = 'VEHICLES';
+    public const SYSTEM_NAME_VEHICLES = 'Vehicles';
+
     public $table = 'asset_categories';
 
     protected $fillable = [
@@ -30,6 +33,7 @@ class AssetCategory extends BaseModel
         'accumulated_depreciation_account_id',
         'depreciation_expense_account_id',
         'is_active',
+        'is_system',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -39,6 +43,7 @@ class AssetCategory extends BaseModel
         'useful_life_months' => 'integer',
         'salvage_value_percent' => 'decimal:2',
         'is_active' => 'boolean',
+        'is_system' => 'boolean',
     ];
 
     public static function depreciationMethods(): array
@@ -89,5 +94,16 @@ class AssetCategory extends BaseModel
     public function salvageValueForCost(float $cost): float
     {
         return round($cost * ((float) $this->salvage_value_percent / 100), 2);
+    }
+
+    public function isVehicles(): bool
+    {
+        return (bool) $this->is_system
+            && (string) $this->code === self::SYSTEM_CODE_VEHICLES;
+    }
+
+    public function isSystemLocked(): bool
+    {
+        return (bool) $this->is_system;
     }
 }

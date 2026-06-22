@@ -33,7 +33,7 @@
         </div>
         <div class="form-group col-sm-3">
             {!! Form::label('serial_number', 'Serial Number:') !!}
-            {!! Form::text('serial_number', null, ['class' => 'form-control']) !!}
+            {!! Form::text('serial_number', null, ['class' => 'form-control', 'id' => 'serial_number']) !!}
         </div>
         <div class="form-group col-sm-3">
             {!! Form::label('branch_id', 'Branch:') !!}

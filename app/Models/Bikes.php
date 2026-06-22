@@ -131,7 +131,7 @@ class Bikes extends BaseModel
     return $emirates !== '' ? $emirates : ($plate !== '' ? $plate : (string) ($this->bike_code ?? $this->id));
   }
 
-  public static function availableForFixedAssetOptions(?int $exceptAssetId = null): array
+  public static function availableForFixedAssetSelect(?int $exceptAssetId = null)
   {
     $assignedQuery = FixedAsset::query()
       ->whereNotNull('bike_id');
@@ -146,7 +146,12 @@ class Bikes extends BaseModel
       ->when($assignedBikeIds->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $assignedBikeIds))
       ->orderBy('emirates')
       ->orderBy('plate')
-      ->get()
+      ->get();
+  }
+
+  public static function availableForFixedAssetOptions(?int $exceptAssetId = null): array
+  {
+    return self::availableForFixedAssetSelect($exceptAssetId)
       ->mapWithKeys(fn (self $bike) => [$bike->id => $bike->emiratesPlateLabel()])
       ->all();
   }

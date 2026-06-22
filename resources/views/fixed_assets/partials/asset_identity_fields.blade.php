@@ -4,17 +4,19 @@
 </div>
 
 <div id="asset-bike-field-wrap" class="form-group col-sm-3" style="display: none;">
-    {!! Form::label('bike_id', 'Bike:') !!}
+    {!! Form::label('bike_id', 'Vehicle:') !!}
     <select name="bike_id" id="bike_id" class="form-control select2">
-        <option value="">Select bike</option>
-        @foreach($availableBikes ?? [] as $bikeId => $bikeLabel)
-            <option value="{{ $bikeId }}"
-                data-label="{{ $bikeLabel }}"
-                @selected(($bikeIdValue ?? null) == $bikeId)>
-                {{ $bikeLabel }}
+        <option value="">Select vehicle</option>
+        @foreach($availableBikes ?? [] as $bike)
+            <option value="{{ $bike->id }}"
+                data-label="{{ $bike->emiratesPlateLabel() }}"
+                data-chassis-number="{{ $bike->chassis_number ?? '' }}"
+                data-branch-id="{{ $bike->branch_id ?? '' }}"
+                @selected(($bikeIdValue ?? null) == $bike->id)>
+                {{ $bike->emiratesPlateLabel() }}
             </option>
         @endforeach
     </select>
     <input type="hidden" id="asset_name_hidden" value="{{ $nameValue ?? '' }}" disabled>
-    <small class="text-muted">Asset name is set from the bike emirates-plate.</small>
+    <small class="text-muted">Asset name is set from the vehicle emirates-plate.</small>
 </div>

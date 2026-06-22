@@ -100,7 +100,7 @@ class FixedAssetController extends AppBaseController
         return view('fixed_assets.create', [
             'categories' => $categories,
             'creditAccounts' => $creditAccounts,
-            'availableBikes' => Bikes::availableForFixedAssetOptions(),
+            'availableBikes' => Bikes::availableForFixedAssetSelect(),
             'depreciationMethods' => AssetCategory::depreciationMethods(),
             'depreciationFrequencies' => AssetCategory::depreciationFrequencies(),
         ]);
@@ -222,7 +222,7 @@ class FixedAssetController extends AppBaseController
             'asset' => $asset,
             'categories' => $categories,
             'creditAccounts' => $creditAccounts,
-            'availableBikes' => Bikes::availableForFixedAssetOptions($asset->id),
+            'availableBikes' => Bikes::availableForFixedAssetSelect($asset->id),
             'depreciationMethods' => AssetCategory::depreciationMethods(),
             'depreciationFrequencies' => AssetCategory::depreciationFrequencies(),
         ]);
@@ -497,7 +497,7 @@ class FixedAssetController extends AppBaseController
         if ($category->isVehicles()) {
             if (empty($validated['bike_id'])) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
-                    'bike_id' => 'Please select a bike for the Vehicles category.',
+                    'bike_id' => 'Please select a vehicle for the Vehicles category.',
                 ]);
             }
 
@@ -516,6 +516,11 @@ class FixedAssetController extends AppBaseController
 
             $validated['name'] = $bike->emiratesPlateLabel();
             $validated['bike_id'] = $bike->id;
+            $validated['serial_number'] = $bike->chassis_number;
+
+            if (!empty($bike->branch_id)) {
+                $validated['branch_id'] = $bike->branch_id;
+            }
 
             return;
         }

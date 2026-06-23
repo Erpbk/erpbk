@@ -19,11 +19,11 @@
         <tr class="text-center" data-status="{{ $installment->status }}">
             <td>
                 <span id="date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
-                @can('visaloan_edit')
+                @canany(['installment_edit', 'visaloan_edit'])
                 <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcan
+                @endcanany
                 <input type="date"
                     id="date_input_{{ $installment->id }}"
                     value="{{ \Carbon\Carbon::parse($installment->date)->format('Y-m-d') }}"
@@ -44,11 +44,11 @@
             </td>
             <td>
                 <span id="billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
-                @can('visaloan_edit')
+                @canany(['installment_edit', 'visaloan_edit'])
                 <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcan
+                @endcanany
                 <input type="month"
                     id="billing_input_{{ $installment->id }}"
                     value="{{ \Carbon\Carbon::parse($installment->billing_month)->format('Y-m') }}"
@@ -58,11 +58,11 @@
             </td>
             <td>
                 <span id="amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
-                @can('visaloan_edit')
+                @canany(['installment_edit', 'visaloan_edit'])
                 <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcan
+                @endcanany
                 <input type="number"
                     step="0.01"
                     id="amount_input_{{ $installment->id }}"
@@ -73,11 +73,11 @@
             </td>
             <td class="text-start" style="min-width: 260px;">
                 <span id="narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
-                @can('visaloan_edit')
+                @canany(['installment_edit', 'visaloan_edit'])
                 <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcan
+                @endcanany
                 <textarea
                     id="narration_input_{{ $installment->id }}"
                     rows="2"
@@ -98,7 +98,7 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown{{ $installment->id }}">
-                        @can('visaloan_edit')
+                        @canany(['installment_edit', 'visaloan_edit'])
                         @if($installment->status === 'pending')
                         <a href="javascript:void(0);"
                             onclick="markAsPaid({{ $installment->id }})"
@@ -107,7 +107,7 @@
                         </a>
                         <div class="dropdown-divider"></div>
                         <a href="javascript:void(0);"
-                            onclick='confirmDeleteProtected("{{ route('VisaExpense.deleteInstallment', $installment->id) }}")'
+                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', $installment->id) }}")'
                             class='dropdown-item waves-effect text-danger'>
                             <i class="fa fa-trash me-2"></i> Delete
                         </a>
@@ -119,7 +119,7 @@
                         </a>
                         <div class="dropdown-divider"></div>
                         <a href="javascript:void(0);"
-                            onclick='confirmDeleteProtected("{{ route('VisaExpense.deleteInstallment', $installment->id) }}")'
+                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', $installment->id) }}")'
                             class='dropdown-item waves-effect text-danger'>
                             <i class="fa fa-trash me-2"></i> Delete
                         </a>
@@ -128,7 +128,7 @@
                         <span class="dropdown-item-text text-{{ $installment->status === 'paid' ? 'success' : 'warning' }}">
                             <i class="fa fa-{{ $installment->status === 'paid' ? 'check' : 'clock' }} me-2"></i> {{ ucfirst($installment->status) }}
                         </span>
-                        @endcan
+                        @endcanany
                     </div>
                 </div>
             </td>
@@ -199,7 +199,7 @@
                     }
                 });
 
-                submitForm('{{ route("VisaExpense.payInstallment") }}', {
+                submitForm('{{ route("Installments.payInstallment") }}', {
                     'installment_id': installmentId
                 });
             }
@@ -230,7 +230,7 @@
                     }
                 });
 
-                submitForm('{{ route("VisaExpense.payInstallment") }}', {
+                submitForm('{{ route("Installments.payInstallment") }}', {
                     'installment_id': installmentId,
                     'status': 'pending'
                 });
@@ -325,7 +325,7 @@
                     cancelButtonColor: '#6c757d'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
+                        submitForm('{{ route("Installments.updateInstallmentField") }}', {
                             'installment_id': installmentId,
                             'field': 'date',
                             'value': newValue,
@@ -387,7 +387,7 @@
                 cancelButtonColor: '#6c757d'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
+                    submitForm('{{ route("Installments.updateInstallmentField") }}', {
                         'installment_id': installmentId,
                         'field': 'billing_month',
                         'value': newValue,
@@ -447,7 +447,7 @@
                 cancelButtonColor: '#6c757d'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
+                    submitForm('{{ route("Installments.updateInstallmentField") }}', {
                         'installment_id': installmentId,
                         'field': 'amount',
                         'value': newValue,
@@ -480,7 +480,7 @@
             return;
         }
 
-        submitForm('{{ route("VisaExpense.updateInstallmentField") }}', {
+        submitForm('{{ route("Installments.updateInstallmentField") }}', {
             'installment_id': installmentId,
             'field': 'narration',
             'value': newValue,

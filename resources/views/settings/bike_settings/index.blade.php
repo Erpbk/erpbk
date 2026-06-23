@@ -51,6 +51,7 @@ $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['adm
 $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 $showVisaStatusManagementTab = ($moduleKey ?? '') === 'visa_expense';
 $visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'visa_expense']) . '#tab-visa-status-management';
+$visaRenewalCategorySettingsReturnUrl = route('settings-panel.visa-statuses.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) . '#tab-visa-renewal-categories';
 $showLicenseStatusManagementTab = ($moduleKey ?? '') === 'license_expense';
 $licenseExpenseStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'license_expense']) . '#tab-license-status-management';
 $showLegalCaseStatusManagementTab = ($moduleKey ?? '') === 'legal_case';
@@ -123,6 +124,11 @@ $attendanceRefType = $attendanceRefType ?? null;
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-visa-expense-top" type="button" role="tab">
               Visa Expense Top
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-visa-renewal-categories" type="button" role="tab">
+              Visa Renewal Categories
             </button>
           </li>
           @endif
@@ -238,6 +244,13 @@ $attendanceRefType = $attendanceRefType ?? null;
               'visaStatusReturnTo' => $visaStatusSettingsReturnUrl
               ])
             </div>
+          </div>
+
+          <div class="tab-pane fade" id="tab-visa-renewal-categories" role="tabpanel">
+            @include('visa_renewal_categories.settings_panel', [
+              'categories' => $visaRenewalCategories ?? collect(),
+              'returnTo' => $visaRenewalCategorySettingsReturnUrl,
+            ])
           </div>
 
           <div class="tab-pane fade" id="tab-visa-expense-top" role="tabpanel">
@@ -2711,7 +2724,7 @@ $attendanceRefType = $attendanceRefType ?? null;
     document.addEventListener('DOMContentLoaded', function() {
       initVisaStatusSortable();
       var targetHash = window.location.hash;
-      if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top' || targetHash === '#tab-license-status-management' || targetHash === '#tab-license-top' || targetHash === '#tab-legal-case-status-management' || targetHash === '#tab-legal-case-top') {
+      if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top' || targetHash === '#tab-visa-renewal-categories' || targetHash === '#tab-license-status-management' || targetHash === '#tab-license-top' || targetHash === '#tab-legal-case-status-management' || targetHash === '#tab-legal-case-top') {
         var visaTabBtn = document.querySelector('[data-bs-target="' + targetHash + '"]');
         if (visaTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
           bootstrap.Tab.getOrCreateInstance(visaTabBtn).show();
@@ -2918,7 +2931,20 @@ $attendanceRefType = $attendanceRefType ?? null;
         setTimeout(initVisaStatusSortable, 50);
       });
     }
+
+    var visaRenewalTabBtn = document.querySelector('[data-bs-target="#tab-visa-renewal-categories"]');
+    if (visaRenewalTabBtn) {
+      visaRenewalTabBtn.addEventListener('shown.bs.tab', function() {
+        if (typeof window.initVisaRenewalSortable === 'function') {
+          setTimeout(window.initVisaRenewalSortable, 50);
+        }
+      });
+    }
   }
+
+  @if($showVisaStatusManagementTab)
+  @include('visa_renewal_categories.settings_script')
+  @endif
 
   @if($showBikeRegistrationExtras)
   @include('settings.partials.bike_registration_top_bar_script')

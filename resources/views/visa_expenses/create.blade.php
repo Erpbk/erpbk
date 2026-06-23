@@ -3,6 +3,7 @@
 
 <input type="hidden" id="reload_page" value="1">
 <input type="hidden" name="rider_id" value="{{ $data->id }}">
+<input type="hidden" name="renewal_category_id" value="{{ $activeRenewalCategory->id ?? '' }}">
 <div class="row">
     @include('visa_expenses.fields')
 </div>

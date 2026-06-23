@@ -130,11 +130,11 @@
       @endphp
       <tr class="text-center">
          <td>{{ $r->rider->rider_id ?? '-' }}</td>
-         <td class="text-start"><a href="{{ route('VisaExpense.generatentries' , $r->id) }}">{{ $r->name }}</a></td>
+         <td class="text-start"><a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}">{{ $r->name }}</a></td>
          <td><span class="badge {{ $badgeClass }}">{{ $hasActiveBike ? 'Active' : 'Inactive' }}</span></td>
          <td class="align-middle @if($nextUnpaid) visa-next-unpaid-cell @endif">
             @if($nextUnpaid)
-            <a href="{{ route('VisaExpense.generatentries', $r->id) }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-center">
+            <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-center">
                <span class="fw-semibold d-block text-body text-center">{{ $nextUnpaid->visa_status ?? '—' }}</span>
                @if($nextWhen !== '')
                <span class="text-muted small text-center">{{ \App\Helpers\Currency::symbol() }}{{ number_format((float) ($nextUnpaid->amount ?? 0), 2) }}</span>
@@ -146,7 +146,7 @@
          </td>
          <td class="align-middle @if($urgentExpiry && $urgentExpiryWhen !== '') visa-expiry-alert-cell @endif">
             @if($urgentExpiry && $urgentExpiryWhen !== '')
-            <a href="{{ route('VisaExpense.generatentries', $r->id) }}" class="text-decoration-none text-body visa-expiry-alert-blink d-inline-block text-center" title="Visa document expiry within 10 days or overdue">
+            <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}" class="text-decoration-none text-body visa-expiry-alert-blink d-inline-block text-center" title="Visa document expiry within 10 days or overdue">
                <span class="fw-semibold d-block text-body text-center">{{ $urgentExpiry->visa_status ?? '—' }}</span>
                <span class="text-muted small d-block text-center">{{ $urgentExpiryWhen }}</span>
             </a>
@@ -164,7 +164,7 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end">
-                  <a href="{{ route('VisaExpense.generatentries' , $r->id) }}" class='dropdown-item waves-effect'>
+                  <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye"></i> View
                   </a>
                   <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}" class='dropdown-item waves-effect'>

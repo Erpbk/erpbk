@@ -56,7 +56,14 @@
 @endpush
 
 @section('content')
-@php $visaRoute = $visaRoute ?? ((View::shared('settings_panel') ?? false) ? 'settings-panel.visa-statuses' : 'visa-statuses'); @endphp
+@php
+$visaRoute = $visaRoute ?? ((View::shared('settings_panel') ?? false) ? 'settings-panel.visa-statuses' : 'visa-statuses');
+$showRenewalCategoriesTab = ($visaRoute ?? '') === 'settings-panel.visa-statuses';
+$visaRenewalCategoryReturnUrl = $visaRenewalCategoryReturnUrl
+    ?? ($showRenewalCategoriesTab
+        ? route('settings-panel.visa-statuses.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) . '#tab-visa-renewal-categories'
+        : '');
+@endphp
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
@@ -65,11 +72,11 @@
     <div class="container-fluid">
         <div class="row mb-2">
             <div class="col-sm-6">
-                <h1>Visa Status Management</h1>
+                <h1>{{ $showRenewalCategoriesTab ? 'Visa Expense Settings' : 'Visa Status Management' }}</h1>
             </div>
             <div class="col-sm-6">
                 @can('visaexpense_create')
-                <a class="btn btn-primary float-end" href="{{ route($visaRoute . '.create') }}">
+                <a class="btn btn-primary float-end js-visa-status-add-btn" href="{{ route($visaRoute . '.create') }}">
                     Add New Status
                 </a>
                 @endcan
@@ -134,16 +141,52 @@
 <div class="content px-3">
     @include('flash::message')
     <div class="clearfix"></div>
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="mb-0"><i class="ti ti-list me-2"></i>Visa Statuses</h4>
-            <button type="button" class="btn btn-primary openFilterSidebar">
-                <i class="fa fa-search me-1"></i> Filter Visa Statuses
+
+    @if($showRenewalCategoriesTab)
+    <ul class="nav nav-tabs mb-3" id="visaExpenseSettingsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-visa-statuses-btn" data-bs-toggle="tab" data-bs-target="#tab-visa-statuses" type="button" role="tab">
+                Visa Statuses
             </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-visa-renewal-categories-btn" data-bs-toggle="tab" data-bs-target="#tab-visa-renewal-categories" type="button" role="tab">
+                Visa Renewal Categories
+            </button>
+        </li>
+    </ul>
+    @endif
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="tab-visa-statuses" role="tabpanel">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="ti ti-list me-2"></i>Visa Statuses</h4>
+                    <button type="button" class="btn btn-primary openFilterSidebar">
+                        <i class="fa fa-search me-1"></i> Filter Visa Statuses
+                    </button>
+                </div>
+                <div class="card-body table-responsive px-2 py-0" id="table-data">
+                    @include('visa_statuses.table', ['visaStatuses' => $visaStatuses, 'visaRoute' => $visaRoute])
+                </div>
+            </div>
         </div>
-        <div class="card-body table-responsive px-2 py-0" id="table-data">
-            @include('visa_statuses.table', ['visaStatuses' => $visaStatuses, 'visaRoute' => $visaRoute])
+
+        @if($showRenewalCategoriesTab)
+        <div class="tab-pane fade" id="tab-visa-renewal-categories" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="ti ti-category me-2"></i>Visa Renewal Categories</h4>
+                </div>
+                <div class="card-body">
+                    @include('visa_renewal_categories.settings_panel', [
+                        'categories' => $visaRenewalCategories ?? collect(),
+                        'returnTo' => $visaRenewalCategoryReturnUrl,
+                    ])
+                </div>
+            </div>
         </div>
+        @endif
     </div>
 </div>
 @endsection
@@ -392,6 +435,19 @@
             allowClear: true,
             placeholder: 'Select'
         });
+
+        @if($showRenewalCategoriesTab ?? false)
+        document.querySelectorAll('#visaExpenseSettingsTabs [data-bs-toggle="tab"]').forEach(function(tabBtn) {
+            tabBtn.addEventListener('shown.bs.tab', function(event) {
+                var addBtn = document.querySelector('.js-visa-status-add-btn');
+                if (!addBtn) return;
+                addBtn.style.display = event.target.getAttribute('data-bs-target') === '#tab-visa-statuses' ? '' : 'none';
+            });
+        });
+        @endif
     });
 </script>
+@if($showRenewalCategoriesTab ?? false)
+@include('visa_renewal_categories.settings_script')
+@endif
 @endsection

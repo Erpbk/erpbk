@@ -11,6 +11,7 @@ use App\Models\RiderInvoiceAccountAssignment;
 use App\Models\Settings;
 use App\Models\BikeRegistrationStatus;
 use App\Models\SimAssignFieldAssignment;
+use App\Models\VisaRenewalCategory;
 use App\Models\VisaStatus;
 use App\Models\LicenseStatus;
 use App\Models\LegalCaseStatus;
@@ -23,6 +24,7 @@ use App\Support\ModuleTopBarRoutes;
 use App\Support\SimAssignFields;
 use App\Support\AttendanceFieldScope;
 use App\Support\ModuleFieldSource;
+use App\Support\VisaRenewalCategoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -421,12 +423,18 @@ class ModuleSettingsController extends Controller
             ];
         }
         $visaStatuses = collect();
+        $visaRenewalCategories = collect();
         $selectedVisaExpenseTopStatusIds = [];
         $visaExpenseTopEnabled = true;
         if ($module === 'visa_expense') {
+            VisaRenewalCategoryService::ensureDefaultExists();
             $visaStatuses = VisaStatus::query()
                 ->orderBy('display_order')
                 ->orderBy('name')
+                ->get();
+            $visaRenewalCategories = VisaRenewalCategory::query()
+                ->orderBy('display_order')
+                ->orderBy('id')
                 ->get();
             $selectedVisaExpenseTopStatusIds = $this->selectedVisaExpenseTopStatusIds();
             $visaExpenseTopEnabled = $this->visaExpenseTopEnabled();
@@ -522,6 +530,7 @@ class ModuleSettingsController extends Controller
             'riderInvoiceAssignments' => $riderInvoiceAssignments,
             'moduleSchemaFieldKeys' => ModuleFieldSource::schemaFieldKeysForModule($module),
             'visaStatuses' => $visaStatuses,
+            'visaRenewalCategories' => $visaRenewalCategories,
             'selectedVisaExpenseTopStatusIds' => $selectedVisaExpenseTopStatusIds,
             'visaExpenseTopEnabled' => $visaExpenseTopEnabled,
             'licenseStatuses' => $licenseStatuses,

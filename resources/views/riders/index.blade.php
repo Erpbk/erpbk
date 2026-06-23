@@ -253,27 +253,6 @@
             }
         })
     }
-    // Make filter tabs section sticky on scroll
-    $(document).ready(function() {
-        const filterTabsSection = document.getElementById('filter-tabs-section');
-        const originalWidth = filterTabsSection.offsetWidth;
-        const originalPosition = filterTabsSection.getBoundingClientRect();
-        const parentElement = filterTabsSection.parentElement;
-        const parentPadding = parseInt(window.getComputedStyle(parentElement).paddingLeft) || 0;
-
-        window.addEventListener('scroll', function() {
-            const parentRect = parentElement.getBoundingClientRect();
-            if (parentRect.top < 0) {
-                filterTabsSection.classList.add('filter-tabs-fixed');
-                filterTabsSection.style.width = originalWidth + 'px';
-                filterTabsSection.style.left = (parentRect.left + parentPadding) + 'px';
-            } else {
-                filterTabsSection.classList.remove('filter-tabs-fixed');
-                filterTabsSection.style.width = '';
-                filterTabsSection.style.left = '';
-            }
-        });
-    });
     $(document).ready(function() {
         $('#customer_id').select2({
             dropdownParent: $('#searchTopbody'),

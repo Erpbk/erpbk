@@ -4,7 +4,7 @@ namespace App\Imports;
 
 use App\Helpers\Account;
 use App\Helpers\HeadAccount;
-use App\Models\Salik;
+use App\Models\salik;
 use App\Models\Bikes;
 use App\Models\Riders;
 use App\Models\BikeHistory;
@@ -66,12 +66,15 @@ class SalikImport implements ToCollection
                     $plateNumber         = $row[7] ?? null;
                     $amount              = $row[8] ?? null;
                     $billingMonthRaw     = $row[9] ?? null;
-                    $salik_account_id   = $row[10] ?? null;
-                    $adminCharge         = $row[11] ?? null;
-                    $details             = $row[12] ?? null;
-                    $debit               = $row[13] ?? null;
-                    // Use amount field for the actual transaction amount
-                    $transactionAmount = $amount ?: $debit;
+                    $salikVatPercent     = (float) ($row[10] ?? 0);
+                    $adminCharge         = (float) ($row[11] ?? $this->adminChargePerSalik);
+                    $adminVatPercent     = (float) ($row[12] ?? 0);
+                    $details             = $row[13] ?? null;
+                    $transactionAmount = (float) ($amount ?: ($row[14] ?? 0));
+                    $salikVatAmount = round($transactionAmount * $salikVatPercent / 100, 2);
+                    $adminVatAmount = round($adminCharge * $adminVatPercent / 100, 2);
+                    $totalVat = $salikVatAmount + $adminVatAmount;
+                    $totalAmount = $transactionAmount + $adminCharge + $totalVat;
 
 
                     if (empty($transactionId) || empty($tripDateForStorage) || empty($plateNumber) || empty($transactionAmount)) {
@@ -93,7 +96,7 @@ class SalikImport implements ToCollection
                     $processedTransactionIds[] = $transactionId;
 
                     // Check for duplicates in database (but still import if it's the first occurrence in Excel)
-                    $existsInDatabase = Salik::where('transaction_id', $transactionId)->exists();
+                    $existsInDatabase = salik::where('transaction_id', $transactionId)->exists();
                     if ($existsInDatabase) {
                         \Log::info("Transaction ID {$transactionId} already exists in database, but importing first occurrence from Excel file");
                     }
@@ -140,16 +143,19 @@ class SalikImport implements ToCollection
                         'plate'            => $plateNumber,
                         'bike_id'          => $bike->id,
                         'amount'           => $transactionAmount,
+                        'salik_vat'        => $salikVatPercent,
+                        'salik_vat_amount' => $salikVatAmount,
                         'rider_id'         => $rider->id,
-                        'payer_account'    => $payerAccount,
-                        'salik_account_id' => $salik_account_id,
-                        'admin_charges'    => $this->adminChargePerSalik,
-                        'total_amount'     => $transactionAmount + $this->adminChargePerSalik,
-                        'status'           => 'paid',
+                        'admin_charges'    => $adminCharge,
+                        'admin_vat'        => $adminVatPercent,
+                        'admin_vat_amount' => $adminVatAmount,
+                        'vat'              => $totalVat,
+                        'total_amount'     => $totalAmount,
+                        'details'          => $details,
+                        'status'           => 'unpaid',
                         'branch_id'        => $bike->branch_id,
-                        'billing_month'    =>  $billingMonthForStore,
+                        'billing_month'    => $billingMonthForStore,
                         'trans_date'       => Carbon::today(),
-                        'trans_code'       => Account::trans_code(),
                         'created_by'       => Auth::user()->id,
                     ];
                     // Determine if we're using current rider or last rider from history
@@ -160,13 +166,13 @@ class SalikImport implements ToCollection
 
                     if ($existsInDatabase) {
                         // Update existing record with new data from Excel
-                        $existingSalik = Salik::where('transaction_id', $transactionId)->first();
+                        $existingSalik = salik::where('transaction_id', $transactionId)->first();
                         $existingSalik->update($salikData);
                         $salik = $existingSalik;
                         \Log::info("Updated existing Salik record with ID: {$salik->id}");
                     } else {
                         // Create new record
-                        $salik = Salik::create($salikData);
+                        $salik = salik::create($salikData);
                         \Log::info("Successfully created new Salik record with ID: {$salik->id}");
                     }
 
@@ -195,7 +201,8 @@ class SalikImport implements ToCollection
                     $groupedData[$groupKey]['saliks'][] = $salik;
                     $groupedData[$groupKey]['payer_account'] = $payerAccount;
                     $groupedData[$groupKey]['total_amount'] += $transactionAmount;
-                    $groupedData[$groupKey]['total_admin_charges'] += $this->adminChargePerSalik;
+                    $groupedData[$groupKey]['total_admin_charges'] += $adminCharge;
+                    $groupedData[$groupKey]['total_vat'] = ($groupedData[$groupKey]['total_vat'] ?? 0) + $totalVat;
                     $groupedData[$groupKey]['count']++;
                 } catch (\Exception $e) {
                     \Log::error("Error processing row {$rowCount}: " . $e->getMessage());
@@ -395,80 +402,78 @@ class SalikImport implements ToCollection
     private function createSummaryVoucherForRider($groups)
     {
         $transactionService = new TransactionService();
-        $adminAccountId = HeadAccount::SALIK_ADMIN_CHARGES;
+        $payableAccountId = HeadAccount::SALIK_PAYABLE_ACCOUNT;
 
         foreach ($groups as $group) {
             $rider          = $group['rider'];
             $riderAccountId = $group['rider_account_id'];
             $totalAmount    = $group['total_amount'];
             $totalAdmin     = $group['total_admin_charges'];
+            $totalVat       = $group['total_vat'] ?? 0;
             $count          = $group['count'];
             $firstSalik     = $group['saliks'][0];
             $billingMonth   = $group['billing_month'];
             $billingMonthDisplay = $group['billing_month_display'] ?? $billingMonth;
+            $grandTotal = $totalAmount + $totalAdmin + $totalVat;
 
             $transCode = Account::trans_code();
             $transDate = now();
 
-            // 1. Debit Rider for total amount + admin charges
             $transactionService->recordTransaction([
                 'account_id'     => $riderAccountId,
                 'reference_id'   => $firstSalik->id,
                 'reference_type' => 'Salik Voucher',
                 'trans_code'     => $transCode,
                 'trans_date'     => $transDate,
-                'narration'      => "salik charges month of $billingMonthDisplay ($count transactions)",
-                'debit'          => $totalAmount + $totalAdmin,
+                'narration'      => "Salik charges month of $billingMonthDisplay ($count transactions)",
+                'debit'          => $grandTotal,
                 'branch_id'      => $firstSalik->branch_id,
                 'billing_month'  => $billingMonth,
             ]);
 
-            // 2. Credit Salik Account for EACH individual transaction (48 separate entries)
-            foreach ($group['saliks'] as $salik) {
-                $transactionService->recordTransaction([
-                    'account_id'     => HeadAccount::SALIK_ASSET_ACCOUNT,
-                    'reference_id'   => $salik->id,
-                    'reference_type' => 'Salik Voucher',
-                    'trans_code'     => $transCode,
-                    'trans_date'     => $transDate,
-                    'narration'      => "salik charges month of $billingMonthDisplay ($count transactions) - Reference Number: {$salik->transaction_id}",
-                    'credit'         => $salik->amount,
-                    'branch_id'      => $salik->branch_id,
-                    'billing_month'  => $billingMonth,
-                ]);
-            }
+            $transactionService->recordTransaction([
+                'account_id'     => $payableAccountId,
+                'reference_id'   => $firstSalik->id,
+                'reference_type' => 'Salik Voucher',
+                'trans_code'     => $transCode,
+                'trans_date'     => $transDate,
+                'narration'      => "Salik payable month of $billingMonthDisplay ($count transactions)",
+                'credit'         => $totalAmount + $totalAdmin,
+                'branch_id'      => $firstSalik->branch_id,
+                'billing_month'  => $billingMonth,
+            ]);
 
-            // 3. Credit Admin Charges (summary)
-            if ($totalAdmin > 0) {
+            if ($totalVat > 0) {
                 $transactionService->recordTransaction([
-                    'account_id'     => $adminAccountId,
+                    'account_id'     => HeadAccount::VAT_ON_SALES,
                     'reference_id'   => $firstSalik->id,
                     'reference_type' => 'Salik Voucher',
                     'trans_code'     => $transCode,
                     'trans_date'     => $transDate,
-                    'narration'      => "salik charges month of $billingMonthDisplay ($count × {$this->adminChargePerSalik}) - Reference Number: {$firstSalik->transaction_id}",
-                    'credit'         => $totalAdmin,
+                    'narration'      => "Salik VAT month of $billingMonthDisplay ($count transactions)",
+                    'credit'         => $totalVat,
                     'branch_id'      => $firstSalik->branch_id,
                     'billing_month'  => $billingMonth,
                 ]);
             }
 
-            // Create main voucher record
+            salik::whereIn('id', collect($group['saliks'])->pluck('id'))->update(['trans_code' => $transCode]);
+
             Vouchers::create([
                 'trans_date'    => $transDate,
                 'trans_code'    => $transCode,
                 'payment_type'  => 1,
                 'billing_month' => $billingMonth,
-                'amount'        => $totalAmount + $totalAdmin,
+                'amount'        => $grandTotal,
                 'voucher_type'  => 'SV',
                 'reference_number' => $firstSalik->transaction_id,
-                'remarks'       => "salik charges month of $billingMonthDisplay - Reference Number: {$firstSalik->transaction_id}",
+                'remarks'       => "Salik charges month of $billingMonthDisplay - Reference Number: {$firstSalik->transaction_id}",
                 'ref_id'        => $firstSalik->id,
                 'rider_id'      => $rider->id,
-                'payment_to'    => HeadAccount::SALIK_ASSET_ACCOUNT,
+                'payment_to'    => $payableAccountId,
                 'payment_from'  => $riderAccountId,
                 'Created_By'    => Auth::user()->id,
-                'branch_id'      => $firstSalik->branch_id,
+                'branch_id'     => $firstSalik->branch_id,
                 'custom_field_values' => [],
             ]);
         }

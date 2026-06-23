@@ -1,6 +1,5 @@
 {!! Form::open(['route' => 'salik.store','id'=>'formajax']) !!}
 
-
 <input type="hidden" id="reload_page" value="1">
 <div class="row">
     @include('salik.fields')

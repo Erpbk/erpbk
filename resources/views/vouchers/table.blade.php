@@ -16,9 +16,10 @@
   </thead>
   <tbody>
     @php
-  $__companySlug = \App\Support\CompanyRouteContext::slug();
-  $editDeleteFlags = $editDeleteFlags ?? [];
-@endphp
+      $__companySlug = \App\Support\CompanyRouteContext::slug();
+      $editDeleteFlags = $editDeleteFlags ?? [];
+      $voucherTypes = \App\Helpers\General::VoucherType();
+    @endphp
 @if(isset($data) && $data->count() > 0)
     @foreach($data as $voucher)
     <tr class="text-center">
@@ -33,9 +34,6 @@
       <td>{{ \App\Helpers\Common::MonthFormat($voucher->billing_month) }}</td>
       <td>{{ $voucher->reference_number ?? 'N/A' }}</td>
       <td>
-        @php
-        $voucherTypes = \App\Helpers\General::VoucherType();
-        @endphp
         <span class="badge bg-primary">{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }}</span>
       </td>
       <td class="text-end">{{ number_format($voucher->amount, 2) }}</td>

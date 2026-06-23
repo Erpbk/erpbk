@@ -187,22 +187,6 @@
     }
 
     $(document).ready(function() {
-        const filterTabsSection = document.getElementById('filter-tabs-section');
-        if (filterTabsSection) {
-            const parentElement = filterTabsSection.parentElement;
-            const parentPadding = parseInt(window.getComputedStyle(parentElement).paddingLeft) || 0;
-            window.addEventListener('scroll', function() {
-                const parentRect = parentElement.getBoundingClientRect();
-                if (parentRect.top < 0) {
-                    filterTabsSection.classList.add('filter-tabs-fixed');
-                    filterTabsSection.style.left = (parentRect.left + parentPadding) + 'px';
-                } else {
-                    filterTabsSection.classList.remove('filter-tabs-fixed');
-                    filterTabsSection.style.left = '';
-                }
-            });
-        }
-
         $('#branch_id, #department_id').select2({
             dropdownParent: $('#searchTopbody'),
             allowClear: true,

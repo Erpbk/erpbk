@@ -102,7 +102,7 @@ class SettingsPanelMenuRegistry
             'vat' => ['settings-panel/vat-settings*'],
             'vat_ledger' => ['settings-panel/vat-settings*'],
             'vat_return_file' => ['settings-panel/vat-settings*'],
-            'visa_expense' => ['settings-panel/visa-statuses*', 'settings-panel/module-settings/visa_expense*'],
+            'visa_expense' => ['settings-panel/visa-statuses*', 'settings-panel/visa-renewal-categories*', 'settings-panel/module-settings/visa_expense*'],
             'rider_inventory_items' => ['settings-panel/rider-inventory-items*'],
             'bike_registration' => ['settings-panel/bike-registration-statuses*', 'settings-panel/module-settings/bike_registration*'],
             'bike_list' => ['settings-panel/module-settings/bike_list*'],

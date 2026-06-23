@@ -597,7 +597,7 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                @can('visaexpense_view')
+                @if(\App\Support\VisaExpenseAccess::visibleInRiderTab())
                 @if(!empty($riders))
                 @php
                 $account = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
@@ -605,13 +605,13 @@ $companySlug = request()->route('company_slug');
                 @if($account)
                 <li class="nav-item nav-priority-5">
                   <a class="nav-link @if(Route::is('VisaExpense.generatentries')) active @endif"
-                    href="{{ route('VisaExpense.generatentries', $account->id) }}">
+                    href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($account->id, $account->rider_id) }}">
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Visa Expense
                   </a>
                 </li>
                 @endif
                 @endif
-                @endcan
+                @endif
 
                 @can('licenseexpense_view')
                 @if(\App\Support\CompanyModuleVisibility::enabled('license_expense'))

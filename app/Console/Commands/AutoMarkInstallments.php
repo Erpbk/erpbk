@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Http\Controllers\VisaexpenseController;
+use App\Http\Controllers\InstallmentsController;
 use Carbon\Carbon;
 
 class AutoMarkInstallments extends Command
@@ -31,7 +31,7 @@ class AutoMarkInstallments extends Command
 
         $this->info('Starting auto-mark installments process...');
 
-        $controller = new VisaexpenseController(app(\App\Repositories\VisaExpensesRepository::class));
+        $controller = app(InstallmentsController::class);
         $updatedCount = $controller->autoMarkInstallmentsAsPaid($riderId);
 
         if ($updatedCount > 0) {

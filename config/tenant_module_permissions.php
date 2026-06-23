@@ -107,9 +107,10 @@ return [
         ['parent' => 'Inventory', 'slug' => 'inventory', 'extras' => []],
 
         ['parent' => 'Visa Expense', 'slug' => 'visaexpense', 'extras' => [
-            'visaloan_create',
-            'visaloan_edit',
+            'visaexpense_show_in_menu',
         ]],
+
+        ['parent' => 'Installments', 'slug' => 'installment', 'extras' => []],
 
         ['parent' => 'License Expense', 'slug' => 'licenseexpense', 'extras' => []],
 

@@ -1,4 +1,4 @@
-@push('third_party_stylesheets')
+﻿@push('third_party_stylesheets')
 @endpush
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
     <thead class="text-center">
@@ -19,11 +19,11 @@
         <tr class="text-center" data-status="{{ $installment->status }}">
             <td>
                 <span id="date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
-                @canany(['installment_edit', 'visaloan_edit'])
+                @can('installment_edit')
                 <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcanany
+                @endcan
                 <input type="date"
                     id="date_input_{{ $installment->id }}"
                     value="{{ \Carbon\Carbon::parse($installment->date)->format('Y-m-d') }}"
@@ -44,11 +44,11 @@
             </td>
             <td>
                 <span id="billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
-                @canany(['installment_edit', 'visaloan_edit'])
+                @can('installment_edit')
                 <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcanany
+                @endcan
                 <input type="month"
                     id="billing_input_{{ $installment->id }}"
                     value="{{ \Carbon\Carbon::parse($installment->billing_month)->format('Y-m') }}"
@@ -58,11 +58,11 @@
             </td>
             <td>
                 <span id="amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
-                @canany(['installment_edit', 'visaloan_edit'])
+                @can('installment_edit')
                 <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcanany
+                @endcan
                 <input type="number"
                     step="0.01"
                     id="amount_input_{{ $installment->id }}"
@@ -73,11 +73,11 @@
             </td>
             <td class="text-start" style="min-width: 260px;">
                 <span id="narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
-                @canany(['installment_edit', 'visaloan_edit'])
+                @can('installment_edit')
                 <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcanany
+                @endcan
                 <textarea
                     id="narration_input_{{ $installment->id }}"
                     rows="2"
@@ -98,7 +98,7 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown{{ $installment->id }}">
-                        @canany(['installment_edit', 'visaloan_edit'])
+                        @can('installment_edit')
                         @if($installment->status === 'pending')
                         <a href="javascript:void(0);"
                             onclick="markAsPaid({{ $installment->id }})"
@@ -128,7 +128,7 @@
                         <span class="dropdown-item-text text-{{ $installment->status === 'paid' ? 'success' : 'warning' }}">
                             <i class="fa fa-{{ $installment->status === 'paid' ? 'check' : 'clock' }} me-2"></i> {{ ucfirst($installment->status) }}
                         </span>
-                        @endcanany
+                        @endcan
                     </div>
                 </div>
             </td>

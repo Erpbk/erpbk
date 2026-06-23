@@ -31,6 +31,19 @@
   /* Firefox */
 }
 
+/* Riders & Employees index: use natural page scroll instead of a nested scroll container */
+.card-body.table-responsive:has(.riders-table-container) {
+  max-height: none;
+  overflow-y: visible;
+  overflow-x: auto;
+  -ms-overflow-style: auto;
+  scrollbar-width: auto;
+}
+
+.card-body.table-responsive:has(.riders-table-container)::-webkit-scrollbar {
+  display: initial;
+}
+
 /* Filter Sidebar Styles */
 .filter-sidebar {
   position: fixed;
@@ -342,18 +355,9 @@
   clear: both;
   width: 100%;
   display: block;
-}
-
-/* Fixed Filter Tabs Section */
-.filter-tabs-fixed {
-  position: fixed;
+  position: sticky;
   top: 0;
-  z-index: 111111;
-  border-radius: 8px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
-  animation: fadeIn 0.3s forwards;
-  margin: 0;
+  z-index: 1020;
 }
 
 @keyframes fadeIn {

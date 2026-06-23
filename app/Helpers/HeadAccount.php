@@ -7,11 +7,11 @@ final class HeadAccount
   const VAT_ON_SALES = 1025; // VAT on Sales Account
   const RTA_FINE = 2497; // RTA Fine Account
   const SIM_EXPENSE_ACCOUNT = 2394; // SIM Expense Account
-  const VAT_PURCHASE_ACCOUNT = 2487; // VAT Purchase Account
+  const VAT_PURCHASE_ACCOUNT = 2395; // VAT Purchase Account
   const FUEL_ADMIN_CHARGES = 2501; // Fuel Admin Charges Account
-  const SALIK_ASSET_ACCOUNT = 2490; // Salik Asset Account
-  const SALIK_ADMIN_CHARGES = 2476; // Salik Admin Charges Account
-  const SALIK_PAYABLE_ACCOUNT = 2494; // Salik Payable Account
+  const SALIK_ASSET_ACCOUNT = 1715; // Salik Asset Account
+  const SALIK_ADMIN_CHARGES = 1003; // Salik Admin Charges Account
+  const SALIK_PAYABLE_ACCOUNT = 2310; // Salik Payable Account
   const RTA_ADMIN_CHARGES = 2473; // RTA Admin Charges Account
   const RTA_SERVICE_CHARGES = 2513; // RTA Service Charges Account
   const LEASING_EXPENSE_ACCOUNT = 2493; // Leasing Expense Account
@@ -26,6 +26,7 @@ final class HeadAccount
   const BIKE_REGISTRATION_EXPENSE_ACCOUNT = 2516; // Bike Registration Expense Account
   const INVENTORY_LOSS = 2519; // Inventory Loss Account
   const LICENSE_EXPENSE_ACCOUNT = 2520; // Dubai Driving License Expense Account
+
 
   /**
    * Head accounts used when recording salik payment vouchers (PV).

@@ -37,9 +37,11 @@
                             </a>
                             @endcan
                             @can('asset_delete')
+                            @unless($category->isSystemLocked())
                             <a class="dropdown-item" href="javascript:void(0);" onclick="confirmDelete('{{ route('asset-categories.delete', $category->id) }}')">
                                 <i class="fa fa-trash"></i> Delete
                             </a>
+                            @endunless
                             @endcan
                         </div>
                     </div>

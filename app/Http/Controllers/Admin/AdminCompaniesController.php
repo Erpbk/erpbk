@@ -7,6 +7,7 @@ use App\Models\AdminCompany;
 use App\Models\Company;
 use App\Models\Countries;
 use App\Models\User;
+use App\Services\FixedAssets\VehiclesCategoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -15,6 +16,11 @@ use Illuminate\Validation\Rules\Password;
 
 class AdminCompaniesController extends Controller
 {
+    public function __construct(
+        private readonly VehiclesCategoryService $vehiclesCategoryService
+    ) {
+    }
+
     /**
      * List companies (pending, approved, rejected). Uses central DB.
      */
@@ -84,6 +90,12 @@ class AdminCompaniesController extends Controller
         $this->createFirstUserForCompany($company);
 
         AdminCompany::syncFromCentralCompany($company);
+
+        try {
+            $this->vehiclesCategoryService->ensureForCompany((int) $company->id);
+        } catch (\Throwable $e) {
+            // Category seeding should not block company creation.
+        }
 
         return redirect()->route('admin.companies.index')->with('success', __('Company created successfully.'));
     }
@@ -233,6 +245,12 @@ class AdminCompaniesController extends Controller
             AdminCompany::syncFromCentralCompany($centralCompany);
         } catch (\Throwable $e) {
             return back()->with('error', __('Failed to create company owner user: :message', ['message' => $e->getMessage()]));
+        }
+
+        try {
+            $this->vehiclesCategoryService->ensureForCompany((int) $centralCompany->id);
+        } catch (\Throwable $e) {
+            // Category seeding should not block company approval.
         }
 
         $successMessage = __('Company approved. Owner user created.');

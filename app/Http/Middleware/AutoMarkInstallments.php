@@ -54,8 +54,8 @@ class AutoMarkInstallments
 
         $routeName = $route->getName();
 
-        // Only run on VisaExpense related routes
-        return $routeName && str_contains($routeName, 'VisaExpense');
+        // Run on Visa Expense and Installments routes
+        return $routeName && (str_contains($routeName, 'VisaExpense') || str_contains($routeName, 'Installments'));
     }
 
     /**

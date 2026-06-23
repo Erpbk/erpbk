@@ -82,6 +82,10 @@ return [
             'label' => 'Visa Expense',
             'primary_label_key' => 'visa_expense',
         ],
+        'installments' => [
+            'label' => 'Installments',
+            'primary_label_key' => 'installments',
+        ],
         'license_expense' => [
             'label' => 'License Expense',
             'primary_label_key' => 'license_expense',

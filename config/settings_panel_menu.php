@@ -163,6 +163,12 @@ return [
             'icon' => 'ti-credit-card',
         ],
         [
+            'key' => 'installments',
+            'visibility' => 'installments',
+            'permission' => 'installment_view',
+            'icon' => 'ti-calendar-dollar',
+        ],
+        [
             'key' => 'license_expense',
             'visibility' => 'license_expense',
             'permission' => 'licenseexpense_view',

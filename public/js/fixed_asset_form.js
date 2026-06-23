@@ -122,6 +122,79 @@ window.initFixedAssetForm = function (options) {
         $('#acquisition_voucher_amount').val(cost > 0 ? cost.toFixed(2) : '');
     }
 
+    function clearBranchSubmitOverride() {
+        $('#branch_id_vehicle_hidden').remove();
+        $('#branch_id').attr('name', 'branch_id').prop('disabled', false);
+    }
+
+    function setBranchSubmitOverride(branchId) {
+        var $hidden = $('#branch_id_vehicle_hidden');
+        if (!$hidden.length) {
+            $hidden = $('<input type="hidden" id="branch_id_vehicle_hidden">').insertAfter('#branch_id');
+        }
+        $hidden.attr('name', 'branch_id').val(branchId || '');
+        $('#branch_id').removeAttr('name').prop('disabled', true);
+    }
+
+    function syncVehicleBikeFields() {
+        var $category = $('#asset_category_id option:selected');
+        var isVehicles = String($category.attr('data-is-vehicles')) === '1';
+        var $serial = $('#serial_number');
+        var $branch = $('#branch_id');
+
+        if (!isVehicles) {
+            $serial.prop('readonly', false);
+            clearBranchSubmitOverride();
+            return;
+        }
+
+        $serial.prop('readonly', true);
+
+        var $selectedBike = $('#bike_id option:selected');
+        var chassis = $selectedBike.attr('data-chassis-number') || '';
+        var branchId = $selectedBike.attr('data-branch-id') || '';
+        var label = $selectedBike.attr('data-label') || $.trim($selectedBike.text());
+
+        $serial.val(chassis);
+        $('#asset_name_hidden').val(label || '');
+
+        if (branchId) {
+            $branch.val(String(branchId)).trigger('change');
+            setBranchSubmitOverride(branchId);
+        } else {
+            clearBranchSubmitOverride();
+        }
+    }
+
+    function syncVehicleCategoryMode() {
+        var $selected = $('#asset_category_id option:selected');
+        var isVehicles = String($selected.attr('data-is-vehicles')) === '1';
+        var $nameWrap = $('#asset-name-field-wrap');
+        var $bikeWrap = $('#asset-bike-field-wrap');
+        var $nameInput = $('#asset_name');
+        var $hiddenName = $('#asset_name_hidden');
+
+        if (!$nameWrap.length || !$bikeWrap.length) {
+            return;
+        }
+
+        if (isVehicles) {
+            $nameWrap.hide();
+            $bikeWrap.show();
+            $nameInput.prop('required', false).removeAttr('name');
+            $('#bike_id').prop('required', true);
+            $hiddenName.prop('disabled', false).attr('name', 'name');
+            syncVehicleBikeFields();
+        } else {
+            $bikeWrap.hide();
+            $nameWrap.show();
+            $('#bike_id').prop('required', false).val('').trigger('change');
+            $hiddenName.prop('disabled', true).removeAttr('name');
+            $nameInput.prop('required', true).attr('name', 'name');
+            syncVehicleBikeFields();
+        }
+    }
+
     function applyCategoryDefaults() {
         var $selected = $('#asset_category_id option:selected');
         if (!$selected.val()) {
@@ -149,6 +222,15 @@ window.initFixedAssetForm = function (options) {
         }
 
         syncVoucherAmount();
+        syncVehicleCategoryMode();
+    }
+
+    if ($('#bike_id').length) {
+        $('#bike_id').select2({
+            dropdownParent: $('#modalTopbody'),
+            allowClear: true,
+            placeholder: 'Select vehicle'
+        }).on('change', syncVehicleBikeFields);
     }
 
     $('#branch_id').select2({
@@ -232,10 +314,12 @@ window.initFixedAssetForm = function (options) {
     $('#asset_status').on('change', syncAcquisitionSections);
     $('input[name="acquisition_posting"]').on('change', syncAcquisitionSections);
     $('#asset_category_id, #acquisition_cost').on('change input', applyCategoryDefaults);
+    $('#asset_category_id').on('change', syncVehicleCategoryMode);
 
     applyCategoryDefaults();
     syncInServiceMinDate();
     syncOpeningBalanceMode();
     syncPastDepreciationSection();
+    syncVehicleCategoryMode();
     syncVoucherAmount();
 };

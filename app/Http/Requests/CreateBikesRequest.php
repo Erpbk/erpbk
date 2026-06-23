@@ -81,12 +81,16 @@ class CreateBikesRequest extends FormRequest
                 ? true
                 : (bool) $assignment->is_visible;
 
-            $isRequired = ($assignment && $hasRequiredColumn)
-                ? (bool) $assignment->is_required
-                : false;
+            $isRequired = BikeCustomField::isAlwaysRequiredFixedField($fieldKey)
+                || (($assignment && $hasRequiredColumn)
+                    ? (bool) $assignment->is_required
+                    : false);
 
             $baseRule = $rules[$fieldKey] ?? 'nullable';
-            $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
+            $rules[$fieldKey] = $normalizePresenceRule(
+                $baseRule,
+                BikeCustomField::isAlwaysRequiredFixedField($fieldKey) || ($isVisible && $isRequired)
+            );
         }
 
         // Custom fields mandatory flags (only visible fields)

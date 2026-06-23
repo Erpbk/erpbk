@@ -597,7 +597,7 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                @can('visaexpense_view')
+                @if(\App\Support\VisaExpenseAccess::visibleInRiderTab())
                 @if(!empty($riders))
                 @php
                 $account = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
@@ -609,6 +609,24 @@ $companySlug = request()->route('company_slug');
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Visa Expense
                   </a>
                 </li>
+                @endif
+                @endif
+                @endif
+
+                @can('installment_view')
+                @if(\App\Support\CompanyModuleVisibility::enabled('installments'))
+                @if(!empty($riders))
+                @php
+                $installmentAccount = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
+                @endphp
+                @if($installmentAccount)
+                <li class="nav-item nav-priority-5">
+                  <a class="nav-link @if(Route::is('Installments.installmentPlan')) active @endif"
+                    href="{{ route('Installments.installmentPlan', $installmentAccount->id) }}">
+                    <i class="ti ti-calendar-dollar ti-sm me-1_5"></i>Installments
+                  </a>
+                </li>
+                @endif
                 @endif
                 @endif
                 @endcan

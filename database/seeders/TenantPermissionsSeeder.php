@@ -18,6 +18,7 @@ class TenantPermissionsSeeder extends Seeder
         }
 
         TenantModulePermissionsSync::sync(true);
+        TenantModulePermissionsSync::migrateLegacyPermissionAssignments();
 
         // Keep legacy seeders for permissions that were added outside module config.
         $this->call([

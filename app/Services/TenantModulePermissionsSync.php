@@ -94,6 +94,43 @@ class TenantModulePermissionsSync
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
+    /**
+     * Migrate legacy permission assignments when module structure changes.
+     */
+    public static function migrateLegacyPermissionAssignments(): void
+    {
+        $permissionMap = [
+            'visaloan_create' => 'installment_create',
+            'visaloan_edit' => 'installment_edit',
+        ];
+
+        foreach ($permissionMap as $oldName => $newName) {
+            $oldPermission = Permission::query()->where('name', $oldName)->where('guard_name', 'web')->first();
+            $newPermission = Permission::query()->where('name', $newName)->where('guard_name', 'web')->first();
+            if (!$oldPermission || !$newPermission) {
+                continue;
+            }
+
+            foreach (Role::query()->where('guard_name', 'web')->get() as $role) {
+                if ($role->hasPermissionTo($oldPermission) && !$role->hasPermissionTo($newPermission)) {
+                    $role->givePermissionTo($newPermission);
+                }
+            }
+        }
+
+        $showInMenu = Permission::query()->where('name', 'visaexpense_show_in_menu')->where('guard_name', 'web')->first();
+        $viewPermission = Permission::query()->where('name', 'visaexpense_view')->where('guard_name', 'web')->first();
+        if ($showInMenu && $viewPermission) {
+            foreach (Role::query()->where('guard_name', 'web')->get() as $role) {
+                if ($role->hasPermissionTo($viewPermission) && !$role->hasPermissionTo($showInMenu)) {
+                    $role->givePermissionTo($showInMenu);
+                }
+            }
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
     protected static function giveToAdminRoles(Permission $permission): void
     {
         foreach (config('tenant_module_permissions.assign_roles', []) as $roleName) {

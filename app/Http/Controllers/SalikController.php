@@ -11,6 +11,8 @@ use App\Http\Controllers\AppBaseController;
 use App\Models\Bikes;
 use App\Models\Riders;
 use App\Models\RtaFines;
+use App\Models\BikeRentCompany;
+use App\Models\LeasingCompanies;
 use App\Models\Accounts;
 use App\Models\Vouchers;
 use App\Models\LedgerEntry;
@@ -26,6 +28,7 @@ use DB;
 use Auth;
 use App\Imports\SalikImport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Helpers\HeadAccount;
 
 class SalikController extends AppBaseController
 {
@@ -38,164 +41,40 @@ class SalikController extends AppBaseController
         $this->salikRepository = $salikRepo;
     }
 
-    /**
-     * Display a listing of the RtaFines.
-     */
-    public function accountcreate(Request $request)
-    {
-        $exists = Accounts::where('name', $request->name)->exists();
-        if ($exists) {
-            Flash::success('Account with this name already exists.');
-        }
-
-        // Get the parent account
-        $parent = Accounts::where('id', 1237)->first();
-        if (!$parent) {
-            Flash::error('Parent account "Salik" not found.');
-            return redirect()->back();
-        }
-        // Create new account
-        $newdata = new Accounts();
-        $newdata->name = $request->name;
-        $newdata->traffic_code_number = $request->traffic_code_number;
-        $newdata->admin_charges = $request->admin_charges;
-        $newdata->parent_id = $parent->id;
-        $newdata->account_type = 'Liability';
-
-        $newdata->status = 1;
-        $newdata->save();
-        $newdata->account_code = 'ACCT-' . str_pad($newdata->id, 5, '0', STR_PAD_LEFT);
-        $newdata->save();
-
-        Flash::success('Account added successfully.');
-        return redirect()->back();
-    }
-
-    public function editaccount(Request $request)
-    {
-        $parent = Accounts::where('id', 1237)->first();
-        if (!$parent) {
-            Flash::error('Parent account "Salik" not found.');
-            return redirect()->back();
-        }
-        $newdata = Accounts::find($request->id);
-        $newdata->name = $request->name;
-        $newdata->traffic_code_number = $request->traffic_code_number;
-        $newdata->admin_charges = $request->admin_charges;
-        $newdata->parent_id = $parent->id;
-        $newdata->account_type = 'Liability';
-        $newdata->status = 1;
-        $newdata->save();
-        $newdata->account_code = 'ACCT-' . str_pad($newdata->id, 5, '0', STR_PAD_LEFT);
-        $newdata->save();
-
-        Flash::success('Account Updated successfully.');
-        return redirect()->back();
-    }
-    public function deleteaccount($company_slug, $id)
-    {
-        // Check if there are any salik entries related to this account (including soft deleted)
-        $hasSalik = salik::withTrashed()->where('salik_account_id', $id)->exists();
-
-        if ($hasSalik) {
-            Flash::error('Cannot delete account. There are existing Salik entries linked to this account.');
-            return redirect()->back();
-        }
-
-        // Check if there are any ledger transactions related to this account
-        $hasLedgerEntries = LedgerEntry::where('account_id', $id)->exists();
-
-        if ($hasLedgerEntries) {
-            Flash::error('Cannot delete account. There are existing ledger transactions linked to this account.');
-            return redirect()->back();
-        }
-
-        // Check if there are any transactions related to this account (including soft deleted)
-        $hasTransactions = Transactions::withTrashed()->where('account_id', $id)->exists();
-
-        if ($hasTransactions) {
-            Flash::error('Cannot delete account. There are existing transactions linked to this account.');
-            return redirect()->back();
-        }
-
-        // Get account details before deletion for cascade tracking
-        $account = Accounts::findOrFail($id);
-        $accountName = $account->name ?? "Account #{$id}";
-
-        // Soft delete the account
-        $account->delete();
-
-        Flash::success('Account deleted successfully.');
-        return redirect()->back();
-    }
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('salik_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $parent = Accounts::where('id', 1237)->first();
-
-        // Use global pagination trait
-        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = Accounts::query()
-            ->orderBy('id', 'asc');
-
-        if ($parent) {
-            $query->where('parent_id', $parent->id);
-        } else {
-            // Keep module accessible when no Salik parent/account exists yet.
-            $query->whereRaw('1 = 0');
-        }
-        if ($request->has('account_code') && !empty($request->account_code)) {
-            $query->where('account_code', 'like', '%' . $request->account_code . '%');
-        }
-        if ($request->has('name') && !empty($request->name)) {
-            $query->where('name', 'like', '%' . $request->name . '%');
-        }
-        // Apply pagination using the trait
-        $data = $this->applyPagination($query, $paginationParams);
-        if ($request->ajax()) {
-            $tableData = view('salik.account_table', [
-                'data' => $data,
-            ])->render();
-            $paginationLinks = $data->links('components.global-pagination')->render();
-            return response()->json([
-                'tableData' => $tableData,
-                'paginationLinks' => $paginationLinks,
-            ]);
-        }
-        return view('salik.account_index', [
-            'data' => $data,
-        ]);
+        return $this->renderSalikListing($request);
     }
-    public function tickets(Request $request, $company_slug, $id)
+
+    public function tickets(Request $request, $company_slug, $id = null)
+    {
+        return $this->renderSalikListing($request);
+    }
+
+    private function renderSalikListing(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('salik_view')) {
             abort(403, 'Unauthorized action.');
         }
-        // Use global pagination trait
+
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = salik::query()
-            ->orderBy('id', 'asc')
+            ->with(['branch', 'bike.leasingCompany', 'rider'])
             ->orderBy('billing_month', 'desc')
-            ->where('salik_account_id', $id);
+            ->orderBy('id', 'desc');
 
         if ($request->filled('transaction_id')) {
             $query->where('transaction_id', 'like', '%' . $request->transaction_id . '%');
         }
         if ($request->filled('billing_month')) {
-            // Input comes as "YYYY-MM" from month input field
-            $billingMonth = \Carbon\Carbon::parse($request->billing_month);
-
-            // Convert to match stored format "Sep-25" or "Sep-25-01"
-            $monthName = $billingMonth->format('M'); // e.g., "Sep"
-            $yearShort = $billingMonth->format('y'); // e.g., "25"
-
-            // Match formats: "Sep-25", "Sep-25-01", or "2025-09-01"
+            $billingMonth = Carbon::parse($request->billing_month);
+            $monthName = $billingMonth->format('M');
+            $yearShort = $billingMonth->format('y');
             $query->where(function ($q) use ($monthName, $yearShort, $billingMonth) {
                 $q->where('billing_month', 'like', "{$monthName}-{$yearShort}%")
-                    ->orWhere('billing_month', 'like', "{$billingMonth->format('Y-m')}%");
+                    ->orWhere('billing_month', 'like', "{$billingMonth->format('Y-m')}%")
+                    ->orWhereYear('billing_month', $billingMonth->year)
+                    ->whereMonth('billing_month', $billingMonth->month);
             });
         }
         if ($request->filled('direction')) {
@@ -205,12 +84,8 @@ class SalikController extends AppBaseController
             $query->where('branch_id', $request->branch_id);
         }
         if ($request->filled('trip_date')) {
-            // Input comes as "YYYY-MM-DD" from date input field
-            // Database stores as "30 Sep 2025" format
-            $tripDate = \Carbon\Carbon::parse($request->trip_date);
-            $tripDateFormatted = $tripDate->format('d M Y'); // e.g., "30 Sep 2025"
-
-            // Match the stored format "30 Sep 2025"
+            $tripDate = Carbon::parse($request->trip_date);
+            $tripDateFormatted = $tripDate->format('d M Y');
             $query->where('trip_date', $tripDateFormatted);
         }
         if ($request->filled('toll_gate')) {
@@ -225,25 +100,19 @@ class SalikController extends AppBaseController
         if ($request->filled('plate')) {
             $query->where('plate', 'like', '%' . $request->plate . '%');
         }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
 
-        $paidAmount   = $query->clone()->where('status', 'paid')->sum('total_amount');
-        $unpaidAmount = $query->clone()->where('status', 'unpaid')->sum('total_amount');
-        $paidCount    = $query->clone()->where('status', 'paid')->where('salik_account_id', $id)->count();
-        $unpaidCount  = $query->clone()->where('status', 'unpaid')->where('salik_account_id', $id)->count();
+        $paidAmount   = (clone $query)->where('status', 'paid')->sum('total_amount');
+        $unpaidAmount = (clone $query)->where('status', 'unpaid')->sum('total_amount');
+        $paidCount    = (clone $query)->where('status', 'paid')->count();
+        $unpaidCount  = (clone $query)->where('status', 'unpaid')->count();
 
-        // Paginated data
-        // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
-        // All matching (filtered) data to calculate totals
-        $filteredData = $query->get();
-        // Calculate totals
 
-        $account = Accounts::find($id);
         if ($request->ajax()) {
-            $tableData = view('salik.table', [
-                'data' => $data,
-                'account' => $account,
-            ])->render();
+            $tableData = view('salik.table', ['data' => $data])->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
                 'tableData' => $tableData,
@@ -253,12 +122,12 @@ class SalikController extends AppBaseController
                     'unpaidAmount' => 'AED ' . number_format($unpaidAmount, 2),
                     'paidCount'    => $paidCount,
                     'unpaidCount'  => $unpaidCount,
-                ]
+                ],
             ]);
         }
+
         return view('salik.index', [
             'data' => $data,
-            'account' => $account,
             'paidAmount' => $paidAmount,
             'unpaidAmount' => $unpaidAmount,
             'paidCount' => $paidCount,
@@ -268,10 +137,23 @@ class SalikController extends AppBaseController
     /**
      * Show the form for creating a new resource.
      */
-    public function create($company_slug, $id)
+    public function create($company_slug, $id = null)
     {
-        $data = Accounts::where('id', $id)->first();
-        return view('salik.create', compact('data'));
+        try {
+            $this->requireHeadAccountsExist([HeadAccount::SALIK_PAYABLE_ACCOUNT]);
+        } catch (\Exception $e) {
+            if (request()->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+            Flash::error($e->getMessage());
+            return redirect()->route('salik.index');
+        }
+
+        $salikPayableAccount = Accounts::find(HeadAccount::SALIK_PAYABLE_ACCOUNT);
+        $bikes = Bikes::with(['leasingCompany', 'rider'])->get();
+        $companies = BikeRentCompany::with(['account'])->where('customer_type', 'bike_rental')->get();
+        $salik = null;
+        return view('salik.create', compact('bikes', 'companies', 'salikPayableAccount', 'salik'));
     }
 
     /**
@@ -279,7 +161,6 @@ class SalikController extends AppBaseController
      */
     public function store(Request $request)
     {
-        // 1. Prevent duplicate transaction_id
         $exists = salik::where('transaction_id', $request->transaction_id)->exists();
         if ($exists) {
             return response()->json(['errors' => ['error' => 'This Transaction ID already exists.']], 422);
@@ -287,129 +168,263 @@ class SalikController extends AppBaseController
         if (!\App\Models\VoucherType::isCodeAllowedForModule('SV', 'rta_saliks')) {
             return response()->json(['errors' => ['error' => 'Salik voucher type (SV) is not assigned to the RTA Saliks module. Please assign it in Voucher Settings.']], 422);
         }
+
         \DB::beginTransaction();
         try {
             $input = $request->all();
             $bike = Bikes::findOrFail($input['bike_id']);
-            $trans_code = \App\Helpers\Account::trans_code();
+            $trans_code = Account::trans_code();
 
-            // Set values
-            $input['billing_month']   = $input['billing_month'] . "-01";
-            $input['rider_id']        = $input['rider_id'];
-            $input['trip_date']       = $input['trip_date'];
-            $input['trip_time']       = $input['trip_time'];
-            $input['transaction_post_date'] = $input['transaction_post_date'];
-            $input['toll_gate']       = $input['toll_gate'];
-            $input['direction']       = $input['direction'];
-            $input['tag_number']      = $input['tag_number'];
-            $input['details']         = $input['details'];
-            $input['bike_id']         = $bike->id;
-            $input['plate']           = $bike->plate;
-            $input['trans_date']      = \Carbon\Carbon::today();
-            $input['trans_code']      = $trans_code;
-            $input['total_amount']    = $request->amount + $request->admin_fee;
-            $input['status']          = 'paid';
-            $input['salik_account_id'] = $input['salik_account_id'] ?? null;
-            $input['admin_charges']    = $input['admin_charges'] ?? ($request->admin_fee ?? 0);
-            $input['created_by']      = Auth::user()->id;
-            $input['branch_id']       = $bike->branch_id;
-            // Defensive: Ensure salik_account_id is present
-            if (empty($input['salik_account_id'])) {
-                throw new \Exception('Salik Account ID is required.');
+            if (!empty($input['rider_id']) && !empty($input['rental_company_id'])) {
+                throw new \Exception('Either select a Rider or Rental Company. Cannot charge both.');
+            }
+            if (empty($input['rider_id']) && empty($input['rental_company_id'])) {
+                throw new \Exception('Either select a Rider or Rental Company.');
             }
 
-            // Create Salik entry
+            $amount = (float) ($request->amount ?? 0);
+            $adminCharges = (float) ($request->admin_fee ?? $request->admin_charges ?? 0);
+            $salikVatAmount = (float) ($request->salik_vat_amount ?? 0);
+            $adminVatAmount = (float) ($request->admin_vat_amount ?? 0);
+            $totalVat = $salikVatAmount + $adminVatAmount;
+            $totalAmount = $amount + $adminCharges + $totalVat;
+
+            $this->requireSalikVoucherHeadAccounts($totalVat);
+
+            $input['billing_month'] = $input['billing_month'] . '-01';
+            $input['bike_id'] = $bike->id;
+            $input['plate'] = $bike->plate;
+            $input['trans_date'] = Carbon::today();
+            $input['trans_code'] = $trans_code;
+            $input['admin_charges'] = $adminCharges;
+            $input['salik_vat'] = $request->salik_vat ?? 0;
+            $input['salik_vat_amount'] = $salikVatAmount;
+            $input['admin_vat'] = $request->admin_vat ?? 0;
+            $input['admin_vat_amount'] = $adminVatAmount;
+            $input['vat'] = $totalVat;
+            $input['total_amount'] = $totalAmount;
+            $input['status'] = 'unpaid';
+            $input['created_by'] = Auth::user()->id;
+            $input['branch_id'] = $bike->branch_id;
+
             $salik = $this->salikRepository->create($input);
 
-            // --- Voucher and Accounting Logic ---
-            $tripAmount = $salik->amount;
-            $adminCharges = $salik->admin_charges ?? 0;
-            $rider = \App\Models\Riders::find($salik->rider_id);
-            $riderAccountId = $rider && $rider->account_id ? $rider->account_id : null;
-            $salikAccountId = HeadAccount::SALIK_ASSET_ACCOUNT;
-            $adminAccountId = HeadAccount::SALIK_ADMIN_CHARGES;
-            $transCode = $trans_code;
-            $transDate = now();
+            $debitAccountId = $this->resolveSalikDebitAccountId($salik);
+            $payableAccountId = HeadAccount::SALIK_PAYABLE_ACCOUNT;
             $billingMonth = date('Y-m-01', strtotime($salik->trip_date ?? $salik->billing_month));
+            $transactionService = new TransactionService();
 
-            // Defensive: Ensure both account IDs are present
-            if (!$salikAccountId) {
-                throw new \Exception('Salik Account ID is missing or invalid.');
-            }
-            if (!$riderAccountId) {
-                throw new \Exception('Rider Account ID is missing or invalid.');
-            }
-
-            // 1. Save total amount in Salik record
-            $salik->total_amount = $tripAmount + $adminCharges;
-            $salik->save();
-            $pay_account = $request->pay_account;
-            $transactionService = new \App\Services\TransactionService();
-
-            // --- FIRST VOUCHER ---
-            // 1. Debit Rider (full amount)
             $transactionService->recordTransaction([
-                'account_id'     => $riderAccountId,
+                'account_id'     => $debitAccountId,
                 'reference_id'   => $salik->id,
                 'reference_type' => 'Salik Voucher',
-                'trans_code'     => $transCode,
-                'trans_date'     => $transDate,
-                'narration'      => 'Salik Trip Debit (including admin fee)',
-                'debit'          => $tripAmount + $adminCharges,
+                'trans_code'     => $trans_code,
+                'trans_date'     => now(),
+                'narration'      => 'Salik Trip Debit - ' . ($salik->details ?? $salik->transaction_id),
+                'debit'          => $totalAmount,
                 'billing_month'  => $billingMonth,
                 'branch_id'      => $salik->branch_id,
             ]);
-            // 2. Credit Salik Account (trip amount only)
+
             $transactionService->recordTransaction([
-                'account_id'     => $salikAccountId,
+                'account_id'     => $payableAccountId,
                 'reference_id'   => $salik->id,
                 'reference_type' => 'Salik Voucher',
-                'trans_code'     => $transCode,
-                'trans_date'     => $transDate,
-                'narration'      => 'Salik Trip Credit',
-                'credit'         => $tripAmount,
-                'branch_id'      => $salik->branch_id,
+                'trans_code'     => $trans_code,
+                'trans_date'     => now(),
+                'narration'      => 'Salik Payable Credit - ' . $salik->transaction_id,
+                'credit'         => $amount + $adminCharges,
                 'billing_month'  => $billingMonth,
+                'branch_id'      => $salik->branch_id,
             ]);
-            // 3. Credit Admin Charges Account (admin fee only)
-            if ($adminCharges > 0) {
+
+            if ($totalVat > 0) {
                 $transactionService->recordTransaction([
-                    'account_id'     => $adminAccountId,
+                    'account_id'     => HeadAccount::VAT_ON_SALES,
                     'reference_id'   => $salik->id,
                     'reference_type' => 'Salik Voucher',
-                    'trans_code'     => $transCode,
-                    'trans_date'     => $transDate,
-                    'narration'      => 'Salik Admin Charges Credit',
-                    'credit'         => $adminCharges,
-                    'branch_id'      => $salik->branch_id,
+                    'trans_code'     => $trans_code,
+                    'trans_date'     => now(),
+                    'narration'      => 'Salik VAT on Sales - ' . $salik->transaction_id,
+                    'credit'         => $totalVat,
                     'billing_month'  => $billingMonth,
+                    'branch_id'      => $salik->branch_id,
                 ]);
             }
 
-            // --- MAIN VOUCHER RECORD ONLY ---
-            \App\Models\Vouchers::create([
-                'trans_date'    => $transDate,
-                'trans_code'    => $transCode,
+            Vouchers::create([
+                'trans_date'    => now(),
+                'trans_code'    => $trans_code,
                 'payment_type'  => 1,
                 'billing_month' => $billingMonth,
-                'amount'        => $tripAmount + $adminCharges,
+                'amount'        => $totalAmount,
                 'voucher_type'  => 'SV',
-                'remarks'       => 'Salik Main Voucher - Reference Number: ' . $salik->transaction_id,
+                'remarks'       => 'Salik Voucher - ' . $salik->transaction_id,
                 'reference_number' => $salik->transaction_id,
                 'ref_id'        => $salik->id,
                 'rider_id'      => $salik->rider_id,
-                'payment_to'    => $salikAccountId,
-                'payment_from'  => $riderAccountId,
+                'payment_to'    => $payableAccountId,
+                'payment_from'  => $debitAccountId,
                 'Created_By'    => auth()->id(),
-                'branch_id'      => $salik->branch_id,
+                'branch_id'     => $salik->branch_id,
                 'custom_field_values' => [],
             ]);
+
             \DB::commit();
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Salik entry created successfully.', 'reload' => true], 200);
+            }
             return redirect()->route('salik.index')->with('success', 'Salik entry created successfully.');
         } catch (\Exception $e) {
             \DB::rollBack();
             return response()->json(['errors' => ['error' => $e->getMessage()]], 500);
         }
+    }
+
+    private function resolveSalikDebitAccountId(salik $salik): int
+    {
+        if ($salik->rider_id) {
+            $rider = Riders::find($salik->rider_id);
+            if ($rider && $rider->account_id) {
+                return (int) $rider->account_id;
+            }
+            throw new \Exception('Rider account not found.');
+        }
+
+        if ($salik->rental_company_id) {
+            $company = BikeRentCompany::find($salik->rental_company_id);
+            if ($company && $company->account_id) {
+                return (int) $company->account_id;
+            }
+            throw new \Exception('Rental company account not found.');
+        }
+
+        throw new \Exception('Debit account not found.');
+    }
+
+    /**
+     * @param int[] $accountIds
+     * @throws \Exception
+     */
+    private function requireHeadAccountsExist(array $accountIds): void
+    {
+        $labels = [
+            HeadAccount::SALIK_PAYABLE_ACCOUNT => 'Salik Payable',
+            HeadAccount::VAT_ON_SALES => 'VAT on Sales',
+            HeadAccount::SALIK_ADMIN_CHARGES => 'Salik Admin Charges',
+            HeadAccount::VAT_PURCHASE_ACCOUNT => 'VAT on Purchase',
+            HeadAccount::SALIK_ASSET_ACCOUNT => 'Salik Asset',
+        ];
+
+        foreach (array_unique(array_filter($accountIds)) as $accountId) {
+            if (!Accounts::where('id', $accountId)->exists()) {
+                $name = $labels[$accountId] ?? "Head account #{$accountId}";
+                throw new \Exception("{$name} account does not exist.");
+            }
+        }
+    }
+
+    private function requireSalikVoucherHeadAccounts(float $vatAmount = 0): void
+    {
+        $accountIds = [HeadAccount::SALIK_PAYABLE_ACCOUNT];
+        if ($vatAmount > 0) {
+            $accountIds[] = HeadAccount::VAT_ON_SALES;
+        }
+        $this->requireHeadAccountsExist($accountIds);
+    }
+
+    private function requireSalikPaymentHeadAccounts(float $vatDebit, float $ownSalikAmount, float $ownAdminAmount): void
+    {
+        $accountIds = [HeadAccount::SALIK_PAYABLE_ACCOUNT];
+        if ($vatDebit > 0) {
+            $accountIds[] = HeadAccount::VAT_PURCHASE_ACCOUNT;
+        }
+        if ($ownSalikAmount > 0) {
+            $accountIds[] = HeadAccount::SALIK_ASSET_ACCOUNT;
+        }
+        if ($ownAdminAmount > 0) {
+            $accountIds[] = HeadAccount::SALIK_ADMIN_CHARGES;
+        }
+        $this->requireHeadAccountsExist($accountIds);
+    }
+
+    private function salikPaymentNarration(?string $billingMonth, string $partyLabel): string
+    {
+        $monthValue = $billingMonth;
+        if ($monthValue && strlen($monthValue) === 7) {
+            $monthValue .= '-01';
+        }
+
+        $monthLabel = $monthValue
+            ? Carbon::parse($monthValue)->format('M Y')
+            : Carbon::now()->format('M Y');
+
+        return 'Salik Charges for (' . $monthLabel . ') ' . $partyLabel;
+    }
+
+    private function resolveSalikPaymentPartyLabel(?string $leasingCompanyFilter, $saliks): string
+    {
+        if ($leasingCompanyFilter === 'own') {
+            return 'own vehicles';
+        }
+
+        if ($leasingCompanyFilter && $leasingCompanyFilter !== 'own') {
+            $company = LeasingCompanies::find($leasingCompanyFilter);
+            if ($company) {
+                return $company->name;
+            }
+        }
+
+        $leasingNames = [];
+        $hasLeased = false;
+        $hasOwn = false;
+
+        foreach ($saliks as $salik) {
+            $leasingCompany = $salik->bike?->leasingCompany;
+            if ($leasingCompany && $leasingCompany->account_id) {
+                $hasLeased = true;
+                $leasingNames[$leasingCompany->name] = true;
+            } else {
+                $hasOwn = true;
+            }
+        }
+
+        if ($hasLeased && ! $hasOwn && count($leasingNames) === 1) {
+            return array_key_first($leasingNames);
+        }
+
+        if ($hasOwn && ! $hasLeased) {
+            return 'own vehicles';
+        }
+
+        return 'own vehicles';
+    }
+
+    private function inferSalikPaymentLeasingFilter($saliks): ?string
+    {
+        $hasLeased = false;
+        $hasOwn = false;
+        $leasingId = null;
+
+        foreach ($saliks as $salik) {
+            $leasingCompany = $salik->bike?->leasingCompany;
+            if ($leasingCompany?->account_id) {
+                $hasLeased = true;
+                $leasingId = (string) $leasingCompany->id;
+            } else {
+                $hasOwn = true;
+            }
+        }
+
+        if ($hasOwn && ! $hasLeased) {
+            return 'own';
+        }
+
+        if ($hasLeased && ! $hasOwn && $leasingId) {
+            return $leasingId;
+        }
+
+        return null;
     }
 
     /**
@@ -455,16 +470,26 @@ class SalikController extends AppBaseController
      */
     public function edit($company_slug, $id)
     {
-
         $salik = salik::find($id);
-        $data = Accounts::where('id', $salik->salik_account_id)->first();
         if (empty($salik)) {
             Flash::error('Salik not found');
-
             return redirect(route('salik.index'));
         }
 
-        return view('salik.edit', compact('data', 'salik'));
+        try {
+            $this->requireHeadAccountsExist([HeadAccount::SALIK_PAYABLE_ACCOUNT]);
+        } catch (\Exception $e) {
+            if (request()->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+            Flash::error($e->getMessage());
+            return redirect()->route('salik.index');
+        }
+
+        $salikPayableAccount = Accounts::find(HeadAccount::SALIK_PAYABLE_ACCOUNT);
+        $bikes = Bikes::with(['leasingCompany', 'rider'])->get();
+        $companies = BikeRentCompany::with(['account'])->where('customer_type', 'bike_rental')->get();
+        return view('salik.edit', compact('salikPayableAccount', 'salik', 'bikes', 'companies'));
     }
 
     /**
@@ -498,8 +523,13 @@ class SalikController extends AppBaseController
 
         DB::beginTransaction();
         try {
-            // ✅ FIX: Use correct Model with capital S
-            $salik = Salik::findOrFail($id);
+            $salik = salik::findOrFail($id);
+            $this->requireHeadAccountsExist(array_filter([
+                HeadAccount::SALIK_PAYABLE_ACCOUNT,
+                (float) ($salik->vat ?? 0) > 0 ? HeadAccount::VAT_ON_SALES : null,
+                (float) ($salik->admin_charges ?? 0) > 0 ? HeadAccount::SALIK_ADMIN_CHARGES : null,
+            ]));
+
             $oldAmount = $salik->amount;
             $oldAdminCharges = $salik->admin_charges ?? 0;
             $newAmount = $validated['amount'];
@@ -510,7 +540,7 @@ class SalikController extends AppBaseController
             $salik->branch_id = $branchId;
 
             // Check if this is part of a group voucher (imported Salik)
-            $relatedSaliks = Salik::where('rider_id', $salik->rider_id)
+            $relatedSaliks = salik::where('rider_id', $salik->rider_id)
                 ->where('salik_account_id', $salik->salik_account_id)
                 ->where('billing_month', $billingMonth)
                 ->where('id', '!=', $id)
@@ -530,7 +560,7 @@ class SalikController extends AppBaseController
             $this->updateAccountBalances($salik->trans_code ?? null, $billingMonth);
 
             DB::commit();
-            return redirect()->route('salik.tickets', $salik->salik_account_id)
+            return redirect()->route('salik.index')
                 ->with('success', 'Salik entry updated, vouchers verified, and account balances adjusted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -580,7 +610,7 @@ class SalikController extends AppBaseController
                         $adminTransaction->delete();
                     } else {
                         // Update narration with current count
-                        $relatedSaliks = Salik::where('rider_id', $salik->rider_id)
+                        $relatedSaliks = salik::where('rider_id', $salik->rider_id)
                             ->where('salik_account_id', $salik->salik_account_id)
                             ->where('billing_month', $billingMonth)
                             ->get();
@@ -639,6 +669,11 @@ class SalikController extends AppBaseController
     }
     private function recreateStandaloneVouchers($salik, $validated, $pay_account)
     {
+        $tripAmount = (float) $validated['amount'];
+        $adminCharges = (float) ($salik->admin_charges ?? 0);
+        $totalVat = (float) ($salik->vat ?? 0);
+        $this->requireSalikVoucherHeadAccounts($totalVat);
+
         $existingTransCodes = Transactions::where('reference_id', $salik->id)
             ->where('reference_type', 'Salik Voucher')
             ->pluck('trans_code');
@@ -651,77 +686,72 @@ class SalikController extends AppBaseController
             ->whereIn('trans_code', $existingTransCodes)
             ->delete();
 
-        $tripAmount = $validated['amount'];
-        $adminCharges = $salik->admin_charges ?? 0;
-        $rider = Riders::find($salik->rider_id);
-        $riderAccountId = $rider && $rider->account_id ? $rider->account_id : null;
-        $salikAccountId = HeadAccount::SALIK_ASSET_ACCOUNT;
-        $adminAccountId = HeadAccount::SALIK_ADMIN_CHARGES;
+        $totalAmount = $tripAmount + $adminCharges + $totalVat;
+        $payableAccountId = HeadAccount::SALIK_PAYABLE_ACCOUNT;
         $transCode = Account::trans_code();
         $transDate = now();
         $billingMonth = date('Y-m-01', strtotime($validated['trip_date']));
 
-        if (!$salikAccountId || !$riderAccountId) {
-            throw new \Exception('Account IDs are missing or invalid.');
-        }
         if (!\App\Models\VoucherType::isCodeAllowedForModule('SV', 'rta_saliks')) {
             throw new \Exception('Salik voucher type (SV) is not assigned to the RTA Saliks module. Please assign it in Voucher Settings.');
         }
 
+        $debitAccountId = $this->resolveSalikDebitAccountId($salik);
         $transactionService = new TransactionService();
 
         $transactionService->recordTransaction([
-            'account_id'     => $riderAccountId,
+            'account_id'     => $debitAccountId,
             'reference_id'   => $salik->id,
             'reference_type' => 'Salik Voucher',
             'trans_code'     => $transCode,
             'trans_date'     => $transDate,
-            'narration'      => 'Salik Trip Debit (including admin fee) - Reference Number: ' . $salik->transaction_id,
-            'debit'          => $tripAmount + $adminCharges,
+            'narration'      => 'Salik Trip Debit - Reference Number: ' . $salik->transaction_id,
+            'debit'          => $totalAmount,
             'billing_month'  => $billingMonth,
             'branch_id'      => $salik->branch_id,
         ]);
 
         $transactionService->recordTransaction([
-            'account_id'     => $salikAccountId,
+            'account_id'     => $payableAccountId,
             'reference_id'   => $salik->id,
             'reference_type' => 'Salik Voucher',
             'trans_code'     => $transCode,
             'trans_date'     => $transDate,
-            'narration'      => 'Salik Trip Credit - Reference Number: ' . $salik->transaction_id,
-            'credit'         => $tripAmount,
+            'narration'      => 'Salik Payable Credit - Reference Number: ' . $salik->transaction_id,
+            'credit'         => $tripAmount + $adminCharges,
             'branch_id'      => $salik->branch_id,
             'billing_month'  => $billingMonth,
         ]);
 
-        if ($adminCharges > 0) {
+        if ($totalVat > 0) {
             $transactionService->recordTransaction([
-                'account_id'     => $adminAccountId,
+                'account_id'     => HeadAccount::VAT_ON_SALES,
                 'reference_id'   => $salik->id,
                 'reference_type' => 'Salik Voucher',
                 'trans_code'     => $transCode,
                 'trans_date'     => $transDate,
-                'narration'      => 'Salik Admin Charges Credit - Reference Number: ' . $salik->transaction_id,
-                'credit'         => $adminCharges,
+                'narration'      => 'Salik VAT on Sales - Reference Number: ' . $salik->transaction_id,
+                'credit'         => $totalVat,
                 'branch_id'      => $salik->branch_id,
                 'billing_month'  => $billingMonth,
             ]);
         }
+
         Vouchers::create([
             'trans_date'    => $transDate,
             'trans_code'    => $transCode,
             'payment_type'  => 1,
             'billing_month' => $billingMonth,
-            'amount'        => $tripAmount + $adminCharges,
+            'amount'        => $totalAmount,
             'voucher_type'  => 'SV',
-            'remarks'       => 'Salik Main Voucher - Reference Number: ' . $salik->transaction_id,
+            'remarks'       => 'Salik Voucher - Reference Number: ' . $salik->transaction_id,
             'reference_number' => $salik->transaction_id,
             'ref_id'        => $salik->id,
             'rider_id'      => $salik->rider_id,
-            'payment_to'    => $salikAccountId,
-            'payment_from'  => $riderAccountId,
+            'payment_to'    => $payableAccountId,
+            'payment_from'  => $debitAccountId,
             'Created_By'    => auth()->id(),
-            'branch_id'      => $salik->branch_id,
+            'branch_id'     => $salik->branch_id,
             'custom_field_values' => [],
         ]);
     }
@@ -731,10 +761,11 @@ class SalikController extends AppBaseController
      */
     private function createAdminTransaction($transCode, $adminAmount, $referenceId, $billingMonth, $branchId)
     {
+        $this->requireHeadAccountsExist([HeadAccount::SALIK_ADMIN_CHARGES]);
         $transactionService = new TransactionService();
 
         $transactionService->recordTransaction([
-            'account_id'     => $adminAccountId, // Admin account
+            'account_id'     => HeadAccount::SALIK_ADMIN_CHARGES,
             'reference_id'   => $referenceId,
             'reference_type' => 'Salik Voucher',
             'trans_code'     => $transCode,
@@ -828,6 +859,12 @@ class SalikController extends AppBaseController
         \DB::beginTransaction();
         try {
             $salik = salik::findOrFail($id);
+            $this->requireHeadAccountsExist(array_filter([
+                HeadAccount::SALIK_PAYABLE_ACCOUNT,
+                (float) ($salik->vat ?? 0) > 0 ? HeadAccount::VAT_ON_SALES : null,
+                (float) ($salik->admin_charges ?? 0) > 0 ? HeadAccount::SALIK_ADMIN_CHARGES : null,
+            ]));
+
             $salikAccountId = $salik->salik_account_id;
             $riderId = $salik->rider_id;
             $amount = $salik->amount;
@@ -899,7 +936,7 @@ class SalikController extends AppBaseController
                 ]);
             }
 
-            return redirect()->route('salik.tickets', $salikAccountId)->with('success', 'Salik entry deleted and vouchers updated successfully.');
+            return redirect()->route('salik.index')->with('success', 'Salik entry deleted and vouchers updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -914,7 +951,7 @@ class SalikController extends AppBaseController
                 ], 500);
             }
 
-            return redirect()->route('salik.tickets', $salikAccountId ?? 1)->with('error', 'Error deleting Salik entry: ' . $e->getMessage());
+            return redirect()->route('salik.index')->with('error', 'Error deleting Salik entry: ' . $e->getMessage());
         }
     }
 
@@ -1261,31 +1298,50 @@ class SalikController extends AppBaseController
     public function getriderbybikedate(Request $request)
     {
         $bike_id = $request->input('bike_id');
-        $trip_date = $request->input('trip_date');
+        $trip_date = $request->input('trip_date') ?? date('Y-m-d');
         $bike = Bikes::find($bike_id);
-        $history = BikeHistory::where('bike_id', $bike->id)
-            ->whereDate('note_date', '<=', $trip_date)
-            ->where(function ($q) use ($trip_date) {
-                $q->whereNull('return_date')
-                    ->orWhereDate('return_date', '>=', $trip_date);
+        if (!$bike) {
+            return response()->json(['riders' => false, 'companies' => false]);
+        }
+
+        $history = $bike->history()
+            ->where('note_date', '<=', $trip_date)
+            ->where(function ($query) use ($trip_date) {
+                $query->where('return_date', '>=', $trip_date)
+                    ->orWhereNull('return_date');
             })
-            ->orderBy('note_date', 'desc')
             ->first();
 
-        if ($history && $history->rider_id) {
-            $rider = \App\Support\CompanyQuery::table('riders')->where('id', $history->rider_id)->first();
-            $account = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $rider->id)->first();
-            return response()->json([
-                'options' => [
-                    [
-                        'value' => $rider ? $rider->id : '',
-                        'label' => $rider->rider_id . ' - ' . $rider->name
-                    ]
-                ]
-            ]);
-        } else {
-            return response()->json(['options' => []]);
+        $currentRiderId = $bike->rider_id;
+        $currentCompanyId = $bike->rental_company_id;
+        $riderIds = $bike->history()->whereNotNull('rider_id')->pluck('rider_id')->toArray();
+        if ($currentRiderId) {
+            $riderIds[] = $currentRiderId;
         }
+        $companyIds = $bike->history()->whereNotNull('rental_company_id')->pluck('rental_company_id')->toArray();
+        if ($currentCompanyId) {
+            $companyIds[] = $currentCompanyId;
+        }
+
+        $riders = Riders::whereIn('id', array_unique($riderIds))->get();
+        $companies = BikeRentCompany::where('customer_type', 'bike_rental')
+            ->whereIn('id', array_unique($companyIds))
+            ->get();
+
+        $ridersHtml = $riders->isEmpty() ? false : '<option value="">Select Rider</option>' . $riders->map(function ($r) use ($history, $currentRiderId) {
+            $selected = ($r->id == ($history?->rider_id ?? $currentRiderId ?? 0)) ? ' selected' : '';
+            return '<option value="' . $r->id . '"' . $selected . '>' . $r->rider_id . ' - ' . $r->name . '</option>';
+        })->implode('');
+
+        $companiesHtml = $companies->isEmpty() ? false : '<option value="">Select Company</option>' . $companies->map(function ($c) use ($history, $currentCompanyId) {
+            $selected = ($c->id == ($history?->rental_company_id ?? $currentCompanyId ?? 0)) ? ' selected' : '';
+            return '<option value="' . $c->id . '"' . $selected . '>' . $c->name . '</option>';
+        })->implode('');
+
+        return response()->json([
+            'riders' => $ridersHtml,
+            'companies' => $companiesHtml,
+        ]);
     }
 
     /**
@@ -1328,18 +1384,13 @@ class SalikController extends AppBaseController
     {
         $request->validate([
             'file' => 'required|mimes:xlsx,csv',
-            'salik_account_id' => 'required|numeric',
-            'admin_charge_per_salik' => 'nullable|numeric'
+            'admin_charge_per_salik' => 'nullable|numeric',
         ]);
         try {
-            $salikAccountId = $request->salik_account_id;
             $adminChargePerSalik = $request->admin_charge_per_salik ?? 0;
-            \Log::info('Starting Salik import with account ID: ' . $salikAccountId . ', admin charge: ' . $adminChargePerSalik);
-            $import = new SalikImport($salikAccountId, $adminChargePerSalik);
+            $import = new SalikImport($adminChargePerSalik);
             Excel::import($import, $request->file('file'));
-            $importedCount = salik::where('salik_account_id', $salikAccountId)
-                ->where('created_at', '>=', now()->subMinutes(5))
-                ->count();
+            $importedCount = salik::where('created_at', '>=', now()->subMinutes(5))->count();
             \Log::info('Import completed. Records imported: ' . $importedCount);
             $logContent = file_get_contents(storage_path('logs/laravel.log'));
             $missingDataMatches = preg_match_all('/Missing required fields in row/', $logContent);
@@ -1394,10 +1445,61 @@ class SalikController extends AppBaseController
     /**
      * Show import form
      */
-    public function importForm($company_slug, $salikAccountId)
+    public function importForm($company_slug, $salikAccountId = null)
     {
-        $account = Accounts::findOrFail($salikAccountId);
-        return view('salik.import', compact('account'));
+        return view('salik.import');
+    }
+
+    /**
+     * Download CSV import template with all required columns.
+     */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Transaction ID',
+            'Trip Date',
+            'Trip Time',
+            'Transaction Post Date',
+            'Toll Gate',
+            'Direction',
+            'Tag Number',
+            'Plate Number',
+            'Amount',
+            'Billing Month',
+            'Salik VAT %',
+            'Admin Charges',
+            'Admin VAT %',
+            'Details',
+        ];
+
+        $callback = function () use ($headers) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $headers);
+
+            fputcsv($file, [
+                'TXN001',
+                '2025-01-15',
+                '08:30:00',
+                '2025-01-16',
+                'Al Maktoum Bridge',
+                'North',
+                'TAG001',
+                'ABC123',
+                '4.00',
+                '2025-01-01',
+                '5',
+                '1.00',
+                '5',
+                'Sample Salik transaction',
+            ]);
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="salik_import_template.csv"',
+        ]);
     }
 
     /**
@@ -1563,7 +1665,7 @@ class SalikController extends AppBaseController
     private function analyzeImportFailures(&$missingRecords)
     {
         // Get recent Salik records that might indicate import issues
-        $recentSaliks = Salik::where('created_at', '>=', now()->subDays(7))
+        $recentSaliks = salik::where('created_at', '>=', now()->subDays(7))
             ->where(function ($query) {
                 $query->whereNull('rider_id')
                     ->orWhere('rider_id', 0)
@@ -1607,7 +1709,7 @@ class SalikController extends AppBaseController
 
             $potentialIssues = [];
             $bikes = Bikes::pluck('plate')->toArray();
-            $existingTransactionIds = Salik::pluck('transaction_id')->toArray();
+            $existingTransactionIds = salik::pluck('transaction_id')->toArray();
 
             foreach ($data[0] as $index => $row) {
                 if ($index == 0) continue; // Skip header
@@ -1779,6 +1881,300 @@ class SalikController extends AppBaseController
     }
 
 
+
+    public function paymentForm(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('salik_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            $this->requireHeadAccountsExist([
+                HeadAccount::SALIK_PAYABLE_ACCOUNT,
+                HeadAccount::VAT_PURCHASE_ACCOUNT,
+                HeadAccount::SALIK_ASSET_ACCOUNT,
+                HeadAccount::SALIK_ADMIN_CHARGES,
+            ]);
+        } catch (\Exception $e) {
+            Flash::error($e->getMessage());
+            return redirect()->route('salik.index');
+        }
+
+        $leasingCompanies = LeasingCompanies::orderBy('name')->get();
+        $salikPayableAccount = Accounts::find(HeadAccount::SALIK_PAYABLE_ACCOUNT);
+        $vatPurchaseAccount = Accounts::find(HeadAccount::VAT_PURCHASE_ACCOUNT);
+
+        return view('salik.payment', compact('leasingCompanies', 'salikPayableAccount', 'vatPurchaseAccount'));
+    }
+
+    public function getPaymentRecords(Request $request)
+    {
+        $request->validate([
+            'billing_month' => 'required|date_format:Y-m',
+            'leasing_company_id' => 'required|string',
+        ]);
+
+        $billingMonth = Carbon::parse($request->billing_month . '-01');
+        $selectedFilter = $request->input('leasing_company_id');
+
+        $query = salik::query()
+            ->with(['bike.leasingCompany', 'rider'])
+            ->where('status', 'unpaid')
+            ->where(function ($q) use ($billingMonth) {
+                $monthName = $billingMonth->format('M');
+                $yearShort = $billingMonth->format('y');
+                $q->where('billing_month', 'like', "{$monthName}-{$yearShort}%")
+                    ->orWhere('billing_month', 'like', $billingMonth->format('Y-m') . '%')
+                    ->orWhere(function ($sub) use ($billingMonth) {
+                        $sub->whereYear('billing_month', $billingMonth->year)
+                            ->whereMonth('billing_month', $billingMonth->month);
+                    });
+            });
+
+        $query->whereHas('bike', function ($bikeQuery) use ($selectedFilter) {
+            if ($selectedFilter === 'own') {
+                $bikeQuery->where(function ($q) {
+                    $q->whereNull('company')->orWhere('company', 0);
+                });
+            } else {
+                $bikeQuery->where('company', $selectedFilter);
+            }
+        });
+
+        $records = $query->orderBy('trip_date')->get();
+
+        return response()->json([
+            'html' => view('salik.payment_table', ['records' => $records])->render(),
+            'count' => $records->count(),
+        ]);
+    }
+
+    public function calculatePaymentVoucher(Request $request)
+    {
+        $request->validate([
+            'salik_ids' => 'required|array|min:1',
+            'salik_ids.*' => 'integer|exists:saliks,id',
+        ]);
+
+        $saliks = salik::with('bike.leasingCompany')->whereIn('id', $request->salik_ids)
+            ->where('status', 'unpaid')
+            ->get();
+
+        if ($saliks->isEmpty()) {
+            return response()->json(['error' => 'No unpaid salik records found.'], 422);
+        }
+
+        $billingMonth = $request->billing_month ?? $saliks->first()->billing_month;
+        $debitPartyLabel = $this->resolveSalikPaymentPartyLabel(
+            $request->input('leasing_company_id'),
+            $saliks
+        );
+        $payableNarration = $this->salikPaymentNarration($billingMonth, $debitPartyLabel);
+        $vatNarration = $payableNarration;
+
+        $payableDebit = $saliks->sum(fn ($s) => (float) $s->amount + (float) ($s->admin_charges ?? 0));
+        $vatDebit = $saliks->sum(fn ($s) => (float) ($s->salik_vat_amount ?? 0) + (float) ($s->admin_vat_amount ?? 0));
+
+        $leasedTotal = 0;
+        $ownSalikAmount = 0;
+        $ownAdminAmount = 0;
+        $creditLines = [];
+
+        foreach ($saliks as $salik) {
+            $amount = (float) $salik->amount;
+            $admin = (float) ($salik->admin_charges ?? 0);
+            $salikVat = (float) ($salik->salik_vat_amount ?? 0);
+            $adminVat = (float) ($salik->admin_vat_amount ?? 0);
+            $lineTotal = $amount + $admin + $salikVat + $adminVat;
+            $leasingCompany = $salik->bike?->leasingCompany;
+
+            if ($leasingCompany && $leasingCompany->account_id) {
+                $key = 'lease_' . $leasingCompany->id;
+                if (!isset($creditLines[$key])) {
+                    $creditLines[$key] = [
+                        'account_id' => $leasingCompany->account_id,
+                        'account_name' => $leasingCompany->name,
+                        'amount' => 0,
+                        'narration' => $this->salikPaymentNarration($billingMonth, $leasingCompany->name),
+                    ];
+                }
+                $creditLines[$key]['amount'] += $lineTotal;
+                $leasedTotal += $lineTotal;
+            } else {
+                $ownSalikAmount += $amount + $salikVat;
+                $ownAdminAmount += $admin + $adminVat;
+            }
+        }
+
+        if ($ownSalikAmount > 0) {
+            $assetAccount = Accounts::find(HeadAccount::SALIK_ASSET_ACCOUNT);
+            $creditLines['own_salik'] = [
+                'account_id' => HeadAccount::SALIK_ASSET_ACCOUNT,
+                'account_name' => $assetAccount?->name ?? 'Salik Asset',
+                'amount' => $ownSalikAmount,
+                'narration' => $this->salikPaymentNarration($billingMonth, 'own vehicles'),
+            ];
+        }
+        if ($ownAdminAmount > 0) {
+            $adminAccount = Accounts::find(HeadAccount::SALIK_ADMIN_CHARGES);
+            $creditLines['own_admin'] = [
+                'account_id' => HeadAccount::SALIK_ADMIN_CHARGES,
+                'account_name' => $adminAccount?->name ?? 'Salik Admin Charges',
+                'amount' => $ownAdminAmount,
+                'narration' => $this->salikPaymentNarration($billingMonth, 'own vehicles'),
+            ];
+        }
+
+        try {
+            $this->requireSalikPaymentHeadAccounts($vatDebit, $ownSalikAmount, $ownAdminAmount);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        $payableAccount = Accounts::find(HeadAccount::SALIK_PAYABLE_ACCOUNT);
+        $vatAccount = Accounts::find(HeadAccount::VAT_PURCHASE_ACCOUNT);
+        $totalDebit = $payableDebit + $vatDebit;
+        $totalCredit = collect($creditLines)->sum('amount');
+
+        return response()->json([
+            'payable_debit' => round($payableDebit, 2),
+            'payable_account_name' => $payableAccount?->name ?? 'Salik Payable',
+            'vat_debit' => round($vatDebit, 2),
+            'vat_account_name' => $vatAccount?->name ?? 'VAT on Purchase',
+            'payable_narration' => $payableNarration,
+            'vat_narration' => $vatNarration,
+            'credit_lines' => array_values($creditLines),
+            'total_debit' => round($totalDebit, 2),
+            'total_credit' => round($totalCredit, 2),
+            'balanced' => abs($totalDebit - $totalCredit) < 0.02,
+        ]);
+    }
+
+    public function storePayment(Request $request)
+    {
+        if (!\App\Models\VoucherType::isCodeAllowedForModule('PV', 'rta_saliks')) {
+            return response()->json(['errors' => ['error' => 'Payment voucher type (PV) is not assigned to the RTA Saliks module. Please assign it in Voucher Settings.']], 422);
+        }
+
+        $request->validate([
+            'salik_ids' => 'required|array|min:1',
+            'salik_ids.*' => 'integer|exists:saliks,id',
+            'billing_month' => 'required|date_format:Y-m',
+            'trans_date' => 'required|date',
+            'remarks' => 'nullable|string|max:500',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $saliks = salik::with('bike.leasingCompany')->whereIn('id', $request->salik_ids)
+                ->where('status', 'unpaid')
+                ->lockForUpdate()
+                ->get();
+
+            if ($saliks->count() !== count($request->salik_ids)) {
+                throw new \Exception('One or more selected salik records are already paid or not found.');
+            }
+
+            $calcRequest = new Request([
+                'salik_ids' => $request->salik_ids,
+                'billing_month' => $request->billing_month,
+                'leasing_company_id' => $this->inferSalikPaymentLeasingFilter($saliks),
+            ]);
+            $calcResponse = $this->calculatePaymentVoucher($calcRequest);
+            $calc = json_decode($calcResponse->getContent(), true);
+            if ($calcResponse->getStatusCode() !== 200 || isset($calc['error'])) {
+                throw new \Exception($calc['error'] ?? 'Unable to calculate payment voucher.');
+            }
+            if (!($calc['balanced'] ?? false)) {
+                throw new \Exception('Voucher amounts are not balanced. Please recalculate.');
+            }
+
+            $transCode = Account::trans_code();
+            $transDate = $request->trans_date;
+            $billingMonth = Carbon::parse($request->billing_month . '-01')->format('Y-m-d');
+            $transactionService = new TransactionService();
+            $firstSalik = $saliks->first();
+            $branchId = $firstSalik->branch_id;
+
+            $transactionService->recordTransaction([
+                'account_id' => HeadAccount::SALIK_PAYABLE_ACCOUNT,
+                'reference_id' => $firstSalik->id,
+                'reference_type' => 'Salik Payment',
+                'trans_code' => $transCode,
+                'trans_date' => $transDate,
+                'narration' => $calc['payable_narration'],
+                'debit' => $calc['payable_debit'],
+                'billing_month' => $billingMonth,
+                'branch_id' => $branchId,
+            ]);
+
+            if (($calc['vat_debit'] ?? 0) > 0) {
+                $transactionService->recordTransaction([
+                    'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
+                    'reference_id' => $firstSalik->id,
+                    'reference_type' => 'Salik Payment',
+                    'trans_code' => $transCode,
+                    'trans_date' => $transDate,
+                    'narration' => $calc['vat_narration'],
+                    'debit' => $calc['vat_debit'],
+                    'billing_month' => $billingMonth,
+                    'branch_id' => $branchId,
+                ]);
+            }
+
+            foreach ($calc['credit_lines'] as $line) {
+                $transactionService->recordTransaction([
+                    'account_id' => $line['account_id'],
+                    'reference_id' => $firstSalik->id,
+                    'reference_type' => 'Salik Payment',
+                    'trans_code' => $transCode,
+                    'trans_date' => $transDate,
+                    'narration' => $line['narration'],
+                    'credit' => $line['amount'],
+                    'billing_month' => $billingMonth,
+                    'branch_id' => $branchId,
+                ]);
+            }
+
+            $voucher = Vouchers::create([
+                'trans_date' => $transDate,
+                'trans_code' => $transCode,
+                'billing_month' => $billingMonth,
+                'voucher_type' => 'PV',
+                'payment_type' => 1,
+                'payment_from' => HeadAccount::SALIK_PAYABLE_ACCOUNT,
+                'payment_to' => $calc['credit_lines'][0]['account_id'] ?? null,
+                'amount' => $calc['total_debit'],
+                'remarks' => $request->remarks ?? ('Salik payment for ' . $saliks->count() . ' record(s)'),
+                'ref_id' => $firstSalik->id,
+                'Created_By' => auth()->id(),
+                'branch_id' => $branchId,
+                'custom_field_values' => [],
+            ]);
+
+            salik::whereIn('id', $saliks->pluck('id'))->update([
+                'status' => 'paid',
+                'payment_voucher_id' => $voucher->id,
+                'updated_by' => auth()->id(),
+            ]);
+
+            DB::commit();
+
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Salik payment recorded successfully.', 'reload' => true], 200);
+            }
+
+            Flash::success('Salik payment recorded successfully.');
+            return redirect()->route('salik.index');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            if ($request->ajax()) {
+                return response()->json(['errors' => ['error' => $e->getMessage()]], 500);
+            }
+            Flash::error('Error: ' . $e->getMessage());
+            return redirect()->back();
+        }
+    }
 
     /**
      * Get suggested action based on the reason

@@ -2,12 +2,12 @@
 
 namespace App\Helpers;
 
-interface HeadAccount
+final class HeadAccount
 {
   const VAT_ON_SALES = 1025; // VAT on Sales Account
   const RTA_FINE = 2497; // RTA Fine Account
   const SIM_EXPENSE_ACCOUNT = 2394; // SIM Expense Account
-  const VAT_PURCHASE_ACCOUNT = 2395; // VAT Purchase Account
+  const VAT_PURCHASE_ACCOUNT = 2487; // VAT Purchase Account
   const FUEL_ADMIN_CHARGES = 2501; // Fuel Admin Charges Account
   const SALIK_ASSET_ACCOUNT = 2490; // Salik Asset Account
   const SALIK_ADMIN_CHARGES = 2476; // Salik Admin Charges Account
@@ -26,4 +26,29 @@ interface HeadAccount
   const BIKE_REGISTRATION_EXPENSE_ACCOUNT = 2516; // Bike Registration Expense Account
   const INVENTORY_LOSS = 2519; // Inventory Loss Account
   const LICENSE_EXPENSE_ACCOUNT = 2520; // Dubai Driving License Expense Account
+
+  /**
+   * Head accounts used when recording salik payment vouchers (PV).
+   */
+  public static function salikPaymentAccountLabels(): array
+  {
+    return [
+      self::SALIK_PAYABLE_ACCOUNT => 'Salik Payable',
+      self::VAT_PURCHASE_ACCOUNT => 'VAT on Purchase',
+      self::SALIK_ASSET_ACCOUNT => 'Salik Asset',
+      self::SALIK_ADMIN_CHARGES => 'Salik Admin Charges',
+    ];
+  }
+
+  /**
+   * Head accounts used when charging salik to riders/companies (SV).
+   */
+  public static function salikVoucherAccountLabels(): array
+  {
+    return [
+      self::SALIK_PAYABLE_ACCOUNT => 'Salik Payable',
+      self::VAT_ON_SALES => 'VAT on Sales',
+      self::SALIK_ADMIN_CHARGES => 'Salik Admin Charges',
+    ];
+  }
 }

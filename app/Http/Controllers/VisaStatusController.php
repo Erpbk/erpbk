@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\VisaRenewalCategory;
 use App\Models\VisaStatus;
 use App\Support\CompanyAuthRedirect;
+use App\Support\VisaRenewalCategoryService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Flash;
@@ -50,6 +52,17 @@ class VisaStatusController extends Controller
 
         $visaRoute = str_replace('.index', '', $request->route()->getName());
 
+        VisaRenewalCategoryService::ensureDefaultExists();
+        $visaRenewalCategories = VisaRenewalCategory::query()
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $companySlug = (string) ($request->route('company_slug') ?? session('company_slug') ?? '');
+        $visaRenewalCategoryReturnUrl = $visaRoute === 'settings-panel.visa-statuses' && $companySlug !== ''
+            ? route('settings-panel.visa-statuses.index', ['company_slug' => $companySlug]) . '#tab-visa-renewal-categories'
+            : null;
+
         if ($request->ajax()) {
             $tableData = view('visa_statuses.table', [
                 'visaStatuses' => $visaStatuses,
@@ -60,7 +73,12 @@ class VisaStatusController extends Controller
             ]);
         }
 
-        return view('visa_statuses.index', compact('visaStatuses', 'visaRoute'));
+        return view('visa_statuses.index', compact(
+            'visaStatuses',
+            'visaRoute',
+            'visaRenewalCategories',
+            'visaRenewalCategoryReturnUrl'
+        ));
     }
 
     /**

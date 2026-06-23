@@ -3,23 +3,60 @@
 @section('page_content')
 @php
 $accountId = $account->rider_id;
-$totalUnpaid = company_table('visa_expenses')->where('payment_status', 'unpaid')->where('rider_id', $accountId)->sum('amount');
-$totalPaid = company_table('visa_expenses')->where('payment_status', 'paid')->where('rider_id', $accountId)->sum('amount');
-$unpaidCount = company_table('visa_expenses')->where('rider_id', $accountId)->where('payment_status', 'unpaid')->count();
-$paidCount = company_table('visa_expenses')->where('rider_id', $accountId)->where('payment_status', 'paid')->count();
-
+$categoryId = (int) ($activeRenewalCategory->id ?? 0);
+$categoryExpenseQuery = company_table('visa_expenses')
+    ->where('renewal_category_id', $categoryId)
+    ->where(function ($q) use ($accountId) {
+        $q->where('expense_account_id', \App\Helpers\HeadAccount::VISA_EXPENSE_ACCOUNT)
+            ->orWhere('rider_id', $accountId);
+    });
+$totalUnpaid = (clone $categoryExpenseQuery)->where('payment_status', 'unpaid')->sum('amount');
+$totalPaid = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->sum('amount');
+$unpaidCount = (clone $categoryExpenseQuery)->where('payment_status', 'unpaid')->count();
+$paidCount = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->count();
 @endphp
 
 <div class="content">
   @include('flash::message')
+
+  @if(isset($renewalCategories) && $renewalCategories->count() > 0)
+  <ul class="nav nav-tabs mb-3 flex-wrap" role="tablist">
+    @foreach($renewalCategories as $renewalCategory)
+    @php
+    $tabUnpaid = \App\Support\VisaRenewalCategoryService::unpaidCountForCategory((int) $account->id, (int) $account->rider_id, (int) $renewalCategory->id);
+    @endphp
+    <li class="nav-item" role="presentation">
+      <a class="nav-link @if((int)$activeRenewalCategory->id === (int)$renewalCategory->id) active @endif"
+        href="{{ route('VisaExpense.generatentries', ['id' => $account->id, 'renewal_category' => $renewalCategory->id]) }}">
+        {{ $renewalCategory->name }}
+        @if($tabUnpaid > 0)
+        <span class="badge bg-danger ms-1">{{ $tabUnpaid }}</span>
+        @endif
+      </a>
+    </li>
+    @endforeach
+  </ul>
+  @endif
+
+  @if(isset($canAddExpense) && !$canAddExpense)
+  <div class="alert alert-warning">
+    Complete all unpaid expenses in the previous renewal category before adding expenses to <strong>{{ $activeRenewalCategory->name }}</strong>.
+  </div>
+  @endif
+
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <h3 class="mb-0">Visa Expense - {{ $account->name }}</h3>
+      <h3 class="mb-0">Visa Expense - {{ $account->name }} <span class="text-muted">({{ $activeRenewalCategory->name ?? 'New Visa' }})</span></h3>
       @can('visaexpense_create')
+      @if(!empty($canAddExpense))
       <a class="btn btn-primary action-btn show-modal"
-        href="javascript:void(0);" data-action="{{ route('VisaExpense.create' , $account->id) }}" data-size="lg" data-title="New expense entry">
+        href="javascript:void(0);"
+        data-action="{{ route('VisaExpense.create', ['id' => $account->id, 'renewal_category' => $activeRenewalCategory->id]) }}"
+        data-size="lg"
+        data-title="New expense entry — {{ $activeRenewalCategory->name }}">
         Add New Expense
       </a>
+      @endif
       @endcan
     </div>
     <div class="totals-cards pt-3">
@@ -42,6 +79,53 @@ $paidCount = company_table('visa_expenses')->where('rider_id', $accountId)->wher
     </div>
     <div class="card-body table-responsive px-2 py-0" id="table-data">
       @include('visa_expenses.table', ['data' => $data])
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <h3 class="mb-0">Visa Installments</h3>
+      <div class="d-flex flex-wrap gap-2">
+        @canany(['installment_create', 'visaloan_create'])
+        <a class="btn btn-sm btn-success action-btn show-modal"
+          href="javascript:void(0);"
+          data-action="{{ route('Installments.createInstallmentPlanForm', $account->id) }}"
+          data-size="lg"
+          data-title="Create Installment Entry">
+          <i class="fa fa-plus"></i> Installment Plan
+        </a>
+        @endcanany
+        @if(isset($installmentData) && $installmentData->count() > 0)
+        <a href="javascript:void(0);"
+          class="btn btn-sm btn-info action-btn show-modal"
+          data-action="{{ route('Installments.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
+          data-size="xl"
+          data-title="Installment plan invoice — {{ $account->name ?? 'Rider' }}">
+          <i class="fa fa-file-invoice"></i> Invoice
+        </a>
+        @endif
+      </div>
+    </div>
+    <div class="totals-cards pt-3">
+      <div class="total-card total-red">
+        <div class="label">Total Unpaid Amount</div>
+        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) company_table('visa_installment_plans')->where('status', 'pending')->where('rider_id', $account->rider_id)->sum('amount'), 2) }}</div>
+      </div>
+      <div class="total-card total-green">
+        <div class="label">Total Paid Amount</div>
+        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) company_table('visa_installment_plans')->where('status', 'paid')->where('rider_id', $account->rider_id)->sum('amount'), 2) }}</div>
+      </div>
+      <div class="total-card total-red">
+        <div class="label">Unpaid Installments</div>
+        <div class="value">{{ company_table('visa_installment_plans')->where('rider_id', $account->rider_id)->where('status', 'pending')->count() }}</div>
+      </div>
+      <div class="total-card total-green">
+        <div class="label">Paid Installments</div>
+        <div class="value">{{ company_table('visa_installment_plans')->where('rider_id', $account->rider_id)->where('status', 'paid')->count() }}</div>
+      </div>
+    </div>
+    <div class="card-body table-responsive px-2 py-0">
+      @include('visa_expenses.installmentPlanTable', ['data' => $installmentData ?? collect(), 'account' => $account])
     </div>
   </div>
 </div>
@@ -95,23 +179,19 @@ $paidCount = company_table('visa_expenses')->where('rider_id', $accountId)->wher
 
       const loaderStartTime = Date.now();
 
-      // Exclude _token and empty fields
       let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
       let formData = $.param(filteredFields);
 
       $.ajax({
-        url: "{{ route('VisaExpense.index') }}",
+        url: "{{ route('VisaExpense.generatentries', ['id' => $account->id, 'renewal_category' => $activeRenewalCategory->id]) }}",
         type: "GET",
         data: formData,
         success: function(data) {
           $('#table-data').html(data.tableData);
 
-          // Update URL
-          let newUrl = "{{ route('VisaExpense.index') }}" + (formData ? '?' + formData : '');
+          let newUrl = "{{ route('VisaExpense.generatentries', ['id' => $account->id, 'renewal_category' => $activeRenewalCategory->id]) }}" + (formData ? '?' + formData : '');
           history.pushState(null, '', newUrl);
 
-
-          // Ensure loader is visible at least 3s
           const elapsed = Date.now() - loaderStartTime;
           const remaining = 1000 - elapsed;
           setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
@@ -139,13 +219,10 @@ $paidCount = company_table('visa_expenses')->where('rider_id', $accountId)->wher
         const rows = Array.from(tbody.querySelectorAll('tr'));
         const isAsc = header.classList.contains('sorted-asc');
 
-        // Clear previous sort classes
         headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
 
-        // Add new sort direction
         header.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
 
-        // Sort logic
         rows.sort((a, b) => {
           let aText = a.children[colIndex]?.textContent.trim().toLowerCase();
           let bText = b.children[colIndex]?.textContent.trim().toLowerCase();
@@ -158,7 +235,6 @@ $paidCount = company_table('visa_expenses')->where('rider_id', $accountId)->wher
           return 0;
         });
 
-        // Re-append sorted rows
         rows.forEach(row => tbody.appendChild(row));
       });
     });

@@ -45,6 +45,8 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::resource('visa-statuses', App\Http\Controllers\VisaStatusController::class)->names('settings-panel.visa-statuses');
     Route::post('visa-statuses/reorder', [App\Http\Controllers\VisaStatusController::class, 'reorder'])->name('settings-panel.visa-statuses.reorder');
     Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('settings-panel.visa-statuses.toggle-active');
+    Route::resource('visa-renewal-categories', App\Http\Controllers\VisaRenewalCategoryController::class)->only(['index', 'store', 'update', 'destroy'])->names('settings-panel.visa-renewal-categories');
+    Route::post('visa-renewal-categories/reorder', [App\Http\Controllers\VisaRenewalCategoryController::class, 'reorder'])->name('settings-panel.visa-renewal-categories.reorder');
     Route::resource('license-statuses', App\Http\Controllers\LicenseStatusController::class)->names('settings-panel.license-statuses');
     Route::post('license-statuses/reorder', [App\Http\Controllers\LicenseStatusController::class, 'reorder'])->name('settings-panel.license-statuses.reorder');
     Route::get('license-statuses/{id}/toggle-active', [App\Http\Controllers\LicenseStatusController::class, 'toggleActive'])->name('settings-panel.license-statuses.toggle-active');

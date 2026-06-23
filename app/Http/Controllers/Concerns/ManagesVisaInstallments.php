@@ -1087,7 +1087,7 @@ trait ManagesVisaInstallments
 
             \Flash::success('Payment finalized. All changes saved and vouchers updated successfully.');
             if ($firstRiderId) {
-                return redirect()->route('Installments.installmentPlan', $firstRiderId);
+                return redirect()->route('VisaExpense.generatentries', $firstRiderId);
             }
             return redirect()->back();
         } catch (\Exception $e) {

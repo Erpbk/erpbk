@@ -31,6 +31,7 @@ class visa_expenses extends BaseModel
         'expiry_date',
         'deleted_by',
         'expense_account_id',
+        'renewal_category_id',
     ];
 
     protected $casts = [
@@ -68,6 +69,11 @@ class visa_expenses extends BaseModel
     {
         return $this->hasMany(Transactions::class, 'trans_code', 'trans_code');
     }
+    public function renewalCategory()
+    {
+        return $this->belongsTo(VisaRenewalCategory::class, 'renewal_category_id');
+    }
+
     public function vouchers()
     {
         return $this->hasMany(Vouchers::class, 'ref_id', 'id')

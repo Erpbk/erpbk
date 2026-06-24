@@ -151,6 +151,18 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="col-12">
+                            <label for="renewal_category_id" class="form-label">Renewal Category</label>
+                            <select class="form-select" id="renewal_category_id" name="renewal_category_id" required>
+                                <option value="">Select rider first</option>
+                                @foreach($renewalCategories ?? [] as $cat)
+                                <option value="{{ $cat->id }}" disabled>{{ $cat->name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="form-text" id="renewal_category_help">
+                                Accounts must be created in order (New Visa, then 1st Renewal, etc.). The next allowed category is shown after you select a rider.
+                            </div>
+                        </div>
                         <div class="col-12 text-end">
                             <button type="submit" class="btn btn-primary">Create</button>
                         </div>
@@ -277,11 +289,115 @@
         })
     }
     $(document).ready(function() {
-        $('#rider_id').select2({
-            dropdownParent: $('#createaccount'),
+        var $createModal = $('#createaccount');
+        var $riderSelect = $('#rider_id');
+        var $categorySelect = $('#renewal_category_id');
+        var $categoryHelp = $('#renewal_category_help');
+        var eligibleCategoriesUrlTemplate = @json(route('VisaExpense.eligibleRenewalCategories', ['riderId' => '___RIDER_ID___']));
+
+        $riderSelect.select2({
+            dropdownParent: $createModal,
             placeholder: "Rider",
             allowClear: true
         });
+
+        function initCategorySelect2() {
+            if ($categorySelect.hasClass('select2-hidden-accessible')) {
+                $categorySelect.select2('destroy');
+            }
+            $categorySelect.select2({
+                dropdownParent: $createModal,
+                placeholder: "Renewal category",
+                allowClear: true
+            });
+        }
+
+        function resetCategorySelect() {
+            $categorySelect.find('option').each(function() {
+                var $opt = $(this);
+                if ($opt.val() === '') {
+                    $opt.prop('disabled', false).text('Select rider first');
+                } else {
+                    $opt.prop('disabled', true);
+                }
+            });
+            $categorySelect.val('').trigger('change');
+            initCategorySelect2();
+            $categoryHelp.text('Accounts must be created in order (New Visa, then 1st Renewal, etc.). The next allowed category is shown after you select a rider.');
+        }
+
+        function applyEligibleCategories(categories) {
+            $categorySelect.find('option').each(function() {
+                var $opt = $(this);
+                if ($opt.val() === '') {
+                    $opt.prop('disabled', false).text(categories.length ? 'Select' : 'No category available');
+                    return;
+                }
+                $opt.prop('disabled', true);
+            });
+
+            categories.forEach(function(cat) {
+                $categorySelect.find('option[value="' + cat.id + '"]').prop('disabled', false);
+            });
+
+            if (categories.length === 0) {
+                $categorySelect.val('').trigger('change');
+                initCategorySelect2();
+                $categoryHelp.text('This rider cannot create a new account yet. Complete all unpaid entries in the current renewal category first, or all renewal categories already have accounts.');
+                return;
+            }
+
+            if (categories.length === 1) {
+                $categorySelect.val(String(categories[0].id));
+                $categoryHelp.text('Next allowed category: ' + categories[0].name + '.');
+            } else {
+                $categorySelect.val('');
+                $categoryHelp.text('Select the renewal category for this new expense account.');
+            }
+
+            initCategorySelect2();
+            $categorySelect.trigger('change');
+        }
+
+        function loadEligibleCategories(riderId) {
+            if (!riderId) {
+                resetCategorySelect();
+                return;
+            }
+
+            $categoryHelp.text('Loading allowed categories…');
+
+            $.ajax({
+                url: eligibleCategoriesUrlTemplate.replace('___RIDER_ID___', encodeURIComponent(riderId)),
+                method: 'GET',
+                dataType: 'json',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).done(function(response) {
+                applyEligibleCategories(response.categories || []);
+            }).fail(function() {
+                resetCategorySelect();
+                $categoryHelp.text('Unable to load renewal categories. Please refresh the page and try again.');
+            });
+        }
+
+        $riderSelect.on('change select2:select select2:clear', function() {
+            loadEligibleCategories($(this).val());
+        });
+
+        $createModal.on('shown.bs.modal', function() {
+            loadEligibleCategories($riderSelect.val());
+        });
+
+        $createModal.on('hidden.bs.modal', function() {
+            $riderSelect.val('').trigger('change');
+            resetCategorySelect();
+        });
+
+        resetCategorySelect();
+
         $('#payment_status').select2({
             dropdownParent: $('#searchModal'),
             placeholder: "Filter By Payment Status",

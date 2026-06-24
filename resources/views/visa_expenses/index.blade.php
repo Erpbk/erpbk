@@ -4,12 +4,11 @@
 @php
 $accountId = $account->rider_id;
 $categoryId = (int) ($activeRenewalCategory->id ?? 0);
-$categoryExpenseQuery = company_table('visa_expenses')
-    ->where('renewal_category_id', $categoryId)
-    ->where(function ($q) use ($accountId) {
-        $q->where('expense_account_id', \App\Helpers\HeadAccount::VISA_EXPENSE_ACCOUNT)
-            ->orWhere('rider_id', $accountId);
-    });
+$categoryExpenseQuery = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
+    (int) $account->id,
+    (int) $accountId,
+    $categoryId
+);
 $totalUnpaid = (clone $categoryExpenseQuery)->where('payment_status', 'unpaid')->sum('amount');
 $totalPaid = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->sum('amount');
 $unpaidCount = (clone $categoryExpenseQuery)->where('payment_status', 'unpaid')->count();
@@ -19,28 +18,14 @@ $paidCount = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->cou
 <div class="content">
   @include('flash::message')
 
-  @if(isset($renewalCategories) && $renewalCategories->count() > 0)
-  <ul class="nav nav-tabs mb-3 flex-wrap" role="tablist">
-    @foreach($renewalCategories as $renewalCategory)
-    @php
-    $tabUnpaid = \App\Support\VisaRenewalCategoryService::unpaidCountForCategory((int) $account->id, (int) $account->rider_id, (int) $renewalCategory->id);
-    @endphp
-    <li class="nav-item" role="presentation">
-      <a class="nav-link @if((int)$activeRenewalCategory->id === (int)$renewalCategory->id) active @endif"
-        href="{{ route('VisaExpense.generatentries', ['id' => $account->id, 'renewal_category' => $renewalCategory->id]) }}">
-        {{ $renewalCategory->name }}
-        @if($tabUnpaid > 0)
-        <span class="badge bg-danger ms-1">{{ $tabUnpaid }}</span>
-        @endif
-      </a>
-    </li>
+  @if(isset($siblingAccounts) && $siblingAccounts->count() > 0)
+  <div class="alert alert-light border mb-3">
+    <span class="text-muted me-2">Other renewal accounts for this rider:</span>
+    @foreach($siblingAccounts as $sibling)
+    <a href="{{ route('VisaExpense.generatentries', $sibling->id) }}" class="btn btn-sm btn-outline-secondary me-1 mb-1">
+      {{ $sibling->renewalCategory->name ?? 'Account #' . $sibling->id }}
+    </a>
     @endforeach
-  </ul>
-  @endif
-
-  @if(isset($canAddExpense) && !$canAddExpense)
-  <div class="alert alert-warning">
-    Complete all unpaid expenses in the previous renewal category before adding expenses to <strong>{{ $activeRenewalCategory->name }}</strong>.
   </div>
   @endif
 
@@ -48,15 +33,13 @@ $paidCount = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->cou
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
       <h3 class="mb-0">Visa Expense - {{ $account->name }} <span class="text-muted">({{ $activeRenewalCategory->name ?? 'New Visa' }})</span></h3>
       @can('visaexpense_create')
-      @if(!empty($canAddExpense))
       <a class="btn btn-primary action-btn show-modal"
         href="javascript:void(0);"
-        data-action="{{ route('VisaExpense.create', ['id' => $account->id, 'renewal_category' => $activeRenewalCategory->id]) }}"
+        data-action="{{ route('VisaExpense.create', ['id' => $account->id]) }}"
         data-size="lg"
         data-title="New expense entry — {{ $activeRenewalCategory->name }}">
         Add New Expense
       </a>
-      @endif
       @endcan
     </div>
     <div class="totals-cards pt-3">

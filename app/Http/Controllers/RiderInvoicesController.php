@@ -10,6 +10,7 @@ use App\Imports\ImportRiderInvoice;
 use App\Models\Accounts;
 use App\Models\Items;
 use App\Models\Payment;
+use App\Models\RiderInvoiceTemplate;
 use App\Models\RiderInvoices;
 use App\Models\Riders;
 use App\Models\Transactions;
@@ -170,14 +171,29 @@ class RiderInvoicesController extends AppBaseController
             ], 404);
         }
 
-        $riderInvoice->load(['rider.sim', 'rider.vendor', 'items', 'template']);
+        $riderInvoice->load([
+            'items',
+            'rider' => function ($query) {
+                $query->withTrashed()->with(['sim', 'vendor']);
+            },
+        ]);
+
+        if (RiderInvoiceTemplate::isSchemaReady()) {
+            $riderInvoice->load('template');
+        }
+
+        if (! $riderInvoice->rider) {
+            return response()->json([
+                'message' => 'Rider record not found for this invoice.',
+            ], 404);
+        }
+
         $resolver = app(RiderInvoiceTemplateResolver::class);
-        $activeTemplate = $resolver->resolveForInvoice($riderInvoice);
 
         return view('rider_invoices.show', [
             'riderInvoice' => $riderInvoice,
-            'activeTemplate' => $activeTemplate,
-            'templateView' => $activeTemplate->viewName(),
+            'activeTemplate' => $resolver->resolveForInvoice($riderInvoice),
+            'templateView' => $resolver->resolveViewForInvoice($riderInvoice),
             'templates' => $resolver->activeTemplates(),
         ]);
     }
@@ -190,7 +206,17 @@ class RiderInvoicesController extends AppBaseController
             abort(404, 'Rider Invoice not found');
         }
 
-        $riderInvoice->load(['rider.sim', 'rider.vendor', 'items', 'template']);
+        $riderInvoice->load([
+            'items',
+            'rider' => function ($query) {
+                $query->withTrashed()->with(['sim', 'vendor']);
+            },
+        ]);
+
+        if (RiderInvoiceTemplate::isSchemaReady()) {
+            $riderInvoice->load('template');
+        }
+
         $resolver = app(RiderInvoiceTemplateResolver::class);
         $activeTemplate = $resolver->resolveForInvoice($riderInvoice);
         $invoiceNumber = \App\Helpers\General::inv_sch($riderInvoice->id, $riderInvoice->created_at);
@@ -198,7 +224,7 @@ class RiderInvoicesController extends AppBaseController
         $pdf = \PDF::loadView('rider_invoices.pdf', [
             'riderInvoice' => $riderInvoice,
             'activeTemplate' => $activeTemplate,
-            'templateView' => $activeTemplate->viewName(),
+            'templateView' => $resolver->resolveViewForInvoice($riderInvoice),
         ]);
 
         return $pdf->download('Rider-Invoice-' . $invoiceNumber . '.pdf');
@@ -206,6 +232,9 @@ class RiderInvoicesController extends AppBaseController
 
     public function updateTemplate(Request $request, $company_slug, $id)
     {
+        if (! RiderInvoiceTemplate::isSchemaReady()) {
+            return response()->json(['message' => 'Invoice templates are not available yet.'], 422);
+        }
         $riderInvoice = $this->riderInvoicesRepository->find($id);
 
         if (empty($riderInvoice)) {
@@ -841,7 +870,17 @@ class RiderInvoicesController extends AppBaseController
                 'html' => $request->input('email_message'),
             ]);
 
-            $invoice->load(['rider.sim', 'rider.vendor', 'items', 'template']);
+            $invoice->load([
+                'items',
+                'rider' => function ($query) {
+                    $query->withTrashed()->with(['sim', 'vendor']);
+                },
+            ]);
+
+            if (RiderInvoiceTemplate::isSchemaReady()) {
+                $invoice->load('template');
+            }
+
             $resolver = app(RiderInvoiceTemplateResolver::class);
             $activeTemplate = $resolver->resolveForInvoice($invoice);
             $invoiceNumber = \App\Helpers\General::inv_sch($invoice->id, $invoice->created_at);
@@ -849,7 +888,7 @@ class RiderInvoicesController extends AppBaseController
             $pdf = \PDF::loadView('rider_invoices.pdf', [
                 'riderInvoice' => $invoice,
                 'activeTemplate' => $activeTemplate,
-                'templateView' => $activeTemplate->viewName(),
+                'templateView' => $resolver->resolveViewForInvoice($invoice),
             ]);
 
             $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $invoiceNumber) {

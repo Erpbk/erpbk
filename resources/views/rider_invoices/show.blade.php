@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>RiderID: {{ $riderInvoice->rider->rider_id }} Month: {{ date('M-Y', strtotime($riderInvoice->billing_month)) }}</title>
+    <title>RiderID: {{ $riderInvoice->rider?->rider_id ?? $riderInvoice->id }} Month: {{ date('M-Y', strtotime($riderInvoice->billing_month)) }}</title>
     <style>
         * {
             margin: 0;
@@ -291,7 +291,7 @@
     @php
     $resolver = app(\App\Services\RiderInvoice\RiderInvoiceTemplateResolver::class);
     $activeTemplate = $activeTemplate ?? $resolver->resolveForInvoice($riderInvoice);
-    $templateView = $templateView ?? $activeTemplate->viewName();
+    $templateView = $templateView ?? $resolver->resolveViewForInvoice($riderInvoice);
     $templates = $templates ?? $resolver->activeTemplates();
     require resource_path('views/rider_invoices/partials/invoice_calculations_vars.php');
     @endphp

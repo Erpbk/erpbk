@@ -53,10 +53,11 @@ class RiderInvoicesRepository extends BaseRepository
         $rider = Riders::where('id', $input['rider_id'])->first();
         $input['branch_id'] = $rider->branch_id;
 
-        if (empty($input['template_id'])) {
-            $input['template_id'] = app(\App\Services\RiderInvoice\RiderInvoiceTemplateResolver::class)
-                ->defaultTemplate()
-                ->id;
+        if (empty($input['template_id']) && \App\Models\RiderInvoiceTemplate::isSchemaReady()) {
+            $defaultTemplate = app(\App\Services\RiderInvoice\RiderInvoiceTemplateResolver::class)->defaultTemplate();
+            if ($defaultTemplate) {
+                $input['template_id'] = $defaultTemplate->id;
+            }
         }
 
         if ($id) {

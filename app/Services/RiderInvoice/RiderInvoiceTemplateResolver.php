@@ -5,11 +5,21 @@ namespace App\Services\RiderInvoice;
 use App\Models\RiderInvoiceTemplate;
 use App\Models\RiderInvoices;
 use App\Support\CompanyContext;
+use Illuminate\Support\Collection;
 
 class RiderInvoiceTemplateResolver
 {
-    public function activeTemplates()
+    public function isEnabled(): bool
     {
+        return RiderInvoiceTemplate::isSchemaReady();
+    }
+
+    public function activeTemplates(): Collection
+    {
+        if (! $this->isEnabled()) {
+            return collect();
+        }
+
         return RiderInvoiceTemplate::query()
             ->where('status', true)
             ->orderByDesc('is_default')
@@ -18,8 +28,12 @@ class RiderInvoiceTemplateResolver
             ->get();
     }
 
-    public function resolveForInvoice(RiderInvoices $invoice): RiderInvoiceTemplate
+    public function resolveForInvoice(RiderInvoices $invoice): ?RiderInvoiceTemplate
     {
+        if (! $this->isEnabled()) {
+            return null;
+        }
+
         if ($invoice->template_id) {
             $template = RiderInvoiceTemplate::query()
                 ->where('id', $invoice->template_id)
@@ -34,8 +48,12 @@ class RiderInvoiceTemplateResolver
         return $this->defaultTemplate();
     }
 
-    public function defaultTemplate(): RiderInvoiceTemplate
+    public function defaultTemplate(): ?RiderInvoiceTemplate
     {
+        if (! $this->isEnabled()) {
+            return null;
+        }
+
         $template = RiderInvoiceTemplate::query()
             ->where('is_default', true)
             ->where('status', true)
@@ -65,8 +83,15 @@ class RiderInvoiceTemplateResolver
         ]);
     }
 
+    public function resolveViewForInvoice(RiderInvoices $invoice): string
+    {
+        $template = $this->resolveForInvoice($invoice);
+
+        return $template?->viewName() ?? RiderInvoiceTemplate::FALLBACK_VIEW;
+    }
+
     public function viewForInvoice(RiderInvoices $invoice): string
     {
-        return $this->resolveForInvoice($invoice)->viewName();
+        return $this->resolveViewForInvoice($invoice);
     }
 }

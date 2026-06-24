@@ -56,7 +56,7 @@ class RiderInvoicesController extends AppBaseController
         $query->whereHas('rider');
         // Filters
         if ($request->has('id') && ! empty($request->id)) {
-            $query->where('id', 'like', '%'.$request->id.'%');
+            $query->where('id', 'like', '%' . $request->id . '%');
         }
         if ($request->has('rider_id') && ! empty($request->rider_id)) {
             $query->where('rider_id', $request->rider_id);
@@ -81,8 +81,8 @@ class RiderInvoicesController extends AppBaseController
 
         // ✅ Billing month ka check for total calculation
         $billingMonth = $request->has('billing_month') && ! empty($request->billing_month)
-          ? Carbon::parse($request->billing_month)
-          : now();
+            ? Carbon::parse($request->billing_month)
+            : now();
 
         $currentMonthTotal = RiderInvoices::whereYear('billing_month', $billingMonth->year)
             ->whereMonth('billing_month', $billingMonth->month)
@@ -201,7 +201,7 @@ class RiderInvoicesController extends AppBaseController
             'templateView' => $activeTemplate->viewName(),
         ]);
 
-        return $pdf->download('Rider-Invoice-'.$invoiceNumber.'.pdf');
+        return $pdf->download('Rider-Invoice-' . $invoiceNumber . '.pdf');
     }
 
     public function updateTemplate(Request $request, $company_slug, $id)
@@ -290,7 +290,7 @@ class RiderInvoicesController extends AppBaseController
             ], 404);
         }
         $payment = Payment::where('payee_account_id', $riderInvoices->rider->account_id)
-            ->where('reference', 'like', '%'.$riderInvoices->inv_number.'%')
+            ->where('reference', 'like', '%' . $riderInvoices->inv_number . '%')
             ->exists();
         if ($payment) {
             return response()->json([
@@ -312,7 +312,7 @@ class RiderInvoicesController extends AppBaseController
                 // Get unique account and billing month combinations for ledger recalculation
                 $affectedAccountsData = $invoiceTransactions
                     ->unique(function ($transaction) {
-                        return $transaction->account_id.'-'.$transaction->billing_month;
+                        return $transaction->account_id . '-' . $transaction->billing_month;
                     })
                     ->map(function ($transaction) {
                         return [
@@ -322,7 +322,7 @@ class RiderInvoicesController extends AppBaseController
                     });
 
                 // Store invoice name for cascade logging
-                $invoiceName = "Rider Invoice #{$id} - ".($riderInvoices->rider->name ?? 'Unknown Rider');
+                $invoiceName = "Rider Invoice #{$id} - " . ($riderInvoices->rider->name ?? 'Unknown Rider');
 
                 // Delete only transactions for this specific invoice and log cascade
                 foreach ($invoiceTransactions as $transaction) {
@@ -363,8 +363,8 @@ class RiderInvoicesController extends AppBaseController
             Flash::success('Rider Invoices deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Error deleting Rider Invoice ID: {$id} - ".$e->getMessage());
-            Flash::error('Error deleting Rider Invoice: '.$e->getMessage());
+            \Log::error("Error deleting Rider Invoice ID: {$id} - " . $e->getMessage());
+            Flash::error('Error deleting Rider Invoice: ' . $e->getMessage());
         }
 
         return redirect(route('riderInvoices.index'));
@@ -479,7 +479,7 @@ class RiderInvoicesController extends AppBaseController
                             // Get unique account and billing month combinations for ledger recalculation
                             $affectedAccountsData = $invoiceTransactions
                                 ->unique(function ($transaction) {
-                                    return $transaction->account_id.'-'.$transaction->billing_month;
+                                    return $transaction->account_id . '-' . $transaction->billing_month;
                                 })
                                 ->map(function ($transaction) {
                                     return [
@@ -489,7 +489,7 @@ class RiderInvoicesController extends AppBaseController
                                 });
 
                             // Store invoice name for cascade logging
-                            $invoiceName = "Rider Invoice #{$invoiceId} - ".($riderInvoice->rider->name ?? 'Unknown Rider');
+                            $invoiceName = "Rider Invoice #{$invoiceId} - " . ($riderInvoice->rider->name ?? 'Unknown Rider');
 
                             // Delete only transactions for this specific invoice and log cascade
                             foreach ($invoiceTransactions as $transaction) {
@@ -528,7 +528,7 @@ class RiderInvoicesController extends AppBaseController
 
                         $deletedCount++;
                     } catch (\Exception $e) {
-                        $errors[] = "Failed to delete invoice ID {$invoiceId}: ".$e->getMessage();
+                        $errors[] = "Failed to delete invoice ID {$invoiceId}: " . $e->getMessage();
                     }
                 }
 
@@ -544,7 +544,7 @@ class RiderInvoicesController extends AppBaseController
                     $messageParts[] = "Skipped {$skippedCount} paid invoice(s) (cannot be deleted).";
                 }
                 if (! empty($errors)) {
-                    $messageParts[] = 'Errors: '.implode(', ', $errors);
+                    $messageParts[] = 'Errors: ' . implode(', ', $errors);
                 }
 
                 $message = implode(' ', $messageParts);
@@ -578,7 +578,7 @@ class RiderInvoicesController extends AppBaseController
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred during bulk deletion: '.$e->getMessage(),
+                'message' => 'An error occurred during bulk deletion: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -602,29 +602,25 @@ class RiderInvoicesController extends AppBaseController
                     'message' => 'Invoices imported successfully.',
                     'reload' => true,
                 ]);
-
             } catch (ValidationException $e) {
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Validation Error: '.$e->getMessage(),
+                    'message' => 'Validation Error: ' . $e->getMessage(),
                     'errors' => $e->errors(),
                 ], 422);
-
             } catch (QueryException $e) {
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Database Error: '.$e->getMessage(),
+                    'message' => 'Database Error: ' . $e->getMessage(),
                 ], 500);
-
             } catch (\Exception $e) {
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'An unexpected error occurred: '.$e->getMessage(),
+                    'message' => 'An unexpected error occurred: ' . $e->getMessage(),
                 ], 500);
-
             }
         }
 
@@ -650,7 +646,7 @@ class RiderInvoicesController extends AppBaseController
                 Excel::import(new ImportPaidRiderInvoice, $request->file('file'));
                 Flash::success('Paid rider invoices imported successfully.');
             } catch (\Exception $e) {
-                Flash::error('Error importing paid invoices: '.$e->getMessage());
+                Flash::error('Error importing paid invoices: ' . $e->getMessage());
             }
 
             return redirect()->back();
@@ -725,7 +721,7 @@ class RiderInvoicesController extends AppBaseController
                 Flash::success('Invoice marked as paid successfully.');
             } catch (\Exception $e) {
                 \DB::rollBack();
-                Flash::error('Error marking invoice as paid: '.$e->getMessage());
+                Flash::error('Error marking invoice as paid: ' . $e->getMessage());
             }
 
             return redirect()->back();
@@ -769,7 +765,7 @@ class RiderInvoicesController extends AppBaseController
             'reference_type' => 'RiderInvoice',
             'trans_code' => $trans_code,
             'trans_date' => $invoiceDate,
-            'narration' => 'Manual payment for Rider Invoice #'.$invoice->id.' - '.($invoice->descriptions ?? 'Manual Payment'),
+            'narration' => 'Manual payment for Rider Invoice #' . $invoice->id . ' - ' . ($invoice->descriptions ?? 'Manual Payment'),
             'debit' => $totalAmount,
             'credit' => 0,
             'billing_month' => $billingMonth,
@@ -783,7 +779,7 @@ class RiderInvoicesController extends AppBaseController
             'reference_type' => 'RiderInvoice',
             'trans_code' => $trans_code,
             'trans_date' => $invoiceDate,
-            'narration' => 'Manual payment received for Rider Invoice #'.$invoice->id.' - '.($invoice->descriptions ?? 'Manual Payment'),
+            'narration' => 'Manual payment received for Rider Invoice #' . $invoice->id . ' - ' . ($invoice->descriptions ?? 'Manual Payment'),
             'debit' => 0,
             'credit' => $totalAmount,
             'billing_month' => $billingMonth,
@@ -804,7 +800,7 @@ class RiderInvoicesController extends AppBaseController
             'amount' => $totalAmount,
             'trans_code' => $trans_code,
             'Created_By' => \Auth::user()->id,
-            'remarks' => 'Manual payment for Rider Invoice #'.$invoice->id,
+            'remarks' => 'Manual payment for Rider Invoice #' . $invoice->id,
         ];
 
         CompanyQuery::insert('vouchers', $voucherData);
@@ -837,8 +833,8 @@ class RiderInvoicesController extends AppBaseController
             $toEmail = trim($toEmail);
 
             $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
-              ? trim($request->input('email_subject'))
-              : 'Rider Invoice';
+                ? trim($request->input('email_subject'))
+                : 'Rider Invoice';
 
             $brandingService = app(CompanyEmailBrandingService::class);
             $data = $brandingService->mergeIntoMailData([
@@ -861,7 +857,7 @@ class RiderInvoicesController extends AppBaseController
                 $message->from($fromEmail, $fromName);
                 $message->replyTo($fromEmail, $fromName);
                 $message->subject($subject);
-                $message->attachData($pdf->output(), 'Rider-Invoice-'.$invoiceNumber.'.pdf');
+                $message->attachData($pdf->output(), 'Rider-Invoice-' . $invoiceNumber . '.pdf');
                 $message->priority(3);
             });
 

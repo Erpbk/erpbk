@@ -276,7 +276,7 @@ class Riders extends BaseModel
    */
   public static function dropdownForBranch(?int $branchId): array
   {
-    $query = self::query()->where('status', 1);
+    $query = self::query();
 
     if ($branchId !== null && $branchId > 0) {
       $query->where(function ($q) use ($branchId) {

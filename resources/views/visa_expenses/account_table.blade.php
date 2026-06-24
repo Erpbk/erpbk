@@ -86,6 +86,7 @@
       <tr role="row">
          <th>Rider ID</th>
          <th style="width: 220px;">Account Name</th>
+         <th>Renewal Category</th>
          <th>Rider Status</th>
          <th>Next Unpaid Document</th>
          <th>Expiry Document</th>s
@@ -104,7 +105,8 @@
       ->where('warehouse', 'Active')
       ->exists();
       $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
-      $balance = \App\Models\visa_expenses::where('expense_account_id', $r->id)->sum('amount');
+      $categoryId = (int) ($r->renewal_category_id ?? \App\Support\VisaRenewalCategoryService::defaultCategory()->id);
+      $balance = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery((int) $r->id, (int) $r->rider_id, $categoryId)->sum('amount');
       $nextUnpaid = ($nextUnpaidVisaByAccountId ?? [])[$r->id] ?? null;
       $nextWhen = '';
       if ($nextUnpaid) {
@@ -131,6 +133,7 @@
       <tr class="text-center">
          <td>{{ $r->rider->rider_id ?? '-' }}</td>
          <td class="text-start"><a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}">{{ $r->name }}</a></td>
+         <td>{{ $r->renewalCategory->name ?? '—' }}</td>
          <td><span class="badge {{ $badgeClass }}">{{ $hasActiveBike ? 'Active' : 'Inactive' }}</span></td>
          <td class="align-middle @if($nextUnpaid) visa-next-unpaid-cell @endif">
             @if($nextUnpaid)

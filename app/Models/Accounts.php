@@ -172,7 +172,7 @@ class Accounts extends BaseModel
 
   public function getBranchNameAttribute()
   {
-    $branch = $this->branch_id ? $this->branch->name . ' ( ' . $this->branch->code . ' )' : 'All';
+    $branch = $this->branch? $this->branch->name . ' (' . $this->branch->code . ')' : 'All';
     return $branch;
   }
 }

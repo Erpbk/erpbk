@@ -234,24 +234,112 @@ class SalikImport implements ToCollection
     }
 
     /**
-     * Normalize trip date from various Excel formats to Carbon (start of day)
+     * Parse any Excel date/time cell value into Carbon.
+     * Handles serial numbers, DateTime objects, and common string formats.
      */
-    private function parseTripDate($tripDate)
+    private function parseExcelDate($value): ?Carbon
     {
-        if (empty($tripDate)) {
+        if ($value === null || $value === '') {
             return null;
         }
 
         try {
-            if (is_numeric($tripDate)) {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject($tripDate))->startOfDay();
+            if ($value instanceof Carbon) {
+                return $value->copy();
             }
 
-            return Carbon::parse($tripDate)->startOfDay();
+            if ($value instanceof \DateTimeInterface) {
+                return Carbon::instance($value);
+            }
+
+            if (is_string($value)) {
+                $value = trim($value);
+                if ($value === '') {
+                    return null;
+                }
+            }
+
+            if (is_numeric($value)) {
+                return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
+            }
+
+            if (is_string($value)) {
+                foreach ($this->excelDateFormats() as $format) {
+                    $parsed = $this->tryParseWithFormat($value, $format);
+                    if ($parsed) {
+                        return $parsed;
+                    }
+                }
+            }
+
+            return Carbon::parse($value);
         } catch (\Exception $e) {
-            \Log::warning("Unable to parse trip date value: {$tripDate}. Error: " . $e->getMessage());
+            \Log::warning("Unable to parse Excel date value: {$value}. Error: " . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Date string formats commonly found in Salik exports and regional Excel files.
+     */
+    private function excelDateFormats(): array
+    {
+        return [
+            'Y-m-d H:i:s',
+            'Y-m-d H:i',
+            'Y-m-d',
+            'd/m/Y H:i:s',
+            'd/m/Y H:i',
+            'd/m/Y',
+            'd-m-Y H:i:s',
+            'd-m-Y H:i',
+            'd-m-Y',
+            'm/d/Y H:i:s',
+            'm/d/Y H:i',
+            'm/d/Y',
+            'd M Y H:i:s',
+            'd M Y',
+            'd M y',
+            'j M Y',
+            'j M y',
+            'd-M-Y',
+            'd-M-y',
+            'M d, Y',
+            'M d Y',
+            'd/m/y',
+            'm/d/y',
+            'n/j/Y',
+            'j/n/Y',
+            'Y/m/d',
+        ];
+    }
+
+    /**
+     * Strictly parse a date string with a single format.
+     */
+    private function tryParseWithFormat(string $value, string $format): ?Carbon
+    {
+        $dateTime = \DateTime::createFromFormat('!' . $format, $value);
+        if ($dateTime === false) {
+            return null;
+        }
+
+        $errors = \DateTime::getLastErrors();
+        if ($errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+            return null;
+        }
+
+        return Carbon::instance($dateTime);
+    }
+
+    /**
+     * Normalize trip date from various Excel formats to Carbon (start of day)
+     */
+    private function parseTripDate($tripDate)
+    {
+        $parsed = $this->parseExcelDate($tripDate);
+
+        return $parsed ? $parsed->startOfDay() : null;
     }
 
     /**
@@ -259,24 +347,9 @@ class SalikImport implements ToCollection
      */
     private function parseBillingMonth($billingMonth)
     {
-        if (empty($billingMonth)) {
-            return null;
-        }
+        $parsed = $this->parseExcelDate($billingMonth);
 
-        try {
-            if ($billingMonth instanceof Carbon) {
-                return $billingMonth->copy()->startOfMonth();
-            }
-
-            if (is_numeric($billingMonth)) {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject($billingMonth))->startOfMonth();
-            }
-
-            return Carbon::parse($billingMonth)->startOfMonth();
-        } catch (\Exception $e) {
-            \Log::warning("Unable to parse billing month value: {$billingMonth}. Error: " . $e->getMessage());
-            return null;
-        }
+        return $parsed ? $parsed->startOfMonth() : null;
     }
 
     /**
@@ -284,25 +357,41 @@ class SalikImport implements ToCollection
      */
     private function parseTripTime($tripTime)
     {
-        if (empty($tripTime)) {
+        if ($tripTime === null || $tripTime === '') {
             return null;
         }
 
         try {
-            // If it's a numeric value (Excel time format as decimal)
-            if (is_numeric($tripTime)) {
-                $dateTime = ExcelDate::excelToDateTimeObject($tripTime);
-                return Carbon::instance($dateTime)->format('h:i:s A');
-            }
-
-            // If it's already a Carbon instance
             if ($tripTime instanceof Carbon) {
                 return $tripTime->format('h:i:s A');
             }
 
-            // Try to parse as time string
-            $parsed = Carbon::parse($tripTime);
-            return $parsed->format('h:i:s A');
+            if ($tripTime instanceof \DateTimeInterface) {
+                return Carbon::instance($tripTime)->format('h:i:s A');
+            }
+
+            if (is_string($tripTime)) {
+                $tripTime = trim($tripTime);
+                if ($tripTime === '') {
+                    return null;
+                }
+            }
+
+            if (is_numeric($tripTime)) {
+                $dateTime = ExcelDate::excelToDateTimeObject((float) $tripTime);
+                return Carbon::instance($dateTime)->format('h:i:s A');
+            }
+
+            if (is_string($tripTime)) {
+                foreach (['H:i:s', 'H:i', 'h:i:s A', 'h:i A', 'g:i A', 'g:i:s A'] as $format) {
+                    $parsed = $this->tryParseWithFormat($tripTime, $format);
+                    if ($parsed) {
+                        return $parsed->format('h:i:s A');
+                    }
+                }
+            }
+
+            return Carbon::parse($tripTime)->format('h:i:s A');
         } catch (\Exception $e) {
             \Log::warning("Unable to parse trip time value: {$tripTime}. Error: " . $e->getMessage());
             return null;
@@ -314,24 +403,9 @@ class SalikImport implements ToCollection
      */
     private function parseTransactionPostDate($transactionPostDate)
     {
-        if (empty($transactionPostDate)) {
-            return null;
-        }
+        $parsed = $this->parseExcelDate($transactionPostDate);
 
-        try {
-            if ($transactionPostDate instanceof Carbon) {
-                $date = $transactionPostDate;
-            } elseif (is_numeric($transactionPostDate)) {
-                $date = Carbon::instance(ExcelDate::excelToDateTimeObject($transactionPostDate));
-            } else {
-                $date = Carbon::parse($transactionPostDate);
-            }
-
-            return $date->format('d M Y');
-        } catch (\Exception $e) {
-            \Log::warning("Unable to parse transaction post date value: {$transactionPostDate}. Error: " . $e->getMessage());
-            return null;
-        }
+        return $parsed ? $parsed->format('d M Y') : null;
     }
 
     private function findRiderForTripDate($bikeId, $tripDate, $plateNumber)
@@ -486,13 +560,13 @@ class SalikImport implements ToCollection
     {
         try {
             $transactionId = $row[0] ?? null;
-            $tripDate = $row[2] ?? null;
+            $tripDate = $this->parseTripDate($row[1] ?? null);
             $plateNumber = $row[7] ?? null;  // Updated to match new mapping
             $amount = $row[8] ?? null;       // Updated to match new mapping
 
             FailedSalikImport::create([
                 'transaction_id' => $transactionId,
-                'trip_date' => $tripDate ? Carbon::parse($tripDate)->format('Y-m-d') : null,
+                'trip_date' => $tripDate ? $tripDate->format('Y-m-d') : null,
                 'plate_number' => $plateNumber,
                 'amount' => $amount,
                 'reason' => $reason,

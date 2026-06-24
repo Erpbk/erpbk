@@ -140,7 +140,7 @@ class SalikController extends AppBaseController
     public function create($company_slug, $id = null)
     {
         try {
-            $this->requireHeadAccountsExist([HeadAccount::SALIK_PAYABLE_ACCOUNT]);
+            $this->requireSalikVoucherHeadAccounts(0, 0);
         } catch (\Exception $e) {
             if (request()->ajax()) {
                 return response()->json(['message' => $e->getMessage()], 422);
@@ -189,7 +189,7 @@ class SalikController extends AppBaseController
             $totalVat = $salikVatAmount + $adminVatAmount;
             $totalAmount = $amount + $adminCharges + $totalVat;
 
-            $this->requireSalikVoucherHeadAccounts($totalVat);
+            $this->requireSalikVoucherHeadAccounts($totalVat, $adminCharges);
 
             $input['billing_month'] = $input['billing_month'] . '-01';
             $input['bike_id'] = $bike->id;
@@ -306,16 +306,8 @@ class SalikController extends AppBaseController
      * @param int[] $accountIds
      * @throws \Exception
      */
-    private function requireHeadAccountsExist(array $accountIds): void
+    private function requireHeadAccountsExist(array $accountIds, array $labels): void
     {
-        $labels = [
-            HeadAccount::SALIK_PAYABLE_ACCOUNT => 'Salik Payable',
-            HeadAccount::VAT_ON_SALES => 'VAT on Sales',
-            HeadAccount::SALIK_ADMIN_CHARGES => 'Salik Admin Charges',
-            HeadAccount::VAT_PURCHASE_ACCOUNT => 'VAT on Purchase',
-            HeadAccount::SALIK_ASSET_ACCOUNT => 'Salik Asset',
-        ];
-
         foreach (array_unique(array_filter($accountIds)) as $accountId) {
             if (!Accounts::where('id', $accountId)->exists()) {
                 $name = $labels[$accountId] ?? "Head account #{$accountId}";
@@ -324,13 +316,16 @@ class SalikController extends AppBaseController
         }
     }
 
-    private function requireSalikVoucherHeadAccounts(float $vatAmount = 0): void
+    private function requireSalikVoucherHeadAccounts(float $vatAmount = 0, float $adminAmount = 0): void
     {
         $accountIds = [HeadAccount::SALIK_PAYABLE_ACCOUNT];
         if ($vatAmount > 0) {
             $accountIds[] = HeadAccount::VAT_ON_SALES;
         }
-        $this->requireHeadAccountsExist($accountIds);
+        if ($adminAmount > 0) {
+            $accountIds[] = HeadAccount::SALIK_ADMIN_CHARGES;
+        }
+        $this->requireHeadAccountsExist($accountIds, HeadAccount::salikVoucherAccountLabels());
     }
 
     private function requireSalikPaymentHeadAccounts(float $vatDebit, float $ownSalikAmount, float $ownAdminAmount): void
@@ -345,7 +340,7 @@ class SalikController extends AppBaseController
         if ($ownAdminAmount > 0) {
             $accountIds[] = HeadAccount::SALIK_ADMIN_CHARGES;
         }
-        $this->requireHeadAccountsExist($accountIds);
+        $this->requireHeadAccountsExist($accountIds, HeadAccount::salikPaymentAccountLabels());
     }
 
     private function salikPaymentNarration(?string $billingMonth, string $partyLabel): string
@@ -477,7 +472,7 @@ class SalikController extends AppBaseController
         }
 
         try {
-            $this->requireHeadAccountsExist([HeadAccount::SALIK_PAYABLE_ACCOUNT]);
+            $this->requireSalikVoucherHeadAccounts(0, 0);
         } catch (\Exception $e) {
             if (request()->ajax()) {
                 return response()->json(['message' => $e->getMessage()], 422);
@@ -524,11 +519,10 @@ class SalikController extends AppBaseController
         DB::beginTransaction();
         try {
             $salik = salik::findOrFail($id);
-            $this->requireHeadAccountsExist(array_filter([
-                HeadAccount::SALIK_PAYABLE_ACCOUNT,
-                (float) ($salik->vat ?? 0) > 0 ? HeadAccount::VAT_ON_SALES : null,
-                (float) ($salik->admin_charges ?? 0) > 0 ? HeadAccount::SALIK_ADMIN_CHARGES : null,
-            ]));
+            $this->requireSalikVoucherHeadAccounts(
+                (float) ($salik->vat ?? 0),
+                (float) ($salik->admin_charges ?? 0)
+            );
 
             $oldAmount = $salik->amount;
             $oldAdminCharges = $salik->admin_charges ?? 0;
@@ -672,7 +666,7 @@ class SalikController extends AppBaseController
         $tripAmount = (float) $validated['amount'];
         $adminCharges = (float) ($salik->admin_charges ?? 0);
         $totalVat = (float) ($salik->vat ?? 0);
-        $this->requireSalikVoucherHeadAccounts($totalVat);
+        $this->requireSalikVoucherHeadAccounts($totalVat, $adminCharges);
 
         $existingTransCodes = Transactions::where('reference_id', $salik->id)
             ->where('reference_type', 'Salik Voucher')
@@ -761,7 +755,7 @@ class SalikController extends AppBaseController
      */
     private function createAdminTransaction($transCode, $adminAmount, $referenceId, $billingMonth, $branchId)
     {
-        $this->requireHeadAccountsExist([HeadAccount::SALIK_ADMIN_CHARGES]);
+        $this->requireSalikVoucherHeadAccounts(0, $adminAmount);
         $transactionService = new TransactionService();
 
         $transactionService->recordTransaction([
@@ -859,11 +853,10 @@ class SalikController extends AppBaseController
         \DB::beginTransaction();
         try {
             $salik = salik::findOrFail($id);
-            $this->requireHeadAccountsExist(array_filter([
-                HeadAccount::SALIK_PAYABLE_ACCOUNT,
-                (float) ($salik->vat ?? 0) > 0 ? HeadAccount::VAT_ON_SALES : null,
-                (float) ($salik->admin_charges ?? 0) > 0 ? HeadAccount::SALIK_ADMIN_CHARGES : null,
-            ]));
+            $this->requireSalikVoucherHeadAccounts(
+                (float) ($salik->vat ?? 0),
+                (float) ($salik->admin_charges ?? 0)
+            );
 
             $salikAccountId = $salik->salik_account_id;
             $riderId = $salik->rider_id;
@@ -1889,12 +1882,7 @@ class SalikController extends AppBaseController
         }
 
         try {
-            $this->requireHeadAccountsExist([
-                HeadAccount::SALIK_PAYABLE_ACCOUNT,
-                HeadAccount::VAT_PURCHASE_ACCOUNT,
-                HeadAccount::SALIK_ASSET_ACCOUNT,
-                HeadAccount::SALIK_ADMIN_CHARGES,
-            ]);
+            $this->requireSalikPaymentHeadAccounts(0, 0, 0);
         } catch (\Exception $e) {
             Flash::error($e->getMessage());
             return redirect()->route('salik.index');

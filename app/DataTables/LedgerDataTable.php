@@ -129,7 +129,7 @@ class LedgerDataTable extends DataTable
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
             }
-            if ($row->reference_type == 'Salik Voucher') {
+            if (in_array($row->reference_type, ['Salik Voucher', 'Salik Payment'], true)) {
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
@@ -379,7 +379,7 @@ class LedgerDataTable extends DataTable
      */
     public function query(Transactions $model)
     {
-        $query = $model->newQuery()->with(['account']);
+        $query = $model->newQuery()->with(['account', 'voucher']);
 
         if (request('account')) {
             $query->where('account_id', request('account'));

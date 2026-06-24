@@ -10,7 +10,7 @@ class ExpenseAccount extends BaseModel
 {
     public $table = 'expense_accounts';
 
-    public $fillable = ['account_id', 'name', 'rider_id', 'company_id'];
+    public $fillable = ['account_id', 'name', 'rider_id', 'renewal_category_id', 'company_id'];
 
     public function account(): BelongsTo
     {
@@ -20,6 +20,11 @@ class ExpenseAccount extends BaseModel
     public function rider(): BelongsTo
     {
         return $this->belongsTo(Riders::class, 'rider_id');
+    }
+
+    public function renewalCategory(): BelongsTo
+    {
+        return $this->belongsTo(VisaRenewalCategory::class, 'renewal_category_id');
     }
 
     public function visaExpenses(): HasMany

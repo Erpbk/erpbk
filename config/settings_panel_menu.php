@@ -92,6 +92,7 @@ return [
                 ['key' => 'attendance_records', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance', 'settings_query' => ['ref_type' => 'rider']],
                 ['key' => 'attendance_summary', 'visibility' => 'attendance', 'permission' => 'attendance_view', 'settings' => 'attendance', 'settings_query' => ['ref_type' => 'rider']],
                 ['key' => 'invoices', 'permission' => 'riderinvoice_view', 'settings' => 'invoices'],
+                ['key' => 'rider_invoice_templates', 'permission' => 'riderinvoice_edit', 'settings' => 'rider_invoice_templates', 'label' => 'Rider Invoice Templates'],
                 ['key' => 'activities', 'settings' => 'activities'],
                 ['key' => 'live_activities', 'settings' => 'live_activities'],
                 ['key' => 'rider_report', 'settings' => 'rider_report'],

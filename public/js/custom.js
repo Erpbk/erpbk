@@ -1,8 +1,8 @@
 // Right Side Modal Handler - Slide in from right
-$(document).ready(function() {
-    // Create modal HTML if not exists
-    if ($('#rightSideModal').length === 0) {
-        $('body').append(`
+$(document).ready(function () {
+  // Create modal HTML if not exists
+  if ($('#rightSideModal').length === 0) {
+    $('body').append(`
             <div class="modal fade right-side-modal" id="rightSideModal" tabindex="-1" role="dialog" aria-hidden="true">
                 <div class="modal-dialog modal-slide-right" role="document">
                     <div class="modal-content">
@@ -18,9 +18,9 @@ $(document).ready(function() {
                 </div>
             </div>
         `);
-        
-        // Add custom CSS for right side slide animation
-        $('head').append(`
+
+    // Add custom CSS for right side slide animation
+    $('head').append(`
             <style>
                 /* Right side modal slide animation */
                 .right-side-modal .modal-dialog.modal-slide-right {
@@ -100,24 +100,24 @@ $(document).ready(function() {
                 }
             </style>
         `);
-    }
+  }
 });
 
 // Centralized function to open right side modal
 function openRightSideModal(action, title, size = 'lg', callback = null) {
-    // Reset modal size classes
-    $('#rightSideModal .modal-dialog').removeClass('modal-sm modal-md modal-lg modal-xl');
-    
-    // Add size class if specified
-    if (size) {
-        $('#rightSideModal .modal-dialog').addClass('modal-' + size);
-    }
-    
-    // Set title
-    $('#rightSideModalTitle').text(title);
-    
-    // Show loading state
-    $('#rightSideModalBody').html(`
+  // Reset modal size classes
+  $('#rightSideModal .modal-dialog').removeClass('modal-sm modal-md modal-lg modal-xl');
+
+  // Add size class if specified
+  if (size) {
+    $('#rightSideModal .modal-dialog').addClass('modal-' + size);
+  }
+
+  // Set title
+  $('#rightSideModalTitle').text(title);
+
+  // Show loading state
+  $('#rightSideModalBody').html(`
         <div class="text-center p-5">
             <div class="spinner-border text-primary" role="status">
                 <span class="sr-only">Loading...</span>
@@ -125,75 +125,75 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
             <p class="mt-2">Loading content...</p>
         </div>
     `);
-    
-    // Load content
-    $('#rightSideModalBody').load(action, function(response, status, xhr) {
-        if (status === 'error') {
-            $('#rightSideModalBody').html(`
+
+  // Load content
+  $('#rightSideModalBody').load(action, function (response, status, xhr) {
+    if (status === 'error') {
+      $('#rightSideModalBody').html(`
                 <div class="text-center p-5 text-danger">
                     <i class="fas fa-exclamation-circle fa-3x"></i>
                     <p class="mt-2">Error loading content. Please try again.</p>
                     <button class="btn btn-primary" onclick="location.reload()">Refresh</button>
                 </div>
             `);
-        }
-        
-        // Execute callback if provided
-        if (callback && typeof callback === 'function') {
-            callback();
-        }
-        
-        // Re-initialize any components in the loaded content
-        if (typeof initializeModalContent === 'function') {
-            initializeModalContent();
-        }
-    });
-    
-    // Show modal
-    $('#rightSideModal').modal('show');
+    }
+
+    // Execute callback if provided
+    if (callback && typeof callback === 'function') {
+      callback();
+    }
+
+    // Re-initialize any components in the loaded content
+    if (typeof initializeModalContent === 'function') {
+      initializeModalContent();
+    }
+  });
+
+  // Show modal
+  $('#rightSideModal').modal('show');
 }
 
 // Close right side modal function
 function closeRightSideModal() {
-    $('#rightSideModal').modal('hide');
+  $('#rightSideModal').modal('hide');
 }
 
 // Enhanced click handler with more options
-$('body').on('click', '.show-modal-right', function() {
-    var action = $(this).data('action');
-    var title = $(this).data('title');
-    var size = $(this).data('size') || 'lg';
-    var reloadTable = $(this).data('reload-table');
-    var collapseSidebar = $(this).data('collapse-sidebar');
-    var onLoadCallback = $(this).data('callback');
-    
-    // Open modal
-    openRightSideModal(action, title, size, function() {
-        // Reload table if specified
-        if (reloadTable && $.fn.DataTable.isDataTable('#dataTableBuilder')) {
-            $('#dataTableBuilder').DataTable().ajax.reload(null, false);
-        }
-        
-        // Collapse sidebar if specified
-        if (collapseSidebar) {
-            $('.layout-wrapper').addClass('layout-menu-collapsed');
-        }
-        
-        // Execute custom callback if defined in data-callback attribute
-        if (onLoadCallback && window[onLoadCallback]) {
-            window[onLoadCallback]();
-        }
-    });
+$('body').on('click', '.show-modal-right', function () {
+  var action = $(this).data('action');
+  var title = $(this).data('title');
+  var size = $(this).data('size') || 'lg';
+  var reloadTable = $(this).data('reload-table');
+  var collapseSidebar = $(this).data('collapse-sidebar');
+  var onLoadCallback = $(this).data('callback');
+
+  // Open modal
+  openRightSideModal(action, title, size, function () {
+    // Reload table if specified
+    if (reloadTable && $.fn.DataTable.isDataTable('#dataTableBuilder')) {
+      $('#dataTableBuilder').DataTable().ajax.reload(null, false);
+    }
+
+    // Collapse sidebar if specified
+    if (collapseSidebar) {
+      $('.layout-wrapper').addClass('layout-menu-collapsed');
+    }
+
+    // Execute custom callback if defined in data-callback attribute
+    if (onLoadCallback && window[onLoadCallback]) {
+      window[onLoadCallback]();
+    }
+  });
 });
 
 // Reset sidebar when modal closes
-$('#rightSideModal').on('hidden.bs.modal', function() {
-    $('.layout-wrapper').removeClass('layout-menu-collapsed');
-    
-    // Clear modal content to free memory
-    setTimeout(function() {
-        if (!$('#rightSideModal').hasClass('show')) {
-            $('#rightSideModalBody').html(`
+$('#rightSideModal').on('hidden.bs.modal', function () {
+  $('.layout-wrapper').removeClass('layout-menu-collapsed');
+
+  // Clear modal content to free memory
+  setTimeout(function () {
+    if (!$('#rightSideModal').hasClass('show')) {
+      $('#rightSideModalBody').html(`
                 <div class="text-center p-5">
                     <div class="spinner-border text-primary" role="status">
                         <span class="sr-only">Loading...</span>
@@ -201,90 +201,90 @@ $('#rightSideModal').on('hidden.bs.modal', function() {
                     <p class="mt-2">Loading content...</p>
                 </div>
             `);
-        }
-    }, 300);
+    }
+  }, 300);
 });
 
 // Handle Escape key
-$(document).on('keydown', function(e) {
-    if (e.key === 'Escape' && $('#rightSideModal').hasClass('show')) {
-        closeRightSideModal();
-    }
+$(document).on('keydown', function (e) {
+  if (e.key === 'Escape' && $('#rightSideModal').hasClass('show')) {
+    closeRightSideModal();
+  }
 });
 
 // Prevent modal close when clicking inside modal content
-$('#rightSideModal').on('click', '.modal-content', function(e) {
-    e.stopPropagation();
+$('#rightSideModal').on('click', '.modal-content', function (e) {
+  e.stopPropagation();
 });
 
 // Print invoice/content from right-side modal or standalone invoice pages (global for onclick handlers).
 window.printModalContent = function printModalContent() {
-    var title = (document.title || 'Print').replace(/</g, '');
-    var bodyHtml = '';
-    var embeddedStyles = '';
+  var title = (document.title || 'Print').replace(/</g, '');
+  var bodyHtml = '';
+  var embeddedStyles = '';
 
-    if (window.jQuery && $('#rightSideModalBody').length && $('#rightSideModalBody').find('.invoice-box').length) {
-        bodyHtml = $('#rightSideModalBody').html();
-        var modalTitle = ($('#rightSideModalTitle').text() || '').trim();
-        if (modalTitle) {
-            title = modalTitle.replace(/</g, '');
-        }
-    } else {
-        var invoiceBox = document.querySelector('.invoice-box');
-        if (!invoiceBox) {
-            window.print();
-            return;
-        }
-        document.querySelectorAll('style').forEach(function (node) {
-            embeddedStyles += node.outerHTML;
-        });
-        bodyHtml = embeddedStyles + invoiceBox.outerHTML;
+  if (window.jQuery && $('#rightSideModalBody').length && $('#rightSideModalBody').find('.invoice-box').length) {
+    bodyHtml = $('#rightSideModalBody').html();
+    var modalTitle = ($('#rightSideModalTitle').text() || '').trim();
+    if (modalTitle) {
+      title = modalTitle.replace(/</g, '');
     }
-
-    if (!bodyHtml || !String(bodyHtml).trim()) {
-        window.print();
-        return;
+  } else {
+    var invoiceBox = document.querySelector('.invoice-box');
+    if (!invoiceBox) {
+      window.print();
+      return;
     }
+    document.querySelectorAll('style').forEach(function (node) {
+      embeddedStyles += node.outerHTML;
+    });
+    bodyHtml = embeddedStyles + invoiceBox.outerHTML;
+  }
 
-    var printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        window.print();
-        return;
-    }
+  if (!bodyHtml || !String(bodyHtml).trim()) {
+    window.print();
+    return;
+  }
 
-    printWindow.document.open();
-    printWindow.document.write(
-        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
-            title +
-            '</title><style>' +
-            'body{font-family:Calibri,Arial,sans-serif;margin:0;padding:20px;color:#000;}' +
-            '.no-print{display:none!important;}' +
-            '.invoice-box{max-width:100%;margin:0 auto;}' +
-            'table{width:100%;border-collapse:collapse;margin-bottom:10px;}' +
-            'th,td{border:1px solid #000;padding:8px;text-align:left;}' +
-            'th{background:#004aad;color:#fff;}' +
-            '.text-center{text-align:center;}' +
-            '@media print{body{margin:0;padding:0;}.no-print{display:none!important;}}' +
-            '</style></head><body>' +
-            bodyHtml +
-            '</body></html>'
-    );
-    printWindow.document.close();
+  var printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    window.print();
+    return;
+  }
 
-    setTimeout(function () {
-        try {
-            printWindow.focus();
-            printWindow.print();
-        } catch (e) {}
-        printWindow.onafterprint = function () {
-            printWindow.close();
-        };
-    }, 400);
+  printWindow.document.open();
+  printWindow.document.write(
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
+      title +
+      '</title><style>' +
+      'body{font-family:Calibri,Arial,sans-serif;margin:0;padding:20px;color:#000;}' +
+      '.no-print{display:none!important;}' +
+      '.invoice-box{max-width:100%;margin:0 auto;}' +
+      'table{width:100%;border-collapse:collapse;margin-bottom:10px;}' +
+      'th,td{border:1px solid #000;padding:8px;text-align:left;}' +
+      'th{background:#004aad;color:#fff;}' +
+      '.text-center{text-align:center;}' +
+      '@media print{body{margin:0;padding:0;}.no-print{display:none!important;}}' +
+      '</style></head><body>' +
+      bodyHtml +
+      '</body></html>'
+  );
+  printWindow.document.close();
+
+  setTimeout(function () {
+    try {
+      printWindow.focus();
+      printWindow.print();
+    } catch (e) {}
+    printWindow.onafterprint = function () {
+      printWindow.close();
+    };
+  }, 400);
 };
 
 $('body').on('click', '.js-print-modal-content', function (e) {
-    e.preventDefault();
-    window.printModalContent();
+  e.preventDefault();
+  window.printModalContent();
 });
 
 /**
@@ -292,62 +292,62 @@ $('body').on('click', '.js-print-modal-content', function (e) {
  * Avoids printing the full ERP layout when the invoice is opened in modalTop.
  */
 function printVisaInstallmentInvoice() {
-    var title = 'Installment Invoice';
-    var bodyHtml = '';
+  var title = 'Installment Invoice';
+  var bodyHtml = '';
 
-    if (window.jQuery && $('#modalTopbody').length && $('#modalTopbody').find('.visa-installment-invo-wrap').length) {
-        bodyHtml = $('#modalTopbody').html();
-        var t = ($('#modalTopTitle').text() || '').trim();
-        if (t) title = t;
-    } else {
-        var wrap = document.querySelector('.visa-installment-invo-wrap');
-        if (!wrap) {
-            window.print();
-            return;
-        }
-        var styles = '';
-        if (document.head) {
-            var styleNodes = document.head.querySelectorAll('style');
-            for (var i = 0; i < styleNodes.length; i++) {
-                styles += styleNodes[i].outerHTML;
-            }
-        }
-        bodyHtml = styles + wrap.outerHTML;
-        if (document.title) title = document.title;
+  if (window.jQuery && $('#modalTopbody').length && $('#modalTopbody').find('.visa-installment-invo-wrap').length) {
+    bodyHtml = $('#modalTopbody').html();
+    var t = ($('#modalTopTitle').text() || '').trim();
+    if (t) title = t;
+  } else {
+    var wrap = document.querySelector('.visa-installment-invo-wrap');
+    if (!wrap) {
+      window.print();
+      return;
     }
-
-    if (!bodyHtml || !bodyHtml.trim()) {
-        window.print();
-        return;
+    var styles = '';
+    if (document.head) {
+      var styleNodes = document.head.querySelectorAll('style');
+      for (var i = 0; i < styleNodes.length; i++) {
+        styles += styleNodes[i].outerHTML;
+      }
     }
+    bodyHtml = styles + wrap.outerHTML;
+    if (document.title) title = document.title;
+  }
 
-    title = String(title).replace(/</g, '');
+  if (!bodyHtml || !bodyHtml.trim()) {
+    window.print();
+    return;
+  }
 
-    var printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        window.print();
-        return;
-    }
+  title = String(title).replace(/</g, '');
 
-    printWindow.document.open();
-    printWindow.document.write(
-        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
-            title +
-            '</title></head><body>' +
-            bodyHtml +
-            '</body></html>'
-    );
-    printWindow.document.close();
+  var printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    window.print();
+    return;
+  }
 
-    setTimeout(function () {
-        try {
-            printWindow.focus();
-            printWindow.print();
-        } catch (e) {}
-        printWindow.onafterprint = function () {
-            printWindow.close();
-        };
-    }, 400);
+  printWindow.document.open();
+  printWindow.document.write(
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
+      title +
+      '</title></head><body>' +
+      bodyHtml +
+      '</body></html>'
+  );
+  printWindow.document.close();
+
+  setTimeout(function () {
+    try {
+      printWindow.focus();
+      printWindow.print();
+    } catch (e) {}
+    printWindow.onafterprint = function () {
+      printWindow.close();
+    };
+  }, 400);
 }
 
 // Backward-compatible modal toggler used by .show-modal handlers.
@@ -427,8 +427,13 @@ $('body').on('click', '.show-voucher-panel', function (e) {
       listSidebar.addClass('visible').attr('aria-hidden', 'false');
       $('#voucherListSidebarBackdrop').addClass('visible').attr('aria-hidden', 'false');
       $('body').addClass('voucher-panels-open');
-      listBody.html('<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><p class="mb-0 mt-2 small">Loading…</p></div>');
-      var listUrl = customListUrl || $('#vouchers_list_sidebar_url').val() || (($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar');
+      listBody.html(
+        '<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><p class="mb-0 mt-2 small">Loading…</p></div>'
+      );
+      var listUrl =
+        customListUrl ||
+        $('#vouchers_list_sidebar_url').val() ||
+        ($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar';
       listBody.load(listUrl);
     }
     if (collapseSidebar) {
@@ -439,7 +444,9 @@ $('body').on('click', '.show-voucher-panel', function (e) {
 
   $('#voucherPanelTitle').text(title || 'Voucher');
   $('#voucherPanelFooter').text('—');
-  $('#voucherPanelBody').html('<div class="p-4 text-center text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><p class="mb-0 mt-2 small">Loading…</p></div>');
+  $('#voucherPanelBody').html(
+    '<div class="p-4 text-center text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><p class="mb-0 mt-2 small">Loading…</p></div>'
+  );
   $('#voucherPanelBody').load(action, function () {
     var footerEl = $('#voucherPanelBody').find('#voucher-panel-current');
     if (footerEl.length) {
@@ -481,7 +488,7 @@ $(document).on('click', '#voucherListSidebarBackdrop', function () {
 function reloadDataTable() {
   if ($.fn.DataTable.isDataTable('#dataTableBuilder')) {
     var table = $('#dataTableBuilder').DataTable();
-    
+
     // Check if table is in server-side mode
     if (table.page.info().serverSide) {
       // Server-side: use ajax.reload
@@ -527,7 +534,7 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
     headers: {
       'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
       'X-Requested-With': 'XMLHttpRequest',
-      Accept: 'application/json',
+      Accept: 'application/json'
     },
     type: 'POST',
     data: formData,
@@ -555,8 +562,8 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
         window.location = data.redirect;
       }
       if (data.reload === true || data.reload_page == 1) {
-        setTimeout(function() {
-            location.reload();
+        setTimeout(function () {
+          location.reload();
         }, 1000); // 1000ms = 1 seconds
       }
       if ($form.find('#reload_page').val() == 1) {
@@ -569,7 +576,7 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
     },
     error: function (ajaxcontent) {
       unblock();
-      
+
       // Handle custom error messages (e.g., inactive entity validation)
       if (ajaxcontent.responseJSON && ajaxcontent.responseJSON.message) {
         toastr.error(ajaxcontent.responseJSON.message, 'Error', {
@@ -581,7 +588,7 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
         });
         return false;
       }
-      
+
       // Handle success false response
       if (ajaxcontent.responseJSON && ajaxcontent.responseJSON.success == 'false') {
         if (ajaxcontent.responseJSON.errors) {
@@ -589,19 +596,18 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
         }
         return false;
       }
-      
+
       // Handle Laravel validation errors
       if (ajaxcontent.responseJSON && ajaxcontent.responseJSON.errors) {
         vali = ajaxcontent.responseJSON.errors;
         $form.find('input').css('border', '1px solid #dfdfdf');
-        $form.find('input')
-          .next('span')
-          .remove();
+        $form.find('input').next('span').remove();
 
         $.each(vali, function (index, value) {
           $form.find("input[name~='" + index + "']").css('border', '1px solid red');
           //$form.find("input[name~='" + index + "']").after('<span style="color:red;">' + value + '</span>');
-          $form.find("select[name~='" + index + "']")
+          $form
+            .find("select[name~='" + index + "']")
             .parent()
             .find('.select2-container--default .select2-selection--single')
             .css('border', '1px solid red');
@@ -674,7 +680,7 @@ $(document).on('submit', '#formajax2', function (e) {
     },
     error: function (ajaxcontent) {
       unblock();
-      
+
       // Handle custom error messages (e.g., inactive entity validation)
       if (ajaxcontent.responseJSON && ajaxcontent.responseJSON.message) {
         toastr.error(ajaxcontent.responseJSON.message, 'Error', {
@@ -686,7 +692,7 @@ $(document).on('submit', '#formajax2', function (e) {
         });
         return false;
       }
-      
+
       // Handle success false response
       if (ajaxcontent.responseJSON && ajaxcontent.responseJSON.success == 'false') {
         if (ajaxcontent.responseJSON.errors) {
@@ -694,7 +700,7 @@ $(document).on('submit', '#formajax2', function (e) {
         }
         return false;
       }
-      
+
       // Handle Laravel validation errors
       if (ajaxcontent.responseJSON && ajaxcontent.responseJSON.errors) {
         vali = ajaxcontent.responseJSON.errors;
@@ -836,21 +842,21 @@ function setItemTotal(row) {
   const rate = parseFloat(row.find('.rate').val()) || 0;
   const discount = parseFloat(row.find('.discount').val()) || 0;
   const vat = parseFloat(row.find('.vat').val()) || 0;
-  const vatAmount = row.find('.vat_amount') ;
-  
+  const vatAmount = row.find('.vat_amount');
+
   let subtotal = qty * rate;
-  console.log('subtotal: '+subtotal);
+  console.log('subtotal: ' + subtotal);
   if (discount > 0) {
-      subtotal -= discount;
-      console.log('subtotal after discount: '+subtotal);
+    subtotal -= discount;
+    console.log('subtotal after discount: ' + subtotal);
   }
   let amount = 0;
   if (vat > 0) {
-      amount = subtotal * (vat / 100);
-      subtotal += amount;
+    amount = subtotal * (vat / 100);
+    subtotal += amount;
   }
   vatAmount.val(amount.toFixed(2));
-  
+
   row.find('.amount').val(subtotal.toFixed(2));
 }
 
@@ -859,16 +865,16 @@ function setTotal() {
   let subtotal = 0;
   let vat = 0;
   // Calculate sum of all item totals
-  $('#rows-container .row').each(function() {
-      const itemTotal = parseFloat($(this).find('.amount').val()) || 0;
-      const itemVatAmount = parseFloat($(this).find('.vat_amount').val()) || 0;
-      const itemQty = parseFloat($(this).find('.qty').val()) || 0;
-      const itemPrice = parseFloat($(this).find('.rate').val()) || 0;
-      const itemDiscount = parseFloat($(this).find('.discount').val()) || 0;
-      const itemSubtotal = (itemPrice * itemQty) - itemDiscount;
-      vat += itemVatAmount;
-      subtotal += itemSubtotal;
-      total += itemTotal;
+  $('#rows-container .row').each(function () {
+    const itemTotal = parseFloat($(this).find('.amount').val()) || 0;
+    const itemVatAmount = parseFloat($(this).find('.vat_amount').val()) || 0;
+    const itemQty = parseFloat($(this).find('.qty').val()) || 0;
+    const itemPrice = parseFloat($(this).find('.rate').val()) || 0;
+    const itemDiscount = parseFloat($(this).find('.discount').val()) || 0;
+    const itemSubtotal = itemPrice * itemQty - itemDiscount;
+    vat += itemVatAmount;
+    subtotal += itemSubtotal;
+    total += itemTotal;
   });
   $('#total').val(total.toFixed(2));
   $('#subtotal').val(subtotal.toFixed(2));
@@ -941,7 +947,7 @@ $(document).ready(function () {
     }
   });
 
-  $(document).on('input change', '.item', function() {
+  $(document).on('input change', '.item', function () {
     const row = $(this).closest('.row');
     const selectedOption = $(this).find('option:selected');
     const itemPrice = parseFloat(selectedOption.data('price')) || 0;
@@ -952,10 +958,10 @@ $(document).ready(function () {
     setTotal();
   });
 
-  $(document).on('input change', '.qty, .rate, .discount, .vat', function() {
-      const row = $(this).closest('.row');
-      setItemTotal(row);
-      setTotal();
+  $(document).on('input change', '.qty, .rate, .discount, .vat', function () {
+    const row = $(this).closest('.row');
+    setItemTotal(row);
+    setTotal();
   });
 
   $('#checkall').on('change', function () {
@@ -973,56 +979,55 @@ $(document).ready(function () {
     }
   });
 
-  $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function(e) {
-      e.preventDefault();
-      console.log('Filter button hovered!'); // Debug line
-      $('#filterSidebar').addClass('open');
-      $('#filterOverlay').addClass('show');
-      return false;
+  $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function (e) {
+    e.preventDefault();
+    console.log('Filter button hovered!'); // Debug line
+    $('#filterSidebar').addClass('open');
+    $('#filterOverlay').addClass('show');
+    return false;
   });
 
-  $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
-      e.preventDefault();
-      console.log('Filter button clicked!'); // Debug line
-      $('#filterSidebar').addClass('open');
-      $('#filterOverlay').addClass('show');
-      return false;
+  $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function (e) {
+    e.preventDefault();
+    console.log('Filter button clicked!'); // Debug line
+    $('#filterSidebar').addClass('open');
+    $('#filterOverlay').addClass('show');
+    return false;
   });
 
-  $('#closeSidebar, #filterOverlay').on('click', function() {
-      $('#filterSidebar').removeClass('open');
-      $('#filterOverlay').removeClass('show');
+  $('#closeSidebar, #filterOverlay').on('click', function () {
+    $('#filterSidebar').removeClass('open');
+    $('#filterOverlay').removeClass('show');
   });
 
   // Action dropdown functionality
-  $(document).on('click', '#addBikeDropdownBtn', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      const dropdown = $('#addBikeDropdown');
-      dropdown.toggleClass('show');
+  $(document).on('click', '#addBikeDropdownBtn', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const dropdown = $('#addBikeDropdown');
+    dropdown.toggleClass('show');
   });
 
   // Close dropdown when clicking outside
-  $(document).on('click', function(e) {
-      if (!$(e.target).closest('.action-dropdown-container').length) {
-          $('#addBikeDropdown').removeClass('show');
-      }
+  $(document).on('click', function (e) {
+    if (!$(e.target).closest('.action-dropdown-container').length) {
+      $('#addBikeDropdown').removeClass('show');
+    }
   });
 
-  $(document).on('click', function(e) {
+  $(document).on('click', function (e) {
     if (!$(e.target).closest('#filterSidebar').length) {
-        $('#filterSidebar').removeClass('open');
+      $('#filterSidebar').removeClass('open');
     }
   });
 
   // Close dropdown when pressing escape
-  $(document).on('keydown', function(e) {
-      if (e.key === 'Escape') {
-          $('#addBikeDropdown').removeClass('show');
-          $('#filterSidebar').removeClass('open');
-      }
+  $(document).on('keydown', function (e) {
+    if (e.key === 'Escape') {
+      $('#addBikeDropdown').removeClass('show');
+      $('#filterSidebar').removeClass('open');
+    }
   });
-
 });
 
 function bodyblock() {
@@ -1053,7 +1058,3 @@ $(document).on('click', '#edit-icon', function (e) {
     $panel.fadeToggle('fast');
   }
 });
-
-
-
-

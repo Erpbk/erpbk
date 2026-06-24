@@ -133,6 +133,7 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
                 <div class="text-center p-5 text-danger">
                     <i class="fas fa-exclamation-circle fa-3x"></i>
                     <p class="mt-2">Error loading content. Please try again.</p>
+                    <p class="mt-2">Error: ${xhr.statusText}</p>
                     <button class="btn btn-primary" onclick="location.reload()">Refresh</button>
                 </div>
             `);

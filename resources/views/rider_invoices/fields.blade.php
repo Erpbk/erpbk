@@ -1,6 +1,18 @@
 <script src="{{ asset('js/modal_custom.js') }}"></script>
 
 <div class="row">
+    @if(isset($invoiceTemplates) && $invoiceTemplates->count() > 0)
+    <div class="col-md-4 form-group">
+        <label>Invoice Template</label>
+        <select name="template_id" class="form-select form-select-sm">
+            @foreach($invoiceTemplates as $tpl)
+            <option value="{{ $tpl->id }}" @selected((int) old('template_id', $invoice->template_id ?? $defaultTemplate->id ?? 0) === (int) $tpl->id)>
+                {{ $tpl->template_name }}@if($tpl->is_default) (Default)@endif
+            </option>
+            @endforeach
+        </select>
+    </div>
+    @endif
     <div class="col-md-2 form-group">
         <label>Invoice Date</label>
         <input type="date"

@@ -17,6 +17,7 @@ use App\Models\VoucherType;
 use App\Repositories\RiderInvoicesRepository;
 use App\Services\Email\CompanyEmailBrandingService;
 use App\Services\Email\UserEmailService;
+use App\Services\RiderInvoice\RiderInvoiceTemplateResolver;
 use App\Services\TransactionService;
 use App\Support\CompanyQuery;
 use App\Traits\GlobalPagination;
@@ -107,6 +108,7 @@ class RiderInvoicesController extends AppBaseController
         return view('rider_invoices.index', [
             'data' => $data,
             'currentMonthTotal' => $currentMonthTotal,
+            'invoiceTemplates' => app(RiderInvoiceTemplateResolver::class)->activeTemplates(),
         ]);
     }
 
@@ -117,8 +119,10 @@ class RiderInvoicesController extends AppBaseController
     {
         $riders = Riders::dropdown();
         $items = Items::dropdown('rider');
+        $invoiceTemplates = app(RiderInvoiceTemplateResolver::class)->activeTemplates();
+        $defaultTemplate = app(RiderInvoiceTemplateResolver::class)->defaultTemplate();
 
-        return view('rider_invoices.create', compact('riders', 'items'));
+        return view('rider_invoices.create', compact('riders', 'items', 'invoiceTemplates', 'defaultTemplate'));
     }
 
     /**
@@ -166,7 +170,60 @@ class RiderInvoicesController extends AppBaseController
             ], 404);
         }
 
-        return view('rider_invoices.show')->with('riderInvoice', $riderInvoice);
+        $riderInvoice->load(['rider.sim', 'rider.vendor', 'items', 'template']);
+        $resolver = app(RiderInvoiceTemplateResolver::class);
+        $activeTemplate = $resolver->resolveForInvoice($riderInvoice);
+
+        return view('rider_invoices.show', [
+            'riderInvoice' => $riderInvoice,
+            'activeTemplate' => $activeTemplate,
+            'templateView' => $activeTemplate->viewName(),
+            'templates' => $resolver->activeTemplates(),
+        ]);
+    }
+
+    public function download($company_slug, $id)
+    {
+        $riderInvoice = $this->riderInvoicesRepository->find($id);
+
+        if (empty($riderInvoice)) {
+            abort(404, 'Rider Invoice not found');
+        }
+
+        $riderInvoice->load(['rider.sim', 'rider.vendor', 'items', 'template']);
+        $resolver = app(RiderInvoiceTemplateResolver::class);
+        $activeTemplate = $resolver->resolveForInvoice($riderInvoice);
+        $invoiceNumber = \App\Helpers\General::inv_sch($riderInvoice->id, $riderInvoice->created_at);
+
+        $pdf = \PDF::loadView('rider_invoices.pdf', [
+            'riderInvoice' => $riderInvoice,
+            'activeTemplate' => $activeTemplate,
+            'templateView' => $activeTemplate->viewName(),
+        ]);
+
+        return $pdf->download('Rider-Invoice-'.$invoiceNumber.'.pdf');
+    }
+
+    public function updateTemplate(Request $request, $company_slug, $id)
+    {
+        $riderInvoice = $this->riderInvoicesRepository->find($id);
+
+        if (empty($riderInvoice)) {
+            return response()->json(['message' => 'Rider Invoice not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'template_id' => ['required', 'integer', 'exists:rider_invoice_templates,id'],
+        ]);
+
+        $riderInvoice->template_id = $validated['template_id'];
+        $riderInvoice->save();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'reload' => true]);
+        }
+
+        return redirect()->route('riderInvoices.show', ['company_slug' => $company_slug, 'riderInvoice' => $id]);
     }
 
     /**
@@ -183,8 +240,10 @@ class RiderInvoicesController extends AppBaseController
         }
         $riders = Riders::dropdown();
         $items = Items::dropdown('rider');
+        $invoiceTemplates = app(RiderInvoiceTemplateResolver::class)->activeTemplates();
+        $defaultTemplate = app(RiderInvoiceTemplateResolver::class)->defaultTemplate();
 
-        return view('rider_invoices.edit', compact('riders', 'items', 'invoice'));
+        return view('rider_invoices.edit', compact('riders', 'items', 'invoice', 'invoiceTemplates', 'defaultTemplate'));
     }
 
     /**
@@ -753,6 +812,7 @@ class RiderInvoicesController extends AppBaseController
 
     public function sendEmail($company_slug, $id, Request $request)
     {
+        $invoice = RiderInvoices::with(['rider'])->findOrFail($id);
 
         if ($request->isMethod('post')) {
             $user = Auth::user();
@@ -778,26 +838,38 @@ class RiderInvoicesController extends AppBaseController
 
             $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
               ? trim($request->input('email_subject'))
-              : '(Rider invoice email)';
+              : 'Rider Invoice';
 
             $brandingService = app(CompanyEmailBrandingService::class);
             $data = $brandingService->mergeIntoMailData([
                 'html' => $request->input('email_message'),
             ]);
 
-            $res = RiderInvoices::with(['riderInv_item'])->where('id', $id)->get();
-            $pdf = \PDF::loadView('invoices.rider_invoices.show', ['res' => $res]);
+            $invoice->load(['rider.sim', 'rider.vendor', 'items', 'template']);
+            $resolver = app(RiderInvoiceTemplateResolver::class);
+            $activeTemplate = $resolver->resolveForInvoice($invoice);
+            $invoiceNumber = \App\Helpers\General::inv_sch($invoice->id, $invoice->created_at);
 
-            $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject) {
+            $pdf = \PDF::loadView('rider_invoices.pdf', [
+                'riderInvoice' => $invoice,
+                'activeTemplate' => $activeTemplate,
+                'templateView' => $activeTemplate->viewName(),
+            ]);
+
+            $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $invoiceNumber) {
                 $message->to([$toEmail]);
                 $message->from($fromEmail, $fromName);
                 $message->replyTo($fromEmail, $fromName);
                 $message->subject($subject);
-                $message->attachData($pdf->output(), $subject.'.pdf');
+                $message->attachData($pdf->output(), 'Rider-Invoice-'.$invoiceNumber.'.pdf');
                 $message->priority(3);
             });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email sent successfully.',
+            ]);
         }
-        $invoice = RiderInvoices::find($id);
 
         return view('rider_invoices.send_email', compact('invoice'));
     }

@@ -33,6 +33,7 @@ class RiderInvoices extends BaseModel
         'gaurantee',
         'notes',
         'status',
+        'template_id',
         'deleted_by',
     ];
 
@@ -110,5 +111,10 @@ class RiderInvoices extends BaseModel
     public function items()
     {
         return $this->hasMany(RiderInvoiceItem::class, 'inv_id', 'id');
+    }
+
+    public function template()
+    {
+        return $this->belongsTo(RiderInvoiceTemplate::class, 'template_id');
     }
 }

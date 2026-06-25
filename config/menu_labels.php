@@ -30,6 +30,7 @@ return [
         'riders'               => 'Riders',
         'riders_list'          => 'Riders List',
         'invoices'             => 'Invoices',
+        'rider_invoice_templates' => 'Rider Invoice Templates',
         'activities'           => 'Activities',
         'live_activities'      => 'Live Activities',
         'rider_report'         => 'Rider Report',

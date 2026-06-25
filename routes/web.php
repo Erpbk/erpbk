@@ -389,6 +389,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('Installments', [InstallmentsController::class, 'index'])->name('Installments.index');
 
     Route::post('accountcreate', [VisaexpenseController::class, 'accountcreate'])->name('VisaExpense.accountcreate');
+    Route::get('VisaExpense/eligible-categories/{riderId}', [VisaexpenseController::class, 'eligibleRenewalCategories'])->name('VisaExpense.eligibleRenewalCategories');
     Route::post('editaccount', [VisaexpenseController::class, 'editaccount'])->name('VisaExpense.editaccount');
     Route::get('VisaExpense/deleteaccount/{id}', [VisaexpenseController::class, 'deleteaccount'])->name('VisaExpense.deleteaccount');
     Route::post('VisaExpense/payfine', [VisaexpenseController::class, 'payfine'])->name('VisaExpense.payfine');
@@ -647,6 +648,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::resource('riderEmails', RiderEmailsController::class);
 
+    Route::any('riderInvoices/sendemail/{id}', [RiderInvoicesController::class, 'sendEmail'])->name('riderInvoices.sendEmail');
+    Route::get('riderInvoices/{id}/download', [RiderInvoicesController::class, 'download'])->name('riderInvoices.download');
+    Route::post('riderInvoices/{id}/template', [RiderInvoicesController::class, 'updateTemplate'])->name('riderInvoices.updateTemplate');
     Route::resource('riderInvoices', RiderInvoicesController::class);
     Route::any('rider/invoice-import', [RiderInvoicesController::class, 'import'])->name('rider.invoice_import');
     Route::any('rider/invoice-import-paid', [RiderInvoicesController::class, 'importPaid'])->name('riderInvoices.importPaid');

@@ -292,6 +292,13 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::resource('rider-inventory-items', App\Http\Controllers\RiderInventoryItemController::class)->names('settings-panel.rider-inventory-items');
     Route::post('rider-inventory-items/reorder', [App\Http\Controllers\RiderInventoryItemController::class, 'reorder'])->name('settings-panel.rider-inventory-items.reorder');
     Route::get('rider-inventory-items/{id}/toggle-active', [App\Http\Controllers\RiderInventoryItemController::class, 'toggleActive'])->name('settings-panel.rider-inventory-items.toggle-active');
+
+    Route::get('rider-invoice-templates', [App\Http\Controllers\RiderInvoiceTemplateSettingsController::class, 'index'])->name('settings-panel.rider-invoice-templates.index');
+    Route::post('rider-invoice-templates', [App\Http\Controllers\RiderInvoiceTemplateSettingsController::class, 'store'])->name('settings-panel.rider-invoice-templates.store');
+    Route::put('rider-invoice-templates/{id}', [App\Http\Controllers\RiderInvoiceTemplateSettingsController::class, 'update'])->name('settings-panel.rider-invoice-templates.update');
+    Route::delete('rider-invoice-templates/{id}', [App\Http\Controllers\RiderInvoiceTemplateSettingsController::class, 'destroy'])->name('settings-panel.rider-invoice-templates.destroy');
+    Route::post('rider-invoice-templates/{id}/set-default', [App\Http\Controllers\RiderInvoiceTemplateSettingsController::class, 'setDefault'])->name('settings-panel.rider-invoice-templates.set-default');
+    Route::post('rider-invoice-templates/{id}/toggle-status', [App\Http\Controllers\RiderInvoiceTemplateSettingsController::class, 'toggleStatus'])->name('settings-panel.rider-invoice-templates.toggle-status');
     Route::resource('legal-case-statuses', App\Http\Controllers\LegalCaseStatusController::class)->names('settings-panel.legal-case-statuses');
     Route::post('legal-case-statuses/reorder', [App\Http\Controllers\LegalCaseStatusController::class, 'reorder'])->name('settings-panel.legal-case-statuses.reorder');
     Route::get('legal-case-statuses/{id}/toggle-active', [App\Http\Controllers\LegalCaseStatusController::class, 'toggleActive'])->name('settings-panel.legal-case-statuses.toggle-active');

@@ -288,17 +288,14 @@
 </head>
 
 <body>
-    @php
-    $resolver = app(\App\Services\RiderInvoice\RiderInvoiceTemplateResolver::class);
-    $activeTemplate = $activeTemplate ?? $resolver->resolveForInvoice($riderInvoice);
-    $templateView = $templateView ?? $resolver->resolveViewForInvoice($riderInvoice);
-    $templates = $templates ?? $resolver->activeTemplates();
-    require resource_path('views/rider_invoices/partials/invoice_calculations_vars.php');
-    @endphp
     @include('rider_invoices.partials.action_buttons')
 
     <div class="invoice-box">
-        @include($templateView)
+        @if(View::exists($templateView))
+            @include($templateView)
+        @else
+            <div class="p-4 text-center text-danger">Invoice template view is missing on the server.</div>
+        @endif
     </div>
 
     <script>

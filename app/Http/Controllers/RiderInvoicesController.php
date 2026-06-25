@@ -19,6 +19,7 @@ use App\Repositories\RiderInvoicesRepository;
 use App\Services\Email\CompanyEmailBrandingService;
 use App\Services\Email\UserEmailService;
 use App\Services\RiderInvoice\RiderInvoiceTemplateResolver;
+use App\Services\RiderInvoice\RiderInvoiceViewDataBuilder;
 use App\Services\TransactionService;
 use App\Support\CompanyQuery;
 use App\Traits\GlobalPagination;
@@ -205,12 +206,17 @@ class RiderInvoicesController extends AppBaseController
                 $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
             }
 
-            return view('rider_invoices.show', [
-                'riderInvoice' => $riderInvoice,
-                'activeTemplate' => $resolver->resolveForInvoice($riderInvoice),
-                'templateView' => $templateView,
-                'templates' => $resolver->activeTemplates(),
-            ]);
+            $viewData = array_merge(
+                app(RiderInvoiceViewDataBuilder::class)->build($riderInvoice),
+                [
+                    'riderInvoice' => $riderInvoice,
+                    'activeTemplate' => $resolver->resolveForInvoice($riderInvoice),
+                    'templateView' => $templateView,
+                    'templates' => $resolver->activeTemplates(),
+                ]
+            );
+
+            return response(view('rider_invoices.show', $viewData)->render());
         } catch (\Throwable $e) {
             Log::error('Rider invoice show failed', [
                 'invoice_id' => $id,
@@ -248,12 +254,20 @@ class RiderInvoicesController extends AppBaseController
         $resolver = app(RiderInvoiceTemplateResolver::class);
         $activeTemplate = $resolver->resolveForInvoice($riderInvoice);
         $invoiceNumber = \App\Helpers\General::inv_sch($riderInvoice->id, $riderInvoice->created_at);
+        $templateView = $resolver->resolveViewForInvoice($riderInvoice);
 
-        $pdf = \PDF::loadView('rider_invoices.pdf', [
-            'riderInvoice' => $riderInvoice,
-            'activeTemplate' => $activeTemplate,
-            'templateView' => $resolver->resolveViewForInvoice($riderInvoice),
-        ]);
+        if (! View::exists($templateView)) {
+            $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
+        }
+
+        $pdf = \PDF::loadView('rider_invoices.pdf', array_merge(
+            app(RiderInvoiceViewDataBuilder::class)->build($riderInvoice),
+            [
+                'riderInvoice' => $riderInvoice,
+                'activeTemplate' => $activeTemplate,
+                'templateView' => $templateView,
+            ]
+        ));
 
         return $pdf->download('Rider-Invoice-' . $invoiceNumber . '.pdf');
     }
@@ -912,12 +926,20 @@ class RiderInvoicesController extends AppBaseController
             $resolver = app(RiderInvoiceTemplateResolver::class);
             $activeTemplate = $resolver->resolveForInvoice($invoice);
             $invoiceNumber = \App\Helpers\General::inv_sch($invoice->id, $invoice->created_at);
+            $templateView = $resolver->resolveViewForInvoice($invoice);
 
-            $pdf = \PDF::loadView('rider_invoices.pdf', [
-                'riderInvoice' => $invoice,
-                'activeTemplate' => $activeTemplate,
-                'templateView' => $resolver->resolveViewForInvoice($invoice),
-            ]);
+            if (! View::exists($templateView)) {
+                $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
+            }
+
+            $pdf = \PDF::loadView('rider_invoices.pdf', array_merge(
+                app(RiderInvoiceViewDataBuilder::class)->build($invoice),
+                [
+                    'riderInvoice' => $invoice,
+                    'activeTemplate' => $activeTemplate,
+                    'templateView' => $templateView,
+                ]
+            ));
 
             $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $invoiceNumber) {
                 $message->to([$toEmail]);

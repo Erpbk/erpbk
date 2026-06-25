@@ -6,7 +6,6 @@ use App\Helpers\Account;
 use App\Models\AssetDepreciationSchedule;
 use App\Models\FixedAsset;
 use App\Models\Transactions;
-use App\Models\VoucherType;
 use App\Models\Vouchers;
 
 class FixedAssetVoucherService
@@ -21,12 +20,6 @@ class FixedAssetVoucherService
      */
     public function createAcquisitionVoucher(FixedAsset $asset, array $data): Vouchers
     {
-        if (!VoucherType::isCodeAllowedForModule('FAV', 'assets')) {
-            throw new \RuntimeException(
-                'Fixed asset acquisition voucher type (FAV) is not configured. Please assign it in Voucher Settings.'
-            );
-        }
-
         if (!$asset->asset_account_id) {
             throw new \RuntimeException('Asset account is not configured for this fixed asset.');
         }
@@ -93,12 +86,6 @@ class FixedAssetVoucherService
 
     public function createOpeningBalanceAcquisitionVoucher(FixedAsset $asset): Vouchers
     {
-        if (!VoucherType::isCodeAllowedForModule('FAV', 'assets')) {
-            throw new \RuntimeException(
-                'Fixed asset acquisition voucher type (FAV) is not configured. Please assign it in Voucher Settings.'
-            );
-        }
-
         if (!$asset->asset_account_id || !$asset->accumulated_depreciation_account_id) {
             throw new \RuntimeException('Asset accounts are not configured for this fixed asset.');
         }
@@ -191,12 +178,6 @@ class FixedAssetVoucherService
 
     public function createDepreciationVoucher(FixedAsset $asset, AssetDepreciationSchedule $schedule): Vouchers
     {
-        if (!VoucherType::isCodeAllowedForModule('FDV', 'assets')) {
-            throw new \RuntimeException(
-                'Fixed asset depreciation voucher type (FDV) is not configured. Please assign it in Voucher Settings.'
-            );
-        }
-
         if (!$asset->depreciation_expense_account_id || !$asset->accumulated_depreciation_account_id) {
             throw new \RuntimeException('Depreciation accounts are not configured for this fixed asset.');
         }

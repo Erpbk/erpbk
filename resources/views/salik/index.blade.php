@@ -65,6 +65,17 @@
     </div>
 </section>
 
+<div class="d-flex gap-2 m-3">
+    <a href="{{ route('salik.index') }}"
+       class="btn btn-pill {{ request()->routeIs('salik.index') ? 'btn-primary' : 'btn-outline-secondary' }}">
+        Saliks
+    </a>
+    <a href="{{ route('salik.summary') }}"
+       class="btn btn-pill {{ request()->routeIs('salik.summary') ? 'btn-primary' : 'btn-outline-secondary' }}">
+        Monthly Summary
+    </a>
+</div>
+
 <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">
         <h5>Filter Saliks</h5>

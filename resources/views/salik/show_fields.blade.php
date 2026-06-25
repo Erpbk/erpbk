@@ -36,5 +36,11 @@
 <!-- Status Field -->
 <div class="col-sm-12">
     {!! Form::label('status', 'Status:') !!}
-    <p>{{ $salik->status }}</p>
+    <p>
+        @if(\App\Models\salik::normalizePaymentStatus($salik->status, !empty($salik->payment_voucher_id)) === 'paid')
+        <span class="badge bg-success">Paid</span>
+        @else
+        <span class="badge bg-warning text-dark">Unpaid</span>
+        @endif
+    </p>
 </div>

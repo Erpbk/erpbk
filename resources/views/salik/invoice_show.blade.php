@@ -187,11 +187,11 @@
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
             <div class="rider-card" style="flex: 1;">
                 <div class="card-header">
-                    <strong>Rider Details</strong>
+                    <strong>{{ $summary->rider_id ? 'Rider Details' : 'Company Details' }}</strong>
                 </div>
                 <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center;">
-                    <div style="font-weight: 600; color: #555;">Rider Name:</div>
-                    <div>{{ $summary->rider_name ?? 'N/A' }}</div>
+                    <div style="font-weight: 600; color: #555;">{{ $summary->rider_id ? 'Rider Name:' : 'Company Name:' }}</div>
+                    <div>{{ $summary->chargee_name ?? 'N/A' }}</div>
 
                     <div style="font-weight: 600; color: #555;">Plate No:</div>
                     <div>{{ $firstTrip->plate ?? 'N/A' }}</div>

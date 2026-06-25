@@ -68,11 +68,16 @@ class salik extends BaseModel
         parent::boot();
 
         static::creating(function ($model) {
-            if (empty($model->inv_id) && $model->rider_id && $model->billing_month) {
-                $model->inv_id = self::getOrCreateInvId(
-                    $model->rider_id,
-                    self::normalizeBillingMonth($model->billing_month)
-                );
+            if (!empty($model->inv_id) || !$model->billing_month) {
+                return;
+            }
+
+            $billingMonth = self::normalizeBillingMonth($model->billing_month);
+
+            if ($model->rider_id) {
+                $model->inv_id = self::getOrCreateInvId($model->rider_id, $billingMonth);
+            } elseif ($model->rental_company_id) {
+                $model->inv_id = self::getOrCreateInvIdForRentalCompany($model->rental_company_id, $billingMonth);
             }
         });
     }
@@ -95,6 +100,25 @@ class salik extends BaseModel
         $billingMonth = self::normalizeBillingMonth($billingMonth);
 
         $existing = self::where('rider_id', $riderId)
+            ->whereNotNull('inv_id')
+            ->where(function ($query) use ($billingMonth) {
+                self::applyBillingMonthFilter($query, $billingMonth);
+            })
+            ->first();
+
+        if ($existing && $existing->inv_id) {
+            return $existing->inv_id;
+        }
+
+        return self::generateNewInvId();
+    }
+
+    public static function getOrCreateInvIdForRentalCompany($rentalCompanyId, $billingMonth): string
+    {
+        $billingMonth = self::normalizeBillingMonth($billingMonth);
+
+        $existing = self::where('rental_company_id', $rentalCompanyId)
+            ->whereNull('rider_id')
             ->whereNotNull('inv_id')
             ->where(function ($query) use ($billingMonth) {
                 self::applyBillingMonthFilter($query, $billingMonth);
@@ -142,12 +166,21 @@ class salik extends BaseModel
             return null;
         }
 
-        $transactions = self::where('inv_id', $this->inv_id)->with('rider')->get();
+        $transactions = self::where('inv_id', $this->inv_id)
+            ->with(['rider', 'rentalCompany'])
+            ->get();
+
+        $chargeeName = $this->rider->name
+            ?? $this->rentalCompany->name
+            ?? 'N/A';
 
         return (object) [
             'inv_id' => $this->inv_id,
             'rider_id' => $this->rider_id,
-            'rider_name' => $this->rider->name ?? 'N/A',
+            'rental_company_id' => $this->rental_company_id,
+            'rider_name' => $this->rider->name ?? null,
+            'company_name' => $this->rentalCompany->name ?? null,
+            'chargee_name' => $chargeeName,
             'billing_month' => self::normalizeBillingMonth($this->billing_month),
             'transaction_count' => $transactions->count(),
             'total_amount' => $transactions->sum('amount'),
@@ -156,6 +189,15 @@ class salik extends BaseModel
             'total_grand' => $transactions->sum('total_amount'),
             'transactions' => $transactions,
         ];
+    }
+
+    public static function normalizePaymentStatus(?string $status, bool $isPaid = false): string
+    {
+        if ($isPaid || $status === 'paid') {
+            return 'paid';
+        }
+
+        return 'unpaid';
     }
 
     public function branch()

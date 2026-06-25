@@ -2,15 +2,11 @@
 
 namespace App\Imports;
 
-use App\Helpers\Account;
-use App\Helpers\HeadAccount;
 use App\Models\salik;
 use App\Models\Bikes;
 use App\Models\Riders;
 use App\Models\BikeHistory;
-use App\Models\Vouchers;
 use App\Models\FailedSalikImport;
-use App\Services\TransactionService;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -22,6 +18,7 @@ class SalikImport implements ToCollection
 {
     protected $adminChargePerSalik;
     protected $importBatchId;
+    protected $affectedInvoiceGroups = [];
 
     public function __construct($adminChargePerSalik = 0)
     {
@@ -35,7 +32,6 @@ class SalikImport implements ToCollection
 
         try {
             $importedSalikIds = [];
-            $groupedData = []; // group by bike + rider
             $rowCount = 0;
             $skippedCount = 0;
             $duplicateCount = 0;
@@ -178,32 +174,11 @@ class SalikImport implements ToCollection
 
                     $importedSalikIds[] = $salik->id;
 
-                    // Create individual transactions for each Salik record
-                    $this->createIndividualTransactions($salik, $rider, $riderAccountId, $payerAccount, $transactionAmount, $tripDateForStorage);
-
-                    // Still group for summary tracking
-                    $groupKey = $bike->id . '-' . $rider->id;
-                    if (!isset($groupedData[$groupKey])) {
-                        $groupedData[$groupKey] = [
-                            'bike'              => $bike,
-                            'rider'             => $rider,
-                            'rider_account_id'  => $riderAccountId,
-                            'payer_account'     => $payerAccount,
-                            'saliks'            => [],
-                            'total_amount'      => 0,
-                            'total_admin_charges' => 0,
-                            'count'             => 0,
-                            'billing_month'     => $billingMonthForStore,
-                            'billing_month_display' => $billingMonthForLog
-                        ];
-                    }
-
-                    $groupedData[$groupKey]['saliks'][] = $salik;
-                    $groupedData[$groupKey]['payer_account'] = $payerAccount;
-                    $groupedData[$groupKey]['total_amount'] += $transactionAmount;
-                    $groupedData[$groupKey]['total_admin_charges'] += $adminCharge;
-                    $groupedData[$groupKey]['total_vat'] = ($groupedData[$groupKey]['total_vat'] ?? 0) + $totalVat;
-                    $groupedData[$groupKey]['count']++;
+                    $this->affectedInvoiceGroups[$rider->id . '|' . $billingMonthForStore] = [
+                        'rider_id' => $rider->id,
+                        'billing_month' => $billingMonthForStore,
+                        'rental_company_id' => null,
+                    ];
                 } catch (\Exception $e) {
                     \Log::error("Error processing row {$rowCount}: " . $e->getMessage());
                     \Log::error("Row data: " . json_encode($row->toArray()));
@@ -214,9 +189,13 @@ class SalikImport implements ToCollection
                 }
             }
 
-            // Create summary voucher for rider debit and admin charges
-            if (!empty($groupedData)) {
-                $this->createSummaryVoucherForRider($groupedData);
+            $salikController = app(\App\Http\Controllers\SalikController::class);
+            foreach ($this->affectedInvoiceGroups as $group) {
+                $salikController->syncMonthlyInvoiceTransactions(
+                    $group['rider_id'],
+                    $group['billing_month'],
+                    $group['rental_company_id']
+                );
             }
 
             \Log::info("Import Summary - Total Rows: {$rowCount}, Imported: " . count($importedSalikIds) . ", Skipped - Missing Data: {$missingDataCount}, Duplicates (Excel only): {$duplicateCount}, No Bike: {$noBikeCount}, No Rider: {$noRiderCount}, No Account: {$skippedCount}");
@@ -454,103 +433,6 @@ class SalikImport implements ToCollection
     {
         $account = \App\Models\Accounts::where('ref_id', $riderId)->first();
         return $account ? $account->id : null;
-    }
-
-    private function createIndividualTransactions($salik, $rider, $riderAccountId, $payerAccount, $amount, $tripDate)
-    {
-        // Store individual transaction details to be used by summary voucher
-        if (!isset($this->individualTransactions)) {
-            $this->individualTransactions = [];
-        }
-
-        $this->individualTransactions[] = [
-            'salik' => $salik,
-            'rider' => $rider,
-            'rider_account_id' => $riderAccountId,
-            'payer_account' => $payerAccount,
-            'amount' => $amount,
-            'trip_date' => $tripDate
-        ];
-    }
-
-    private function createSummaryVoucherForRider($groups)
-    {
-        $transactionService = new TransactionService();
-        $payableAccountId = HeadAccount::SALIK_PAYABLE_ACCOUNT;
-
-        foreach ($groups as $group) {
-            $rider          = $group['rider'];
-            $riderAccountId = $group['rider_account_id'];
-            $totalAmount    = $group['total_amount'];
-            $totalAdmin     = $group['total_admin_charges'];
-            $totalVat       = $group['total_vat'] ?? 0;
-            $count          = $group['count'];
-            $firstSalik     = $group['saliks'][0];
-            $billingMonth   = $group['billing_month'];
-            $billingMonthDisplay = $group['billing_month_display'] ?? $billingMonth;
-            $grandTotal = $totalAmount + $totalAdmin + $totalVat;
-
-            $transCode = Account::trans_code();
-            $transDate = now();
-
-            $transactionService->recordTransaction([
-                'account_id'     => $riderAccountId,
-                'reference_id'   => $firstSalik->id,
-                'reference_type' => 'Salik Voucher',
-                'trans_code'     => $transCode,
-                'trans_date'     => $transDate,
-                'narration'      => "Salik charges month of $billingMonthDisplay ($count transactions)",
-                'debit'          => $grandTotal,
-                'branch_id'      => $firstSalik->branch_id,
-                'billing_month'  => $billingMonth,
-            ]);
-
-            $transactionService->recordTransaction([
-                'account_id'     => $payableAccountId,
-                'reference_id'   => $firstSalik->id,
-                'reference_type' => 'Salik Voucher',
-                'trans_code'     => $transCode,
-                'trans_date'     => $transDate,
-                'narration'      => "Salik payable month of $billingMonthDisplay ($count transactions)",
-                'credit'         => $totalAmount + $totalAdmin,
-                'branch_id'      => $firstSalik->branch_id,
-                'billing_month'  => $billingMonth,
-            ]);
-
-            if ($totalVat > 0) {
-                $transactionService->recordTransaction([
-                    'account_id'     => HeadAccount::VAT_ON_SALES,
-                    'reference_id'   => $firstSalik->id,
-                    'reference_type' => 'Salik Voucher',
-                    'trans_code'     => $transCode,
-                    'trans_date'     => $transDate,
-                    'narration'      => "Salik VAT month of $billingMonthDisplay ($count transactions)",
-                    'credit'         => $totalVat,
-                    'branch_id'      => $firstSalik->branch_id,
-                    'billing_month'  => $billingMonth,
-                ]);
-            }
-
-            salik::whereIn('id', collect($group['saliks'])->pluck('id'))->update(['trans_code' => $transCode]);
-
-            Vouchers::create([
-                'trans_date'    => $transDate,
-                'trans_code'    => $transCode,
-                'payment_type'  => 1,
-                'billing_month' => $billingMonth,
-                'amount'        => $grandTotal,
-                'voucher_type'  => 'SV',
-                'reference_number' => $firstSalik->transaction_id,
-                'remarks'       => "Salik charges month of $billingMonthDisplay - Reference Number: {$firstSalik->transaction_id}",
-                'ref_id'        => $firstSalik->id,
-                'rider_id'      => $rider->id,
-                'payment_to'    => $payableAccountId,
-                'payment_from'  => $riderAccountId,
-                'Created_By'    => Auth::user()->id,
-                'branch_id'     => $firstSalik->branch_id,
-                'custom_field_values' => [],
-            ]);
-        }
     }
 
     /**

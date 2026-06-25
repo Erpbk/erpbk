@@ -95,6 +95,11 @@ class Transactions extends BaseModel
             if ($voucher) {
                 $voucher_text = $voucher->voucher_type.'-'.str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
             }
+        } elseif ($this->reference_type === 'salik') {
+            $salikRecord = \App\Models\salik::find($this->reference_id);
+            if ($salikRecord && $salikRecord->inv_id) {
+                $voucher_text = $salikRecord->inv_id;
+            }
         }
 
         return $voucher_text;

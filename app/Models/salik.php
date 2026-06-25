@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,6 +17,7 @@ class salik extends BaseModel
     
     protected $fillable = [
         'branch_id',
+        'inv_id',
         'transaction_id',
         'trip_date',
         'trip_time',
@@ -60,6 +62,101 @@ class salik extends BaseModel
     ];
 
     protected $dates = ['deleted_at'];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if (empty($model->inv_id) && $model->rider_id && $model->billing_month) {
+                $model->inv_id = self::getOrCreateInvId(
+                    $model->rider_id,
+                    self::normalizeBillingMonth($model->billing_month)
+                );
+            }
+        });
+    }
+
+    public static function normalizeBillingMonth($billingMonth): ?string
+    {
+        if (!$billingMonth) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($billingMonth)->format('Y-m-01');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    public static function getOrCreateInvId($riderId, $billingMonth): string
+    {
+        $billingMonth = self::normalizeBillingMonth($billingMonth);
+
+        $existing = self::where('rider_id', $riderId)
+            ->whereNotNull('inv_id')
+            ->where(function ($query) use ($billingMonth) {
+                self::applyBillingMonthFilter($query, $billingMonth);
+            })
+            ->first();
+
+        if ($existing && $existing->inv_id) {
+            return $existing->inv_id;
+        }
+
+        return self::generateNewInvId();
+    }
+
+    public static function generateNewInvId(): string
+    {
+        $result = self::whereNotNull('inv_id')
+            ->whereRaw('inv_id REGEXP "^SLK-[0-9]+$"')
+            ->selectRaw('MAX(CAST(REPLACE(inv_id, "SLK-", "") AS UNSIGNED)) as max_number')
+            ->first();
+
+        $maxNumber = $result->max_number ?? 0;
+        $sequence = str_pad($maxNumber + 1, 4, '0', STR_PAD_LEFT);
+
+        return "SLK-{$sequence}";
+    }
+
+    public static function applyBillingMonthFilter($query, ?string $billingMonth)
+    {
+        if (!$billingMonth) {
+            return $query;
+        }
+
+        $month = Carbon::parse($billingMonth);
+
+        return $query->where(function ($q) use ($billingMonth, $month) {
+            $q->where('billing_month', $billingMonth)
+                ->orWhere('billing_month', 'like', $month->format('Y-m') . '%')
+                ->orWhere('billing_month', 'like', $month->format('M') . '-' . $month->format('y') . '%');
+        });
+    }
+
+    public function getMonthlySummary()
+    {
+        if (!$this->inv_id) {
+            return null;
+        }
+
+        $transactions = self::where('inv_id', $this->inv_id)->with('rider')->get();
+
+        return (object) [
+            'inv_id' => $this->inv_id,
+            'rider_id' => $this->rider_id,
+            'rider_name' => $this->rider->name ?? 'N/A',
+            'billing_month' => self::normalizeBillingMonth($this->billing_month),
+            'transaction_count' => $transactions->count(),
+            'total_amount' => $transactions->sum('amount'),
+            'total_admin_charges' => $transactions->sum('admin_charges'),
+            'total_vat' => $transactions->sum('vat'),
+            'total_grand' => $transactions->sum('total_amount'),
+            'transactions' => $transactions,
+        ];
+    }
 
     public function branch()
     {

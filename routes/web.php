@@ -1012,6 +1012,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
     // Specific Salik routes (must come before resource route)
     Route::get('salik/missing-records', [SalikController::class, 'showMissingRecords'])->name('salik.missing.records');
+    Route::get('salik/summary', [SalikController::class, 'monthlySummary'])->name('salik.summary');
+    Route::get('salik_invoice/{rider_id}/{billing_month}', [SalikController::class, 'showMonthlyInvoice'])->name('salik.rider_monthly_summary');
     Route::get('salik/export-missing-records', [SalikController::class, 'exportMissingRecords'])->name('salik.export.missing.records');
     Route::post('salik/analyze-excel', [SalikController::class, 'analyzeExcelFile'])->name('salik.analyze.excel');
     Route::any('salik/clear-failed-imports', [SalikController::class, 'clearFailedImports'])->name('salik.clear.failed.imports');

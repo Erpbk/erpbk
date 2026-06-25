@@ -29,6 +29,8 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\View;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -159,43 +161,69 @@ class RiderInvoicesController extends AppBaseController
     }
 
     /**
+     * HTML fragment for right-side modal loaders (jQuery .load treats non-2xx as error).
+     */
+    private function modalLoadError(string $message, int $status = 500)
+    {
+        return response()->view('partials.modal_load_error', [
+            'message' => $message,
+            'status' => $status,
+        ], $status);
+    }
+
+    /**
      * Display the specified RiderInvoices.
      */
     public function show($company_slug, $id)
     {
-        $riderInvoice = $this->riderInvoicesRepository->find($id);
+        try {
+            $riderInvoice = $this->riderInvoicesRepository->find($id);
 
-        if (empty($riderInvoice)) {
-            return response()->json([
-                'message' => 'Rider Invoices not found',
-            ], 404);
+            if (empty($riderInvoice)) {
+                return $this->modalLoadError('Rider invoice not found.', 404);
+            }
+
+            $riderInvoice->load([
+                'items',
+                'rider' => function ($query) {
+                    $query->withTrashed()->with(['sim', 'vendor']);
+                },
+            ]);
+
+            if (RiderInvoiceTemplate::isSchemaReady()) {
+                $riderInvoice->load('template');
+            }
+
+            if (! $riderInvoice->rider) {
+                return $this->modalLoadError('Rider record not found for this invoice.', 404);
+            }
+
+            $resolver = app(RiderInvoiceTemplateResolver::class);
+            $templateView = $resolver->resolveViewForInvoice($riderInvoice);
+
+            if (! View::exists($templateView)) {
+                $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
+            }
+
+            return view('rider_invoices.show', [
+                'riderInvoice' => $riderInvoice,
+                'activeTemplate' => $resolver->resolveForInvoice($riderInvoice),
+                'templateView' => $templateView,
+                'templates' => $resolver->activeTemplates(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Rider invoice show failed', [
+                'invoice_id' => $id,
+                'company_slug' => $company_slug,
+                'message' => $e->getMessage(),
+            ]);
+
+            $message = config('app.debug')
+                ? $e->getMessage()
+                : 'Unable to load rider invoice. Please deploy the latest code and run tenant migrations.';
+
+            return $this->modalLoadError($message, 500);
         }
-
-        $riderInvoice->load([
-            'items',
-            'rider' => function ($query) {
-                $query->withTrashed()->with(['sim', 'vendor']);
-            },
-        ]);
-
-        if (RiderInvoiceTemplate::isSchemaReady()) {
-            $riderInvoice->load('template');
-        }
-
-        if (! $riderInvoice->rider) {
-            return response()->json([
-                'message' => 'Rider record not found for this invoice.',
-            ], 404);
-        }
-
-        $resolver = app(RiderInvoiceTemplateResolver::class);
-
-        return view('rider_invoices.show', [
-            'riderInvoice' => $riderInvoice,
-            'activeTemplate' => $resolver->resolveForInvoice($riderInvoice),
-            'templateView' => $resolver->resolveViewForInvoice($riderInvoice),
-            'templates' => $resolver->activeTemplates(),
-        ]);
     }
 
     public function download($company_slug, $id)

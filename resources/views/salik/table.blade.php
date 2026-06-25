@@ -3,7 +3,7 @@
         <tr role="row">
             <th title="Branch" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Branch: activate to sort column ascending">Branch</th>
             <th title="Transaction ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Transaction ID: activate to sort column ascending">Transaction ID</th>
-            <th title="Rider Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider Name: activate to sort column ascending">Rider Name</th>
+            <th title="Charged To" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Charged To: activate to sort column ascending">Charged To</th>
             <th title="Admin Charges" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Admin Charges: activate to sort column ascending">Billing Month</th>
             <th title="Trip Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Trip Date: activate to sort column ascending">Trip Date</th>
             <th title="Trip Time" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Trip Time: activate to sort column ascending">Trip Time</th>
@@ -23,6 +23,8 @@
             <td>{{ $r->transaction_id }}</td>
             @if($r->rider)
             <td><a href="{{ route('riders.show', $r->rider->id) }}">{{ $r->rider->rider_id }} - {{ $r->rider->name }}</a></td>
+            @elseif($r->rentalCompany)
+            <td><a href="{{ route('bikeRentCompanies.files', $r->rentalCompany->id) }}" target="_blank">{{ $r->rentalCompany->name }}</a></td>
             @else
             <td>N/A</td>
             @endif
@@ -35,7 +37,7 @@
             <td>{{ $r->plate }}</td>
             <td>{{ \App\Helpers\Currency::format($r->total_amount, 2) }}</td>
             <td>
-                @if($r->status === 'paid')
+                @if(\App\Models\salik::normalizePaymentStatus($r->status, !empty($r->payment_voucher_id)) === 'paid')
                 <span class="badge bg-success">Paid</span>
                 @else
                 <span class="badge bg-warning text-dark">Unpaid</span>

@@ -77,7 +77,7 @@
                     <thead class="text-center">
                         <tr>
                             <th>Invoice #</th>
-                            <th>Rider Name</th>
+                            <th>Charged To</th>
                             <th>Billing Month</th>
                             <th>Trip Count</th>
                             <th>Toll Amount ({{ \App\Helpers\Currency::code() }})</th>
@@ -88,15 +88,23 @@
                     </thead>
                     <tbody>
                         @forelse($summaries as $invoice)
+                        @php
+                            $billingMonth = \Carbon\Carbon::parse($invoice->billing_month)->format('Y-m');
+                            $invoiceRoute = $invoice->rider_id
+                                ? route('salik.rider_monthly_summary', [$invoice->rider_id, $billingMonth])
+                                : route('salik.company_monthly_summary', [$invoice->rental_company_id, $billingMonth]);
+                        @endphp
                         <tr class="text-center">
                             <td>
-                                <a href="javascript:void(0);" data-action="{{ route('salik.rider_monthly_summary', [$invoice->rider_id, \Carbon\Carbon::parse($invoice->billing_month)->format('Y-m')]) }}" class="show-modal-right" data-size="xl" data-title="Salik Invoice for {{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}">
+                                <a href="javascript:void(0);" data-action="{{ $invoiceRoute }}" class="show-modal-right" data-size="xl" data-title="Salik Invoice for {{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}">
                                     {{ $invoice->inv_id }}
                                 </a>
                             </td>
                             <td>
                                 @if($invoice->rider)
                                 <a href="{{ route('rider.ledger', $invoice->rider->id) }}" target="_blank">{{ $invoice->rider->name }}</a>
+                                @elseif($invoice->rentalCompany)
+                                <a href="{{ route('bikeRentCompanies.files', $invoice->rentalCompany->id) }}" target="_blank">{{ $invoice->rentalCompany->name }}</a>
                                 @else
                                 N/A
                                 @endif

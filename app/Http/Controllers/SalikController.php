@@ -59,7 +59,7 @@ class SalikController extends AppBaseController
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = salik::query()
-            ->with(['branch', 'bike.leasingCompany', 'rider'])
+            ->with(['branch', 'bike.leasingCompany', 'rider', 'rentalCompany'])
             ->orderBy('billing_month', 'desc')
             ->orderBy('id', 'desc');
 
@@ -178,6 +178,12 @@ class SalikController extends AppBaseController
                 throw new \Exception('Either select a Rider or Rental Company.');
             }
 
+            if (!empty($input['rental_company_id'])) {
+                $input['rider_id'] = null;
+            } else {
+                $input['rental_company_id'] = null;
+            }
+
             $amount = (float) ($request->amount ?? 0);
             $adminCharges = (float) ($request->admin_fee ?? $request->admin_charges ?? 0);
             $salikVatAmount = (float) ($request->salik_vat_amount ?? 0);
@@ -230,7 +236,8 @@ class SalikController extends AppBaseController
         $query = salik::query()
             ->select(
                 'inv_id',
-                'rider_id',
+                DB::raw('MAX(rider_id) as rider_id'),
+                DB::raw('MAX(rental_company_id) as rental_company_id'),
                 DB::raw('MIN(billing_month) as billing_month'),
                 DB::raw('COUNT(*) as transaction_count'),
                 DB::raw('SUM(amount) as total_amount'),
@@ -239,9 +246,10 @@ class SalikController extends AppBaseController
                 DB::raw('SUM(total_amount) as total_grand')
             )
             ->whereNotNull('inv_id')
-            ->whereNotNull('rider_id')
-            ->with('rider')
-            ->groupBy('inv_id', 'rider_id')
+            ->where(function ($q) {
+                $q->whereNotNull('rider_id')->orWhereNotNull('rental_company_id');
+            })
+            ->groupBy('inv_id')
             ->orderBy(DB::raw('MIN(billing_month)'), 'desc');
 
         if ($request->filled('billing_month')) {
@@ -252,6 +260,7 @@ class SalikController extends AppBaseController
         }
 
         $summaries = $query->get();
+        $summaries->load(['rider', 'rentalCompany']);
 
         return view('salik.monthly_summary', compact('summaries'));
     }
@@ -260,12 +269,32 @@ class SalikController extends AppBaseController
     {
         $billingMonthNorm = salik::normalizeBillingMonth($billing_month . '-01');
         $salik = salik::where('rider_id', $rider_id)
+            ->whereNull('rental_company_id')
             ->whereNotNull('inv_id')
             ->where(function ($query) use ($billingMonthNorm) {
                 salik::applyBillingMonthFilter($query, $billingMonthNorm);
             })
             ->first();
 
+        return $this->renderMonthlyInvoice($salik);
+    }
+
+    public function showCompanyMonthlyInvoice($company_slug, $rental_company_id, $billing_month)
+    {
+        $billingMonthNorm = salik::normalizeBillingMonth($billing_month . '-01');
+        $salik = salik::where('rental_company_id', $rental_company_id)
+            ->whereNull('rider_id')
+            ->whereNotNull('inv_id')
+            ->where(function ($query) use ($billingMonthNorm) {
+                salik::applyBillingMonthFilter($query, $billingMonthNorm);
+            })
+            ->first();
+
+        return $this->renderMonthlyInvoice($salik);
+    }
+
+    private function renderMonthlyInvoice(?salik $salik)
+    {
         if (!$salik) {
             Flash::error('Salik invoice not found');
             return redirect(route('salik.summary'));
@@ -301,7 +330,7 @@ class SalikController extends AppBaseController
 
         $invId = $riderId
             ? salik::getOrCreateInvId($riderId, $billingMonthNorm)
-            : salik::generateNewInvId();
+            : salik::getOrCreateInvIdForRentalCompany($rentalCompanyId, $billingMonthNorm);
 
         salik::whereIn('id', $saliks->pluck('id'))->update(['inv_id' => $invId]);
 
@@ -653,12 +682,20 @@ class SalikController extends AppBaseController
             'salik_vat_amount' => 'nullable|numeric|min:0',
             'admin_vat' => 'nullable|numeric|min:0',
             'admin_vat_amount' => 'nullable|numeric|min:0',
-            'status' => 'nullable|string|max:255',
             'details' => 'nullable|string|max:5000',
         ]);
 
         if (!empty($validated['rider_id']) && !empty($validated['rental_company_id'])) {
             return response()->json(['errors' => ['error' => 'Either select a Rider or Rental Company. Cannot charge both.']], 422);
+        }
+        if (empty($validated['rider_id']) && empty($validated['rental_company_id'])) {
+            return response()->json(['errors' => ['error' => 'Either select a Rider or Rental Company.']], 422);
+        }
+
+        if (!empty($validated['rental_company_id'])) {
+            $validated['rider_id'] = null;
+        } else {
+            $validated['rental_company_id'] = null;
         }
 
         DB::beginTransaction();
@@ -693,6 +730,7 @@ class SalikController extends AppBaseController
             $validated['vat'] = $totalVat;
             $validated['total_amount'] = $totalAmount;
             $validated['updated_by'] = auth()->id();
+            unset($validated['status']);
 
             $salik->update($validated);
 
@@ -2280,6 +2318,47 @@ class SalikController extends AppBaseController
             Flash::error('Error: ' . $e->getMessage());
             return redirect()->back();
         }
+    }
+
+    /**
+     * Normalize payment status and re-sync monthly invoices for rental-company saliks.
+     */
+    public function repairRentalCompanySalikRecords(): array
+    {
+        $normalized = 0;
+
+        salik::whereNotNull('rental_company_id')
+            ->whereNotNull('rider_id')
+            ->update(['rider_id' => null]);
+
+        $rentalSaliks = salik::whereNotNull('rental_company_id')->get();
+
+        foreach ($rentalSaliks as $salik) {
+            $newStatus = salik::normalizePaymentStatus(
+                $salik->status,
+                !empty($salik->payment_voucher_id)
+            );
+
+            if ($salik->status !== $newStatus) {
+                $salik->update(['status' => $newStatus]);
+                $normalized++;
+            }
+        }
+
+        $groups = salik::whereNotNull('rental_company_id')
+            ->whereNull('rider_id')
+            ->get()
+            ->groupBy(fn ($s) => $s->rental_company_id . '|' . salik::normalizeBillingMonth($s->billing_month));
+
+        foreach ($groups as $group) {
+            $first = $group->first();
+            $this->syncMonthlyInvoiceTransactions(null, $first->billing_month, (int) $first->rental_company_id);
+        }
+
+        return [
+            'normalized' => $normalized,
+            'synced_groups' => $groups->count(),
+        ];
     }
 
     /**

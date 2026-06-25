@@ -7,8 +7,8 @@
             @endif
         </td>
         <td style="width: 34%; text-align: center; align-content: center; border: none !important;">
-            <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ ucwords($settings['company_name']) ?? '' }}</h4>
-            <p style="margin: 3px 0; font-size: 12px;">{{ ucwords($settings['company_address']) ?? '' }}</p>
+            <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ ucwords($settings['company_name'] ?? '') }}</h4>
+            <p style="margin: 3px 0; font-size: 12px;">{{ ucwords($settings['company_address'] ?? '') }}</p>
             <p style="margin: 3px 0; font-size: 12px;">TEL: {{ $settings['company_phone'] ?? '' }}</p>
             <p style="margin: 3px 0; font-size: 12px;">TRN: {{ $settings['vat_number'] ?? '' }}</p>
         </td>
@@ -25,7 +25,7 @@
             <span class="detail-label">Rider ID:</span><span class="detail-value">{{ $riderInvoice->rider->rider_id }}</span>
             <span class="detail-label">Rider Name:</span><span class="detail-value">{{ $riderInvoice->rider->name }}</span>
             <span class="detail-label">Rider Status:</span>
-            <span class="detail-value" @if(in_array($riderInvoice->rider->status, [3,4,5])) style="color:red;" @endif>{{ App\Helpers\General::RiderStatus($riderInvoice->rider->status) }}</span>
+            <span class="detail-value" @if(in_array((int) ($riderInvoice->rider->status ?? 0), [3,4,5], true)) style="color:red;" @endif>{{ $riderStatusLabel }}</span>
             <span class="detail-label">Mobile:</span><span class="detail-value">{{ @$riderInvoice->rider->sim->number }}</span>
             <span class="detail-label">Joining Date:</span><span class="detail-value">{{ $riderInvoice->rider->doj }}</span>
             <span class="detail-label">Client:</span><span class="detail-value">{{ @$riderInvoice->rider->vendor->name }}</span>

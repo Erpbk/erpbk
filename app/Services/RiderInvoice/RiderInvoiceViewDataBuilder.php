@@ -10,16 +10,70 @@ use Illuminate\Support\Facades\DB;
 
 class RiderInvoiceViewDataBuilder
 {
+    public static function display(mixed $value, string $default = ''): string
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+
+        if (is_array($value)) {
+            $parts = array_filter(array_map(
+                static fn ($item) => is_scalar($item) ? (string) $item : null,
+                $value
+            ));
+
+            return $parts !== [] ? implode(', ', $parts) : $default;
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_object($value) && ! method_exists($value, '__toString')) {
+            return $default;
+        }
+
+        return (string) $value;
+    }
+
+    public static function riderStatusLabel(mixed $status): string
+    {
+        if ($status === null || $status === '') {
+            return '—';
+        }
+
+        $label = General::RiderStatus($status);
+
+        return is_array($label) ? '—' : self::display($label, '—');
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @return array<string, string>
+     */
+    private function normalizeSettings(array $settings): array
+    {
+        $normalized = [];
+
+        foreach ($settings as $key => $value) {
+            $normalized[$key] = self::display($value, '');
+        }
+
+        return $normalized;
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function build(RiderInvoices $riderInvoice): array
     {
-        $settings = company_table('settings')->pluck('value', 'name')->toArray();
+        $settings = $this->normalizeSettings(
+            company_table('settings')->pluck('value', 'name')->toArray()
+        );
         $total = 0;
         $total_qty = 0;
         $running_total = 0;
-        $vat_percentage = Common::getSetting('vat_percentage');
+        $vat_percentage = self::display(Common::getSetting('vat_percentage'), '0');
         $deliveryfee = company_table('items')->where('name', 'Delivery fees')->first();
         $totalOrders = 0;
         $billing_month = date('M-y', strtotime($riderInvoice->billing_month));
@@ -73,6 +127,7 @@ class RiderInvoiceViewDataBuilder
             'rider_balance_final' => 0,
             'items_total' => 0,
             'invoiceNumber' => General::inv_sch($riderInvoice->id, $riderInvoice->created_at),
+            'riderStatusLabel' => self::riderStatusLabel($riderInvoice->rider?->status),
         ];
     }
 }

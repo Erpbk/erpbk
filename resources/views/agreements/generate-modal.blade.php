@@ -9,7 +9,7 @@
 @else
 <div class="alert alert-warning mb-0">
   No contract template is assigned for <strong>{{ $category->name ?? 'this agreement' }}</strong>.
-  Assign one in Settings → Agreements.
+  Assign one in Documents → Agreements.
 </div>
 @endisset
 @endisset

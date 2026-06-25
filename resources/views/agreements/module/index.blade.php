@@ -13,7 +13,7 @@
       <div class="card-header">
         <h4 class="card-title mb-0">{{ $moduleLabel }} — Agreement Categories</h4>
         <p class="text-muted small mb-0 mt-1">
-          Select a category to view, edit, and manage its templates. Assign categories to this module in Settings → Agreements.
+          Select a category to view, edit, and manage its templates. Assign categories to this module in Documents → Agreements.
         </p>
       </div>
       <div class="card-body">
@@ -50,7 +50,7 @@
           <div class="col-12">
             <p class="text-muted text-center py-4 mb-0">
               No agreement categories are assigned to {{ $moduleLabel }}.
-              Configure them in Settings → Agreements.
+              Configure them in Documents → Agreements.
             </p>
           </div>
           @endforelse

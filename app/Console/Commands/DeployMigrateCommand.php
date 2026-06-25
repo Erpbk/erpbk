@@ -41,7 +41,12 @@ class DeployMigrateCommand extends Command
     $exitCode = Artisan::call('app:migrate-all', [
       '--force' => (bool) $this->option('force'),
     ]);
-    $this->output->writeln(Artisan::output());
+    $commandOutput = Artisan::output();
+    $this->output->writeln($commandOutput);
+
+    if ($exitCode !== 0) {
+      error_log('[deploy-db] migrate failed with exit code ' . $exitCode . '. Output: ' . trim($commandOutput));
+    }
 
     return $exitCode;
   }

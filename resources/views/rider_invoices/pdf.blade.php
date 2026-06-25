@@ -16,12 +16,8 @@
     </style>
 </head>
 <body>
-@php
-    $resolver = app(\App\Services\RiderInvoice\RiderInvoiceTemplateResolver::class);
-    $activeTemplate = $activeTemplate ?? $resolver->resolveForInvoice($riderInvoice);
-    $templateView = $templateView ?? $activeTemplate->viewName();
-    require resource_path('views/rider_invoices/partials/invoice_calculations_vars.php');
-@endphp
-@include($templateView)
+@if(View::exists($templateView))
+    @include($templateView)
+@endif
 </body>
 </html>

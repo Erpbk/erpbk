@@ -104,6 +104,34 @@ $(document).ready(function () {
 });
 
 // Centralized function to open right side modal
+function parseModalLoadError(response, xhr) {
+  var statusCode = xhr && xhr.status ? xhr.status : '';
+  var message = 'Error loading content. Please try again.';
+
+  if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+    message = xhr.responseJSON.message;
+  } else if (typeof response === 'string' && response.trim()) {
+    if (response.indexOf('modal-load-error') !== -1) {
+      return { statusCode: statusCode, html: response };
+    }
+
+    try {
+      var json = JSON.parse(response);
+      if (json && json.message) {
+        message = json.message;
+      }
+    } catch (e) {
+      // Response is not JSON; keep default message.
+    }
+  }
+
+  if (statusCode) {
+    message += ' (HTTP ' + statusCode + ')';
+  }
+
+  return { statusCode: statusCode, message: message };
+}
+
 function openRightSideModal(action, title, size = 'lg', callback = null) {
   // Reset modal size classes
   $('#rightSideModal .modal-dialog').removeClass('modal-sm modal-md modal-lg modal-xl');
@@ -129,13 +157,21 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
   // Load content
   $('#rightSideModalBody').load(action, function (response, status, xhr) {
     if (status === 'error') {
+      var err = parseModalLoadError(response, xhr);
+
+      if (err.html) {
+        $('#rightSideModalBody').html(err.html);
+        return;
+      }
+
       $('#rightSideModalBody').html(`
-                <div class="text-center p-5 text-danger">
+                <div class="text-center p-5 text-danger modal-load-error">
                     <i class="fas fa-exclamation-circle fa-3x"></i>
-                    <p class="mt-2">Error loading content. Please try again.</p>
+                    <p class="mt-2">${err.message}</p>
                     <button class="btn btn-primary" onclick="location.reload()">Refresh</button>
                 </div>
             `);
+      return;
     }
 
     // Execute callback if provided

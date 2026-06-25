@@ -73,10 +73,6 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'foreign_key_constraints' => false,  // Disable foreign key checks
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
         ],
 
         // Backward-compatible alias for legacy central-DB references.
@@ -95,15 +91,12 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
         ],
 
         // Admin database (separate from company/application database).
         'mysql_admin' => [
             'driver' => 'mysql',
-            'url' => env('ADMIN_DATABASE_URL'),
+            'url' => env('ADMIN_DATABASE_URL', env('DATABASE_URL')),
             'host' => env('ADMIN_DB_HOST', env('DB_HOST', '127.0.0.1')),
             'port' => env('ADMIN_DB_PORT', env('DB_PORT', '3306')),
             'database' => env('ADMIN_DB_DATABASE', env('DB_DATABASE', 'forge')),
@@ -116,11 +109,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
         ],
-
         // Backward-compatible alias so commands using "--database=admin" keep working.
         'admin' => [
             'driver' => 'mysql',
@@ -137,9 +126,6 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
         ],
 
         'pgsql' => [

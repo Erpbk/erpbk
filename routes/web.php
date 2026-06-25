@@ -403,7 +403,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('LicenseExpense/delete/{id}', [LicenseexpenseController::class, 'destroy'])->name('LicenseExpense.delete');
     Route::get('LicenseExpense/viewvoucher/{id}', [LicenseexpenseController::class, 'viewvoucher'])->name('LicenseExpense.viewvoucher');
 
-    Route::resource('LicenseExpense', LicenseexpenseController::class);
+    Route::resource('LicenseExpense', LicenseexpenseController::class)->except([
+        'create', 'edit', 'store', 'update', 'destroy', 'show',
+    ]);
 
     Route::post('LicenseExpense/store', [LicenseexpenseController::class, 'store'])->name('LicenseExpense.store');
     Route::post('LicenseExpense/inline-update', [LicenseexpenseController::class, 'inlineUpdate'])->name('LicenseExpense.inlineUpdate');

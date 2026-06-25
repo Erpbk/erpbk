@@ -6,7 +6,7 @@
         <label>Invoice Template</label>
         <select name="template_id" class="form-select form-select-sm">
             @foreach($invoiceTemplates as $tpl)
-            <option value="{{ $tpl->id }}" @selected((int) old('template_id', $invoice->template_id ?? $defaultTemplate->id ?? 0) === (int) $tpl->id)>
+            <option value="{{ $tpl->id }}" @selected((int) old('template_id', isset($invoice) ? ($invoice->template_id ?? ($defaultTemplate->id ?? 0)) : ($defaultTemplate->id ?? 0)) === (int) $tpl->id)>
                 {{ $tpl->template_name }}@if($tpl->is_default) (Default)@endif
             </option>
             @endforeach

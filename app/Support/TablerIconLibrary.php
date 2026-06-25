@@ -101,6 +101,10 @@ class TablerIconLibrary
             $class = 'ti-' . ltrim($class, 'ti');
         }
 
+        if ($class === 'ti-passport') {
+            $class = 'ti-e-passport';
+        }
+
         return preg_match('/^ti-[a-z0-9-]+$/', $class) ? $class : '';
     }
 

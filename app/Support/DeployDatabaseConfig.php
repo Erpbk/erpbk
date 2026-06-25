@@ -11,24 +11,19 @@ class DeployDatabaseConfig
 {
     public static function refreshFromEnvironment(): void
     {
-        $readEnv = static function (string $key, mixed $default = null): mixed {
-            if (array_key_exists($key, $_ENV)) {
-                return $_ENV[$key];
-            }
-
-            if (array_key_exists($key, $_SERVER)) {
-                return $_SERVER[$key];
-            }
-
-            $value = getenv($key);
-
-            return $value !== false ? $value : $default;
-        };
+        $readEnv = static fn (string $key, mixed $default = null): mixed => self::readEnv($key, $default);
 
         if ($url = $readEnv('DATABASE_URL')) {
             config([
                 'database.connections.mysql.url' => $url,
                 'database.connections.mysql_central.url' => $url,
+            ]);
+        } else {
+            // When config is cached at build time, a stale DATABASE_URL can override
+            // runtime DB_* credentials injected by Laravel Cloud.
+            config([
+                'database.connections.mysql.url' => null,
+                'database.connections.mysql_central.url' => null,
             ]);
         }
 
@@ -72,6 +67,21 @@ class DeployDatabaseConfig
         foreach (['mysql', 'mysql_central', 'mysql_admin', 'admin'] as $connection) {
             DB::purge($connection);
         }
+    }
+
+    protected static function readEnv(string $key, mixed $default = null): mixed
+    {
+        if (array_key_exists($key, $_ENV)) {
+            return $_ENV[$key];
+        }
+
+        if (array_key_exists($key, $_SERVER)) {
+            return $_SERVER[$key];
+        }
+
+        $value = getenv($key);
+
+        return $value !== false ? $value : $default;
     }
 
     /**

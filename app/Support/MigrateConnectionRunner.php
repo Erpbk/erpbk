@@ -21,6 +21,16 @@ class MigrateConnectionRunner
 
         DeployDatabaseConfig::refreshFromEnvironment();
 
+        if (DeployDatabaseConfig::looksLikeUnresolvedDefaults($connection)) {
+            $message = DeployDatabaseWaiter::connectionFailureMessage($connection);
+            DeployDatabaseWaiter::deployLog($message);
+            if ($output !== null) {
+                $output->writeln('<error>' . $message . '</error>');
+            }
+
+            return 1;
+        }
+
         if (! DeployDatabaseWaiter::waitForConnection($connection, output: $output)) {
             $message = DeployDatabaseWaiter::connectionFailureMessage($connection);
             DeployDatabaseWaiter::deployLog($message);

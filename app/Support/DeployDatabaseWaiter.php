@@ -86,7 +86,14 @@ class DeployDatabaseWaiter
         $hint = 'On Laravel Cloud: attach the MySQL database in the same region as your app, redeploy after attaching, '
             . 'ensure the cluster has free disk space, and remove any custom DB_* overrides that point to the wrong host.';
 
-        if (($summary['host'] ?? null) === '127.0.0.1' || ($summary['host'] ?? null) === 'localhost') {
+        $host = (string) ($summary['host'] ?? '');
+        $database = (string) ($summary['database'] ?? '');
+
+        if (DeployDatabaseConfig::looksLikeUnresolvedDefaults($connection)) {
+            $hint = 'Database credentials were not injected (host=' . $host . ', database=' . $database . '). '
+                . 'Attach the MySQL database to this Laravel Cloud environment, remove custom DB_* overrides '
+                . 'that point to localhost/forge, then redeploy.';
+        } elseif ($host === '127.0.0.1' || $host === 'localhost') {
             $hint = 'DB_HOST is still localhost — remove custom DB_* overrides so Laravel Cloud can inject database credentials.';
         }
 

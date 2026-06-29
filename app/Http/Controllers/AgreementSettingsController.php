@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AgreementCategory;
 use App\Models\AgreementPlaceholder;
 use App\Models\AgreementTemplate;
+use App\Services\Agreements\AgreementModuleService;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Services\Agreements\AgreementPdfService;
 use App\Support\CompanyContext;
@@ -117,10 +118,19 @@ class AgreementSettingsController extends Controller
         $category = AgreementCategory::with(['templates' => fn($q) => $q->sampleStyles()->where('status', true)->orderBy('template_name')])->findOrFail($category);
         $modules = $this->moduleOptions();
         $groups = config('agreement_categories.groups', []);
+        $placeholders = AgreementPlaceholder::grouped();
+        $pdfBranding = app(AgreementPdfBranding::class)->forCompany(CompanyContext::id());
 
         $contractTemplateId = optional($category->contractTemplate())->id;
 
-        return view('settings.agreements.edit', compact('category', 'modules', 'groups', 'contractTemplateId'));
+        return view('settings.agreements.edit', compact(
+            'category',
+            'modules',
+            'groups',
+            'contractTemplateId',
+            'placeholders',
+            'pdfBranding'
+        ));
     }
 
     public function showAgreement(Request $request, $company_slug, $category)
@@ -163,6 +173,8 @@ class AgreementSettingsController extends Controller
                 'integer',
                 Rule::exists('agreement_templates', 'id')->where(fn ($q) => $q->where('category_id', $category->id)),
             ],
+            'template_contents' => 'nullable|array',
+            'template_contents.*' => 'nullable|string',
         ], [
             'assigned_modules.required' => 'Select at least one module for this agreement.',
             'assigned_modules.min' => 'Select at least one module for this agreement.',
@@ -192,6 +204,8 @@ class AgreementSettingsController extends Controller
             ->update(['status' => $newStatus]);
 
         $this->assignContractTemplate($category, (int) $data['contract_template_id']);
+
+        $this->saveTemplateContents($category, $data['template_contents'] ?? []);
 
         Flash::success('Agreement saved. Assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '.');
 
@@ -450,13 +464,13 @@ class AgreementSettingsController extends Controller
      * @return array<string, string>
      */
     /**
-     * Module keys that support agreement assignment (must match agreement_modules config).
+     * Module keys that may be assigned to agreements (all ERP modules except system entries).
      *
      * @return list<string>
      */
     private function assignableModuleKeys(): array
     {
-        return array_keys(config('agreement_modules.modules', []));
+        return app(AgreementModuleService::class)->assignableModuleKeys();
     }
 
     /**
@@ -511,6 +525,35 @@ class AgreementSettingsController extends Controller
             ->findOrFail($templateId);
 
         $template->setAsDefault();
+    }
+
+    /**
+     * @param  array<int|string, string|null>  $contents
+     */
+    private function saveTemplateContents(AgreementCategory $category, array $contents): void
+    {
+        if ($contents === []) {
+            return;
+        }
+
+        $validIds = AgreementTemplate::query()
+            ->where('category_id', $category->id)
+            ->sampleStyles()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        foreach ($contents as $templateId => $content) {
+            $templateId = (int) $templateId;
+            if (! in_array($templateId, $validIds, true)) {
+                continue;
+            }
+
+            AgreementTemplate::query()
+                ->where('category_id', $category->id)
+                ->whereKey($templateId)
+                ->update(['description' => $content ?? '']);
+        }
     }
 
     private function seedAgreementTemplates(AgreementCategory $category, bool $status): void

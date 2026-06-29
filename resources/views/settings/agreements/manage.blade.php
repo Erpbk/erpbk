@@ -65,7 +65,7 @@
                 <i class="ti ti-settings me-1"></i> {{ $isActive ? 'Managing' : 'Manage' }}
               </a>
               @canany(['agreement_view', 'agreement_generate', 'gn_settings'])
-              <a href="{{ route('documents.agreements.preview', ['company_slug' => $companySlug, 'id' => $template->id]) }}"
+              <a href="{{ route('agreements.preview', ['company_slug' => $companySlug, 'id' => $template->id]) }}"
                 class="btn btn-sm btn-outline-info" target="_blank">Preview</a>
               @endcanany
             </div>

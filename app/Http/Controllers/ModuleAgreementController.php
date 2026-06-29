@@ -5,17 +5,19 @@ namespace App\Http\Controllers;
 use App\Models\AgreementCategory;
 use App\Models\AgreementPlaceholder;
 use App\Models\AgreementTemplate;
-use App\Models\Riders;
+use App\Services\Agreements\AgreementModuleService;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Services\Agreements\AgreementPdfService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class ModuleAgreementController extends Controller
 {
-    public function __construct()
-    {
+    public function __construct(
+        protected AgreementModuleService $moduleService
+    ) {
         $this->middleware('auth');
     }
 
@@ -169,38 +171,23 @@ class ModuleAgreementController extends Controller
         }
     }
 
-    private function sampleEntityForModule(string $module): Riders
+    private function sampleEntityForModule(string $module): Model
     {
-        if ($module === 'riders') {
-            return Riders::query()->first() ?? new Riders();
+        $modelClass = config("agreement_modules.modules.{$module}.model");
+        if (! $modelClass || ! class_exists($modelClass)) {
+            return new \App\Models\Riders();
         }
 
-        return new Riders();
+        return $modelClass::query()->first() ?? new $modelClass();
     }
 
     private function moduleLabel(string $module): string
     {
-        return \App\Models\Settings::getMenuLabel($module);
+        return $this->moduleService->moduleLabel($module);
     }
 
     private function authorizeModule(string $module): void
     {
-        if (! array_key_exists($module, config('agreement_modules.modules', []))) {
-            abort(404);
-        }
-
-        $permissions = config("agreement_modules.modules.{$module}.permissions", ['agreement_view']);
-
-        $allowed = false;
-        foreach ($permissions as $permission) {
-            if (Gate::allows($permission) || Gate::allows('gn_settings')) {
-                $allowed = true;
-                break;
-            }
-        }
-
-        if (! $allowed) {
-            abort(403, 'Unauthorized');
-        }
+        $this->moduleService->authorize($module);
     }
 }

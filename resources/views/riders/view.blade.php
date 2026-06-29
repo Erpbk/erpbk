@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app', ['hideModuleTopBarSlider' => true])
 @section('title', 'Rider Profile')
 
 @section('content')

@@ -17,6 +17,47 @@ class AgreementModuleService
         return array_key_exists($module, config('agreement_modules.modules', []));
     }
 
+    /**
+     * @return list<string>
+     */
+    public function configuredModuleKeys(): array
+    {
+        return array_keys(config('agreement_modules.modules', []));
+    }
+
+    /**
+     * Route constraint for {module} agreement/contract routes.
+     */
+    public function routePattern(): string
+    {
+        $keys = $this->configuredModuleKeys();
+
+        return $keys !== [] ? implode('|', $keys) : 'riders|employees';
+    }
+
+    /**
+     * All ERP modules that may be assigned to an agreement category.
+     *
+     * @return list<string>
+     */
+    public function assignableModuleKeys(): array
+    {
+        $excluded = config('agreement_modules.excluded_from_assignment', [
+            'dashboard',
+            'recycle_bin',
+            'agreements',
+            'documents',
+            'accounts',
+            'vouchers',
+            'vat',
+        ]);
+
+        return array_values(array_diff(
+            array_keys(config('erp_modules.modules', [])),
+            $excluded
+        ));
+    }
+
     public function moduleHasContracts(string $module): bool
     {
         if (! $this->isConfiguredModule($module)) {

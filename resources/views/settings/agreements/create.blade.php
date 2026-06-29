@@ -44,15 +44,15 @@ $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
           </div>
 
           <p class="alert alert-info py-2 small">
-            After creating this agreement, open <strong>Edit</strong> to choose which sample contract template (Corporate or Premium) will be used in the module.
+            After creating this agreement, open <strong>Edit</strong> to choose a contract template style and customize its content before assigning modules.
           </p>
 
           <div class="mb-3">
             <label class="form-label">Assigned Modules <span class="text-danger">*</span></label>
-            <p class="text-muted small mb-2">Choose which modules can use this agreement.</p>
+            <p class="text-muted small mb-2">Choose which modules can use this agreement (Riders, Employees, Vehicles, Customers, Suppliers, Visa Expense, and all other ERP modules).</p>
             <div class="row g-2">
               @foreach($modules as $moduleKey => $label)
-              <div class="col-md-4">
+              <div class="col-md-4 col-lg-3">
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="assigned_modules[]" value="{{ $moduleKey }}"
                     id="mod_{{ $moduleKey }}"

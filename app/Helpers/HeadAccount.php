@@ -26,8 +26,8 @@ final class HeadAccount
   const BIKE_REGISTRATION_EXPENSE_ACCOUNT = 2516; // Bike Registration Expense Account
   const INVENTORY_LOSS = 2519; // Inventory Loss Account
   const LICENSE_EXPENSE_ACCOUNT = 2520; // Dubai Driving License Expense Account 
-  const LOANS_PAYABLE_PARENT_NAME = 2431;  /** Parent head name: Loans Payable (Liability) — sub-accounts created per loan */
-  const LOAN_INTEREST_EXPENSE = 2149;  /** Parent head name: Loan Interest Expense */
+  const LOANS_PAYABLE_PARENT_NAME = 2539;  /** Parent head name: Loans Payable (Liability) — sub-accounts created per loan */
+  const LOAN_INTEREST_EXPENSE = 2538;  /** Parent head name: Loan Interest Expense */
 
 
 

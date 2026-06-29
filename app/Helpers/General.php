@@ -768,6 +768,7 @@ class General
       'GV' => 'Garage Voucher',
       'RV' => 'Receipt Voucher',
       'PV' => 'Payments Voucher',
+      'BL' => 'Bank Loan',
       'VP' => 'VP VAT Payment',
       'EXP' => 'Expense Voucher',
       'IL' => 'Inventory Loss',

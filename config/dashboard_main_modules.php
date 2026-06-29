@@ -19,6 +19,7 @@ return [
 
     'index_routes' => [
         'cash_banks' => 'banks.index',
+        'loans' => 'loans.index',
         'employees' => 'employees.index',
         'attendance' => 'attendance.index',
         'items' => 'items.index',
@@ -55,6 +56,7 @@ return [
      */
     'default_icons' => [
         'cash_banks' => 'ti-building-bank',
+        'loans' => 'ti-currency-dollar',
         'employees' => 'ti-users',
         'attendance' => 'ti-clock',
         'items' => 'ti-box',

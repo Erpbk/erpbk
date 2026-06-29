@@ -528,6 +528,7 @@ class DashboardCardRegistry
             'cheque_cleared_pending' => self::countsChequeClearedPending($table),
             'attendance_today_present_absent' => self::countsAttendanceTodayPresentAbsent($table, $def),
             'documents_expiry_stats' => self::countsDocumentsExpiryStats($def),
+            'loan_active_closed' => self::countsLoanActiveClosed($table),
             default => self::countsNumericStatus($table),
         };
     }
@@ -713,6 +714,23 @@ class DashboardCardRegistry
         return [
             (int) (clone $base)->where('status', 'Cleared')->count(),
             (int) (clone $base)->where('status', '!=', 'Cleared')->count(),
+        ];
+    }
+
+    /**
+     * @return array{0: int, 1: int}
+     */
+    protected static function countsLoanActiveClosed(string $table): array
+    {
+        if (! self::tableHasColumn($table, 'status')) {
+            return self::countsTotalOnly($table);
+        }
+
+        $base = company_table($table);
+
+        return [
+            (int) (clone $base)->where('status', 'active')->count(),
+            (int) (clone $base)->where('status', 'closed')->count(),
         ];
     }
 

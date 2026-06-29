@@ -47,6 +47,7 @@ use App\Http\Controllers\InventoryPurchaseController;
 use App\Http\Controllers\ItemsController;
 use App\Http\Controllers\LeasingCompaniesController;
 use App\Http\Controllers\LeasingCompanyBillingInvoicesController;
+use App\Http\Controllers\LoansController;
 use App\Http\Controllers\LedgerController;
 use App\Http\Controllers\pages\MiscError;
 use App\Http\Controllers\PaymentController;
@@ -785,6 +786,20 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('banks/receipts/{id}', [BanksController::class, 'receipts'])->name('banks.receipts');
     Route::get('banks/payments/{id}', [BanksController::class, 'payments'])->name('banks.payments');
     Route::get('banks/cheques/{id}', [BanksController::class, 'cheques'])->name('banks.cheques');
+
+    Route::get('loans/upcoming-installments', [LoansController::class, 'upcomingInstallments'])->name('loans.upcomingInstallments');
+    Route::get('loans/interest-summary', [LoansController::class, 'interestSummary'])->name('loans.interestSummary');
+    Route::get('loans/trash', [LoansController::class, 'trash'])->name('loans.trash');
+    Route::resource('loans', LoansController::class);
+    Route::post('loans/{id}/disburse', [LoansController::class, 'disburse'])->name('loans.disburse');
+    Route::get('loans/{id}/installments', [LoansController::class, 'installments'])->name('loans.installments');
+    Route::get('loanInstallments/{id}/pay', [LoansController::class, 'payInstallmentForm'])->name('loanInstallments.payForm');
+    Route::post('loanInstallments/{id}/pay', [LoansController::class, 'payInstallment'])->name('loanInstallments.pay');
+    Route::post('loans/{id}/regenerate-schedule', [LoansController::class, 'regenerateScheduleAction'])->name('loans.regenerateSchedule');
+    Route::get('loan/files/{id}', [LoansController::class, 'files'])->name('loan.files');
+    Route::get('loans/ledger/{id}', [LoansController::class, 'ledger'])->name('loans.ledger');
+    Route::post('loans/trash/{id}/restore', [LoansController::class, 'restoreTrash'])->name('loans.restore');
+    Route::delete('loans/trash/{id}/force-destroy', [LoansController::class, 'forceDestroyTrash'])->name('loans.force-destroy');
 
     Route::post('/cheques/status/{id}', [ChequesController::class, 'updateStatus'])->name('cheques.update-status');
     Route::get('cheques/change_status/{id}', [ChequesController::class, 'statusForm'])->name('cheques.status-form');

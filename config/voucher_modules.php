@@ -11,6 +11,9 @@ return [
     */
     'modules' => [
         'cash_banks'           => 'Cash & Banks',
+        'loans'                => 'Bank Loans',
+        'loans_list'           => 'Loan Register',
+        'loans_upcoming_installments' => 'Upcoming Installments',
         'employees'            => 'Employees',
         'attendance'           => 'Attendance',
         'garage_items'         => 'Garage Items',

@@ -81,6 +81,7 @@ class ModuleFieldSource
             'garages' => 'garages',
             'suppliers' => 'suppliers',
             'leasing_companies' => 'leasing_companies',
+            'loans' => 'loans',
             'bike_rent_companies' => 'bike_rent_companies',
             'expenses' => 'expenses',
             'items_list' => 'items',

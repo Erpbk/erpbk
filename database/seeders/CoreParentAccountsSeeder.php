@@ -68,6 +68,8 @@ class CoreParentAccountsSeeder extends Seeder
             ['name' => 'Recruiter', 'account_type' => 'Liability', 'account_code' => '2002'],
             ['name' => 'Customer', 'account_type' => 'Asset', 'account_code' => '2003'],
             ['name' => 'LeasingCompany', 'account_type' => 'Liability', 'account_code' => '2004'],
+            ['name' => 'Loans Payable', 'account_type' => 'Liability', 'account_code' => '2010'],
+            ['name' => 'Loan Interest Expense', 'account_type' => 'Expense', 'account_code' => '1140'],
         ] as $head) {
             $exists = DB::table('accounts')
                 ->whereNull('parent_id')

@@ -17,9 +17,9 @@
     </div>
     <div class="d-flex flex-wrap gap-1">
       @canany(['agreement_view', 'agreement_generate', 'gn_settings'])
-      <a href="{{ route('documents.agreements.preview', ['company_slug' => $companySlug, 'id' => $activeTemplate->id]) }}"
+      <a href="{{ route('agreements.preview', ['company_slug' => $companySlug, 'id' => $activeTemplate->id]) }}"
         class="btn btn-sm btn-outline-info" target="_blank"><i class="ti ti-eye"></i> Preview</a>
-      <a href="{{ route('documents.agreements.preview-pdf', ['company_slug' => $companySlug, 'id' => $activeTemplate->id]) }}"
+      <a href="{{ route('agreements.preview-pdf', ['company_slug' => $companySlug, 'id' => $activeTemplate->id]) }}"
         class="btn btn-sm btn-outline-dark" target="_blank"><i class="ti ti-download"></i> PDF</a>
       @endcanany
       @if(!$isContractTemplate)

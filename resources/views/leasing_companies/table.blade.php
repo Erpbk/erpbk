@@ -47,7 +47,7 @@
                   </a>
                   @endcan
                   @can('leasing_delete')
-                  <a href="#" class='dropdown-item waves-effect'
+                  <a href="javascript:void(0);" class='dropdown-item waves-effect'
                      onclick="confirmDelete('{{route('leasingCompanies.delete', $r->id) }}')">
                      <i class="fa fa-trash my-1"></i> Delete
                   </a>

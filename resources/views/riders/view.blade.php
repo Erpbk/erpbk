@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app', ['hideModuleTopBarSlider' => true])
 @section('title', 'Rider Profile')
 
 @section('content')
@@ -445,14 +445,7 @@ $companySlug = request()->route('company_slug');
                   </b>
                 </div>
               </li>
-              <!-- <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
-                <div class="icons me-2">
-                  <i class="ti ti-user-check ti-sm me-1_5"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Status:</span><br> <b class="float-right">@isset($result){{App\Helpers\General::RiderStatus($result['status'])??'not-set'}}@endisset</b>
-                </div>
-              </li> -->
+
               <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
                 <div class="icons me-2">
                   <i class="ti ti-calendar-due ti-sm me-1_5"></i>

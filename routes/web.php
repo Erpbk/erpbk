@@ -237,7 +237,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     });
 
     // Module Agreements — register before employees/riders resource routes ({module}/agreements must not match {employee} or {rider})
-    Route::prefix('{module}/agreements')->where(['module' => 'riders|employees'])->name('module-agreements.')->group(function () {
+    $agreementModulePattern = app(\App\Services\Agreements\AgreementModuleService::class)->routePattern();
+    Route::prefix('{module}/agreements')->where(['module' => $agreementModulePattern])->name('module-agreements.')->group(function () {
         Route::get('/', [App\Http\Controllers\ModuleAgreementController::class, 'index'])->name('index');
         Route::get('/categories/{category}', [App\Http\Controllers\ModuleAgreementController::class, 'show'])->name('show')->whereNumber('category');
         Route::get('/templates/{template}/edit', [App\Http\Controllers\ModuleAgreementController::class, 'editTemplate'])->name('templates.edit')->whereNumber('template');
@@ -248,7 +249,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     });
 
     // Module record contracts (listing action → contract modal, PDF, email)
-    Route::prefix('{module}/records/{record}/contracts')->where(['module' => 'riders|employees'])->whereNumber('record')->name('module-contracts.')->group(function () {
+    Route::prefix('{module}/records/{record}/contracts')->where(['module' => $agreementModulePattern])->whereNumber('record')->name('module-contracts.')->group(function () {
         Route::get('/', [App\Http\Controllers\ModuleContractController::class, 'modal'])->name('modal');
         Route::get('/preview', [App\Http\Controllers\ModuleContractController::class, 'preview'])->name('preview');
         Route::get('/pdf', [App\Http\Controllers\ModuleContractController::class, 'pdf'])->name('pdf');
@@ -571,12 +572,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('riders/history/{id}', [RidersController::class, 'history'])->name('rider.history');
     Route::get('riders/contract/{id?}', [RidersController::class, 'contract'])->name('rider.contract');
     Route::any('riders/contract_upload/{id?}', [RidersController::class, 'contract_upload'])->name('rider_contract_upload');
-    Route::get('riders/{riderId}/agreements/modal', [App\Http\Controllers\AgreementGenerationController::class, 'modal'])->name('agreements.modal');
-    Route::get('riders/{riderId}/agreements/preview', [App\Http\Controllers\AgreementGenerationController::class, 'preview'])->name('agreements.preview');
-    Route::get('riders/{riderId}/agreements/pdf', [App\Http\Controllers\AgreementGenerationController::class, 'pdf'])->name('agreements.pdf');
-    Route::post('riders/{riderId}/agreements/email', [App\Http\Controllers\AgreementGenerationController::class, 'email'])->name('agreements.email');
-    Route::get('riders/{riderId}/agreements/templates/{template}/edit', [App\Http\Controllers\AgreementGenerationController::class, 'editTemplate'])->name('agreements.templates.edit');
-    Route::put('riders/{riderId}/agreements/templates/{template}', [App\Http\Controllers\AgreementGenerationController::class, 'updateTemplate'])->name('agreements.templates.update');
+    Route::get('riders/{riderId}/agreements/modal', [App\Http\Controllers\AgreementGenerationController::class, 'modal'])->name('rider-agreements.modal');
+    Route::get('riders/{riderId}/agreements/preview', [App\Http\Controllers\AgreementGenerationController::class, 'preview'])->name('rider-agreements.preview');
+    Route::get('riders/{riderId}/agreements/pdf', [App\Http\Controllers\AgreementGenerationController::class, 'pdf'])->name('rider-agreements.pdf');
+    Route::post('riders/{riderId}/agreements/email', [App\Http\Controllers\AgreementGenerationController::class, 'email'])->name('rider-agreements.email');
+    Route::get('riders/{riderId}/agreements/templates/{template}/edit', [App\Http\Controllers\AgreementGenerationController::class, 'editTemplate'])->name('rider-agreements.templates.edit');
+    Route::put('riders/{riderId}/agreements/templates/{template}', [App\Http\Controllers\AgreementGenerationController::class, 'updateTemplate'])->name('rider-agreements.templates.update');
 
     Route::any('riders/picture_upload/{id?}', [RidersController::class, 'picture_upload'])->name('rider_picture_upload');
     Route::any('riders/rider-document/{id}', [RidersController::class, 'document'])->name('rider.document');
@@ -1018,6 +1019,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
     // Specific Salik routes (must come before resource route)
     Route::get('salik/missing-records', [SalikController::class, 'showMissingRecords'])->name('salik.missing.records');
+    Route::get('salik/summary', [SalikController::class, 'monthlySummary'])->name('salik.summary');
+    Route::get('salik_invoice/{rider_id}/{billing_month}', [SalikController::class, 'showMonthlyInvoice'])->name('salik.rider_monthly_summary');
+    Route::get('salik_invoice/company/{rental_company_id}/{billing_month}', [SalikController::class, 'showCompanyMonthlyInvoice'])->name('salik.company_monthly_summary');
     Route::get('salik/export-missing-records', [SalikController::class, 'exportMissingRecords'])->name('salik.export.missing.records');
     Route::post('salik/analyze-excel', [SalikController::class, 'analyzeExcelFile'])->name('salik.analyze.excel');
     Route::any('salik/clear-failed-imports', [SalikController::class, 'clearFailedImports'])->name('salik.clear.failed.imports');

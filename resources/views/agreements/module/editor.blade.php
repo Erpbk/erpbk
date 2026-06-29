@@ -5,7 +5,12 @@
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tinymce@6/skins/ui/oxide/skin.min.css">
 <style>
-  .branding-panel { border-radius: 10px; overflow: hidden; border: 1px solid #e4e6ef; }
+  .branding-panel {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #e4e6ef;
+  }
+
   .branding-panel-header {
     background: var(--agreement-primary, #2563eb);
     color: var(--agreement-on-primary, #fff);
@@ -14,8 +19,23 @@
     align-items: center;
     gap: 12px;
   }
-  .branding-logo { width: 48px; height: 48px; object-fit: contain; background: #fff; border-radius: 6px; padding: 4px; }
-  .color-swatch { width: 20px; height: 20px; border-radius: 4px; display: inline-block; border: 1px solid rgba(0,0,0,.1); }
+
+  .branding-logo {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    background: #fff;
+    border-radius: 6px;
+    padding: 4px;
+  }
+
+  .color-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    display: inline-block;
+    border: 1px solid rgba(0, 0, 0, .1);
+  }
 </style>
 @endpush
 
@@ -23,13 +43,13 @@
 @include('flash::message')
 
 @php
-  $companySlug = request()->route('company_slug');
-  $pb = $pdfBranding ?? [];
-  $primary = $pb['primary_color'] ?? '#2563eb';
-  $secondary = $pb['secondary_color'] ?? '#1e3a8a';
-  $onPrimary = $pb['text_on_primary'] ?? '#ffffff';
-  $logoSrc = $pb['logo_src'] ?? ($pb['logo_url'] ?? null);
-  $styleLabel = $template->template_type === 'premium' ? 'Modern Premium' : 'Corporate Professional';
+$companySlug = request()->route('company_slug');
+$pb = $pdfBranding ?? [];
+$primary = $pb['primary_color'] ?? '#2563eb';
+$secondary = $pb['secondary_color'] ?? '#1e3a8a';
+$onPrimary = $pb['text_on_primary'] ?? '#ffffff';
+$logoSrc = $pb['logo_src'] ?? ($pb['logo_url'] ?? null);
+$styleLabel = $template->template_type === 'premium' ? 'Modern Premium' : 'Corporate Professional';
 @endphp
 
 <div class="row" style="--agreement-primary: {{ $primary }}; --agreement-secondary: {{ $secondary }}; --agreement-on-primary: {{ $onPrimary }};">

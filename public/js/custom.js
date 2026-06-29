@@ -414,6 +414,17 @@ $('body').on('click', '.show-modal', function () {
   var size = $(this).data('size');
   var table = $(this).data('table');
   var collapseSidebar = $(this).data('collapse-sidebar');
+  var closeRightModal = $(this).data('close-right-modal');
+
+  // When opening a center modal from the invoice side panel, close the panel first.
+  if (
+    closeRightModal !== false &&
+    (closeRightModal || $(this).closest('#rightSideModalBody').length) &&
+    $('#rightSideModal').hasClass('show')
+  ) {
+    closeRightSideModal();
+  }
+
   // Reset modal size classes
   $('.modal-dialog').removeClass('modal-sm modal-md modal-lg modal-xl');
   if (size) {

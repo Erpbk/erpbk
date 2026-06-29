@@ -7,6 +7,7 @@ use App\Models\Accounts;
 use App\Models\BikeMaintenance;
 use App\Models\CustomerInvoices;
 use App\Models\FuelData;
+use App\Models\salik;
 use App\Models\SupplierInvoices;
 use App\Models\Transactions;
 use App\Models\Vouchers;
@@ -136,6 +137,21 @@ class LedgerDataTable extends DataTable
                     $voucher_text = '<a href="javascript:void(0);" data-title="Voucher # ' . $voucher_ID . '" data-size="xl" data-action="' . route('vouchers.show', $vouchers->id) . '" class="no-print show-modal" >' . $voucher_ID . '</a>';
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
+                }
+            }
+            if ($row->reference_type == 'salik') {
+                $salikRecord = salik::find($row->reference_id);
+                if ($salikRecord && $salikRecord->billing_month && ($salikRecord->rider_id || $salikRecord->rental_company_id)) {
+                    $voucher_ID = $salikRecord->inv_id ?? 'SLK-' . str_pad($salikRecord->id, 4, '0', STR_PAD_LEFT);
+                    $billingMonth = Carbon::parse($salikRecord->billing_month)->format('Y-m');
+                    if ($salikRecord->rider_id) {
+                        $invoiceUrl = route('salik.rider_monthly_summary', [$salikRecord->rider_id, $billingMonth]);
+                    } else {
+                        $invoiceUrl = route('salik.company_monthly_summary', [$salikRecord->rental_company_id, $billingMonth]);
+                    }
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . $invoiceUrl . '" class="no-print show-modal-right" data-size="xl" data-title="Salik Invoice ' . $voucher_ID . '">' . $voucher_ID . '</a>';
+                } else {
+                    $voucher_text = '<span class="text-danger">Salik invoice not found</span>';
                 }
             }
             if ($row->reference_type == 'VC') {

@@ -190,7 +190,7 @@ class AgreementGenerationController extends Controller
         $template->description = $validated['description'] ?? '';
         $template->save();
 
-        return redirect()->route('agreements.templates.edit', [
+        return redirect()->route('rider-agreements.templates.edit', [
             'company_slug' => $company_slug,
             'riderId' => $riderId,
             'template' => $template->id,

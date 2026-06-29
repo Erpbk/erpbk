@@ -59,7 +59,7 @@
     <form method="POST"
       class="agreement-email-form"
       data-panel="{{ $panelId }}"
-      action="{{ route('agreements.email', ['company_slug' => $companySlug, 'riderId' => $rider->id]) }}">
+      action="{{ route('rider-agreements.email', ['company_slug' => $companySlug, 'riderId' => $rider->id]) }}">
       @csrf
       <input type="hidden" name="template_id" value="{{ $templateId }}">
       <input type="hidden" name="agreement_date" class="agreement-email-date" value="{{ date('Y-m-d') }}">

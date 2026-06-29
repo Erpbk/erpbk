@@ -174,6 +174,18 @@
             if (bikeId) selectbike(bikeId);
         });
 
+        $('#rider_account').on('change', function() {
+            if ($(this).val()) {
+                $('#company_account').val(null).trigger('change');
+            }
+        });
+
+        $('#company_account').on('change', function() {
+            if ($(this).val()) {
+                $('#rider_account').val(null).trigger('change');
+            }
+        });
+
         $('#salik_amount, #salik_vat_percent').on('input', function() {
             calculateRow('salik_amount', 'salik_vat_percent', 'salik_vat_amount', 'salik_total');
         });

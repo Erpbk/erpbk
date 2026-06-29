@@ -1,0 +1,276 @@
+<?php
+
+namespace App\Services\Agreements;
+
+use App\Models\AgreementCategory;
+use GdImage;
+
+class AgreementLetterheadLayout
+{
+    /**
+     * @return array{top: float, bottom: float, left: float, right: float}
+     */
+    public function resolvedMarginsMm(?AgreementCategory $category): array
+    {
+        $defaults = $this->defaultMarginsMm();
+
+        $saved = $category?->letterhead_margins;
+        $merged = is_array($saved) && $saved !== []
+            ? array_merge($defaults, array_intersect_key($saved, $defaults))
+            : $defaults;
+
+        if ($category && ($path = $category->letterheadFilesystemPath())) {
+            $detected = $this->detectMarginsFromImage($path);
+            $merged = [
+                'top' => max((float) $merged['top'], $detected['top']),
+                'bottom' => max((float) $merged['bottom'], $detected['bottom']),
+                'left' => max((float) $merged['left'], $detected['left']),
+                'right' => max((float) $merged['right'], $detected['right']),
+            ];
+        }
+
+        return [
+            'top' => $this->clamp((float) $merged['top'], 15, 110),
+            'bottom' => $this->clamp((float) $merged['bottom'], 15, 120),
+            'left' => $this->clamp((float) $merged['left'], 8, 55),
+            'right' => $this->clamp((float) $merged['right'], 8, 55),
+        ];
+    }
+
+    /**
+     * Estimate safe content margins from a full-page letterhead image.
+     *
+     * @return array{top: float, bottom: float, left: float, right: float}
+     */
+    public function suggestMarginsFromFilesystem(?string $filesystemPath): array
+    {
+        if ($filesystemPath === null || ! is_readable($filesystemPath)) {
+            return $this->defaultMarginsMm();
+        }
+
+        return $this->detectMarginsFromImage($filesystemPath);
+    }
+
+    /**
+     * Scan letterhead artwork to find header, footer, and side decoration bounds.
+     *
+     * @return array{top: float, bottom: float, left: float, right: float}
+     */
+    public function detectMarginsFromImage(string $filesystemPath): array
+    {
+        $defaults = $this->defaultMarginsMm();
+        $image = $this->loadImage($filesystemPath);
+
+        if (! $image instanceof GdImage) {
+            return $this->fallbackFractionMargins();
+        }
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+
+        if ($width < 10 || $height < 10) {
+            imagedestroy($image);
+
+            return $this->fallbackFractionMargins();
+        }
+
+        $zones = config('agreement_letterhead.auto_zones', []);
+        $inkThreshold = (int) ($zones['ink_threshold'] ?? 235);
+        $rowInkMin = (float) ($zones['row_ink_ratio'] ?? 0.012);
+        $colInkMin = (float) ($zones['col_ink_ratio'] ?? 0.04);
+        $buffer = (float) ($zones['buffer_mm'] ?? 8);
+        $sampleStep = max(1, (int) round($width / 420));
+
+        $headerBottomPx = 0;
+        $headerScanEnd = (int) floor($height * 0.48);
+        for ($y = 0; $y < $headerScanEnd; $y++) {
+            if ($this->rowInkRatio($image, $y, $width, $sampleStep, $inkThreshold) >= $rowInkMin) {
+                $headerBottomPx = $y;
+            }
+        }
+
+        $footerTopPx = $height;
+        $footerScanStart = (int) floor($height * 0.52);
+        for ($y = $height - 1; $y >= $footerScanStart; $y--) {
+            if ($this->rowInkRatio($image, $y, $width, $sampleStep, $inkThreshold) >= $rowInkMin) {
+                $footerTopPx = min($footerTopPx, $y);
+            }
+        }
+
+        $contentTopPx = min($height, $headerBottomPx + (int) round($height * 0.02));
+        $contentBottomPx = max(0, $footerTopPx - (int) round($height * 0.02));
+
+        $leftInkPx = 0;
+        $leftScanEnd = (int) floor($width * 0.45);
+        for ($x = 0; $x < $leftScanEnd; $x++) {
+            if ($this->columnInkRatio($image, $x, $contentTopPx, $contentBottomPx, $sampleStep, $inkThreshold) >= $colInkMin) {
+                $leftInkPx = $x;
+            }
+        }
+
+        $rightInkPx = $width;
+        $rightScanStart = (int) floor($width * 0.55);
+        for ($x = $width - 1; $x >= $rightScanStart; $x--) {
+            if ($this->columnInkRatio($image, $x, $contentTopPx, $contentBottomPx, $sampleStep, $inkThreshold) >= $colInkMin) {
+                $rightInkPx = min($rightInkPx, $x);
+            }
+        }
+
+        imagedestroy($image);
+
+        $pageW = $this->pageWidthMm();
+        $pageH = $this->pageHeightMm();
+
+        $top = $this->pxToMm($headerBottomPx, $height, $pageH) + $buffer;
+        $bottom = $this->pxToMm($height - $footerTopPx, $height, $pageH) + $buffer;
+        $left = $this->pxToMm($leftInkPx, $width, $pageW) + $buffer;
+        $right = $this->pxToMm($width - $rightInkPx, $width, $pageW) + $buffer;
+
+        return [
+            'top' => $this->clamp(round($top, 1), 30, 100),
+            'bottom' => $this->clamp(round($bottom, 1), 35, 115),
+            'left' => $this->clamp(round($left, 1), 10, 50),
+            'right' => $this->clamp(round($right, 1), 10, 50),
+        ];
+    }
+
+    /**
+     * @return array{top: float, bottom: float, left: float, right: float}
+     */
+    public function defaultMarginsMm(): array
+    {
+        return config('agreement_letterhead.margins_mm', [
+            'top' => 48,
+            'bottom' => 52,
+            'left' => 18,
+            'right' => 18,
+        ]);
+    }
+
+    public function pageMarginCss(?AgreementCategory $category): string
+    {
+        $m = $this->resolvedMarginsMm($category);
+
+        return sprintf(
+            '%smm %smm %smm %smm',
+            $m['top'],
+            $m['right'],
+            $m['bottom'],
+            $m['left']
+        );
+    }
+
+    public function contentHeightMm(?AgreementCategory $category): float
+    {
+        $m = $this->resolvedMarginsMm($category);
+
+        return max(40, $this->pageHeightMm() - $m['top'] - $m['bottom']);
+    }
+
+    public function pageWidthMm(): float
+    {
+        return (float) config('agreement_letterhead.page_width_mm', 210);
+    }
+
+    public function pageHeightMm(): float
+    {
+        return (float) config('agreement_letterhead.page_height_mm', 297);
+    }
+
+    private function fallbackFractionMargins(): array
+    {
+        $zones = config('agreement_letterhead.auto_zones', []);
+        $headerFraction = (float) ($zones['header_fraction'] ?? 0.22);
+        $footerFraction = (float) ($zones['footer_fraction'] ?? 0.22);
+        $buffer = (float) ($zones['buffer_mm'] ?? 8);
+        $pageH = $this->pageHeightMm();
+        $defaults = $this->defaultMarginsMm();
+
+        return [
+            'top' => $this->clamp(round($pageH * $headerFraction + $buffer, 1), 30, 100),
+            'bottom' => $this->clamp(round($pageH * $footerFraction + $buffer, 1), 35, 115),
+            'left' => $defaults['left'],
+            'right' => $defaults['right'],
+        ];
+    }
+
+    private function loadImage(string $path): ?GdImage
+    {
+        $info = @getimagesize($path);
+        if ($info === false) {
+            return null;
+        }
+
+        $image = match ($info[2]) {
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($path),
+            IMAGETYPE_PNG => @imagecreatefrompng($path),
+            IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($path) : false,
+            default => false,
+        };
+
+        return $image instanceof GdImage ? $image : null;
+    }
+
+    private function rowInkRatio(GdImage $image, int $y, int $width, int $sampleStep, int $inkThreshold): float
+    {
+        $ink = 0;
+        $samples = 0;
+
+        for ($x = 0; $x < $width; $x += $sampleStep) {
+            $samples++;
+            if ($this->isInkPixel(imagecolorat($image, $x, $y), $inkThreshold)) {
+                $ink++;
+            }
+        }
+
+        return $samples > 0 ? $ink / $samples : 0.0;
+    }
+
+    private function columnInkRatio(
+        GdImage $image,
+        int $x,
+        int $topPx,
+        int $bottomPx,
+        int $sampleStep,
+        int $inkThreshold
+    ): float {
+        if ($bottomPx <= $topPx) {
+            return 0.0;
+        }
+
+        $ink = 0;
+        $samples = 0;
+
+        for ($y = $topPx; $y < $bottomPx; $y += $sampleStep) {
+            $samples++;
+            if ($this->isInkPixel(imagecolorat($image, $x, $y), $inkThreshold)) {
+                $ink++;
+            }
+        }
+
+        return $samples > 0 ? $ink / $samples : 0.0;
+    }
+
+    private function isInkPixel(int $rgb, int $threshold): bool
+    {
+        $r = ($rgb >> 16) & 0xFF;
+        $g = ($rgb >> 8) & 0xFF;
+        $b = $rgb & 0xFF;
+
+        return $r < $threshold || $g < $threshold || $b < $threshold;
+    }
+
+    private function pxToMm(int $px, int $totalPx, float $pageMm): float
+    {
+        if ($totalPx <= 0) {
+            return 0.0;
+        }
+
+        return ($px / $totalPx) * $pageMm;
+    }
+
+    private function clamp(float $value, float $min, float $max): float
+    {
+        return max($min, min($max, $value));
+    }
+}

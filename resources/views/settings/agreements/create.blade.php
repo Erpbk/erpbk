@@ -44,7 +44,7 @@ $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
           </div>
 
           <p class="alert alert-info py-2 small">
-            After creating this agreement, open <strong>Edit</strong> to choose a contract template style and customize its content before assigning modules.
+            After creating this agreement, open <strong>Edit</strong> to upload your company letterhead, choose a contract template style, and customize its content.
           </p>
 
           <div class="mb-3">

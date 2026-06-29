@@ -1,8 +1,8 @@
 @php
-  $panelId = $panelId ?? ($category->id ?? 0);
-  $companySlug = request()->route('company_slug');
-  $templateId = $template->id;
-  $styleLabel = \App\Models\AgreementTemplate::TYPES[$template->template_type] ?? $template->template_type;
+$panelId = $panelId ?? ($category->id ?? 0);
+$companySlug = request()->route('company_slug');
+$templateId = $template->id;
+$styleLabel = \App\Models\AgreementTemplate::TYPES[$template->template_type] ?? $template->template_type;
 @endphp
 
 <div class="contract-document-panel"

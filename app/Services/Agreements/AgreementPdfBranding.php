@@ -2,6 +2,7 @@
 
 namespace App\Services\Agreements;
 
+use App\Models\AgreementCategory;
 use App\Services\Email\CompanyEmailBrandingService;
 
 /**
@@ -47,6 +48,18 @@ class AgreementPdfBranding
         ])));
 
         return $branding;
+    }
+
+    /**
+     * Data URI for an agreement category letterhead image (Dompdf-safe).
+     */
+    public function letterheadDataUri(?AgreementCategory $category): ?string
+    {
+        if (! $category) {
+            return null;
+        }
+
+        return $this->logoToDataUri($category->letterheadFilesystemPath());
     }
 
     public function logoToDataUri(?string $filesystemPath): ?string

@@ -12,6 +12,7 @@ return [
         'dashboard' => 'Dashboard',
         'recycle_bin' => 'Recycle Bin',
         'cash_banks' => 'Cash & Banks',
+        'loans' => 'Bank Loans',
         'employees' => 'Employees',
         'attendance' => 'Attendance',
         'items' => 'Items',

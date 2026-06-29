@@ -14,6 +14,10 @@ return [
             'label' => 'Cash & Banks',
             'primary_label_key' => 'cash_banks',
         ],
+        'loans' => [
+            'label' => 'Bank Loans',
+            'primary_label_key' => 'loans',
+        ],
         'employees' => [
             'label' => 'Employees',
             'primary_label_key' => 'employees',

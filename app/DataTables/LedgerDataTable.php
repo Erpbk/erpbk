@@ -85,7 +85,7 @@ class LedgerDataTable extends DataTable
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
             }
-            if (in_array($row->reference_type, ['LV', 'LE', 'VL', 'IL', 'FAV', 'FDV'], true)) {
+            if (in_array($row->reference_type, ['LV', 'LE', 'VL', 'IL', 'FAV', 'FDV', 'BL'], true)) {
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);
@@ -342,6 +342,20 @@ class LedgerDataTable extends DataTable
                     }
                 } else {
                     $naration = $row->narration . ' (License expense not found) ' . $view_file;
+                }
+            } elseif ($row->reference_type == 'BL') {
+                $loan = CompanyQuery::table('loans')->where('id', $row->reference_id)->first();
+                if (! $loan) {
+                    $installment = CompanyQuery::table('loan_installments')->where('id', $row->reference_id)->first();
+                    if ($installment) {
+                        $loan = CompanyQuery::table('loans')->where('id', $installment->loan_id)->first();
+                    }
+                }
+                if ($loan) {
+                    $loanLabel = $loan->loan_number ?? ('Loan #'.$loan->id);
+                    $naration = $row->narration.' — <a href="'.route('loans.show', $loan->id).'" class="no-print">'.$loanLabel.'</a>'.$view_file;
+                } else {
+                    $naration = $row->narration.$view_file;
                 }
             } elseif ($row->reference_type == 'IL') {
                 $assignment = CompanyQuery::table('rider_inventory_assignments')->where('id', $row->reference_id)->first();

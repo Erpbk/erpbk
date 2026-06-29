@@ -32,7 +32,9 @@ use App\Models\Vouchers;
 use App\Models\Transactions;
 use App\Services\ActivityLogger;
 use App\Models\LeasingCompanyInvoice;
+use App\Models\Loan;
 use App\Support\CompanyContext;
+use App\Support\TrashedRecordQuery;
 use Illuminate\Database\Eloquent\Builder;
 
 class TrashController extends Controller
@@ -45,36 +47,12 @@ class TrashController extends Controller
      */
     private function trashedQuery(string $modelClass): Builder
     {
-        $query = $modelClass::query()->onlyTrashed();
-
-        if (! CompanyContext::shouldApplyScope()) {
-            return $query;
-        }
-
-        $companyId = CompanyContext::id();
-        if ($companyId === null) {
-            return $query->whereRaw('0 = 1');
-        }
-
-        $instance = new $modelClass();
-        $table = $instance->getTable();
-        $connection = $instance->getConnectionName() ?: config('database.default');
-
-        if (! Schema::hasColumn($table, 'company_id')) {
-            return $query;
-        }
-
-        $companyColumn = $instance->qualifyColumn('company_id');
-
-        return $query
-            ->withoutGlobalScope('company')
-            ->where($companyColumn, $companyId)
-            ->whereNotNull($companyColumn);
+        return TrashedRecordQuery::for($modelClass);
     }
 
     private function findTrashedRecord(string $modelClass, $id)
     {
-        return $this->trashedQuery($modelClass)->find($id);
+        return TrashedRecordQuery::find($modelClass, $id);
     }
     /**
      * List of models that support soft deletes
@@ -217,6 +195,12 @@ class TrashController extends Controller
             'name' => 'Leasing Company Invoices',
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'invoice_number', 'billing_month', 'total_amount', 'status'],
+        ],
+        'loans' => [
+            'model' => Loan::class,
+            'name' => 'Bank Loans',
+            'icon' => 'fa-university',
+            'display_columns' => ['loan_number', 'agreement_ref', 'status'],
         ],
     ];
 

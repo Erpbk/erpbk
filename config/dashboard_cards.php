@@ -97,4 +97,23 @@ return [
             'inactive' => 'Expired',
         ],
     ],
+    'loans' => [
+        'label' => 'Bank Loans',
+        'icon' => 'ti-currency-dollar',
+        'table' => 'loans',
+        'route' => 'loans.index',
+        'count_strategy' => 'loan_active_closed',
+        'filter_query' => [
+            'active' => ['status' => 'active'],
+            'inactive' => ['status' => 'closed'],
+        ],
+        'stat_labels' => [
+            'active' => 'Active Loans',
+            'inactive' => 'Closed Loans',
+        ],
+        'stat_routes' => [
+            'active' => 'loans.index',
+            'inactive' => 'loans.index',
+        ],
+    ],
 ];

@@ -20,6 +20,12 @@ return [
             'bank_view_delete',
         ]],
 
+        ['parent' => 'Loans', 'slug' => 'loan', 'extras' => [
+            'loan_disburse',
+            'loan_repay',
+            'loan_installment_view',
+        ]],
+
         ['parent' => 'Employees', 'slug' => 'employees', 'extras' => [
             'employeeinvoice_view',
             'employeeinvoice_create',

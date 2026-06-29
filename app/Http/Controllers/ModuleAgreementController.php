@@ -30,7 +30,7 @@ class ModuleAgreementController extends Controller
         $categories = AgreementCategory::query()
             ->assignedToModule($module)
             ->where('status', true)
-            ->withCount(['templates' => fn ($q) => $q->where('status', true)->sampleStyles()])
+            ->withCount(['templates' => fn($q) => $q->where('status', true)->sampleStyles()])
             ->with('defaultTemplate')
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -47,7 +47,7 @@ class ModuleAgreementController extends Controller
         $this->assertCategoryAssigned($category, $module);
 
         $category->load([
-            'templates' => fn ($q) => $q->sampleStyles()->where('status', true)->orderByDesc('is_default')->orderBy('template_name'),
+            'templates' => fn($q) => $q->sampleStyles()->where('status', true)->orderByDesc('is_default')->orderBy('template_name'),
             'defaultTemplate',
         ]);
 

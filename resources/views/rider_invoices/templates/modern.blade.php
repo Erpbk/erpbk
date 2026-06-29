@@ -1,59 +1,106 @@
-<!-- Header: Logo + Company + Title (modern card style) -->
-<table style="margin-bottom: 20px; border: none; background: transparent;">
-    <tr style="border: none;">
-        <td style="width: 33%; border: none !important; vertical-align: middle;">
+@php
+    $serviceFrom = date('d-m-y', strtotime($riderInvoice->billing_month));
+    $serviceTo = date('t-m-y', strtotime($riderInvoice->billing_month));
+@endphp
+
+<table class="no-border" width="100%">
+    <tr>
+        <td width="33.33%" class="no-border">
             @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
                 <img src="{{ storage_url($settings['company_logo']) }}" width="150" alt="logo" />
+            @else
+                <img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" alt="logo" />
             @endif
         </td>
-        <td style="width: 34%; text-align: center; align-content: center; border: none !important;">
-            <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ ucwords($settings['company_name']) ?? '' }}</h4>
-            <p style="margin: 3px 0; font-size: 12px;">{{ ucwords($settings['company_address']) ?? '' }}</p>
-            <p style="margin: 3px 0; font-size: 12px;">TEL: {{ $settings['company_phone'] ?? '' }}</p>
-            <p style="margin: 3px 0; font-size: 12px;">TRN: {{ $settings['vat_number'] ?? '' }}</p>
-        </td>
-        <td style="width: 33%; text-align: center; align-content: center; border: none !important;">
-            <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 24px;">RIDER INVOICE</h2>
+        <td width="66.67%" class="no-border" style="text-align: center;">
+            <h4 style="margin-bottom: 10px; margin-top: 5px; font-size: 14px;">{{ ucwords($settings['company_name'] ?? '') }}</h4>
+            <p style="margin-bottom: 5px; font-size: 14px; margin-top: 5px;">{{ ucwords($settings['company_address'] ?? '') }}</p>
+            <p style="margin-bottom: 5px; font-size: 14px; margin-top: 5px;">TRN {{ $settings['vat_number'] ?? '' }}</p>
         </td>
     </tr>
 </table>
 
-<div class="flex-row-cards">
-    <div class="rider-card">
-        <div class="card-header"><strong>Rider Details</strong></div>
-        <div class="details-grid">
-            <span class="detail-label">Rider ID:</span><span class="detail-value">{{ $riderInvoice->rider->rider_id }}</span>
-            <span class="detail-label">Rider Name:</span><span class="detail-value">{{ $riderInvoice->rider->name }}</span>
-            <span class="detail-label">Rider Status:</span>
-            <span class="detail-value" @if(in_array($riderInvoice->rider->status, [3,4,5])) style="color:red;" @endif>{{ App\Helpers\General::RiderStatus($riderInvoice->rider->status) }}</span>
-            <span class="detail-label">Mobile:</span><span class="detail-value">{{ @$riderInvoice->rider->sim->number }}</span>
-            <span class="detail-label">Joining Date:</span><span class="detail-value">{{ $riderInvoice->rider->doj }}</span>
-            <span class="detail-label">Client:</span><span class="detail-value">{{ @$riderInvoice->rider->vendor->name }}</span>
-            <span class="detail-label">Fleet Supervisor:</span><span class="detail-value">{{ @$riderInvoice->rider->fleet_supervisor }}</span>
-            <span class="detail-label">Sup. Contact:</span><span class="detail-value">{{ @$riderInvoice->rider->company_contact }}</span>
-            <span class="detail-label">Working Days:</span><span class="detail-value">{{ $riderInvoice->working_days }} | Off: {{ @$riderInvoice->off }}</span>
-            <span class="detail-label">Perfect Attendance:</span><span class="detail-value">{{ $riderInvoice->perfect_attendance }}</span>
-            <span class="detail-label">Rejection:</span><span class="detail-value red">{{ @$riderInvoice->rejection }}</span>
-            <span class="detail-label">Performance:</span><span class="detail-value">{{ @$riderInvoice->performance }}</span>
-        </div>
-    </div>
-    <div class="details-card">
-        <div class="card-header"><strong>Invoice Summary</strong></div>
-        <div class="details-grid">
-            <span class="detail-label">Invoice No:</span><span class="detail-value">{{ $invoiceNumber }}</span>
-            <span class="detail-label">Invoice Date:</span><span class="detail-value">{{ $riderInvoice->created_at->format('d/m/Y') }}</span>
-            <span class="detail-label">Billing Month:</span><span class="detail-value">{{ date('M-Y', strtotime($riderInvoice->billing_month)) }}</span>
-            <span class="detail-label">Service Period:</span><span class="detail-value">{{ date('d-m-y', strtotime($riderInvoice->billing_month)) }} to {{ date('t-m-y', strtotime($riderInvoice->billing_month)) }}</span>
-            <span class="detail-label">Zone:</span><span class="detail-value">{{ $riderInvoice->zone }}</span>
-            <span class="detail-label">Bike No:</span><span class="detail-value">{{ @$riderInvoice->bike->plate }}</span>
-            <span class="detail-label">Road Permit No:</span><span class="detail-value">—</span>
-            <span class="detail-label">Insurance Policy No:</span><span class="detail-value">—</span>
-        </div>
-    </div>
-</div>
+<table>
+    <tr>
+        <td colspan="4" class="primary-header" style="padding: 10px; text-align: center; font-size: 18px;">RIDER INVOICE</td>
+    </tr>
+</table>
+
+<table>
+    <tr>
+        <td class="label-cell">Invoice No:</td>
+        <td class="value-cell">{{ $invoiceNumber }}</td>
+        <td class="label-cell">Joining Date:</td>
+        <td class="value-cell">{{ $riderInvoice->rider->doj ?? '' }}</td>
+    </tr>
+    <tr>
+        <td class="label-cell">Invoice Date:</td>
+        <td class="value-cell">{{ $riderInvoice->created_at->format('d/m/Y') }}</td>
+        <td class="label-cell">Zone:</td>
+        <td class="value-cell">{{ $riderInvoice->zone ?? '' }}</td>
+    </tr>
+    <tr>
+        <td class="label-cell">Service Period From:</td>
+        <td class="value-cell">{{ $serviceFrom }}</td>
+        <td class="label-cell">Service Period To:</td>
+        <td class="value-cell">{{ $serviceTo }}</td>
+    </tr>
+    <tr>
+        <td class="label-cell">Road Permit No:</td>
+        <td class="value-cell"></td>
+        <td class="label-cell">Bike No:</td>
+        <td class="value-cell">{{ @$riderInvoice->bike->plate }}</td>
+    </tr>
+    <tr>
+        <td class="label-cell">Insurance Policy No:</td>
+        <td class="value-cell"></td>
+        <td class="label-cell">Billing Month:</td>
+        <td class="value-cell">{{ date('M-Y', strtotime($riderInvoice->billing_month)) }}</td>
+    </tr>
+</table>
+
+<table>
+    <tr>
+        <td colspan="4" class="light-header" style="padding: 8px; text-align: center; font-size: 14px;">RIDER DETAILS</td>
+    </tr>
+    <tr>
+        <td class="label-cell">Rider No:</td>
+        <td class="value-cell">{{ $riderInvoice->rider->id }}</td>
+        <td class="label-cell">Rider Status:</td>
+        <td class="value-cell @if(in_array((int) ($riderInvoice->rider->status ?? 0), [3, 4, 5], true)) red @endif">{{ $riderStatusLabel }}</td>
+    </tr>
+    <tr>
+        <td class="label-cell">Rider ID:</td>
+        <td class="value-cell">{{ $riderInvoice->rider->rider_id }}</td>
+        <td class="label-cell">Working Days:</td>
+        <td class="value-cell">{{ $riderInvoice->working_days }} | Off: {{ @$riderInvoice->off }}</td>
+    </tr>
+    <tr>
+        <td class="label-cell">Rider Name:</td>
+        <td class="value-cell">{{ $riderInvoice->rider->name }}</td>
+        <td class="label-cell">Perfect Attendance:</td>
+        <td class="value-cell">{{ $riderInvoice->perfect_attendance }}</td>
+    </tr>
+    <tr>
+        <td class="label-cell">Client:</td>
+        <td class="value-cell">{{ @$riderInvoice->rider->vendor->name }}</td>
+        <td class="label-cell">Rejection:</td>
+        <td class="value-cell red">{{ @$riderInvoice->rejection }}</td>
+    </tr>
+    <tr>
+        <td class="label-cell">Mobile:</td>
+        <td class="value-cell">{{ @$riderInvoice->rider->sim->number }}</td>
+        <td class="label-cell">Performance:</td>
+        <td class="value-cell">{{ @$riderInvoice->performance }}</td>
+    </tr>
+    <tr>
+        <td class="label-cell">Fleet Supervisor:</td>
+        <td class="value-cell">{{ @$riderInvoice->rider->fleet_supervisor }}</td>
+        <td class="label-cell">Sup. Contact:</td>
+        <td class="value-cell">{{ @$riderInvoice->rider->company_contact }}</td>
+    </tr>
+</table>
 
 @if($riderInvoice->items && $riderInvoice->items->count() > 0)
-@include('rider_invoices.partials.invoice_items_and_totals')
-@else
-<div style="text-align: center; padding: 40px;"><p>No invoice items found for this period.</p></div>
+    @include('rider_invoices.partials.invoice_items_and_totals')
 @endif

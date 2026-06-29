@@ -17,15 +17,15 @@
     </div>
     <div class="d-flex flex-wrap gap-1">
       @canany(['agreement_view', 'agreement_generate', 'gn_settings'])
-      <a href="{{ route('module-agreements.templates.preview', ['company_slug' => $companySlug, 'module' => $module, 'template' => $activeTemplate->id]) }}"
+      <a href="{{ route('agreements.preview', ['company_slug' => $companySlug, 'id' => $activeTemplate->id]) }}"
         class="btn btn-sm btn-outline-info" target="_blank"><i class="ti ti-eye"></i> Preview</a>
-      <a href="{{ route('module-agreements.templates.preview-pdf', ['company_slug' => $companySlug, 'module' => $module, 'template' => $activeTemplate->id]) }}"
+      <a href="{{ route('agreements.preview-pdf', ['company_slug' => $companySlug, 'id' => $activeTemplate->id]) }}"
         class="btn btn-sm btn-outline-dark" target="_blank"><i class="ti ti-download"></i> PDF</a>
       @endcanany
       @if(!$isContractTemplate)
       @canany(['agreement_edit', 'agreement_manage_templates', 'gn_settings'])
       <form method="POST"
-        action="{{ route('module-agreements.templates.assign', ['company_slug' => $companySlug, 'module' => $module, 'category' => $category->id, 'template' => $activeTemplate->id]) }}"
+        action="{{ route('documents.agreements.assign-contract-template', ['company_slug' => $companySlug, 'category' => $category->id, 'template' => $activeTemplate->id]) }}"
         class="d-inline">
         @csrf
         <button type="submit" class="btn btn-sm btn-outline-success" title="Use this template when generating contracts">
@@ -43,7 +43,7 @@
       <div class="col-lg-8">
         @canany(['agreement_edit', 'agreement_manage_templates', 'gn_settings'])
         <form method="POST"
-          action="{{ route('module-agreements.templates.update', ['company_slug' => $companySlug, 'module' => $module, 'template' => $activeTemplate->id]) }}"
+          action="{{ route('documents.agreements.update-content', ['company_slug' => $companySlug, 'id' => $activeTemplate->id]) }}"
           id="agreement-template-form">
           @csrf
           @method('PUT')

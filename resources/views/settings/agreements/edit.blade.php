@@ -1,4 +1,4 @@
-@extends($layout ?? 'layouts.app')
+@extends($layout ?? 'layouts.app', ['hideModuleTopBarSlider' => true])
 
 @section('title', 'Edit Agreement – Settings')
 
@@ -11,7 +11,7 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
 @endphp
 
 <div class="row">
-  <div class="col-lg-10 mx-auto">
+  <div class="col-12">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
@@ -26,18 +26,23 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
       </div>
 
       <div class="card-body">
-        <form method="POST" action="{{ route('agreements.update-agreement', ['company_slug' => $companySlug, 'category' => $category->id]) }}">
+        <form method="POST" action="{{ route('agreements.update-agreement', ['company_slug' => $companySlug, 'category' => $category->id]) }}" id="agreement-edit-form">
           @csrf
           @method('PUT')
 
-          <div class="mb-3">
-            <label class="form-label">Agreement Name</label>
-            <input type="text" name="agreement_name" class="form-control" value="{{ old('agreement_name', $category->name) }}" required>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Agreement Code</label>
-            <input type="text" name="agreement_code" class="form-control" value="{{ old('agreement_code', $category->agreement_code ?? $category->slug) }}" required>
+          <div class="row">
+            <div class="col-lg-6">
+              <div class="mb-3">
+                <label class="form-label">Agreement Name</label>
+                <input type="text" name="agreement_name" class="form-control" value="{{ old('agreement_name', $category->name) }}" required>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="mb-3">
+                <label class="form-label">Agreement Code</label>
+                <input type="text" name="agreement_code" class="form-control" value="{{ old('agreement_code', $category->agreement_code ?? $category->slug) }}" required>
+              </div>
+            </div>
           </div>
 
           <div class="mb-3">
@@ -48,11 +53,12 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
           <div class="mb-3">
             <label class="form-label">Contract template <span class="text-danger">*</span></label>
             <p class="text-muted small mb-2">
-              Select which sample template is used when generating this contract from the module. Template content is edited under Riders → Contract Templates.
+              Select the sample template style used when generating this contract. Edit its content below before saving.
             </p>
-            <select name="contract_template_id" class="form-select" required>
+            <select name="contract_template_id" id="contract_template_id" class="form-select" required>
               @forelse($category->templates as $tpl)
               <option value="{{ $tpl->id }}"
+                data-type="{{ $tpl->template_type }}"
                 {{ (int) old('contract_template_id', $contractTemplateId) === (int) $tpl->id ? 'selected' : '' }}>
                 {{ $tpl->template_name }}
                 — {{ \App\Models\AgreementTemplate::TYPES[$tpl->template_type] ?? $tpl->template_type }}
@@ -66,13 +72,15 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
             @enderror
           </div>
 
+          @include('settings.agreements.partials.inline-template-editor')
+
           <div class="mb-3">
             <label class="form-label">Assigned Modules <span class="text-danger">*</span></label>
             <p class="text-muted small mb-2">Selected modules will show this agreement in their Agreements menu and contract options.</p>
             <div class="row g-2">
               @php $savedModules = $category->normalizedAssignedModules(); @endphp
               @foreach($modules as $moduleKey => $label)
-              <div class="col-md-4">
+              <div class="col-md-4 col-lg-3">
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="assigned_modules[]" value="{{ $moduleKey }}"
                     id="mod_{{ $moduleKey }}"
@@ -117,3 +125,110 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
 </div>
 
 @endsection
+
+@push('third_party_scripts')
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var templateSelect = document.getElementById('contract_template_id');
+  var editorWrap = document.getElementById('template-editor-wrap');
+  var previewBase = @json(route('agreements.preview', ['company_slug' => $companySlug, 'id' => '__ID__']));
+  var activeTemplateId = templateSelect ? templateSelect.value : null;
+
+  function storeFieldFor(id) {
+    return document.getElementById('template_content_' + id);
+  }
+
+  function syncEditorToStore() {
+    if (!activeTemplateId || !tinymce.get('agreement-template-editor')) {
+      return;
+    }
+    var field = storeFieldFor(activeTemplateId);
+    if (field) {
+      field.value = tinymce.get('agreement-template-editor').getContent();
+    }
+  }
+
+  function loadTemplateIntoEditor(id) {
+    var field = storeFieldFor(id);
+    if (!field || !tinymce.get('agreement-template-editor')) {
+      return;
+    }
+    tinymce.get('agreement-template-editor').setContent(field.value || '');
+  }
+
+  function updatePreviewLink(id) {
+    var link = document.getElementById('btn-template-full-preview');
+    if (!link || !id) {
+      return;
+    }
+    link.href = previewBase.replace('__ID__', id);
+    link.classList.remove('d-none');
+  }
+
+  if (templateSelect && editorWrap) {
+    tinymce.init({
+      selector: '#agreement-template-editor',
+      height: 380,
+      menubar: false,
+      plugins: 'lists link table code fullscreen preview',
+      toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | table link | code fullscreen',
+      branding: false,
+      promotion: false,
+      content_style: 'body { font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.5; }',
+      setup: function(editor) {
+        editor.on('change keyup', function() {
+          syncEditorToStore();
+        });
+      }
+    }).then(function() {
+      if (activeTemplateId) {
+        loadTemplateIntoEditor(activeTemplateId);
+        updatePreviewLink(activeTemplateId);
+      }
+    });
+
+    templateSelect.addEventListener('change', function() {
+      syncEditorToStore();
+      activeTemplateId = templateSelect.value;
+      loadTemplateIntoEditor(activeTemplateId);
+      updatePreviewLink(activeTemplateId);
+    });
+
+    document.querySelectorAll('.placeholder-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var ph = btn.getAttribute('data-placeholder');
+        if (tinymce.get('agreement-template-editor')) {
+          tinymce.get('agreement-template-editor').insertContent(ph);
+          syncEditorToStore();
+        }
+      });
+    });
+
+    document.getElementById('agreement-edit-form').addEventListener('submit', function() {
+      syncEditorToStore();
+      if (tinymce.get('agreement-template-editor')) {
+        tinymce.get('agreement-template-editor').save();
+      }
+    });
+
+    var quickPreview = document.getElementById('btn-template-quick-preview');
+    if (quickPreview) {
+      quickPreview.addEventListener('click', function() {
+        syncEditorToStore();
+        var content = tinymce.get('agreement-template-editor')
+          ? tinymce.get('agreement-template-editor').getContent()
+          : '';
+        var w = window.open('', '_blank');
+        var primary = getComputedStyle(document.getElementById('template-content-panel')).getPropertyValue('--agreement-primary').trim() || '#2563eb';
+        w.document.write('<html><head><style>body{font-family:Calibri,sans-serif;padding:24px;} .hdr{background:' + primary + ';color:#fff;padding:16px;margin:-24px -24px 20px;}</style></head><body>');
+        w.document.write('<div class="hdr"><strong>Content preview</strong></div>');
+        w.document.write(content);
+        w.document.write('</body></html>');
+        w.document.close();
+      });
+    }
+  }
+});
+</script>
+@endpush

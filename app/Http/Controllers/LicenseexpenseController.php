@@ -589,8 +589,8 @@ class LicenseexpenseController extends AppBaseController
     public function create($company_slug, $id)
     {
         $data = ExpenseAccount::where('id', $id)->first();
-        $LicenseStatuses = LicenseStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
-        return view('license_expenses.create', compact('data', 'LicenseStatuses'));
+        $licenseStatuses = LicenseStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
+        return view('license_expenses.create', compact('data', 'licenseStatuses'));
     }
 
     /**
@@ -791,8 +791,8 @@ class LicenseexpenseController extends AppBaseController
 
             return redirect(route('LicenseExpense.index'));
         }
-        $LicenseStatuses = LicenseStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
-        return view('license_expenses.edit', compact('data', 'LicenseExpenses', 'LicenseStatuses'));
+        $licenseStatuses = LicenseStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
+        return view('license_expenses.edit', compact('data', 'LicenseExpenses', 'licenseStatuses'));
     }
 
     /**

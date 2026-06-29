@@ -43,7 +43,7 @@ class AgreementGenerationController extends Controller
         $defaultTemplate = $category->contractTemplate();
 
         if (! $defaultTemplate) {
-            abort(422, 'No contract template assigned for this agreement. Configure it in Settings → Agreements.');
+            abort(422, 'No contract template assigned for this agreement. Configure it in Documents → Agreements.');
         }
 
         return view('agreements.generate-modal', compact(
@@ -190,7 +190,7 @@ class AgreementGenerationController extends Controller
         $template->description = $validated['description'] ?? '';
         $template->save();
 
-        return redirect()->route('agreements.templates.edit', [
+        return redirect()->route('rider-agreements.templates.edit', [
             'company_slug' => $company_slug,
             'riderId' => $riderId,
             'template' => $template->id,

@@ -16,12 +16,12 @@
           </div>
         </div>
         <div class="d-flex gap-2">
-          <a href="{{ route('agreements.preview', ['company_slug' => request()->route('company_slug'), 'riderId' => $rider->id, 'template_id' => $template->id]) }}" target="_blank" class="btn btn-outline-info btn-sm">Preview</a>
-          <a href="{{ route('agreements.pdf', ['company_slug' => request()->route('company_slug'), 'riderId' => $rider->id, 'template_id' => $template->id, 'download' => 1]) }}" class="btn btn-outline-primary btn-sm">Download PDF</a>
+          <a href="{{ route('rider-agreements.preview', ['company_slug' => request()->route('company_slug'), 'riderId' => $rider->id, 'template_id' => $template->id]) }}" target="_blank" class="btn btn-outline-info btn-sm">Preview</a>
+          <a href="{{ route('rider-agreements.pdf', ['company_slug' => request()->route('company_slug'), 'riderId' => $rider->id, 'template_id' => $template->id, 'download' => 1]) }}" class="btn btn-outline-primary btn-sm">Download PDF</a>
         </div>
       </div>
       <div class="card-body">
-        <form method="POST" action="{{ route('agreements.templates.update', ['company_slug' => request()->route('company_slug'), 'riderId' => $rider->id, 'template' => $template->id]) }}">
+        <form method="POST" action="{{ route('rider-agreements.templates.update', ['company_slug' => request()->route('company_slug'), 'riderId' => $rider->id, 'template' => $template->id]) }}">
           @csrf
           @method('PUT')
 

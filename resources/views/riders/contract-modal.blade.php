@@ -57,7 +57,7 @@ return [
 
     @if($contracts->isEmpty())
     <div class="alert alert-info mb-0 py-2 small">
-      No contracts are assigned to the Riders module. Configure them in Settings → Agreements.
+      No contracts are assigned to the Riders module. Configure them in Documents → Agreements.
     </div>
     @endif
   </div>

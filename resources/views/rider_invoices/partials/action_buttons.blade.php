@@ -5,7 +5,7 @@ $isPaid = (int) $riderInvoice->status === 1;
 <div class="invoice-toolbar no-print">
     <div class="invoice-toolbar-inner">
         @can('riderinvoice_edit')
-        <a href="javascript:void(0);" class="toolbar-btn show-modal" data-size="xl" data-title="Edit Rider Invoice" data-action="{{ route('riderInvoices.edit', ['company_slug' => $companySlug, 'riderInvoice' => $riderInvoice->id]) }}">
+        <a href="javascript:void(0);" class="toolbar-btn show-modal" data-size="xl" data-title="Edit Rider Invoice" data-close-right-modal="1" data-action="{{ route('riderInvoices.edit', ['company_slug' => $companySlug, 'riderInvoice' => $riderInvoice->id]) }}">
             <i class="ti ti-edit"></i><span>Edit</span>
         </a>
         @endcan

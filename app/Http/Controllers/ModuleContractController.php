@@ -48,11 +48,19 @@ class ModuleContractController extends Controller
         $recordModel = $this->modules->resolveRecord($module, $record);
         $template = $this->modules->resolveContractTemplate((int) $request->input('template_id'), $module);
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
-        $subject = $this->modules->pdfSubject($module, $recordModel);
 
         $html = $this->pdfService->renderHtmlForModule($template, $module, $recordModel, $agreementDate);
 
-        return view('agreements.preview', compact('html', 'template') + ['rider' => $subject]);
+        $pdfDownloadUrl = route('module-contracts.pdf', [
+            'company_slug' => $company_slug,
+            'module' => $module,
+            'record' => $record,
+            'template_id' => $template->id,
+            'agreement_date' => $agreementDate,
+            'download' => 1,
+        ]);
+
+        return view('agreements.preview', compact('html', 'template', 'pdfDownloadUrl'));
     }
 
     public function pdf(Request $request, $company_slug, string $module, int $record)

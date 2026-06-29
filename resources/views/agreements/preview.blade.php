@@ -94,10 +94,26 @@
   <div class="toolbar">
     <strong>{{ $template->template_name ?? 'Agreement Preview' }}</strong>
     <button type="button" onclick="printPreview()" class="btn-primary">Print</button>
-    @if(isset($rider) && $rider->exists)
-    <a href="{{ route('rider-agreements.pdf', ['company_slug' => request()->route('company_slug'), 'riderId' => $rider->id, 'template_id' => $template->id, 'agreement_date' => request('agreement_date', now()->format('Y-m-d')), 'download' => 1]) }}">Download PDF</a>
-    @elseif(!empty($template->id))
-    <a href="{{ route('agreements.preview-pdf', ['company_slug' => request()->route('company_slug'), 'id' => $template->id]) }}">Download PDF</a>
+    @php
+      $pdfDownloadUrl = $pdfDownloadUrl ?? null;
+      if (! $pdfDownloadUrl && isset($rider) && $rider instanceof \Illuminate\Database\Eloquent\Model && $rider->exists) {
+          $pdfDownloadUrl = route('rider-agreements.pdf', [
+              'company_slug' => request()->route('company_slug'),
+              'riderId' => $rider->id,
+              'template_id' => $template->id,
+              'agreement_date' => request('agreement_date', now()->format('Y-m-d')),
+              'download' => 1,
+          ]);
+      }
+      if (! $pdfDownloadUrl && ! empty($template->id)) {
+          $pdfDownloadUrl = route('agreements.preview-pdf', [
+              'company_slug' => request()->route('company_slug'),
+              'id' => $template->id,
+          ]);
+      }
+    @endphp
+    @if($pdfDownloadUrl)
+    <a href="{{ $pdfDownloadUrl }}">Download PDF</a>
     @endif
     <button type="button" onclick="window.close()">Close</button>
   </div>

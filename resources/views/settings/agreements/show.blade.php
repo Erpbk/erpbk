@@ -1,4 +1,4 @@
-@extends($layout ?? 'layouts.app')
+@extends($layout ?? 'layouts.app', ['hideModuleTopBarSlider' => true])
 
 @section('title', 'Agreement – Settings')
 

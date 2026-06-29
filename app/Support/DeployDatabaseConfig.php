@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\DB;
  */
 class DeployDatabaseConfig
 {
+    /** @var array<string, string>|null */
+    protected static ?array $fileEnv = null;
+
     public static function refreshFromEnvironment(): void
     {
         $readEnv = static fn (string $key, mixed $default = null): mixed => self::readEnv($key, $default);
@@ -72,16 +75,89 @@ class DeployDatabaseConfig
     protected static function readEnv(string $key, mixed $default = null): mixed
     {
         if (array_key_exists($key, $_ENV)) {
-            return $_ENV[$key];
+            $value = $_ENV[$key];
+            if ($value !== null && $value !== '') {
+                return $value;
+            }
         }
 
         if (array_key_exists($key, $_SERVER)) {
-            return $_SERVER[$key];
+            $value = $_SERVER[$key];
+            if ($value !== null && $value !== '') {
+                return $value;
+            }
         }
 
         $value = getenv($key);
+        if ($value !== false && $value !== '') {
+            return $value;
+        }
 
-        return $value !== false ? $value : $default;
+        $fileValue = self::fileEnv()[$key] ?? null;
+
+        return ($fileValue !== null && $fileValue !== '') ? $fileValue : $default;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected static function fileEnv(): array
+    {
+        if (self::$fileEnv !== null) {
+            return self::$fileEnv;
+        }
+
+        self::$fileEnv = [];
+        $path = base_path('.env');
+
+        if (! is_readable($path)) {
+            return self::$fileEnv;
+        }
+
+        $lines = file($path, FILE_IGNORE_NEW_LINES);
+        if ($lines === false) {
+            return self::$fileEnv;
+        }
+
+        foreach ($lines as $line) {
+            $line = trim((string) $line);
+            if ($line === '' || str_starts_with($line, '#') || ! str_contains($line, '=')) {
+                continue;
+            }
+
+            [$name, $value] = explode('=', $line, 2);
+            $name = trim($name);
+            $value = trim($value);
+
+            if (
+                (str_starts_with($value, '"') && str_ends_with($value, '"'))
+                || (str_starts_with($value, "'") && str_ends_with($value, "'"))
+            ) {
+                $value = substr($value, 1, -1);
+            }
+
+            self::$fileEnv[$name] = $value;
+        }
+
+        return self::$fileEnv;
+    }
+
+    public static function looksLikeUnresolvedDefaults(string $connection): bool
+    {
+        $summary = self::connectionSummary($connection);
+
+        if (! empty($summary['url_set'])) {
+            return false;
+        }
+
+        $host = (string) ($summary['host'] ?? '');
+        $database = (string) ($summary['database'] ?? '');
+
+        $localHosts = ['127.0.0.1', 'localhost', '::1'];
+        $placeholderDatabases = ['forge', 'homestead', 'laravel'];
+
+        return in_array($host, $localHosts, true)
+            && in_array($database, $placeholderDatabases, true);
     }
 
     /**

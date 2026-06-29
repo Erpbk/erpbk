@@ -124,7 +124,9 @@ class AgreementSettingsController extends Controller
         $pdfBranding = app(AgreementPdfBranding::class)->forCompany(CompanyContext::id());
 
         $contractTemplateId = optional($category->contractTemplate())->id;
-        $letterheadMargins = $category->resolvedLetterheadMarginsMm();
+        $layout = app(AgreementLetterheadLayout::class);
+        $letterheadMargins = $layout->savedMarginsMm($category);
+        $detectedLetterheadMargins = $layout->detectedMarginsMm($category);
 
         return view('settings.agreements.edit', compact(
             'category',
@@ -133,7 +135,8 @@ class AgreementSettingsController extends Controller
             'contractTemplateId',
             'placeholders',
             'pdfBranding',
-            'letterheadMargins'
+            'letterheadMargins',
+            'detectedLetterheadMargins'
         ));
     }
 
@@ -182,8 +185,8 @@ class AgreementSettingsController extends Controller
             'letterhead' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:6144',
             'remove_letterhead' => 'sometimes|boolean',
             'letterhead_margins' => 'nullable|array',
-            'letterhead_margins.top' => 'nullable|numeric|min:10|max:100',
-            'letterhead_margins.bottom' => 'nullable|numeric|min:10|max:100',
+            'letterhead_margins.top' => 'nullable|numeric|min:10|max:110',
+            'letterhead_margins.bottom' => 'nullable|numeric|min:10|max:120',
             'letterhead_margins.left' => 'nullable|numeric|min:8|max:50',
             'letterhead_margins.right' => 'nullable|numeric|min:8|max:50',
         ], [
@@ -218,8 +221,12 @@ class AgreementSettingsController extends Controller
 
         $this->saveTemplateContents($category, $data['template_contents'] ?? []);
 
-        $this->saveLetterheadMargins($request, $category);
+        $layout = app(AgreementLetterheadLayout::class);
+        $marginBaseline = $layout->savedMarginsMm($category);
+        $newLetterheadUpload = $request->hasFile('letterhead');
+
         $this->handleLetterheadUpload($request, $category);
+        $this->saveLetterheadMargins($request, $category, $marginBaseline, $newLetterheadUpload);
 
         Flash::success('Agreement saved. Assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '.');
 
@@ -612,26 +619,68 @@ class AgreementSettingsController extends Controller
         Storage::disk('public')->delete((string) $category->letterhead_path);
     }
 
-    private function saveLetterheadMargins(Request $request, AgreementCategory $category): void
-    {
-        if (! $request->has('letterhead_margins')) {
+    private function saveLetterheadMargins(
+        Request $request,
+        AgreementCategory $category,
+        array $baseline,
+        bool $newLetterheadUpload
+    ): void {
+        if ($request->boolean('remove_letterhead')) {
             return;
         }
 
-        $input = $request->input('letterhead_margins', []);
+        $input = $request->input('letterhead_margins');
         if (! is_array($input)) {
             return;
         }
 
+        $layout = app(AgreementLetterheadLayout::class);
+        $defaults = $layout->defaultMarginsMm();
         $margins = [];
+
         foreach (['top', 'bottom', 'left', 'right'] as $side) {
-            if (isset($input[$side]) && $input[$side] !== '') {
-                $margins[$side] = (float) $input[$side];
+            if (! array_key_exists($side, $input) || $input[$side] === '' || $input[$side] === null) {
+                continue;
+            }
+
+            $margins[$side] = (float) $input[$side];
+        }
+
+        if ($margins === []) {
+            return;
+        }
+
+        if ($newLetterheadUpload && ! $this->letterheadMarginsChanged($margins, $baseline)) {
+            return;
+        }
+
+        $category->refresh();
+        $category->letterhead_margins = $layout->normalizeMarginsMm(
+            array_merge($defaults, $margins)
+        );
+        $category->save();
+    }
+
+    /**
+     * @param  array<string, float>  $submitted
+     * @param  array<string, float>  $baseline
+     */
+    private function letterheadMarginsChanged(array $submitted, array $baseline): bool
+    {
+        foreach (['top', 'bottom', 'left', 'right'] as $side) {
+            if (! array_key_exists($side, $submitted)) {
+                continue;
+            }
+
+            $submittedValue = round((float) $submitted[$side], 1);
+            $baselineValue = round((float) ($baseline[$side] ?? 0), 1);
+
+            if (abs($submittedValue - $baselineValue) > 0.05) {
+                return true;
             }
         }
 
-        $category->letterhead_margins = $margins !== [] ? $margins : null;
-        $category->save();
+        return false;
     }
 
     private function seedAgreementTemplates(AgreementCategory $category, bool $status): void

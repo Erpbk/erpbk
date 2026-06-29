@@ -8,7 +8,8 @@
 @php
 $companySlug = request()->route('company_slug');
 $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
-$letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsMm();
+$letterheadMargins = $letterheadMargins ?? $category->savedLetterheadMarginsMm();
+$detectedLetterheadMargins = $detectedLetterheadMargins ?? null;
 @endphp
 
 <div class="row">
@@ -64,15 +65,25 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
             <div class="mt-3">
               <label class="form-label small fw-semibold">Content safe area (mm)</label>
               <p class="text-muted small mb-2">Auto-calculated when you upload a letterhead. Increase top/bottom if any text touches your header or footer artwork on multi-page PDFs.</p>
+              @if($detectedLetterheadMargins)
+              <p class="text-muted small mb-2">
+                Detected minimums from artwork:
+                top {{ $detectedLetterheadMargins['top'] }},
+                bottom {{ $detectedLetterheadMargins['bottom'] }},
+                left {{ $detectedLetterheadMargins['left'] }},
+                right {{ $detectedLetterheadMargins['right'] }} mm.
+                PDFs use the larger of your values and these minimums.
+              </p>
+              @endif
               <div class="row g-2">
                 <div class="col-6 col-md-3">
                   <label class="form-label small mb-1">Top</label>
-                  <input type="number" step="0.5" min="10" max="100" name="letterhead_margins[top]" class="form-control form-control-sm"
+                  <input type="number" step="0.5" min="10" max="110" name="letterhead_margins[top]" class="form-control form-control-sm"
                     value="{{ old('letterhead_margins.top', $letterheadMargins['top']) }}">
                 </div>
                 <div class="col-6 col-md-3">
                   <label class="form-label small mb-1">Bottom</label>
-                  <input type="number" step="0.5" min="10" max="100" name="letterhead_margins[bottom]" class="form-control form-control-sm"
+                  <input type="number" step="0.5" min="10" max="120" name="letterhead_margins[bottom]" class="form-control form-control-sm"
                     value="{{ old('letterhead_margins.bottom', $letterheadMargins['bottom']) }}">
                 </div>
                 <div class="col-6 col-md-3">

@@ -49,15 +49,13 @@ $selectedTemplateId = (int) old('contract_template_id', $contractTemplateId ?? 0
           @endif
           <div>
             <div class="fw-semibold">{{ $pb['name'] ?? config('app.name') }}</div>
-            <div class="small opacity-75">PDF branding preview</div>
+            <div class="small opacity-75">Agreement PDF uses your uploaded letterhead</div>
           </div>
         </div>
         <div class="card-body py-3 px-3">
-          <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="color-swatch" style="background:{{ $primary }};" title="Primary"></span>
-            <span class="color-swatch" style="background:{{ $secondary }};" title="Secondary"></span>
-            <span class="small text-muted ms-1">Company theme colors</span>
-          </div>
+          <p class="small text-muted mb-0">
+            Upload a letterhead above to replace the default header and footer on generated contracts.
+          </p>
         </div>
       </div>
 

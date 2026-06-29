@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Agreements\AgreementLetterheadLayout;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,6 +19,8 @@ class AgreementCategory extends BaseModel
         'agreement_code',
         'name',
         'description',
+        'letterhead_path',
+        'letterhead_margins',
         'sort_order',
         'status',
         'assigned_modules',
@@ -27,6 +30,7 @@ class AgreementCategory extends BaseModel
         'status' => 'boolean',
         'sort_order' => 'integer',
         'assigned_modules' => 'array',
+        'letterhead_margins' => 'array',
     ];
 
     public function templates(): HasMany
@@ -55,6 +59,31 @@ class AgreementCategory extends BaseModel
 
         return $this->defaultTemplate()->first()
             ?? $this->templates()->where('status', true)->orderByDesc('is_default')->first();
+    }
+
+    public function hasLetterhead(): bool
+    {
+        return $this->letterhead_path !== null && $this->letterhead_path !== '';
+    }
+
+    public function letterheadFilesystemPath(): ?string
+    {
+        if (! $this->hasLetterhead()) {
+            return null;
+        }
+
+        $relative = ltrim(preg_replace('#^storage/#', '', (string) $this->letterhead_path) ?? '', '/');
+        $fullPath = storage_path('app/public/' . $relative);
+
+        return is_readable($fullPath) ? $fullPath : null;
+    }
+
+    /**
+     * @return array{top: float, bottom: float, left: float, right: float}
+     */
+    public function resolvedLetterheadMarginsMm(): array
+    {
+        return app(AgreementLetterheadLayout::class)->resolvedMarginsMm($this);
     }
 
     public function activeTemplates(): HasMany

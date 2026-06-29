@@ -4,6 +4,7 @@ namespace App\Services\Agreements;
 
 use App\Models\AgreementTemplate;
 use App\Models\Riders;
+use App\Services\Agreements\AgreementLetterheadLayout;
 use App\Services\Agreements\AgreementModuleService;
 use App\Services\Email\CompanyEmailBrandingService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -14,7 +15,9 @@ class AgreementPdfService
     public function __construct(
         protected AgreementPlaceholderResolver $resolver,
         protected CompanyEmailBrandingService $branding,
-        protected AgreementPdfBranding $pdfBranding
+        protected AgreementPdfBranding $pdfBranding,
+        protected AgreementLetterheadLayout $letterheadLayout,
+        protected AgreementLetterheadPaginator $letterheadPaginator
     ) {}
 
     public function renderHtml(
@@ -31,7 +34,8 @@ class AgreementPdfService
         string $module,
         Model $record,
         ?string $agreementDate = null,
-        bool $useSampleData = false
+        bool $useSampleData = false,
+        bool $forPdf = false
     ): string {
         $content = (string) ($template->description ?? '');
         $map = $useSampleData
@@ -41,18 +45,40 @@ class AgreementPdfService
         $body = $this->resolver->replace($content, $map);
         $branding = $this->pdfBranding->forCompany($template->company_id);
         $template->loadMissing('category');
-        $view = $template->template_type === AgreementTemplate::TYPE_PREMIUM
-            ? 'agreements.pdf.premium'
-            : 'agreements.pdf.corporate';
+        $category = $template->category;
+        $letterheadSrc = $this->pdfBranding->letterheadDataUri($category);
+        $letterheadFileSrc = $this->resolveLetterheadFileSrc($category);
+
+        $view = $letterheadSrc !== null
+            ? 'agreements.pdf.letterhead'
+            : 'agreements.pdf.plain';
 
         $subject = app(AgreementModuleService::class)->pdfSubject($module, $record);
 
+        $margins = $this->letterheadLayout->resolvedMarginsMm($category);
+        $pages = [$body];
+        if ($forPdf && $letterheadSrc !== null) {
+            $pages = $this->letterheadPaginator->paginate(
+                $body,
+                $margins,
+                $this->letterheadLayout->pageHeightMm()
+            );
+        }
+
         return view($view, [
             'body' => $body,
+            'pages' => $pages,
             'branding' => $branding,
+            'letterheadSrc' => $letterheadSrc,
+            'letterheadFileSrc' => $letterheadFileSrc,
+            'letterheadMargins' => $margins,
+            'pageMarginCss' => $this->letterheadLayout->pageMarginCss($category),
+            'pageWidthMm' => $this->letterheadLayout->pageWidthMm(),
+            'pageHeightMm' => $this->letterheadLayout->pageHeightMm(),
+            'forPdf' => $forPdf,
             'rider' => $subject,
             'template' => $template,
-            'category' => $template->category,
+            'category' => $category,
             'agreementDate' => $agreementDate ?? now()->format('Y-m-d'),
         ])->render();
     }
@@ -71,9 +97,10 @@ class AgreementPdfService
         Model $record,
         ?string $agreementDate = null
     ) {
-        $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate);
+        $template->loadMissing('category');
+        $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate, false, true);
 
-        return Pdf::loadHTML($html)->setPaper('a4', 'portrait');
+        return $this->buildPdf($html, $template->category);
     }
 
     public function previewPdf(
@@ -82,9 +109,59 @@ class AgreementPdfService
         ?string $agreementDate = null
     ) {
         $rider = $rider ?? new Riders(['name' => 'Sample Rider', 'rider_id' => 'R-0001']);
-        $html = $this->renderHtml($template, $rider, $agreementDate, $rider->exists === false);
+        $template->loadMissing('category');
+        $html = $this->renderHtmlForModule(
+            $template,
+            'riders',
+            $rider,
+            $agreementDate,
+            $rider->exists === false,
+            true
+        );
 
-        return Pdf::loadHTML($html)->setPaper('a4', 'portrait');
+        return $this->buildPdf($html, $template->category);
+    }
+
+    private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null)
+    {
+        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'portrait');
+
+        $dompdf = $pdf->getDomPDF();
+        $options = $dompdf->getOptions();
+        $options->setIsHtml5ParserEnabled(true);
+        $options->setIsRemoteEnabled(true);
+        $options->setDefaultFont('DejaVu Sans');
+        $options->setDpi(96);
+        $options->setChroot([
+            storage_path('app/public'),
+            public_path(),
+        ]);
+
+        if ($category?->hasLetterhead()) {
+            $pdf->setBasePath(storage_path('app/public'));
+        }
+
+        return $pdf;
+    }
+
+    private function resolveLetterheadFileSrc(?\App\Models\AgreementCategory $category): ?string
+    {
+        $path = $category?->letterheadFilesystemPath();
+        if ($path === null) {
+            return null;
+        }
+
+        $real = realpath($path);
+        if ($real === false || ! is_readable($real)) {
+            return null;
+        }
+
+        $publicRoot = realpath(storage_path('app/public'));
+        if ($publicRoot !== false && str_starts_with($real, $publicRoot)) {
+            return str_replace('\\', '/', substr($real, strlen($publicRoot) + 1));
+        }
+
+        return str_replace('\\', '/', $real);
     }
 
     private function sampleMap(): array

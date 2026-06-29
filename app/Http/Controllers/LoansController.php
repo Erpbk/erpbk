@@ -585,6 +585,7 @@ class LoansController extends AppBaseController
     {
         return [
             'name' => 'Loan',
+            'module_key' => 'loans',
             'display_columns' => ['loan_number', 'agreement_ref', 'status'],
             'trash_view' => 'loans.trash',
             'index_route' => 'loans.index',

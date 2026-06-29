@@ -5,8 +5,8 @@ namespace App\Traits;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Support\TrashedRecordQuery;
 use Laracasts\Flash\Flash;
-use Carbon\Carbon;
 
 trait HasTrashFunctionality
 {
@@ -25,8 +25,7 @@ trait HasTrashFunctionality
 
         $searchQuery = $request->get('search', '');
         
-        // Query trashed records using Eloquent
-        $query = $modelClass::onlyTrashed()
+        $query = TrashedRecordQuery::for($modelClass)
             ->orderBy('deleted_at', 'desc');
         
         // Apply search if provided
@@ -61,7 +60,7 @@ trait HasTrashFunctionality
             abort(403, 'Unauthorized action.');
         }
 
-        $record = $modelClass::onlyTrashed()->find($id);
+        $record = TrashedRecordQuery::find($modelClass, $id);
         
         if (!$record) {
             Flash::error($config['name'] . ' not found in trash.');
@@ -128,7 +127,7 @@ trait HasTrashFunctionality
             abort(403, 'Unauthorized action.');
         }
 
-        $record = $modelClass::onlyTrashed()->find($id);
+        $record = TrashedRecordQuery::find($modelClass, $id);
         
         if (!$record) {
             Flash::error($config['name'] . ' not found in trash.');

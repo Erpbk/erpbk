@@ -6,6 +6,8 @@ use App\Helpers\Common;
 use App\Helpers\General;
 use App\Models\RiderInvoices;
 use App\Models\Transactions;
+use App\Services\Agreements\AgreementPdfBranding;
+use App\Support\CompanyContext;
 use Illuminate\Support\Facades\DB;
 
 class RiderInvoiceViewDataBuilder
@@ -102,8 +104,12 @@ class RiderInvoiceViewDataBuilder
         $total_deductions = ($fines > 0 ? $fines : 0) + ($salik > 0 ? $salik : 0) + ($cod > 0 ? $cod : 0) + ($penalty > 0 ? $penalty : 0) + ($advance_salary > 0 ? $advance_salary : 0) + ($vendor_charges > 0 ? $vendor_charges : 0) + ($rider_balance > 0 ? $rider_balance : 0);
         $total_additions = ($incentive > 0 ? $incentive : 0) + ($rider_balance < 0 ? abs($rider_balance) : 0);
 
+        $companyId = $riderInvoice->company_id ?? CompanyContext::id();
+        $brand = app(AgreementPdfBranding::class)->forCompany($companyId);
+
         return [
             'settings' => $settings,
+            'brand' => $brand,
             'total' => $total,
             'total_qty' => $total_qty,
             'running_total' => $running_total,

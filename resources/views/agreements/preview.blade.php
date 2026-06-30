@@ -96,22 +96,22 @@
     <strong>{{ $template->template_name ?? 'Agreement Preview' }}</strong>
     <button type="button" onclick="printPreview()" class="btn-primary">Print</button>
     @php
-      $pdfDownloadUrl = $pdfDownloadUrl ?? null;
-      if (! $pdfDownloadUrl && isset($rider) && $rider instanceof \Illuminate\Database\Eloquent\Model && $rider->exists) {
-          $pdfDownloadUrl = route('rider-agreements.pdf', [
-              'company_slug' => request()->route('company_slug'),
-              'riderId' => $rider->id,
-              'template_id' => $template->id,
-              'agreement_date' => request('agreement_date', now()->format('Y-m-d')),
-              'download' => 1,
-          ]);
-      }
-      if (! $pdfDownloadUrl && ! empty($template->id)) {
-          $pdfDownloadUrl = route('agreements.preview-pdf', [
-              'company_slug' => request()->route('company_slug'),
-              'id' => $template->id,
-          ]);
-      }
+    $pdfDownloadUrl = $pdfDownloadUrl ?? null;
+    if (! $pdfDownloadUrl && isset($rider) && $rider instanceof \Illuminate\Database\Eloquent\Model && $rider->exists) {
+    $pdfDownloadUrl = route('rider-agreements.pdf', [
+    'company_slug' => request()->route('company_slug'),
+    'riderId' => $rider->id,
+    'template_id' => $template->id,
+    'agreement_date' => request('agreement_date', now()->format('Y-m-d')),
+    'download' => 1,
+    ]);
+    }
+    if (! $pdfDownloadUrl && ! empty($template->id)) {
+    $pdfDownloadUrl = route('agreements.preview-pdf', [
+    'company_slug' => request()->route('company_slug'),
+    'id' => $template->id,
+    ]);
+    }
     @endphp
     @if($pdfDownloadUrl)
     <a href="{{ $pdfDownloadUrl }}">Download PDF</a>
@@ -153,51 +153,11 @@
       window.printPreview = function() {
         try {
           var win = frame.contentWindow;
-          var doc = frame.contentDocument || win.document;
           if (typeof win.__agreementRepaginate === 'function') {
             win.__agreementRepaginate();
           }
-
-          var pages = doc.getElementById('agreement-preview-pages');
-          if (!pages || !pages.children.length) {
-            win.focus();
-            win.print();
-            return;
-          }
-
-          var styleEl = doc.querySelector('style');
-          var printDoc = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Print Agreement</title>';
-          if (styleEl) {
-            printDoc += '<style>' + styleEl.innerHTML + '</style>';
-          }
-          printDoc += '</head><body>' + pages.outerHTML + '</body></html>';
-
-          var printWin = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
-          if (!printWin) {
-            win.focus();
-            win.print();
-            return;
-          }
-
-          printWin.document.open();
-          printWin.document.write(printDoc);
-          printWin.document.close();
-
-          var started = false;
-          function startPrint() {
-            if (started) {
-              return;
-            }
-            started = true;
-            printWin.focus();
-            printWin.print();
-            printWin.addEventListener('afterprint', function() {
-              printWin.close();
-            });
-          }
-
-          printWin.onload = startPrint;
-          setTimeout(startPrint, 500);
+          win.focus();
+          win.print();
         } catch (e) {
           try {
             frame.contentWindow.print();

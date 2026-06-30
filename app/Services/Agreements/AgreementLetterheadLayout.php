@@ -50,25 +50,21 @@ class AgreementLetterheadLayout
         $defaults = $this->defaultMarginsMm();
 
         $saved = $category?->letterhead_margins;
-        $merged = is_array($saved) && $saved !== []
-            ? array_merge($defaults, array_intersect_key($saved, $defaults))
-            : $defaults;
-
-        if ($category && ($path = $category->letterheadFilesystemPath())) {
-            $detected = $this->detectMarginsFromImage($path);
-            $merged = [
-                'top' => max((float) $merged['top'], $detected['top']),
-                'bottom' => max((float) $merged['bottom'], $detected['bottom']),
-                'left' => max((float) $merged['left'], $detected['left']),
-                'right' => max((float) $merged['right'], $detected['right']),
-            ];
-        }
+        $side = config('agreement_letterhead.side_margins_mm', ['left' => 12, 'right' => 12]);
 
         return [
-            'top' => $this->clamp((float) $merged['top'], 15, 110),
-            'bottom' => $this->clamp((float) $merged['bottom'], 15, 120),
-            'left' => $this->clamp((float) $merged['left'], 8, 55),
-            'right' => $this->clamp((float) $merged['right'], 8, 55),
+            'top' => $defaults['top'],
+            'bottom' => $defaults['bottom'],
+            'left' => $this->clamp(
+                (float) (is_array($saved) ? ($saved['left'] ?? $side['left']) : $side['left']),
+                8,
+                55
+            ),
+            'right' => $this->clamp(
+                (float) (is_array($saved) ? ($saved['right'] ?? $side['right']) : $side['right']),
+                8,
+                55
+            ),
         ];
     }
 
@@ -197,12 +193,18 @@ class AgreementLetterheadLayout
      */
     public function defaultMarginsMm(): array
     {
-        return config('agreement_letterhead.margins_mm', [
-            'top' => 48,
-            'bottom' => 52,
-            'left' => 18,
-            'right' => 18,
-        ]);
+        $pageH = $this->pageHeightMm();
+        $headerReserve = (float) config('agreement_letterhead.header_reserve_mm', 32);
+        $topGapPct = (float) config('agreement_letterhead.content_top_gap_pct', 0.02);
+        $bottomPct = (float) config('agreement_letterhead.content_bottom_pct', 0.05);
+        $side = config('agreement_letterhead.side_margins_mm', ['left' => 12, 'right' => 12]);
+
+        return [
+            'top' => round($headerReserve + ($pageH * $topGapPct), 1),
+            'bottom' => round($pageH * $bottomPct, 1),
+            'left' => (float) ($side['left'] ?? 12),
+            'right' => (float) ($side['right'] ?? 12),
+        ];
     }
 
     public function pageMarginCss(?AgreementCategory $category): string

@@ -46,6 +46,7 @@ class AgreementPdfBranding
             $branding['city'] ?? '',
             $branding['country'] ?? '',
         ])));
+        $branding['website_display'] = $this->resolveWebsiteDisplay($branding);
 
         return $branding;
     }
@@ -113,6 +114,22 @@ class AgreementPdfBranding
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $branding
+     */
+    private function resolveWebsiteDisplay(array $branding): string
+    {
+        $appUrl = trim((string) ($branding['app_url'] ?? ''));
+        if ($appUrl === '') {
+            return '';
+        }
+
+        $display = preg_replace('#^https?://#i', '', $appUrl) ?? $appUrl;
+        $display = rtrim($display, '/');
+
+        return $display;
     }
 
     public function normalizeHex(string $color): string

@@ -1,10 +1,10 @@
 @php
 $s = $branding['secondary_color'] ?? '#2563eb';
-$email = $branding['email'] ?? '';
-$phone = $branding['phone'] ?? '';
-$address = $branding['address'] ?? '';
-$locationLine = $branding['location_line'] ?? '';
-$addressLine = $locationLine !== '' ? $locationLine : $address;
+$name = trim((string) ($branding['name'] ?? ''));
+$email = trim((string) ($branding['email'] ?? ''));
+$phone = trim((string) ($branding['phone'] ?? ''));
+$address = trim((string) ($branding['address'] ?? ''));
+$locationLine = trim((string) ($branding['location_line'] ?? ''));
 @endphp
 <header class="page-header">
   <div class="page-header-inner">
@@ -14,20 +14,17 @@ $addressLine = $locationLine !== '' ? $locationLine : $address;
           @include('agreements.pdf.partials.logo')
         </td>
         <td class="page-header-info">
+          @if($name !== '')
+          <p class="page-header-meta">{{ $name }}</p>
+          @endif
           @if($email !== '')
           <p class="page-header-meta">{{ $email }}</p>
-          @endif
-          @if($branding['company_id'] !== '')
-          @php
-          $company = \App\Models\Company::find($branding['company_id']);
-          @endphp
-          <p class="page-header-meta">{{ $company->name ?? '' }}</p>
           @endif
           @if($phone !== '')
           <p class="page-header-meta">{{ $phone }}</p>
           @endif
-          @if($addressLine !== '')
-          <p class="page-header-meta">{{ $addressLine }}</p>
+          @if($address !== '')
+          <p class="pag e-header-meta">{{ $locationLine !== '' ? $locationLine . ', ' : '' }}{{ $address }} </p>
           @endif
         </td>
       </tr>

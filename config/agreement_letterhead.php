@@ -19,7 +19,7 @@ return [
      * Total header block height in the page flow (mm).
      * Matches .page-header padding-top + logo + rule in letterhead.blade.php.
      */
-    'header_chrome_height_mm' => 35,
+    'header_chrome_height_mm' => 33,
 
     /** Gap between header and content, as a fraction of page height. */
     'content_top_gap_pct' => 0.02,

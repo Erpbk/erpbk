@@ -177,7 +177,7 @@ class AgreementLetterheadLayout
     public function contentPaddingMm(bool $withLetterhead): array
     {
         $pageH = $this->pageHeightMm();
-        $headerChrome = (float) config('agreement_letterhead.header_chrome_height_mm', 35);
+        $headerChrome = (float) config('agreement_letterhead.header_chrome_height_mm', 33);
         $contentGap = round($pageH * (float) config('agreement_letterhead.content_top_gap_pct', 0.02), 1);
         $bottom = (float) config('agreement_letterhead.footer_reserve_mm', 10);
         if ($bottom <= 0) {
@@ -213,21 +213,19 @@ class AgreementLetterheadLayout
     /**
      * Usable content height per page, aligned with letterhead.blade.php layout.
      * Identical with or without digital letterhead so pre-printed paper aligns.
+     * Same budget for preview and PDF download so page breaks match.
      */
-    public function contentZoneHeightMm(bool $withLetterhead = true, bool $forPdf = false): float
+    public function contentZoneHeightMm(bool $withLetterhead = true): float
     {
         $pageH = $this->pageHeightMm();
-        $headerChrome = (float) config('agreement_letterhead.header_chrome_height_mm', 35);
+        $headerChrome = (float) config('agreement_letterhead.header_chrome_height_mm', 33);
         $contentGap = round($pageH * (float) config('agreement_letterhead.content_top_gap_pct', 0.02), 1);
         $bottom = (float) config('agreement_letterhead.footer_reserve_mm', 10);
         if ($bottom <= 0) {
             $bottom = round($pageH * (float) config('agreement_letterhead.content_bottom_pct', 0.034), 1);
         }
-        $pdfExtra = ($forPdf && $withLetterhead)
-            ? (float) config('agreement_letterhead.pdf_content_top_extra_mm', 5)
-            : 0.0;
 
-        return max(40, $pageH - $headerChrome - $contentGap - $bottom - $pdfExtra);
+        return max(40, $pageH - $headerChrome - $contentGap - $bottom);
     }
 
     public function pageWidthMm(): float

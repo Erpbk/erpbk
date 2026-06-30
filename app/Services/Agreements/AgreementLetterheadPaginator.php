@@ -73,7 +73,79 @@ class AgreementLetterheadPaginator
             return trim(strip_tags($html)) !== '';
         }));
 
+        if ($pages !== []) {
+            $pages = $this->rebalancePages($pages);
+        }
+
         return $pages !== [] ? $pages : [$bodyHtml];
+    }
+
+    /**
+     * Merge trailing short pages so content fills pages like the browser preview.
+     *
+     * @param  list<string>  $pages
+     * @return list<string>
+     */
+    private function rebalancePages(array $pages): array
+    {
+        while (count($pages) >= 2) {
+            $last = $pages[count($pages) - 1];
+            if ($this->estimateHtmlHeightPt($last) >= $this->budgetPt * 0.32) {
+                break;
+            }
+
+            $tail = array_pop($pages);
+            $prev = array_pop($pages);
+            $combined = $prev . $tail;
+            if ($this->estimateHtmlHeightPt($combined) > $this->budgetPt * 0.97) {
+                $pages[] = $prev;
+                $pages[] = $tail;
+
+                break;
+            }
+
+            $pages[] = $combined;
+        }
+
+        $merged = [];
+        foreach ($pages as $html) {
+            if ($merged === []) {
+                $merged[] = $html;
+
+                continue;
+            }
+
+            $lastIdx = count($merged) - 1;
+            $combined = $merged[$lastIdx] . $html;
+            if ($this->estimateHtmlHeightPt($combined) <= $this->budgetPt * 0.97) {
+                $merged[$lastIdx] = $combined;
+            } else {
+                $merged[] = $html;
+            }
+        }
+
+        return $merged;
+    }
+
+    private function estimateHtmlHeightPt(string $html): float
+    {
+        $dom = new DOMDocument('1.0', 'UTF-8');
+        @$dom->loadHTML(
+            '<?xml encoding="UTF-8"><html><body><div id="agreement-root">' . $html . '</div></body></html>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+        );
+
+        $root = $dom->getElementById('agreement-root');
+        if (! $root instanceof DOMElement) {
+            return $this->budgetPt;
+        }
+
+        $total = 0.0;
+        foreach ($this->expandNodes($dom, $root) as $node) {
+            $total += $this->safeEstimate($this->estimateNodeHeightPt($node));
+        }
+
+        return $total;
     }
 
     /**

@@ -15,6 +15,10 @@
   $contentPadTopMm = $pad['top'];
   $contentPadBottomMm = $pad['bottom'];
   $headerTopMarginMm = (float) config('agreement_letterhead.header_top_margin_mm', 8);
+  $headerChromeMm = (float) config('agreement_letterhead.header_chrome_height_mm', 33);
+  $contentZoneMm = $contentZoneHeightMm ?? max(40, $pageH - $headerChromeMm - $contentPadTopMm - $contentPadBottomMm);
+  $pageChromeMm = $withLetterhead ? $headerChromeMm : 0.0;
+  $contentFlowMaxMm = max(40, $pageH - $pageChromeMm);
   $p = $branding['primary_color'] ?? '#1e3a8a';
   $s = $branding['secondary_color'] ?? '#2563eb';
   @endphp
@@ -40,24 +44,28 @@
 
     .agreement-page {
       position: relative;
+      display: flex;
+      flex-direction: column;
       width: {{ $pageW }}mm;
       height: {{ $pageH }}mm;
       min-height: {{ $pageH }}mm;
+      max-height: {{ $pageH }}mm;
       overflow: hidden;
       background: #fff;
       box-sizing: border-box;
       page-break-after: always;
+      page-break-inside: avoid;
+    }
+
+    .agreement-page-header {
+      flex: 0 0 auto;
+      position: relative;
+      z-index: 2;
     }
 
     .agreement-page:last-child {
       page-break-after: avoid;
     }
-
-    @if (! $forPdf)
-    .agreement-page + .agreement-page {
-      page-break-before: always;
-    }
-    @endif
 
     .page-decor {
       position: absolute;
@@ -229,8 +237,11 @@
     .page-content-flow {
       position: relative;
       z-index: 3;
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: {{ $contentFlowMaxMm }}mm;
       padding: {{ $contentPadTopMm }}mm {{ $mr }}mm {{ $contentPadBottomMm }}mm {{ $ml }}mm;
-      overflow: visible;
+      overflow: hidden;
       box-sizing: border-box;
     }
 
@@ -243,10 +254,12 @@
     .content {
       width: 100%;
       max-width: 100%;
+      max-height: {{ $contentZoneMm }}mm;
       margin: 0;
       padding: 0;
       font-size: 8.5pt;
       line-height: 1.35;
+      overflow: hidden;
       overflow-wrap: break-word;
       word-wrap: break-word;
       word-break: break-word;
@@ -294,7 +307,27 @@
       max-width: 100%;
     }
 
-    @if (! $forPdf)
+    @if ($forPdf)
+    .pdf-pages {
+      width: {{ $pageW }}mm;
+      margin: 0;
+      padding: 0;
+    }
+
+    .pdf-pages .agreement-page {
+      margin: 0;
+      box-shadow: none;
+      page-break-inside: avoid;
+    }
+
+    .pdf-pages .agreement-page:not(:last-child) {
+      page-break-after: always;
+    }
+
+    .pdf-pages .agreement-page:last-child {
+      page-break-after: avoid;
+    }
+    @else
     .preview-pages {
       width: {{ $pageW }}mm;
       margin: 0 auto;
@@ -342,10 +375,6 @@
         page-break-after: avoid !important;
       }
 
-      .preview-pages .agreement-page + .agreement-page {
-        page-break-before: always !important;
-      }
-
       .corner-blob,
       .page-header-rule {
         -webkit-print-color-adjust: exact !important;
@@ -361,10 +390,13 @@
     @foreach ($renderPages as $pageBody)
     <div class="agreement-page {{ $forPdf ? 'pdf-page' : 'preview-page' }}">
       @if($withLetterhead)
-      @include('agreements.pdf.partials.page-chrome', [
+      @include('agreements.pdf.partials.page-decor', [
         'pageWidthMm' => $pageW,
         'pageHeightMm' => $pageH,
       ])
+      <div class="agreement-page-header">
+        @include('agreements.pdf.partials.page-header')
+      </div>
       @endif
       <main class="page-content-flow {{ $forPdf ? 'pdf-page-flow' : 'document-flow' }}">
         <div class="content {{ $forPdf ? 'pdf-page-content' : '' }}">

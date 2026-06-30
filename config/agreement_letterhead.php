@@ -24,7 +24,7 @@ return [
 
     /**
      * Extra space below the header rule for DomPDF only (mm).
-     * DomPDF positions absolute content slightly higher than browser preview.
+     * DomPDF renders absolute content slightly higher than browser preview.
      */
-    'pdf_content_top_extra_mm' => 6,
+    'pdf_content_top_extra_mm' => 5,
 ];

@@ -8,41 +8,6 @@ use GdImage;
 class AgreementLetterheadLayout
 {
     /**
-     * Margins stored on the agreement (for settings forms), without PDF floor enforcement.
-     *
-     * @return array{top: float, bottom: float, left: float, right: float}
-     */
-    public function savedMarginsMm(?AgreementCategory $category): array
-    {
-        $defaults = $this->defaultMarginsMm();
-        $saved = $category?->letterhead_margins;
-
-        if (is_array($saved) && $saved !== []) {
-            $merged = array_merge($defaults, array_intersect_key($saved, $defaults));
-        } elseif ($category && ($path = $category->letterheadFilesystemPath())) {
-            $merged = $this->detectMarginsFromImage($path);
-        } else {
-            $merged = $defaults;
-        }
-
-        return $this->clampMargins($merged);
-    }
-
-    /**
-     * Auto-detected minimum margins from letterhead artwork (read-only hint for settings UI).
-     *
-     * @return array{top: float, bottom: float, left: float, right: float}|null
-     */
-    public function detectedMarginsMm(?AgreementCategory $category): ?array
-    {
-        if (! $category || ($path = $category->letterheadFilesystemPath()) === null) {
-            return null;
-        }
-
-        return $this->clampMargins($this->detectMarginsFromImage($path));
-    }
-
-    /**
      * @return array{top: float, bottom: float, left: float, right: float}
      */
     public function resolvedMarginsMm(?AgreementCategory $category): array
@@ -65,29 +30,6 @@ class AgreementLetterheadLayout
                 8,
                 55
             ),
-        ];
-    }
-
-    /**
-     * @param  array{top?: float|int|string, bottom?: float|int|string, left?: float|int|string, right?: float|int|string}  $margins
-     * @return array{top: float, bottom: float, left: float, right: float}
-     */
-    public function normalizeMarginsMm(array $margins): array
-    {
-        return $this->clampMargins($margins);
-    }
-
-    /**
-     * @param  array{top?: float|int|string, bottom?: float|int|string, left?: float|int|string, right?: float|int|string}  $margins
-     * @return array{top: float, bottom: float, left: float, right: float}
-     */
-    private function clampMargins(array $margins): array
-    {
-        return [
-            'top' => $this->clamp((float) ($margins['top'] ?? 0), 15, 110),
-            'bottom' => $this->clamp((float) ($margins['bottom'] ?? 0), 15, 120),
-            'left' => $this->clamp((float) ($margins['left'] ?? 0), 8, 55),
-            'right' => $this->clamp((float) ($margins['right'] ?? 0), 8, 55),
         ];
     }
 

@@ -142,7 +142,6 @@ class BikeCustomField extends BaseModel
             'maintenance_km',
             'previous_km',
             'customer_id',
-            'emirates',
             'rider_id',
             'warehouse',
             'rental_company_id',
@@ -167,6 +166,23 @@ class BikeCustomField extends BaseModel
             '' => 'Select',
             'Owned' => 'Owned',
             'Leased' => 'Leased',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function emiratesHubSelectOptions(): array
+    {
+        return [
+            '' => 'Select',
+            'DXB' => 'DXB',
+            'AUH' => 'AUH',
+            'UAQ' => 'UAQ',
+            'RAK' => 'RAK',
+            'SHJ' => 'SHJ',
+            'FUJ' => 'FUJ',
+            'AJM' => 'AJM',
         ];
     }
 
@@ -291,6 +307,14 @@ class BikeCustomField extends BaseModel
                     'Express Garage' => 'Express Garage',
                     'Absconded' => 'Absconded',
                 ];
+                break;
+            case 'emirates-hub':
+                $opts = Common::Dropdowns('emirates-hub');
+                if (empty($opts)) {
+                    $opts = self::emiratesHubSelectOptions();
+                } else {
+                    $opts = ['' => 'Select'] + $opts;
+                }
                 break;
             default:
                 $opts = !empty($dropdownKey) ? Common::Dropdowns($dropdownKey) : [];

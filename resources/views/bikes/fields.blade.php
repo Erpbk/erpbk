@@ -7,7 +7,6 @@ $hiddenFieldKeys = [
 'maintenance_km',
 'previous_km',
 'customer_id',
-'emirates',
 'rider_id',
 ];
 $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
@@ -64,27 +63,47 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
 
 <script>
     (function() {
+        function getBikeFormRoot(scope) {
+            if (scope && scope.nodeType === 1) {
+                if (scope.id === 'formajax') {
+                    return scope;
+                }
+                var nested = scope.querySelector('#formajax');
+                if (nested) {
+                    return nested;
+                }
+                if (scope.querySelector && scope.querySelector('select')) {
+                    return scope;
+                }
+            }
+            return document.getElementById('formajax') || document;
+        }
+
         function initBikeFormSelect2(scope) {
             if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
                 return;
             }
 
             var $ = window.jQuery;
-            var $scope = scope ? $(scope) : $(document);
-            $scope.find('select.select2').each(function() {
+            var $root = $(getBikeFormRoot(scope));
+            if (!$root.length) {
+                return;
+            }
+
+            $root.find('select').each(function() {
                 var $el = $(this);
+                $el.addClass('select2');
+
                 var $modalParent = $el.closest('.modal, .offcanvas');
                 var options = {
-                    width: '100%'
+                    width: '100%',
+                    allowClear: true
                 };
 
                 if ($modalParent.length) {
                     options.dropdownParent = $modalParent;
-                } else {
-                    var $formParent = $el.closest('#formajax');
-                    if ($formParent.length) {
-                        options.dropdownParent = $formParent;
-                    }
+                } else if ($root.is('#formajax')) {
+                    options.dropdownParent = $root;
                 }
 
                 if ($el.data('select2')) {
@@ -107,22 +126,38 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
             });
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            toggleCyclistFields();
-            initBikeFormSelect2(document);
-
+        function bindCyclistToggle() {
             var vehicleTypeEl = document.getElementById('vehicle_type');
-            if (vehicleTypeEl) {
-                vehicleTypeEl.addEventListener('change', toggleCyclistFields);
+            if (!vehicleTypeEl || vehicleTypeEl.dataset.cyclistToggleBound === '1') {
+                return;
+            }
+            vehicleTypeEl.dataset.cyclistToggleBound = '1';
+            vehicleTypeEl.addEventListener('change', toggleCyclistFields);
+        }
+
+        function bootBikeForm(scope) {
+            toggleCyclistFields();
+            bindCyclistToggle();
+            initBikeFormSelect2(scope);
+        }
+
+        window.initBikeFormSelect2 = initBikeFormSelect2;
+
+        bootBikeForm();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            bootBikeForm();
+        });
+
+        document.addEventListener('shown.bs.modal', function(e) {
+            if (e.target && e.target.querySelector('#formajax')) {
+                bootBikeForm(e.target);
             }
         });
-
-        // Ensure Select2 works when bike forms are loaded inside modals via AJAX.
-        document.addEventListener('shown.bs.modal', function(e) {
-            initBikeFormSelect2(e.target);
-        });
         document.addEventListener('shown.bs.offcanvas', function(e) {
-            initBikeFormSelect2(e.target);
+            if (e.target && e.target.querySelector('#formajax')) {
+                bootBikeForm(e.target);
+            }
         });
     })();
 </script>

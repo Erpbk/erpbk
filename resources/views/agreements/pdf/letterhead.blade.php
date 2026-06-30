@@ -13,12 +13,7 @@
   $mr = $m['right'];
   $forPdf = ! empty($forPdf);
   $contentW = max(1, $pageW - $ml - $mr);
-  $contentH = max(40, $pageH - $mt - $mb);
-  $pdfTopExtra = $forPdf ? (float) config('agreement_letterhead.pdf_content_top_extra_mm', 5) : 0.0;
-  $contentTopMm = $mt + $pdfTopExtra;
-  $contentTopCss = $forPdf
-    ? round($contentTopMm * (72 / 25.4), 2) . 'pt'
-    : $mt . 'mm';
+  $contentGapMm = round($pageH * (float) config('agreement_letterhead.content_top_gap_pct', 0.02), 1);
   $p = $branding['primary_color'] ?? '#1e3a8a';
   $s = $branding['secondary_color'] ?? '#2563eb';
   @endphp
@@ -46,8 +41,15 @@
       position: relative;
       width: {{ $pageW }}mm;
       height: {{ $pageH }}mm;
+      min-height: {{ $pageH }}mm;
       overflow: hidden;
       background: #fff;
+      box-sizing: border-box;
+      page-break-after: always;
+    }
+
+    .agreement-page:last-child {
+      page-break-after: avoid;
     }
 
     @if (! $forPdf)
@@ -60,8 +62,10 @@
       position: absolute;
       top: 0;
       left: 0;
-      width: {{ $pageW }}mm;
-      height: {{ $pageH }}mm;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
@@ -158,10 +162,7 @@
     }
 
     .page-header {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
+      position: relative;
       z-index: 2;
       padding-top: 8mm;
       pointer-events: none;
@@ -225,19 +226,16 @@
     }
 
     .page-content-flow {
-      position: absolute;
-      top: {{ $contentTopCss }};
-      left: {{ $ml }}mm;
-      right: {{ $mr }}mm;
-      bottom: {{ $mb }}mm;
+      position: relative;
       z-index: 3;
-      overflow: hidden;
+      padding: {{ $contentGapMm }}mm {{ $mr }}mm {{ $mb }}mm {{ $ml }}mm;
+      overflow: visible;
       box-sizing: border-box;
     }
 
     @if ($forPdf)
     .page-content-flow .content {
-      padding-top: 1mm;
+      padding-top: 0;
     }
     @endif
 
@@ -247,17 +245,17 @@
       margin: 0;
       padding: 0;
       font-size: 8.5pt;
-      line-height: 1.4;
+      line-height: 1.35;
       overflow-wrap: break-word;
       word-wrap: break-word;
       word-break: break-word;
       box-sizing: border-box;
     }
 
-    .content p { margin: 0 0 6pt; max-width: 100%; }
+    .content p { margin: 0 0 4pt; max-width: 100%; }
     .content h1, .content h2, .content h3, .content h4 {
       font-size: 10.5pt;
-      margin: 10pt 0 5pt;
+      margin: 8pt 0 4pt;
       color: {{ $p }};
       page-break-after: avoid;
       max-width: 100%;
@@ -267,7 +265,7 @@
       max-width: 100% !important;
       table-layout: fixed;
       border-collapse: collapse;
-      margin: 6pt 0;
+      margin: 4pt 0;
       page-break-inside: auto;
     }
     .content table th, .content table td {
@@ -281,7 +279,7 @@
     }
     .content thead { display: table-header-group; }
     .content tbody tr { page-break-inside: auto; }
-    .content ul, .content ol { margin: 4pt 0 6pt 16pt; padding: 0; max-width: 100%; }
+    .content ul, .content ol { margin: 2pt 0 4pt 16pt; padding: 0; max-width: 100%; }
     .content img { max-width: 100% !important; height: auto !important; }
     .content div, .content span, .content li, .content blockquote {
       max-width: 100%;
@@ -331,9 +329,16 @@
       .preview-pages .agreement-page {
         margin: 0 !important;
         box-shadow: none !important;
-        page-break-after: avoid !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+      }
+
+      .preview-pages .agreement-page:not(:last-child) {
+        page-break-after: always !important;
+      }
+
+      .preview-pages .agreement-page:last-child {
+        page-break-after: avoid !important;
       }
 
       .preview-pages .agreement-page + .agreement-page {

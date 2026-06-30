@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Concerns;
 
 use App\Helpers\Account;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\Accounts;
 use App\Models\Branch;
 use App\Models\ExpenseAccount;
@@ -285,7 +285,7 @@ trait ManagesVisaInstallments
 
                 // Credit the rider account (visa expense account) for each installment
                 $TransactionService->recordTransaction([
-                    'account_id' => HeadAccount::VISA_EXPENSE_ACCOUNT,
+                    'account_id' => GlobalAccounts::id('VISA_EXPENSE_ACCOUNT'),
                     'reference_id' => $installment->id,
                     'reference_type' => 'VL',
                     'trans_code' => $trans_code,

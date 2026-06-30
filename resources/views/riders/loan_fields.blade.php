@@ -26,7 +26,7 @@ $voucherType = isset($vt) ? $vt : request('vt');
 @if(in_array($voucherType,['LV']))
 <div class="form-group col-md-3">
     <label for="exampleInputEmail1">Bank/Cash A/C</label>
-    {!! Form::select('payment_from',\App\Models\Accounts::dropdown(\App\Helpers\HeadAccount::BANK),null ,['class' => 'form-control select2 ','id'=>'payment_from']) !!}
+    {!! Form::select('payment_from',\App\Models\Accounts::dropdown(ga_id('BANK')),null ,['class' => 'form-control select2 ','id'=>'payment_from']) !!}
 </div>
 @endif
 {{-- @if($voucherType==9)

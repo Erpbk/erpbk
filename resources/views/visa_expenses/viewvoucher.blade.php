@@ -179,7 +179,7 @@ $riderUnpaidTotal = company_table('visa_expenses')
                     <input type="hidden" name="trans_date" value="{{ $data->trans_date }}">
                     <input type="hidden" name="trans_code" value="{{ $data->trans_code }}">
                     <input type="hidden" name="billing_month" value="{{ $data->billing_month }}">
-                    <input type="hidden" name="payment_type" value="{{ company_table('accounts')->where('id', \App\Helpers\HeadAccount::VISA_EXPENSE_ACCOUNT)->first()->account_type }}">
+                    <input type="hidden" name="payment_type" value="{{ company_table('accounts')->where('id', ga_id('VISA_EXPENSE_ACCOUNT'))->first()->account_type }}">
                     <input type="hidden" name="voucher_type" value="LV">
                     <input type="hidden" name="amount" value="{{ $data->amount }}">
                     <input type="hidden" name="Created_By" value="{{ Auth::user()->id }}">

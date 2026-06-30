@@ -1,4 +1,4 @@
-<input type="hidden" name="payment_from" value="{{\App\Helpers\HeadAccount::ADVANCE_LOAN}}" />
+<input type="hidden" name="payment_from" value="{{ga_id('ADVANCE_LOAN')}}" />
 <div id="rows-container" style="width: 98%;">
     @isset($data)
     @foreach($data as $entry)

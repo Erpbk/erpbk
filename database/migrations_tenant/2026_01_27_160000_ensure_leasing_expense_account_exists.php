@@ -10,8 +10,8 @@ return new class extends Migration
      * Run the migrations.
      * Ensures account 1129 (Leasing Expense) exists so leasing company invoice
      * debit transactions can be recorded. If your chart of accounts uses different
-     * IDs, create this account manually and set HeadAccount::LEASING_EXPENSE_ACCOUNT
-     * in app/Helpers/HeadAccount.php to match.
+     * IDs, create this account manually and configure GlobalAccounts::id('LEASING_EXPENSE_ACCOUNT')
+     * in Admin → Global Accounts (code LEASING_EXPENSE_ACCOUNT).
      */
     public function up(): void
     {

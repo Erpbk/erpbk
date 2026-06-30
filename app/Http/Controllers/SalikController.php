@@ -28,7 +28,7 @@ use DB;
 use Auth;
 use App\Imports\SalikImport;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 
 class SalikController extends AppBaseController
 {
@@ -149,7 +149,7 @@ class SalikController extends AppBaseController
             return redirect()->route('salik.index');
         }
 
-        $salikPayableAccount = Accounts::find(HeadAccount::SALIK_PAYABLE_ACCOUNT);
+        $salikPayableAccount = Accounts::find(GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT'));
         $bikes = Bikes::with(['leasingCompany', 'rider'])->get();
         $companies = BikeRentCompany::with(['account'])->where('customer_type', 'bike_rental')->get();
         $salik = null;
@@ -344,7 +344,7 @@ class SalikController extends AppBaseController
         $this->requireSalikVoucherHeadAccounts($totalVat, $totalAdmin);
 
         $debitAccountId = $this->resolveSalikDebitAccountId($firstSalik);
-        $payableAccountId = HeadAccount::SALIK_PAYABLE_ACCOUNT;
+        $payableAccountId = GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT');
         $transCode = Account::trans_code();
         $transDate = now();
         $billingMonthDisplay = Carbon::parse($billingMonthNorm)->format('M Y');
@@ -376,7 +376,7 @@ class SalikController extends AppBaseController
 
         if ($totalVat > 0) {
             $transactionService->recordTransaction([
-                'account_id'     => HeadAccount::VAT_ON_SALES,
+                'account_id'     => GlobalAccounts::id('VAT_ON_SALES'),
                 'reference_id'   => $firstSalik->id,
                 'reference_type' => 'salik',
                 'trans_code'     => $transCode,
@@ -486,29 +486,29 @@ class SalikController extends AppBaseController
 
     private function requireSalikVoucherHeadAccounts(float $vatAmount = 0, float $adminAmount = 0): void
     {
-        $accountIds = [HeadAccount::SALIK_PAYABLE_ACCOUNT];
+        $accountIds = [GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT')];
         if ($vatAmount > 0) {
-            $accountIds[] = HeadAccount::VAT_ON_SALES;
+            $accountIds[] = GlobalAccounts::id('VAT_ON_SALES');
         }
         if ($adminAmount > 0) {
-            $accountIds[] = HeadAccount::SALIK_ADMIN_CHARGES;
+            $accountIds[] = GlobalAccounts::id('SALIK_ADMIN_CHARGES');
         }
-        $this->requireHeadAccountsExist($accountIds, HeadAccount::salikVoucherAccountLabels());
+        $this->requireHeadAccountsExist($accountIds, GlobalAccounts::salikVoucherAccountLabels());
     }
 
     private function requireSalikPaymentHeadAccounts(float $vatDebit, float $ownSalikAmount, float $ownAdminAmount): void
     {
-        $accountIds = [HeadAccount::SALIK_PAYABLE_ACCOUNT];
+        $accountIds = [GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT')];
         if ($vatDebit > 0) {
-            $accountIds[] = HeadAccount::VAT_PURCHASE_ACCOUNT;
+            $accountIds[] = GlobalAccounts::id('VAT_PURCHASE_ACCOUNT');
         }
         if ($ownSalikAmount > 0) {
-            $accountIds[] = HeadAccount::SALIK_ASSET_ACCOUNT;
+            $accountIds[] = GlobalAccounts::id('SALIK_ASSET_ACCOUNT');
         }
         if ($ownAdminAmount > 0) {
-            $accountIds[] = HeadAccount::SALIK_ADMIN_CHARGES;
+            $accountIds[] = GlobalAccounts::id('SALIK_ADMIN_CHARGES');
         }
-        $this->requireHeadAccountsExist($accountIds, HeadAccount::salikPaymentAccountLabels());
+        $this->requireHeadAccountsExist($accountIds, GlobalAccounts::salikPaymentAccountLabels());
     }
 
     private function salikPaymentNarration(?string $billingMonth, string $partyLabel): string
@@ -649,7 +649,7 @@ class SalikController extends AppBaseController
             return redirect()->route('salik.index');
         }
 
-        $salikPayableAccount = Accounts::find(HeadAccount::SALIK_PAYABLE_ACCOUNT);
+        $salikPayableAccount = Accounts::find(GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT'));
         $bikes = Bikes::with(['leasingCompany', 'rider'])->get();
         $companies = BikeRentCompany::with(['account'])->where('customer_type', 'bike_rental')->get();
         return view('salik.edit', compact('salikPayableAccount', 'salik', 'bikes', 'companies'));
@@ -787,7 +787,7 @@ class SalikController extends AppBaseController
             // Handle admin charges transaction
             if ($adminDifference != 0) {
                 $adminTransaction = Transactions::where('trans_code', $salikTransaction->trans_code)
-                    ->where('account_id', HeadAccount::SALIK_ADMIN_CHARGES)
+                    ->where('account_id', GlobalAccounts::id('SALIK_ADMIN_CHARGES'))
                     ->where('credit', '>', 0)
                     ->first();
 
@@ -875,7 +875,7 @@ class SalikController extends AppBaseController
             ->delete();
 
         $totalAmount = $tripAmount + $adminCharges + $totalVat;
-        $payableAccountId = HeadAccount::SALIK_PAYABLE_ACCOUNT;
+        $payableAccountId = GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT');
         $transCode = Account::trans_code();
         $transDate = now();
         $billingMonth = date('Y-m-01', strtotime($validated['trip_date']));
@@ -909,7 +909,7 @@ class SalikController extends AppBaseController
 
         if ($totalVat > 0) {
             $transactionService->recordTransaction([
-                'account_id'     => HeadAccount::VAT_ON_SALES,
+                'account_id'     => GlobalAccounts::id('VAT_ON_SALES'),
                 'reference_id'   => $salik->id,
                 'reference_type' => 'Salik Voucher',
                 'trans_code'     => $transCode,
@@ -949,7 +949,7 @@ class SalikController extends AppBaseController
         $transactionService = new TransactionService();
 
         $transactionService->recordTransaction([
-            'account_id'     => HeadAccount::SALIK_ADMIN_CHARGES,
+            'account_id'     => GlobalAccounts::id('SALIK_ADMIN_CHARGES'),
             'reference_id'   => $referenceId,
             'reference_type' => 'Salik Voucher',
             'trans_code'     => $transCode,
@@ -1200,7 +1200,7 @@ class SalikController extends AppBaseController
             // Update the admin charges transaction if it exists
             if ($adminCharges > 0) {
                 $adminTransaction = Transactions::where('trans_code', $mainVoucherTransCode)
-                    ->where('account_id', HeadAccount::SALIK_ADMIN_CHARGES)
+                    ->where('account_id', GlobalAccounts::id('SALIK_ADMIN_CHARGES'))
                     ->where('credit', '>', 0)
                     ->first();
 
@@ -1280,7 +1280,7 @@ class SalikController extends AppBaseController
 
         // Reverse admin charges if any
         if ($adminCharges > 0) {
-            $transactionService->updateLedger(HeadAccount::SALIK_ADMIN_CHARGES, 0, $adminCharges, $billingMonth);
+            $transactionService->updateLedger(GlobalAccounts::id('SALIK_ADMIN_CHARGES'), 0, $adminCharges, $billingMonth);
         }
 
         // Use helper method to update all narrations consistently
@@ -1378,7 +1378,7 @@ class SalikController extends AppBaseController
 
         // Reverse admin charges if any
         if ($salik->admin_charges > 0) {
-            $transactionService->updateLedger(HeadAccount::SALIK_ADMIN_CHARGES, 0, $salik->admin_charges, $billingMonth);
+            $transactionService->updateLedger(GlobalAccounts::id('SALIK_ADMIN_CHARGES'), 0, $salik->admin_charges, $billingMonth);
             \Log::info("Reversed admin charges: {$salik->admin_charges}");
         }
 
@@ -2049,8 +2049,8 @@ class SalikController extends AppBaseController
         }
 
         $leasingCompanies = LeasingCompanies::orderBy('name')->get();
-        $salikPayableAccount = Accounts::find(HeadAccount::SALIK_PAYABLE_ACCOUNT);
-        $vatPurchaseAccount = Accounts::find(HeadAccount::VAT_PURCHASE_ACCOUNT);
+        $salikPayableAccount = Accounts::find(GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT'));
+        $vatPurchaseAccount = Accounts::find(GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'));
 
         return view('salik.payment', compact('leasingCompanies', 'salikPayableAccount', 'vatPurchaseAccount'));
     }
@@ -2155,18 +2155,18 @@ class SalikController extends AppBaseController
         }
 
         if ($ownSalikAmount > 0) {
-            $assetAccount = Accounts::find(HeadAccount::SALIK_ASSET_ACCOUNT);
+            $assetAccount = Accounts::find(GlobalAccounts::id('SALIK_ASSET_ACCOUNT'));
             $creditLines['own_salik'] = [
-                'account_id' => HeadAccount::SALIK_ASSET_ACCOUNT,
+                'account_id' => GlobalAccounts::id('SALIK_ASSET_ACCOUNT'),
                 'account_name' => $assetAccount?->name ?? 'Salik Asset',
                 'amount' => $ownSalikAmount,
                 'narration' => $this->salikPaymentNarration($billingMonth, 'own vehicles'),
             ];
         }
         if ($ownAdminAmount > 0) {
-            $adminAccount = Accounts::find(HeadAccount::SALIK_ADMIN_CHARGES);
+            $adminAccount = Accounts::find(GlobalAccounts::id('SALIK_ADMIN_CHARGES'));
             $creditLines['own_admin'] = [
-                'account_id' => HeadAccount::SALIK_ADMIN_CHARGES,
+                'account_id' => GlobalAccounts::id('SALIK_ADMIN_CHARGES'),
                 'account_name' => $adminAccount?->name ?? 'Salik Admin Charges',
                 'amount' => $ownAdminAmount,
                 'narration' => $this->salikPaymentNarration($billingMonth, 'own vehicles'),
@@ -2179,8 +2179,8 @@ class SalikController extends AppBaseController
             return response()->json(['error' => $e->getMessage()], 422);
         }
 
-        $payableAccount = Accounts::find(HeadAccount::SALIK_PAYABLE_ACCOUNT);
-        $vatAccount = Accounts::find(HeadAccount::VAT_PURCHASE_ACCOUNT);
+        $payableAccount = Accounts::find(GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT'));
+        $vatAccount = Accounts::find(GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'));
         $totalDebit = $payableDebit + $vatDebit;
         $totalCredit = collect($creditLines)->sum('amount');
 
@@ -2241,7 +2241,7 @@ class SalikController extends AppBaseController
             $branchId = $firstSalik->branch_id;
 
             $transactionService->recordTransaction([
-                'account_id' => HeadAccount::SALIK_PAYABLE_ACCOUNT,
+                'account_id' => GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT'),
                 'reference_id' => $firstSalik->id,
                 'reference_type' => 'Salik Voucher',
                 'trans_code' => $transCode,
@@ -2254,7 +2254,7 @@ class SalikController extends AppBaseController
 
             if (($calc['vat_debit'] ?? 0) > 0) {
                 $transactionService->recordTransaction([
-                    'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
+                    'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                     'reference_id' => $firstSalik->id,
                     'reference_type' => 'Salik Voucher',
                     'trans_code' => $transCode,
@@ -2286,7 +2286,7 @@ class SalikController extends AppBaseController
                 'billing_month' => $billingMonth,
                 'voucher_type' => 'SV',
                 'payment_type' => 1,
-                'payment_from' => HeadAccount::SALIK_PAYABLE_ACCOUNT,
+                'payment_from' => GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT'),
                 'payment_to' => $calc['credit_lines'][0]['account_id'] ?? null,
                 'amount' => $calc['total_debit'],
                 'remarks' => $request->remarks ?? ('Salik payment for ' . $saliks->count() . ' record(s)'),

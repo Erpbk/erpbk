@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Helpers\Account;
+use App\Support\GlobalAccounts;
 use App\Models\FuelData;
 use App\Models\FuelCards;
 use App\Models\Bikes;
@@ -358,7 +359,7 @@ class FuelDataImport implements ToCollection
                     'billing_month' => $fuelData->billing_month,
                 ]);
                 $transactionService->recordTransaction([
-                    'account_id' => HeadAccount::FUEL_ADMIN_CHARGES,
+                    'account_id' => GlobalAccounts::id('FUEL_ADMIN_CHARGES'),
                     'branch_id' => $branchId,
                     'reference_id' => $fuelData->id,
                     'reference_type' => 'fuel',
@@ -402,7 +403,7 @@ class FuelDataImport implements ToCollection
             if ($fuelData->vat_amount > 0) {
                 // Credit fuel account
                 $transactionService->recordTransaction([
-                    'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
+                    'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                     'branch_id' => $branchId,
                     'reference_id' => $fuelData->id,
                     'reference_type' => 'fuel',

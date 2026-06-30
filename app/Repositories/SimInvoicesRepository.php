@@ -4,7 +4,7 @@ namespace App\Repositories;
 
 use App\Helpers\Account;
 use App\Helpers\Common;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\SimInvoice;
 use App\Models\SimInvoiceItem;
 use App\Models\Sims;
@@ -170,8 +170,8 @@ class SimInvoicesRepository extends BaseRepository
         $totalAmount = (float) $invoice->total_amount;
         $narration = 'SIM Invoice #' . ($invoice->invoice_number ?? $invoice->id) . ' - ' . ($invoice->descriptions ?? 'SIM Invoice');
 
-        $expenseAccountId = HeadAccount::SIM_EXPENSE_ACCOUNT;
-        $vatAccountId = HeadAccount::VAT_PURCHASE_ACCOUNT;
+        $expenseAccountId = GlobalAccounts::id('SIM_EXPENSE_ACCOUNT');
+        $vatAccountId = GlobalAccounts::id('VAT_PURCHASE_ACCOUNT');
 
         $expenseAccountExists = \App\Support\CompanyQuery::table('accounts')->where('id', $expenseAccountId)->whereNull('deleted_at')->exists();
         if (!$expenseAccountExists) {

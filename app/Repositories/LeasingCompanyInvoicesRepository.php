@@ -4,7 +4,7 @@ namespace App\Repositories;
 
 use App\Helpers\Account;
 use App\Helpers\Common;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\Bikes;
 use App\Models\LeasingCompanyInvoice;
 use App\Models\LeasingCompanyInvoiceItem;
@@ -208,8 +208,8 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
         $narration = "Leasing Company Invoice #" . ($invoice->invoice_number ?? $invoice->id) . ' - ' . ($invoice->descriptions ?? 'Rental Invoice');
 
         // Fixed chart accounts are seeded and referenced by constant IDs.
-        $expenseAccountId = HeadAccount::LEASING_EXPENSE_ACCOUNT;
-        $vatAccountId = HeadAccount::VAT_PURCHASE_ACCOUNT;
+        $expenseAccountId = GlobalAccounts::id('LEASING_EXPENSE_ACCOUNT');
+        $vatAccountId = GlobalAccounts::id('VAT_PURCHASE_ACCOUNT');
 
         $transDate = $invoice->inv_date ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d');
         $billingMonthStr = $invoice->billing_month ? \Carbon\Carbon::parse($invoice->billing_month)->format('Y-m-d') : date('Y-m-01');

@@ -54,7 +54,7 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
           <div class="mb-4">
             <label class="form-label">Page layout</label>
             <p class="text-muted small mb-2">
-              Top and bottom spacing are automatic (1.5% below the header, 10 mm above the footer). Adjust left/right margins only if needed.
+              Adjust top, bottom, left, and right spacing for the content safe area on each page. Defaults are calculated from the header and footer layout.
             </p>
 
             <div class="form-check form-switch mb-3">
@@ -67,12 +67,14 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
               <label class="form-label small fw-semibold">Content safe area</label>
               <div class="row g-2 mb-2">
                 <div class="col-6 col-md-3">
-                  <label class="form-label small mb-1">Top (auto)</label>
-                  <input type="text" class="form-control form-control-sm" value="{{ $letterheadMargins['top'] }} mm" readonly>
+                  <label class="form-label small mb-1">Top</label>
+                  <input type="number" step="0.5" min="30" max="100" name="letterhead_margins[top]" class="form-control form-control-sm"
+                    value="{{ old('letterhead_margins.top', $letterheadMargins['top']) }}">
                 </div>
                 <div class="col-6 col-md-3">
-                  <label class="form-label small mb-1">Bottom (auto)</label>
-                  <input type="text" class="form-control form-control-sm" value="{{ $letterheadMargins['bottom'] }} mm" readonly>
+                  <label class="form-label small mb-1">Bottom</label>
+                  <input type="number" step="0.5" min="5" max="50" name="letterhead_margins[bottom]" class="form-control form-control-sm"
+                    value="{{ old('letterhead_margins.bottom', $letterheadMargins['bottom']) }}">
                 </div>
                 <div class="col-6 col-md-3">
                   <label class="form-label small mb-1">Left</label>

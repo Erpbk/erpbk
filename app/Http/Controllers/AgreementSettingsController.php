@@ -182,6 +182,8 @@ class AgreementSettingsController extends Controller
             'letterhead' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:6144',
             'remove_letterhead' => 'sometimes|boolean',
             'letterhead_margins' => 'nullable|array',
+            'letterhead_margins.top' => 'nullable|numeric|min:30|max:100',
+            'letterhead_margins.bottom' => 'nullable|numeric|min:5|max:50',
             'letterhead_margins.left' => 'nullable|numeric|min:8|max:50',
             'letterhead_margins.right' => 'nullable|numeric|min:8|max:50',
         ], [
@@ -605,6 +607,8 @@ class AgreementSettingsController extends Controller
             is_readable($fullPath) ? $fullPath : null
         );
         $category->letterhead_margins = [
+            'top' => $detected['top'],
+            'bottom' => $detected['bottom'],
             'left' => $detected['left'],
             'right' => $detected['right'],
         ];
@@ -637,7 +641,7 @@ class AgreementSettingsController extends Controller
 
         $margins = [];
 
-        foreach (['left', 'right'] as $side) {
+        foreach (['top', 'bottom', 'left', 'right'] as $side) {
             if (! array_key_exists($side, $input) || $input[$side] === '' || $input[$side] === null) {
                 continue;
             }
@@ -656,12 +660,19 @@ class AgreementSettingsController extends Controller
         $category->refresh();
         $stored = is_array($category->letterhead_margins) ? $category->letterhead_margins : [];
 
-        foreach (['left', 'right'] as $side) {
+        foreach (['top', 'bottom', 'left', 'right'] as $side) {
             if (! array_key_exists($side, $margins)) {
                 continue;
             }
 
-            $stored[$side] = max(8, min(55, round($margins[$side], 1)));
+            $min = in_array($side, ['top', 'bottom'], true)
+                ? ($side === 'top' ? 30 : 5)
+                : 8;
+            $max = in_array($side, ['top', 'bottom'], true)
+                ? ($side === 'top' ? 100 : 50)
+                : 55;
+
+            $stored[$side] = max($min, min($max, round($margins[$side], 1)));
         }
 
         $category->letterhead_margins = $stored;
@@ -674,7 +685,7 @@ class AgreementSettingsController extends Controller
      */
     private function letterheadMarginsChanged(array $submitted, array $baseline): bool
     {
-        foreach (['left', 'right'] as $side) {
+        foreach (['top', 'bottom', 'left', 'right'] as $side) {
             if (! array_key_exists($side, $submitted)) {
                 continue;
             }

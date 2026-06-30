@@ -11,12 +11,12 @@
   $ml = $m['left'];
   $mr = $m['right'];
   $forPdf = ! empty($forPdf);
-  $pad = $contentPadding ?? app(\App\Services\Agreements\AgreementLetterheadLayout::class)->contentPaddingMm($withLetterhead);
+  $pad = $contentPadding ?? app(\App\Services\Agreements\AgreementLetterheadLayout::class)->contentPaddingMm($category ?? null, $withLetterhead);
   $contentPadTopMm = $pad['top'];
   $contentPadBottomMm = $pad['bottom'];
   $headerTopMarginMm = (float) config('agreement_letterhead.header_top_margin_mm', 8);
   $headerChromeMm = (float) config('agreement_letterhead.header_chrome_height_mm', 33);
-  $contentZoneMm = $contentZoneHeightMm ?? max(40, $pageH - $headerChromeMm - $contentPadTopMm - $contentPadBottomMm);
+  $contentZoneMm = $contentZoneHeightMm ?? max(40, $pageH - (float) $m['top'] - (float) $m['bottom']);
   $pageChromeMm = $withLetterhead ? $headerChromeMm : 0.0;
   $contentFlowMaxMm = max(40, $pageH - $pageChromeMm);
   $p = $branding['primary_color'] ?? '#1e3a8a';

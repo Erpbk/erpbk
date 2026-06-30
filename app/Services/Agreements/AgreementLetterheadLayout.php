@@ -18,8 +18,16 @@ class AgreementLetterheadLayout
         $side = config('agreement_letterhead.side_margins_mm', ['left' => 12, 'right' => 12]);
 
         return [
-            'top' => $defaults['top'],
-            'bottom' => $defaults['bottom'],
+            'top' => $this->clamp(
+                (float) (is_array($saved) ? ($saved['top'] ?? $defaults['top']) : $defaults['top']),
+                30,
+                100
+            ),
+            'bottom' => $this->clamp(
+                (float) (is_array($saved) ? ($saved['bottom'] ?? $defaults['bottom']) : $defaults['bottom']),
+                5,
+                50
+            ),
             'left' => $this->clamp(
                 (float) (is_array($saved) ? ($saved['left'] ?? $side['left']) : $side['left']),
                 8,
@@ -158,7 +166,7 @@ class AgreementLetterheadLayout
      */
     public function plainDocumentMarginsMm(?AgreementCategory $category): array
     {
-        $padding = $this->contentPaddingMm(false);
+        $padding = $this->contentPaddingMm($category, false);
         $resolved = $this->resolvedMarginsMm($category);
 
         return [
@@ -174,19 +182,14 @@ class AgreementLetterheadLayout
      *
      * @return array{top: float, bottom: float}
      */
-    public function contentPaddingMm(bool $withLetterhead): array
+    public function contentPaddingMm(?AgreementCategory $category, bool $withLetterhead): array
     {
-        $pageH = $this->pageHeightMm();
+        $m = $this->resolvedMarginsMm($category);
         $headerChrome = (float) config('agreement_letterhead.header_chrome_height_mm', 33);
-        $contentGap = round($pageH * (float) config('agreement_letterhead.content_top_gap_pct', 0.02), 1);
-        $bottom = (float) config('agreement_letterhead.footer_reserve_mm', 10);
-        if ($bottom <= 0) {
-            $bottom = round($pageH * (float) config('agreement_letterhead.content_bottom_pct', 0.034), 1);
-        }
 
         return [
-            'top' => $withLetterhead ? $contentGap : ($headerChrome + $contentGap),
-            'bottom' => $bottom,
+            'top' => $withLetterhead ? max(0.0, $m['top'] - $headerChrome) : $m['top'],
+            'bottom' => $m['bottom'],
         ];
     }
 
@@ -215,17 +218,11 @@ class AgreementLetterheadLayout
      * Identical with or without digital letterhead so pre-printed paper aligns.
      * Same budget for preview and PDF download so page breaks match.
      */
-    public function contentZoneHeightMm(bool $withLetterhead = true): float
+    public function contentZoneHeightMm(?AgreementCategory $category = null, bool $withLetterhead = true): float
     {
-        $pageH = $this->pageHeightMm();
-        $headerChrome = (float) config('agreement_letterhead.header_chrome_height_mm', 33);
-        $contentGap = round($pageH * (float) config('agreement_letterhead.content_top_gap_pct', 0.02), 1);
-        $bottom = (float) config('agreement_letterhead.footer_reserve_mm', 10);
-        if ($bottom <= 0) {
-            $bottom = round($pageH * (float) config('agreement_letterhead.content_bottom_pct', 0.034), 1);
-        }
+        $m = $this->resolvedMarginsMm($category);
 
-        return max(40, $pageH - $headerChrome - $contentGap - $bottom);
+        return max(40, $this->pageHeightMm() - $m['top'] - $m['bottom']);
     }
 
     public function pageWidthMm(): float

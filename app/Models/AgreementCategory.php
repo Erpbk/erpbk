@@ -86,14 +86,6 @@ class AgreementCategory extends BaseModel
         return app(AgreementLetterheadLayout::class)->resolvedMarginsMm($this);
     }
 
-    /**
-     * @return array{top: float, bottom: float, left: float, right: float}
-     */
-    public function savedLetterheadMarginsMm(): array
-    {
-        return app(AgreementLetterheadLayout::class)->savedMarginsMm($this);
-    }
-
     public function activeTemplates(): HasMany
     {
         return $this->templates()->where('status', true)->orderByDesc('is_default')->orderBy('template_name');

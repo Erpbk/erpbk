@@ -124,9 +124,7 @@ class AgreementSettingsController extends Controller
         $pdfBranding = app(AgreementPdfBranding::class)->forCompany(CompanyContext::id());
 
         $contractTemplateId = optional($category->contractTemplate())->id;
-        $layout = app(AgreementLetterheadLayout::class);
-        $letterheadMargins = $layout->savedMarginsMm($category);
-        $detectedLetterheadMargins = $layout->detectedMarginsMm($category);
+        $letterheadMargins = app(AgreementLetterheadLayout::class)->resolvedMarginsMm($category);
 
         return view('settings.agreements.edit', compact(
             'category',
@@ -135,8 +133,7 @@ class AgreementSettingsController extends Controller
             'contractTemplateId',
             'placeholders',
             'pdfBranding',
-            'letterheadMargins',
-            'detectedLetterheadMargins'
+            'letterheadMargins'
         ));
     }
 
@@ -185,8 +182,6 @@ class AgreementSettingsController extends Controller
             'letterhead' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:6144',
             'remove_letterhead' => 'sometimes|boolean',
             'letterhead_margins' => 'nullable|array',
-            'letterhead_margins.top' => 'nullable|numeric|min:10|max:110',
-            'letterhead_margins.bottom' => 'nullable|numeric|min:10|max:120',
             'letterhead_margins.left' => 'nullable|numeric|min:8|max:50',
             'letterhead_margins.right' => 'nullable|numeric|min:8|max:50',
         ], [
@@ -222,7 +217,7 @@ class AgreementSettingsController extends Controller
         $this->saveTemplateContents($category, $data['template_contents'] ?? []);
 
         $layout = app(AgreementLetterheadLayout::class);
-        $marginBaseline = $layout->savedMarginsMm($category);
+        $marginBaseline = $layout->resolvedMarginsMm($category);
         $newLetterheadUpload = $request->hasFile('letterhead');
 
         $this->handleLetterheadUpload($request, $category);
@@ -604,9 +599,13 @@ class AgreementSettingsController extends Controller
         $layout = app(AgreementLetterheadLayout::class);
 
         $category->letterhead_path = $path;
-        $category->letterhead_margins = $layout->suggestMarginsFromFilesystem(
+        $detected = $layout->suggestMarginsFromFilesystem(
             is_readable($fullPath) ? $fullPath : null
         );
+        $category->letterhead_margins = [
+            'left' => $detected['left'],
+            'right' => $detected['right'],
+        ];
         $category->save();
     }
 
@@ -634,11 +633,9 @@ class AgreementSettingsController extends Controller
             return;
         }
 
-        $layout = app(AgreementLetterheadLayout::class);
-        $defaults = $layout->defaultMarginsMm();
         $margins = [];
 
-        foreach (['top', 'bottom', 'left', 'right'] as $side) {
+        foreach (['left', 'right'] as $side) {
             if (! array_key_exists($side, $input) || $input[$side] === '' || $input[$side] === null) {
                 continue;
             }
@@ -655,9 +652,17 @@ class AgreementSettingsController extends Controller
         }
 
         $category->refresh();
-        $category->letterhead_margins = $layout->normalizeMarginsMm(
-            array_merge($defaults, $margins)
-        );
+        $stored = is_array($category->letterhead_margins) ? $category->letterhead_margins : [];
+
+        foreach (['left', 'right'] as $side) {
+            if (! array_key_exists($side, $margins)) {
+                continue;
+            }
+
+            $stored[$side] = max(8, min(55, round($margins[$side], 1)));
+        }
+
+        $category->letterhead_margins = $stored;
         $category->save();
     }
 
@@ -667,7 +672,7 @@ class AgreementSettingsController extends Controller
      */
     private function letterheadMarginsChanged(array $submitted, array $baseline): bool
     {
-        foreach (['top', 'bottom', 'left', 'right'] as $side) {
+        foreach (['left', 'right'] as $side) {
             if (! array_key_exists($side, $submitted)) {
                 continue;
             }

@@ -11,7 +11,7 @@ use App\Exports\MonthlyActivityExport;
 use App\Exports\RiderExport;
 use App\Helpers\Account;
 use App\Helpers\General;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Imports\ImportRiderVoucherOnly;
 use App\Imports\ImportVoucher;
@@ -2556,7 +2556,7 @@ class RidersController extends AppBaseController
       }
 
       // Get the second account (credit account - should be Advance Loan account)
-      $creditAccountId = $request->account_id[1] ?? HeadAccount::ADVANCE_LOAN;
+      $creditAccountId = $request->account_id[1] ?? GlobalAccounts::id('ADVANCE_LOAN');
 
       // Get amounts
       $riderAmount = $request->dr_amount[0] ?? 0;
@@ -2575,7 +2575,7 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'AL', // Advance Loan
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => HeadAccount::ADVANCE_LOAN,
+        'payment_from' => GlobalAccounts::id('ADVANCE_LOAN'),
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'Advance Loan to Rider',
@@ -2726,7 +2726,7 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'COD', // COD
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => HeadAccount::COD_ACCOUNT,
+        'payment_from' => GlobalAccounts::id('COD_ACCOUNT'),
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'COD Amount to Rider',
@@ -2856,7 +2856,7 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'PN', // Penalty
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => HeadAccount::PENALTY_ACCOUNT,
+        'payment_from' => GlobalAccounts::id('PENALTY_ACCOUNT'),
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'Penalty Amount to Rider',
@@ -3012,7 +3012,7 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'PAY', // Payment
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => HeadAccount::PAYMENT_ACCOUNT,
+        'payment_from' => GlobalAccounts::id('PAYMENT_ACCOUNT'),
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'Payment Amount to Rider',
@@ -3162,7 +3162,7 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'INC', // Incentive
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => HeadAccount::INCENTIVE_ACCOUNT,
+        'payment_from' => GlobalAccounts::id('INCENTIVE_ACCOUNT'),
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'Incentive Amount to Rider',
@@ -3322,7 +3322,7 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'VC', // Vendor Charges
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => HeadAccount::VENDOR_CHARGES_ACCOUNT,
+        'payment_from' => GlobalAccounts::id('VENDOR_CHARGES_ACCOUNT'),
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'Vendor Charges to Rider ' . $riderAccount->name,

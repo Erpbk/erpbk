@@ -10,7 +10,7 @@ use App\Models\LoanInstallment;
 use App\Models\Vouchers;
 use App\Support\CompanyQuery;
 use Carbon\Carbon;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 
 class LoanVoucherService
 {
@@ -118,7 +118,7 @@ class LoanVoucherService
             }
         }
 
-        $parentAccount = Accounts::find(HeadAccount::LOANS_PAYABLE_PARENT_NAME)
+        $parentAccount = Accounts::find(GlobalAccounts::id('LOANS_PAYABLE_PARENT_NAME'))
             ?? Accounts::where('name', 'Loans Payable')
                 ->where('account_type', 'Liability')
                 ->whereNull('parent_id')
@@ -267,7 +267,7 @@ class LoanVoucherService
 
     protected function resolveInterestExpenseAccount(): Accounts
     {
-        $account = Accounts::find(HeadAccount::LOAN_INTEREST_EXPENSE);
+        $account = Accounts::find(GlobalAccounts::id('LOAN_INTEREST_EXPENSE'));
 
         if (! $account) {
             throw new \RuntimeException('Parent account "Loan Interest Expense" not found.');

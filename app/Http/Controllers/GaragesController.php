@@ -6,7 +6,7 @@ use App\Http\Requests\CreateGaragesRequest;
 use App\Http\Requests\UpdateGaragesRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Repositories\GaragesRepository;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\Garages;
 use App\Models\Accounts;
 use Illuminate\Http\Request;
@@ -87,7 +87,7 @@ class GaragesController extends AppBaseController
     $isInternal = ($input['garage_type'] ?? '') === 'internal';
 
     if ($isInternal) {
-      $inventoryParent = Accounts::find(HeadAccount::GARAGE_ACCOUNT);
+      $inventoryParent = Accounts::find(GlobalAccounts::id('GARAGE_ACCOUNT'));
       if (! $inventoryParent) {
         $inventoryParent = Accounts::where('name', 'Garages')
           ->where('account_type', 'Asset')
@@ -95,7 +95,7 @@ class GaragesController extends AppBaseController
       }
       if (! $inventoryParent) {
         return response()->json([
-          'message' => 'Chart of accounts is missing the Garage Inventory (Asset) head. Add it or sync account IDs in HeadAccount.',
+          'message' => 'Chart of accounts is missing the Garage Inventory (Asset) head. Add it or configure GARAGE_ACCOUNT in Global Accounts.',
         ], 422);
       }
       $parentId = $inventoryParent->id;

@@ -37,7 +37,7 @@ $legalCaseStatuses = company_table('legal_case_statuses')->where('is_active', 1)
     <label class="readonly">Debit Account:</label>
     <select class="form-control select select2" id="legal_case_account_id" name="legal_case_account_id" readonly>
         <option value=""></option>
-        <option value="{{ \App\Helpers\HeadAccount::LEGAL_CASE_ACCOUNT }}" selected>{{ company_table('accounts')->where('id', \App\Helpers\HeadAccount::LEGAL_CASE_ACCOUNT)->first()->name }}</option>
+        <option value="{{ ga_id('LEGAL_CASE_ACCOUNT') }}" selected>{{ company_table('accounts')->where('id', ga_id('LEGAL_CASE_ACCOUNT'))->first()->name }}</option>
     </select>
 </div>
 <div class="form-group col-sm-6">

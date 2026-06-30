@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Helpers\Account;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\RiderInventoryAssignment;
 use App\Models\Transactions;
 use App\Models\Vouchers;
@@ -139,7 +139,7 @@ class RiderInventoryLossService
                 $creditNarration = $this->buildCreditLossNarration($lineItem['item_name'], $rider, $remarkText);
 
                 Transactions::create([
-                    'account_id' => HeadAccount::INVENTORY_LOSS,
+                    'account_id' => GlobalAccounts::id('INVENTORY_LOSS'),
                     'reference_id' => $assignment->id,
                     'reference_type' => 'IL',
                     'trans_code' => $transCode,
@@ -175,7 +175,7 @@ class RiderInventoryLossService
             $creditNarration = $this->buildCreditLossNarration($itemNames, $rider, $remarkText);
 
             Transactions::create([
-                'account_id' => HeadAccount::INVENTORY_LOSS,
+                'account_id' => GlobalAccounts::id('INVENTORY_LOSS'),
                 'reference_id' => $voucher->id,
                 'reference_type' => 'IL',
                 'trans_code' => $transCode,
@@ -240,7 +240,7 @@ class RiderInventoryLossService
                 ->sum('debit');
 
             $creditTransactions = Transactions::where('trans_code', $transCode)
-                ->where('account_id', HeadAccount::INVENTORY_LOSS)
+                ->where('account_id', GlobalAccounts::id('INVENTORY_LOSS'))
                 ->where('credit', '>', 0)
                 ->get();
 

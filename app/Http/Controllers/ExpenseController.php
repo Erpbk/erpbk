@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Account;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Http\Requests\CreateAccountsRequest;
 use App\Http\Requests\UpdateAccountsRequest;
 use App\Http\Controllers\AppBaseController;
@@ -185,7 +185,7 @@ class ExpenseController extends AppBaseController
         if (!auth()->user()->can('expenses_view')) {
             abort(403, 'Unauthorized action.');
         }
-        $parent = Accounts::find(HeadAccount::OTHER_EXPENSES);
+        $parent = Accounts::find(GlobalAccounts::id('OTHER_EXPENSES'));
         $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
         $accounts = null;
 
@@ -227,7 +227,7 @@ class ExpenseController extends AppBaseController
             return redirect()->back();
         }
         /** Only expense accounts for parent dropdown */
-        $parent = Accounts::find(HeadAccount::OTHER_EXPENSES);
+        $parent = Accounts::find(GlobalAccounts::id('OTHER_EXPENSES'));
         $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
 
         return view('expenses.edit', compact('accounts', 'parent', 'customFields'));
@@ -479,7 +479,7 @@ class ExpenseController extends AppBaseController
                     Transactions::create([
                         'trans_code' => $transCode,
                         'trans_date' => $request->input('trans_date'),
-                        'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
+                        'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                         'debit' => $vatAmount,
                         'credit' => 0,
                         'narration' => 'VAT: ' . $debitNarration,
@@ -547,7 +547,7 @@ class ExpenseController extends AppBaseController
         $creditEntry = null;
 
         foreach ($transactions as $trans) {
-            if ($trans->debit > 0 && $trans->account_id != HeadAccount::TAX_ACCOUNT) {
+            if ($trans->debit > 0 && $trans->account_id != GlobalAccounts::id('TAX_ACCOUNT')) {
                 $vatTrans = $transactions->where('narration', 'VAT: ' . $trans->narration)->first();
                 $debitEntries[] = [
                     'account_id' => $trans->account_id,
@@ -647,7 +647,7 @@ class ExpenseController extends AppBaseController
                     Transactions::create([
                         'trans_code' => $voucher->trans_code,
                         'trans_date' => $request->input('trans_date'),
-                        'account_id' => HeadAccount::TAX_ACCOUNT,
+                        'account_id' => GlobalAccounts::id('TAX_ACCOUNT'),
                         'debit' => $vatAmount,
                         'credit' => 0,
                         'narration' => 'VAT: ' . $debitNarration,

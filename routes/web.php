@@ -2,7 +2,7 @@
 
 use App\Helpers\General;
 use App\Http\Controllers\AccountsController;
-use App\Http\Controllers\Admin\AdminAccountFixingController;
+use App\Http\Controllers\Admin\AdminGlobalAccountsController;
 use App\Http\Controllers\Admin\AdminBlogsController;
 use App\Http\Controllers\Admin\AdminCompaniesController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -196,13 +196,13 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
     Route::post('permissions/roles/{role}', [AdminPermissionsController::class, 'updateRolePermissions'])->name('permissions.update-role');
     Route::delete('permissions/{permission}', [AdminPermissionsController::class, 'destroy'])->name('permissions.destroy');
 
-    // Account fixing (global chart account sharing)
-    Route::get('accounts/fixed', [AdminAccountFixingController::class, 'index'])->name('accounts.fixed.index');
-    Route::get('accounts/fixed/create', [AdminAccountFixingController::class, 'create'])->name('accounts.fixed.create');
-    Route::post('accounts/fixed', [AdminAccountFixingController::class, 'store'])->name('accounts.fixed.store');
-    Route::put('accounts/fixed/{account}', [AdminAccountFixingController::class, 'update'])->name('accounts.fixed.update');
-    Route::post('accounts/fixed/{account}/toggle', [AdminAccountFixingController::class, 'toggle'])->name('accounts.fixed.toggle');
-    Route::delete('accounts/fixed/{account}', [AdminAccountFixingController::class, 'destroy'])->name('accounts.fixed.destroy');
+    // Global accounts (system-wide chart account registry)
+    Route::get('global-accounts/accounts-by-type/{type}', [AdminGlobalAccountsController::class, 'accountsByType'])->name('global-accounts.accounts-by-type');
+    Route::resource('global-accounts', AdminGlobalAccountsController::class)->except(['show']);
+
+    // Legacy Account Fixing URLs → Global Accounts
+    Route::redirect('accounts/fixed', '/admin/global-accounts');
+    Route::redirect('accounts/fixed/create', '/admin/global-accounts/create');
 });
 
 // pages

@@ -4,7 +4,7 @@ namespace App\Repositories;
 
 use App\Helpers\Account;
 use App\Helpers\Common;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\Bikes;
 use App\Models\LeasingCompanyBillingInvoice;
 use App\Models\LeasingCompanyBillingInvoiceItem;
@@ -177,8 +177,8 @@ class LeasingCompanyBillingInvoicesRepository extends BaseRepository
         $invoiceRef = $invoice->invoice_number ?: ('LBI-'.$invoice->id);
         $narration = 'Rental Billing Invoice #'.$invoiceRef.' - '.($invoice->descriptions ?? 'Billing Invoice');
 
-        $vehicalIncomeAccountId = HeadAccount::VEHICAL_INCOME;
-        $vatOnSalesAccountId = HeadAccount::VAT_ON_SALES;
+        $vehicalIncomeAccountId = GlobalAccounts::id('VEHICAL_INCOME');
+        $vatOnSalesAccountId = GlobalAccounts::id('VAT_ON_SALES');
         if (! $vehicalIncomeAccountId) {
             throw new \Exception('Vehicle Rental account not found in Chart of Accounts.');
         }

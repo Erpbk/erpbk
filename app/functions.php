@@ -23,3 +23,13 @@ if (! function_exists('company_table')) {
         return CompanyQuery::table($table, $connection);
     }
 }
+
+if (! function_exists('ga_id')) {
+    /**
+     * Resolve a global account ID by code from the global_accounts registry.
+     */
+    function ga_id(string $code): int
+    {
+        return \App\Support\GlobalAccounts::id($code);
+    }
+}

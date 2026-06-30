@@ -2,7 +2,7 @@
 
 namespace App\Support;
 
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\ExpenseAccount;
 use App\Models\VisaRenewalCategory;
 use App\Models\visa_expenses;
@@ -91,7 +91,7 @@ class VisaRenewalCategoryService
             ->where(function ($q) use ($expenseAccountId, $riderId) {
                 $q->where('expense_account_id', $expenseAccountId)
                     ->orWhere(function ($q2) use ($riderId) {
-                        $q2->where('expense_account_id', HeadAccount::VISA_EXPENSE_ACCOUNT)
+                        $q2->where('expense_account_id', GlobalAccounts::id('VISA_EXPENSE_ACCOUNT'))
                             ->where('rider_id', $riderId);
                     });
             });

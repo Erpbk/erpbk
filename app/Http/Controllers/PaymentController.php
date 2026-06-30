@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Account;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\Accounts;
 use App\Models\Banks;
 use App\Models\Cheques;
@@ -460,7 +460,7 @@ class PaymentController extends Controller
 
             // 3. Handle bank charges if any
             if ($bankCharges > 0) {
-                $bankAccount = Accounts::find(HeadAccount::BANK_CHARGES);
+                $bankAccount = Accounts::find(GlobalAccounts::id('BANK_CHARGES'));
                 // Debit the bank charges expense account
                 if ($bankAccount) {
                     Transactions::create([
@@ -479,7 +479,7 @@ class PaymentController extends Controller
                     DB::rollBack();
 
                     return response()->json([
-                        'message' => 'Bank Charges Account: '.HeadAccount::BANK_CHARGES.' not found. Please set it up before adding payments with bank charges.',
+                        'message' => 'Bank Charges Account: '.GlobalAccounts::id('BANK_CHARGES').' not found. Please set it up before adding payments with bank charges.',
                     ], 500);
                 }
             }

@@ -4,7 +4,7 @@ namespace App\Repositories;
 
 use App\Helpers\Account;
 use App\Helpers\Common;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\EmployeeInvoiceItem;
 use App\Models\EmployeeInvoices;
 use App\Models\Transactions;
@@ -122,7 +122,7 @@ class EmployeeInvoicesRepository extends BaseRepository
 
         if ($invoice->vat > 0) {
             $transactionService->recordTransaction([
-                'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
+                'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                 'reference_id' => $invoice->id,
                 'reference_type' => 'EmployeeInvoice',
                 'trans_code' => $transCode,
@@ -145,7 +145,7 @@ class EmployeeInvoicesRepository extends BaseRepository
         ]);
 
         $transactionService->recordTransaction([
-            'account_id' => HeadAccount::STAFF_ACCOUNT,
+            'account_id' => GlobalAccounts::id('STAFF_ACCOUNT'),
             'reference_id' => $invoice->id,
             'reference_type' => 'EmployeeInvoice',
             'trans_code' => $transCode,

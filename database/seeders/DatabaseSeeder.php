@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             CoreParentAccountsSeeder::class,
+            GlobalAccountsSeeder::class,
             TenantPermissionsSeeder::class,
             VisaStatusSeeder::class,
             LicenseStatusSeeder::class,

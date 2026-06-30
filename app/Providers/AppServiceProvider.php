@@ -17,6 +17,7 @@ use App\Support\ErpModuleRegistry;
 use App\Support\ModuleRouteResolver;
 use App\Support\PublicStorageLink;
 use App\Services\Email\CompanyEmailBrandingService;
+use App\Services\GlobalAccountResolver;
 use App\Services\Module\TopBarListingService;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
   public function register(): void
   {
     Fortify::ignoreRoutes();
+
+    $this->app->singleton(GlobalAccountResolver::class);
   }
 
   /**

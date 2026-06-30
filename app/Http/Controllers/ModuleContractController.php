@@ -49,7 +49,8 @@ class ModuleContractController extends Controller
         $template = $this->modules->resolveContractTemplate((int) $request->input('template_id'), $module);
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
 
-        $html = $this->pdfService->renderHtmlForModule($template, $module, $recordModel, $agreementDate);
+        $withLetterhead = $request->boolean('letterhead', true);
+        $html = $this->pdfService->renderHtmlForModule($template, $module, $recordModel, $agreementDate, false, false, $withLetterhead);
 
         $pdfDownloadUrl = route('module-contracts.pdf', [
             'company_slug' => $company_slug,
@@ -58,9 +59,10 @@ class ModuleContractController extends Controller
             'template_id' => $template->id,
             'agreement_date' => $agreementDate,
             'download' => 1,
+            'letterhead' => $withLetterhead ? 1 : 0,
         ]);
 
-        return view('agreements.preview', compact('html', 'template', 'pdfDownloadUrl'));
+        return view('agreements.preview', compact('html', 'template', 'pdfDownloadUrl', 'withLetterhead'));
     }
 
     public function pdf(Request $request, $company_slug, string $module, int $record)
@@ -71,8 +73,9 @@ class ModuleContractController extends Controller
         $template = $this->modules->resolveContractTemplate((int) $request->input('template_id'), $module);
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
         $meta = $this->modules->recordMeta($module, $recordModel);
+        $withLetterhead = $request->boolean('letterhead', true);
 
-        $pdf = $this->pdfService->generatePdfForModule($template, $module, $recordModel, $agreementDate);
+        $pdf = $this->pdfService->generatePdfForModule($template, $module, $recordModel, $agreementDate, $withLetterhead);
         $filename = Str::slug($meta['code'] . '-' . $template->template_name) . '.pdf';
 
         if ($request->boolean('download', true)) {

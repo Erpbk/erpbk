@@ -6,14 +6,15 @@
   @php
   $pageW = $pageWidthMm ?? 210;
   $pageH = $pageHeightMm ?? 297;
+  $withLetterhead = $withLetterhead ?? true;
   $m = $letterheadMargins ?? ['top' => 44, 'bottom' => 15, 'left' => 12, 'right' => 12];
-  $mt = $m['top'];
-  $mb = $m['bottom'];
   $ml = $m['left'];
   $mr = $m['right'];
   $forPdf = ! empty($forPdf);
-  $contentW = max(1, $pageW - $ml - $mr);
-  $contentGapMm = round($pageH * (float) config('agreement_letterhead.content_top_gap_pct', 0.02), 1);
+  $pad = $contentPadding ?? app(\App\Services\Agreements\AgreementLetterheadLayout::class)->contentPaddingMm($withLetterhead);
+  $contentPadTopMm = $pad['top'];
+  $contentPadBottomMm = $pad['bottom'];
+  $headerTopMarginMm = (float) config('agreement_letterhead.header_top_margin_mm', 8);
   $p = $branding['primary_color'] ?? '#1e3a8a';
   $s = $branding['secondary_color'] ?? '#2563eb';
   @endphp
@@ -87,8 +88,8 @@
     .corner-shapes--bl {
       bottom: 0;
       left: 0;
-      width: 58mm;
-      height: 48mm;
+      width: 50mm;
+      height: 32mm;
     }
 
     .corner-blob {
@@ -121,26 +122,26 @@
     }
 
     .corner-shapes--bl .corner-blob--1 {
-      bottom: -16mm;
-      left: -14mm;
-      width: 52mm;
-      height: 52mm;
+      bottom: -12mm;
+      left: -10mm;
+      width: 40mm;
+      height: 40mm;
       opacity: 0.14;
     }
 
     .corner-shapes--bl .corner-blob--2 {
-      bottom: 4mm;
-      left: -6mm;
-      width: 34mm;
-      height: 34mm;
+      bottom: 2mm;
+      left: -4mm;
+      width: 26mm;
+      height: 26mm;
       opacity: 0.2;
     }
 
     .corner-shapes--bl .corner-blob--3 {
-      bottom: 18mm;
-      left: 12mm;
-      width: 20mm;
-      height: 20mm;
+      bottom: 12mm;
+      left: 8mm;
+      width: 16mm;
+      height: 16mm;
       opacity: 0.3;
     }
 
@@ -164,7 +165,7 @@
     .page-header {
       position: relative;
       z-index: 2;
-      padding-top: 8mm;
+      padding-top: {{ $headerTopMarginMm }}mm;
       pointer-events: none;
     }
 
@@ -189,15 +190,15 @@
     }
 
     .page-header-logo .company-logo-img {
-      max-height: 30mm;
-      max-width: 65mm;
+      max-height: 22mm;
+      max-width: 58mm;
       display: block;
     }
 
     .page-header-logo .company-logo-fallback {
-      width: 22mm;
-      height: 22mm;
-      line-height: 22mm;
+      width: 18mm;
+      height: 18mm;
+      line-height: 18mm;
       text-align: center;
       font-size: 12pt;
       font-weight: bold;
@@ -211,24 +212,24 @@
     }
 
     .page-header-meta {
-      margin: 0 0 2pt;
-      font-size: 12pt;
+      margin: 0 0 1pt;
+      font-size: 9.5pt;
       color: #1e293b;
-      line-height: 1.45;
+      line-height: 1.35;
       text-align: left;
       font-weight: bolder;
     }
 
     .page-header-rule {
       height: 0.5mm;
-      margin-top: 4mm;
+      margin-top: 2mm;
       width: 100%;
     }
 
     .page-content-flow {
       position: relative;
       z-index: 3;
-      padding: {{ $contentGapMm }}mm {{ $mr }}mm {{ $mb }}mm {{ $ml }}mm;
+      padding: {{ $contentPadTopMm }}mm {{ $mr }}mm {{ $contentPadBottomMm }}mm {{ $ml }}mm;
       overflow: visible;
       box-sizing: border-box;
     }
@@ -359,10 +360,12 @@
   <div class="{{ $forPdf ? 'pdf-pages' : 'preview-pages' }}" id="agreement-preview-pages" aria-live="polite">
     @foreach ($renderPages as $pageBody)
     <div class="agreement-page {{ $forPdf ? 'pdf-page' : 'preview-page' }}">
+      @if($withLetterhead)
       @include('agreements.pdf.partials.page-chrome', [
         'pageWidthMm' => $pageW,
         'pageHeightMm' => $pageH,
       ])
+      @endif
       <main class="page-content-flow {{ $forPdf ? 'pdf-page-flow' : 'document-flow' }}">
         <div class="content {{ $forPdf ? 'pdf-page-content' : '' }}">
           {!! $pageBody !!}

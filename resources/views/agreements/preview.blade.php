@@ -48,6 +48,15 @@
       border-color: #2563eb;
     }
 
+    .toolbar .letterhead-badge {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+
     .preview-shell {
       max-width: calc(210mm + 40px);
       margin: 20px auto;
@@ -91,9 +100,14 @@
 </head>
 
 <body>
+  @php
+  $withLetterhead = $withLetterhead ?? request()->boolean('letterhead', true);
+  $letterheadParam = $withLetterhead ? 1 : 0;
+  @endphp
   <div class="toolbar">
     <strong>{{ $template->template_name ?? 'Agreement Preview' }}</strong>
-    <button type="button" onclick="printPreview()" class="btn-primary">Print</button>
+    <span class="letterhead-badge">{{ $withLetterhead ? 'With letterhead' : 'Without letterhead' }}</span>
+    <button type="button" id="btn-print-agreement" class="btn-primary">Print</button>
     @php
     $pdfDownloadUrl = $pdfDownloadUrl ?? null;
     if (! $pdfDownloadUrl && isset($rider) && $rider instanceof \Illuminate\Database\Eloquent\Model && $rider->exists) {
@@ -103,36 +117,55 @@
     'template_id' => $template->id,
     'agreement_date' => request('agreement_date', now()->format('Y-m-d')),
     'download' => 1,
+    'letterhead' => $letterheadParam,
     ]);
     }
     if (! $pdfDownloadUrl && ! empty($template->id)) {
     $pdfDownloadUrl = route('agreements.preview-pdf', [
     'company_slug' => request()->route('company_slug'),
     'id' => $template->id,
+    'letterhead' => $letterheadParam,
     ]);
     }
     @endphp
     @if($pdfDownloadUrl)
-    <a href="{{ $pdfDownloadUrl }}">Download PDF</a>
+    <a href="{{ $pdfDownloadUrl }}" id="btn-download-pdf">Download PDF</a>
     @endif
     <button type="button" onclick="window.close()">Close</button>
   </div>
   <div class="preview-shell">
     <iframe id="agreement-preview-frame" title="Agreement preview"></iframe>
   </div>
+
+  @include('agreements.partials.print-letterhead-dialog')
+
   <script>
     (function() {
       var html = @json($html);
+      var withLetterhead = @json($withLetterhead);
       var frame = document.getElementById('agreement-preview-frame');
-      frame.srcdoc = html;
-      frame.onload = function() {
+      var dialog = document.getElementById('letterhead-print-dialog');
+      var cancelBtn = document.getElementById('letterhead-print-cancel');
+      var pendingPrint = new URLSearchParams(window.location.search).get('autoprint') === '1';
+
+      function resizeFrame() {
         try {
           var doc = frame.contentDocument || frame.contentWindow.document;
           var height = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
           frame.style.height = (height + 24) + 'px';
         } catch (e) {}
+      }
+
+      frame.srcdoc = html;
+      frame.onload = function() {
+        resizeFrame();
+        if (pendingPrint) {
+          pendingPrint = false;
+          runPrint(withLetterhead);
+        }
       };
-      window.printPreview = function() {
+
+      function runPrint(useLetterhead) {
         try {
           var win = frame.contentWindow;
           if (typeof win.__agreementRepaginate === 'function') {
@@ -147,7 +180,57 @@
             window.print();
           }
         }
-      };
+      }
+
+      function reloadWithLetterhead(useLetterhead, autoprint) {
+        var url = new URL(window.location.href);
+        url.searchParams.set('letterhead', useLetterhead ? '1' : '0');
+        if (autoprint) {
+          url.searchParams.set('autoprint', '1');
+        } else {
+          url.searchParams.delete('autoprint');
+        }
+        window.location.href = url.toString();
+      }
+
+      function showPrintDialog() {
+        if (!dialog || typeof dialog.showModal !== 'function') {
+          var useLetterhead = window.confirm('Print with letterhead?\n\nOK = with letterhead\nCancel = without letterhead');
+          if (useLetterhead === withLetterhead) {
+            runPrint(useLetterhead);
+          } else {
+            reloadWithLetterhead(useLetterhead, true);
+          }
+          return;
+        }
+
+        dialog.showModal();
+      }
+
+      if (dialog) {
+        dialog.addEventListener('close', function() {
+          var choice = dialog.returnValue;
+          if (choice !== 'with' && choice !== 'without') {
+            return;
+          }
+
+          var useLetterhead = choice === 'with';
+          if (useLetterhead === withLetterhead) {
+            runPrint(useLetterhead);
+          } else {
+            reloadWithLetterhead(useLetterhead, true);
+          }
+        });
+      }
+
+      if (cancelBtn && dialog) {
+        cancelBtn.addEventListener('click', function() {
+          dialog.close('cancel');
+        });
+      }
+
+      document.getElementById('btn-print-agreement').addEventListener('click', showPrintDialog);
+      window.printPreview = showPrintDialog;
     })();
   </script>
 </body>

@@ -54,8 +54,14 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
           <div class="mb-4">
             <label class="form-label">Page layout</label>
             <p class="text-muted small mb-2">
-              Top and bottom spacing are automatic (2% below the header, 5% from the page bottom). Adjust left/right margins only if needed.
+              Top and bottom spacing are automatic (1.5% below the header, 10 mm above the footer). Adjust left/right margins only if needed.
             </p>
+
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="printWithLetterhead" checked>
+              <label class="form-check-label" for="printWithLetterhead">Print with Letterhead</label>
+              <div class="form-text">When enabled, preview, print, and PDF download include the digital letterhead. When disabled, the same header and footer margins are still reserved on every page for pre-printed letterhead paper.</div>
+            </div>
 
             <div class="mt-2">
               <label class="form-label small fw-semibold">Content safe area</label>
@@ -166,6 +172,8 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
   </div>
 </div>
 
+@include('agreements.partials.print-letterhead-dialog')
+
 @endsection
 
 @push('third_party_scripts')
@@ -175,7 +183,50 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
     var templateSelect = document.getElementById('contract_template_id');
     var editorWrap = document.getElementById('template-editor-wrap');
     var previewBase = @json(route('agreements.preview', ['company_slug' => $companySlug, 'id' => '__ID__']));
+    var pdfBase = @json(route('agreements.preview-pdf', ['company_slug' => $companySlug, 'id' => '__ID__']));
+    var letterheadStorageKey = 'agreement-print-letterhead-{{ $category->id }}';
+    var letterheadToggle = document.getElementById('printWithLetterhead');
+    var printDialog = document.getElementById('letterhead-print-dialog');
+    var printCancelBtn = document.getElementById('letterhead-print-cancel');
     var activeTemplateId = templateSelect ? templateSelect.value : null;
+
+    function useLetterhead() {
+      return !letterheadToggle || letterheadToggle.checked;
+    }
+
+    function letterheadQuery() {
+      return 'letterhead=' + (useLetterhead() ? '1' : '0');
+    }
+
+    function restoreLetterheadPreference() {
+      if (!letterheadToggle) {
+        return;
+      }
+      try {
+        var saved = localStorage.getItem(letterheadStorageKey);
+        if (saved === '0' || saved === '1') {
+          letterheadToggle.checked = saved === '1';
+        }
+      } catch (e) {}
+    }
+
+    function persistLetterheadPreference() {
+      if (!letterheadToggle) {
+        return;
+      }
+      try {
+        localStorage.setItem(letterheadStorageKey, useLetterhead() ? '1' : '0');
+      } catch (e) {}
+    }
+
+    restoreLetterheadPreference();
+
+    if (letterheadToggle) {
+      letterheadToggle.addEventListener('change', function() {
+        persistLetterheadPreference();
+        updateOutputLinks(activeTemplateId);
+      });
+    }
 
     function storeFieldFor(id) {
       return document.getElementById('template_content_' + id);
@@ -201,11 +252,73 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
 
     function updatePreviewLink(id) {
       var link = document.getElementById('btn-template-full-preview');
-      if (!link || !id) {
+      var pdfLink = document.getElementById('btn-template-download-pdf');
+      var printBtn = document.getElementById('btn-template-print');
+      if (!id) {
+        if (link) link.classList.add('d-none');
+        if (pdfLink) pdfLink.classList.add('d-none');
+        if (printBtn) printBtn.classList.add('d-none');
         return;
       }
-      link.href = previewBase.replace('__ID__', id);
-      link.classList.remove('d-none');
+
+      var previewUrl = previewBase.replace('__ID__', id) + '?' + letterheadQuery();
+      var pdfUrl = pdfBase.replace('__ID__', id) + '?' + letterheadQuery();
+
+      if (link) {
+        link.href = previewUrl;
+        link.classList.remove('d-none');
+      }
+      if (pdfLink) {
+        pdfLink.href = pdfUrl;
+        pdfLink.classList.remove('d-none');
+      }
+      if (printBtn) {
+        printBtn.classList.remove('d-none');
+      }
+    }
+
+    function updateOutputLinks(id) {
+      updatePreviewLink(id);
+    }
+
+    function openPrintPreview(useLetterhead) {
+      if (!activeTemplateId) {
+        return;
+      }
+      var url = previewBase.replace('__ID__', activeTemplateId) +
+        '?letterhead=' + (useLetterhead ? '1' : '0') +
+        '&autoprint=1';
+      window.open(url, '_blank');
+    }
+
+    function showPrintDialog() {
+      if (!activeTemplateId) {
+        return;
+      }
+
+      if (!printDialog || typeof printDialog.showModal !== 'function') {
+        var useLetterhead = window.confirm('Print with letterhead?\n\nOK = with letterhead\nCancel = without letterhead');
+        openPrintPreview(useLetterhead);
+        return;
+      }
+
+      printDialog.showModal();
+    }
+
+    if (printDialog) {
+      printDialog.addEventListener('close', function() {
+        var choice = printDialog.returnValue;
+        if (choice !== 'with' && choice !== 'without') {
+          return;
+        }
+        openPrintPreview(choice === 'with');
+      });
+    }
+
+    if (printCancelBtn && printDialog) {
+      printCancelBtn.addEventListener('click', function() {
+        printDialog.close('cancel');
+      });
     }
 
     if (templateSelect && editorWrap) {
@@ -226,7 +339,7 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
       }).then(function() {
         if (activeTemplateId) {
           loadTemplateIntoEditor(activeTemplateId);
-          updatePreviewLink(activeTemplateId);
+          updateOutputLinks(activeTemplateId);
         }
       });
 
@@ -234,7 +347,7 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
         syncEditorToStore();
         activeTemplateId = templateSelect.value;
         loadTemplateIntoEditor(activeTemplateId);
-        updatePreviewLink(activeTemplateId);
+        updateOutputLinks(activeTemplateId);
       });
 
       document.querySelectorAll('.placeholder-btn').forEach(function(btn) {
@@ -253,6 +366,11 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
           tinymce.get('agreement-template-editor').save();
         }
       });
+
+      var printBtn = document.getElementById('btn-template-print');
+      if (printBtn) {
+        printBtn.addEventListener('click', showPrintDialog);
+      }
 
       var quickPreview = document.getElementById('btn-template-quick-preview');
       if (quickPreview) {

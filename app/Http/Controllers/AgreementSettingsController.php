@@ -430,9 +430,10 @@ class AgreementSettingsController extends Controller
         $this->authorizeAgreement('agreement_view');
 
         $template = AgreementTemplate::findOrFail($id);
-        $html = $pdfService->renderHtml($template, new \App\Models\Riders(), null, true);
+        $withLetterhead = $request->boolean('letterhead', true);
+        $html = $pdfService->renderHtml($template, new \App\Models\Riders(), null, true, $withLetterhead);
 
-        return view('agreements.preview', compact('html', 'template'));
+        return view('agreements.preview', compact('html', 'template', 'withLetterhead'));
     }
 
     public function previewPdf(Request $request, $company_slug, $id, AgreementPdfService $pdfService)
@@ -440,7 +441,8 @@ class AgreementSettingsController extends Controller
         $this->authorizeAgreement('agreement_view');
 
         $template = AgreementTemplate::findOrFail($id);
-        $pdf = $pdfService->previewPdf($template);
+        $withLetterhead = $request->boolean('letterhead', true);
+        $pdf = $pdfService->previewPdf($template, null, null, $withLetterhead);
         $filename = Str::slug($template->template_name) . '-preview.pdf';
 
         return $pdf->download($filename);

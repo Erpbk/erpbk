@@ -8,24 +8,26 @@ use DOMNode;
 
 class AgreementLetterheadPaginator
 {
-    private const ESTIMATE_SAFETY = 1.05;
+    private const ESTIMATE_SAFETY = 1.0;
 
-    private const BUDGET_FACTOR = 0.97;
+    private const CONTENT_FONT_PT = 8.5;
+
+    private const HEADING_FONT_PT = 10.5;
+
+    private const LINE_HEIGHT_RATIO = 1.35;
+
+    private const CHARS_PER_LINE = 105;
 
     private float $budgetPt = 0.0;
 
     /**
-     * Split agreement HTML into page chunks that fit the letterhead content zone.
+     * Split agreement HTML into page chunks that fit the content zone.
      *
      * @return list<string>
      */
-    public function paginate(string $bodyHtml, array $marginsMm, float $pageHeightMm = 297, bool $forPdf = false): array
+    public function paginate(string $bodyHtml, float $contentZoneHeightMm): array
     {
-        $top = (float) ($marginsMm['top'] ?? 38);
-        $bottom = (float) ($marginsMm['bottom'] ?? 15);
-        $pdfTopExtra = $forPdf ? (float) config('agreement_letterhead.pdf_content_top_extra_mm', 5) : 0.0;
-        $contentHeightMm = max(40, $pageHeightMm - $top - $bottom - $pdfTopExtra);
-        $this->budgetPt = $contentHeightMm * (72 / 25.4) * self::BUDGET_FACTOR;
+        $this->budgetPt = max(40, $contentZoneHeightMm) * (72 / 25.4);
 
         $dom = new DOMDocument('1.0', 'UTF-8');
         $dom->preserveWhiteSpace = false;
@@ -85,14 +87,20 @@ class AgreementLetterheadPaginator
         float &$usedPt
     ): void {
         $estimate = $this->safeEstimate($this->estimateNodeHeightPt($child));
+        $remaining = $this->budgetPt - $usedPt;
 
-        if ($usedPt + $estimate > $this->budgetPt && $currentNodes !== []) {
+        if ($estimate > $remaining && $currentNodes !== []) {
+            if ($this->tryFillRemainingSpace($dom, $child, $remaining, $pages, $currentNodes, $usedPt)) {
+                return;
+            }
+
             $pages[] = $this->joinHtml($dom, $currentNodes);
             $currentNodes = [];
             $usedPt = 0.0;
+            $remaining = $this->budgetPt;
         }
 
-        if ($estimate > $this->budgetPt && $child instanceof DOMElement) {
+        if ($estimate > $remaining && $child instanceof DOMElement) {
             $this->appendOversizedElement($dom, $child, $pages, $currentNodes, $usedPt);
 
             return;
@@ -198,12 +206,144 @@ class AgreementLetterheadPaginator
         array &$currentNodes,
         float &$usedPt
     ): void {
-        $remaining = max(40.0, $this->budgetPt - $usedPt);
+        $remaining = max(0.0, $this->budgetPt - $usedPt);
+
+        if ($remaining < 14 && $currentNodes !== []) {
+            $pages[] = $this->joinHtml($dom, $currentNodes);
+            $currentNodes = [];
+            $usedPt = 0.0;
+            $remaining = $this->budgetPt;
+        }
+
         $parts = $this->splitTable($dom, $table, $remaining);
 
         foreach ($parts as $part) {
             $this->appendNode($dom, $part, $pages, $currentNodes, $usedPt);
         }
+    }
+
+    /**
+     * Pack splittable content into the remaining space before starting a new page.
+     *
+     * @param  list<DOMNode>  $currentNodes
+     */
+    private function tryFillRemainingSpace(
+        DOMDocument $dom,
+        DOMNode $child,
+        float $remainingPt,
+        array &$pages,
+        array &$currentNodes,
+        float &$usedPt
+    ): bool {
+        if ($remainingPt < 14 || ! $child instanceof DOMElement) {
+            return false;
+        }
+
+        $tag = strtolower($child->tagName);
+
+        if (in_array($tag, ['p', 'blockquote'], true)) {
+            $parts = $this->splitTextBlockForBudget($dom, $child, $remainingPt);
+            if (count($parts) <= 1) {
+                return false;
+            }
+
+            $first = $parts[0];
+            $firstEstimate = $this->safeEstimate($this->estimateNodeHeightPt($first));
+            if ($firstEstimate > $remainingPt) {
+                return false;
+            }
+
+            $currentNodes[] = $first;
+            $usedPt += $firstEstimate;
+
+            for ($i = 1; $i < count($parts); $i++) {
+                $pages[] = $this->joinHtml($dom, $currentNodes);
+                $currentNodes = [];
+                $usedPt = 0.0;
+                $this->appendNode($dom, $parts[$i], $pages, $currentNodes, $usedPt);
+            }
+
+            return true;
+        }
+
+        if (in_array($tag, ['ul', 'ol'], true)) {
+            return $this->tryPackListIntoRemaining($dom, $child, $remainingPt, $pages, $currentNodes, $usedPt);
+        }
+
+        if ($tag === 'table') {
+            $parts = $this->splitTable($dom, $child, $remainingPt);
+            if (count($parts) <= 1) {
+                return false;
+            }
+
+            $first = $parts[0];
+            $firstEstimate = $this->safeEstimate($this->estimateNodeHeightPt($first));
+            if ($firstEstimate > $remainingPt) {
+                return false;
+            }
+
+            $currentNodes[] = $first;
+            $usedPt += $firstEstimate;
+
+            for ($i = 1; $i < count($parts); $i++) {
+                $this->appendNode($dom, $parts[$i], $pages, $currentNodes, $usedPt);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  list<DOMNode>  $currentNodes
+     */
+    private function tryPackListIntoRemaining(
+        DOMDocument $dom,
+        DOMElement $list,
+        float $remainingPt,
+        array &$pages,
+        array &$currentNodes,
+        float &$usedPt
+    ): bool {
+        $items = $this->splitList($dom, $list);
+        if (count($items) <= 1) {
+            return false;
+        }
+
+        $packed = [];
+        $packedHeight = 0.0;
+        $splitAt = 0;
+
+        foreach ($items as $index => $item) {
+            $itemEstimate = $this->safeEstimate($this->estimateNodeHeightPt($item));
+            if ($packedHeight + $itemEstimate > $remainingPt && $packed !== []) {
+                break;
+            }
+
+            if ($packedHeight + $itemEstimate <= $remainingPt) {
+                $packed[] = $item;
+                $packedHeight += $itemEstimate;
+                $splitAt = $index + 1;
+            } elseif ($packed === []) {
+                return false;
+            }
+        }
+
+        if ($packed === [] || $splitAt >= count($items)) {
+            return false;
+        }
+
+        foreach ($packed as $item) {
+            $currentNodes[] = $item;
+        }
+        $usedPt += $packedHeight;
+
+        for ($i = $splitAt; $i < count($items); $i++) {
+            $this->appendNode($dom, $items[$i], $pages, $currentNodes, $usedPt);
+        }
+
+        return true;
     }
 
     /**
@@ -317,28 +457,87 @@ class AgreementLetterheadPaginator
             return [$block];
         }
 
-        $estimate = $this->safeEstimate($this->estimateTextHeightPt($text, 9.5) + 4);
+        $estimate = $this->safeEstimate($this->estimateTextHeightPt($text, self::CONTENT_FONT_PT) + 4);
         if ($estimate <= $this->budgetPt) {
             return [$block];
         }
 
         $parts = [];
         $tag = strtolower($block->tagName);
-        $chunks = $this->chunkText($text, 380);
+        $chunks = $this->chunkText($text, (int) (self::CHARS_PER_LINE * 3.5));
 
         foreach ($chunks as $chunk) {
             $node = $dom->createElement($tag);
-            if ($block->hasAttribute('class')) {
-                $node->setAttribute('class', $block->getAttribute('class'));
-            }
-            if ($block->hasAttribute('style')) {
-                $node->setAttribute('style', $block->getAttribute('style'));
-            }
+            $this->copyElementAttributes($block, $node);
             $node->appendChild($dom->createTextNode($chunk));
             $parts[] = $node;
         }
 
         return $parts !== [] ? $parts : [$block];
+    }
+
+    /**
+     * @return list<DOMElement>
+     */
+    private function splitTextBlockForBudget(DOMDocument $dom, DOMElement $block, float $budgetPt): array
+    {
+        $text = trim(preg_replace('/\s+/u', ' ', $block->textContent ?? '') ?? '');
+        if ($text === '') {
+            return [$block];
+        }
+
+        $fullEstimate = $this->safeEstimate($this->estimateTextHeightPt($text, self::CONTENT_FONT_PT) + 4);
+        if ($fullEstimate <= $budgetPt) {
+            return [$block];
+        }
+
+        $words = preg_split('/\s+/u', $text) ?: [];
+        $firstWords = [];
+        $splitIndex = count($words);
+
+        foreach ($words as $index => $word) {
+            $candidateWords = array_merge($firstWords, [$word]);
+            $candidate = implode(' ', $candidateWords);
+            $estimate = $this->safeEstimate($this->estimateTextHeightPt($candidate, self::CONTENT_FONT_PT) + 4);
+
+            if ($estimate <= $budgetPt) {
+                $firstWords[] = $word;
+            } else {
+                $splitIndex = $index;
+                break;
+            }
+        }
+
+        if ($firstWords === []) {
+            return [$block];
+        }
+
+        $tag = strtolower($block->tagName);
+        $parts = [];
+
+        $first = $dom->createElement($tag);
+        $this->copyElementAttributes($block, $first);
+        $first->appendChild($dom->createTextNode(implode(' ', $firstWords)));
+        $parts[] = $first;
+
+        $restWords = array_slice($words, count($firstWords));
+        if ($restWords !== []) {
+            $rest = $dom->createElement($tag);
+            $this->copyElementAttributes($block, $rest);
+            $rest->appendChild($dom->createTextNode(implode(' ', $restWords)));
+            $parts = array_merge($parts, $this->splitTextBlock($dom, $rest));
+        }
+
+        return $parts;
+    }
+
+    private function copyElementAttributes(DOMElement $source, DOMElement $target): void
+    {
+        foreach (['class', 'style', 'id'] as $attribute) {
+            if ($source->hasAttribute($attribute)) {
+                $target->setAttribute($attribute, $source->getAttribute($attribute));
+            }
+        }
     }
 
     /**
@@ -351,13 +550,13 @@ class AgreementLetterheadPaginator
             return [$li];
         }
 
-        $estimate = $this->safeEstimate($this->estimateTextHeightPt($text, 9.5) + 8);
+        $estimate = $this->safeEstimate($this->estimateTextHeightPt($text, self::CONTENT_FONT_PT) + 6);
         if ($estimate <= $this->budgetPt) {
             return [$li];
         }
 
         $parts = [];
-        foreach ($this->chunkText($text, 380) as $chunk) {
+        foreach ($this->chunkText($text, (int) (self::CHARS_PER_LINE * 3.5)) as $chunk) {
             $node = $dom->createElement('li');
             if ($li->hasAttribute('class')) {
                 $node->setAttribute('class', $li->getAttribute('class'));
@@ -378,7 +577,7 @@ class AgreementLetterheadPaginator
     private function splitPlainText(DOMDocument $dom, string $text): array
     {
         $parts = [];
-        foreach ($this->chunkText($text, 520) as $chunk) {
+        foreach ($this->chunkText($text, (int) (self::CHARS_PER_LINE * 5)) as $chunk) {
             $p = $dom->createElement('p');
             $p->appendChild($dom->createTextNode($chunk));
             $parts[] = $p;
@@ -603,7 +802,7 @@ class AgreementLetterheadPaginator
         if (! $node instanceof DOMElement) {
             $text = trim($node->textContent ?? '');
 
-            return $text === '' ? 0.0 : $this->estimateTextHeightPt($text, 9.5);
+            return $text === '' ? 0.0 : $this->estimateTextHeightPt($text, self::CONTENT_FONT_PT);
         }
 
         $tag = strtolower($node->tagName);
@@ -611,10 +810,10 @@ class AgreementLetterheadPaginator
         return match ($tag) {
             'table' => $this->estimateTableHeightPt($node),
             'ul', 'ol' => $this->estimateListHeightPt($node),
-            'h1', 'h2', 'h3', 'h4' => 12 + $this->estimateTextHeightPt($node->textContent ?? '', 10.5),
-            'hr' => 12,
-            'img' => 80,
-            'li' => $this->estimateTextHeightPt($node->textContent ?? '', 9.5) + 5,
+            'h1', 'h2', 'h3', 'h4' => 8 + $this->estimateTextHeightPt($node->textContent ?? '', self::HEADING_FONT_PT),
+            'hr' => 10,
+            'img' => 72,
+            'li' => $this->estimateTextHeightPt($node->textContent ?? '', self::CONTENT_FONT_PT) + 4,
             default => $this->estimateBlockHeightPt($node),
         };
     }
@@ -664,7 +863,7 @@ class AgreementLetterheadPaginator
             $maxLines = max($maxLines, $this->estimateCellLines($cell));
         }
 
-        return ($maxLines * 15) + 6;
+        return ($maxLines * (self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO)) + 4;
     }
 
     private function estimateCellLines(DOMElement $cell): int
@@ -673,7 +872,7 @@ class AgreementLetterheadPaginator
         $brLines = max(0, substr_count($html, '<br'));
         $text = trim(preg_replace('/\s+/u', ' ', $cell->textContent ?? '') ?? '');
 
-        return max(1, $brLines + 1, (int) ceil(mb_strlen($text) / 42));
+        return max(1, $brLines + 1, (int) ceil(mb_strlen($text) / 48));
     }
 
     private function estimateListHeightPt(DOMElement $list): float
@@ -693,15 +892,16 @@ class AgreementLetterheadPaginator
         $html = strtolower($node->ownerDocument?->saveHTML($node) ?? '');
         $brLines = max(0, substr_count($html, '<br'));
         $text = trim(preg_replace('/\s+/u', ' ', $node->textContent ?? '') ?? '');
-        $textHeight = $this->estimateTextHeightPt($text, 9.5);
+        $textHeight = $this->estimateTextHeightPt($text, self::CONTENT_FONT_PT);
 
         if ($brLines > 0) {
-            $textHeight = max($textHeight, ($brLines + 1) * 13.5);
+            $lineHeight = self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO;
+            $textHeight = max($textHeight, ($brLines + 1) * $lineHeight);
         }
 
         $nestedTables = $node->getElementsByTagName('table');
         if ($nestedTables->length > 0) {
-            $total = 4.0;
+            $total = 2.0;
             foreach ($nestedTables as $table) {
                 if ($table instanceof DOMElement) {
                     $total += $this->estimateTableHeightPt($table);
@@ -711,7 +911,7 @@ class AgreementLetterheadPaginator
             return $total + $textHeight;
         }
 
-        return $textHeight + 6;
+        return $textHeight + 4;
     }
 
     private function estimateTextHeightPt(string $text, float $fontSizePt): float
@@ -720,10 +920,9 @@ class AgreementLetterheadPaginator
             return 0.0;
         }
 
-        $charsPerLine = 94;
-        $lineHeight = $fontSizePt * 1.38;
-        $lines = max(1, (int) ceil(mb_strlen($text) / $charsPerLine));
+        $lineHeight = $fontSizePt * self::LINE_HEIGHT_RATIO;
+        $lines = max(1, (int) ceil(mb_strlen($text) / self::CHARS_PER_LINE));
 
-        return ($lines * $lineHeight) + 4;
+        return ($lines * $lineHeight) + 2;
     }
 }

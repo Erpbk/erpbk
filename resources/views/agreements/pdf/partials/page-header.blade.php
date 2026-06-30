@@ -16,9 +16,6 @@ $country = trim((string) ($branding['country'] ?? ''));
           @include('agreements.pdf.partials.logo')
         </td>
         <td class="page-header-info">
-          @if($name !== '')
-          <p class="page-header-meta">{{ $name }}</p>
-          @endif
           @if($email !== '')
           <p class="page-header-meta">{{ $email }}</p>
           @endif

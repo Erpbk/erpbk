@@ -24,9 +24,10 @@ class AgreementPdfService
         AgreementTemplate $template,
         Riders $rider,
         ?string $agreementDate = null,
-        bool $useSampleData = false
+        bool $useSampleData = false,
+        bool $withLetterhead = true
     ): string {
-        return $this->renderHtmlForModule($template, 'riders', $rider, $agreementDate, $useSampleData);
+        return $this->renderHtmlForModule($template, 'riders', $rider, $agreementDate, $useSampleData, false, $withLetterhead);
     }
 
     public function renderHtmlForModule(
@@ -35,7 +36,8 @@ class AgreementPdfService
         Model $record,
         ?string $agreementDate = null,
         bool $useSampleData = false,
-        bool $forPdf = false
+        bool $forPdf = false,
+        bool $withLetterhead = true
     ): string {
         $content = (string) ($template->description ?? '');
         $map = $useSampleData
@@ -49,23 +51,23 @@ class AgreementPdfService
 
         $subject = app(AgreementModuleService::class)->pdfSubject($module, $record);
 
+        $contentZoneMm = $this->letterheadLayout->contentZoneHeightMm($withLetterhead, $forPdf && $withLetterhead);
+        $pages = $this->letterheadPaginator->paginate($body, $contentZoneMm);
+
         $margins = $this->letterheadLayout->resolvedMarginsMm($category);
-        $pages = $this->letterheadPaginator->paginate(
-            $body,
-            $margins,
-            $this->letterheadLayout->pageHeightMm(),
-            $forPdf
-        );
+        $contentPadding = $this->letterheadLayout->contentPaddingMm($withLetterhead);
 
         return view('agreements.pdf.letterhead', [
             'body' => $body,
             'pages' => $pages,
             'branding' => $branding,
             'letterheadMargins' => $margins,
+            'contentPadding' => $contentPadding,
             'pageMarginCss' => $this->letterheadLayout->pageMarginCss($category),
             'pageWidthMm' => $this->letterheadLayout->pageWidthMm(),
             'pageHeightMm' => $this->letterheadLayout->pageHeightMm(),
             'forPdf' => $forPdf,
+            'withLetterhead' => $withLetterhead,
             'rider' => $subject,
             'template' => $template,
             'category' => $category,
@@ -76,19 +78,21 @@ class AgreementPdfService
     public function generatePdf(
         AgreementTemplate $template,
         Riders $rider,
-        ?string $agreementDate = null
+        ?string $agreementDate = null,
+        bool $withLetterhead = true
     ) {
-        return $this->generatePdfForModule($template, 'riders', $rider, $agreementDate);
+        return $this->generatePdfForModule($template, 'riders', $rider, $agreementDate, $withLetterhead);
     }
 
     public function generatePdfForModule(
         AgreementTemplate $template,
         string $module,
         Model $record,
-        ?string $agreementDate = null
+        ?string $agreementDate = null,
+        bool $withLetterhead = true
     ) {
         $template->loadMissing('category');
-        $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate, false, true);
+        $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate, false, true, $withLetterhead);
 
         return $this->buildPdf($html, $template->category);
     }
@@ -96,7 +100,8 @@ class AgreementPdfService
     public function previewPdf(
         AgreementTemplate $template,
         ?Riders $rider = null,
-        ?string $agreementDate = null
+        ?string $agreementDate = null,
+        bool $withLetterhead = true
     ) {
         $rider = $rider ?? new Riders(['name' => 'Sample Rider', 'rider_id' => 'R-0001']);
         $template->loadMissing('category');
@@ -106,7 +111,8 @@ class AgreementPdfService
             $rider,
             $agreementDate,
             $rider->exists === false,
-            true
+            true,
+            $withLetterhead
         );
 
         return $this->buildPdf($html, $template->category);

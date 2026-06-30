@@ -2,7 +2,6 @@
 $s = $branding['secondary_color'] ?? '#2563eb';
 $email = $branding['email'] ?? '';
 $phone = $branding['phone'] ?? '';
-$website = $branding['website_display'] ?? '';
 $address = $branding['address'] ?? '';
 $locationLine = $branding['location_line'] ?? '';
 $addressLine = $locationLine !== '' ? $locationLine : $address;
@@ -18,8 +17,11 @@ $addressLine = $locationLine !== '' ? $locationLine : $address;
           @if($email !== '')
           <p class="page-header-meta">{{ $email }}</p>
           @endif
-          @if($website !== '')
-          <p class="page-header-meta">{{ $website }}</p>
+          @if($branding['company_id'] !== '')
+          @php
+          $company = \App\Models\Company::find($branding['company_id']);
+          @endphp
+          <p class="page-header-meta">{{ $company->name ?? '' }}</p>
           @endif
           @if($phone !== '')
           <p class="page-header-meta">{{ $phone }}</p>

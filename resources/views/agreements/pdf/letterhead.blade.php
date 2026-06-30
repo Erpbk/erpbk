@@ -307,7 +307,7 @@
     }
 
     @media screen {
-      body { background: #e2e8f0; padding: 16px 0 24px; }
+      body { background: #e2e8f0; padding: 0px; }
     }
 
     @media print {

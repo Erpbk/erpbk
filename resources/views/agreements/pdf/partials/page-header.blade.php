@@ -5,6 +5,8 @@ $email = trim((string) ($branding['email'] ?? ''));
 $phone = trim((string) ($branding['phone'] ?? ''));
 $address = trim((string) ($branding['address'] ?? ''));
 $locationLine = trim((string) ($branding['location_line'] ?? ''));
+$city = trim((string) ($branding['city'] ?? ''));
+$country = trim((string) ($branding['country'] ?? ''));
 @endphp
 <header class="page-header">
   <div class="page-header-inner">
@@ -24,7 +26,7 @@ $locationLine = trim((string) ($branding['location_line'] ?? ''));
           <p class="page-header-meta">{{ $phone }}</p>
           @endif
           @if($address !== '')
-          <p class="pag e-header-meta">{{ $locationLine !== '' ? $locationLine . ', ' : '' }}{{ $address }} </p>
+          <p class="pag e-header-meta">{{ $address }} {{ $city }} </p>
           @endif
         </td>
       </tr>

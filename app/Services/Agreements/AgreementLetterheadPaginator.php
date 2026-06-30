@@ -8,9 +8,11 @@ use DOMNode;
 
 class AgreementLetterheadPaginator
 {
-    private const ESTIMATE_SAFETY = 1.05;
+    private const ESTIMATE_SAFETY = 1.0;
 
-    private const BUDGET_FACTOR = 0.97;
+    private const BUDGET_FACTOR = 0.99;
+
+    private const BODY_FONT_PT = 8.5;
 
     private float $budgetPt = 0.0;
 
@@ -19,11 +21,12 @@ class AgreementLetterheadPaginator
      *
      * @return list<string>
      */
-    public function paginate(string $bodyHtml, array $marginsMm, float $pageHeightMm = 297): array
+    public function paginate(string $bodyHtml, array $marginsMm, float $pageHeightMm = 297, bool $forPdf = false): array
     {
         $top = (float) ($marginsMm['top'] ?? 38);
         $bottom = (float) ($marginsMm['bottom'] ?? 15);
-        $contentHeightMm = max(40, $pageHeightMm - $top - $bottom);
+        $pdfTopExtra = $forPdf ? (float) config('agreement_letterhead.pdf_content_top_extra_mm', 5) : 0.0;
+        $contentHeightMm = max(40, $pageHeightMm - $top - $bottom - $pdfTopExtra);
         $this->budgetPt = $contentHeightMm * (72 / 25.4) * self::BUDGET_FACTOR;
 
         $dom = new DOMDocument('1.0', 'UTF-8');
@@ -49,12 +52,6 @@ class AgreementLetterheadPaginator
         $usedPt = 0.0;
 
         foreach ($children as $child) {
-            if ($child instanceof DOMElement && strtolower($child->tagName) === 'table') {
-                $this->appendTableParts($dom, $child, $pages, $currentNodes, $usedPt);
-
-                continue;
-            }
-
             $this->appendNode($dom, $child, $pages, $currentNodes, $usedPt);
         }
 
@@ -79,22 +76,96 @@ class AgreementLetterheadPaginator
         array &$currentNodes,
         float &$usedPt
     ): void {
-        $estimate = $this->safeEstimate($this->estimateNodeHeightPt($child));
+        if ($child instanceof DOMElement) {
+            $tag = strtolower($child->tagName);
 
-        if ($usedPt + $estimate > $this->budgetPt && $currentNodes !== []) {
-            $pages[] = $this->joinHtml($dom, $currentNodes);
-            $currentNodes = [];
-            $usedPt = 0.0;
+            if ($tag === 'table') {
+                $this->appendTableParts($dom, $child, $pages, $currentNodes, $usedPt);
+
+                return;
+            }
+
+            if (in_array($tag, ['ul', 'ol'], true)) {
+                $this->appendListParts($dom, $child, $pages, $currentNodes, $usedPt);
+
+                return;
+            }
+        }
+
+        $estimate = $this->safeEstimate($this->estimateNodeHeightPt($child));
+        $remaining = $this->budgetPt - $usedPt;
+
+        if ($estimate <= $remaining) {
+            $currentNodes[] = $child;
+            $usedPt += $estimate;
+
+            return;
         }
 
         if ($estimate > $this->budgetPt && $child instanceof DOMElement) {
+            $this->flushPage($dom, $pages, $currentNodes, $usedPt);
             $this->appendOversizedElement($dom, $child, $pages, $currentNodes, $usedPt);
 
             return;
         }
 
+        $this->flushPage($dom, $pages, $currentNodes, $usedPt);
+
         $currentNodes[] = $child;
         $usedPt += $estimate;
+    }
+
+    /**
+     * @param  list<DOMNode>  $currentNodes
+     */
+    private function appendListParts(
+        DOMDocument $dom,
+        DOMElement $list,
+        array &$pages,
+        array &$currentNodes,
+        float &$usedPt
+    ): void {
+        foreach ($this->splitList($dom, $list) as $part) {
+            $partEstimate = $this->safeEstimate($this->estimateNodeHeightPt($part));
+            $remaining = $this->budgetPt - $usedPt;
+
+            if ($partEstimate <= $remaining) {
+                $currentNodes[] = $part;
+                $usedPt += $partEstimate;
+
+                continue;
+            }
+
+            if ($partEstimate > $this->budgetPt) {
+                $this->flushPage($dom, $pages, $currentNodes, $usedPt);
+                $this->appendOversizedElement($dom, $part, $pages, $currentNodes, $usedPt);
+
+                continue;
+            }
+
+            $this->flushPage($dom, $pages, $currentNodes, $usedPt);
+
+            $currentNodes[] = $part;
+            $usedPt += $partEstimate;
+        }
+    }
+
+    /**
+     * @param  list<DOMNode>  $currentNodes
+     */
+    private function flushPage(
+        DOMDocument $dom,
+        array &$pages,
+        array &$currentNodes,
+        float &$usedPt
+    ): void {
+        if ($currentNodes === []) {
+            return;
+        }
+
+        $pages[] = $this->joinHtml($dom, $currentNodes);
+        $currentNodes = [];
+        $usedPt = 0.0;
     }
 
     /**
@@ -229,14 +300,6 @@ class AgreementLetterheadPaginator
             if (in_array($tag, ['div', 'section', 'article', 'main', 'figure', 'center'], true)) {
                 foreach ($this->expandNodes($dom, $child) as $nested) {
                     $items[] = $nested;
-                }
-
-                continue;
-            }
-
-            if (in_array($tag, ['ul', 'ol'], true)) {
-                foreach ($this->splitList($dom, $child) as $listPart) {
-                    $items[] = $listPart;
                 }
 
                 continue;
@@ -580,7 +643,7 @@ class AgreementLetterheadPaginator
         if (! $node instanceof DOMElement) {
             $text = trim($node->textContent ?? '');
 
-            return $text === '' ? 0.0 : $this->estimateTextHeightPt($text, 9.5);
+            return $text === '' ? 0.0 : $this->estimateTextHeightPt($text, self::BODY_FONT_PT);
         }
 
         $tag = strtolower($node->tagName);
@@ -591,7 +654,7 @@ class AgreementLetterheadPaginator
             'h1', 'h2', 'h3', 'h4' => 12 + $this->estimateTextHeightPt($node->textContent ?? '', 10.5),
             'hr' => 12,
             'img' => 80,
-            'li' => $this->estimateTextHeightPt($node->textContent ?? '', 9.5) + 5,
+            'li' => $this->estimateListItemHeightPt($node),
             default => $this->estimateBlockHeightPt($node),
         };
     }
@@ -658,19 +721,54 @@ class AgreementLetterheadPaginator
         $total = 4.0;
         foreach ($list->childNodes as $child) {
             if ($child instanceof DOMElement && strtolower($child->tagName) === 'li') {
-                $total += $this->estimateNodeHeightPt($child);
+                $total += $this->estimateListItemHeightPt($child);
             }
         }
 
         return max(10.0, $total);
     }
 
+    private function estimateListItemHeightPt(DOMElement $li): float
+    {
+        $height = 4.0;
+        $directText = '';
+
+        foreach ($li->childNodes as $child) {
+            if ($child->nodeType === XML_TEXT_NODE) {
+                $directText .= ' ' . ($child->textContent ?? '');
+
+                continue;
+            }
+
+            if (! $child instanceof DOMElement) {
+                continue;
+            }
+
+            $tag = strtolower($child->tagName);
+
+            if (in_array($tag, ['ul', 'ol', 'table'], true)) {
+                $height += $this->estimateNodeHeightPt($child);
+
+                continue;
+            }
+
+            $height += $this->estimateBlockHeightPt($child);
+        }
+
+        $directText = trim(preg_replace('/\s+/u', ' ', $directText) ?? '');
+        if ($directText !== '') {
+            $height += $this->estimateTextHeightPt($directText, self::BODY_FONT_PT);
+        }
+
+        return max(8.0, $height);
+    }
+
     private function estimateBlockHeightPt(DOMElement $node): float
     {
         $html = strtolower($node->ownerDocument?->saveHTML($node) ?? '');
         $brLines = max(0, substr_count($html, '<br'));
-        $text = trim(preg_replace('/\s+/u', ' ', $node->textContent ?? '') ?? '');
-        $textHeight = $this->estimateTextHeightPt($text, 9.5);
+        $text = trim(preg_replace('/\s+/u', ' ', $this->directTextContent($node)) ?? '');
+        $textHeight = $this->estimateTextHeightPt($text, self::BODY_FONT_PT);
 
         if ($brLines > 0) {
             $textHeight = max($textHeight, ($brLines + 1) * 13.5);
@@ -697,10 +795,38 @@ class AgreementLetterheadPaginator
             return 0.0;
         }
 
-        $charsPerLine = 94;
-        $lineHeight = $fontSizePt * 1.38;
+        $charsPerLine = 96;
+        $lineHeight = $fontSizePt * 1.4;
         $lines = max(1, (int) ceil(mb_strlen($text) / $charsPerLine));
 
         return ($lines * $lineHeight) + 4;
+    }
+
+    private function directTextContent(DOMNode $node): string
+    {
+        if ($node->nodeType === XML_TEXT_NODE) {
+            return (string) ($node->textContent ?? '');
+        }
+
+        if (! $node instanceof DOMElement) {
+            return '';
+        }
+
+        $text = '';
+        foreach ($node->childNodes as $child) {
+            if ($child->nodeType === XML_TEXT_NODE) {
+                $text .= ' ' . ($child->textContent ?? '');
+
+                continue;
+            }
+
+            if ($child instanceof DOMElement && in_array(strtolower($child->tagName), ['ul', 'ol', 'table'], true)) {
+                continue;
+            }
+
+            $text .= ' ' . $this->directTextContent($child);
+        }
+
+        return $text;
     }
 }

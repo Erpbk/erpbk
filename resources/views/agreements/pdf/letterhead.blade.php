@@ -214,7 +214,7 @@
       font-size: 12pt;
       color: #1e293b;
       line-height: 1.45;
-      text-align: right;
+      text-align: left;
       font-weight: bolder;
     }
 

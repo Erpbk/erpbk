@@ -58,10 +58,11 @@
       display: block;
       width: 210mm;
       max-width: 100%;
-      min-height: 80vh;
+      min-height: 200px;
       margin: 0 auto;
       border: 0;
       background: transparent;
+      overflow: visible;
     }
 
     @media print {
@@ -124,13 +125,30 @@
     (function() {
       var html = @json($html);
       var frame = document.getElementById('agreement-preview-frame');
-      frame.srcdoc = html;
-      frame.onload = function() {
+
+      function resizeFrame() {
         try {
           var doc = frame.contentDocument || frame.contentWindow.document;
-          var height = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+          if (!doc || !doc.body) {
+            return;
+          }
+          if (typeof frame.contentWindow.__agreementRepaginate === 'function') {
+            frame.contentWindow.__agreementRepaginate();
+          }
+          var height = Math.max(
+            doc.body.scrollHeight,
+            doc.documentElement.scrollHeight,
+            doc.getElementById('agreement-preview-pages') ? doc.getElementById('agreement-preview-pages').scrollHeight + 48 : 0
+          );
           frame.style.height = (height + 24) + 'px';
         } catch (e) {}
+      }
+
+      frame.srcdoc = html;
+      frame.onload = function() {
+        resizeFrame();
+        setTimeout(resizeFrame, 100);
+        setTimeout(resizeFrame, 500);
       };
       window.printPreview = function() {
         try {

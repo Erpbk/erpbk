@@ -18,7 +18,7 @@ class AgreementLetterheadPaginator
         $top = (float) ($marginsMm['top'] ?? 48);
         $bottom = (float) ($marginsMm['bottom'] ?? 52);
         $contentHeightMm = max(40, $pageHeightMm - $top - $bottom);
-        $budgetPt = $contentHeightMm * (72 / 25.4) * 0.72;
+        $budgetPt = $contentHeightMm * (72 / 25.4) * 0.88;
 
         $dom = new DOMDocument('1.0', 'UTF-8');
         $dom->preserveWhiteSpace = false;
@@ -28,27 +28,21 @@ class AgreementLetterheadPaginator
         );
 
         $root = $dom->getElementById('agreement-root');
-        if (! $root) {
-            return [$bodyHtml];
+        if (! $root instanceof DOMElement) {
+            return $this->hasMeaningfulHtml($bodyHtml) ? [$bodyHtml] : [];
         }
 
-        $children = [];
-        foreach ($root->childNodes as $child) {
-            if ($child->nodeType === XML_TEXT_NODE && trim($child->textContent ?? '') === '') {
-                continue;
-            }
-            $children[] = $child;
-        }
+        $blocks = $this->collectPaginatableNodes($root, $dom);
 
-        if ($children === []) {
-            return [$bodyHtml];
+        if ($blocks === []) {
+            return $this->hasMeaningfulHtml($bodyHtml) ? [$bodyHtml] : [];
         }
 
         $pages = [];
         $currentNodes = [];
         $usedPt = 0.0;
 
-        foreach ($children as $child) {
+        foreach ($blocks as $child) {
             $estimate = $this->estimateNodeHeightPt($child);
 
             if ($usedPt + $estimate > $budgetPt && $currentNodes !== []) {
@@ -71,7 +65,123 @@ class AgreementLetterheadPaginator
             $pages[] = $this->joinHtml($dom, $currentNodes);
         }
 
-        return $pages !== [] ? $pages : [$bodyHtml];
+        $pages = array_values(array_filter($pages, fn (string $html): bool => $this->hasMeaningfulHtml($html)));
+
+        return $pages !== [] ? $pages : ($this->hasMeaningfulHtml($bodyHtml) ? [$bodyHtml] : []);
+    }
+
+    /**
+     * @return list<DOMNode>
+     */
+    private function collectPaginatableNodes(DOMElement $root, DOMDocument $dom): array
+    {
+        $blocks = [];
+        $this->walkNodes($root, $blocks, $dom);
+
+        return $blocks;
+    }
+
+    /**
+     * @param  list<DOMNode>  $blocks
+     */
+    private function walkNodes(DOMNode $parent, array &$blocks, DOMDocument $dom): void
+    {
+        foreach ($parent->childNodes as $node) {
+            if ($this->isEmptyNode($node)) {
+                continue;
+            }
+
+            if ($node->nodeType === XML_TEXT_NODE) {
+                $paragraph = $dom->createElement('p');
+                $paragraph->textContent = trim((string) $node->textContent);
+                $blocks[] = $paragraph;
+
+                continue;
+            }
+
+            if (! $node instanceof DOMElement) {
+                continue;
+            }
+
+            $tag = strtolower($node->tagName);
+
+            if ($tag === 'table') {
+                $blocks[] = $node;
+
+                continue;
+            }
+
+            if ($tag === 'ul' || $tag === 'ol') {
+                $start = $tag === 'ol' ? (int) ($node->getAttribute('start') ?: 1) : 1;
+                $index = 0;
+
+                foreach ($node->childNodes as $li) {
+                    if (! $li instanceof DOMElement || strtolower($li->tagName) !== 'li') {
+                        continue;
+                    }
+
+                    if ($this->isEmptyNode($li)) {
+                        continue;
+                    }
+
+                    $list = $dom->createElement($tag);
+                    if ($tag === 'ol' && ($start + $index) > 1) {
+                        $list->setAttribute('start', (string) ($start + $index));
+                    }
+                    $list->appendChild($li->cloneNode(true));
+                    $blocks[] = $list;
+                    $index++;
+                }
+
+                continue;
+            }
+
+            if (in_array($tag, ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'blockquote', 'pre', 'img'], true)) {
+                $blocks[] = $node;
+
+                continue;
+            }
+
+            if (in_array($tag, ['div', 'section', 'article'], true)) {
+                $this->walkNodes($node, $blocks, $dom);
+
+                continue;
+            }
+
+            $blocks[] = $node;
+        }
+    }
+
+    private function isEmptyNode(DOMNode $node): bool
+    {
+        if ($node->nodeType === XML_TEXT_NODE) {
+            return trim((string) $node->textContent) === '';
+        }
+
+        if (! $node instanceof DOMElement) {
+            return true;
+        }
+
+        if (strtolower($node->tagName) === 'br') {
+            return true;
+        }
+
+        if (in_array(strtolower($node->tagName), ['img', 'table', 'hr', 'svg'], true)) {
+            return false;
+        }
+
+        return trim(preg_replace('/\s+/u', '', (string) $node->textContent) ?? '') === '';
+    }
+
+    private function hasMeaningfulHtml(string $html): bool
+    {
+        $text = trim(preg_replace('/\s+/u', ' ', strip_tags($html)) ?? '');
+
+        if ($text !== '') {
+            return true;
+        }
+
+        return (bool) preg_match('/<(img|table|hr|svg)\b/i', $html);
     }
 
     /**
@@ -100,7 +210,7 @@ class AgreementLetterheadPaginator
         return match ($tag) {
             'table' => $this->estimateTableHeightPt($node),
             'ul', 'ol' => $this->estimateListHeightPt($node),
-            'h1', 'h2', 'h3', 'h4' => 22 + $this->estimateTextHeightPt($node->textContent ?? '', 10.5),
+            'h1', 'h2', 'h3', 'h4', 'h5', 'h6' => 22 + $this->estimateTextHeightPt($node->textContent ?? '', 10.5),
             'hr' => 14,
             'img' => 90,
             default => $this->estimateBlockHeightPt($node),

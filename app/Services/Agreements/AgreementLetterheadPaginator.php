@@ -114,16 +114,20 @@ class AgreementLetterheadPaginator
             if (count($items) === 1 && $this->safeEstimate($this->estimateNodeHeightPt($items[0])) > $this->budgetPt) {
                 $li = $items[0]->getElementsByTagName('li')->item(0);
                 if ($li instanceof DOMElement) {
+                    $baseStart = $tag === 'ol' ? max(1, (int) ($element->getAttribute('start') ?: 1)) : 1;
+                    $liIndex = 0;
+
                     foreach ($this->splitListItem($dom, $li) as $liPart) {
                         $wrapper = $dom->createElement($tag);
-                        if ($element->hasAttribute('class')) {
-                            $wrapper->setAttribute('class', $element->getAttribute('class'));
+                        $this->copyListAttributes($element, $wrapper);
+
+                        if ($tag === 'ol') {
+                            $this->setOrderedListStart($wrapper, $baseStart + $liIndex);
                         }
-                        if ($element->hasAttribute('style')) {
-                            $wrapper->setAttribute('style', $element->getAttribute('style'));
-                        }
+
                         $wrapper->appendChild($liPart);
                         $this->appendNode($dom, $wrapper, $pages, $currentNodes, $usedPt);
+                        $liIndex++;
                     }
 
                     return;
@@ -259,6 +263,8 @@ class AgreementLetterheadPaginator
     {
         $tag = strtolower($list->tagName);
         $parts = [];
+        $index = 0;
+        $baseStart = $tag === 'ol' ? max(1, (int) ($list->getAttribute('start') ?: 1)) : 1;
 
         foreach ($list->childNodes as $child) {
             if (! $child instanceof DOMElement || strtolower($child->tagName) !== 'li') {
@@ -266,17 +272,34 @@ class AgreementLetterheadPaginator
             }
 
             $single = $dom->createElement($tag);
-            if ($list->hasAttribute('class')) {
-                $single->setAttribute('class', $list->getAttribute('class'));
+            $this->copyListAttributes($list, $single);
+
+            if ($tag === 'ol') {
+                $this->setOrderedListStart($single, $baseStart + $index);
             }
-            if ($list->hasAttribute('style')) {
-                $single->setAttribute('style', $list->getAttribute('style'));
-            }
+
             $single->appendChild($child->cloneNode(true));
             $parts[] = $single;
+            $index++;
         }
 
         return $parts !== [] ? $parts : [$list];
+    }
+
+    private function copyListAttributes(DOMElement $source, DOMElement $target): void
+    {
+        foreach (['class', 'style', 'type'] as $attribute) {
+            if ($source->hasAttribute($attribute)) {
+                $target->setAttribute($attribute, $source->getAttribute($attribute));
+            }
+        }
+    }
+
+    private function setOrderedListStart(DOMElement $list, int $start): void
+    {
+        if ($start > 1) {
+            $list->setAttribute('start', (string) $start);
+        }
     }
 
     /**

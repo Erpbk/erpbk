@@ -46,31 +46,20 @@ class AgreementPdfService
         $branding = $this->pdfBranding->forCompany($template->company_id);
         $template->loadMissing('category');
         $category = $template->category;
-        $letterheadSrc = $this->pdfBranding->letterheadDataUri($category);
-        $letterheadFileSrc = $this->resolveLetterheadFileSrc($category);
-
-        $view = $letterheadSrc !== null
-            ? 'agreements.pdf.letterhead'
-            : 'agreements.pdf.plain';
 
         $subject = app(AgreementModuleService::class)->pdfSubject($module, $record);
 
         $margins = $this->letterheadLayout->resolvedMarginsMm($category);
-        $pages = [$body];
-        if ($forPdf && $letterheadSrc !== null) {
-            $pages = $this->letterheadPaginator->paginate(
-                $body,
-                $margins,
-                $this->letterheadLayout->pageHeightMm()
-            );
-        }
+        $pages = $this->letterheadPaginator->paginate(
+            $body,
+            $margins,
+            $this->letterheadLayout->pageHeightMm()
+        );
 
-        return view($view, [
+        return view('agreements.pdf.letterhead', [
             'body' => $body,
             'pages' => $pages,
             'branding' => $branding,
-            'letterheadSrc' => $letterheadSrc,
-            'letterheadFileSrc' => $letterheadFileSrc,
             'letterheadMargins' => $margins,
             'pageMarginCss' => $this->letterheadLayout->pageMarginCss($category),
             'pageWidthMm' => $this->letterheadLayout->pageWidthMm(),
@@ -124,7 +113,11 @@ class AgreementPdfService
 
     private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null)
     {
-        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'portrait');
+        $pageW = $this->letterheadLayout->pageWidthMm();
+        $pageH = $this->letterheadLayout->pageHeightMm();
+        $paperSize = [0, 0, $pageW * 2.83465, $pageH * 2.83465];
+
+        $pdf = Pdf::loadHTML($html)->setPaper($paperSize, 'portrait');
 
         $dompdf = $pdf->getDomPDF();
         $options = $dompdf->getOptions();
@@ -132,36 +125,13 @@ class AgreementPdfService
         $options->setIsRemoteEnabled(true);
         $options->setDefaultFont('DejaVu Sans');
         $options->setDpi(96);
+        $options->setDefaultPaperSize($paperSize);
         $options->setChroot([
             storage_path('app/public'),
             public_path(),
         ]);
 
-        if ($category?->hasLetterhead()) {
-            $pdf->setBasePath(storage_path('app/public'));
-        }
-
         return $pdf;
-    }
-
-    private function resolveLetterheadFileSrc(?\App\Models\AgreementCategory $category): ?string
-    {
-        $path = $category?->letterheadFilesystemPath();
-        if ($path === null) {
-            return null;
-        }
-
-        $real = realpath($path);
-        if ($real === false || ! is_readable($real)) {
-            return null;
-        }
-
-        $publicRoot = realpath(storage_path('app/public'));
-        if ($publicRoot !== false && str_starts_with($real, $publicRoot)) {
-            return str_replace('\\', '/', substr($real, strlen($publicRoot) + 1));
-        }
-
-        return str_replace('\\', '/', $real);
     }
 
     private function sampleMap(): array

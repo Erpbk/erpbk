@@ -1,30 +1,30 @@
 <?php
 
 /**
- * Letterhead PDF layout — A4 full-page artwork with automatic safe content zone.
+ * Branded agreement PDF layout — A4 with header chrome and content safe zone.
  */
 return [
     'page_width_mm' => 210,
     'page_height_mm' => 297,
 
-    /** Default content safe-zone when no per-agreement overrides exist (mm). */
-    'margins_mm' => [
-        'top' => 48,
-        'bottom' => 52,
-        'left' => 18,
-        'right' => 18,
+    /** Space reserved for the fixed header chrome (logo, contact, rule). */
+    'header_reserve_mm' => 40,
+
+    /** Gap between header and content, as a fraction of page height (2%). */
+    'content_top_gap_pct' => 0.02,
+
+    /** Bottom printable margin as a fraction of page height (5%). */
+    'content_bottom_pct' => 0.05,
+
+    /** Horizontal content margins (mm). */
+    'side_margins_mm' => [
+        'left' => 12,
+        'right' => 12,
     ],
 
     /**
-     * When a letterhead is uploaded, estimate header/footer reserve from page height.
-     * buffer_mm adds breathing room so text never touches artwork.
+     * Extra space below the header rule for DomPDF only (mm).
+     * DomPDF positions absolute content slightly higher than browser preview.
      */
-    'auto_zones' => [
-        'header_fraction' => 0.22,
-        'footer_fraction' => 0.22,
-        'buffer_mm' => 8,
-        'ink_threshold' => 235,
-        'row_ink_ratio' => 0.012,
-        'col_ink_ratio' => 0.04,
-    ],
+    'pdf_content_top_extra_mm' => 6,
 ];

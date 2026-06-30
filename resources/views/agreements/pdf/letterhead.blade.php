@@ -6,7 +6,7 @@
   @php
   $pageW = $pageWidthMm ?? 210;
   $pageH = $pageHeightMm ?? 297;
-  $m = $letterheadMargins ?? ['top' => 48, 'bottom' => 52, 'left' => 18, 'right' => 18];
+  $m = $letterheadMargins ?? ['top' => 44, 'bottom' => 15, 'left' => 12, 'right' => 12];
   $mt = $m['top'];
   $mb = $m['bottom'];
   $ml = $m['left'];
@@ -14,18 +14,22 @@
   $forPdf = ! empty($forPdf);
   $contentW = max(1, $pageW - $ml - $mr);
   $contentH = max(40, $pageH - $mt - $mb);
-  $mtPct = round($mt / $pageH * 100, 4);
-  $mbPct = round($mb / $pageH * 100, 4);
-  $mlPct = round($ml / $pageW * 100, 4);
-  $mrPct = round($mr / $pageW * 100, 4);
+  $contentTopMm = $forPdf
+    ? $mt + (float) config('agreement_letterhead.pdf_content_top_extra_mm', 6)
+    : $mt;
+  $contentTopCss = $forPdf
+    ? round($contentTopMm * 2.834645669, 2) . 'pt'
+    : $contentTopMm . 'mm';
+  $p = $branding['primary_color'] ?? '#1e3a8a';
+  $s = $branding['secondary_color'] ?? '#2563eb';
   @endphp
   <style>
-    @if ($forPdf)
     @page {
       size: {{ $pageW }}mm {{ $pageH }}mm;
       margin: 0;
     }
 
+<<<<<<< Updated upstream
     .pdf-pages {
       margin: 0;
       padding: 0;
@@ -100,6 +104,8 @@
     }
     @endif
 
+=======
+>>>>>>> Stashed changes
     * { box-sizing: border-box; }
 
     html, body {
@@ -114,49 +120,223 @@
       line-height: 1.4;
     }
 
-    .letterhead-backdrop {
-      position: fixed;
+    .agreement-page {
+      position: relative;
+      width: {{ $pageW }}mm;
+      height: {{ $pageH }}mm;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    @if (! $forPdf)
+    .agreement-page + .agreement-page {
+      page-break-before: always;
+    }
+    @endif
+
+    .page-decor {
+      position: absolute;
       top: 0;
       left: 0;
       width: {{ $pageW }}mm;
       height: {{ $pageH }}mm;
-      z-index: -1;
-      margin: 0;
-      padding: 0;
+      z-index: 0;
       pointer-events: none;
       overflow: hidden;
     }
 
-    .letterhead-backdrop img {
-      display: block;
-      width: {{ $pageW }}mm;
-      height: {{ $pageH }}mm;
-      margin: 0;
-      padding: 0;
-      border: 0;
+    .corner-shapes {
+      position: absolute;
+      overflow: hidden;
+      pointer-events: none;
     }
 
-    .document-flow,
+    .corner-shapes--tr {
+      top: 0;
+      right: 0;
+      width: 58mm;
+      height: 48mm;
+    }
+
+    .corner-shapes--bl {
+      bottom: 0;
+      left: 0;
+      width: 58mm;
+      height: 48mm;
+    }
+
+    .corner-blob {
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    .corner-shapes--tr .corner-blob--1 {
+      top: -16mm;
+      right: -14mm;
+      width: 52mm;
+      height: 52mm;
+      opacity: 0.16;
+    }
+
+    .corner-shapes--tr .corner-blob--2 {
+      top: 4mm;
+      right: -6mm;
+      width: 34mm;
+      height: 34mm;
+      opacity: 0.22;
+    }
+
+    .corner-shapes--tr .corner-blob--3 {
+      top: 18mm;
+      right: 12mm;
+      width: 20mm;
+      height: 20mm;
+      opacity: 0.35;
+    }
+
+    .corner-shapes--bl .corner-blob--1 {
+      bottom: -16mm;
+      left: -14mm;
+      width: 52mm;
+      height: 52mm;
+      opacity: 0.14;
+    }
+
+    .corner-shapes--bl .corner-blob--2 {
+      bottom: 4mm;
+      left: -6mm;
+      width: 34mm;
+      height: 34mm;
+      opacity: 0.2;
+    }
+
+    .corner-shapes--bl .corner-blob--3 {
+      bottom: 18mm;
+      left: 12mm;
+      width: 20mm;
+      height: 20mm;
+      opacity: 0.3;
+    }
+
+    .page-watermark {
+      position: absolute;
+      width: 90mm;
+      height: 90mm;
+      z-index: 0;
+      opacity: 0.07;
+      text-align: center;
+    }
+
+    .page-watermark img {
+      display: block;
+      width: 90mm;
+      max-width: 90mm;
+      height: auto;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 2;
+      padding-top: 8mm;
+      pointer-events: none;
+    }
+
+    .page-header-inner {
+      padding: 0 12mm;
+    }
+
+    .page-header-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .page-header-table td {
+      border: none;
+      padding: 0;
+      vertical-align: top;
+    }
+
+    .page-header-logo {
+      width: 55%;
+      padding-right: 6mm;
+    }
+
+    .page-header-logo .company-logo-img {
+      max-height: 30mm;
+      max-width: 65mm;
+      display: block;
+    }
+
+    .page-header-logo .company-logo-fallback {
+      width: 22mm;
+      height: 22mm;
+      line-height: 22mm;
+      text-align: center;
+      font-size: 12pt;
+      font-weight: bold;
+      border-radius: 3mm;
+    }
+
+    .page-header-info {
+      width: 45%;
+      text-align: right;
+      padding-top: 1mm;
+    }
+
+    .page-header-meta {
+      margin: 0 0 2pt;
+      font-size: 12pt;
+      color: #1e293b;
+      line-height: 1.45;
+      text-align: right;
+      font-weight: bolder;
+    }
+
+    .page-header-rule {
+      height: 0.5mm;
+      margin-top: 4mm;
+      width: 100%;
+    }
+
+    .page-content-flow {
+      position: absolute;
+      top: {{ $contentTopCss }};
+      left: {{ $ml }}mm;
+      right: {{ $mr }}mm;
+      bottom: {{ $mb }}mm;
+      z-index: 1;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    @if ($forPdf)
+    .page-content-flow .content {
+      padding-top: 1mm;
+    }
+    @endif
+
     .content {
       width: 100%;
       max-width: 100%;
       margin: 0;
       padding: 0;
-    }
-
-    .content {
-      font-size: 9.5pt;
+      font-size: 8.5pt;
       line-height: 1.4;
       overflow-wrap: break-word;
       word-wrap: break-word;
       word-break: break-word;
+      box-sizing: border-box;
     }
 
     .content p { margin: 0 0 6pt; max-width: 100%; }
     .content h1, .content h2, .content h3, .content h4 {
       font-size: 10.5pt;
       margin: 10pt 0 5pt;
-      color: #1e293b;
+      color: {{ $p }};
       page-break-after: avoid;
       max-width: 100%;
     }
@@ -194,74 +374,21 @@
     }
 
     @if (! $forPdf)
-    .preview-pages-source {
-      display: none !important;
-    }
-
     .preview-pages {
       width: {{ $pageW }}mm;
       margin: 0 auto;
     }
 
-    .preview-page {
-      position: relative;
-      width: {{ $pageW }}mm;
-      height: {{ $pageH }}mm;
-      overflow: hidden;
-      background: #fff;
-      box-sizing: border-box;
+    .preview-pages .agreement-page {
+      margin: 0 auto 16px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
     }
-
-    .preview-page .letterhead-backdrop {
-      display: block;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 0;
-      width: {{ $pageW }}mm;
-      height: {{ $pageH }}mm;
-    }
-
-    .preview-page .letterhead-backdrop img {
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-
-    .preview-page .document-flow {
-      position: relative;
-      z-index: 1;
-      width: {{ $pageW }}mm;
-      height: {{ $pageH }}mm;
-      padding: {{ $mt }}mm {{ $mr }}mm {{ $mb }}mm {{ $ml }}mm;
-      overflow: hidden;
-      box-sizing: border-box;
-    }
-
-    .preview-page .content {
-      width: {{ $contentW }}mm;
-      max-width: {{ $contentW }}mm;
-      max-height: {{ $contentH }}mm;
-      margin: 0 auto;
-      overflow: hidden;
-      box-sizing: border-box;
-    }
-    @endif
 
     @media screen {
       body { background: #e2e8f0; padding: 16px 0 24px; }
-
-      .preview-page {
-        margin: 0 auto 16px;
-        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
-      }
     }
 
     @media print {
-      @page {
-        size: {{ $pageW }}mm {{ $pageH }}mm;
-        margin: 0 !important;
-      }
-
       html, body {
         width: {{ $pageW }}mm !important;
         height: auto !important;
@@ -272,10 +399,6 @@
         print-color-adjust: exact !important;
       }
 
-      .preview-pages-source {
-        display: none !important;
-      }
-
       .preview-pages {
         display: block !important;
         width: {{ $pageW }}mm !important;
@@ -283,16 +406,10 @@
         padding: 0 !important;
       }
 
-      .preview-page {
-        position: relative;
-        width: {{ $pageW }}mm !important;
-        height: {{ $pageH }}mm !important;
-        min-height: {{ $pageH }}mm !important;
-        max-height: {{ $pageH }}mm !important;
+      .preview-pages .agreement-page {
         margin: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
         box-shadow: none !important;
+<<<<<<< Updated upstream
         page-break-inside: avoid;
         break-inside: avoid;
         background-color: #fff;
@@ -300,10 +417,14 @@
         background-size: 100% 100%;
         background-repeat: no-repeat;
         background-position: center center;
+=======
+        page-break-after: avoid !important;
+>>>>>>> Stashed changes
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
 
+<<<<<<< Updated upstream
       .preview-page + .preview-page {
         page-break-before: always;
         break-before: page;
@@ -312,72 +433,42 @@
       .preview-page:last-child {
         page-break-after: avoid;
         break-after: avoid;
+=======
+      .preview-pages .agreement-page + .agreement-page {
+        page-break-before: always !important;
+>>>>>>> Stashed changes
       }
 
-      .preview-page .letterhead-backdrop {
-        display: none !important;
-      }
-
-      .preview-page .document-flow {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100% !important;
-        height: 100% !important;
-        margin: 0 !important;
-        padding: {{ $mtPct }}% {{ $mrPct }}% {{ $mbPct }}% {{ $mlPct }}% !important;
-        overflow: hidden !important;
-        box-sizing: border-box !important;
-      }
-
-      .preview-page .content {
-        width: 100% !important;
-        max-width: 100% !important;
-        height: 100% !important;
-        max-height: 100% !important;
-        margin: 0 !important;
-        overflow: hidden !important;
-        box-sizing: border-box !important;
+      .corner-blob,
+      .page-header-rule {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
     }
+    @endif
   </style>
 </head>
 <body>
-  @if ($forPdf)
-  @php
-    $pdfPages = $pages ?? [$body];
-    $pdfLetterheadSrc = $letterheadSrc ?? $letterheadFileSrc;
-  @endphp
-  <div class="pdf-pages">
-    @foreach ($pdfPages as $pageBody)
-    <div class="pdf-page">
-      <div class="pdf-letterhead" aria-hidden="true">
-        <img src="{{ $pdfLetterheadSrc }}" alt="">
-      </div>
-      <main class="pdf-page-flow">
-        <div class="pdf-page-content content">
+  @php $renderPages = $pages ?? [$body]; @endphp
+  <div class="{{ $forPdf ? 'pdf-pages' : 'preview-pages' }}" id="agreement-preview-pages" aria-live="polite">
+    @foreach ($renderPages as $pageBody)
+    <div class="agreement-page {{ $forPdf ? 'pdf-page' : 'preview-page' }}">
+      @include('agreements.pdf.partials.page-chrome', [
+        'pageWidthMm' => $pageW,
+        'pageHeightMm' => $pageH,
+      ])
+      <main class="page-content-flow {{ $forPdf ? 'pdf-page-flow' : 'document-flow' }}">
+        <div class="content {{ $forPdf ? 'pdf-page-content' : '' }}">
           {!! $pageBody !!}
         </div>
       </main>
     </div>
     @endforeach
   </div>
-  @else
-  <div class="preview-pages-source">
-    <div class="letterhead-backdrop" aria-hidden="true">
-      <img src="{{ $letterheadSrc }}" alt="">
-    </div>
-    <main class="document-flow">
-      <div class="content" id="agreement-content-source">
-        {!! $body !!}
-      </div>
-    </main>
-  </div>
-
-  <div class="preview-pages" id="agreement-preview-pages" aria-live="polite"></div>
-
+  @if (! $forPdf)
   <script>
   (function () {
+<<<<<<< Updated upstream
     var pageWmm = {{ $pageW }};
     var pageHmm = {{ $pageH }};
     var contentWmm = {{ $contentW }};
@@ -581,11 +672,15 @@
 
     function paginatePreview() {
       var source = document.getElementById('agreement-content-source');
+=======
+    function resizePreviewFrame() {
+>>>>>>> Stashed changes
       var target = document.getElementById('agreement-preview-pages');
-      if (!source || !target) {
+      if (!target) {
         return;
       }
 
+<<<<<<< Updated upstream
       var contentHeightPx = mmToPx(pageHmm - mt - mb);
       var contentWidthPx = mmToPx(contentWmm);
       var nodes = collectPaginatableNodes(source);
@@ -700,6 +795,20 @@
           } else {
             pageContent.removeChild(trial);
             chunk.push(row);
+=======
+      if (window.parent && window.parent !== window) {
+        try {
+          var frame = window.frameElement;
+          if (frame) {
+            var probe = document.createElement('div');
+            probe.style.width = '1mm';
+            probe.style.position = 'absolute';
+            probe.style.visibility = 'hidden';
+            document.body.appendChild(probe);
+            var pxPerMm = probe.offsetWidth || (96 / 25.4);
+            document.body.removeChild(probe);
+            frame.style.height = (target.scrollHeight + (32 * pxPerMm / (96 / 25.4))) + 'px';
+>>>>>>> Stashed changes
           }
         });
 
@@ -724,16 +833,20 @@
       resizePreviewFrame();
     }
 
-    window.__agreementRepaginate = paginatePreview;
+    window.__agreementRepaginate = resizePreviewFrame;
 
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', paginatePreview);
+      document.addEventListener('DOMContentLoaded', resizePreviewFrame);
     } else {
-      paginatePreview();
+      resizePreviewFrame();
     }
 
+<<<<<<< Updated upstream
     window.addEventListener('load', paginatePreview);
     window.addEventListener('beforeprint', paginatePreview);
+=======
+    window.addEventListener('beforeprint', resizePreviewFrame);
+>>>>>>> Stashed changes
   })();
   </script>
   @endif

@@ -811,10 +811,10 @@ $homeLink = $isAdminLogin
 @endif
 
 @if($isAdminLogin && $canAccessSuperAdminPanel)
-<li class="menu-item {{ Route::is('admin.accounts.fixed*') ? 'active' : '' }}">
-  <a href="{{ route('admin.accounts.fixed.index') }}" class="menu-link">
-    <i class="menu-icon tf-icons ti ti-pinned"></i>
-    <div>{{ __('Account Fixing') }}</div>
+<li class="menu-item {{ Route::is('admin.global-accounts*') ? 'active' : '' }}">
+  <a href="{{ route('admin.global-accounts.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-world"></i>
+    <div>{{ __('Global Accounts') }}</div>
   </a>
 </li>
 @endif

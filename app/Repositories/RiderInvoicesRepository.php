@@ -4,7 +4,7 @@ namespace App\Repositories;
 
 use App\Helpers\Account;
 use App\Helpers\Common;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\RiderInvoiceItem;
 use App\Models\RiderInvoices;
 use App\Models\Riders;
@@ -143,7 +143,7 @@ class RiderInvoicesRepository extends BaseRepository
         if ($invoice->vat > 0) {
 
             $transactionData = [
-                'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT, // VAT Account asked to set by Adnan 08-05-2025
+                'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'), // VAT Account asked to set by Adnan 08-05-2025
                 'reference_id' => $invoice->id,
                 'reference_type' => 'Invoice',
                 'trans_code' => $trans_code,
@@ -169,7 +169,7 @@ class RiderInvoicesRepository extends BaseRepository
         $transactionService->recordTransaction($transactionData);
 
         $transactionData = [
-            'account_id' => HeadAccount::SALARY_ACCOUNT,
+            'account_id' => GlobalAccounts::id('SALARY_ACCOUNT'),
             'reference_id' => $invoice->id,
             'reference_type' => 'Invoice',
             'trans_code' => $trans_code,

@@ -13,7 +13,7 @@ use App\Models\Transactions;
 use App\Repositories\LoanRepository;
 use App\Services\LoanAmortizationService;
 use App\Services\LoanVoucherService;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Support\CompanyQuery;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
@@ -385,7 +385,7 @@ class LoansController extends AppBaseController
 
         $loanPayableAccount = $installment->loan->account
             ?? Accounts::find($installment->loan->account_id);
-        $interestAccount = Accounts::find(HeadAccount::LOAN_INTEREST_EXPENSE);
+        $interestAccount = Accounts::find(GlobalAccounts::id('LOAN_INTEREST_EXPENSE'));
         $loanPayableLabel = $loanPayableAccount?->name ?? 'Loans Payable';
         $interestAccountLabel = $interestAccount?->name ?? 'Loan Interest Expense';
 

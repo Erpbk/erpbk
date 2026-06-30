@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Account;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\Accounts;
 use App\Models\BikeMaintenance;
 use App\Models\BikeMaintenanceItem;
@@ -500,9 +500,9 @@ class BikeMaintenanceController extends Controller
         if ($companyItems->isNotEmpty()) {
 
             $companyTotal = $companyItems->sum('total_amount');
-            $acc = Accounts::find(HeadAccount::BIKE_MAINTENANCE_ACCOUNT);
+            $acc = Accounts::find(GlobalAccounts::id('BIKE_MAINTENANCE_ACCOUNT'));
             if (! $acc) {
-                $missing[] = 'Company Bike Maintennace Account not found ID:'.HeadAccount::BIKE_MAINTENANCE_ACCOUNT;
+                $missing[] = 'Company Bike Maintennace Account not found ID:'.GlobalAccounts::id('BIKE_MAINTENANCE_ACCOUNT');
             } else {
                 $companyAccount = $acc;
             }
@@ -512,13 +512,13 @@ class BikeMaintenanceController extends Controller
 
         if ($vat > 0) {
             if ($maintenance->garage->garage_type == 'internal') {
-                $vatAccount = Accounts::find(HeadAccount::VAT_ON_SALES);
+                $vatAccount = Accounts::find(GlobalAccounts::id('VAT_ON_SALES'));
             } // VAT on Sales
             else {
-                $vatAccount = Accounts::find(HeadAccount::VAT_PURCHASE_ACCOUNT);
+                $vatAccount = Accounts::find(GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'));
             } // VAT on Purchase
             if (! $vatAccount) {
-                $missing[] = 'VAT Account not Found. ID(sale):'.HeadAccount::VAT_ON_SALES.' ID(purchase):'.HeadAccount::VAT_PURCHASE_ACCOUNT;
+                $missing[] = 'VAT Account not Found. ID(sale):'.GlobalAccounts::id('VAT_ON_SALES').' ID(purchase):'.GlobalAccounts::id('VAT_PURCHASE_ACCOUNT');
             }
         }
 
@@ -588,7 +588,7 @@ class BikeMaintenanceController extends Controller
             'narration' => $data['description'],
         ]);
         if ($data['profit'] > 0) {
-            $profitAcc = Accounts::find(HeadAccount::GARAGE_INCOME_ACCOUNT);
+            $profitAcc = Accounts::find(GlobalAccounts::id('GARAGE_INCOME_ACCOUNT'));
             if (! $profitAcc) {
                 throw new \Exception('Garage Income Account not find');
             }
@@ -606,7 +606,7 @@ class BikeMaintenanceController extends Controller
         }
         if ($data['vat_amount'] > 0) {
             if ($maintenance->garage->garage_type == 'internal') {
-                $vatAcc = HeadAccount::VAT_ON_SALES; // VAT on Sale
+                $vatAcc = GlobalAccounts::id('VAT_ON_SALES'); // VAT on Sale
                 Transactions::create([
                     'trans_code' => $transCode,
                     'trans_date' => $maintenance->maintenance_date,
@@ -619,7 +619,7 @@ class BikeMaintenanceController extends Controller
                     'narration' => $data['description'],
                 ]);
             } else {
-                $vatAcc = HeadAccount::VAT_PURCHASE_ACCOUNT; // VAT on Purchase
+                $vatAcc = GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'); // VAT on Purchase
                 Transactions::create([
                     'trans_code' => $transCode,
                     'trans_date' => $maintenance->maintenance_date,

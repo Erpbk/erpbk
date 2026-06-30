@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Account;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Helpers\Common;
 use App\Http\Requests\StoreVisaExpenseRequest;
 use App\Http\Requests\UpdateVisaExpenseRequest;
@@ -165,7 +165,7 @@ class VisaexpenseController extends AppBaseController
                             ->where(function ($link) {
                                 $link->whereColumn('ve.expense_account_id', 'expense_accounts.id')
                                     ->orWhere(function ($l2) {
-                                        $l2->where('ve.expense_account_id', HeadAccount::VISA_EXPENSE_ACCOUNT)
+                                        $l2->where('ve.expense_account_id', GlobalAccounts::id('VISA_EXPENSE_ACCOUNT'))
                                             ->whereColumn('ve.rider_id', 'expense_accounts.rider_id')
                                             ->whereColumn('ve.renewal_category_id', 'expense_accounts.renewal_category_id');
                                     });
@@ -253,7 +253,7 @@ class VisaexpenseController extends AppBaseController
             $riderCategoryToEaId[(int) $accountRow->rider_id . ':' . $catId] = (int) $accountRow->id;
         }
 
-        $headId = (int) HeadAccount::VISA_EXPENSE_ACCOUNT;
+        $headId = (int) GlobalAccounts::id('VISA_EXPENSE_ACCOUNT');
 
         $unpaidRows = visa_expenses::query()
             ->where('payment_status', 'unpaid')
@@ -334,7 +334,7 @@ class VisaexpenseController extends AppBaseController
             $riderCategoryToEaId[(int) $accountRow->rider_id . ':' . $catId] = (int) $accountRow->id;
         }
 
-        $headId = (int) HeadAccount::VISA_EXPENSE_ACCOUNT;
+        $headId = (int) GlobalAccounts::id('VISA_EXPENSE_ACCOUNT');
         $threshold = now()->addDays($withinDays)->startOfDay();
 
         $rows = visa_expenses::query()
@@ -389,7 +389,7 @@ class VisaexpenseController extends AppBaseController
      */
     private function applyExpenseAccountMatchesVisaExpense($expenseAccountQuery, callable $constraintsOnVeSubquery): void
     {
-        $headId = HeadAccount::VISA_EXPENSE_ACCOUNT;
+        $headId = GlobalAccounts::id('VISA_EXPENSE_ACCOUNT');
         $expenseAccountQuery->whereExists(function ($sub) use ($constraintsOnVeSubquery, $headId) {
             $sub->select(DB::raw(1))
                 ->from('visa_expenses as ve')
@@ -778,7 +778,7 @@ class VisaexpenseController extends AppBaseController
                 if ($expense->amount > 0) {
                     // Debit RTA Account
                     $TransactionService->recordTransaction([
-                        'account_id'     => HeadAccount::VISA_EXPENSE_ACCOUNT,
+                        'account_id'     => GlobalAccounts::id('VISA_EXPENSE_ACCOUNT'),
                         'reference_id'   => $expense->id,
                         'reference_type' => 'LV',
                         'trans_code'     => $trans_code,
@@ -1022,7 +1022,7 @@ class VisaexpenseController extends AppBaseController
             );
         }
 
-        $debitAccountName = Accounts::where('id', HeadAccount::VISA_EXPENSE_ACCOUNT)->value('name') ?? 'Visa expense';
+        $debitAccountName = Accounts::where('id', GlobalAccounts::id('VISA_EXPENSE_ACCOUNT'))->value('name') ?? 'Visa expense';
         $currentCreditName = Accounts::where('id', $creditTx->account_id)->value('name') ?? ('#' . $creditTx->account_id);
 
         $paymentAccounts = $this->visaExpensePaymentAccountOptions();
@@ -1073,7 +1073,7 @@ class VisaexpenseController extends AppBaseController
         }
 
         $newAccountId = (int) $validated['credit_account_id'];
-        if ($newAccountId === (int) HeadAccount::VISA_EXPENSE_ACCOUNT) {
+        if ($newAccountId === (int) GlobalAccounts::id('VISA_EXPENSE_ACCOUNT')) {
             Flash::error('Cannot use the visa expense account as the payment (credit) side.');
             return redirect()->back();
         }

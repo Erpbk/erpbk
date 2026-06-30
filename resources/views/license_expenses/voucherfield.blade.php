@@ -37,7 +37,7 @@ $licenseStatuses = company_table('license_statuses')->where('is_active', 1)->ord
     <label class="readonly">Debit Account:</label>
     <select class="form-control select select2" id="expense_account_id" name="expense_account_id" readonly>
         <option value=""></option>
-        <option value="{{ \App\Helpers\HeadAccount::LICENSE_EXPENSE_ACCOUNT }}" selected>{{ company_table('accounts')->where('id', \App\Helpers\HeadAccount::LICENSE_EXPENSE_ACCOUNT)->first()->name }}</option>
+        <option value="{{ ga_id('LICENSE_EXPENSE_ACCOUNT') }}" selected>{{ company_table('accounts')->where('id', ga_id('LICENSE_EXPENSE_ACCOUNT'))->first()->name }}</option>
     </select>
 </div>
 <div class="form-group col-sm-6">

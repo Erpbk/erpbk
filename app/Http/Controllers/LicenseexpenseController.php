@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Account;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Helpers\Common;
 use App\Http\Requests\StoreLicenseExpenseRequest;
 use App\Http\Requests\UpdateLicenseExpenseRequest;
@@ -164,7 +164,7 @@ class LicenseexpenseController extends AppBaseController
                             ->where(function ($link) {
                                 $link->whereColumn('ve.expense_account_id', 'expense_accounts.id')
                                     ->orWhere(function ($l2) {
-                                        $l2->where('ve.expense_account_id', HeadAccount::LICENSE_EXPENSE_ACCOUNT)
+                                        $l2->where('ve.expense_account_id', GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'))
                                             ->whereColumn('ve.rider_id', 'expense_accounts.rider_id');
                                     });
                             });
@@ -247,7 +247,7 @@ class LicenseexpenseController extends AppBaseController
             }
         }
 
-        $headId = (int) HeadAccount::LICENSE_EXPENSE_ACCOUNT;
+        $headId = (int) GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT');
 
         $unpaidRows = license_expenses::query()
             ->where('payment_status', 'unpaid')
@@ -314,7 +314,7 @@ class LicenseexpenseController extends AppBaseController
             }
         }
 
-        $headId = (int) HeadAccount::LICENSE_EXPENSE_ACCOUNT;
+        $headId = (int) GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT');
         $threshold = now()->addDays($withinDays)->startOfDay();
 
         $rows = license_expenses::query()
@@ -358,7 +358,7 @@ class LicenseexpenseController extends AppBaseController
      */
     private function applyExpenseAccountMatchesLicenseExpense($expenseAccountQuery, callable $constraintsOnVeSubquery): void
     {
-        $headId = HeadAccount::LICENSE_EXPENSE_ACCOUNT;
+        $headId = GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT');
         $expenseAccountQuery->whereExists(function ($sub) use ($constraintsOnVeSubquery, $headId) {
             $sub->select(DB::raw(1))
                 ->from('license_expenses as ve')
@@ -423,7 +423,7 @@ class LicenseexpenseController extends AppBaseController
                     ->where(function ($q) use ($expenseAccount, $rider) {
                         $q->where('expense_account_id', $expenseAccount->id)
                             ->orWhere(function ($q2) use ($rider) {
-                                $q2->where('expense_account_id', HeadAccount::LICENSE_EXPENSE_ACCOUNT)
+                                $q2->where('expense_account_id', GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'))
                                     ->where('rider_id', $rider->id);
                             });
                     })
@@ -437,7 +437,7 @@ class LicenseexpenseController extends AppBaseController
                     'trans_code' => Account::trans_code(),
                     'date' => Carbon::today()->format('Y-m-d'),
                     'rider_id' => $expenseAccount->rider_id,
-                    'expense_account_id' => HeadAccount::LICENSE_EXPENSE_ACCOUNT,
+                    'expense_account_id' => GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'),
                     'license_status' => $status->name,
                     'detail' => $status->description ?? ('Auto-generated from active License Status: ' . $status->name),
                     'reference_number' => 'DL-' . $expenseAccount->rider_id . '-' . $status->id,
@@ -537,7 +537,7 @@ class LicenseexpenseController extends AppBaseController
             ->where(function ($q) use ($id, $riderId) {
                 $q->where('expense_account_id', $id)
                     ->orWhere(function ($q2) use ($riderId) {
-                        $q2->where('expense_account_id', HeadAccount::LICENSE_EXPENSE_ACCOUNT)
+                        $q2->where('expense_account_id', GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'))
                             ->where('rider_id', $riderId);
                     });
             });
@@ -685,7 +685,7 @@ class LicenseexpenseController extends AppBaseController
                 if ($expense->amount > 0) {
                     // Debit RTA Account
                     $TransactionService->recordTransaction([
-                        'account_id'     => HeadAccount::LICENSE_EXPENSE_ACCOUNT,
+                        'account_id'     => GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'),
                         'reference_id'   => $expense->id,
                         'reference_type' => 'LE',
                         'trans_code'     => $trans_code,
@@ -926,7 +926,7 @@ class LicenseexpenseController extends AppBaseController
             );
         }
 
-        $debitAccountName = Accounts::where('id', HeadAccount::LICENSE_EXPENSE_ACCOUNT)->value('name') ?? 'License Expense';
+        $debitAccountName = Accounts::where('id', GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'))->value('name') ?? 'License Expense';
         $currentCreditName = Accounts::where('id', $creditTx->account_id)->value('name') ?? ('#' . $creditTx->account_id);
 
         $paymentAccounts = $this->LicenseExpensePaymentAccountOptions();
@@ -977,7 +977,7 @@ class LicenseexpenseController extends AppBaseController
         }
 
         $newAccountId = (int) $validated['credit_account_id'];
-        if ($newAccountId === (int) HeadAccount::LICENSE_EXPENSE_ACCOUNT) {
+        if ($newAccountId === (int) GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT')) {
             Flash::error('Cannot use the License Expense account as the payment (credit) side.');
             return redirect()->back();
         }

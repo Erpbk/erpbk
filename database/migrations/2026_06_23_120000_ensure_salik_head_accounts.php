@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Head account IDs referenced in App\Helpers\HeadAccount.
+     * Salik global account codes configured via global_accounts / Admin → Global Accounts.
      */
     private const SALIK_ASSET_ID = 2490;
 

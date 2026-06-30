@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 use App\Traits\GlobalPagination;
 use App\Imports\FuelDataImport;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 
 
 class FuelDataController extends Controller
@@ -415,7 +415,7 @@ class FuelDataController extends Controller
                 'branch_id' => $branch_id,
             ]);
             Transactions::create([
-                'account_id' => HeadAccount::FUEL_ADMIN_CHARGES,
+                'account_id' => GlobalAccounts::id('FUEL_ADMIN_CHARGES'),
                 'reference_id' => $fuelData->id,
                 'reference_type' => 'fuel',
                 'trans_code' => $transCode,
@@ -458,7 +458,7 @@ class FuelDataController extends Controller
         // Add entry for VAT if applicable
         if ($fuelData->vat_amount > 0) {
             Transactions::create([
-                'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
+                'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                 'reference_id' => $fuelData->id,
                 'reference_type' => 'fuel',
                 'trans_code' => $transCode,

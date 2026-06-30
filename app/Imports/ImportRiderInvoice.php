@@ -4,7 +4,7 @@ namespace App\Imports;
 
 use App\Helpers\Account;
 use App\Helpers\Common;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\Accounts;
 use App\Models\Items;
 use App\Models\RiderInvoiceItem;
@@ -73,7 +73,7 @@ class ImportRiderInvoice implements ToCollection
             ->get()
             ->keyBy('rider_id');
 
-        $salaryAccountId = HeadAccount::SALARY_ACCOUNT;
+        $salaryAccountId = GlobalAccounts::id('SALARY_ACCOUNT');
         if (! Accounts::find($salaryAccountId)) {
             throw ValidationException::withMessages([
                 'file' => "Salary Expense Account (ID: {$salaryAccountId}) not found.",
@@ -265,7 +265,7 @@ class ImportRiderInvoice implements ToCollection
                     if ($vat > 0) {
 
                         $transactionService->recordTransaction([
-                            'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
+                            'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                             'reference_id' => $invoice->id,
                             'reference_type' => 'Invoice',
                             'trans_code' => $transCode,

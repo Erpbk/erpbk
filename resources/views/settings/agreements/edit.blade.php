@@ -53,15 +53,12 @@ $detectedLetterheadMargins = $detectedLetterheadMargins ?? null;
           </div>
 
           <div class="mb-4">
-            <label class="form-label">Company letterhead</label>
+            <label class="form-label">Page layout</label>
             <p class="text-muted small mb-2">
-              Upload a full A4 letterhead (210×297 mm) with your complete header and footer design. The image covers every page; agreement text is kept in a safe area below the header and above the footer automatically.
+              Top and bottom spacing are automatic (2% below the header, 5% from the page bottom). Adjust left/right margins only if needed.
             </p>
-            <input type="file" name="letterhead" class="form-control" accept=".jpg,.jpeg,.png,.webp">
-            @error('letterhead')
-            <div class="text-danger small mt-1">{{ $message }}</div>
-            @enderror
 
+<<<<<<< Updated upstream
             <div class="mt-3">
               <label class="form-label small fw-semibold">Content safe area (mm)</label>
               <p class="text-muted small mb-2">Auto-calculated when you upload a letterhead. Increase top/bottom if any text touches your header or footer artwork on multi-page PDFs.</p>
@@ -85,6 +82,18 @@ $detectedLetterheadMargins = $detectedLetterheadMargins ?? null;
                   <label class="form-label small mb-1">Bottom</label>
                   <input type="number" step="0.5" min="10" max="120" name="letterhead_margins[bottom]" class="form-control form-control-sm"
                     value="{{ old('letterhead_margins.bottom', $letterheadMargins['bottom']) }}">
+=======
+            <div class="mt-2">
+              <label class="form-label small fw-semibold">Content safe area</label>
+              <div class="row g-2 mb-2">
+                <div class="col-6 col-md-3">
+                  <label class="form-label small mb-1">Top (auto)</label>
+                  <input type="text" class="form-control form-control-sm" value="{{ $letterheadMargins['top'] }} mm" readonly>
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small mb-1">Bottom (auto)</label>
+                  <input type="text" class="form-control form-control-sm" value="{{ $letterheadMargins['bottom'] }} mm" readonly>
+>>>>>>> Stashed changes
                 </div>
                 <div class="col-6 col-md-3">
                   <label class="form-label small mb-1">Left</label>
@@ -101,16 +110,10 @@ $detectedLetterheadMargins = $detectedLetterheadMargins ?? null;
 
             @if($category->hasLetterhead())
             <div class="mt-3 p-3 border rounded bg-light">
-              <div class="d-flex flex-wrap gap-3 align-items-start">
-                <img src="{{ storage_url($category->letterhead_path) }}" alt="Letterhead preview"
-                  style="max-width: 280px; max-height: 200px; object-fit: contain; border: 1px solid #dee2e6; background: #fff;">
-                <div>
-                  <p class="small text-muted mb-2">Current letterhead — shown on all PDFs for this agreement.</p>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="remove_letterhead" value="1" id="removeLetterhead">
-                    <label class="form-check-label text-danger" for="removeLetterhead">Remove letterhead</label>
-                  </div>
-                </div>
+              <p class="small text-muted mb-2">A legacy full-page letterhead image is stored but no longer used. Remove it to clear storage.</p>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="remove_letterhead" value="1" id="removeLetterhead">
+                <label class="form-check-label text-danger" for="removeLetterhead">Remove legacy letterhead file</label>
               </div>
             </div>
             @endif

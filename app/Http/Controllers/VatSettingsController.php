@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
 use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\Accounts;
 use App\Models\Settings;
 use Illuminate\Http\Request;

@@ -4,7 +4,7 @@ namespace App\Imports;
 
 use App\Helpers\Account;
 use App\Helpers\General;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\Items;
 use App\Models\RiderInvoiceItem;
 use App\Models\RiderInvoices;

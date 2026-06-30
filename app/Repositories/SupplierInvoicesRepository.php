@@ -3,7 +3,7 @@
 namespace App\Repositories;
 
 use App\Helpers\Account;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\Garages;
 use App\Models\Items;
 use App\Models\InventoryPurchase;
@@ -175,7 +175,7 @@ class SupplierInvoicesRepository extends BaseRepository
                     $transCode = \App\Helpers\Account::trans_code();
                 }
                 $invoice->load('supplier', 'garage');
-                $debitInventoryAccountId = HeadAccount::GARAGE_ACCOUNT;
+                $debitInventoryAccountId = GlobalAccounts::id('GARAGE_ACCOUNT');
                 if ($invoice->garage_id) {
                     $g = $invoice->garage ?? Garages::find($invoice->garage_id);
                     if ($g && $g->account_id) {
@@ -217,7 +217,7 @@ class SupplierInvoicesRepository extends BaseRepository
                         'trans_date' => $invoice->inv_date,
                         'reference_id' => $invoice->id,
                         'reference_type' => 'SUP',
-                        'account_id' => HeadAccount::VAT_PURCHASE_ACCOUNT,
+                        'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                         'credit' => 0,
                         'debit' => $invoice->vat,
                         'billing_month' => $invoice->billing_month,

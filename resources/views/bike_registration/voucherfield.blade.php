@@ -33,7 +33,7 @@ $registrationStatusesList = company_table('bike_registration_statuses')->where('
     <label class="readonly">Debit Account:</label>
     <select class="form-control select select2" id="bike_registration_account_display" name="bike_registration_account_display" readonly>
         <option value=""></option>
-        <option value="{{ \App\Helpers\HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT }}" selected>{{ company_table('accounts')->where('id', \App\Helpers\HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT)->first()->name ?? 'Bike Registration Expense' }}</option>
+        <option value="{{ ga_id('BIKE_REGISTRATION_EXPENSE_ACCOUNT') }}" selected>{{ company_table('accounts')->where('id', ga_id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'))->first()->name ?? 'Bike Registration Expense' }}</option>
     </select>
 </div>
 <div class="form-group col-sm-6">

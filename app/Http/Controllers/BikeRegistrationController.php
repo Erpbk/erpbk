@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Account;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 use App\Models\Accounts;
 use App\Models\BikeRegistration;
 use App\Models\BikeRegistrationAccount;
@@ -189,7 +189,7 @@ class BikeRegistrationController extends AppBaseController
                             ->where(function ($link) {
                                 $link->whereColumn('br.bike_registration_account_id', 'bike_registration_accounts.id')
                                     ->orWhere(function ($l2) {
-                                        $l2->where('br.bike_registration_account_id', HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT)
+                                        $l2->where('br.bike_registration_account_id', GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'))
                                             ->whereColumn('br.rider_id', 'bike_registration_accounts.rider_id');
                                     });
                             });
@@ -271,7 +271,7 @@ class BikeRegistrationController extends AppBaseController
             }
         }
 
-        $headId = (int) HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT;
+        $headId = (int) GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
 
         $unpaidRows = BikeRegistration::query()
             ->where('payment_status', 'unpaid')
@@ -331,7 +331,7 @@ class BikeRegistrationController extends AppBaseController
             }
         }
 
-        $headId = (int) HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT;
+        $headId = (int) GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
         $threshold = now()->addDays($withinDays)->startOfDay();
 
         $rows = BikeRegistration::query()
@@ -371,7 +371,7 @@ class BikeRegistrationController extends AppBaseController
 
     private function applyBikeRegistrationAccountMatches($expenseAccountQuery, callable $constraintsOnSubquery): void
     {
-        $headId = HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT;
+        $headId = GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
         $expenseAccountQuery->whereExists(function ($sub) use ($constraintsOnSubquery, $headId) {
             $sub->select(DB::raw(1))
                 ->from('bike_registrations as br')
@@ -623,7 +623,7 @@ class BikeRegistrationController extends AppBaseController
      */
     protected function bikeRegistrationExpenseListingQuery(BikeRegistrationAccount $account)
     {
-        $headId = (int) HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT;
+        $headId = (int) GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
         $riderId = $account->rider_id;
 
         return BikeRegistration::query()
@@ -783,7 +783,7 @@ class BikeRegistrationController extends AppBaseController
 
                 if ($expense->amount > 0) {
                     $TransactionService->recordTransaction([
-                        'account_id' => HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT,
+                        'account_id' => GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'),
                         'reference_id' => $expense->id,
                         'reference_type' => 'BR',
                         'trans_code' => $trans_code,
@@ -1023,7 +1023,7 @@ class BikeRegistrationController extends AppBaseController
             );
         }
 
-        $debitAccountName = Accounts::where('id', HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT)->value('name') ?? 'Bike registration expense';
+        $debitAccountName = Accounts::where('id', GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'))->value('name') ?? 'Bike registration expense';
         $currentCreditName = Accounts::where('id', $creditTx->account_id)->value('name') ?? ('#' . $creditTx->account_id);
 
         $paymentAccounts = $this->bikeRegistrationPaymentAccountOptions();
@@ -1072,7 +1072,7 @@ class BikeRegistrationController extends AppBaseController
         }
 
         $newAccountId = (int) $validated['credit_account_id'];
-        if ($newAccountId === (int) HeadAccount::BIKE_REGISTRATION_EXPENSE_ACCOUNT) {
+        if ($newAccountId === (int) GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT')) {
             Flash::error('Cannot use the bike registration expense account as the payment (credit) side.');
 
             return redirect()->back();

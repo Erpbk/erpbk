@@ -29,7 +29,7 @@ use Flash;
 use DB;
 use App\Imports\RTAFineImport;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Helpers\HeadAccount;
+use App\Support\GlobalAccounts;
 
 class RtaFinesController extends AppBaseController
 {
@@ -234,7 +234,7 @@ class RtaFinesController extends AppBaseController
                 }
                 // Debit RTA Account
                 $TransactionService->recordTransaction([
-                    'account_id'     => HeadAccount::RTA_FINE,
+                    'account_id'     => GlobalAccounts::id('RTA_FINE'),
                     'reference_id'   => $fine->id,
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
@@ -247,7 +247,7 @@ class RtaFinesController extends AppBaseController
 
                 if ($fine->vat > 0 && $creditAccount->account_type == 'Liability') {
                     $TransactionService->recordTransaction([
-                        'account_id'     => HeadAccount::VAT_PURCHASE_ACCOUNT,
+                        'account_id'     => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                         'reference_id'   => $fine->id,
                         'reference_type' => 'RTA',
                         'trans_code'     => $trans_code,
@@ -274,11 +274,11 @@ class RtaFinesController extends AppBaseController
                 ]);
 
                 if ($profit > 0) {
-                    $adminAcc = Accounts::where('id', HeadAccount::RTA_ADMIN_CHARGES)->exists();
+                    $adminAcc = Accounts::where('id', GlobalAccounts::id('RTA_ADMIN_CHARGES'))->exists();
                     if (!$adminAcc)
                         throw new \Exception('Admin Charges (RTA Fines) Account not found');
                     $TransactionService->recordTransaction([
-                        'account_id'     => HeadAccount::RTA_ADMIN_CHARGES,
+                        'account_id'     => GlobalAccounts::id('RTA_ADMIN_CHARGES'),
                         'reference_id'   => $fine->id,
                         'reference_type' => 'RTA',
                         'trans_code'     => $trans_code,
@@ -304,7 +304,7 @@ class RtaFinesController extends AppBaseController
                     'amount'        => $fine->total_amount,
                     'Created_By'    => auth()->id(),
                     'attach_file'   => $path,
-                    'payment_from'  => HeadAccount::RTA_FINE,
+                    'payment_from'  => GlobalAccounts::id('RTA_FINE'),
                     'payment_to'    => $creditAccount->id,
                     'ref_id'        => $fine->id,
                     'branch_id'     => $fine->branch_id,
@@ -347,7 +347,7 @@ class RtaFinesController extends AppBaseController
      */
     public function create()
     {
-        $rtaFineAccount = Accounts::where('id', HeadAccount::RTA_FINE)->first();
+        $rtaFineAccount = Accounts::where('id', GlobalAccounts::id('RTA_FINE'))->first();
         if (!$rtaFineAccount) {
             return response()->json(['message' => 'Current Liabilities Account => RTA Fines, not found'], 500);
         }
@@ -371,7 +371,7 @@ class RtaFinesController extends AppBaseController
         DB::beginTransaction();
 
         try {
-            $vat_account = HeadAccount::VAT_ON_SALES;
+            $vat_account = GlobalAccounts::id('VAT_ON_SALES');
             $input = $request->all();
             $bike = Bikes::findOrFail($input['bike_id']);
             $trans_code = Account::trans_code();
@@ -404,7 +404,7 @@ class RtaFinesController extends AppBaseController
             $billingMonth = $rtaFines->billing_month;
 
             $rider_account = $rtaFines->rider_id ? $rtaFines->rider->account_id : ($rtaFines->rental_company_id ? $rtaFines->rentalCompany->account_id : null);
-            $rta_account = HeadAccount::RTA_FINE;
+            $rta_account = GlobalAccounts::id('RTA_FINE');
             if (!$rider_account)
                 throw new \Exception('Debit Account Not Found');
 
@@ -422,7 +422,7 @@ class RtaFinesController extends AppBaseController
             ]);
 
             $TransactionService->recordTransaction([
-                'account_id'     => HeadAccount::RTA_FINE,
+                'account_id'     => GlobalAccounts::id('RTA_FINE'),
                 'reference_id'   => $rtaFines->id,
                 'reference_type' => 'RTA',
                 'trans_code'     => $trans_code,
@@ -540,7 +540,7 @@ class RtaFinesController extends AppBaseController
         $bikes = Bikes::with(['leasingCompany', 'rider'])->get();
         $riders = Riders::with(['account'])->get();
         $companies = BikeRentCompany::with(['account'])->where('customer_type', 'bike_rental')->get();
-        $rtaFineAccount = Accounts::where('id', \App\Helpers\HeadAccount::RTA_FINE)->first();
+        $rtaFineAccount = Accounts::where('id', GlobalAccounts::id('RTA_FINE'))->first();
         if (empty($rtaFines)) {
             if ($request->ajax()) {
                 return response()->json(['message' => 'RTA Fine Not Found'], 500);
@@ -569,8 +569,8 @@ class RtaFinesController extends AppBaseController
         }
         $id = $request->id;
         $rtaFines = RtaFines::findOrFail($id);
-        $vat_account = HeadAccount::VAT_ON_SALES;
-        $rta_account = HeadAccount::RTA_FINE;
+        $vat_account = GlobalAccounts::id('VAT_ON_SALES');
+        $rta_account = GlobalAccounts::id('RTA_FINE');
         $path = $rtaFines->attachment_path;
         $newPath = null;
         DB::beginTransaction();
@@ -620,7 +620,7 @@ class RtaFinesController extends AppBaseController
             ]);
 
             $TransactionService->recordTransaction([
-                'account_id'     => HeadAccount::RTA_FINE,
+                'account_id'     => GlobalAccounts::id('RTA_FINE'),
                 'reference_id'   => $rtaFines->id,
                 'reference_type' => 'RTA',
                 'trans_code'     => $trans_code,

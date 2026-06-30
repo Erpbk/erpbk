@@ -65,7 +65,7 @@
         <div class="row">
             <div class="form-group col-md-3">
                 <label for="exampleInputEmail1">Select Account</label>
-                {!! Form::select('account_id[]', $accounts, \App\Helpers\HeadAccount::VENDOR_CHARGES_ACCOUNT, ['class' => 'form-select form-select-sm select2']) !!}
+                {!! Form::select('account_id[]', $accounts, ga_id('VENDOR_CHARGES_ACCOUNT'), ['class' => 'form-select form-select-sm select2']) !!}
             </div>
             <div class="form-group col-md-4">
                 <label>Narration</label>

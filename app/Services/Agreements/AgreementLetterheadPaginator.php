@@ -126,28 +126,75 @@ class AgreementLetterheadPaginator
         float &$usedPt
     ): void {
         foreach ($this->splitList($dom, $list) as $part) {
-            $partEstimate = $this->safeEstimate($this->estimateNodeHeightPt($part));
-            $remaining = $this->budgetPt - $usedPt;
+            $this->appendListPartElement($dom, $part, $pages, $currentNodes, $usedPt);
+        }
+    }
 
-            if ($partEstimate <= $remaining) {
-                $currentNodes[] = $part;
-                $usedPt += $partEstimate;
+    /**
+     * @param  list<DOMNode>  $currentNodes
+     */
+    private function appendListPartElement(
+        DOMDocument $dom,
+        DOMElement $part,
+        array &$pages,
+        array &$currentNodes,
+        float &$usedPt
+    ): void {
+        $partEstimate = $this->safeEstimate($this->estimateNodeHeightPt($part));
+        $remaining = $this->budgetPt - $usedPt;
 
-                continue;
-            }
+        if ($partEstimate <= $remaining) {
+            $currentNodes[] = $part;
+            $usedPt += $partEstimate;
 
-            if ($partEstimate > $this->budgetPt) {
-                $this->flushPage($dom, $pages, $currentNodes, $usedPt);
-                $this->appendOversizedElement($dom, $part, $pages, $currentNodes, $usedPt);
+            return;
+        }
 
-                continue;
+        if ($partEstimate > $this->budgetPt) {
+            $li = $part->getElementsByTagName('li')->item(0);
+            $tag = strtolower($part->tagName);
+
+            if ($li instanceof DOMElement && in_array($tag, ['ul', 'ol'], true)) {
+                $chunks = $this->splitListItem($dom, $li);
+
+                if (count($chunks) <= 1) {
+                    $this->flushPage($dom, $pages, $currentNodes, $usedPt);
+                    $currentNodes[] = $part;
+                    $usedPt += $partEstimate;
+
+                    return;
+                }
+
+                $baseStart = $tag === 'ol' ? max(1, (int) ($part->getAttribute('start') ?: 1)) : 1;
+                $liIndex = 0;
+
+                foreach ($chunks as $liPart) {
+                    $wrapper = $dom->createElement($tag);
+                    $this->copyListAttributes($part, $wrapper);
+
+                    if ($tag === 'ol') {
+                        $this->setOrderedListStart($wrapper, $baseStart + $liIndex);
+                    }
+
+                    $wrapper->appendChild($liPart);
+                    $this->appendListPartElement($dom, $wrapper, $pages, $currentNodes, $usedPt);
+                    $liIndex++;
+                }
+
+                return;
             }
 
             $this->flushPage($dom, $pages, $currentNodes, $usedPt);
-
             $currentNodes[] = $part;
             $usedPt += $partEstimate;
+
+            return;
         }
+
+        $this->flushPage($dom, $pages, $currentNodes, $usedPt);
+
+        $currentNodes[] = $part;
+        $usedPt += $partEstimate;
     }
 
     /**
@@ -181,33 +228,7 @@ class AgreementLetterheadPaginator
         $tag = strtolower($element->tagName);
 
         if (in_array($tag, ['ul', 'ol'], true)) {
-            $items = $this->splitList($dom, $element);
-            if (count($items) === 1 && $this->safeEstimate($this->estimateNodeHeightPt($items[0])) > $this->budgetPt) {
-                $li = $items[0]->getElementsByTagName('li')->item(0);
-                if ($li instanceof DOMElement) {
-                    $baseStart = $tag === 'ol' ? max(1, (int) ($element->getAttribute('start') ?: 1)) : 1;
-                    $liIndex = 0;
-
-                    foreach ($this->splitListItem($dom, $li) as $liPart) {
-                        $wrapper = $dom->createElement($tag);
-                        $this->copyListAttributes($element, $wrapper);
-
-                        if ($tag === 'ol') {
-                            $this->setOrderedListStart($wrapper, $baseStart + $liIndex);
-                        }
-
-                        $wrapper->appendChild($liPart);
-                        $this->appendNode($dom, $wrapper, $pages, $currentNodes, $usedPt);
-                        $liIndex++;
-                    }
-
-                    return;
-                }
-            }
-
-            foreach ($items as $part) {
-                $this->appendNode($dom, $part, $pages, $currentNodes, $usedPt);
-            }
+            $this->appendListParts($dom, $element, $pages, $currentNodes, $usedPt);
 
             return;
         }
@@ -238,7 +259,7 @@ class AgreementLetterheadPaginator
             foreach ($this->splitListItem($dom, $element) as $liPart) {
                 $wrapper = $dom->createElement('ol');
                 $wrapper->appendChild($liPart);
-                $this->appendNode($dom, $wrapper, $pages, $currentNodes, $usedPt);
+                $this->appendListPartElement($dom, $wrapper, $pages, $currentNodes, $usedPt);
             }
 
             return;
@@ -265,11 +286,36 @@ class AgreementLetterheadPaginator
         float &$usedPt
     ): void {
         $remaining = max(40.0, $this->budgetPt - $usedPt);
-        $parts = $this->splitTable($dom, $table, $remaining);
 
-        foreach ($parts as $part) {
-            $this->appendNode($dom, $part, $pages, $currentNodes, $usedPt);
+        foreach ($this->splitTable($dom, $table, $remaining) as $part) {
+            $this->appendTablePartElement($dom, $part, $pages, $currentNodes, $usedPt);
         }
+    }
+
+    /**
+     * @param  list<DOMNode>  $currentNodes
+     */
+    private function appendTablePartElement(
+        DOMDocument $dom,
+        DOMElement $part,
+        array &$pages,
+        array &$currentNodes,
+        float &$usedPt
+    ): void {
+        $partEstimate = $this->safeEstimate($this->estimateNodeHeightPt($part));
+        $remaining = $this->budgetPt - $usedPt;
+
+        if ($partEstimate <= $remaining) {
+            $currentNodes[] = $part;
+            $usedPt += $partEstimate;
+
+            return;
+        }
+
+        $this->flushPage($dom, $pages, $currentNodes, $usedPt);
+
+        $currentNodes[] = $part;
+        $usedPt += $partEstimate;
     }
 
     /**

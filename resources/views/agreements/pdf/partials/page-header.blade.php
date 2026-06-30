@@ -26,7 +26,7 @@ $country = trim((string) ($branding['country'] ?? ''));
           <p class="page-header-meta">{{ $phone }}</p>
           @endif
           @if($address !== '')
-          <p class="pag e-header-meta">{{ $address }} {{ $city }} </p>
+          <p class="page-header-meta">{{ $address }}{{ $city !== '' ? ', ' . $city : '' }}{{ $country !== '' ? ', ' . $country : '' }}</p>
           @endif
         </td>
       </tr>

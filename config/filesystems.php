@@ -36,7 +36,22 @@ return [
             'throw' => false,
         ],
 
-        'public' => [
+        /*
+         * User uploads (company logos, invoices, etc.). On Laravel Cloud the app container
+         * filesystem is ephemeral — attach Object Storage and set AWS_BUCKET (+ AWS_URL for
+         * public buckets) so this disk uses S3/R2 instead of local storage.
+         */
+        'public' => env('AWS_BUCKET') ? [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_BUCKET'),
+            'url' => env('AWS_URL'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+        ] : [
             'driver' => 'local',
             'root' => storage_path('app/public'),
             'url' => env('APP_URL').'/storage',

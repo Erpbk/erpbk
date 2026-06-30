@@ -103,9 +103,19 @@
           <div class="text-danger small mt-1">{{ $message }}</div>
           @enderror
           @if(!empty($currentCompany?->logo))
+          @php
+            $companyLogoExists = \App\Support\PublicStorageDisk::exists($currentCompany->logo);
+            $companyLogoUrl = \App\Support\PublicStorageDisk::url($currentCompany->logo);
+          @endphp
+          @if($companyLogoExists && $companyLogoUrl)
           <div class="mt-2">
-            <img src="{{ storage_url($currentCompany->logo) }}" alt="Company Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;">
+            <img src="{{ $companyLogoUrl }}" alt="Company Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;">
           </div>
+          @else
+          <div class="alert alert-warning mt-2 mb-0 py-2 small">
+            A logo path is saved but the file is missing on the server. On Laravel Cloud, attach Object Storage and set <code>AWS_BUCKET</code> (and <code>AWS_URL</code> for public buckets), then upload the logo again.
+          </div>
+          @endif
           @endif
           <small class="text-muted d-block mt-1">Used in PDFs and outbound emails for this company only.</small>
         </div>

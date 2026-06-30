@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Support\DeployDatabaseConfig;
 use App\Support\DeployDatabaseWaiter;
+use App\Support\PublicStorageDisk;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -57,6 +58,17 @@ class DeployCheckCommand extends Command
             return self::FAILURE;
         }
 
+        if (PublicStorageDisk::isEphemeralLocal()) {
+            $this->warn('Public uploads use local disk in production (AWS_BUCKET is not set).');
+            $this->warn('Uploaded files (logos, attachments) will disappear when the app container is replaced.');
+            $this->warn('Attach Laravel Cloud Object Storage and set AWS_BUCKET + AWS_URL on the environment.');
+        } elseif (PublicStorageDisk::isCloud()) {
+            $this->info('Public uploads: object storage (S3/R2) configured.');
+        } else {
+            $this->info('Public uploads: local disk (development).');
+        }
+
+        $this->newLine();
         $this->info('Deploy check passed.');
         return self::SUCCESS;
     }

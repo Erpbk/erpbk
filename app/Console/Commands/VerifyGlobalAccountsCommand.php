@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Accounts;
+use App\Exceptions\GlobalAccountNotConfiguredException;
 use App\Models\GlobalAccount;
 use App\Services\GlobalAccountResolver;
 use Illuminate\Console\Command;
@@ -27,19 +27,10 @@ class VerifyGlobalAccountsCommand extends Command
         $failures = 0;
 
         foreach ($rows as $row) {
-            $accountId = $resolver->idOrNull($row->code);
-
-            if ($accountId === null) {
-                $this->error("[{$row->code}] not configured (missing or inactive mapping).");
-                $failures++;
-
-                continue;
-            }
-
-            $exists = Accounts::withoutGlobalScopes(['company', 'branch'])->where('id', $accountId)->exists();
-
-            if (! $exists) {
-                $this->error("[{$row->code}] maps to missing account ID {$accountId}.");
+            try {
+                $accountId = $resolver->id($row->code);
+            } catch (GlobalAccountNotConfiguredException $e) {
+                $this->error("[{$row->code}] {$e->getMessage()}");
                 $failures++;
 
                 continue;

@@ -21,7 +21,7 @@ final class GlobalAccounts
         return app(GlobalAccountResolver::class)->idOrNull($code);
     }
 
-    public static function account(string $code): ?Accounts
+    public static function account(string $code): Accounts
     {
         return app(GlobalAccountResolver::class)->account($code);
     }

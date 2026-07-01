@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use App\Exceptions\GlobalAccountNotConfiguredException;
 use App\Models\Accounts;
 use App\Models\GlobalAccount;
 use Illuminate\Support\Facades\Cache;
-use RuntimeException;
 
 class GlobalAccountResolver
 {
@@ -18,7 +18,7 @@ class GlobalAccountResolver
         $accountId = $this->idOrNull($code);
 
         if ($accountId === null) {
-            throw new RuntimeException("Global account [{$code}] is not configured or inactive.");
+            throw new GlobalAccountNotConfiguredException($this->labelForCode($code));
         }
 
         return $accountId;
@@ -33,7 +33,13 @@ class GlobalAccountResolver
         }
 
         if (is_int($cached)) {
-            return $cached;
+            if ($this->linkedAccountExists($cached)) {
+                return $cached;
+            }
+
+            Cache::put(self::CACHE_PREFIX . $code, false, self::CACHE_TTL_SECONDS);
+
+            return null;
         }
 
         $row = GlobalAccount::query()
@@ -49,20 +55,29 @@ class GlobalAccountResolver
         }
 
         $accountId = (int) $row->account_id;
+
+        if (! $this->linkedAccountExists($accountId)) {
+            Cache::put(self::CACHE_PREFIX . $code, false, self::CACHE_TTL_SECONDS);
+
+            return null;
+        }
+
         Cache::put(self::CACHE_PREFIX . $code, $accountId, self::CACHE_TTL_SECONDS);
 
         return $accountId;
     }
 
-    public function account(string $code): ?Accounts
+    public function account(string $code): Accounts
     {
-        $accountId = $this->idOrNull($code);
+        $accountId = $this->id($code);
 
-        if ($accountId === null) {
-            return null;
+        $account = Accounts::withoutGlobalScopes(['company', 'branch'])->find($accountId);
+
+        if (! $account) {
+            throw new GlobalAccountNotConfiguredException($this->labelForCode($code));
         }
 
-        return Accounts::withoutGlobalScopes(['company', 'branch'])->find($accountId);
+        return $account;
     }
 
     /**
@@ -71,12 +86,7 @@ class GlobalAccountResolver
     public function requireExists(array $codes): void
     {
         foreach (array_unique(array_filter($codes)) as $code) {
-            $accountId = $this->idOrNull($code);
-
-            if ($accountId === null || ! Accounts::withoutGlobalScopes(['company', 'branch'])->where('id', $accountId)->exists()) {
-                $label = $this->labelForCode($code);
-                throw new RuntimeException("{$label} account does not exist.");
-            }
+            $this->id($code);
         }
     }
 
@@ -117,5 +127,12 @@ class GlobalAccountResolver
         GlobalAccount::query()->pluck('code')->each(function (string $code): void {
             Cache::forget(self::CACHE_PREFIX . $code);
         });
+    }
+
+    private function linkedAccountExists(int $accountId): bool
+    {
+        return Accounts::withoutGlobalScopes(['company', 'branch'])
+            ->where('id', $accountId)
+            ->exists();
     }
 }

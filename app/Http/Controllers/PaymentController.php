@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Account;
+use App\Exceptions\GlobalAccountNotConfiguredException;
 use App\Support\GlobalAccounts;
 use App\Models\Accounts;
 use App\Models\Banks;
@@ -460,28 +461,19 @@ class PaymentController extends Controller
 
             // 3. Handle bank charges if any
             if ($bankCharges > 0) {
-                $bankAccount = Accounts::find(GlobalAccounts::id('BANK_CHARGES'));
-                // Debit the bank charges expense account
-                if ($bankAccount) {
-                    Transactions::create([
-                        'trans_code' => $transCode,
-                        'trans_date' => $date,
-                        'reference_id' => $payment->id,
-                        'reference_type' => 'PV',
-                        'account_id' => $bankAccount->id, // Expense account (debit)
-                        'credit' => 0,
-                        'debit' => $bankCharges,
-                        'billing_month' => $billingMonth,
-                        'branch_id' => $payment->branch_id,
-                        'narration' => 'Bank charges for ( '.$payment->description.' )',
-                    ]);
-                } else {
-                    DB::rollBack();
-
-                    return response()->json([
-                        'message' => 'Bank Charges Account: '.GlobalAccounts::id('BANK_CHARGES').' not found. Please set it up before adding payments with bank charges.',
-                    ], 500);
-                }
+                $bankAccount = GlobalAccounts::account('BANK_CHARGES');
+                Transactions::create([
+                    'trans_code' => $transCode,
+                    'trans_date' => $date,
+                    'reference_id' => $payment->id,
+                    'reference_type' => 'PV',
+                    'account_id' => $bankAccount->id,
+                    'credit' => 0,
+                    'debit' => $bankCharges,
+                    'billing_month' => $billingMonth,
+                    'branch_id' => $payment->branch_id,
+                    'narration' => 'Bank charges for ( '.$payment->description.' )',
+                ]);
             }
 
             // Create voucher
@@ -529,6 +521,16 @@ class PaymentController extends Controller
             Flash::success('Payment added successfully.');
 
             return redirect()->back();
+        } catch (GlobalAccountNotConfiguredException $e) {
+            DB::rollBack();
+
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            Flash::error($e->getMessage());
+
+            return redirect()->back()->withInput();
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Payment creation failed: '.$e->getMessage()."\n".$e->getTraceAsString());
@@ -990,6 +992,16 @@ class PaymentController extends Controller
                 'message' => $message,
                 'reload' => true,
             ], 200);
+        } catch (GlobalAccountNotConfiguredException $e) {
+            DB::rollBack();
+
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            Flash::error($e->getMessage());
+
+            return redirect()->back()->withInput();
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Payment update failed: '.$e->getMessage()."\n".$e->getTraceAsString());

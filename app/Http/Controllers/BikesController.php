@@ -442,14 +442,17 @@ class BikesController extends AppBaseController
                 $input['emirates'] = $branch_emirates->city;
             }
         }
-
-        $bikes = $this->bikesRepository->create($input);
-        $bikes->created_by = Auth::user()->id;
-        $bikes->save();
-
-        return response()->json(['message' => 'Bike added successfully.', 'reload' => true]);
+        $input['created_by'] = Auth::user()->id;
+        DB::beginTransaction();
+        try {
+            $bikes = $this->bikesRepository->create($input);
+            DB::commit();
+            return response()->json(['message' => 'Bike added successfully.', 'reload' => true]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error adding bike: ' . $e->getMessage()], 500);
+        }
     }
-
     /**
      * Display the specified Bikes.
      */

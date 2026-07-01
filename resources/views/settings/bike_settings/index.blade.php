@@ -3061,9 +3061,4 @@ $attendanceRefType = $attendanceRefType ?? null;
     });
   }
 </script>
-@if(($moduleKey ?? '') === 'bike_list')
-@if(($moduleKey ?? '') === 'bike_list')
-@include('settings.bike_settings._bike_top_user_prefs_script')
-@endif
-@endif
 @endsection

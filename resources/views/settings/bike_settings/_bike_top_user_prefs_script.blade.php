@@ -1,5 +1,10 @@
 <script>
 (function() {
+  if (window.__bikeTopUserPrefsScriptLoaded) {
+    return;
+  }
+  window.__bikeTopUserPrefsScriptLoaded = true;
+
   var csrf = '{{ csrf_token() }}';
   document.addEventListener('DOMContentLoaded', function() {
     var bikeTopUserPrefsForm = document.getElementById('bikeTopUserPrefsForm');

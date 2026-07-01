@@ -363,16 +363,13 @@
       .preview-pages .agreement-page {
         margin: 0 !important;
         box-shadow: none !important;
+        page-break-after: avoid !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
 
-      .preview-pages .agreement-page:not(:last-child) {
-        page-break-after: always !important;
-      }
-
-      .preview-pages .agreement-page:last-child {
-        page-break-after: avoid !important;
+      .preview-pages .agreement-page + .agreement-page {
+        page-break-before: always !important;
       }
 
       .corner-blob,

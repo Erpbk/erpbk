@@ -36,7 +36,6 @@ class BikeSettingsController extends Controller
         'maintenance_km',
         'previous_km',
         'customer_id',
-        'emirates',
         'rider_id',
         'custom_field_values',
         'warehouse',

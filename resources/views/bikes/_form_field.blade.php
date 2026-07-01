@@ -93,6 +93,14 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     'Absconded' => 'Absconded',
     ];
     break;
+    case 'emirates-hub':
+    $opts = \App\Helpers\Common::Dropdowns('emirates-hub');
+    if (empty($opts)) {
+    $opts = \App\Models\BikeCustomField::emiratesHubSelectOptions();
+    } else {
+    $opts = ['' => 'Select'] + $opts;
+    }
+    break;
     default:
     // Works for dropdown keys configured in the central dropdowns table.
     $opts = !empty($dropdownKey) ? \App\Helpers\Common::Dropdowns($dropdownKey) : [];

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
+use App\Exceptions\GlobalAccountNotConfiguredException;
 use App\Helpers\Account;
 use App\Helpers\Common;
 use App\Http\Controllers\AppBaseController;
@@ -477,9 +478,9 @@ class SalikController extends AppBaseController
     private function requireHeadAccountsExist(array $accountIds, array $labels): void
     {
         foreach (array_unique(array_filter($accountIds)) as $accountId) {
-            if (!Accounts::where('id', $accountId)->exists()) {
-                $name = $labels[$accountId] ?? "Head account #{$accountId}";
-                throw new \Exception("{$name} account does not exist.");
+            if (! Accounts::where('id', $accountId)->exists()) {
+                $name = $labels[$accountId] ?? 'Account';
+                throw new GlobalAccountNotConfiguredException($name);
             }
         }
     }

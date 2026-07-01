@@ -26,7 +26,7 @@ class Handler extends ExceptionHandler
      * @var array<int, class-string<\Throwable>>
      */
     protected $dontReport = [
-        //
+        GlobalAccountNotConfiguredException::class,
     ];
 
     /**
@@ -75,6 +75,14 @@ class Handler extends ExceptionHandler
                 return response()->json(['error' => 'Too Many Requests.'], 429);
             }
             return back()->with('error', 'Too many requests. Please try again later.');
+        }
+
+        if ($e instanceof GlobalAccountNotConfiguredException) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            return back()->with('error', $e->getMessage())->withInput();
         }
 
         return parent::render($request, $e);

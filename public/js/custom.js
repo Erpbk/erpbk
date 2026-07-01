@@ -183,6 +183,9 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
     if (typeof initializeModalContent === 'function') {
       initializeModalContent();
     }
+    if (typeof window.initBikeFormSelect2 === 'function') {
+      window.initBikeFormSelect2(document.getElementById('formajax') || this);
+    }
   });
 
   // Show modal
@@ -435,6 +438,9 @@ $('body').on('click', '.show-modal', function () {
     unblock();
     if (window.Helpers && typeof window.Helpers.initPasswordToggle === 'function') {
       window.Helpers.initPasswordToggle();
+    }
+    if (typeof window.initBikeFormSelect2 === 'function') {
+      window.initBikeFormSelect2(document.getElementById('formajax') || this);
     }
   });
 

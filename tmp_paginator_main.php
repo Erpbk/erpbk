@@ -18,11 +18,7 @@ class AgreementLetterheadPaginator
 
     private const CHARS_PER_LINE = 105;
 
-    private const MAX_APPEND_DEPTH = 512;
-
     private float $budgetPt = 0.0;
-
-    private int $appendDepth = 0;
 
     /**
      * Split agreement HTML into page chunks that fit the content zone.
@@ -31,7 +27,6 @@ class AgreementLetterheadPaginator
      */
     public function paginate(string $bodyHtml, float $contentZoneHeightMm): array
     {
-        $this->appendDepth = 0;
         $this->budgetPt = max(40, $contentZoneHeightMm) * (72 / 25.4);
 
         $dom = new DOMDocument('1.0', 'UTF-8');
@@ -93,10 +88,7 @@ class AgreementLetterheadPaginator
      */
     private function rebalancePages(array $pages): array
     {
-        $maxMerges = max(0, count($pages) - 1);
-        $merges = 0;
-
-        while (count($pages) >= 2 && $merges < $maxMerges) {
+        while (count($pages) >= 2) {
             $last = $pages[count($pages) - 1];
             if ($this->estimateHtmlHeightPt($last) >= $this->budgetPt * 0.32) {
                 break;
@@ -113,10 +105,26 @@ class AgreementLetterheadPaginator
             }
 
             $pages[] = $combined;
-            $merges++;
         }
 
-        return $pages;
+        $merged = [];
+        foreach ($pages as $html) {
+            if ($merged === []) {
+                $merged[] = $html;
+
+                continue;
+            }
+
+            $lastIdx = count($merged) - 1;
+            $combined = $merged[$lastIdx] . $html;
+            if ($this->estimateHtmlHeightPt($combined) <= $this->budgetPt * 0.97) {
+                $merged[$lastIdx] = $combined;
+            } else {
+                $merged[] = $html;
+            }
+        }
+
+        return $merged;
     }
 
     private function estimateHtmlHeightPt(string $html): float
@@ -150,40 +158,28 @@ class AgreementLetterheadPaginator
         array &$currentNodes,
         float &$usedPt
     ): void {
-        if ($this->appendDepth >= self::MAX_APPEND_DEPTH) {
-            $this->forcePlaceOversizedNode($dom, $child, $pages, $currentNodes, $usedPt);
+        $estimate = $this->safeEstimate($this->estimateNodeHeightPt($child));
+        $remaining = $this->budgetPt - $usedPt;
+
+        if ($estimate > $remaining && $currentNodes !== []) {
+            if ($this->tryFillRemainingSpace($dom, $child, $remaining, $pages, $currentNodes, $usedPt)) {
+                return;
+            }
+
+            $pages[] = $this->joinHtml($dom, $currentNodes);
+            $currentNodes = [];
+            $usedPt = 0.0;
+            $remaining = $this->budgetPt;
+        }
+
+        if ($estimate > $remaining && $child instanceof DOMElement) {
+            $this->appendOversizedElement($dom, $child, $pages, $currentNodes, $usedPt);
 
             return;
         }
 
-        $this->appendDepth++;
-
-        try {
-            $estimate = $this->safeEstimate($this->estimateNodeHeightPt($child));
-            $remaining = $this->budgetPt - $usedPt;
-
-            if ($estimate > $remaining && $currentNodes !== []) {
-                if ($this->tryFillRemainingSpace($dom, $child, $remaining, $pages, $currentNodes, $usedPt)) {
-                    return;
-                }
-
-                $pages[] = $this->joinHtml($dom, $currentNodes);
-                $currentNodes = [];
-                $usedPt = 0.0;
-                $remaining = $this->budgetPt;
-            }
-
-            if ($estimate > $remaining && $child instanceof DOMElement) {
-                $this->appendOversizedElement($dom, $child, $pages, $currentNodes, $usedPt);
-
-                return;
-            }
-
-            $currentNodes[] = $child;
-            $usedPt += $estimate;
-        } finally {
-            $this->appendDepth--;
-        }
+        $currentNodes[] = $child;
+        $usedPt += $estimate;
     }
 
     /**
@@ -215,7 +211,7 @@ class AgreementLetterheadPaginator
                         }
 
                         $wrapper->appendChild($liPart);
-                        $this->appendNodeOrForce($dom, $wrapper, $pages, $currentNodes, $usedPt);
+                        $this->appendNode($dom, $wrapper, $pages, $currentNodes, $usedPt);
                         $liIndex++;
                     }
 
@@ -224,7 +220,7 @@ class AgreementLetterheadPaginator
             }
 
             foreach ($items as $part) {
-                $this->appendNodeOrForce($dom, $part, $pages, $currentNodes, $usedPt);
+                $this->appendNode($dom, $part, $pages, $currentNodes, $usedPt);
             }
 
             return;
@@ -237,43 +233,15 @@ class AgreementLetterheadPaginator
         }
 
         if (in_array($tag, ['div', 'section', 'article', 'main', 'figure', 'center'], true)) {
-            $parts = $this->expandNodes($dom, $element);
-            if ($parts === []) {
-                $this->forcePlaceOversizedNode($dom, $element, $pages, $currentNodes, $usedPt);
-
-                return;
-            }
-
-            foreach ($parts as $part) {
-                $this->appendNodeOrForce($dom, $part, $pages, $currentNodes, $usedPt);
+            foreach ($this->expandNodes($dom, $element) as $part) {
+                $this->appendNode($dom, $part, $pages, $currentNodes, $usedPt);
             }
 
             return;
         }
 
         if (in_array($tag, ['p', 'blockquote'], true)) {
-            $parts = $this->splitTextBlock($dom, $element);
-            if (
-                count($parts) === 1
-                && $this->safeEstimate($this->estimateNodeHeightPt($parts[0])) > $this->budgetPt
-            ) {
-                $parts = $this->splitTextBlockForBudget($dom, $element, $this->budgetPt);
-            }
-            if (
-                count($parts) === 1
-                && $this->safeEstimate($this->estimateNodeHeightPt($parts[0])) > $this->budgetPt
-            ) {
-                $parts = $this->splitTextBlockForced($dom, $element);
-            }
-
-            foreach ($parts as $part) {
-                $partEstimate = $this->safeEstimate($this->estimateNodeHeightPt($part));
-                if ($partEstimate > $this->budgetPt) {
-                    $this->forcePlaceOversizedNode($dom, $part, $pages, $currentNodes, $usedPt);
-
-                    continue;
-                }
-
+            foreach ($this->splitTextBlock($dom, $element) as $part) {
                 $this->appendNode($dom, $part, $pages, $currentNodes, $usedPt);
             }
 
@@ -284,13 +252,6 @@ class AgreementLetterheadPaginator
             foreach ($this->splitListItem($dom, $element) as $liPart) {
                 $wrapper = $dom->createElement('ol');
                 $wrapper->appendChild($liPart);
-                $partEstimate = $this->safeEstimate($this->estimateNodeHeightPt($wrapper));
-                if ($partEstimate > $this->budgetPt) {
-                    $this->forcePlaceOversizedNode($dom, $wrapper, $pages, $currentNodes, $usedPt);
-
-                    continue;
-                }
-
                 $this->appendNode($dom, $wrapper, $pages, $currentNodes, $usedPt);
             }
 
@@ -329,60 +290,8 @@ class AgreementLetterheadPaginator
         $parts = $this->splitTable($dom, $table, $remaining);
 
         foreach ($parts as $part) {
-            $this->appendNodeOrForce($dom, $part, $pages, $currentNodes, $usedPt);
+            $this->appendNode($dom, $part, $pages, $currentNodes, $usedPt);
         }
-    }
-
-    /**
-     * Append a node, or place it alone on a page when it cannot be split further.
-     *
-     * @param  list<DOMNode>  $currentNodes
-     */
-    private function appendNodeOrForce(
-        DOMDocument $dom,
-        DOMNode $node,
-        array &$pages,
-        array &$currentNodes,
-        float &$usedPt
-    ): void {
-        if (! $node instanceof DOMElement) {
-            $this->appendNode($dom, $node, $pages, $currentNodes, $usedPt);
-
-            return;
-        }
-
-        $tag = strtolower($node->tagName);
-        $estimate = $this->safeEstimate($this->estimateNodeHeightPt($node));
-
-        if ($estimate > $this->budgetPt && in_array($tag, ['table', 'ul', 'ol', 'p', 'blockquote', 'li'], true)) {
-            $this->forcePlaceOversizedNode($dom, $node, $pages, $currentNodes, $usedPt);
-
-            return;
-        }
-
-        $this->appendNode($dom, $node, $pages, $currentNodes, $usedPt);
-    }
-
-    /**
-     * Place an element that exceeds one page on its own page (last resort).
-     *
-     * @param  list<DOMNode>  $currentNodes
-     */
-    private function forcePlaceOversizedNode(
-        DOMDocument $dom,
-        DOMNode $node,
-        array &$pages,
-        array &$currentNodes,
-        float &$usedPt
-    ): void {
-        if ($currentNodes !== []) {
-            $pages[] = $this->joinHtml($dom, $currentNodes);
-            $currentNodes = [];
-            $usedPt = 0.0;
-        }
-
-        $pages[] = $this->joinHtml($dom, [$node]);
-        $usedPt = 0.0;
     }
 
     /**
@@ -423,7 +332,7 @@ class AgreementLetterheadPaginator
                 $pages[] = $this->joinHtml($dom, $currentNodes);
                 $currentNodes = [];
                 $usedPt = 0.0;
-                $this->appendNodeOrForce($dom, $parts[$i], $pages, $currentNodes, $usedPt);
+                $this->appendNode($dom, $parts[$i], $pages, $currentNodes, $usedPt);
             }
 
             return true;
@@ -449,7 +358,7 @@ class AgreementLetterheadPaginator
             $usedPt += $firstEstimate;
 
             for ($i = 1; $i < count($parts); $i++) {
-                $this->appendNodeOrForce($dom, $parts[$i], $pages, $currentNodes, $usedPt);
+                $this->appendNode($dom, $parts[$i], $pages, $currentNodes, $usedPt);
             }
 
             return true;
@@ -503,7 +412,7 @@ class AgreementLetterheadPaginator
         $usedPt += $packedHeight;
 
         for ($i = $splitAt; $i < count($items); $i++) {
-            $this->appendNodeOrForce($dom, $items[$i], $pages, $currentNodes, $usedPt);
+            $this->appendNode($dom, $items[$i], $pages, $currentNodes, $usedPt);
         }
 
         return true;
@@ -694,29 +603,6 @@ class AgreementLetterheadPaginator
         return $parts;
     }
 
-    /**
-     * @return list<DOMElement>
-     */
-    private function splitTextBlockForced(DOMDocument $dom, DOMElement $block): array
-    {
-        $text = trim(preg_replace('/\s+/u', ' ', $block->textContent ?? '') ?? '');
-        if ($text === '') {
-            return [$block];
-        }
-
-        $tag = strtolower($block->tagName);
-        $parts = [];
-
-        foreach ($this->chunkText($text, (int) (self::CHARS_PER_LINE * 2)) as $chunk) {
-            $node = $dom->createElement($tag);
-            $this->copyElementAttributes($block, $node);
-            $node->appendChild($dom->createTextNode($chunk));
-            $parts[] = $node;
-        }
-
-        return $parts !== [] ? $parts : [$block];
-    }
-
     private function copyElementAttributes(DOMElement $source, DOMElement $target): void
     {
         foreach (['class', 'style', 'id'] as $attribute) {
@@ -825,16 +711,9 @@ class AgreementLetterheadPaginator
 
         foreach ($bodyRows as $row) {
             $rowPt = $this->estimateRowHeightPt($row);
-            $headerForRow = $batch === [] ? $headerPt : 0.0;
-            $nextPt = $usedPt + $rowPt + $headerForRow;
+            $nextPt = $usedPt + $rowPt + ($batch === [] ? $headerPt : 0);
 
             $limit = $batch === [] ? $budgetPt : $this->budgetPt;
-
-            if ($batch === [] && $nextPt > $limit) {
-                $chunks[] = $this->buildTable($dom, $table, $headerRows, [$row]);
-
-                continue;
-            }
 
             if ($nextPt > $limit && $batch !== []) {
                 $chunks[] = $this->buildTable($dom, $table, $headerRows, $batch);

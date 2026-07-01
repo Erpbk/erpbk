@@ -1331,6 +1331,228 @@ class BikesController extends AppBaseController
         return view('bikes.leasing_return_modal', compact('bike', 'id'));
     }
 
+    /**
+     * Modal + POST: change project on an active rider assignment without unassigning the bike.
+     */
+    public function changeProject(Request $request, $company_slug, $id)
+    {
+        $bike = Bikes::with(['rider', 'customer'])->findOrFail($id);
+
+        if (! $this->bikeEligibleForProjectChange($bike)) {
+            abort(404);
+        }
+
+        if ($request->isMethod('post')) {
+            if (! auth()->user()->can('bike_assign_edit')) {
+                abort(403, 'Unauthorized');
+            }
+
+            if (! $this->bikeEligibleForProjectChange($bike->fresh(['rider', 'customer']))) {
+                return response()->json(['message' => 'This assignment is no longer active.'], 422);
+            }
+
+            $request->validate([
+                'bike_id' => 'required|exists:bikes,id',
+                'customer_id' => 'required|exists:customers,id',
+            ]);
+
+            $newCustomerId = (string) $request->input('customer_id');
+            $currentCustomerId = (string) ($bike->customer_id ?? '');
+
+            if ($newCustomerId === $currentCustomerId) {
+                return response()->json(['message' => 'This project is already assigned.'], 422);
+            }
+
+            $rider = $bike->rider;
+            if (! $rider) {
+                return response()->json(['message' => 'No rider is assigned to this vehicle.'], 422);
+            }
+
+            $oldProject = $bike->customer;
+            $newProject = Customers::find($newCustomerId);
+            $changeDate = now()->setTimezone('Asia/Dubai')->toDateString();
+            $historyBranchId = RiderHistoryLogger::resolveBranchId($rider, $bike);
+            $riderBefore = RiderHistoryLogger::riderSnapshot($rider);
+            $prevRiderCustomerId = $rider->customer_id;
+
+            $returnMessage = "*Bike* 🏍️\n";
+            $returnMessage .= "────────────────\n";
+            $returnMessage .= "*Bike No:* {$bike->plate}\n";
+            $returnMessage .= "*ID:* {$rider->rider_id}\n";
+            $returnMessage .= "*Name:* {$rider->name}\n";
+            $returnMessage .= "*Return Date:* {$changeDate}\n";
+            $returnMessage .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
+            $returnMessage .= '*Project:* ' . ($oldProject->name ?? '—') . "\n";
+            $returnMessage .= "*Emirates:* {$bike->emirates}\n";
+            $returnMessage .= "*Reason:* Project change\n";
+
+            $assignMessage = "*Bike* 🏍️\n";
+            $assignMessage .= "────────────────\n";
+            $assignMessage .= "*Bike No:* {$bike->plate}\n";
+            $assignMessage .= "*ID:* {$rider->rider_id}\n";
+            $assignMessage .= "*Name:* {$rider->name}\n";
+            $assignMessage .= "*Assign Date:* {$changeDate}\n";
+            $assignMessage .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
+            $assignMessage .= '*Project:* ' . ($newProject->name ?? '—') . "\n";
+            $assignMessage .= "*Emirates:* {$bike->emirates}\n";
+            $assignMessage .= "*Reason:* Project change\n";
+
+            DB::beginTransaction();
+            try {
+                $this->closeOpenBikeAssignment($bike, $rider, $returnMessage, $changeDate, 'Return');
+
+                RiderHistoryLogger::bikeAssignStatusChange(
+                    (int) $rider->id,
+                    'Bike return: Return',
+                    'Project change — returned from ' . ($oldProject->name ?? 'previous project'),
+                    $riderBefore,
+                    $riderBefore,
+                    $changeDate,
+                    'bike_assign_return',
+                    $historyBranchId,
+                    [
+                        'warehouse_action' => 'Return',
+                        'bike_id' => $bike->id,
+                        'bike_plate' => $bike->plate,
+                        'project_change' => true,
+                    ],
+                    'Return',
+                    $rider,
+                    $bike
+                );
+
+                $rider->customer_id = $newCustomerId;
+                $rider->save();
+
+                RiderHistoryLogger::projectChange(
+                    (int) $rider->id,
+                    $prevRiderCustomerId !== null && $prevRiderCustomerId !== '' ? (string) $prevRiderCustomerId : null,
+                    $newCustomerId,
+                    $oldProject->name ?? null,
+                    $newProject->name ?? null,
+                    $changeDate,
+                    'bike_project_change',
+                    $historyBranchId,
+                    $rider,
+                    $bike
+                );
+
+                $assignData = [
+                    'bike_id' => $bike->id,
+                    'rider_id' => $rider->id,
+                    'warehouse' => 'Active',
+                    'note_date' => $changeDate,
+                    'notes' => $assignMessage,
+                    'customer_id' => $newCustomerId,
+                    'created_by' => Auth::id(),
+                ];
+                $assignData = array_merge(
+                    $assignData,
+                    BikeHistoryLogger::structuredBikeHistoryFields($bike, $rider, 'Joining', $newCustomerId)
+                );
+                BikeHistory::create($assignData);
+
+                $bike->update([
+                    'customer_id' => $newCustomerId,
+                    'warehouse' => 'Active',
+                ]);
+
+                RiderHistoryLogger::bikeAssignStatusChange(
+                    (int) $rider->id,
+                    'Bike assigned: Joining',
+                    'Project change — assigned under ' . ($newProject->name ?? 'new project'),
+                    array_merge($riderBefore, ['customer_id' => $prevRiderCustomerId]),
+                    RiderHistoryLogger::riderSnapshot($rider->fresh()),
+                    $changeDate,
+                    'bike_assign',
+                    $historyBranchId,
+                    [
+                        'warehouse_action' => 'Active',
+                        'bike_id' => $bike->id,
+                        'bike_plate' => $bike->plate,
+                        'project_change' => true,
+                    ],
+                    'Joining',
+                    $rider,
+                    $bike
+                );
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Project changed successfully. Previous assignment has been returned and a new assignment has been created.',
+                    'reload' => true,
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Bike project change failed', [
+                    'bike_id' => $bike->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return response()->json(['message' => 'Project change failed. Please try again.'], 400);
+            }
+        }
+
+        $projects = Customers::orderBy('name')->pluck('name', 'id')->prepend('Select', '');
+        $currentProjectId = (string) ($bike->customer_id ?? '');
+
+        return view('bikes.change_project_modal', compact('bike', 'id', 'projects', 'currentProjectId'));
+    }
+
+    private function bikeEligibleForProjectChange(Bikes $bike): bool
+    {
+        if (empty($bike->rider_id)) {
+            return false;
+        }
+
+        if (strtolower((string) $bike->warehouse) !== 'active') {
+            return false;
+        }
+
+        if (Schema::hasColumn('bikes', 'leased_return_date') && ! empty($bike->leased_return_date)) {
+            return false;
+        }
+
+        return BikeHistory::where('bike_id', $bike->id)
+            ->where('rider_id', $bike->rider_id)
+            ->whereNull('return_date')
+            ->where('warehouse', 'Active')
+            ->exists();
+    }
+
+    /**
+     * Close the open bike_histories row for a project change (return from current project).
+     */
+    private function closeOpenBikeAssignment(
+        Bikes $bike,
+        Riders $rider,
+        string $notes,
+        string $returnDate,
+        ?string $historyStatus = null
+    ): void {
+        $lastHistory = BikeHistory::where('bike_id', $bike->id)
+            ->where('rider_id', $rider->id)
+            ->whereNull('return_date')
+            ->latest('note_date')
+            ->first();
+
+        if (! $lastHistory) {
+            throw new \RuntimeException('No open assignment found for this vehicle.');
+        }
+
+        $resolvedStatus = $historyStatus ?? BikeHistoryLogger::historyStatusFromWarehouse('Return');
+        $update = [
+            'warehouse' => 'Return',
+            'return_date' => $returnDate,
+            'notes' => $notes,
+            'updated_by' => Auth::id(),
+            'customer_id' => $bike->customer_id,
+        ];
+        $update = BikeHistoryLogger::mergeStructuredUpdate($update, $bike, $rider, $resolvedStatus);
+        $lastHistory->update($update);
+    }
+
     public function assignContract($company_slug, $id)
     {
         $contract = BikeHistory::find($id);

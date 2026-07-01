@@ -229,6 +229,7 @@ class BikesController extends AppBaseController
             'plate',
             'branch_id',
             'rider_id',
+            'name',
             'emirates',
             'company',
             'customer_id',
@@ -259,6 +260,10 @@ class BikesController extends AppBaseController
             if ($key === 'branch_id') {
                 $columns[] = ['data' => 'branch_id', 'title' => 'Branch'];
                 $added['branch_id'] = true;
+            } elseif ($key === 'name') {
+                $columns[] = ['data' => 'name', 'title' => 'Name'];
+                $added['name'] = true;
+                continue;
             } elseif (in_array($key, $dbColumns)) {
                 $columns[] = ['data' => $key, 'title' => $makeTitle($key)];
                 $added[$key] = true;

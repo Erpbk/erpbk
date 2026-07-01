@@ -422,7 +422,7 @@ class RtaFinesController extends AppBaseController
             ]);
 
             $TransactionService->recordTransaction([
-                'account_id'     => GlobalAccounts::id('RTA_FINE'),
+                'account_id'     => $rta_account,
                 'reference_id'   => $rtaFines->id,
                 'reference_type' => 'RTA',
                 'trans_code'     => $trans_code,
@@ -620,7 +620,7 @@ class RtaFinesController extends AppBaseController
             ]);
 
             $TransactionService->recordTransaction([
-                'account_id'     => GlobalAccounts::id('RTA_FINE'),
+                'account_id'     => $rta_account,
                 'reference_id'   => $rtaFines->id,
                 'reference_type' => 'RTA',
                 'trans_code'     => $trans_code,

@@ -51,17 +51,6 @@
   </div>
 </div>
 
-@if(\Illuminate\Support\Facades\Auth::guard('admin')->check())
-<div class="form-group col-sm-6">
-  <label>Fixed Account</label>
-  <div class="form-check">
-    <input type="hidden" name="is_fixed" value="0" />
-    <input type="checkbox" name="is_fixed" id="is_fixed" class="form-check-input" value="1" @isset($accounts) @if($accounts->is_fixed) checked @endif @endisset />
-    <label for="is_fixed" class="pt-0">Share this account with all companies</label>
-  </div>
-</div>
-@endif
-
 <div class="form-group col-sm-12">
   {!! Form::label('notes', 'Notes:') !!}
   {!! Form::textarea('notes', null, ['class' => 'form-control', 'rows' => 4]) !!}

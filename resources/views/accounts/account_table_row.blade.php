@@ -5,6 +5,8 @@ $isRoot = is_null($account->parent_id);
 $parentName = $parentName ?? ($account->parent ? $account->parent->name : null);
 $searchText = strtolower(($account->name ?? '') . ' ' . ($account->account_code ?? '') . ' ' . ($account->account_type ?? '') . ' ' . ($parentName ?? '') .' '. $account->branch_name);
 $__companySlug = \App\Support\CompanyRouteContext::slug();
+$globalLinkedAccountIds = $globalLinkedAccountIds ?? [];
+$isGlobalLinked = isset($globalLinkedAccountIds[$account->id]);
 @endphp
 <tr class="chart-account-row {{ $depth > 0 ? 'child-row' : '' }}" data-account-id="{{ $account->id }}" data-parent-id="{{ $account->parent_id ?? '' }}" data-depth="{{ $depth }}" data-search="{{ $searchText }}" {{ $depth > 0 ? 'style="display:none;"' : '' }}>
   <td class="align-middle" data-col="account-name">
@@ -28,6 +30,9 @@ $__companySlug = \App\Support\CompanyRouteContext::slug();
       <span class="tree-lock me-1" style="width:20px;display:inline-block;"></span>
       @endif
       <a href="javascript:void(0);" class="view-ledger text-primary text-decoration-none fw-medium" data-id="{{ $account->id }}">{{ $account->name }}</a>
+      @if($isGlobalLinked)
+      <span class="badge bg-label-primary ms-1" title="Managed from Admin → Global Accounts">Global</span>
+      @endif
     </div>
   </td>
   <td class="align-middle text-nowrap" data-col="account-code">{{ $account->account_code ?: '—' }}</td>
@@ -40,13 +45,15 @@ $__companySlug = \App\Support\CompanyRouteContext::slug();
       <button type="button" class="btn btn-sm btn-icon btn-outline-secondary" data-bs-toggle="dropdown" title="Actions"><i class="fa fa-cog"></i></button>
       <ul class="dropdown-menu dropdown-menu-end">
         @can('account_edit')
+        @if(!$isGlobalLinked)
         <li><a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-edit me-2"></i> Edit</a></li>
         <li><a class="dropdown-item lock-toggle" href="javascript:void(0);" data-account-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-{{ $account->is_locked ? 'unlock' : 'lock' }} me-2"></i> {{ $account->is_locked ? 'Unlock' : 'Lock' }}</a></li>
         <li><a class="dropdown-item toggle-status" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleStatus', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-active="{{ $account->status == 1 ? '1' : '0' }}"><i class="fa fa-{{ $account->status == 1 ? 'pause-circle-o' : 'play-circle-o' }} me-2"></i> {{ $account->status == 1 ? 'Mark as Inactive' : 'Mark as Active' }}</a></li>
+        @endif
         @endcan
         <li><a class="dropdown-item view-ledger" href="javascript:void(0);" data-id="{{ $account->id }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
         @can('account_delete')
-        @if(!$isRoot)
+        @if(!$isRoot && !$isGlobalLinked)
         <li>
           <hr class="dropdown-divider">
         </li>
@@ -59,6 +66,6 @@ $__companySlug = \App\Support\CompanyRouteContext::slug();
 </tr>
 @if($hasChildren)
 @foreach($account->children as $child)
-@include('accounts.account_table_row', ['account' => $child, 'depth' => $depth + 1, 'parentName' => $account->name])
+@include('accounts.account_table_row', ['account' => $child, 'depth' => $depth + 1, 'parentName' => $account->name, 'globalLinkedAccountIds' => $globalLinkedAccountIds])
 @endforeach
 @endif

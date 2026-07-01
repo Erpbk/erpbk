@@ -87,27 +87,20 @@ class GaragesController extends AppBaseController
     $isInternal = ($input['garage_type'] ?? '') === 'internal';
 
     if ($isInternal) {
-      $inventoryParent = Accounts::find(GlobalAccounts::id('GARAGE_ACCOUNT'));
-      if (! $inventoryParent) {
-        $inventoryParent = Accounts::where('name', 'Garages')
-          ->where('account_type', 'Asset')
-          ->first();
-      }
-      if (! $inventoryParent) {
+      $parentId = GlobalAccounts::id('GARAGE_ACCOUNT');
+      if (! $parentId) {
         return response()->json([
-          'message' => 'Chart of accounts is missing the Garage Inventory (Asset) head. Add it or configure GARAGE_ACCOUNT in Global Accounts.',
+          'message' => 'Chart of accounts is missing the Garage Inventory (Asset) head. Contact ERP Team to Configure it.',
         ], 422);
       }
-      $parentId = $inventoryParent->id;
       $accountType = 'Asset';
     } else {
-      $liabilityParent = Accounts::where('name', 'Garages')->where('account_type', 'Liability')->first();
-      if (! $liabilityParent) {
+      $parentId = GlobalAccounts::id('GARAGE_PARENT');
+      if (! $parentId) {
         return response()->json([
-          'message' => 'Chart of accounts is missing the Garages (Liability) head.',
+          'message' => 'Chart of accounts is missing the Garage (Liability) head. Contact ERP Team to Configure it.',
         ], 422);
       }
-      $parentId = $liabilityParent->id;
       $accountType = 'Liability';
     }
 

@@ -5,6 +5,7 @@ $isCredit = $closingBalance < 0;
   $ledgerPaginator=$ledgerPaginator ?? null;
   $perPage=$ledgerPaginator ? $ledgerPaginator->perPage() : 25;
   $__companySlug = \App\Support\CompanyRouteContext::slug();
+  $isGlobalLinked = $account->isLinkedToGlobalAccount();
   @endphp
   <div class="chart-account-detail-panel" data-account-id="{{ $account->id }}">
     <div class="d-flex justify-content-between align-items-baseline mb-3">
@@ -18,22 +19,28 @@ $isCredit = $closingBalance < 0;
     </div>
     <div class="d-flex flex-wrap gap-2 mb-3 justify-content-end align-items-baseline">
       @can('account_edit')
+      @if(!$isGlobalLinked)
       <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary action-btn show-modal" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-pencil me-1"></i> Edit</a>
+      @endif
       @endcan
       <div class="dropdown">
         <button type="button" class="btn btn-sm btn-icon btn-outline-secondary" data-bs-toggle="dropdown" aria-expanded="false" title="More options"><i class="fa fa-ellipsis-v"></i></button>
         <ul class="dropdown-menu dropdown-menu-end">
           @can('account_edit')
+          @if(!$isGlobalLinked)
           <li><a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-edit me-2"></i> Edit</a></li>
           <li><a class="dropdown-item toggle-lock" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-{{ $account->is_locked ? 'unlock' : 'lock' }} me-2"></i> {{ $account->is_locked ? 'Unlock' : 'Lock' }}</a></li>
           <li><a class="dropdown-item toggle-status" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleStatus', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-active="{{ $account->status == 1 ? '1' : '0' }}"><i class="fa fa-{{ $account->status == 1 ? 'pause-circle-o' : 'play-circle-o' }} me-2"></i> {{ $account->status == 1 ? 'Mark as Inactive' : 'Mark as Active' }}</a></li>
+          @endif
           @endcan
           <li><a class="dropdown-item" href="{{ route('accounts.ledger', ['company_slug' => $__companySlug]) }}?account={{ $account->id }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
           @can('account_delete')
+          @if(!$isGlobalLinked)
           <li>
             <hr class="dropdown-divider">
           </li>
           <li><a class="dropdown-item text-danger delete-account" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.destroy', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-trash me-2"></i> Delete</a></li>
+          @endif
           @endcan
         </ul>
       </div>

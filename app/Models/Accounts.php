@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
@@ -98,6 +99,20 @@ class Accounts extends BaseModel
   public function transactions()
   {
     return $this->hasMany(Transactions::class);
+  }
+
+  public function globalAccount(): HasOne
+  {
+    return $this->hasOne(GlobalAccount::class, 'account_id');
+  }
+
+  public function isLinkedToGlobalAccount(): bool
+  {
+    if ($this->relationLoaded('globalAccount')) {
+      return $this->globalAccount !== null;
+    }
+
+    return GlobalAccount::query()->where('account_id', $this->id)->exists();
   }
 
   public function parent()

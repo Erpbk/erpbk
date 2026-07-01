@@ -218,7 +218,7 @@
                             <td colspan="7" class="fw-bold py-2">{{ $typeValue }}</td>
                         </tr>
                         @foreach ($rootsOfType as $account)
-                        @include('accounts.account_table_row', ['account' => $account, 'depth' => 0])
+                        @include('accounts.account_table_row', ['account' => $account, 'depth' => 0, 'globalLinkedAccountIds' => $globalLinkedAccountIds ?? []])
                         @endforeach
                         @endif
                         @endforeach

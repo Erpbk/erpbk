@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use App\Models\Company;
+use App\Models\GlobalAccount;
 use App\Support\CompanyRouteContext;
 use Flash;
 
@@ -59,7 +60,9 @@ class AccountsController extends AppBaseController
       });
     }
     $accounts = $query->get()->map(fn($account) => (object) ['account' => $account, 'depth' => 0]);
-    return view('accounts.index', compact('accounts'));
+    $globalLinkedAccountIds = $this->globalLinkedAccountIds();
+
+    return view('accounts.index', compact('accounts', 'globalLinkedAccountIds'));
   }
 
   /**
@@ -104,7 +107,9 @@ class AccountsController extends AppBaseController
       })
       ->orderBy('account_code')
       ->get();
-    return view('accounts.tree', compact('accounts'));
+    $globalLinkedAccountIds = $this->globalLinkedAccountIds();
+
+    return view('accounts.tree', compact('accounts', 'globalLinkedAccountIds'));
   }
 
 
@@ -131,12 +136,8 @@ class AccountsController extends AppBaseController
    */
   public function store(CreateAccountsRequest $request)
   {
-    if ($request->boolean('is_fixed') && !$this->canManageFixedAccounts()) {
-      return response()->json(['errors' => ['error' => 'Only admin panel can create fixed accounts.']], 422);
-    }
-
-    $input = $request->except(['custom_field_values']);
-    $input['is_fixed'] = $this->resolveFixedFlag($request, false);
+    $input = $request->except(['custom_field_values', 'is_fixed']);
+    $input['is_fixed'] = false;
     // Set is_locked=1 if parent_id is not set (root account)
 
     $accounts = $this->accountsRepository->create($input);
@@ -181,6 +182,13 @@ class AccountsController extends AppBaseController
       Flash::error('Accounts not found');
       return redirect(route('accounts.index', ['company_slug' => CompanyRouteContext::slug()]));
     }
+
+    if ($this->isAccountLinkedToGlobal($accounts)) {
+      if (request()->ajax() || request()->wantsJson()) {
+        return response()->json(['message' => 'Accounts linked to global accounts can only be managed from the Admin panel.'], 403);
+      }
+      abort(403, 'Accounts linked to global accounts can only be managed from the Admin panel.');
+    }
     //$parents = Accounts::whereNot('id', $id)->whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
     $parents = Accounts::query()
       ->where(function ($q) {
@@ -206,6 +214,12 @@ class AccountsController extends AppBaseController
       return redirect(route('accounts.index', ['company_slug' => CompanyRouteContext::slug()]));
     }
 
+    if ($this->isAccountLinkedToGlobal($accounts)) {
+      return response()->json([
+        'errors' => ['error' => 'Accounts linked to global accounts can only be managed from the Admin panel.'],
+      ], 422);
+    }
+
     if ((bool) $accounts->is_fixed) {
       $childAccountsCount = Accounts::where('parent_id', $accounts->id)->count();
       if ($childAccountsCount > 0) {
@@ -215,8 +229,8 @@ class AccountsController extends AppBaseController
       }
     }
 
-    $input = $request->except(['custom_field_values']);
-    $input['is_fixed'] = $this->resolveFixedFlag($request, (bool) ($accounts->is_fixed ?? false));
+    $input = $request->except(['custom_field_values', 'is_fixed']);
+    $input['is_fixed'] = (bool) ($accounts->is_fixed ?? false);
     $accounts = $this->accountsRepository->update($input, $id);
 
     if ($accounts) {
@@ -260,6 +274,10 @@ class AccountsController extends AppBaseController
 
     if (empty($accounts)) {
       return response()->json(['errors' => ['error' => 'Account not found!']], 422);
+    }
+
+    if ($this->isAccountLinkedToGlobal($accounts)) {
+      return response()->json(['errors' => ['error' => 'Accounts linked to global accounts can only be managed from the Admin panel.']], 422);
     }
 
     if ((bool) $accounts->is_fixed && !Auth::guard('admin')->check()) {
@@ -333,6 +351,13 @@ class AccountsController extends AppBaseController
     if (!$account) {
       abort(404);
     }
+
+    if ($this->isAccountLinkedToGlobal($account)) {
+      return response()->json([
+        'errors' => ['error' => 'Accounts linked to global accounts can only be managed from the Admin panel.'],
+      ], 422);
+    }
+
     $account->is_locked = !$account->is_locked;
     $account->save();
     return response()->json([
@@ -420,6 +445,13 @@ class AccountsController extends AppBaseController
     if (!$account) {
       abort(404);
     }
+
+    if ($this->isAccountLinkedToGlobal($account)) {
+      return response()->json([
+        'errors' => ['error' => 'Accounts linked to global accounts can only be managed from the Admin panel.'],
+      ], 422);
+    }
+
     $account->status = ($account->status == 1) ? 2 : 1;
     $account->save();
     return response()->json([
@@ -431,34 +463,11 @@ class AccountsController extends AppBaseController
   }
 
   /**
-   * Toggle fixed account status (admin only).
+   * Fixed / global-linked accounts are managed from Admin → Global Accounts only.
    */
   public function toggleFixed(Request $request, $company_slug, $id)
   {
-    $account = $this->findAccessibleAccount($id);
-    if (!$account) {
-      abort(404);
-    }
-
-    if (!$this->canManageFixedAccounts()) {
-      abort(403, 'Unauthorized action.');
-    }
-
-    $account->is_fixed = !$account->is_fixed;
-    if ($account->is_fixed) {
-      $account->company_id = null;
-    } else {
-      $account->company_id = $this->resolveChartCompanyId();
-    }
-    $account->save();
-
-    return response()->json([
-      'success' => true,
-      'is_fixed' => (bool) $account->is_fixed,
-      'message' => $account->is_fixed
-        ? 'Account marked as fixed and shared across all companies.'
-        : 'Account unmarked as fixed.',
-    ]);
+    abort(403, 'Global and fixed accounts must be managed from Admin → Global Accounts.');
   }
 
   /**
@@ -565,17 +574,18 @@ class AccountsController extends AppBaseController
     return null;
   }
 
-  private function canManageFixedAccounts(): bool
+  private function globalLinkedAccountIds(): array
   {
-    return Auth::guard('admin')->check();
+    return GlobalAccount::query()
+      ->whereNotNull('account_id')
+      ->pluck('account_id')
+      ->map(fn ($id) => (int) $id)
+      ->flip()
+      ->all();
   }
 
-  private function resolveFixedFlag(Request $request, bool $default = false): bool
+  private function isAccountLinkedToGlobal(Accounts $account): bool
   {
-    if (!$this->canManageFixedAccounts()) {
-      return $default;
-    }
-
-    return (bool) $request->boolean('is_fixed');
+    return GlobalAccount::query()->where('account_id', $account->id)->exists();
   }
 }

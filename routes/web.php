@@ -274,6 +274,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::any('bikes/assign_rider/{id?}', [BikesController::class, 'assign_rider'])->name('bikes.assign_rider');
     Route::any('bikes/assignrider/{id?}', [BikesController::class, 'assignrider'])->name('bikes.assignrider');
     Route::any('bikes/leasing-return/{id}', [BikesController::class, 'leasingReturn'])->name('bikes.leasingReturn');
+    Route::any('bikes/change-project/{id}', [BikesController::class, 'changeProject'])->name('bikes.change_project');
     Route::get('bikes/contracts/{id?}', [BikesController::class, 'assignContract'])->name('bikes.assignContract');
     Route::get('bikes/contract/{id?}', [BikesController::class, 'returnContract'])->name('bikes.returnContract');
     Route::any('bikes/contract_upload/{id?}', [BikesController::class, 'contract_upload'])->name('bike_contract_upload');

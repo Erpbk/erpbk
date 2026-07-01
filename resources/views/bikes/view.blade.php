@@ -804,6 +804,9 @@
                 $hideAssignForWarehouse = ['Total Loss'];
                 $showAssignRiderBlock = !in_array($bikeWarehouse, $hideAssignForWarehouse, true)
                 && !$leasedReturnCompleted;
+                $showChangeProject = !empty($bikes->rider_id)
+                && strtolower($bikeWarehouse) === 'active'
+                && !$leasedReturnCompleted;
                 @endphp
 
                 <!-- Action Buttons - Smaller size -->
@@ -837,6 +840,16 @@
                         <i class="fas fa-user-check"></i>
                         <span>Change Status</span>
                     </a>
+                    @if($showChangeProject)
+                    <a href="javascript:void(0);"
+                        class="btn-compact btn-edit-compact show-modal"
+                        data-size="md"
+                        data-title="Change Project — {{ $bikes->plate }}"
+                        data-action="{{ route('bikes.change_project', $bikes->id) }}">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span>Change Project</span>
+                    </a>
+                    @endif
                     @else
                     <a href="javascript:void(0);"
                         class="btn-compact btn-assign-compact show-modal"

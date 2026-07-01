@@ -1,11 +1,12 @@
 @php
 $s = $branding['secondary_color'] ?? '#2563eb';
-$email = $branding['email'] ?? '';
-$phone = $branding['phone'] ?? '';
-$website = $branding['website_display'] ?? '';
-$address = $branding['address'] ?? '';
-$locationLine = $branding['location_line'] ?? '';
-$addressLine = $locationLine !== '' ? $locationLine : $address;
+$name = trim((string) ($branding['name'] ?? ''));
+$email = trim((string) ($branding['email'] ?? ''));
+$phone = trim((string) ($branding['phone'] ?? ''));
+$address = trim((string) ($branding['address'] ?? ''));
+$locationLine = trim((string) ($branding['location_line'] ?? ''));
+$city = trim((string) ($branding['city'] ?? ''));
+$country = trim((string) ($branding['country'] ?? ''));
 @endphp
 <header class="page-header">
   <div class="page-header-inner">
@@ -18,14 +19,11 @@ $addressLine = $locationLine !== '' ? $locationLine : $address;
           @if($email !== '')
           <p class="page-header-meta">{{ $email }}</p>
           @endif
-          @if($website !== '')
-          <p class="page-header-meta">{{ $website }}</p>
-          @endif
           @if($phone !== '')
           <p class="page-header-meta">{{ $phone }}</p>
           @endif
-          @if($addressLine !== '')
-          <p class="page-header-meta">{{ $addressLine }}</p>
+          @if($address !== '')
+          <p class="page-header-meta">{{ $address }}{{ $city !== '' ? ', ' . $city : '' }}{{ $country !== '' ? ', ' . $country : '' }}</p>
           @endif
         </td>
       </tr>

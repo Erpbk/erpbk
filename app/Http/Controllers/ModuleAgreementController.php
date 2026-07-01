@@ -136,9 +136,10 @@ class ModuleAgreementController extends Controller
         $template = $this->resolveModuleTemplate($template, $module);
         $sampleEntity = $this->sampleEntityForModule($module);
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
-        $html = $pdfService->renderHtml($template, $sampleEntity, $agreementDate, true);
+        $withLetterhead = $request->boolean('letterhead', true);
+        $html = $pdfService->renderHtml($template, $sampleEntity, $agreementDate, true, $withLetterhead);
 
-        return view('agreements.preview', compact('html', 'template'));
+        return view('agreements.preview', compact('html', 'template', 'withLetterhead'));
     }
 
     public function previewTemplatePdf(Request $request, $company_slug, string $module, int $template, AgreementPdfService $pdfService)
@@ -147,7 +148,8 @@ class ModuleAgreementController extends Controller
 
         $template = $this->resolveModuleTemplate($template, $module);
         $sampleEntity = $this->sampleEntityForModule($module);
-        $pdf = $pdfService->previewPdf($template, $sampleEntity);
+        $withLetterhead = $request->boolean('letterhead', true);
+        $pdf = $pdfService->previewPdf($template, $sampleEntity, null, $withLetterhead);
         $filename = Str::slug($template->template_name) . '-preview.pdf';
 
         return $pdf->download($filename);

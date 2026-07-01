@@ -61,9 +61,10 @@ class AgreementGenerationController extends Controller
         $template = $this->resolveRiderTemplate((int) $request->input('template_id'));
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
 
-        $html = $pdfService->renderHtml($template, $rider, $agreementDate);
+        $withLetterhead = $request->boolean('letterhead', true);
+        $html = $pdfService->renderHtml($template, $rider, $agreementDate, false, $withLetterhead);
 
-        return view('agreements.preview', compact('html', 'template', 'rider'));
+        return view('agreements.preview', compact('html', 'template', 'rider', 'withLetterhead'));
     }
 
     public function pdf(Request $request, $company_slug, int $riderId, AgreementPdfService $pdfService)
@@ -73,8 +74,9 @@ class AgreementGenerationController extends Controller
         $rider = Riders::findOrFail($riderId);
         $template = $this->resolveRiderTemplate((int) $request->input('template_id'));
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
+        $withLetterhead = $request->boolean('letterhead', true);
 
-        $pdf = $pdfService->generatePdf($template, $rider, $agreementDate);
+        $pdf = $pdfService->generatePdf($template, $rider, $agreementDate, $withLetterhead);
         $filename = Str::slug($rider->rider_id . '-' . $template->template_name) . '.pdf';
 
         if ($request->boolean('download', true)) {

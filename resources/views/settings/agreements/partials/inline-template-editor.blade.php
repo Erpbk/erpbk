@@ -27,8 +27,15 @@ $selectedTemplateId = (int) old('contract_template_id', $contractTemplateId ?? 0
           </button>
           <a href="{{ $selectedTemplateId ? route('agreements.preview', ['company_slug' => request()->route('company_slug'), 'id' => $selectedTemplateId]) : '#' }}"
             class="btn btn-outline-info btn-sm {{ $selectedTemplateId ? '' : 'd-none' }}" id="btn-template-full-preview" target="_blank">
-            <i class="ti ti-file-text me-1"></i> Full PDF preview
+            <i class="ti ti-file-text me-1"></i> Full preview
           </a>
+          <a href="{{ $selectedTemplateId ? route('agreements.preview-pdf', ['company_slug' => request()->route('company_slug'), 'id' => $selectedTemplateId]) : '#' }}"
+            class="btn btn-outline-primary btn-sm {{ $selectedTemplateId ? '' : 'd-none' }}" id="btn-template-download-pdf">
+            <i class="ti ti-download me-1"></i> Download PDF
+          </a>
+          <button type="button" class="btn btn-outline-dark btn-sm {{ $selectedTemplateId ? '' : 'd-none' }}" id="btn-template-print">
+            <i class="ti ti-printer me-1"></i> Print
+          </button>
         </div>
       </div>
 

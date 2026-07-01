@@ -5,8 +5,8 @@ namespace App\Services\Email;
 use App\Models\Company;
 use App\Models\Settings;
 use App\Support\CompanyContext;
+use App\Support\PublicStorageDisk;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
 class CompanyEmailBrandingService
@@ -126,9 +126,8 @@ class CompanyEmailBrandingService
     }
 
     $relative = ltrim(preg_replace('#^storage/#', '', $relative) ?? '', '/');
-    $fullPath = storage_path('app/public/' . $relative);
 
-    return is_readable($fullPath) ? $fullPath : null;
+    return PublicStorageDisk::readablePath($relative);
   }
 
   /**
@@ -206,21 +205,25 @@ class CompanyEmailBrandingService
 
     $logoPath = ltrim(preg_replace('#^storage/#', '', $logoPath) ?? $logoPath, '/');
 
-    if (!Storage::disk('public')->exists($logoPath)) {
+    if (!PublicStorageDisk::exists($logoPath)) {
       return null;
     }
 
-    $relative = storage_url($logoPath);
+    $url = PublicStorageDisk::url($logoPath);
+
+    if (!$url) {
+      return null;
+    }
 
     if (!$absolute) {
-      return $relative;
+      return $url;
     }
 
-    if (str_starts_with($relative, 'http://') || str_starts_with($relative, 'https://')) {
-      return $relative;
+    if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+      return $url;
     }
 
-    return $this->absoluteUrlForCurrentDomain($relative);
+    return $this->absoluteUrlForCurrentDomain($url);
   }
 
   /**

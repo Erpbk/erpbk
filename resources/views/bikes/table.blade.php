@@ -146,17 +146,14 @@
          @endphp
          <td tabindex="0">{{ $rider->rider_id ?? '-' }}</td>
          @break
-         @case('rider_name')
-         @php
-         $rider = company_table('riders')->where('id', $r->rider_id)->first();
-         @endphp
-         <td tabindex="0">
-            @if ($rider)
-            <a href="{{ route('riders.show', $rider->id) }}">{{ $rider->name }}</a>
-            @else
-            -
-            @endif
-         </td>
+         @case('name')
+         @if($r->rider_id)
+         <td tabindex="0"><a href="{{ route('riders.show', $r->rider_id) }}">{{ $r->rider?->name ?? '-' }}</a></td>
+         @elseif($r->rental_company_id)
+         <td tabindex="0"><a href="{{ route('bikeRentCompanies.show', $r->rental_company_id) }}">{{ $r->rentalCompany?->name ?? '-' }}</a></td>
+         @else
+         <td tabindex="0">-</td>
+         @endif
          @break
          @case('emirates')
          <td tabindex="0">{{ $r->emirates }}</td>

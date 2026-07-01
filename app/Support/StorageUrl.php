@@ -18,7 +18,7 @@ class StorageUrl
         $path = self::normalizePath($path);
 
         if (Storage::disk('public')->exists($path)) {
-            return asset('storage/' . $path);
+            return PublicStorageDisk::url($path) ?? asset('storage/' . $path);
         }
 
         if (Storage::disk('local')->exists($path)) {
@@ -32,7 +32,7 @@ class StorageUrl
         if (str_starts_with($path, 'public/')) {
             $trimmed = substr($path, 7);
             if (Storage::disk('public')->exists($trimmed)) {
-                return asset('storage/' . $trimmed);
+                return PublicStorageDisk::url($trimmed) ?? asset('storage/' . $trimmed);
             }
         }
 
@@ -40,7 +40,7 @@ class StorageUrl
             foreach (self::bareFilenamePrefixes() as $prefix) {
                 $publicPath = $prefix . $path;
                 if (Storage::disk('public')->exists($publicPath)) {
-                    return asset('storage/' . $publicPath);
+                    return PublicStorageDisk::url($publicPath) ?? asset('storage/' . $publicPath);
                 }
                 $localPath = 'public/' . $publicPath;
                 if (Storage::disk('local')->exists($localPath)) {

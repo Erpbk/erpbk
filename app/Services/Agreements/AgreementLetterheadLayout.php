@@ -8,41 +8,6 @@ use GdImage;
 class AgreementLetterheadLayout
 {
     /**
-     * Margins stored on the agreement (for settings forms), without PDF floor enforcement.
-     *
-     * @return array{top: float, bottom: float, left: float, right: float}
-     */
-    public function savedMarginsMm(?AgreementCategory $category): array
-    {
-        $defaults = $this->defaultMarginsMm();
-        $saved = $category?->letterhead_margins;
-
-        if (is_array($saved) && $saved !== []) {
-            $merged = array_merge($defaults, array_intersect_key($saved, $defaults));
-        } elseif ($category && ($path = $category->letterheadFilesystemPath())) {
-            $merged = $this->detectMarginsFromImage($path);
-        } else {
-            $merged = $defaults;
-        }
-
-        return $this->clampMargins($merged);
-    }
-
-    /**
-     * Auto-detected minimum margins from letterhead artwork (read-only hint for settings UI).
-     *
-     * @return array{top: float, bottom: float, left: float, right: float}|null
-     */
-    public function detectedMarginsMm(?AgreementCategory $category): ?array
-    {
-        if (! $category || ($path = $category->letterheadFilesystemPath()) === null) {
-            return null;
-        }
-
-        return $this->clampMargins($this->detectMarginsFromImage($path));
-    }
-
-    /**
      * @return array{top: float, bottom: float, left: float, right: float}
      */
     public function resolvedMarginsMm(?AgreementCategory $category): array
@@ -53,8 +18,16 @@ class AgreementLetterheadLayout
         $side = config('agreement_letterhead.side_margins_mm', ['left' => 12, 'right' => 12]);
 
         return [
-            'top' => $defaults['top'],
-            'bottom' => $defaults['bottom'],
+            'top' => $this->clamp(
+                (float) (is_array($saved) ? ($saved['top'] ?? $defaults['top']) : $defaults['top']),
+                30,
+                100
+            ),
+            'bottom' => $this->clamp(
+                (float) (is_array($saved) ? ($saved['bottom'] ?? $defaults['bottom']) : $defaults['bottom']),
+                5,
+                50
+            ),
             'left' => $this->clamp(
                 (float) (is_array($saved) ? ($saved['left'] ?? $side['left']) : $side['left']),
                 8,
@@ -65,29 +38,6 @@ class AgreementLetterheadLayout
                 8,
                 55
             ),
-        ];
-    }
-
-    /**
-     * @param  array{top?: float|int|string, bottom?: float|int|string, left?: float|int|string, right?: float|int|string}  $margins
-     * @return array{top: float, bottom: float, left: float, right: float}
-     */
-    public function normalizeMarginsMm(array $margins): array
-    {
-        return $this->clampMargins($margins);
-    }
-
-    /**
-     * @param  array{top?: float|int|string, bottom?: float|int|string, left?: float|int|string, right?: float|int|string}  $margins
-     * @return array{top: float, bottom: float, left: float, right: float}
-     */
-    private function clampMargins(array $margins): array
-    {
-        return [
-            'top' => $this->clamp((float) ($margins['top'] ?? 0), 15, 110),
-            'bottom' => $this->clamp((float) ($margins['bottom'] ?? 0), 15, 120),
-            'left' => $this->clamp((float) ($margins['left'] ?? 0), 8, 55),
-            'right' => $this->clamp((float) ($margins['right'] ?? 0), 8, 55),
         ];
     }
 
@@ -196,14 +146,50 @@ class AgreementLetterheadLayout
         $pageH = $this->pageHeightMm();
         $headerReserve = (float) config('agreement_letterhead.header_reserve_mm', 32);
         $topGapPct = (float) config('agreement_letterhead.content_top_gap_pct', 0.02);
-        $bottomPct = (float) config('agreement_letterhead.content_bottom_pct', 0.05);
+        $bottomPct = (float) config('agreement_letterhead.content_bottom_pct', 0.034);
         $side = config('agreement_letterhead.side_margins_mm', ['left' => 12, 'right' => 12]);
+        $footer = (float) config('agreement_letterhead.footer_reserve_mm', 10);
 
         return [
             'top' => round($headerReserve + ($pageH * $topGapPct), 1),
-            'bottom' => round($pageH * $bottomPct, 1),
+            'bottom' => $footer > 0 ? $footer : round($pageH * $bottomPct, 1),
             'left' => (float) ($side['left'] ?? 12),
             'right' => (float) ($side['right'] ?? 12),
+        ];
+    }
+
+    /**
+     * Content margins for agreements printed without letterhead chrome.
+     * Uses the same vertical safe zone as letterhead mode so content aligns on pre-printed paper.
+     *
+     * @return array{top: float, bottom: float, left: float, right: float}
+     */
+    public function plainDocumentMarginsMm(?AgreementCategory $category): array
+    {
+        $padding = $this->contentPaddingMm($category, false);
+        $resolved = $this->resolvedMarginsMm($category);
+
+        return [
+            'top' => $padding['top'],
+            'bottom' => $padding['bottom'],
+            'left' => $resolved['left'],
+            'right' => $resolved['right'],
+        ];
+    }
+
+    /**
+     * CSS padding for the content flow area (mm).
+     *
+     * @return array{top: float, bottom: float}
+     */
+    public function contentPaddingMm(?AgreementCategory $category, bool $withLetterhead): array
+    {
+        $m = $this->resolvedMarginsMm($category);
+        $headerChrome = (float) config('agreement_letterhead.header_chrome_height_mm', 33);
+
+        return [
+            'top' => $withLetterhead ? max(0.0, $m['top'] - $headerChrome) : $m['top'],
+            'bottom' => $m['bottom'],
         ];
     }
 
@@ -221,6 +207,18 @@ class AgreementLetterheadLayout
     }
 
     public function contentHeightMm(?AgreementCategory $category): float
+    {
+        $m = $this->resolvedMarginsMm($category);
+
+        return max(40, $this->pageHeightMm() - $m['top'] - $m['bottom']);
+    }
+
+    /**
+     * Usable content height per page, aligned with letterhead.blade.php layout.
+     * Identical with or without digital letterhead so pre-printed paper aligns.
+     * Same budget for preview and PDF download so page breaks match.
+     */
+    public function contentZoneHeightMm(?AgreementCategory $category = null, bool $withLetterhead = true): float
     {
         $m = $this->resolvedMarginsMm($category);
 

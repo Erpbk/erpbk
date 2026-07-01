@@ -6,20 +6,19 @@
   @php
   $pageW = $pageWidthMm ?? 210;
   $pageH = $pageHeightMm ?? 297;
+  $withLetterhead = $withLetterhead ?? true;
   $m = $letterheadMargins ?? ['top' => 44, 'bottom' => 15, 'left' => 12, 'right' => 12];
-  $mt = $m['top'];
-  $mb = $m['bottom'];
   $ml = $m['left'];
   $mr = $m['right'];
   $forPdf = ! empty($forPdf);
-  $contentW = max(1, $pageW - $ml - $mr);
-  $contentH = max(40, $pageH - $mt - $mb);
-  $contentTopMm = $forPdf
-    ? $mt + (float) config('agreement_letterhead.pdf_content_top_extra_mm', 6)
-    : $mt;
-  $contentTopCss = $forPdf
-    ? round($contentTopMm * 2.834645669, 2) . 'pt'
-    : $contentTopMm . 'mm';
+  $pad = $contentPadding ?? app(\App\Services\Agreements\AgreementLetterheadLayout::class)->contentPaddingMm($category ?? null, $withLetterhead);
+  $contentPadTopMm = $pad['top'];
+  $contentPadBottomMm = $pad['bottom'];
+  $headerTopMarginMm = (float) config('agreement_letterhead.header_top_margin_mm', 8);
+  $headerChromeMm = (float) config('agreement_letterhead.header_chrome_height_mm', 33);
+  $contentZoneMm = $contentZoneHeightMm ?? max(40, $pageH - (float) $m['top'] - (float) $m['bottom']);
+  $pageChromeMm = $withLetterhead ? $headerChromeMm : 0.0;
+  $contentFlowMaxMm = max(40, $pageH - $pageChromeMm);
   $p = $branding['primary_color'] ?? '#1e3a8a';
   $s = $branding['secondary_color'] ?? '#2563eb';
   @endphp
@@ -45,24 +44,37 @@
 
     .agreement-page {
       position: relative;
+      display: flex;
+      flex-direction: column;
       width: {{ $pageW }}mm;
       height: {{ $pageH }}mm;
+      min-height: {{ $pageH }}mm;
+      max-height: {{ $pageH }}mm;
       overflow: hidden;
       background: #fff;
+      box-sizing: border-box;
+      page-break-after: always;
+      page-break-inside: avoid;
     }
 
-    @if (! $forPdf)
-    .agreement-page + .agreement-page {
-      page-break-before: always;
+    .agreement-page-header {
+      flex: 0 0 auto;
+      position: relative;
+      z-index: 2;
     }
-    @endif
+
+    .agreement-page:last-child {
+      page-break-after: avoid;
+    }
 
     .page-decor {
       position: absolute;
       top: 0;
       left: 0;
-      width: {{ $pageW }}mm;
-      height: {{ $pageH }}mm;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
@@ -84,8 +96,8 @@
     .corner-shapes--bl {
       bottom: 0;
       left: 0;
-      width: 58mm;
-      height: 48mm;
+      width: 50mm;
+      height: 32mm;
     }
 
     .corner-blob {
@@ -118,26 +130,26 @@
     }
 
     .corner-shapes--bl .corner-blob--1 {
-      bottom: -16mm;
-      left: -14mm;
-      width: 52mm;
-      height: 52mm;
+      bottom: -12mm;
+      left: -10mm;
+      width: 40mm;
+      height: 40mm;
       opacity: 0.14;
     }
 
     .corner-shapes--bl .corner-blob--2 {
-      bottom: 4mm;
-      left: -6mm;
-      width: 34mm;
-      height: 34mm;
+      bottom: 2mm;
+      left: -4mm;
+      width: 26mm;
+      height: 26mm;
       opacity: 0.2;
     }
 
     .corner-shapes--bl .corner-blob--3 {
-      bottom: 18mm;
-      left: 12mm;
-      width: 20mm;
-      height: 20mm;
+      bottom: 12mm;
+      left: 8mm;
+      width: 16mm;
+      height: 16mm;
       opacity: 0.3;
     }
 
@@ -159,12 +171,9 @@
     }
 
     .page-header {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
+      position: relative;
       z-index: 2;
-      padding-top: 8mm;
+      padding-top: {{ $headerTopMarginMm }}mm;
       pointer-events: none;
     }
 
@@ -189,15 +198,15 @@
     }
 
     .page-header-logo .company-logo-img {
-      max-height: 30mm;
-      max-width: 65mm;
+      max-height: 22mm;
+      max-width: 58mm;
       display: block;
     }
 
     .page-header-logo .company-logo-fallback {
-      width: 22mm;
-      height: 22mm;
-      line-height: 22mm;
+      width: 18mm;
+      height: 18mm;
+      line-height: 18mm;
       text-align: center;
       font-size: 12pt;
       font-weight: bold;
@@ -211,54 +220,56 @@
     }
 
     .page-header-meta {
-      margin: 0 0 2pt;
-      font-size: 12pt;
+      margin: 0 0 1pt;
+      font-size: 9.5pt;
       color: #1e293b;
-      line-height: 1.45;
-      text-align: right;
+      line-height: 1.35;
+      text-align: left;
       font-weight: bolder;
     }
 
     .page-header-rule {
       height: 0.5mm;
-      margin-top: 4mm;
+      margin-top: 2mm;
       width: 100%;
     }
 
     .page-content-flow {
-      position: absolute;
-      top: {{ $contentTopCss }};
-      left: {{ $ml }}mm;
-      right: {{ $mr }}mm;
-      bottom: {{ $mb }}mm;
-      z-index: 1;
+      position: relative;
+      z-index: 3;
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: {{ $contentFlowMaxMm }}mm;
+      padding: {{ $contentPadTopMm }}mm {{ $mr }}mm {{ $contentPadBottomMm }}mm {{ $ml }}mm;
       overflow: hidden;
       box-sizing: border-box;
     }
 
     @if ($forPdf)
     .page-content-flow .content {
-      padding-top: 1mm;
+      padding-top: 0;
     }
     @endif
 
     .content {
       width: 100%;
       max-width: 100%;
+      max-height: {{ $contentZoneMm }}mm;
       margin: 0;
       padding: 0;
       font-size: 8.5pt;
-      line-height: 1.4;
+      line-height: 1.35;
+      overflow: hidden;
       overflow-wrap: break-word;
       word-wrap: break-word;
       word-break: break-word;
       box-sizing: border-box;
     }
 
-    .content p { margin: 0 0 6pt; max-width: 100%; }
+    .content p { margin: 0 0 4pt; max-width: 100%; }
     .content h1, .content h2, .content h3, .content h4 {
       font-size: 10.5pt;
-      margin: 10pt 0 5pt;
+      margin: 8pt 0 4pt;
       color: {{ $p }};
       page-break-after: avoid;
       max-width: 100%;
@@ -268,7 +279,7 @@
       max-width: 100% !important;
       table-layout: fixed;
       border-collapse: collapse;
-      margin: 6pt 0;
+      margin: 4pt 0;
       page-break-inside: auto;
     }
     .content table th, .content table td {
@@ -282,7 +293,7 @@
     }
     .content thead { display: table-header-group; }
     .content tbody tr { page-break-inside: auto; }
-    .content ul, .content ol { margin: 4pt 0 6pt 16pt; padding: 0; max-width: 100%; }
+    .content ul, .content ol { margin: 2pt 0 4pt 16pt; padding: 0; max-width: 100%; }
     .content img { max-width: 100% !important; height: auto !important; }
     .content div, .content span, .content li, .content blockquote {
       max-width: 100%;
@@ -296,7 +307,27 @@
       max-width: 100%;
     }
 
-    @if (! $forPdf)
+    @if ($forPdf)
+    .pdf-pages {
+      width: {{ $pageW }}mm;
+      margin: 0;
+      padding: 0;
+    }
+
+    .pdf-pages .agreement-page {
+      margin: 0;
+      box-shadow: none;
+      page-break-inside: avoid;
+    }
+
+    .pdf-pages .agreement-page:not(:last-child) {
+      page-break-after: always;
+    }
+
+    .pdf-pages .agreement-page:last-child {
+      page-break-after: avoid;
+    }
+    @else
     .preview-pages {
       width: {{ $pageW }}mm;
       margin: 0 auto;
@@ -308,7 +339,7 @@
     }
 
     @media screen {
-      body { background: #e2e8f0; padding: 16px 0 24px; }
+      body { background: #e2e8f0; padding: 0px; }
     }
 
     @media print {
@@ -355,10 +386,15 @@
   <div class="{{ $forPdf ? 'pdf-pages' : 'preview-pages' }}" id="agreement-preview-pages" aria-live="polite">
     @foreach ($renderPages as $pageBody)
     <div class="agreement-page {{ $forPdf ? 'pdf-page' : 'preview-page' }}">
-      @include('agreements.pdf.partials.page-chrome', [
+      @if($withLetterhead)
+      @include('agreements.pdf.partials.page-decor', [
         'pageWidthMm' => $pageW,
         'pageHeightMm' => $pageH,
       ])
+      <div class="agreement-page-header">
+        @include('agreements.pdf.partials.page-header')
+      </div>
+      @endif
       <main class="page-content-flow {{ $forPdf ? 'pdf-page-flow' : 'document-flow' }}">
         <div class="content {{ $forPdf ? 'pdf-page-content' : '' }}">
           {!! $pageBody !!}

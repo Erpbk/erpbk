@@ -21,6 +21,12 @@
 <div class="content">
     @include('flash::message')
 
+    @if(isset($visaHeadAccountConfigured) && ! $visaHeadAccountConfigured)
+    <div class="alert alert-warning">
+        Visa Expense chart account is not configured in Global Accounts. You can view accounts, but creating expenses or payments may fail until an administrator sets up <strong>VISA_EXPENSE_ACCOUNT</strong>.
+    </div>
+    @endif
+
     @if(isset($visaStatuses) && $visaStatuses->isNotEmpty())
     <div class="fleet-supervisor-section mb-3">
         <div class="fleet-supervisor-accordion expanded" id="visaStatusSliderAccordion">

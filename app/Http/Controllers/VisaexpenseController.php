@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Account;
+use App\Support\CompanyAuthRedirect;
 use App\Support\GlobalAccounts;
 use App\Helpers\Common;
 use App\Http\Requests\StoreVisaExpenseRequest;
@@ -163,12 +164,15 @@ class VisaexpenseController extends AppBaseController
                             ->whereNull('ve.deleted_at')
                             ->where('ve.payment_status', 'unpaid')
                             ->where(function ($link) {
-                                $link->whereColumn('ve.expense_account_id', 'expense_accounts.id')
-                                    ->orWhere(function ($l2) {
-                                        $l2->where('ve.expense_account_id', GlobalAccounts::id('VISA_EXPENSE_ACCOUNT'))
+                                $link->whereColumn('ve.expense_account_id', 'expense_accounts.id');
+                                $headId = VisaRenewalCategoryService::visaExpenseHeadAccountId();
+                                if ($headId !== null) {
+                                    $link->orWhere(function ($l2) use ($headId) {
+                                        $l2->where('ve.expense_account_id', $headId)
                                             ->whereColumn('ve.rider_id', 'expense_accounts.rider_id')
                                             ->whereColumn('ve.renewal_category_id', 'expense_accounts.renewal_category_id');
                                     });
+                                }
                             });
                         $this->applyVisaExpenseCompanyScopeForVeAlias($sub);
                     });
@@ -223,6 +227,7 @@ class VisaexpenseController extends AppBaseController
             'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId,
             'urgentVisaExpiryByAccountId' => $urgentVisaExpiryByAccountId,
             'renewalCategories' => VisaRenewalCategoryService::activeOrdered(),
+            'visaHeadAccountConfigured' => VisaRenewalCategoryService::visaExpenseHeadAccountId() !== null,
         ]);
     }
 
@@ -253,13 +258,14 @@ class VisaexpenseController extends AppBaseController
             $riderCategoryToEaId[(int) $accountRow->rider_id . ':' . $catId] = (int) $accountRow->id;
         }
 
-        $headId = (int) GlobalAccounts::id('VISA_EXPENSE_ACCOUNT');
+        $headId = VisaRenewalCategoryService::visaExpenseHeadAccountId();
 
         $unpaidRows = visa_expenses::query()
             ->where('payment_status', 'unpaid')
             ->where(function ($q) use ($ids, $riderCategoryToEaId, $headId, $defaultCategoryId) {
-                $q->whereIn('expense_account_id', $ids)
-                    ->orWhere(function ($q2) use ($riderCategoryToEaId, $headId, $defaultCategoryId) {
+                $q->whereIn('expense_account_id', $ids);
+                if ($headId !== null) {
+                    $q->orWhere(function ($q2) use ($riderCategoryToEaId, $headId, $defaultCategoryId) {
                         $q2->where('expense_account_id', $headId);
                         if (!empty($riderCategoryToEaId)) {
                             $q2->where(function ($q3) use ($riderCategoryToEaId, $defaultCategoryId) {
@@ -273,6 +279,7 @@ class VisaexpenseController extends AppBaseController
                             });
                         }
                     });
+                }
             })
             ->orderByRaw('CASE WHEN date IS NULL THEN 1 ELSE 0 END')
             ->orderBy('date', 'asc')
@@ -334,15 +341,16 @@ class VisaexpenseController extends AppBaseController
             $riderCategoryToEaId[(int) $accountRow->rider_id . ':' . $catId] = (int) $accountRow->id;
         }
 
-        $headId = (int) GlobalAccounts::id('VISA_EXPENSE_ACCOUNT');
+        $headId = VisaRenewalCategoryService::visaExpenseHeadAccountId();
         $threshold = now()->addDays($withinDays)->startOfDay();
 
         $rows = visa_expenses::query()
             ->whereNotNull('expiry_date')
             ->whereDate('expiry_date', '<=', $threshold)
             ->where(function ($q) use ($ids, $riderCategoryToEaId, $headId, $defaultCategoryId) {
-                $q->whereIn('expense_account_id', $ids)
-                    ->orWhere(function ($q2) use ($riderCategoryToEaId, $headId, $defaultCategoryId) {
+                $q->whereIn('expense_account_id', $ids);
+                if ($headId !== null) {
+                    $q->orWhere(function ($q2) use ($riderCategoryToEaId, $headId, $defaultCategoryId) {
                         $q2->where('expense_account_id', $headId);
                         if (!empty($riderCategoryToEaId)) {
                             $q2->where(function ($q3) use ($riderCategoryToEaId, $defaultCategoryId) {
@@ -356,6 +364,7 @@ class VisaexpenseController extends AppBaseController
                             });
                         }
                     });
+                }
             })
             ->orderBy('expiry_date', 'asc')
             ->orderBy('id', 'asc')
@@ -389,18 +398,20 @@ class VisaexpenseController extends AppBaseController
      */
     private function applyExpenseAccountMatchesVisaExpense($expenseAccountQuery, callable $constraintsOnVeSubquery): void
     {
-        $headId = GlobalAccounts::id('VISA_EXPENSE_ACCOUNT');
+        $headId = VisaRenewalCategoryService::visaExpenseHeadAccountId();
         $expenseAccountQuery->whereExists(function ($sub) use ($constraintsOnVeSubquery, $headId) {
             $sub->select(DB::raw(1))
                 ->from('visa_expenses as ve')
                 ->whereNull('ve.deleted_at')
                 ->where(function ($link) use ($headId) {
-                    $link->whereColumn('ve.expense_account_id', 'expense_accounts.id')
-                        ->orWhere(function ($l2) use ($headId) {
+                    $link->whereColumn('ve.expense_account_id', 'expense_accounts.id');
+                    if ($headId !== null) {
+                        $link->orWhere(function ($l2) use ($headId) {
                             $l2->where('ve.expense_account_id', $headId)
                                 ->whereColumn('ve.rider_id', 'expense_accounts.rider_id')
                                 ->whereColumn('ve.renewal_category_id', 'expense_accounts.renewal_category_id');
                         });
+                    }
                 });
             $constraintsOnVeSubquery($sub);
             $this->applyVisaExpenseCompanyScopeForVeAlias($sub);

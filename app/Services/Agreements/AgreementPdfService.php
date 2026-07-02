@@ -53,12 +53,8 @@ class AgreementPdfService
 
         $contentZoneMm = $this->letterheadLayout->contentZoneHeightMm($category, $withLetterhead);
         $pages = $this->letterheadPaginator->paginate($body, $contentZoneMm);
-
         $margins = $this->letterheadLayout->resolvedMarginsMm($category);
-        $pages = $this->letterheadPaginator->paginate(
-            $body,
-            $this->letterheadLayout->contentHeightMm($category)
-        );
+        $contentPadding = $this->letterheadLayout->contentPaddingMm($category, $withLetterhead);
 
         return view('agreements.pdf.letterhead', [
             'body' => $body,

@@ -82,6 +82,12 @@ class Handler extends ExceptionHandler
                 return response()->json(['message' => $e->getMessage()], 422);
             }
 
+            if ($request->routeIs('VisaExpense.*', 'Installments.*')) {
+                return redirect()
+                    ->route('VisaExpense.index')
+                    ->with('error', $e->getMessage());
+            }
+
             return back()->with('error', $e->getMessage())->withInput();
         }
 

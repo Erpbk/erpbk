@@ -62,7 +62,7 @@
                   @endcan
                   @can('item_delete')
                   <a href="javascript:void(0);" class='dropdown-item waves-effect delete-receipt' 
-                        onclick='confirmDelete("{{route('items.destroy' , $r->id ) }}")'>
+                        onclick='confirmDelete("{{ route('items.delete', $r->id) }}")'>
                         <i class="fa fa-trash my-1"></i> Delete
                   </a>
                   @endcan

@@ -68,6 +68,24 @@ class DeployCheckCommand extends Command
             $this->info('Public uploads: local disk (development).');
         }
 
+        $sessionDriver = config('session.driver');
+        $cacheDriver = config('cache.default');
+        if (app()->environment('production')) {
+            if ($sessionDriver === 'file') {
+                $this->warn('SESSION_DRIVER=file in production causes stale-session proxy errors on Laravel Cloud.');
+                $this->warn('Set SESSION_DRIVER=database (or redis) on the environment.');
+            } else {
+                $this->info("Sessions: {$sessionDriver} driver (OK for cloud).");
+            }
+
+            if ($cacheDriver === 'file') {
+                $this->warn('CACHE_DRIVER=file in production is ephemeral on Laravel Cloud.');
+                $this->warn('Set CACHE_DRIVER=redis or CACHE_DRIVER=database on the environment.');
+            } else {
+                $this->info("Cache: {$cacheDriver} driver (OK for cloud).");
+            }
+        }
+
         $this->newLine();
         $this->info('Deploy check passed.');
         return self::SUCCESS;

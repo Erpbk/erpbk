@@ -18,7 +18,12 @@ return [
     |
     */
 
-    'driver' => env('SESSION_DRIVER', 'file'),
+    /*
+     * On Laravel Cloud the container filesystem is ephemeral. File sessions are lost
+     * when the container is replaced, but the browser cookie remains — causing proxy
+     * errors until cookies are cleared. Use database (or redis) in production.
+     */
+    'driver' => env('SESSION_DRIVER', env('APP_ENV') === 'production' ? 'database' : 'file'),
 
     /*
     |--------------------------------------------------------------------------
@@ -168,7 +173,7 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE', false),
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------

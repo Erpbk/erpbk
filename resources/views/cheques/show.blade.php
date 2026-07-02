@@ -186,8 +186,15 @@
                 </div>
                 <div class="d-grid gap-2">
                     @if($cheque->voucher_id)
+                    @php
+                      $__companySlug = \App\Support\CompanyRouteContext::slug();
+                      $chequeVoucherShowParams = ['voucher' => $cheque->voucher_id];
+                      if (!empty($__companySlug)) {
+                        $chequeVoucherShowParams['company_slug'] = $__companySlug;
+                      }
+                    @endphp
                     <a href="javascript:void(0);" 
-                       data-action="{{ route('vouchers.show', $cheque->voucher_id) }}" 
+                       data-action="{{ route('vouchers.show', $chequeVoucherShowParams) }}" 
                        class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-between show-voucher-panel" 
                        data-title="Cheque Voucher" 
                        data-collapse-sidebar="1">

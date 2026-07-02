@@ -269,16 +269,6 @@ class AdminGlobalAccountsController extends Controller
         $accounts = Accounts::withoutGlobalScopes(['company', 'branch'])
             ->findOrFail($globalAccount->account_id);
 
-        $childAccountsCount = Accounts::withoutGlobalScopes(['company', 'branch'])
-            ->where('parent_id', $accounts->id)
-            ->count();
-
-        if ($childAccountsCount > 0) {
-            return response()->json([
-                'errors' => ['error' => "Fixed account cannot be edited because it has {$childAccountsCount} child account(s)."],
-            ], 422);
-        }
-
         $input = $request->except(['custom_field_values', 'is_fixed']);
         $input['is_fixed'] = true;
         $input['company_id'] = null;

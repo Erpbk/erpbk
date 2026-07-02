@@ -4,7 +4,7 @@
     {{-- <a href="{{ route($dropdownRoute . '.show', $id) }}" class='btn btn-default btn-xs'>
         <i class="fa fa-eye"></i>
     </a> --}}
-    @can('dropdown_view')
+    @can('dropdown_edit')
     <a href="javascript:void(0);" data-size="lg" data-title="Edit Dropdown" data-action="{{ route($dropdownRoute . '.edit', $id) }}" class='show-modal btn btn-info btn-sm'>
         <i class="fa fa-edit"></i>
     </a>

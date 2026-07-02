@@ -49,15 +49,21 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
+                        @can('salik_view')
                         <a href="{{ route('salik.show', $r->id) }}" class="dropdown-item waves-effect">
                             View
                         </a>
+                        @endcan
+                        @can('salik_edit')
                         <a href="javascript:void(0);" data-action="{{ route('salik.edit' , $r->id) }}" data-size="lg" data-title="Update Salik" class='dropdown-item waves-effect show-modal'>
                             Edit
                         </a>
+                        @endcan
+                        @can('salik_delete')
                         <a href="javascript:void(0);" onclick='confirmDelete("{{route('salik.destroy', $r->id) }}")' class='dropdown-item confirm-modal' data-size="lg" data-title="Delete Ticket">
                             Delete
                         </a>
+                        @endcan
                     </div>
                 </div>
 

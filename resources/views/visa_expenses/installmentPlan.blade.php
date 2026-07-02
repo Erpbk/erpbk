@@ -169,7 +169,7 @@
 </script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const table = document.querySelector('#dataTableBuilder');
+        const table = document.querySelector('#visaInstallmentsDataTable');
         const headers = table.querySelectorAll('th.sorting');
         const tbody = table.querySelector('tbody');
 

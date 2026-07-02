@@ -15,7 +15,13 @@ return [
     |
     */
 
-    'default' => env('CACHE_DRIVER', 'file'),
+    /*
+     * Prefer redis when attached; otherwise database in production. Avoid file cache
+     * on Laravel Cloud — it is wiped on container replacement like file sessions.
+     */
+    'default' => env('CACHE_DRIVER', env('REDIS_URL')
+        ? 'redis'
+        : (env('APP_ENV') === 'production' ? 'database' : 'file')),
 
     /*
     |--------------------------------------------------------------------------

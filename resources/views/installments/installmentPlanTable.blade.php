@@ -107,7 +107,7 @@
                         </a>
                         <div class="dropdown-divider"></div>
                         <a href="javascript:void(0);"
-                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', $installment->id) }}")'
+                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', ['id' => $installment->id]) }}")'
                             class='dropdown-item waves-effect text-danger'>
                             <i class="fa fa-trash me-2"></i> Delete
                         </a>
@@ -119,7 +119,7 @@
                         </a>
                         <div class="dropdown-divider"></div>
                         <a href="javascript:void(0);"
-                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', $installment->id) }}")'
+                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', ['id' => $installment->id]) }}")'
                             class='dropdown-item waves-effect text-danger'>
                             <i class="fa fa-trash me-2"></i> Delete
                         </a>
@@ -352,29 +352,8 @@
         const originalValue = document.getElementById('billing_input_' + installmentId).getAttribute('data-original') || '';
         const billingInput = document.getElementById('billing_input_' + installmentId);
         const billingDisplay = document.getElementById('billing_display_' + installmentId);
-        const row = billingInput.closest('tr');
-        const isPaid = row && row.getAttribute('data-status') === 'paid';
 
         if (newValue && newValue !== originalValue) {
-            // Only validate month is not in past for pending installments
-            if (!isPaid) {
-                const selectedDate = new Date(newValue + '-01');
-                const today = new Date();
-                const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-                if (selectedDate < currentMonth) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Invalid Billing Month',
-                        text: 'You cannot select a billing month in the past for pending installments.',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#dc3545'
-                    });
-                    billingInput.value = originalValue;
-                    return;
-                }
-            }
-
             // Same flow for both paid and pending: confirm and submit directly
             Swal.fire({
                 title: 'Update Billing Month?',
@@ -644,22 +623,16 @@
     }
 
     function validateBillingMonthInput(input) {
-        const selectedDate = new Date(input.value + '-01');
-        const today = new Date();
-        const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const row = input.closest('tr');
-        const isPaid = row && row.getAttribute('data-status') === 'paid';
-
-        // Only validate month is not in past for pending installments
-        if (!isPaid && selectedDate < currentMonth) {
-            input.style.borderColor = '#dc3545';
-            input.style.backgroundColor = '#f8d7da';
-            input.title = 'Cannot select a billing month in the past for pending installments';
-        } else {
-            input.style.borderColor = '#28a745';
-            input.style.backgroundColor = '#d4edda';
+        if (!input.value) {
+            input.style.borderColor = '';
+            input.style.backgroundColor = '';
             input.title = '';
+            return;
         }
+
+        input.style.borderColor = '#28a745';
+        input.style.backgroundColor = '#d4edda';
+        input.title = '';
     }
 
     function validateAmountInput(input) {

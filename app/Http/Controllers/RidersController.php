@@ -33,9 +33,13 @@ use App\Models\JobStatus;
 use App\Models\Payment;
 use App\Models\RiderActivities;
 use App\Models\RiderAttendance;
+use App\Models\RiderEmails;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\RiderCustomField;
+use App\Models\RiderInvoices;
+use App\Models\RiderItemPrice;
 use App\Models\Riders;
+use App\Support\PublicStorageDisk;
 use App\Models\AgreementCategory;
 use App\Models\RtaFines;
 use App\Models\salik;
@@ -1006,7 +1010,11 @@ class RidersController extends AppBaseController
 
             $extension = $document['file_name']->extension();
             $name = $document['type'] . '-' . $rider_id . '-' . time() . '.' . $extension;
-            $document['file_name']->storeAs('rider', $name);
+            PublicStorageDisk::storeUploadedFile(
+              $document['file_name'],
+              $document['type'] . '/' . $rider_id,
+              $name
+            );
 
             $data['file_name'] = $name;
             $data['file_type'] = $extension;
@@ -1119,13 +1127,11 @@ class RidersController extends AppBaseController
       $doc = $request->contract;
       $extension = $doc->extension();
       $name = time() . '.' . $extension;
-      $doc->storeAs('contract', $name);
+      PublicStorageDisk::storeUploadedFile($doc, 'contract', $name);
 
       $rider = Riders::find($request->id);
       if (isset($rider->contract)) {
-        if (file_exists(storage_path('app/contract/' . $rider->contract))) {
-          unlink(storage_path('app/contract/' . $rider->contract));
-        }
+        PublicStorageDisk::delete('contract/' . $rider->contract);
       }
 
       $rider->contract = $name;
@@ -1148,13 +1154,11 @@ class RidersController extends AppBaseController
       $image_name = $request->image_name;
       $extension = $image_name->extension();
       $name = time() . '.' . $extension;
-      $image_name->storeAs('profile', $name);
+      PublicStorageDisk::storeUploadedFile($image_name, 'profile', $name);
 
       $rider = Riders::find($request->id);
       if (isset($rider->image_name)) {
-        if (file_exists(storage_path('app/profile/' . $rider->image_name))) {
-          unlink(storage_path('app/profile/' . $rider->image_name));
-        }
+        PublicStorageDisk::delete('profile/' . $rider->image_name);
       }
 
       $rider->image_name = $name;

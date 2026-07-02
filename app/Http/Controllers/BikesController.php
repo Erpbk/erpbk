@@ -19,6 +19,7 @@ use App\Repositories\BikesRepository;
 use App\Services\BikeHistoryLogger;
 use App\Services\RiderHistoryLogger;
 use App\Support\CompanyModuleVisibility;
+use App\Support\PublicStorageDisk;
 use App\Support\CompanyQuery;
 use App\Support\TopBarNumericStatus;
 use App\Traits\GlobalPagination;
@@ -1575,7 +1576,7 @@ class BikesController extends AppBaseController
             $doc = $request->contract;
             $extension = $doc->extension();
             $name = time() . '.' . $extension;
-            $doc->storeAs('contract', $name);
+            PublicStorageDisk::storeUploadedFile($doc, 'contract', $name);
 
             $contract->contract = $name;
             $contract->updated_by = Auth::id();

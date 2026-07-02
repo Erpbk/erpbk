@@ -12,6 +12,7 @@ use App\Models\Garages;
 use App\Models\Items;
 use App\Models\Transactions;
 use App\Traits\GlobalPagination;
+use App\Support\PublicStorageDisk;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -65,7 +66,7 @@ class BikeMaintenanceController extends Controller
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
             $filename = 'maintenance_'.time().'.'.$file->extension();
-            $path = $file->storeAs('bike/'.$bike->id.'/', $filename);
+            $path = PublicStorageDisk::storeUploadedFile($file, 'bike/'.$bike->id, $filename);
             $validated['attachment'] = $path;
         }
         DB::beginTransaction();
@@ -278,7 +279,7 @@ class BikeMaintenanceController extends Controller
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
             $filename = 'maintenance_'.time().'.'.$file->extension();
-            $path = $file->storeAs('bike/'.$bike->id.'/', $filename);
+            $path = PublicStorageDisk::storeUploadedFile($file, 'bike/'.$bike->id, $filename);
             $validated['attachment'] = $path;
         }
         DB::beginTransaction();

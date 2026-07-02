@@ -13,6 +13,20 @@ if (! function_exists('storage_url')) {
     }
 }
 
+if (! function_exists('user_avatar_url')) {
+    /**
+     * URL for a user profile image stored on the public disk.
+     */
+    function user_avatar_url(?string $imageName): string
+    {
+        if ($imageName && $imageName !== 'default.png') {
+            return storage_url('uploads/' . $imageName) ?? asset('uploads/default.png');
+        }
+
+        return asset('uploads/default.png');
+    }
+}
+
 if (! function_exists('company_table')) {
     /**
      * Tenant-safe query builder: filters by current company_id and excludes NULL company_id rows.

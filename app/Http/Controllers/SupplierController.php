@@ -16,6 +16,7 @@ use App\Models\Transactions;
 use App\Models\Files;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
+use App\Support\PublicStorageDisk;
 use Illuminate\Support\Facades\DB;
 use Flash;
 
@@ -304,7 +305,11 @@ class SupplierController extends AppBaseController
 
             $extension = $document['file_name']->extension();
             $name = $document['type'] . '-' . $supplier_id . '-' . time() . '.' . $extension;
-            $document['file_name']->storeAs('supplier', $name);
+            PublicStorageDisk::storeUploadedFile(
+              $document['file_name'],
+              $document['type'] . '/' . $supplier_id,
+              $name
+            );
 
             $data['file_name'] = $name;
             $data['file_type'] = $extension;

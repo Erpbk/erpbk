@@ -684,7 +684,7 @@ class ExpenseController extends AppBaseController
     /**
      * Delete an expense voucher.
      */
-    public function destroyVoucher($company_slug, $id)
+    public function destroyVoucher(Request $request, $company_slug, $id)
     {
         if (!auth()->user()->can('expenses_delete')) {
             abort(403, 'Unauthorized action.');
@@ -699,9 +699,18 @@ class ExpenseController extends AppBaseController
 
             DB::commit();
 
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['message' => 'Expense voucher deleted successfully.']);
+            }
+
             return redirect()->route('expenses.index')->with('success', 'Expense voucher deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
+
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['message' => 'Failed to delete voucher: ' . $e->getMessage()], 500);
+            }
+
             return redirect()->route('expenses.index')->with('error', 'Failed to delete voucher: ' . $e->getMessage());
         }
     }

@@ -33,7 +33,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $(document).ready(function() {
-        const assignRoute = "{{ route('recruiters.assign-riders', $recruiter->id) }}";
+        const assignRoute = "{{ route('recruiters.assign-riders.store', $recruiter->id) }}";
         let allRiders = [];
         let isProcessing = false; // Prevent double-click issues
 

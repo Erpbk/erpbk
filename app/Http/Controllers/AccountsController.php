@@ -220,15 +220,6 @@ class AccountsController extends AppBaseController
       ], 422);
     }
 
-    if ((bool) $accounts->is_fixed) {
-      $childAccountsCount = Accounts::where('parent_id', $accounts->id)->count();
-      if ($childAccountsCount > 0) {
-        return response()->json([
-          'errors' => ['error' => "Fixed account cannot be edited because it has {$childAccountsCount} child account(s)."]
-        ], 422);
-      }
-    }
-
     $input = $request->except(['custom_field_values', 'is_fixed']);
     $input['is_fixed'] = (bool) ($accounts->is_fixed ?? false);
     $accounts = $this->accountsRepository->update($input, $id);
